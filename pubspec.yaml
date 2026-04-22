@@ -41,6 +41,11 @@ dependencies:
   # Path provider for accessing application directories
   path_provider: ^2.1.2
 
+  # Audio playback
+  just_audio: ^0.10.5
+  just_audio_background: ^0.0.1-beta.15
+  audio_session: ^0.1.24
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
