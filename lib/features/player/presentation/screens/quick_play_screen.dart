@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,20 +39,58 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
 
   Future<void> _pickAudioFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-        setState(() {
-          _selectedFile = file;
-          _error = null;
-        });
-        await _loadAndPlay(file);
+      debugPrint('Starting file picker...');
+      debugPrint('Platform: $defaultTargetPlatform');
+      
+      FilePickerResult? result;
+      
+      if (Platform.isMacOS) {
+        // macOS 桌面端特殊处理
+        // 使用 allowCompression: false 和 withReadStream: false 避免权限问题
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'],
+          allowMultiple: false,
+          dialogTitle: '选择音频文件',
+          allowCompression: false,
+          withData: false,
+          withReadStream: false,
+        );
+      } else {
+        // 其他平台使用标准配置
+        result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'],
+          allowMultiple: false,
+          dialogTitle: '选择音频文件',
+        );
       }
-    } catch (e) {
+
+      debugPrint('File picker result: $result');
+      
+      if (result != null && result.files.isNotEmpty) {
+        final pickedFile = result.files.first;
+        debugPrint('Picked file path: ${pickedFile.path}');
+        debugPrint('Picked file name: ${pickedFile.name}');
+        
+        if (pickedFile.path != null) {
+          final file = File(pickedFile.path!);
+          setState(() {
+            _selectedFile = file;
+            _error = null;
+          });
+          await _loadAndPlay(file);
+        } else {
+          setState(() {
+            _error = '无法获取文件路径';
+          });
+        }
+      } else {
+        debugPrint('User cancelled file picker or no file selected');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('File picker error: $e');
+      debugPrint('Stack trace: $stackTrace');
       setState(() {
         _error = '无法选择文件: $e';
       });
