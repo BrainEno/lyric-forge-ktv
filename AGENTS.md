@@ -368,3 +368,5 @@ Prefer the lowest reasoning effort that can reliably complete the task.
 - medium: standard multi-file implementation work
 - high: difficult debugging, cross-layer pipeline logic, playback-sync issues
 - avoid xhigh unless the task is genuinely hard and tightly scoped
+
+When you need to search framework or library docs, use `context7`.
