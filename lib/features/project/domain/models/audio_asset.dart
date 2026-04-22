@@ -81,3 +81,36 @@ class AudioAsset {
     );
   }
 }
+
+/// 音频源类型
+enum AudioSourceType {
+  original, // 原声
+  instrumental, // 伴奏
+  vocals, // 人声
+}
+
+/// AudioAsset 扩展方法
+extension AudioAssetExtensions on AudioAsset {
+  /// 获取指定音源的路径
+  String? getPathForSource(AudioSourceType source) => switch (source) {
+        AudioSourceType.original => originalPath,
+        AudioSourceType.instrumental => instrumentalPath,
+        AudioSourceType.vocals => vocalPath,
+      };
+
+  /// 检查音源是否可用
+  bool hasSource(AudioSourceType source) => getPathForSource(source) != null;
+
+  /// 获取默认音源（优先级：伴奏 > 原声 > 人声）
+  /// 注意：originalPath 是必填字段，所以 original 总是可用
+  AudioSourceType get defaultSource {
+    if (instrumentalPath != null) return AudioSourceType.instrumental;
+    if (vocalPath != null) return AudioSourceType.vocals;
+    return AudioSourceType.original;
+  }
+
+  /// 获取所有可用音源列表
+  List<AudioSourceType> get availableSources {
+    return AudioSourceType.values.where(hasSource).toList();
+  }
+}
