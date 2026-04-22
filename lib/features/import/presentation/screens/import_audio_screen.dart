@@ -22,15 +22,27 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
   bool _isCreating = false;
 
   Future<void> _pickAudioFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-      allowMultiple: false,
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        allowMultiple: false,
+      );
 
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _selectedFile = File(result.files.single.path!);
-      });
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _selectedFile = File(result.files.single.path!);
+        });
+      }
+    } catch (e) {
+      // Handle file picker initialization errors
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('无法打开文件选择器: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 
