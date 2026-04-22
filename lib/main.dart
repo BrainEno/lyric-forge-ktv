@@ -1,7 +1,27 @@
 import 'package:flutter/material.dart';
+import 'core/navigation/app_router.dart';
+import 'core/services/service_locator.dart';
+import 'core/theme/app_theme.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  ServiceLocatorGlobal.I.initialize();
+  runApp(const LyricForgeApp());
+}
+
+class LyricForgeApp extends StatelessWidget {
+  const LyricForgeApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'LyricForge KTV',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      onGenerateRoute: AppRouter.onGenerateRoute,
+      initialRoute: Routes.home,
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
