@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
+import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
 import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
@@ -10,6 +11,7 @@ abstract class Routes {
   static const String home = '/';
   static const String dashboard = '/dashboard';
   static const String import = '/import';
+  static const String quickPlay = '/quick-play';
   static const String projectDetail = '/project/:id';
   static const String lyricEditor = '/project/:id/lyrics';
   static const String player = '/project/:id/player';
@@ -31,10 +33,13 @@ class AppRouter {
       case Routes.dashboard:
         return _fadeRoute(const DashboardScreen(), settings);
 
-      case Routes.import:
-        return _fadeRoute(const ImportAudioScreen(), settings);
+    case Routes.import:
+      return _fadeRoute(const ImportAudioScreen(), settings);
 
-      case Routes.settings:
+    case Routes.quickPlay:
+      return _fadeRoute(const QuickPlayScreen(), settings);
+
+    case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
 
       default:

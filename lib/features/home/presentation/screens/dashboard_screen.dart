@@ -3,6 +3,8 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../../features/player/domain/models/play_history.dart';
+import '../../../../features/player/domain/repositories/play_history_repository.dart';
 import '../../../../features/project/domain/models/project_manifest.dart';
 import '../../../../features/project/domain/repositories/project_repository.dart';
 
@@ -17,21 +19,25 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late final ProjectRepository _repository;
+  late final PlayHistoryRepository _playHistoryRepository;
   late Future<List<ProjectManifest>> _projectsFuture;
+  late Future<List<PlayHistory>> _playHistoryFuture;
 
   @override
   void initState() {
     super.initState();
     _repository = ServiceLocatorGlobal.I.projectRepository;
-    _loadProjects();
+    _playHistoryRepository = ServiceLocatorGlobal.I.playHistoryRepository;
+    _loadData();
   }
 
-  void _loadProjects() {
+  void _loadData() {
     _projectsFuture = _repository.getRecentProjects(limit: 10);
+    _playHistoryFuture = _playHistoryRepository.getRecentPlayHistory(limit: 5);
   }
 
-  Future<void> _refreshProjects() async {
-    setState(_loadProjects);
+  Future<void> _refreshData() async {
+    setState(_loadData);
   }
 
   @override
@@ -40,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: AppColors.bgBase,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _refreshProjects,
+          onRefresh: _refreshData,
           color: AppColors.accent,
           backgroundColor: AppColors.bgElevated,
           child: CustomScrollView(
@@ -67,11 +73,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ],
                         ),
                       ),
-                      _NewProjectButton(
-                        onTap: () => Navigator.pushNamed(context, Routes.import),
+                      Row(
+                        children: [
+                          _QuickPlayButton(
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              Routes.quickPlay,
+                            ).then((_) => _refreshData()),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          _NewProjectButton(
+                            onTap: () => Navigator.pushNamed(context, Routes.import),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                ),
+              ),
+
+              // Play history section
+              SliverToBoxAdapter(
+                child: FutureBuilder<List<PlayHistory>>(
+                  future: _playHistoryFuture,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    final histories = snapshot.data!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.lg,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                '最近播放',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: () {},
+                                child: const Text('查看全部'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                          child: Column(
+                            children: histories.map((history) {
+                              return _PlayHistoryListItem(
+                                history: history,
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  Routes.quickPlay,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
 
@@ -175,6 +248,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+class _PlayHistoryListItem extends StatelessWidget {
+  final PlayHistory history;
+  final VoidCallback onTap;
+
+  const _PlayHistoryListItem({
+    required this.history,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: ListTile(
+        onTap: onTap,
+        leading: Container(
+          width: AppSpacing.xl * 2,
+          height: AppSpacing.xl * 2,
+          decoration: BoxDecoration(
+            color: AppColors.bgSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+          ),
+          child: const Icon(
+            Icons.play_circle_outline,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        title: Text(
+          history.name,
+          style: Theme.of(context).textTheme.titleMedium,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          history.formattedPlayedAt,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          color: AppColors.textTertiary,
+        ),
+      ),
+    );
+  }
+}
+
 class _ProjectListItem extends StatelessWidget {
   final ProjectManifest project;
   final VoidCallback onTap;
@@ -225,6 +344,47 @@ class _ProjectListItem extends StatelessWidget {
   }
 }
 
+class _QuickPlayButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _QuickPlayButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.bgElevated,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.play_arrow,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                '快速播放',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NewProjectButton extends StatelessWidget {
   final VoidCallback onTap;
 
@@ -255,8 +415,8 @@ class _NewProjectButton extends StatelessWidget {
               Text(
                 '新建工程',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: AppColors.pureWhite,
-                    ),
+                  color: AppColors.pureWhite,
+                ),
               ),
             ],
           ),

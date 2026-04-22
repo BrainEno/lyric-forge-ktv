@@ -1,4 +1,6 @@
+import '../../features/player/data/repositories/memory_play_history_repository.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
+import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/project/data/repositories/memory_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
@@ -12,10 +14,12 @@ class ServiceLocator {
 
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
+  late final PlayHistoryRepository playHistoryRepository;
 
   void initialize() {
     projectRepository = MemoryProjectRepository();
     audioPlayerService = JustAudioPlayerService();
+    playHistoryRepository = MemoryPlayHistoryRepository();
   }
 }
 
