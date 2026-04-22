@@ -56,10 +56,7 @@ class AppRouter {
                   settings,
                 );
               case 'player':
-                return _fadeRoute(
-                  PlayerScreen(projectId: projectId),
-                  settings,
-                );
+                return _fadeRoute(PlayerScreen(projectId: projectId), settings);
             }
           }
         }
@@ -74,10 +71,7 @@ class AppRouter {
       pageBuilder: (context, animation, secondaryAnimation) => child,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
-          opacity: CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeInOut,
-          ),
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
           child: child,
         );
       },

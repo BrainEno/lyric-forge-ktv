@@ -13,12 +13,12 @@ class AppTheme {
         primary: AppColors.accent,
         secondary: AppColors.accent,
         surface: AppColors.bgSurface,
-        background: AppColors.bgBase,
+        surfaceContainerHighest: AppColors.bgBase,
         error: AppColors.error,
         onPrimary: AppColors.pureWhite,
         onSecondary: AppColors.pureWhite,
         onSurface: AppColors.textPrimary,
-        onBackground: AppColors.textPrimary,
+        onSurfaceVariant: AppColors.textPrimary,
         onError: AppColors.pureWhite,
       ),
       // Typography
@@ -37,7 +37,7 @@ class AppTheme {
         ),
       ),
       // Cards
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.bgElevated,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -132,7 +132,7 @@ class AppTheme {
         activeTrackColor: AppColors.accent,
         inactiveTrackColor: AppColors.bgHighlight,
         thumbColor: AppColors.pureWhite,
-        overlayColor: AppColors.accent.withOpacity(0.1),
+        overlayColor: AppColors.accent.withAlpha(26),
         trackHeight: AppSpacing.unit,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
       ),
@@ -173,7 +173,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
       ),
       // Dialog
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.bgElevated,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -182,10 +182,10 @@ class AppTheme {
       ),
       // Scrollbar
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: MaterialStateProperty.all(AppColors.textTertiary),
-        trackColor: MaterialStateProperty.all(AppColors.bgSurface),
+        thumbColor: WidgetStateProperty.all(AppColors.textTertiary),
+        trackColor: WidgetStateProperty.all(AppColors.bgSurface),
         radius: const Radius.circular(AppSpacing.radiusCircular),
-        thickness: MaterialStateProperty.all(4),
+        thickness: WidgetStateProperty.all(4),
       ),
     );
   }
