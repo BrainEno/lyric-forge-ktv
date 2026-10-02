@@ -473,9 +473,23 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
     );
   }
 
-  void _applyFallbackCandidate() {
+  String? _alternativeText() {
     final candidate = widget.fallbackCandidate;
-    final text = candidate?['whisperText'] as String?;
+    if (candidate == null) return null;
+    return (candidate['alternativeText'] ?? candidate['whisperText'])
+        ?.toString();
+  }
+
+  String _engineLabel(String? engine) {
+    return switch (engine) {
+      'qwen' => 'Qwen',
+      'whisper' => 'Whisper',
+      _ => engine ?? '备用引擎',
+    };
+  }
+
+  void _applyFallbackCandidate() {
+    final text = _alternativeText();
     if (text == null || text.trim().isEmpty) return;
 
     _textController.text = text;
@@ -592,16 +606,27 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
                       '低置信度 ' + widget.line.confidence.toString(),
                     ),
                   ),
-                if (widget.fallbackCandidate?['selected'] == 'whisper')
-                  const Chip(label: Text('已采用 Whisper 复核')),
+                if (widget.fallbackCandidate != null &&
+                    widget.fallbackCandidate!['selected'] != null &&
+                    widget.fallbackCandidate!['primaryEngine'] != null &&
+                    widget.fallbackCandidate!['selected'] !=
+                        widget.fallbackCandidate!['primaryEngine'])
+                  Chip(
+                    label: Text(
+                      '已采用 ' +
+                          _engineLabel(
+                            widget.fallbackCandidate!['selected']?.toString(),
+                          ) +
+                          ' 复核',
+                    ),
+                  ),
               ],
             ),
             if (widget.line.confidence < 100 &&
-                widget.fallbackCandidate?['selected'] == 'qwen' &&
-                (widget.fallbackCandidate?['whisperText'] as String?)
-                        ?.trim()
-                        .isNotEmpty ==
-                    true) ...[
+                widget.fallbackCandidate != null &&
+                widget.fallbackCandidate!['selected'] ==
+                    widget.fallbackCandidate!['primaryEngine'] &&
+                _alternativeText()?.trim().isNotEmpty == true) ...[
               const SizedBox(height: AppSpacing.xs),
               Container(
                 width: double.infinity,
@@ -615,9 +640,12 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Whisper 备选：' +
-                            (widget.fallbackCandidate!['whisperText']
-                                as String),
+                        _engineLabel(
+                              widget.fallbackCandidate!['alternativeEngine']
+                                  ?.toString(),
+                            ) +
+                            ' 备选：' +
+                            _alternativeText()!,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ),
