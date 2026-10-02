@@ -16,6 +16,25 @@ void main() {
       expect(config.isConfigured, isTrue);
     });
 
+    test('migrates legacy high quality settings to automatic profile', () {
+      final config = TranscriptionConfig.fromJson({
+        'mode': 'highestQuality',
+        'qwenExecutable': 'qwen3-asr',
+        'qwenModelPath': 'Qwen/Qwen3-ASR-1.7B',
+        'qwenAlignerModelPath': 'Qwen/Qwen3-ForcedAligner-0.6B',
+        'qwenDevice': 'cuda',
+        'qwenDtype': 'bf16',
+        'whisperExecutable': 'whisper-cli',
+        'modelPath': 'ggml-large-v3.bin',
+      });
+
+      expect(
+        config.profilePreference,
+        TranscriptionProfilePreference.automatic,
+      );
+      expect(config.isConfigured, isTrue);
+    });
+
     test('highest quality mode requires both Qwen and Whisper runtimes', () {
       const incomplete = TranscriptionConfig(
         mode: TranscriptionMode.highestQuality,
