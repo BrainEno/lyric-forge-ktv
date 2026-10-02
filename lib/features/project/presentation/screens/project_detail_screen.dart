@@ -1,14 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../transcription/domain/models/transcription_models.dart';
+import '../../../transcription/domain/services/project_transcription_workflow.dart';
+import '../../../transcription/domain/services/transcription_settings_store.dart';
+import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 
-/// Project detail screen - displays project information and processing status.
-/// Entry point for lyrics editing and player access.
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
 
@@ -23,13 +28,41 @@ class ProjectDetailScreen extends StatefulWidget {
 
 class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   late final ProjectRepository _repository;
+  late final ProjectTranscriptionWorkflow _transcriptionWorkflow;
+  late final TranscriptionSettingsStore _transcriptionSettingsStore;
   late Future<ProjectManifest?> _projectFuture;
+
+  StreamSubscription<TranscriptionProgress>? _progressSubscription;
+  TranscriptionProgress? _liveProgress;
+  bool _isTranscribing = false;
+
+  bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   @override
   void initState() {
     super.initState();
     _repository = ServiceLocatorGlobal.I.projectRepository;
+    _transcriptionWorkflow =
+        ServiceLocatorGlobal.I.projectTranscriptionWorkflow;
+    _transcriptionSettingsStore =
+        ServiceLocatorGlobal.I.transcriptionSettingsStore;
     _loadProject();
+
+    _progressSubscription =
+        _transcriptionWorkflow.progressStream.listen((progress) {
+      if (!mounted) return;
+      setState(() => _liveProgress = progress);
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
   }
 
   void _loadProject() {
@@ -38,6 +71,110 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
   Future<void> _refreshProject() async {
     setState(_loadProject);
+  }
+
+  Future<TranscriptionConfig?> _configureTranscription() async {
+    final current = await _transcriptionSettingsStore.load();
+    if (!mounted) return null;
+
+    final config = await showDialog<TranscriptionConfig>(
+      context: context,
+      builder: (context) => TranscriptionConfigDialog(
+        initialConfig: current,
+      ),
+    );
+    if (config == null) return current;
+
+    await _transcriptionSettingsStore.save(config);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('本地歌词识别设置已保存')),
+      );
+    }
+    return config;
+  }
+
+  Future<void> _startTranscription(ProjectManifest project) async {
+    if (!_isDesktop || _isTranscribing || project.audioAsset == null) return;
+
+    if (project.hasLyrics) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('重新识别歌词？'),
+          content: const Text(
+            '新的识别草稿会替换当前歌词。LyricForge 会先自动备份现有歌词，再开始本地识别。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('备份并重新识别'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    var config = await _transcriptionSettingsStore.load();
+    if (config == null) {
+      config = await _configureTranscription();
+      if (config == null) return;
+    }
+
+    setState(() {
+      _isTranscribing = true;
+      _liveProgress = const TranscriptionProgress(
+        stage: TranscriptionStage.validating,
+        progress: 0.0,
+        message: '准备本地歌词识别',
+      );
+    });
+
+    try {
+      await _transcriptionWorkflow.transcribeProject(project.id);
+      await _refreshProject();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')),
+        );
+      }
+    } on TranscriptionException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.toString()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      await _refreshProject();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('歌词识别失败：' + error.toString()),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      await _refreshProject();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTranscribing = false;
+          _liveProgress = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _cancelTranscription() async {
+    await _transcriptionWorkflow.cancel();
   }
 
   @override
@@ -52,15 +189,19 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           }
 
           if (snapshot.hasError || snapshot.data == null) {
-            return _ErrorState(
-              onRetry: _refreshProject,
-            );
+            return _ErrorState(onRetry: _refreshProject);
           }
 
           final project = snapshot.data!;
           return _ProjectDetailContent(
             project: project,
             onRefresh: _refreshProject,
+            isDesktop: _isDesktop,
+            isTranscribing: _isTranscribing,
+            liveProgress: _liveProgress,
+            onTranscribe: () => _startTranscription(project),
+            onCancelTranscription: _cancelTranscription,
+            onConfigureTranscription: _configureTranscription,
           );
         },
       ),
@@ -73,9 +214,7 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 }
 
@@ -90,21 +229,11 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 64,
-            color: AppColors.error,
-          ),
+          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
           const SizedBox(height: AppSpacing.md),
-          Text(
-            '加载工程失败',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('加载工程失败', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.md),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('重试'),
-          ),
+          ElevatedButton(onPressed: onRetry, child: const Text('重试')),
         ],
       ),
     );
@@ -114,10 +243,22 @@ class _ErrorState extends StatelessWidget {
 class _ProjectDetailContent extends StatelessWidget {
   final ProjectManifest project;
   final VoidCallback onRefresh;
+  final bool isDesktop;
+  final bool isTranscribing;
+  final TranscriptionProgress? liveProgress;
+  final VoidCallback onTranscribe;
+  final VoidCallback onCancelTranscription;
+  final VoidCallback onConfigureTranscription;
 
   const _ProjectDetailContent({
     required this.project,
     required this.onRefresh,
+    required this.isDesktop,
+    required this.isTranscribing,
+    required this.liveProgress,
+    required this.onTranscribe,
+    required this.onCancelTranscription,
+    required this.onConfigureTranscription,
   });
 
   String _getStatusLabel(ProjectStatus status) {
@@ -152,7 +293,6 @@ class _ProjectDetailContent extends StatelessWidget {
       backgroundColor: AppColors.bgElevated,
       child: CustomScrollView(
         slivers: [
-          // App Bar with project title
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
@@ -160,21 +300,18 @@ class _ProjectDetailContent extends StatelessWidget {
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
                 project.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               background: Container(
-                decoration: BoxDecoration(
-                  gradient: AppColors.playerGradient,
-                ),
+                decoration: BoxDecoration(gradient: AppColors.playerGradient),
                 child: Center(
                   child: Container(
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusLarge),
                     ),
                     child: const Icon(
                       Icons.album,
@@ -186,15 +323,12 @@ class _ProjectDetailContent extends StatelessWidget {
               ),
             ),
           ),
-
-          // Project info card
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status chip
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.sm,
@@ -202,7 +336,8 @@ class _ProjectDetailContent extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: _getStatusColor(project.status).withAlpha(26),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusCircular),
                     ),
                     child: Text(
                       _getStatusLabel(project.status),
@@ -211,10 +346,7 @@ class _ProjectDetailContent extends StatelessWidget {
                           ),
                     ),
                   ),
-
                   const SizedBox(height: AppSpacing.md),
-
-                  // Artist & Album
                   if (project.artist != null) ...[
                     Text(
                       project.artist!,
@@ -227,23 +359,22 @@ class _ProjectDetailContent extends StatelessWidget {
                       project.album!,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
-
                   const SizedBox(height: AppSpacing.lg),
-
-                  // Processing progress
                   _ProcessingProgress(
                     stage: project.currentStage,
                     progress: project.progressPercent,
+                    liveProgress: isTranscribing ? liveProgress : null,
                   ),
-
                   const SizedBox(height: AppSpacing.xl),
-
-                  // Action buttons
-                  _ActionButtons(project: project),
-
+                  _ActionButtons(
+                    project: project,
+                    isDesktop: isDesktop,
+                    isTranscribing: isTranscribing,
+                    onTranscribe: onTranscribe,
+                    onCancelTranscription: onCancelTranscription,
+                    onConfigureTranscription: onConfigureTranscription,
+                  ),
                   const SizedBox(height: AppSpacing.xl),
-
-                  // Project metadata
                   _ProjectMetadata(project: project),
                 ],
               ),
@@ -258,10 +389,12 @@ class _ProjectDetailContent extends StatelessWidget {
 class _ProcessingProgress extends StatelessWidget {
   final ProcessingStage stage;
   final double progress;
+  final TranscriptionProgress? liveProgress;
 
   const _ProcessingProgress({
     required this.stage,
     required this.progress,
+    this.liveProgress,
   });
 
   String _getStageLabel(ProcessingStage stage) {
@@ -278,6 +411,9 @@ class _ProcessingProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayProgress = liveProgress?.progress ?? progress;
+    final displayLabel = liveProgress?.message ?? _getStageLabel(stage);
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -287,15 +423,13 @@ class _ProcessingProgress extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '处理进度',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('处理进度', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
-            value: progress,
+            value: displayProgress,
             backgroundColor: AppColors.bgHighlight,
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+            valueColor:
+                const AlwaysStoppedAnimation<Color>(AppColors.accent),
             minHeight: 6,
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           ),
@@ -303,12 +437,14 @@ class _ProcessingProgress extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _getStageLabel(stage),
-                style: Theme.of(context).textTheme.bodySmall,
+              Expanded(
+                child: Text(
+                  displayLabel,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
               Text(
-                '${(progress * 100).toInt()}%',
+                (displayProgress * 100).toInt().toString() + '%',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: AppColors.accent,
                     ),
@@ -323,15 +459,74 @@ class _ProcessingProgress extends StatelessWidget {
 
 class _ActionButtons extends StatelessWidget {
   final ProjectManifest project;
+  final bool isDesktop;
+  final bool isTranscribing;
+  final VoidCallback onTranscribe;
+  final VoidCallback onCancelTranscription;
+  final VoidCallback onConfigureTranscription;
 
-  const _ActionButtons({required this.project});
+  const _ActionButtons({
+    required this.project,
+    required this.isDesktop,
+    required this.isTranscribing,
+    required this.onTranscribe,
+    required this.onCancelTranscription,
+    required this.onConfigureTranscription,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Primary: Play if ready, Edit if has lyrics
+        if (isDesktop) ...[
+          ElevatedButton.icon(
+            onPressed: isTranscribing || project.audioAsset == null
+                ? null
+                : onTranscribe,
+            icon: isTranscribing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.pureWhite,
+                    ),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(
+              isTranscribing
+                  ? '正在本地识别...'
+                  : project.hasLyrics
+                      ? '重新识别歌词'
+                      : '生成歌词',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          if (isTranscribing)
+            OutlinedButton.icon(
+              onPressed: onCancelTranscription,
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: const Text('取消识别'),
+            )
+          else
+            TextButton.icon(
+              onPressed: onConfigureTranscription,
+              icon: const Icon(Icons.settings_outlined),
+              label: const Text('本地识别设置'),
+            ),
+          const SizedBox(height: AppSpacing.md),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.bgElevated,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+            ),
+            child: const Text('歌词自动识别需要在桌面端本地完成'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         ElevatedButton.icon(
           onPressed: project.canPlay
               ? () => Navigator.pushNamed(
@@ -340,12 +535,9 @@ class _ActionButtons extends StatelessWidget {
                   )
               : null,
           icon: const Icon(Icons.play_arrow),
-          label: Text(project.canPlay ? '开始演唱' : '等待音频处理'),
+          label: Text(project.canPlay ? '开始演唱' : '等待伴奏处理'),
         ),
-
         const SizedBox(height: AppSpacing.md),
-
-        // Secondary: Edit lyrics
         OutlinedButton.icon(
           onPressed: () => Navigator.pushNamed(
             context,
@@ -365,11 +557,17 @@ class _ProjectMetadata extends StatelessWidget {
   const _ProjectMetadata({required this.project});
 
   String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    return date.year.toString() +
+        '-' +
+        date.month.toString().padLeft(2, '0') +
+        '-' +
+        date.day.toString().padLeft(2, '0');
   }
 
   @override
   Widget build(BuildContext context) {
+    final transcription = project.metadata['transcription'];
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -379,27 +577,28 @@ class _ProjectMetadata extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '工程信息',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('工程信息', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.md),
-          _MetadataRow(
-            label: '创建时间',
-            value: _formatDate(project.createdAt),
-          ),
-          _MetadataRow(
-            label: '更新时间',
-            value: _formatDate(project.updatedAt),
-          ),
+          _MetadataRow(label: '创建时间', value: _formatDate(project.createdAt)),
+          _MetadataRow(label: '更新时间', value: _formatDate(project.updatedAt)),
           _MetadataRow(
             label: '工程 ID',
-            value: project.id.substring(0, project.id.length > 8 ? 8 : project.id.length),
+            value: project.id.substring(
+              0,
+              project.id.length > 8 ? 8 : project.id.length,
+            ),
           ),
+          if (project.audioAsset != null)
+            _MetadataRow(
+              label: '音频格式',
+              value: project.audioAsset!.format.toUpperCase(),
+            ),
           if (project.hasLyrics)
-            const _MetadataRow(
-              label: '歌词状态',
-              value: '已就绪',
+            const _MetadataRow(label: '歌词状态', value: '待校对 / 已生成'),
+          if (transcription is Map && transcription['detectedLanguage'] != null)
+            _MetadataRow(
+              label: '识别语言',
+              value: transcription['detectedLanguage'].toString(),
             ),
         ],
       ),
@@ -422,14 +621,14 @@ class _MetadataRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
           const Spacer(),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ),
         ],
       ),
