@@ -55,8 +55,8 @@ class MediaHubConnection {
     );
   }
 
-  Uri resolve(String path) {
-    final normalized = path.startsWith('/') ? path : '/$path';
-    return baseUri.replace(path: normalized);
+  Uri resolve(String location) {
+    final normalized = location.startsWith('/') ? location : '/$location';
+    return baseUri.resolveUri(Uri.parse(normalized));
   }
 }
