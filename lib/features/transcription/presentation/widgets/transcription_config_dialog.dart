@@ -41,10 +41,10 @@ class _TranscriptionConfigDialogState
       text: config?.qwenExecutable ?? 'qwen3-asr',
     );
     _qwenModelController = TextEditingController(
-      text: config?.qwenModelPath ?? '',
+      text: config?.qwenModelPath ?? 'Qwen/Qwen3-ASR-1.7B',
     );
     _qwenAlignerController = TextEditingController(
-      text: config?.qwenAlignerModelPath ?? '',
+      text: config?.qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
     );
     _whisperController = TextEditingController(
       text: config?.whisperExecutable ?? 'whisper-cli',
@@ -170,15 +170,15 @@ class _TranscriptionConfigDialogState
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
                   controller: _qwenModelController,
-                  label: 'Qwen3-ASR 1.7B 模型目录',
-                  hint: 'Qwen3-ASR-1.7B 本地模型目录',
+                  label: 'Qwen3-ASR 1.7B 模型 ID / 目录',
+                  hint: 'Qwen/Qwen3-ASR-1.7B 或本地模型目录',
                   onBrowse: () => _pickDirectoryInto(_qwenModelController),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
                   controller: _qwenAlignerController,
-                  label: 'Qwen3 ForcedAligner 0.6B 模型目录',
-                  hint: 'Qwen3-ForcedAligner-0.6B 本地模型目录',
+                  label: 'Qwen3 ForcedAligner 0.6B 模型 ID / 目录',
+                  hint: 'Qwen/Qwen3-ForcedAligner-0.6B 或本地模型目录',
                   onBrowse: () => _pickDirectoryInto(_qwenAlignerController),
                 ),
               ],
