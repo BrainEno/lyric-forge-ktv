@@ -90,9 +90,15 @@ class LocalProjectTranscriptionWorkflow
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
-              'qwenModelPath': config.qwenModelPath,
-              'qwenAlignerModelPath': config.qwenAlignerModelPath,
-              'whisperModelPath': config.modelPath,
+              'primaryModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Qwen3-ASR-1.7B'
+                  : 'whisper.cpp',
+              'alignmentModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Qwen3-ForcedAligner-0.6B'
+                  : null,
+              'fallbackModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Whisper large-v3'
+                  : null,
             },
           },
         ),
