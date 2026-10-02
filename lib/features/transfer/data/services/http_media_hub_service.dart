@@ -64,6 +64,7 @@ class HttpMediaHubService implements MediaHubService {
           format: track.format,
           byteLength: actualLength,
           duration: track.duration,
+          lyrics: track.lyrics,
         );
       }
 
@@ -253,6 +254,42 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
+      final isLyricsRequest =
+          request.method == 'GET' &&
+              segments.length == 4 &&
+              segments[0] == 'v1' &&
+              segments[1] == 'tracks' &&
+              segments[3] == 'lyrics';
+
+      if (isLyricsRequest) {
+        final track = _tracks[segments[2]];
+        if (track == null) {
+          await _writeJson(
+            request.response,
+            HttpStatus.notFound,
+            {'error': 'track_not_found'},
+          );
+          return;
+        }
+
+        final lyrics = track.lyrics;
+        if (lyrics == null || lyrics.lines.isEmpty) {
+          await _writeJson(
+            request.response,
+            HttpStatus.notFound,
+            {'error': 'lyrics_not_found'},
+          );
+          return;
+        }
+
+        await _writeJson(
+          request.response,
+          HttpStatus.ok,
+          {'lyrics': lyrics.toJson()},
+        );
+        return;
+      }
+
       final isAudioRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
               segments.length == 4 &&
@@ -375,6 +412,7 @@ class HttpMediaHubService implements MediaHubService {
       ...track.toPublicJson(),
       'streamPath': '/v1/tracks/' + encodedId + '/audio',
       'downloadPath': '/v1/tracks/' + encodedId + '/audio?download=1',
+      if (track.hasLyrics) 'lyricsPath': '/v1/tracks/' + encodedId + '/lyrics',
     };
   }
 

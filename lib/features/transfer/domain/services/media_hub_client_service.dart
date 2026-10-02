@@ -1,3 +1,4 @@
+import '../../../project/domain/models/lyric_document.dart';
 import '../models/media_hub_connection.dart';
 import '../models/remote_audio_track.dart';
 
@@ -20,6 +21,8 @@ abstract class MediaHubClientService {
   Future<List<RemoteAudioTrack>> fetchTracks();
 
   Uri playbackUriFor(RemoteAudioTrack track);
+
+  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track);
 
   Future<void> downloadTrack({
     required RemoteAudioTrack track,

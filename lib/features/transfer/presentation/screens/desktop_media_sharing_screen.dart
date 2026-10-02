@@ -6,10 +6,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../project/domain/models/project_manifest.dart';
+import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
@@ -26,6 +29,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   static const _uuid = Uuid();
 
   late final MediaHubService _mediaHubService;
+  late final ProjectRepository _projectRepository;
   late MediaHubState _hubState;
   StreamSubscription<MediaHubState>? _stateSubscription;
 
@@ -42,6 +46,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   void initState() {
     super.initState();
     _mediaHubService = ServiceLocatorGlobal.I.mediaHubService;
+    _projectRepository = ServiceLocatorGlobal.I.projectRepository;
     _hubState = _mediaHubService.currentState;
     _stateSubscription = _mediaHubService.stateStream.listen((state) {
       if (mounted) setState(() => _hubState = state);
@@ -101,6 +106,88 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
       }
     } catch (error) {
       _showMessage('选择音频失败：$error', error: true);
+    }
+  }
+
+  Future<void> _addProject() async {
+    if (_hubState.isRunning || _busy) return;
+
+    setState(() => _busy = true);
+    try {
+      final projects = (await _projectRepository.getAllProjects())
+          .where((project) => project.audioAsset != null)
+          .toList();
+
+      if (!mounted) return;
+      if (projects.isEmpty) {
+        _showMessage('当前没有可共享音频的工程');
+        return;
+      }
+
+      final selected = await showDialog<ProjectManifest>(
+        context: context,
+        builder: (context) {
+          return SimpleDialog(
+            title: const Text('选择要共享的工程'),
+            children: projects.map((project) {
+              final hasLyrics = project.hasLyrics;
+              return SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, project),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.library_music_outlined),
+                  title: Text(
+                    project.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    [
+                      if (project.artist != null && project.artist!.isNotEmpty)
+                        project.artist!,
+                      if (hasLyrics) '包含歌词',
+                    ].join(' · '),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
+      );
+
+      if (selected == null || !mounted) return;
+      final asset = selected.audioAsset!;
+      final path = asset.originalPath;
+      final sourceFile = File(path);
+      if (!await sourceFile.exists()) {
+        _showMessage('工程原声音频文件不存在', error: true);
+        return;
+      }
+
+      final track = SharedAudioTrack(
+        id: 'project-' + selected.id,
+        title: selected.name,
+        artist: selected.artist,
+        album: selected.album,
+        localPath: path,
+        format: asset.format,
+        byteLength: await sourceFile.length(),
+        duration: asset.duration,
+        lyrics: selected.lyricDocument,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _tracks.removeWhere((item) => item.id == track.id);
+        _tracks.add(track);
+      });
+      _showMessage(selected.hasLyrics
+          ? '已加入工程音频和歌词'
+          : '已加入工程音频');
+    } catch (error) {
+      _showMessage('读取工程失败：' + error.toString(), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -208,38 +295,39 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                 const SizedBox(height: AppSpacing.md),
                 _libraryCard(running),
                 const SizedBox(height: AppSpacing.md),
-                Row(
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            running || _busy ? null : _pickAudioFiles,
-                        icon: const Icon(Icons.library_music_outlined),
-                        label: const Text('添加音频'),
-                      ),
+                    OutlinedButton.icon(
+                      onPressed: running || _busy ? null : _pickAudioFiles,
+                      icon: const Icon(Icons.audio_file_outlined),
+                      label: const Text('添加音频'),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : running
-                                ? _stopSharing
-                                : _tracks.isEmpty
-                                    ? null
-                                    : _startSharing,
-                        icon: _busy
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.pureWhite,
-                                ),
-                              )
-                            : Icon(running ? Icons.stop : Icons.wifi_tethering),
-                        label: Text(running ? '停止共享' : '开始共享'),
-                      ),
+                    OutlinedButton.icon(
+                      onPressed: running || _busy ? null : _addProject,
+                      icon: const Icon(Icons.library_music_outlined),
+                      label: const Text('添加工程'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : running
+                              ? _stopSharing
+                              : _tracks.isEmpty
+                                  ? null
+                                  : _startSharing,
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.pureWhite,
+                              ),
+                            )
+                          : Icon(running ? Icons.stop : Icons.wifi_tethering),
+                      label: Text(running ? '停止共享' : '开始共享'),
                     ),
                   ],
                 ),
@@ -296,6 +384,22 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
             if (session != null) ...[
               const SizedBox(height: AppSpacing.lg),
               ...session.endpoints.map(_endpointRow),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.pureWhite,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMedium),
+                  ),
+                  child: QrImageView(
+                    data: session.pairingUri.toString(),
+                    size: 184,
+                    backgroundColor: AppColors.pureWhite,
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               Text('配对信息', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: AppSpacing.xs),
