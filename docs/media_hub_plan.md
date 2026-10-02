@@ -249,3 +249,29 @@ MVP：
 
 5. 所有远程音频最终都必须进入现有 AudioPlayerService 抽象。
    UI 不直接操作 HTTP client 或本地文件路径。
+
+---
+
+## 必备：桌面端本地歌词识别与生成链路
+
+跨端播放器不得把歌词识别责任转移到手机或云端。LyricForge 的核心生产链路固定为：
+
+1. 桌面端导入本地音频
+2. FFmpeg 等本地工具完成预处理 / 标准化
+3. 桌面端完成 vocal / instrumental 分离
+4. 优先对 vocal stem 调用本地 whisper.cpp（或等价本地 ASR）
+5. 保留分段边界、开始/结束时间戳和低置信度信息
+6. 合并为可编辑的 LyricDocument 草稿
+7. 用户在桌面端校对后保存
+8. Media Hub 后续同时提供音频、歌词时间轴和 KTV 工程元数据
+9. 手机端播放器只消费已生成歌词，并按真实播放 position 滚动 / 高亮
+10. KTV 模式复用同一份已校对时间轴，不维护第二套歌词数据
+
+约束：
+
+- MVP 不依赖在线 ASR
+- 不把自动识别结果当作最终正确歌词
+- 不静默丢弃低置信度片段
+- 手机端不承担完整 vocal separation / Whisper 推理
+- 远程在线播放和离线下载都必须能关联同一份歌词时间轴
+- 后续 .lyricforge 工程传输必须包含 manifest、lyrics 和所需音源
