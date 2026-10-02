@@ -52,7 +52,7 @@ class TranscriptionConfig {
     this.ffmpegExecutable = 'ffmpeg',
     this.language = 'auto',
     this.fallbackConfidenceThreshold = 70,
-    this.maxFallbackSegments = 12,
+    this.maxFallbackSegments = 20,
   });
 
   bool get isWhisperConfigured =>
@@ -146,7 +146,7 @@ class TranscriptionConfig {
       fallbackConfidenceThreshold:
           (json['fallbackConfidenceThreshold'] as num?)?.toInt() ?? 70,
       maxFallbackSegments:
-          (json['maxFallbackSegments'] as num?)?.toInt() ?? 12,
+          (json['maxFallbackSegments'] as num?)?.toInt() ?? 20,
     );
   }
 }
@@ -155,11 +155,13 @@ class TranscriptionRequest {
   final String inputAudioPath;
   final String outputDirectory;
   final TranscriptionConfig config;
+  final String context;
 
   const TranscriptionRequest({
     required this.inputAudioPath,
     required this.outputDirectory,
     required this.config,
+    this.context = '',
   });
 }
 
