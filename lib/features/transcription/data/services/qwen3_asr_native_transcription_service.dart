@@ -648,7 +648,12 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }
 
   bool _needsSpace(String previous, String next) {
-    return RegExp(r'[A-Za-z0-9]
+    final nextStartsLatin = RegExp(r'^[A-Za-z0-9]').hasMatch(next);
+    if (!nextStartsLatin) return false;
+
+    return RegExp(r'[A-Za-z0-9]$').hasMatch(previous) ||
+        RegExp(r'[,.;:!?]$').hasMatch(previous);
+  }
 
   bool _endsPhrase(String text) {
     return RegExp(r'[。！？!?；;]$').hasMatch(text.trim());
