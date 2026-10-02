@@ -78,7 +78,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.loadingModel,
         0.16,
-        '正在加载 Qwen3-ASR 1.7B 与 ForcedAligner',
+        '正在加载 ' + _modelLabel(request.config.qwenModelPath) + ' 与 ForcedAligner',
       );
       await _ensureServer(request.config);
       _throwIfCancelled();
@@ -86,7 +86,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.transcribing,
         0.34,
-        'Qwen3-ASR 1.7B 正在识别歌曲',
+        _modelLabel(request.config.qwenModelPath) + ' 正在识别歌曲',
       );
       final response = await _requestTranscription(
         audioPath: normalizedPath,
@@ -109,6 +109,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         response,
         normalizedAudioPath: normalizedPath,
         rawJsonPath: rawJsonPath,
+        modelPath: request.config.qwenModelPath,
       );
 
       _emit(
@@ -475,6 +476,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     Map<String, dynamic> response, {
     required String normalizedAudioPath,
     required String rawJsonPath,
+    required String modelPath,
   }) {
     final language = _normalizeLanguage(response['language']?.toString());
 
@@ -500,7 +502,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       language: language,
       lines: lines,
       metadata: {
-        'generatedBy': 'qwen3-asr-1.7b',
+        'generatedBy': _modelKey(modelPath),
         'forcedAligner': 'qwen3-forced-aligner-0.6b',
         'draft': true,
         'qualityMode': 'highestQuality',
@@ -517,6 +519,18 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       rawJsonPath: rawJsonPath,
       detectedLanguage: language,
     );
+  }
+
+  String _modelLabel(String modelPath) {
+    return modelPath.toLowerCase().contains('0.6b')
+        ? 'Qwen3-ASR 0.6B'
+        : 'Qwen3-ASR 1.7B';
+  }
+
+  String _modelKey(String modelPath) {
+    return modelPath.toLowerCase().contains('0.6b')
+        ? 'qwen3-asr-0.6b'
+        : 'qwen3-asr-1.7b';
   }
 
   String _normalizeLanguage(String? value) {
