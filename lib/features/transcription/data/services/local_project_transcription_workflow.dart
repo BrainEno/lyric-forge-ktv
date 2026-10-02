@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
@@ -17,16 +18,19 @@ class LocalProjectTranscriptionWorkflow
   final TranscriptionService _transcriptionService;
   final TranscriptionSettingsStore _settingsStore;
   final TranscriptionProfileResolver _profileResolver;
+  final AsrRuntimeManager _runtimeManager;
 
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
     required TranscriptionService transcriptionService,
     required TranscriptionSettingsStore settingsStore,
     required TranscriptionProfileResolver profileResolver,
+    required AsrRuntimeManager runtimeManager,
   })  : _projectRepository = projectRepository,
         _transcriptionService = transcriptionService,
         _settingsStore = settingsStore,
-        _profileResolver = profileResolver;
+        _profileResolver = profileResolver,
+        _runtimeManager = runtimeManager;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -53,9 +57,19 @@ class LocalProjectTranscriptionWorkflow
     }
 
     final resolvedProfile = await _profileResolver.resolve(config);
-    final runtimeConfig = resolvedProfile.config;
+    final runtimeConfig =
+        await _runtimeManager.repair(resolvedProfile.config);
     if (!runtimeConfig.isConfigured) {
-      throw const TranscriptionException('当前机器的识别 Profile 配置不完整');
+      throw const TranscriptionException(
+        '本机识别环境尚未准备完成，请先运行自动安装向导',
+      );
+    }
+
+    final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
+    if (!runtimeStatus.isReady) {
+      throw const TranscriptionException(
+        '本机识别环境缺少必要组件，请先运行自动安装或修复',
+      );
     }
 
     final inputPath = await _resolveInputPath(project);
