@@ -1,0 +1,40 @@
+class RemoteAudioTrack {
+  final String id;
+  final String title;
+  final String? artist;
+  final String? album;
+  final String format;
+  final int byteLength;
+  final Duration? duration;
+  final String streamPath;
+  final String downloadPath;
+
+  const RemoteAudioTrack({
+    required this.id,
+    required this.title,
+    this.artist,
+    this.album,
+    required this.format,
+    required this.byteLength,
+    this.duration,
+    required this.streamPath,
+    required this.downloadPath,
+  });
+
+  factory RemoteAudioTrack.fromJson(Map<String, dynamic> json) {
+    final durationMs = json['durationMs'];
+    return RemoteAudioTrack(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      artist: json['artist'] as String?,
+      album: json['album'] as String?,
+      format: json['format'] as String,
+      byteLength: (json['byteLength'] as num).toInt(),
+      duration: durationMs is num
+          ? Duration(milliseconds: durationMs.toInt())
+          : null,
+      streamPath: json['streamPath'] as String,
+      downloadPath: json['downloadPath'] as String,
+    );
+  }
+}
