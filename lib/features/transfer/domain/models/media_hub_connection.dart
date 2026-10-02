@@ -55,6 +55,39 @@ class MediaHubConnection {
     );
   }
 
+  factory MediaHubConnection.fromJson(Map<String, dynamic> json) {
+    final host = json['host'] as String?;
+    final port = json['port'];
+    final token = json['token'] as String?;
+
+    if (host == null || host.isEmpty || port is! num || token == null || token.isEmpty) {
+      throw const FormatException('保存的桌面连接信息无效');
+    }
+
+    final transportName = json['transport'] as String?;
+    final transport = switch (transportName) {
+      'tailscale' => MediaHubTransport.tailscale,
+      'lan' => MediaHubTransport.lan,
+      _ => MediaHubTransport.unknown,
+    };
+
+    return MediaHubConnection(
+      host: host,
+      port: port.toInt(),
+      token: token,
+      transport: transport,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'host': host,
+      'port': port,
+      'token': token,
+      'transport': transport.name,
+    };
+  }
+
   Uri resolve(String location) {
     final normalized = location.startsWith('/') ? location : '/$location';
     return baseUri.resolveUri(Uri.parse(normalized));
