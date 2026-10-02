@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
@@ -108,6 +109,43 @@ class HttpMediaHubClientService implements MediaHubClientService {
         'token': connection.token,
       },
     );
+  }
+
+  @override
+  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) async {
+    if (!track.hasLyrics || track.lyricsPath == null) return null;
+
+    final connection = _requireConnection();
+    final response = await _authorizedGet(
+      connection,
+      connection.resolve(track.lyricsPath!),
+    );
+
+    if (response.statusCode == HttpStatus.notFound) {
+      await response.drain<void>();
+      return null;
+    }
+    if (response.statusCode != HttpStatus.ok) {
+      await response.drain<void>();
+      throw MediaHubClientException(
+        '获取远程歌词失败，HTTP ${response.statusCode}',
+      );
+    }
+
+    try {
+      final body = await utf8.decoder.bind(response).join();
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('歌词响应不是 JSON 对象');
+      }
+      final lyrics = decoded['lyrics'];
+      if (lyrics is! Map) {
+        throw const FormatException('歌词响应缺少 lyrics');
+      }
+      return LyricDocument.fromJson(Map<String, dynamic>.from(lyrics));
+    } on FormatException catch (error) {
+      throw MediaHubClientException('无法解析远程歌词: $error');
+    }
   }
 
   @override
