@@ -43,8 +43,8 @@ class TranscriptionConfig {
   const TranscriptionConfig({
     this.mode = TranscriptionMode.highestQuality,
     this.qwenExecutable = '',
-    this.qwenModelPath = '',
-    this.qwenAlignerModelPath = '',
+    this.qwenModelPath = 'Qwen/Qwen3-ASR-1.7B',
+    this.qwenAlignerModelPath = 'Qwen/Qwen3-ForcedAligner-0.6B',
     this.qwenDevice = 'cuda',
     this.qwenDtype = 'bf16',
     required this.whisperExecutable,
@@ -134,9 +134,9 @@ class TranscriptionConfig {
     return TranscriptionConfig(
       mode: mode,
       qwenExecutable: json['qwenExecutable'] as String? ?? '',
-      qwenModelPath: json['qwenModelPath'] as String? ?? '',
+      qwenModelPath: json['qwenModelPath'] as String? ?? 'Qwen/Qwen3-ASR-1.7B',
       qwenAlignerModelPath:
-          json['qwenAlignerModelPath'] as String? ?? '',
+          json['qwenAlignerModelPath'] as String? ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
       qwenDevice: json['qwenDevice'] as String? ?? 'cuda',
       qwenDtype: json['qwenDtype'] as String? ?? 'bf16',
       whisperExecutable: json['whisperExecutable'] as String? ?? '',
