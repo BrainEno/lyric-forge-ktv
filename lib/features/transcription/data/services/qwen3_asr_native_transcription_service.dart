@@ -15,6 +15,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   StreamSubscription<String>? _stdoutSubscription;
   StreamSubscription<String>? _stderrSubscription;
   HttpClientRequest? _activeRequest;
+  Process? _activeToolProcess;
   Timer? _idleShutdownTimer;
 
   int? _serverPort;
@@ -213,9 +214,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     final output = File(outputPath);
     if (await output.exists()) await output.delete();
 
-    ProcessResult result;
+    Process process;
     try {
-      result = await Process.run(
+      process = await Process.start(
         executable,
         [
           '-y',
@@ -238,12 +239,25 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       );
     }
 
+    _activeToolProcess = process;
+    if (_cancelRequested) process.kill();
+
+    final stdoutFuture = process.stdout.drain<void>();
+    final stderrFuture = utf8.decoder.bind(process.stderr).join();
+    final exitCode = await process.exitCode;
+    await stdoutFuture;
+    final stderrText = await stderrFuture;
+
+    if (identical(_activeToolProcess, process)) {
+      _activeToolProcess = null;
+    }
+
     _throwIfCancelled();
 
-    if (result.exitCode != 0) {
+    if (exitCode != 0) {
       throw TranscriptionException(
         'FFmpeg 音频预处理失败',
-        details: result.stderr.toString(),
+        details: stderrText,
       );
     }
     if (!await output.exists()) {
@@ -802,6 +816,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _idleShutdownTimer?.cancel();
     _idleShutdownTimer = null;
     _activeRequest?.abort();
+    _activeToolProcess?.kill();
+    _activeToolProcess = null;
     await _stopServer();
   }
 
