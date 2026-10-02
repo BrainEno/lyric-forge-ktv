@@ -6,12 +6,21 @@ import '../../domain/services/transcription_profile_resolver.dart';
 
 class NativeTranscriptionProfileResolver
     implements TranscriptionProfileResolver {
+  final TranscriptionHardwareInfo? hardwareOverride;
+
+  NativeTranscriptionProfileResolver({
+    this.hardwareOverride,
+  });
+
   static const String _qwen17 = 'Qwen/Qwen3-ASR-1.7B';
   static const String _qwen06 = 'Qwen/Qwen3-ASR-0.6B';
   static const String _aligner06 = 'Qwen/Qwen3-ForcedAligner-0.6B';
 
   @override
   Future<TranscriptionHardwareInfo> detectHardware() async {
+    final override = hardwareOverride;
+    if (override != null) return override;
+
     final operatingSystem = Platform.isMacOS
         ? 'macos'
         : Platform.isWindows
