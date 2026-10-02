@@ -36,9 +36,9 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
     try {
       final useUnfilteredMacPicker = Platform.isMacOS;
       final result = await FilePicker.platform.pickFiles(
-        // file_picker 8.x + filtered NSOpenPanel can make macOS navigation look
-        // disabled. On macOS let the native panel browse normally, then validate
-        // the selected extension in-app.
+        // A filtered NSOpenPanel can make macOS directory navigation look
+        // disabled. Let the native panel browse normally, then validate the
+        // selected extension in-app.
         type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
         allowedExtensions: useUnfilteredMacPicker
             ? null
