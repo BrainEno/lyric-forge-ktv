@@ -118,12 +118,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     if (!hasExplicitPath) {
       try {
-        final result = await Process.run(
-          value,
-          const ['-version'],
-          runInShell: Platform.isWindows,
-        );
-        if (result.exitCode != 0 && label == 'FFmpeg') {
+        final arguments =
+            label == 'FFmpeg' ? const ['-version'] : const ['-h'];
+        final result = await Process.run(value, arguments);
+        if (result.exitCode != 0) {
           throw TranscriptionException(label + ' 无法执行');
         }
       } on ProcessException catch (error) {
@@ -310,7 +308,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     if (probabilities.isEmpty) return 100;
     final average =
         probabilities.reduce((a, b) => a + b) / probabilities.length;
-    return (average * 100).round().clamp(0, 100);
+    return (average * 100).round().clamp(0, 100).toInt();
   }
 
   Future<_ProcessResult> _runProcess(
@@ -325,7 +323,6 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       process = await Process.start(
         executable,
         arguments,
-        runInShell: Platform.isWindows,
       );
     } on ProcessException catch (error) {
       throw TranscriptionException(
