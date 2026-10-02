@@ -207,7 +207,7 @@ class _Artwork extends StatelessWidget {
         height: 48,
         color: AppColors.bgSurface,
         child: hasArtwork
-            ? Image.file(file, fit: BoxFit.cover)
+            ? Image.file(file!, fit: BoxFit.cover)
             : const Icon(
                 Icons.music_note_rounded,
                 color: AppColors.textSecondary,
