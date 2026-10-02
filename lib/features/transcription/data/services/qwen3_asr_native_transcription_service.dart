@@ -15,6 +15,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   StreamSubscription<String>? _stdoutSubscription;
   StreamSubscription<String>? _stderrSubscription;
   HttpClientRequest? _activeRequest;
+  Timer? _idleShutdownTimer;
 
   int? _serverPort;
   String? _serverKey;
@@ -39,6 +40,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     _running = true;
     _cancelRequested = false;
+    _idleShutdownTimer?.cancel();
+    _idleShutdownTimer = null;
 
     try {
       _emit(TranscriptionStage.validating, 0.02, '正在检查 Qwen3-ASR 高质量运行环境');
@@ -122,6 +125,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     } finally {
       _activeRequest = null;
       _running = false;
+      if (!_cancelRequested && _serverProcess != null) {
+        _scheduleIdleShutdown();
+      }
       _cancelRequested = false;
     }
   }
@@ -325,10 +331,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     if (port == null) return false;
 
     try {
-      final request = await _httpClient.getUrl(
-        Uri.parse('http://127.0.0.1:$port/healthz'),
-      );
-      final response = await request.close();
+      final request = await _httpClient
+          .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
+          .timeout(const Duration(seconds: 2));
+      final response =
+          await request.close().timeout(const Duration(seconds: 2));
       await response.drain<void>();
       return response.statusCode == HttpStatus.ok;
     } catch (_) {
@@ -400,10 +407,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     required String normalizedAudioPath,
     required String rawJsonPath,
   }) {
-    final language =
-        (response['language'] as String?)?.trim().isNotEmpty == true
-            ? response['language'] as String
-            : 'unknown';
+    final language = _normalizeLanguage(response['language']?.toString());
 
     var lines = _parseSegmentLevel(response);
     if (lines.isEmpty) {
@@ -441,6 +445,18 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       rawJsonPath: rawJsonPath,
       detectedLanguage: language,
     );
+  }
+
+  String _normalizeLanguage(String? value) {
+    final normalized = value?.trim().toLowerCase() ?? '';
+    return switch (normalized) {
+      'chinese' || 'zh' || 'mandarin' => 'zh',
+      'english' || 'en' => 'en',
+      'japanese' || 'ja' => 'ja',
+      'korean' || 'ko' => 'ko',
+      '' => 'unknown',
+      _ => normalized,
+    };
   }
 
   List<LyricLine> _parseSegmentLevel(Map<String, dynamic> response) {
@@ -696,10 +712,19 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     if (_cancelRequested) throw const _QwenCancelledException();
   }
 
+  void _scheduleIdleShutdown() {
+    _idleShutdownTimer?.cancel();
+    _idleShutdownTimer = Timer(const Duration(minutes: 10), () {
+      unawaited(_stopServer());
+    });
+  }
+
   @override
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
+    _idleShutdownTimer?.cancel();
+    _idleShutdownTimer = null;
     _activeRequest?.abort();
     await _stopServer();
   }
@@ -724,6 +749,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   @override
   Future<void> dispose() async {
     _cancelRequested = true;
+    _idleShutdownTimer?.cancel();
+    _idleShutdownTimer = null;
     _activeRequest?.abort();
     await _stopServer();
     _httpClient.close(force: true);
