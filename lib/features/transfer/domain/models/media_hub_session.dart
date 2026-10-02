@@ -1,9 +1,45 @@
+enum MediaHubEndpointKind {
+  tailscale,
+  lan,
+  other,
+}
+
+class MediaHubEndpoint {
+  final String host;
+  final int port;
+  final MediaHubEndpointKind kind;
+
+  const MediaHubEndpoint({
+    required this.host,
+    required this.port,
+    required this.kind,
+  });
+
+  bool get isRemoteCapable => kind == MediaHubEndpointKind.tailscale;
+
+  Uri get baseUri => Uri(
+        scheme: 'http',
+        host: host,
+        port: port,
+      );
+
+  Map<String, dynamic> toJson() {
+    return {
+      'host': host,
+      'port': port,
+      'kind': kind.name,
+      'remoteCapable': isRemoteCapable,
+    };
+  }
+}
+
 class MediaHubSession {
   final String host;
   final int port;
   final String token;
   final DateTime startedAt;
   final int trackCount;
+  final List<MediaHubEndpoint> endpoints;
 
   const MediaHubSession({
     required this.host,
@@ -11,6 +47,7 @@ class MediaHubSession {
     required this.token,
     required this.startedAt,
     required this.trackCount,
+    this.endpoints = const [],
   });
 
   Uri get baseUri => Uri(
@@ -18,6 +55,17 @@ class MediaHubSession {
         host: host,
         port: port,
       );
+
+  MediaHubEndpoint? get tailscaleEndpoint {
+    for (final endpoint in endpoints) {
+      if (endpoint.kind == MediaHubEndpointKind.tailscale) {
+        return endpoint;
+      }
+    }
+    return null;
+  }
+
+  bool get remoteAccessAvailable => tailscaleEndpoint != null;
 
   Uri get pairingUri => Uri(
         scheme: 'lyricforge',
@@ -28,6 +76,7 @@ class MediaHubSession {
           'host': host,
           'port': port.toString(),
           'token': token,
+          'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
         },
       );
 }
