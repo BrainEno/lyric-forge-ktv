@@ -79,6 +79,7 @@ class NativeTranscriptionProfileResolver
               'Qwen3-ASR 1.7B CUDA/BF16 主识别 + ForcedAligner + Whisper large-v3 全曲第二意见',
           hardware: hardware,
           config: config.copyWith(
+            profilePreference: selected,
             engineOrder: TranscriptionEngineOrder.qwenPrimary,
             qwenModelPath: _qwen17,
             qwenAlignerModelPath: _aligner06,
@@ -94,6 +95,7 @@ class NativeTranscriptionProfileResolver
               'Whisper large-v3 主识别 + Qwen3-ASR 0.6B CPU 第二意见；Qwen ForcedAligner 提供候选时间信息',
           hardware: hardware,
           config: config.copyWith(
+            profilePreference: selected,
             engineOrder: TranscriptionEngineOrder.whisperPrimary,
             qwenModelPath: _qwen06,
             qwenAlignerModelPath: _aligner06,
