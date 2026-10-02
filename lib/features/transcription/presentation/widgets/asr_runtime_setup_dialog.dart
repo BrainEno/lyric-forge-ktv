@@ -167,6 +167,33 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
+                DropdownButtonFormField<TranscriptionMode>(
+                  initialValue: _config.mode,
+                  decoration: const InputDecoration(
+                    labelText: '识别方案',
+                    helperText: '不需要选择模型文件，LyricForge 会自动匹配',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: TranscriptionMode.highestQuality,
+                      child: Text('最高质量 · 双引擎校对（推荐）'),
+                    ),
+                    DropdownMenuItem(
+                      value: TranscriptionMode.whisperOnly,
+                      child: Text('Whisper 单模型 · 更省空间'),
+                    ),
+                  ],
+                  onChanged: _installing
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _config = _config.copyWith(mode: value);
+                          });
+                          unawaited(_refresh());
+                        },
+                ),
+                const SizedBox(height: AppSpacing.md),
                 if (status != null)
                   _ProfileSummary(
                     title: status.profile.label,
