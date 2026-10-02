@@ -4,7 +4,9 @@ import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/project/data/repositories/memory_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
+import '../../features/transfer/data/services/http_media_hub_client_service.dart';
 import '../../features/transfer/data/services/http_media_hub_service.dart';
+import '../../features/transfer/domain/services/media_hub_client_service.dart';
 import '../../features/transfer/domain/services/media_hub_service.dart';
 
 /// Simple service locator for dependency injection.
@@ -18,12 +20,14 @@ class ServiceLocator {
   late final AudioPlayerService audioPlayerService;
   late final PlayHistoryRepository playHistoryRepository;
   late final MediaHubService mediaHubService;
+  late final MediaHubClientService mediaHubClientService;
 
   void initialize() {
     projectRepository = MemoryProjectRepository();
     audioPlayerService = JustAudioPlayerService();
     playHistoryRepository = MemoryPlayHistoryRepository();
     mediaHubService = HttpMediaHubService();
+    mediaHubClientService = HttpMediaHubClientService();
   }
 }
 
