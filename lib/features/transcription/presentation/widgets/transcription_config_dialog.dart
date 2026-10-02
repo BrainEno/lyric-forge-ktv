@@ -230,7 +230,7 @@ class _TranscriptionConfigDialogState
                   initialValue: _fallbackThreshold,
                   decoration: const InputDecoration(
                     labelText: '备用识别触发阈值',
-                    helperText: '分数越高，越多可疑行会交给 Whisper 复核',
+                    helperText: '分数越高，越多低置信度 Qwen 行进入重点校对',
                   ),
                   items: const [
                     DropdownMenuItem(value: 60, child: Text('60 · 保守')),
@@ -248,8 +248,8 @@ class _TranscriptionConfigDialogState
                   initialValue: _maxFallbackSegments,
                   decoration: const InputDecoration(
                     labelText: '最多突出显示分歧行',
+                    helperText: 'Whisper 仍会识别全曲；这里只限制编辑器重点列出的分歧数量',
                   ),
-                  helperText: 'Whisper 仍会识别全曲；这里只限制编辑器重点列出的分歧数量',
                   items: const [
                     DropdownMenuItem(value: 8, child: Text('8')),
                     DropdownMenuItem(value: 12, child: Text('12')),
