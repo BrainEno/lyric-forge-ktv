@@ -29,6 +29,11 @@ class MediaHubConnection {
       throw const FormatException('不是有效的 LyricForge Media Hub 配对地址');
     }
 
+    final version = uri.queryParameters['v'];
+    if (version != '1') {
+      throw const FormatException('不支持的 Media Hub 协议版本');
+    }
+
     final host = uri.queryParameters['host']?.trim();
     final port = int.tryParse(uri.queryParameters['port'] ?? '');
     final token = uri.queryParameters['token']?.trim();
