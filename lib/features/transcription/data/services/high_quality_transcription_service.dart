@@ -43,8 +43,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       if (!request.config.isHighQualityConfigured) {
         throw const TranscriptionException(
-          '最高质量模式需要完整配置 Qwen3-ASR 1.7B、ForcedAligner 和 Whisper large-v3',
+          '最高质量模式需要完整配置 Qwen3-ASR、ForcedAligner 和 Whisper large-v3',
         );
+      }
+
+      if (request.config.engineOrder ==
+          TranscriptionEngineOrder.whisperPrimary) {
+        return await _transcribeWhisperPrimary(request);
       }
 
       final primaryResult = await _runPrimary(request);
@@ -162,6 +167,319 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _running = false;
       _cancelRequested = false;
     }
+  }
+
+  Future<TranscriptionResult> _transcribeWhisperPrimary(
+    TranscriptionRequest request,
+  ) async {
+    _emit(
+      TranscriptionStage.transcribing,
+      0.02,
+      'Whisper large-v3 正在进行主识别',
+    );
+
+    final whisperSubscription =
+        fallback.progressStream.listen((progress) {
+      if (_cancelRequested) return;
+      final mapped = 0.02 + progress.progress * 0.54;
+      _emit(
+        progress.stage,
+        mapped.clamp(0.02, 0.56).toDouble(),
+        'Whisper 主识别 · ' + progress.message,
+      );
+    });
+
+    late final TranscriptionResult whisperResult;
+    try {
+      whisperResult = await fallback.transcribe(
+        TranscriptionRequest(
+          inputAudioPath: request.inputAudioPath,
+          outputDirectory: request.outputDirectory +
+              Platform.pathSeparator +
+              'whisper_primary',
+          config: request.config.copyWith(
+            mode: TranscriptionMode.whisperOnly,
+          ),
+          context: request.context,
+        ),
+      );
+    } finally {
+      await whisperSubscription.cancel();
+    }
+
+    _throwIfCancelled();
+
+    _emit(
+      TranscriptionStage.fallback,
+      0.58,
+      'Qwen3-ASR 0.6B 正在进行 CPU 第二意见识别',
+    );
+
+    final qwenDirectory = Directory(
+      request.outputDirectory +
+          Platform.pathSeparator +
+          'qwen_second_opinion',
+    );
+    await qwenDirectory.create(recursive: true);
+
+    TranscriptionResult qwenResult;
+    try {
+      final qwenSubscription = primary.progressStream.listen((progress) {
+        if (_cancelRequested) return;
+        final mapped = 0.58 + progress.progress * 0.34;
+        _emit(
+          TranscriptionStage.fallback,
+          mapped.clamp(0.58, 0.92).toDouble(),
+          'Qwen 第二意见 · ' + progress.message,
+        );
+      });
+
+      try {
+        qwenResult = await primary.transcribe(
+          TranscriptionRequest(
+            inputAudioPath: request.inputAudioPath,
+            outputDirectory: qwenDirectory.path,
+            config: request.config,
+            context: request.context,
+          ),
+        );
+      } finally {
+        await qwenSubscription.cancel();
+      }
+    } on TranscriptionException catch (error) {
+      if (error.message == '歌词识别已取消') rethrow;
+
+      _emit(
+        TranscriptionStage.completed,
+        1.0,
+        'Whisper 主识别完成，但 Qwen 第二意见失败',
+      );
+
+      return TranscriptionResult(
+        lyrics: whisperResult.lyrics.copyWith(
+          metadata: {
+            ...whisperResult.lyrics.metadata,
+            'qualityMode': 'highestQuality',
+            'primaryEngine': 'whisper.cpp-large-v3',
+            'alignmentEngine': 'whisper-segment-timestamps',
+            'fallbackEngine': 'qwen3-asr-0.6b',
+            'fallbackAlignmentEngine':
+                'qwen3-forced-aligner-0.6b',
+            'fallbackStatus': 'failed',
+            'fallbackError': error.toString(),
+            'fallbackCandidateCount': 0,
+            'fallbackAppliedCount': 0,
+          },
+        ),
+        normalizedAudioPath: whisperResult.normalizedAudioPath,
+        rawJsonPath: whisperResult.rawJsonPath,
+        detectedLanguage: whisperResult.detectedLanguage,
+      );
+    }
+
+    _throwIfCancelled();
+
+    _emit(
+      TranscriptionStage.parsing,
+      0.95,
+      '正在比较 Whisper 与 Qwen 的歌词分歧',
+    );
+
+    final merge = _mergeWhisperPrimaryResults(
+      whisperPrimary: whisperResult.lyrics,
+      qwenSecondOpinion: qwenResult.lyrics,
+      config: request.config,
+    );
+
+    final mergedDocument = whisperResult.lyrics.copyWith(
+      lines: merge.lines,
+      metadata: {
+        ...whisperResult.lyrics.metadata,
+        'qualityMode': 'highestQuality',
+        'primaryEngine': 'whisper.cpp-large-v3',
+        'alignmentEngine': 'whisper-segment-timestamps',
+        'fallbackEngine': 'qwen3-asr-0.6b',
+        'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
+        'fallbackStrategy': 'fullSongSecondOpinion',
+        'fallbackStatus': 'completed',
+        'fallbackCandidateCount': merge.candidates.length,
+        'fallbackAppliedCount': merge.appliedCount,
+        'fallbackCandidates': merge.candidates,
+        'qwenRawJsonPath': qwenResult.rawJsonPath,
+      },
+    );
+
+    _emit(
+      TranscriptionStage.completed,
+      1.0,
+      merge.candidates.isEmpty
+          ? 'Intel Mac 高质量识别完成，两套引擎结果高度一致'
+          : 'Intel Mac 高质量识别完成，发现 ${merge.candidates.length} 行需要重点校对',
+    );
+
+    return TranscriptionResult(
+      lyrics: mergedDocument,
+      normalizedAudioPath: whisperResult.normalizedAudioPath,
+      rawJsonPath: whisperResult.rawJsonPath,
+      detectedLanguage: whisperResult.detectedLanguage,
+    );
+  }
+
+  _MergeResult _mergeWhisperPrimaryResults({
+    required LyricDocument whisperPrimary,
+    required LyricDocument qwenSecondOpinion,
+    required TranscriptionConfig config,
+  }) {
+    final lines = List<LyricLine>.from(whisperPrimary.lines);
+    final candidates = <_RankedCandidate>[];
+
+    for (var index = 0; index < whisperPrimary.lines.length; index++) {
+      final whisperLine = whisperPrimary.lines[index];
+      final qwenLines = _overlappingLines(
+        whisperLine,
+        qwenSecondOpinion.lines,
+      );
+
+      if (qwenLines.isEmpty) {
+        if (_isPrimarySuspicious(whisperLine, config)) {
+          candidates.add(
+            _RankedCandidate(
+              priority: 100 - whisperLine.confidence,
+              data: {
+                'lineIndex': index,
+                'startMs': whisperLine.startTime.inMilliseconds,
+                'endMs': whisperLine.endTime.inMilliseconds,
+                'primaryEngine': 'whisper',
+                'primaryText': whisperLine.text,
+                'primaryConfidence': whisperLine.confidence,
+                'whisperText': whisperLine.text,
+                'whisperConfidence': whisperLine.confidence,
+                'selected': 'whisper',
+                'reason': 'qwen_no_overlap',
+              },
+            ),
+          );
+        }
+        continue;
+      }
+
+      final qwenText = _joinFallbackLines(qwenLines);
+      final qwenConfidence = _averageConfidence(qwenLines);
+      final similarity = _textSimilarity(whisperLine.text, qwenText);
+      final durationRatio = _durationRatio(whisperLine, qwenLines);
+
+      final suspicious = _isPrimarySuspicious(whisperLine, config) ||
+          similarity < 0.72;
+      if (!suspicious) continue;
+
+      final decision = _decideWhisperPrimaryCandidate(
+        whisperLine: whisperLine,
+        qwenText: qwenText,
+        qwenConfidence: qwenConfidence,
+        similarity: similarity,
+        durationRatio: durationRatio,
+      );
+
+      candidates.add(
+        _RankedCandidate(
+          priority: _candidatePriority(
+            qwenLine: whisperLine,
+            similarity: similarity,
+          ),
+          data: {
+            'lineIndex': index,
+            'startMs': whisperLine.startTime.inMilliseconds,
+            'endMs': whisperLine.endTime.inMilliseconds,
+            'primaryEngine': 'whisper',
+            'primaryText': whisperLine.text,
+            'primaryConfidence': whisperLine.confidence,
+            'alternativeEngine': 'qwen',
+            'alternativeText': qwenText,
+            'alternativeConfidence': qwenConfidence,
+            'whisperText': whisperLine.text,
+            'whisperConfidence': whisperLine.confidence,
+            'qwenText': qwenText,
+            'qwenConfidence': qwenConfidence,
+            'similarity': double.parse(similarity.toStringAsFixed(3)),
+            'durationRatio': double.parse(durationRatio.toStringAsFixed(3)),
+            'selected': decision.useAlternative ? 'qwen' : 'whisper',
+            'reason': decision.reason,
+          },
+          alternativeDecision: decision,
+        ),
+      );
+    }
+
+    candidates.sort((a, b) => b.priority.compareTo(a.priority));
+    final limited = candidates
+        .take(config.maxFallbackSegments)
+        .toList(growable: false);
+
+    var appliedCount = 0;
+    for (final candidate in limited) {
+      final decision = candidate.alternativeDecision;
+      if (decision == null || !decision.useAlternative) continue;
+
+      final index = candidate.data['lineIndex'] as int;
+      final qwenText = candidate.data['qwenText'] as String;
+      lines[index] = lines[index].copyWith(
+        text: qwenText,
+        confidence: decision.outputConfidence,
+      );
+      appliedCount++;
+    }
+
+    return _MergeResult(
+      lines: lines,
+      candidates: limited.map((e) => e.data).toList(growable: false),
+      appliedCount: appliedCount,
+    );
+  }
+
+  _AlternativeDecision _decideWhisperPrimaryCandidate({
+    required LyricLine whisperLine,
+    required String qwenText,
+    required int qwenConfidence,
+    required double similarity,
+    required double durationRatio,
+  }) {
+    final whisperSuspicious =
+        _hasSuspiciousRepetition(whisperLine.text);
+    final qwenSuspicious = _hasSuspiciousRepetition(qwenText);
+    final timingCompatible =
+        durationRatio >= 0.55 && durationRatio <= 1.80;
+
+    if (timingCompatible &&
+        whisperSuspicious &&
+        !qwenSuspicious &&
+        qwenConfidence >= 55 &&
+        similarity < 0.82) {
+      return _AlternativeDecision(
+        useAlternative: true,
+        outputConfidence: qwenConfidence.clamp(55, 85).toInt(),
+        reason: 'whisper_repetition',
+      );
+    }
+
+    if (timingCompatible &&
+        whisperLine.confidence <= 45 &&
+        !qwenSuspicious &&
+        qwenConfidence >= whisperLine.confidence + 12 &&
+        similarity < 0.75) {
+      return _AlternativeDecision(
+        useAlternative: true,
+        outputConfidence: qwenConfidence.clamp(50, 85).toInt(),
+        reason: 'qwen_materially_stronger',
+      );
+    }
+
+    return _AlternativeDecision(
+      useAlternative: false,
+      outputConfidence: whisperLine.confidence,
+      reason: similarity < 0.72
+          ? 'engine_disagreement_review'
+          : 'keep_whisper_primary',
+    );
   }
 
   Future<TranscriptionResult> _runPrimary(
@@ -284,6 +602,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'lineIndex': index,
             'startMs': qwenLine.startTime.inMilliseconds,
             'endMs': qwenLine.endTime.inMilliseconds,
+            'primaryEngine': 'qwen',
+            'primaryText': qwenLine.text,
+            'primaryConfidence': qwenLine.confidence,
+            'alternativeEngine': 'whisper',
+            'alternativeText': whisperText,
+            'alternativeConfidence': whisperConfidence,
             'qwenText': qwenLine.text,
             'qwenConfidence': qwenLine.confidence,
             'whisperText': whisperText,
@@ -587,11 +911,25 @@ class _RankedCandidate {
   final int priority;
   final Map<String, dynamic> data;
   final _CandidateDecision? decision;
+  final _AlternativeDecision? alternativeDecision;
 
   const _RankedCandidate({
     required this.priority,
     required this.data,
     this.decision,
+    this.alternativeDecision,
+  });
+}
+
+class _AlternativeDecision {
+  final bool useAlternative;
+  final int outputConfidence;
+  final String reason;
+
+  const _AlternativeDecision({
+    required this.useAlternative,
+    required this.outputConfidence,
+    required this.reason,
   });
 }
 
