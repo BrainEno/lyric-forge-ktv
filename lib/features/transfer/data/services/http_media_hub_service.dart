@@ -9,6 +9,8 @@ import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
 
 class HttpMediaHubService implements MediaHubService {
+  static const int preferredPort = 48517;
+
   final Uuid _uuid;
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
@@ -65,14 +67,16 @@ class HttpMediaHubService implements MediaHubService {
         );
       }
 
-      final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-      final host = await _resolveLanAddress();
+      final server = await _bindServer();
+      final endpoints = await _resolveReachableEndpoints(server.port);
+      final preferredEndpoint = endpoints.first;
       final session = MediaHubSession(
-        host: host,
+        host: preferredEndpoint.host,
         port: server.port,
         token: _uuid.v4().replaceAll('-', ''),
         startedAt: DateTime.now(),
         trackCount: validated.length,
+        endpoints: endpoints,
       );
 
       _tracks = Map.unmodifiable(validated);
@@ -119,6 +123,78 @@ class HttpMediaHubService implements MediaHubService {
     await _stateController.close();
   }
 
+  Future<HttpServer> _bindServer() async {
+    try {
+      return await HttpServer.bind(
+        InternetAddress.anyIPv4,
+        preferredPort,
+      );
+    } on SocketException {
+      return HttpServer.bind(InternetAddress.anyIPv4, 0);
+    }
+  }
+
+  Future<List<MediaHubEndpoint>> _resolveReachableEndpoints(int port) async {
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+      includeLoopback: false,
+      includeLinkLocal: false,
+    );
+
+    final tailscaleHosts = <String>{};
+    final lanHosts = <String>{};
+    final otherHosts = <String>{};
+
+    for (final interface in interfaces) {
+      for (final address in interface.addresses) {
+        final value = address.address;
+        if (_isTailscaleIpv4(value)) {
+          tailscaleHosts.add(value);
+        } else if (_isPrivateLanIpv4(value)) {
+          lanHosts.add(value);
+        } else {
+          otherHosts.add(value);
+        }
+      }
+    }
+
+    final endpoints = <MediaHubEndpoint>[
+      ...tailscaleHosts.map(
+        (host) => MediaHubEndpoint(
+          host: host,
+          port: port,
+          kind: MediaHubEndpointKind.tailscale,
+        ),
+      ),
+      ...lanHosts.map(
+        (host) => MediaHubEndpoint(
+          host: host,
+          port: port,
+          kind: MediaHubEndpointKind.lan,
+        ),
+      ),
+      ...otherHosts.map(
+        (host) => MediaHubEndpoint(
+          host: host,
+          port: port,
+          kind: MediaHubEndpointKind.other,
+        ),
+      ),
+    ];
+
+    if (endpoints.isEmpty) {
+      endpoints.add(
+        MediaHubEndpoint(
+          host: InternetAddress.loopbackIPv4.address,
+          port: port,
+          kind: MediaHubEndpointKind.other,
+        ),
+      );
+    }
+
+    return List.unmodifiable(endpoints);
+  }
+
   Future<void> _handleRequest(
     HttpRequest request,
     MediaHubSession session,
@@ -155,6 +231,9 @@ class HttpMediaHubService implements MediaHubService {
             'protocolVersion': 1,
             'startedAt': session.startedAt.toIso8601String(),
             'trackCount': _tracks.length,
+            'remoteAccessAvailable': session.remoteAccessAvailable,
+            'endpoints':
+                session.endpoints.map((endpoint) => endpoint.toJson()).toList(),
           },
         );
         return;
@@ -312,36 +391,38 @@ class HttpMediaHubService implements MediaHubService {
         authorization.substring(prefix.length) == token;
   }
 
-  Future<String> _resolveLanAddress() async {
-    final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-      includeLinkLocal: false,
-    );
+  bool _isTailscaleIpv4(String address) {
+    final parts = _parseIpv4(address);
+    if (parts == null) return false;
 
-    String? fallback;
-    for (final interface in interfaces) {
-      for (final address in interface.addresses) {
-        final value = address.address;
-        fallback ??= value;
-        if (_isPrivateIpv4(value)) return value;
-      }
-    }
-
-    return fallback ?? InternetAddress.loopbackIPv4.address;
+    final first = parts[0];
+    final second = parts[1];
+    return first == 100 && second >= 64 && second <= 127;
   }
 
-  bool _isPrivateIpv4(String address) {
-    final parts = address.split('.');
-    if (parts.length != 4) return false;
+  bool _isPrivateLanIpv4(String address) {
+    final parts = _parseIpv4(address);
+    if (parts == null) return false;
 
-    final first = int.tryParse(parts[0]);
-    final second = int.tryParse(parts[1]);
-    if (first == null || second == null) return false;
+    final first = parts[0];
+    final second = parts[1];
 
     if (first == 10) return true;
     if (first == 192 && second == 168) return true;
     return first == 172 && second >= 16 && second <= 31;
+  }
+
+  List<int>? _parseIpv4(String address) {
+    final parts = address.split('.');
+    if (parts.length != 4) return null;
+
+    final parsed = <int>[];
+    for (final part in parts) {
+      final value = int.tryParse(part);
+      if (value == null || value < 0 || value > 255) return null;
+      parsed.add(value);
+    }
+    return parsed;
   }
 
   String _mimeTypeFor(String format) {
