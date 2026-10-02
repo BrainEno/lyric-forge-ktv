@@ -65,6 +65,7 @@ class LocalProjectTranscriptionWorkflow
           inputAudioPath: inputPath,
           outputDirectory: outputDirectory.path,
           config: config,
+          context: _buildRecognitionContext(project),
         ),
       );
 
@@ -131,6 +132,17 @@ class LocalProjectTranscriptionWorkflow
       }
       rethrow;
     }
+  }
+
+  String _buildRecognitionContext(ProjectManifest project) {
+    final parts = <String>[
+      'Song title: ' + project.name,
+      if (project.artist != null && project.artist!.trim().isNotEmpty)
+        'Artist: ' + project.artist!.trim(),
+      if (project.album != null && project.album!.trim().isNotEmpty)
+        'Album: ' + project.album!.trim(),
+    ];
+    return parts.join('. ');
   }
 
   Future<String> _resolveInputPath(ProjectManifest project) async {
