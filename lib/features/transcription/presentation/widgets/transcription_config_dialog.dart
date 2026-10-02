@@ -57,7 +57,7 @@ class _TranscriptionConfigDialogState
     );
     _language = config?.language ?? 'auto';
     _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
-    _maxFallbackSegments = config?.maxFallbackSegments ?? 12;
+    _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
   }
 
   @override
@@ -158,7 +158,7 @@ class _TranscriptionConfigDialogState
                 _InfoCard(
                   title: 'RTX 高质量运行策略',
                   body:
-                      'Qwen3-ASR 1.7B 使用 CUDA / BF16 常驻本地 sidecar；ForcedAligner 负责主时间轴。只把可疑片段交给 Whisper large-v3 复核。',
+                      'Qwen3-ASR 1.7B 使用 CUDA / BF16 本地 sidecar；ForcedAligner 负责主时间轴。Whisper large-v3 对全曲做独立第二意见，系统只突出显示最高风险的分歧行。',
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
@@ -247,12 +247,13 @@ class _TranscriptionConfigDialogState
                 DropdownButtonFormField<int>(
                   initialValue: _maxFallbackSegments,
                   decoration: const InputDecoration(
-                    labelText: '单曲最多复核片段',
+                    labelText: '最多突出显示分歧行',
                   ),
+                  helperText: 'Whisper 仍会识别全曲；这里只限制编辑器重点列出的分歧数量',
                   items: const [
                     DropdownMenuItem(value: 8, child: Text('8')),
-                    DropdownMenuItem(value: 12, child: Text('12 · 推荐')),
-                    DropdownMenuItem(value: 20, child: Text('20 · 更彻底')),
+                    DropdownMenuItem(value: 12, child: Text('12')),
+                    DropdownMenuItem(value: 20, child: Text('20 · 推荐')),
                   ],
                   onChanged: (value) {
                     if (value != null) {
