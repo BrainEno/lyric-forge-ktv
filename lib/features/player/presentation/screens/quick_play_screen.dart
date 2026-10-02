@@ -13,6 +13,7 @@ import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/playback_session_service.dart';
 
 /// Local music player for audio that is not attached to a LyricForge project.
 ///
@@ -41,6 +42,7 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   };
 
   late final AudioPlayerService _audioService;
+  late final PlaybackSessionService _playbackSession;
   late final PlayHistoryRepository _playHistoryRepository;
 
   File? _selectedFile;
@@ -52,6 +54,7 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   void initState() {
     super.initState();
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _playHistoryRepository = ServiceLocatorGlobal.I.playHistoryRepository;
 
     if (widget.initialHistory != null) {
@@ -145,19 +148,19 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         originalPath: file.path,
         format: _getFileExtension(file.path),
       );
-      await _audioService.loadProjectAudio(
-        audioAsset: audioAsset,
-        preferredSource: AudioSourceType.original,
+      final id = _activeHistoryId ?? const Uuid().v4();
+      _activeHistoryId = id;
+
+      await _playbackSession.playItem(
+        PlaybackItem(
+          id: id,
+          title: _displayTitle(file.path),
+          audioAsset: audioAsset,
+          preferredSource: AudioSourceType.original,
+          artworkPath: audioAsset.thumbnailPath,
+        ),
+        resumeFrom: resumeFrom,
       );
-
-      if (resumeFrom != null && resumeFrom > Duration.zero) {
-        final duration = _audioService.currentState.duration;
-        if (duration == null || resumeFrom < duration) {
-          await _audioService.seek(resumeFrom);
-        }
-      }
-
-      await _audioService.play();
       await _savePlayHistory(file);
     } catch (error) {
       if (!mounted) return;
@@ -212,16 +215,9 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
     );
   }
 
-  Future<void> _playPause() async {
-    final state = _audioService.currentState;
-    if (state.isPlaying) {
-      await _audioService.pause();
-    } else {
-      await _audioService.play();
-    }
-  }
+  Future<void> _playPause() => _playbackSession.togglePlayPause();
 
-  Future<void> _seek(Duration position) => _audioService.seek(position);
+  Future<void> _seek(Duration position) => _playbackSession.seek(position);
 
   Future<void> _skip(Duration delta) async {
     final state = _audioService.currentState;
@@ -292,7 +288,7 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
 
   @override
   void dispose() {
-    _audioService.stop();
+    // Playback is app-scoped and intentionally survives route changes.
     super.dispose();
   }
 }
