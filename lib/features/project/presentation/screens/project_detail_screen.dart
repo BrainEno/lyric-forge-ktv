@@ -535,7 +535,7 @@ class _ActionButtons extends StatelessWidget {
                   )
               : null,
           icon: const Icon(Icons.play_arrow),
-          label: Text(project.canPlay ? '开始演唱' : '等待伴奏处理'),
+          label: Text(project.canPlay ? '打开播放器' : '等待音频处理'),
         ),
         const SizedBox(height: AppSpacing.md),
         OutlinedButton.icon(
