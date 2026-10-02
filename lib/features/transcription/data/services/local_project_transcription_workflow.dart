@@ -45,7 +45,7 @@ class LocalProjectTranscriptionWorkflow
 
     final config = await _settingsStore.load();
     if (config == null || !config.isConfigured) {
-      throw const TranscriptionException('请先配置 whisper.cpp 和模型文件');
+      throw const TranscriptionException('请先完成本地歌词识别运行时配置');
     }
 
     final inputPath = await _resolveInputPath(project);
@@ -81,13 +81,18 @@ class LocalProjectTranscriptionWorkflow
           metadata: {
             ...latest.metadata,
             'transcription': {
-              'backend': 'whisper.cpp',
+              'mode': config.mode.name,
+              'backend': result.lyrics.metadata['primaryEngine'] ??
+                  result.lyrics.metadata['generatedBy'] ??
+                  'local-asr',
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
-              'modelPath': config.modelPath,
+              'qwenModelPath': config.qwenModelPath,
+              'qwenAlignerModelPath': config.qwenAlignerModelPath,
+              'whisperModelPath': config.modelPath,
             },
           },
         ),
