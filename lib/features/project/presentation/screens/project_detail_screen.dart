@@ -535,7 +535,7 @@ class _ActionButtons extends StatelessWidget {
                   )
               : null,
           icon: const Icon(Icons.play_arrow),
-          label: Text(project.canPlay ? '开始演唱' : '等待伴奏处理'),
+          label: Text(project.canPlay ? '打开播放器' : '等待音频处理'),
         ),
         const SizedBox(height: AppSpacing.md),
         OutlinedButton.icon(
@@ -626,7 +626,7 @@ class _ProjectMetadata extends StatelessWidget {
           if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
             const _MetadataRow(
               label: '备用引擎',
-              value: 'Whisper 复核失败 · Qwen 结果已保留',
+              value: '第二意见识别失败 · 主识别结果已保留',
             ),
         ],
       ),
