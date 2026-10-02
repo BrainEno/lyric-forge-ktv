@@ -7,6 +7,8 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/project_manifest.dart';
 
 /// Import audio screen - file selection and project creation entry point.
 /// Desktop-first: uses file_picker for local audio file selection.
@@ -67,10 +69,24 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
         name: projectName,
       );
 
+      final extension = fileName.contains('.')
+          ? fileName.split('.').last.toLowerCase()
+          : '';
+      final importedProject = await repository.updateProject(
+        project.copyWith(
+          status: ProjectStatus.draft,
+          currentStage: ProcessingStage.audioImported,
+          audioAsset: AudioAsset(
+            originalPath: _selectedFile!.path,
+            format: extension,
+          ),
+        ),
+      );
+
       if (mounted) {
         Navigator.pushReplacementNamed(
           context,
-          Routes.projectDetailPath(project.id),
+          Routes.projectDetailPath(importedProject.id),
         );
       }
     } finally {
