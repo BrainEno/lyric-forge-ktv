@@ -42,7 +42,9 @@ class NativeTranscriptionProfileResolver
       if (memoryBytes != null) {
         systemMemoryMb = memoryBytes ~/ (1024 * 1024);
       }
-      gpuName = await _detectMacGpu();
+      final gpu = await _detectMacGpu();
+      gpuName = gpu.$1;
+      gpuMemoryMb = gpu.$2;
     } else if (Platform.isWindows) {
       final gpu = await _detectNvidiaGpu();
       gpuName = gpu.$1;
@@ -132,12 +134,9 @@ class NativeTranscriptionProfileResolver
     if (Platform.isWindows) {
       final value =
           Platform.environment['PROCESSOR_ARCHITECTURE']?.trim().toLowerCase();
-      return switch (value) {
-        'amd64' => 'x86_64',
-        'arm64' => 'arm64',
-        null || '' => 'unknown',
-        _ => value!,
-      };
+      if (value == null || value.isEmpty) return 'unknown';
+      if (value == 'amd64') return 'x86_64';
+      return value;
     }
 
     return (await _runText('uname', const ['-m']))?.toLowerCase() ?? 'unknown';
@@ -160,29 +159,58 @@ class NativeTranscriptionProfileResolver
     return (name, memory);
   }
 
-  Future<String?> _detectMacGpu() async {
+  Future<(String?, int?)> _detectMacGpu() async {
     final output = await _runText(
       'system_profiler',
-      const ['SPDisplaysDataType', '-json'],
+      const ['-json', 'SPDisplaysDataType'],
     );
-    if (output == null || output.trim().isEmpty) return null;
+    if (output == null || output.trim().isEmpty) return (null, null);
 
     try {
       final decoded = jsonDecode(output);
-      if (decoded is! Map) return null;
+      if (decoded is! Map) return (null, null);
       final displays = decoded['SPDisplaysDataType'];
-      if (displays is! List || displays.isEmpty) return null;
+      if (displays is! List || displays.isEmpty) return (null, null);
 
       final names = <String>[];
+      var maxMemoryMb = 0;
+
       for (final item in displays) {
         if (item is! Map) continue;
+
         final name = item['sppci_model']?.toString().trim();
         if (name != null && name.isNotEmpty) names.add(name);
+
+        final memoryText = (item['spdisplays_vram'] ??
+                item['spdisplays_vram_shared'] ??
+                item['spdisplays_vram_dynamic'])
+            ?.toString();
+        final memoryMb = _parseMemoryMb(memoryText);
+        if (memoryMb != null && memoryMb > maxMemoryMb) {
+          maxMemoryMb = memoryMb;
+        }
       }
-      return names.isEmpty ? null : names.join(' / ');
+
+      return (
+        names.isEmpty ? null : names.join(' / '),
+        maxMemoryMb == 0 ? null : maxMemoryMb,
+      );
     } catch (_) {
-      return null;
+      return (null, null);
     }
+  }
+
+  int? _parseMemoryMb(String? value) {
+    if (value == null) return null;
+    final match =
+        RegExp(r'(\d+(?:\.\d+)?)\s*(GB|MB)', caseSensitive: false)
+            .firstMatch(value);
+    if (match == null) return null;
+
+    final amount = double.tryParse(match.group(1) ?? '');
+    if (amount == null) return null;
+    final unit = (match.group(2) ?? '').toUpperCase();
+    return unit == 'GB' ? (amount * 1024).round() : amount.round();
   }
 
   Future<String?> _runText(
