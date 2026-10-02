@@ -33,15 +33,6 @@ class QuickPlayScreen extends StatefulWidget {
 }
 
 class _QuickPlayScreenState extends State<QuickPlayScreen> {
-  static const _supportedExtensions = {
-    'mp3',
-    'flac',
-    'wav',
-    'm4a',
-    'aac',
-    'ogg',
-  };
-
   late final AudioPlayerService _audioService;
   late final AudioLibraryImportService _audioImportService;
   late final PlaybackSessionService _playbackSession;
@@ -315,12 +306,18 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         title: Text(file == null ? '本地播放器' : '正在播放'),
         backgroundColor: AppColors.bgBase,
         actions: [
-          if (file != null)
+          if (file != null) ...[
             IconButton(
               onPressed: _pickAudioFiles,
               icon: const Icon(Icons.library_add_rounded),
               tooltip: '添加音乐到队列',
             ),
+            IconButton(
+              onPressed: _pickAudioFolder,
+              icon: const Icon(Icons.folder_copy_rounded),
+              tooltip: '导入音乐文件夹',
+            ),
+          ],
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
