@@ -63,10 +63,12 @@ class TranscriptionConfig {
       qwenModelPath.trim().isNotEmpty &&
       qwenAlignerModelPath.trim().isNotEmpty;
 
+  bool get isHighQualityConfigured =>
+      isQwenConfigured && isWhisperConfigured;
+
   bool get isConfigured {
     return switch (mode) {
-      TranscriptionMode.highestQuality =>
-        isQwenConfigured && isWhisperConfigured,
+      TranscriptionMode.highestQuality => isHighQualityConfigured,
       TranscriptionMode.whisperOnly => isWhisperConfigured,
     };
   }
