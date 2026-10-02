@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -296,6 +297,22 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
             if (session != null) ...[
               const SizedBox(height: AppSpacing.lg),
               ...session.endpoints.map(_endpointRow),
+              const SizedBox(height: AppSpacing.md),
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.pureWhite,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMedium),
+                  ),
+                  child: QrImageView(
+                    data: session.pairingUri.toString(),
+                    size: 184,
+                    backgroundColor: AppColors.pureWhite,
+                  ),
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               Text('配对信息', style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: AppSpacing.xs),
