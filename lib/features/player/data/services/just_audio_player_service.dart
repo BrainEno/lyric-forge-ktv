@@ -20,7 +20,6 @@ class JustAudioPlayerService implements AudioPlayerService {
   }
 
   void _initStateStreams() {
-    // 监听 just_audio 状态变化
     _player.playerStateStream.listen((playerState) {
       _updateState();
     });
@@ -55,7 +54,7 @@ class JustAudioPlayerService implements AudioPlayerService {
       speed: _player.speed,
       volume: _player.volume,
       currentSource: _currentSource,
-      error: null, // TODO: Listen to playbackEventStream for errors
+      error: null,
     );
 
     _stateController.add(_currentState);
@@ -68,16 +67,41 @@ class JustAudioPlayerService implements AudioPlayerService {
   }) async {
     _currentAsset = audioAsset;
 
-    // 按优先级选择可用音源
     AudioSourceType source = preferredSource;
     if (!audioAsset.hasSource(source)) {
       source = audioAsset.defaultSource;
     }
 
-    await _loadSource(source);
+    await _loadProjectSource(source);
   }
 
-  Future<void> _loadSource(AudioSourceType source) async {
+  @override
+  Future<void> loadAudioUri({
+    required Uri uri,
+    AudioSourceType source = AudioSourceType.original,
+  }) async {
+    if (uri.scheme != 'http' &&
+        uri.scheme != 'https' &&
+        uri.scheme != 'file') {
+      throw ArgumentError.value(
+        uri,
+        'uri',
+        '仅支持 http、https 或 file URI',
+      );
+    }
+
+    _currentAsset = null;
+    _currentSource = source;
+
+    if (uri.scheme == 'file') {
+      await _player.setFilePath(uri.toFilePath());
+      return;
+    }
+
+    await _player.setUrl(uri.toString());
+  }
+
+  Future<void> _loadProjectSource(AudioSourceType source) async {
     if (_currentAsset == null) return;
 
     final path = _currentAsset!.getPathForSource(source);
@@ -103,7 +127,9 @@ class JustAudioPlayerService implements AudioPlayerService {
 
   @override
   Future<void> switchSource(AudioSourceType source) async {
-    if (_currentAsset == null) return;
+    if (_currentAsset == null) {
+      throw StateError('当前播放项不是可切换音源的本地工程');
+    }
     if (!_currentAsset!.hasSource(source)) {
       throw Exception('Source $source not available for this project');
     }
@@ -111,7 +137,7 @@ class JustAudioPlayerService implements AudioPlayerService {
     final wasPlaying = _player.playing;
     final currentPosition = _player.position;
 
-    await _loadSource(source);
+    await _loadProjectSource(source);
     await _player.seek(currentPosition);
 
     if (wasPlaying) {
