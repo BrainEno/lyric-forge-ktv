@@ -5,10 +5,19 @@ import '../models/playback_state.dart';
 
 /// 音频播放器服务接口
 abstract class AudioPlayerService {
-  /// 加载工程音频
+  /// 加载工程内的本地音频
   Future<void> loadProjectAudio({
     required AudioAsset audioAsset,
     AudioSourceType preferredSource = AudioSourceType.instrumental,
+  });
+
+  /// 加载远程或其他 URI 音频。
+  ///
+  /// Media Hub 手机端通过此入口播放桌面端音频，避免 presentation 层
+  /// 直接依赖 just_audio 或 HTTP 实现。
+  Future<void> loadAudioUri({
+    required Uri uri,
+    AudioSourceType source = AudioSourceType.original,
   });
 
   /// 播放控制
@@ -17,7 +26,7 @@ abstract class AudioPlayerService {
   Future<void> stop();
   Future<void> seek(Duration position);
 
-  /// 切换音源
+  /// 切换工程音源
   Future<void> switchSource(AudioSourceType source);
 
   /// 播放参数
