@@ -607,6 +607,12 @@ class _ProjectMetadata extends StatelessWidget {
                   ? '最高质量'
                   : 'Whisper',
             ),
+          if (transcription is Map &&
+              transcription['hardwareProfileLabel'] != null)
+            _MetadataRow(
+              label: '本机 Profile',
+              value: transcription['hardwareProfileLabel'].toString(),
+            ),
           if (project.lyricDocument?.metadata['fallbackCandidateCount'] != null)
             _MetadataRow(
               label: '备用复核',
