@@ -90,15 +90,62 @@ void main() {
 
       await service.dispose();
     });
+    test('uses Whisper primary and Qwen second opinion on Intel Mac',
+        () async {
+      final qwenResult = _result(
+        LyricLine(
+          text: 'yellow submarine',
+          startTime: const Duration(milliseconds: 10100),
+          endTime: const Duration(milliseconds: 12900),
+          confidence: 92,
+        ),
+      );
+
+      final whisperResult = _result(
+        LyricLine(
+          text: 'hello hello hello hello',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 35,
+        ),
+      );
+
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: qwenResult),
+        fallback: _FakeTranscriptionService(result: whisperResult),
+      );
+
+      final result = await service.transcribe(
+        _request(
+          tempDirectory.path,
+          engineOrder: TranscriptionEngineOrder.whisperPrimary,
+        ),
+      );
+
+      final line = result.lyrics.lines.single;
+      expect(line.text, 'yellow submarine');
+      expect(line.startTime, const Duration(seconds: 10));
+      expect(line.endTime, const Duration(seconds: 13));
+      expect(result.lyrics.metadata['primaryEngine'], 'whisper.cpp-large-v3');
+      expect(result.lyrics.metadata['fallbackEngine'], 'qwen3-asr-0.6b');
+      expect(result.lyrics.metadata['fallbackAppliedCount'], 1);
+
+      await service.dispose();
+    });
+
   });
 }
 
-TranscriptionRequest _request(String outputDirectory) {
+TranscriptionRequest _request(
+  String outputDirectory, {
+  TranscriptionEngineOrder engineOrder = TranscriptionEngineOrder.qwenPrimary,
+}) {
   return TranscriptionRequest(
     inputAudioPath: 'unused-by-fake.wav',
     outputDirectory: outputDirectory,
-    config: const TranscriptionConfig(
+    config: TranscriptionConfig(
       mode: TranscriptionMode.highestQuality,
+      engineOrder: engineOrder,
       qwenExecutable: 'qwen3-asr',
       whisperExecutable: 'whisper-cli',
       modelPath: 'ggml-large-v3.bin',
