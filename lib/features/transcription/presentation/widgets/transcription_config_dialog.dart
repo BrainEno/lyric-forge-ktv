@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/transcription_profile_resolver.dart';
 
 class TranscriptionConfigDialog extends StatefulWidget {
   final TranscriptionConfig? initialConfig;
@@ -19,6 +23,8 @@ class TranscriptionConfigDialog extends StatefulWidget {
 
 class _TranscriptionConfigDialogState
     extends State<TranscriptionConfigDialog> {
+  late final TranscriptionProfileResolver _profileResolver;
+
   late final TextEditingController _qwenExecutableController;
   late final TextEditingController _qwenModelController;
   late final TextEditingController _qwenAlignerController;
@@ -27,16 +33,26 @@ class _TranscriptionConfigDialogState
   late final TextEditingController _ffmpegController;
 
   late TranscriptionMode _mode;
+  late TranscriptionProfilePreference _profilePreference;
   late String _language;
+  late String _qwenDevice;
+  late String _qwenDtype;
   late int _fallbackThreshold;
   late int _maxFallbackSegments;
+
+  ResolvedTranscriptionProfile? _resolvedProfile;
+  bool _resolvingProfile = false;
 
   @override
   void initState() {
     super.initState();
-    final config = widget.initialConfig;
+    _profileResolver = ServiceLocatorGlobal.I.transcriptionProfileResolver;
 
+    final config = widget.initialConfig;
     _mode = config?.mode ?? TranscriptionMode.highestQuality;
+    _profilePreference =
+        config?.profilePreference ?? TranscriptionProfilePreference.automatic;
+
     _qwenExecutableController = TextEditingController(
       text: config?.qwenExecutable ?? 'qwen3-asr',
     );
@@ -44,7 +60,8 @@ class _TranscriptionConfigDialogState
       text: config?.qwenModelPath ?? 'Qwen/Qwen3-ASR-1.7B',
     );
     _qwenAlignerController = TextEditingController(
-      text: config?.qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
+      text: config?.qwenAlignerModelPath ??
+          'Qwen/Qwen3-ForcedAligner-0.6B',
     );
     _whisperController = TextEditingController(
       text: config?.whisperExecutable ?? 'whisper-cli',
@@ -55,9 +72,14 @@ class _TranscriptionConfigDialogState
     _ffmpegController = TextEditingController(
       text: config?.ffmpegExecutable ?? 'ffmpeg',
     );
+
     _language = config?.language ?? 'auto';
+    _qwenDevice = config?.qwenDevice ?? 'cuda';
+    _qwenDtype = config?.qwenDtype ?? 'bf16';
     _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
     _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
+
+    unawaited(_resolveProfile(applyRecommendation: true));
   }
 
   @override
@@ -69,6 +91,50 @@ class _TranscriptionConfigDialogState
     _whisperModelController.dispose();
     _ffmpegController.dispose();
     super.dispose();
+  }
+
+  TranscriptionConfig _draftConfig() {
+    return TranscriptionConfig(
+      mode: _mode,
+      profilePreference: _profilePreference,
+      qwenExecutable: _qwenExecutableController.text.trim(),
+      qwenModelPath: _qwenModelController.text.trim(),
+      qwenAlignerModelPath: _qwenAlignerController.text.trim(),
+      qwenDevice: _qwenDevice,
+      qwenDtype: _qwenDtype,
+      whisperExecutable: _whisperController.text.trim(),
+      modelPath: _whisperModelController.text.trim(),
+      ffmpegExecutable: _ffmpegController.text.trim(),
+      language: _language,
+      fallbackConfidenceThreshold: _fallbackThreshold,
+      maxFallbackSegments: _maxFallbackSegments,
+    );
+  }
+
+  Future<void> _resolveProfile({
+    required bool applyRecommendation,
+  }) async {
+    if (_resolvingProfile) return;
+
+    setState(() => _resolvingProfile = true);
+    try {
+      final resolved = await _profileResolver.resolve(_draftConfig());
+      if (!mounted) return;
+
+      setState(() {
+        _resolvedProfile = resolved;
+        if (applyRecommendation &&
+            resolved.profile != TranscriptionProfilePreference.custom) {
+          final config = resolved.config;
+          _qwenModelController.text = config.qwenModelPath;
+          _qwenAlignerController.text = config.qwenAlignerModelPath;
+          _qwenDevice = config.qwenDevice;
+          _qwenDtype = config.qwenDtype;
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _resolvingProfile = false);
+    }
   }
 
   Future<void> _pickFileInto(TextEditingController controller) async {
@@ -89,21 +155,15 @@ class _TranscriptionConfigDialogState
     }
   }
 
+  Future<void> _selectProfile(
+    TranscriptionProfilePreference preference,
+  ) async {
+    setState(() => _profilePreference = preference);
+    await _resolveProfile(applyRecommendation: true);
+  }
+
   void _submit() {
-    final config = TranscriptionConfig(
-      mode: _mode,
-      qwenExecutable: _qwenExecutableController.text.trim(),
-      qwenModelPath: _qwenModelController.text.trim(),
-      qwenAlignerModelPath: _qwenAlignerController.text.trim(),
-      qwenDevice: 'cuda',
-      qwenDtype: 'bf16',
-      whisperExecutable: _whisperController.text.trim(),
-      modelPath: _whisperModelController.text.trim(),
-      ffmpegExecutable: _ffmpegController.text.trim(),
-      language: _language,
-      fallbackConfidenceThreshold: _fallbackThreshold,
-      maxFallbackSegments: _maxFallbackSegments,
-    );
+    final config = _draftConfig();
 
     if (!config.isConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,14 +181,43 @@ class _TranscriptionConfigDialogState
     Navigator.pop(context, config);
   }
 
+  String _profileName(TranscriptionProfilePreference profile) {
+    return switch (profile) {
+      TranscriptionProfilePreference.automatic => '自动 · 根据本机硬件',
+      TranscriptionProfilePreference.rtx5080HighQuality =>
+        'RTX 5080 · 最高质量',
+      TranscriptionProfilePreference.intelMacHighQuality =>
+        'Intel Mac · 高质量',
+      TranscriptionProfilePreference.custom => '自定义',
+    };
+  }
+
+  String _hardwareSummary(TranscriptionHardwareInfo hardware) {
+    final parts = <String>[
+      hardware.operatingSystem + ' / ' + hardware.architecture,
+      if (hardware.cpuName != null && hardware.cpuName!.isNotEmpty)
+        hardware.cpuName!,
+      if (hardware.gpuName != null && hardware.gpuName!.isNotEmpty)
+        hardware.gpuName!,
+      if (hardware.gpuMemoryMb != null)
+        (hardware.gpuMemoryMb! / 1024).toStringAsFixed(0) + ' GB VRAM',
+      if (hardware.systemMemoryMb != null)
+        (hardware.systemMemoryMb! / 1024).toStringAsFixed(0) + ' GB RAM',
+    ];
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final highQuality = _mode == TranscriptionMode.highestQuality;
+    final resolved = _resolvedProfile;
+    final whisperPrimary = resolved?.config.engineOrder ==
+        TranscriptionEngineOrder.whisperPrimary;
 
     return AlertDialog(
       title: const Text('本地歌词识别设置'),
       content: SizedBox(
-        width: 680,
+        width: 700,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -136,13 +225,11 @@ class _TranscriptionConfigDialogState
             children: [
               DropdownButtonFormField<TranscriptionMode>(
                 initialValue: _mode,
-                decoration: const InputDecoration(
-                  labelText: '识别模式',
-                ),
+                decoration: const InputDecoration(labelText: '识别模式'),
                 items: const [
                   DropdownMenuItem(
                     value: TranscriptionMode.highestQuality,
-                    child: Text('最高质量 · Qwen 1.7B + 对齐 + Whisper 复核'),
+                    child: Text('最高质量 · 双引擎 + 时间轴校对'),
                   ),
                   DropdownMenuItem(
                     value: TranscriptionMode.whisperOnly,
@@ -155,47 +242,87 @@ class _TranscriptionConfigDialogState
               ),
               if (highQuality) ...[
                 const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<TranscriptionProfilePreference>(
+                  initialValue: _profilePreference,
+                  decoration: const InputDecoration(labelText: '硬件 Profile'),
+                  items: TranscriptionProfilePreference.values
+                      .map(
+                        (profile) => DropdownMenuItem(
+                          value: profile,
+                          child: Text(_profileName(profile)),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: _resolvingProfile
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            unawaited(_selectProfile(value));
+                          }
+                        },
+                ),
+                const SizedBox(height: AppSpacing.md),
                 _InfoCard(
-                  title: 'RTX 高质量运行策略',
-                  body:
-                      'Qwen3-ASR 1.7B 使用 CUDA / BF16 本地 sidecar；ForcedAligner 负责主时间轴。Whisper large-v3 对全曲做独立第二意见，系统只突出显示最高风险的分歧行。',
+                  title: resolved?.label ??
+                      (_resolvingProfile ? '正在检测本机硬件…' : '硬件检测'),
+                  body: resolved == null
+                      ? '正在根据操作系统、CPU 架构和 GPU 选择本机识别链路。'
+                      : resolved.description +
+                          '\n' +
+                          _hardwareSummary(resolved.hardware),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
                   controller: _qwenExecutableController,
                   label: 'Qwen3-ASR native runtime',
-                  hint: 'qwen3-asr.exe 或 PATH 中的 qwen3-asr',
+                  hint: 'qwen3-asr / qwen3-asr.exe',
                   onBrowse: () => _pickFileInto(_qwenExecutableController),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
                   controller: _qwenModelController,
-                  label: 'Qwen3-ASR 1.7B 模型 ID / 目录',
-                  hint: 'Qwen/Qwen3-ASR-1.7B 或本地模型目录',
+                  label: whisperPrimary
+                      ? 'Qwen3-ASR 0.6B 第二意见模型'
+                      : 'Qwen3-ASR 1.7B 主模型',
+                  hint: whisperPrimary
+                      ? 'Qwen/Qwen3-ASR-0.6B'
+                      : 'Qwen/Qwen3-ASR-1.7B',
                   onBrowse: () => _pickDirectoryInto(_qwenModelController),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
                   controller: _qwenAlignerController,
-                  label: 'Qwen3 ForcedAligner 0.6B 模型 ID / 目录',
-                  hint: 'Qwen/Qwen3-ForcedAligner-0.6B 或本地模型目录',
+                  label: 'Qwen3 ForcedAligner 0.6B',
+                  hint: 'Qwen/Qwen3-ForcedAligner-0.6B',
                   onBrowse: () => _pickDirectoryInto(_qwenAlignerController),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Qwen backend：' +
+                      _qwenDevice.toUpperCase() +
+                      ' / ' +
+                      _qwenDtype.toUpperCase(),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
               _PathField(
                 controller: _whisperController,
                 label: highQuality
-                    ? 'Whisper fallback runtime'
+                    ? whisperPrimary
+                        ? 'Whisper 主识别 runtime'
+                        : 'Whisper 第二意见 runtime'
                     : 'whisper-cli',
-                hint: 'whisper-cli.exe 或 PATH 中的 whisper-cli',
+                hint: 'whisper-cli / whisper-cli.exe',
                 onBrowse: () => _pickFileInto(_whisperController),
               ),
               const SizedBox(height: AppSpacing.md),
               _PathField(
                 controller: _whisperModelController,
                 label: highQuality
-                    ? 'Whisper large-v3 fallback 模型'
+                    ? whisperPrimary
+                        ? 'Whisper large-v3 主模型'
+                        : 'Whisper large-v3 第二意见模型'
                     : 'Whisper 模型',
                 hint: highQuality
                     ? '建议 ggml-large-v3.bin'
@@ -206,7 +333,7 @@ class _TranscriptionConfigDialogState
               _PathField(
                 controller: _ffmpegController,
                 label: 'FFmpeg',
-                hint: 'ffmpeg.exe 或 PATH 中的 ffmpeg',
+                hint: 'ffmpeg / ffmpeg.exe',
                 onBrowse: () => _pickFileInto(_ffmpegController),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -229,8 +356,8 @@ class _TranscriptionConfigDialogState
                 DropdownButtonFormField<int>(
                   initialValue: _fallbackThreshold,
                   decoration: const InputDecoration(
-                    labelText: '备用识别触发阈值',
-                    helperText: '分数越高，越多低置信度 Qwen 行进入重点校对',
+                    labelText: '重点校对触发阈值',
+                    helperText: '分数越高，越多低置信度主引擎结果会进入重点校对',
                   ),
                   items: const [
                     DropdownMenuItem(value: 60, child: Text('60 · 保守')),
@@ -248,7 +375,7 @@ class _TranscriptionConfigDialogState
                   initialValue: _maxFallbackSegments,
                   decoration: const InputDecoration(
                     labelText: '最多突出显示分歧行',
-                    helperText: 'Whisper 仍会识别全曲；这里只限制编辑器重点列出的分歧数量',
+                    helperText: '两套引擎仍会跑完整歌曲；这里只限制编辑器重点列出的数量',
                   ),
                   items: const [
                     DropdownMenuItem(value: 8, child: Text('8')),
@@ -264,7 +391,7 @@ class _TranscriptionConfigDialogState
               ],
               const SizedBox(height: AppSpacing.md),
               Text(
-                '识别完全在桌面本地执行。输入优先使用已分离的人声；没有人声轨时回退标准化音频或原声。自动结果始终作为可编辑歌词草稿。',
+                'Profile 只决定本机 runtime/model/device。工程本身只保存识别模式和结果，不绑定某台电脑的绝对路径。',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
