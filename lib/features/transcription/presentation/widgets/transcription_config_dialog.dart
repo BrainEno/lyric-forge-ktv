@@ -38,7 +38,7 @@ class _TranscriptionConfigDialogState
 
     _mode = config?.mode ?? TranscriptionMode.highestQuality;
     _qwenExecutableController = TextEditingController(
-      text: config?.qwenExecutable ?? 'qwen3_asr_cli',
+      text: config?.qwenExecutable ?? 'qwen3-asr',
     );
     _qwenModelController = TextEditingController(
       text: config?.qwenModelPath ?? '',
@@ -164,7 +164,7 @@ class _TranscriptionConfigDialogState
                 _PathField(
                   controller: _qwenExecutableController,
                   label: 'Qwen3-ASR native runtime',
-                  hint: 'qwen3_asr_cli.exe 或 PATH 中的 qwen3_asr_cli',
+                  hint: 'qwen3-asr.exe 或 PATH 中的 qwen3-asr',
                   onBrowse: () => _pickFileInto(_qwenExecutableController),
                 ),
                 const SizedBox(height: AppSpacing.md),
