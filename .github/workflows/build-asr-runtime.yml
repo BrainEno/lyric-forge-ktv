@@ -65,7 +65,7 @@ jobs:
       - name: Build whisper.cpp CUDA runtime
         shell: pwsh
         run: |
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
           cmake --build whisper-src/build --config Release --target whisper-cli --parallel 2
 
       - name: Assemble Windows runtime bundle
@@ -146,7 +146,7 @@ jobs:
 
       - name: Build whisper.cpp Intel runtime
         run: |
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_ACCELERATE=ON -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_ACCELERATE=ON -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
           cmake --build whisper-src/build --config Release --target whisper-cli --parallel 4
 
       - name: Assemble macOS Intel runtime bundle
