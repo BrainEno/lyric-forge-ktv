@@ -365,7 +365,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
         final state = snapshot.data ?? const PlaybackState.idle();
         final progress = state.duration == null
             ? 0.0
-            : state.progressPercent.clamp(0.0, 1.0);
+            : state.progressPercent.clamp(0.0, 1.0).toDouble();
 
         return Material(
           color: AppColors.bgSurface,
