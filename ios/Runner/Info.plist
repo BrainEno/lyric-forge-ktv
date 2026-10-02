@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于连接你自己的 LyricForge 桌面端音乐库并播放或下载音频。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于扫描 LyricForge 桌面端生成的配对二维码。</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
