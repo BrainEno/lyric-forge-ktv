@@ -607,6 +607,12 @@ class _ProjectMetadata extends StatelessWidget {
                   ? '最高质量'
                   : 'Whisper',
             ),
+          if (transcription is Map &&
+              transcription['hardwareProfileLabel'] != null)
+            _MetadataRow(
+              label: '本机 Profile',
+              value: transcription['hardwareProfileLabel'].toString(),
+            ),
           if (project.lyricDocument?.metadata['fallbackCandidateCount'] != null)
             _MetadataRow(
               label: '备用复核',
@@ -620,7 +626,7 @@ class _ProjectMetadata extends StatelessWidget {
           if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
             const _MetadataRow(
               label: '备用引擎',
-              value: 'Whisper 复核失败 · Qwen 结果已保留',
+              value: '第二意见识别失败 · 主识别结果已保留',
             ),
         ],
       ),
