@@ -202,6 +202,21 @@ class _PlayerContentState extends State<_PlayerContent> {
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgBase,
+        title: const Text('正在播放'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pushNamed(
+              context,
+              Routes.lyricEditorPath(widget.project.id),
+            ),
+            icon: const Icon(Icons.edit_rounded),
+            tooltip: '编辑歌词',
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
       body: SafeArea(
         child: StreamBuilder<PlaybackState>(
           stream: widget.audioService.stateStream,
@@ -286,7 +301,7 @@ class _PlayerContentState extends State<_PlayerContent> {
                 const SizedBox(height: AppSpacing.lg),
 
                 // Audio source selector
-                if (availableSources.length > 1)
+                if (_ktvMode && availableSources.length > 1)
                   _AudioSourceSelector(
                     availableSources: availableSources,
                     currentSource: state.currentSource,
