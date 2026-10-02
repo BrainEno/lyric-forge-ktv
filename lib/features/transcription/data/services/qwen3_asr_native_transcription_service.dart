@@ -389,7 +389,21 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       throw const TranscriptionException('Qwen3-ASR 返回了无效 JSON');
     }
 
-    return Map<String, dynamic>.from(decoded);
+    final envelope = Map<String, dynamic>.from(decoded);
+    final results = envelope['results'];
+    if (results is List && results.isNotEmpty && results.first is Map) {
+      return Map<String, dynamic>.from(results.first as Map);
+    }
+
+    // Keep a tolerant fallback for alternate native sidecars that return
+    // one transcription object directly.
+    if (envelope['text'] != null || envelope['timestamps'] != null) {
+      return envelope;
+    }
+
+    throw const TranscriptionException(
+      'Qwen3-ASR 响应缺少 results[0]',
+    );
   }
 
   String? _qwenLanguage(String value) {
@@ -435,6 +449,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'qualityMode': 'highestQuality',
         'segmentCount': lines.length,
         'suspiciousLineIndexes': suspiciousIndexes,
+        'confidenceSource': 'aligner_timing_heuristics',
         'rawJsonPath': rawJsonPath,
       },
     );
@@ -493,6 +508,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         (response['timestamps'] as Map)['word'],
       if (response['timestamps'] is Map)
         (response['timestamps'] as Map)['words'],
+      if (response['timestamps'] is Map)
+        (response['timestamps'] as Map)['items'],
       if (response['timestamps'] is List) response['timestamps'],
     ];
 
