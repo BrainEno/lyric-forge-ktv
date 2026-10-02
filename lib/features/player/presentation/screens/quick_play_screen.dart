@@ -202,12 +202,11 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         originalPath: file.path,
         format: _getFileExtension(file.path),
       );
-      final id = _activeHistoryId ?? const Uuid().v4();
-      _activeHistoryId = id;
+      _activeHistoryId ??= const Uuid().v4();
 
       await _playbackSession.playItem(
         PlaybackItem(
-          id: id,
+          id: 'local:${file.path}',
           title: _displayTitle(file.path),
           audioAsset: audioAsset,
           preferredSource: AudioSourceType.original,
