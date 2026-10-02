@@ -617,6 +617,11 @@ class _ProjectMetadata extends StatelessWidget {
                           .toString() +
                       ' 行',
             ),
+          if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
+            const _MetadataRow(
+              label: '备用引擎',
+              value: 'Whisper 复核失败 · Qwen 结果已保留',
+            ),
         ],
       ),
     );
