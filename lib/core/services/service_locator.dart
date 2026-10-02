@@ -5,6 +5,8 @@ import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/project/data/repositories/memory_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
+import '../../features/transcription/data/services/high_quality_transcription_service.dart';
+import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/project_transcription_workflow.dart';
@@ -41,7 +43,10 @@ class ServiceLocator {
     mediaHubService = HttpMediaHubService();
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
-    transcriptionService = WhisperCppTranscriptionService();
+    transcriptionService = HighQualityTranscriptionService(
+      primary: Qwen3AsrNativeTranscriptionService(),
+      fallback: WhisperCppTranscriptionService(),
+    );
     transcriptionSettingsStore = FileTranscriptionSettingsStore();
     projectTranscriptionWorkflow = LocalProjectTranscriptionWorkflow(
       projectRepository: projectRepository,
