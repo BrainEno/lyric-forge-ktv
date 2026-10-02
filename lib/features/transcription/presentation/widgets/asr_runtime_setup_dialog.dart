@@ -274,6 +274,11 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
               child: const Text('取消安装'),
             )
           else ...[
+            if (!ready)
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('稍后'),
+              ),
             TextButton(
               onPressed: _openAdvanced,
               child: const Text('高级设置'),
