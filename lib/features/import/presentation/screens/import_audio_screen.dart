@@ -24,19 +24,67 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
   bool _isCreating = false;
 
   Future<void> _pickAudioFile() async {
+    const supportedExtensions = {
+      'mp3',
+      'flac',
+      'wav',
+      'm4a',
+      'aac',
+      'ogg',
+    };
+
     try {
+      final useUnfilteredMacPicker = Platform.isMacOS;
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
+        // file_picker 8.x + filtered NSOpenPanel can make macOS navigation look
+        // disabled. On macOS let the native panel browse normally, then validate
+        // the selected extension in-app.
+        type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
+        allowedExtensions: useUnfilteredMacPicker
+            ? null
+            : supportedExtensions.toList(growable: false),
         allowMultiple: false,
+        dialogTitle: '选择音频文件',
+        allowCompression: false,
+        withData: false,
+        withReadStream: false,
       );
 
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedFile = File(result.files.single.path!);
-        });
+      if (result == null || result.files.isEmpty) return;
+
+      final path = result.files.single.path;
+      if (path == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('无法获取所选文件的本地路径'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
       }
+
+      final extension = path.contains('.')
+          ? path.split('.').last.toLowerCase()
+          : '';
+      if (!supportedExtensions.contains(extension)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('请选择 MP3 / FLAC / WAV / M4A / AAC / OGG 音频文件'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _selectedFile = File(path);
+      });
     } catch (e) {
-      // Handle file picker initialization errors
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -191,9 +239,22 @@ class _FileSelectionPlaceholder extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '支持 MP3 / FLAC / WAV / M4A 格式',
+              '支持 MP3 / FLAC / WAV / M4A / AAC / OGG 格式',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (Platform.isMacOS) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Text(
+                  'macOS：文件夹只用于进入目录，请继续进入音频所在文件夹并选中具体音频文件。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xl),
             Container(
               padding: const EdgeInsets.symmetric(
