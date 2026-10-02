@@ -200,7 +200,9 @@ class TranscriptionConfig {
 
     final profileName = json['profilePreference'] as String?;
     final profilePreference = profileName == null
-        ? TranscriptionProfilePreference.custom
+        ? mode == TranscriptionMode.highestQuality
+            ? TranscriptionProfilePreference.automatic
+            : TranscriptionProfilePreference.custom
         : TranscriptionProfilePreference.values.asNameMap()[profileName] ??
             TranscriptionProfilePreference.custom;
 
