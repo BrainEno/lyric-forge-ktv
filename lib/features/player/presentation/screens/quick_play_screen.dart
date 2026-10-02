@@ -51,9 +51,12 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
     _audioImportService = ServiceLocatorGlobal.I.audioLibraryImportService;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _playHistoryRepository = ServiceLocatorGlobal.I.playHistoryRepository;
+    final currentItem = _playbackSession.currentState.currentItem;
+    if (currentItem != null && currentItem.projectId == null) {
+      _selectedFile = File(currentItem.audioAsset.originalPath);
+    }
     _sessionSubscription =
         _playbackSession.stateStream.listen(_syncSessionState);
-    _syncSessionState(_playbackSession.currentState);
 
     if (widget.initialHistory != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
