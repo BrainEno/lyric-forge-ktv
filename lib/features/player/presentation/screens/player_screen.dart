@@ -174,6 +174,8 @@ class _PlayerContent extends StatefulWidget {
 }
 
 class _PlayerContentState extends State<_PlayerContent> {
+  bool _ktvMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +202,21 @@ class _PlayerContentState extends State<_PlayerContent> {
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgBase,
+        title: const Text('正在播放'),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pushNamed(
+              context,
+              Routes.lyricEditorPath(widget.project.id),
+            ),
+            icon: const Icon(Icons.edit_rounded),
+            tooltip: '编辑歌词',
+          ),
+          const SizedBox(width: AppSpacing.sm),
+        ],
+      ),
       body: SafeArea(
         child: StreamBuilder<PlaybackState>(
           stream: widget.audioService.stateStream,
@@ -284,7 +301,7 @@ class _PlayerContentState extends State<_PlayerContent> {
                 const SizedBox(height: AppSpacing.lg),
 
                 // Audio source selector
-                if (availableSources.length > 1)
+                if (_ktvMode && availableSources.length > 1)
                   _AudioSourceSelector(
                     availableSources: availableSources,
                     currentSource: state.currentSource,
@@ -302,8 +319,23 @@ class _PlayerContentState extends State<_PlayerContent> {
 
                 const SizedBox(height: AppSpacing.xl),
 
+                // KTV is an explicit mode instead of making every playback
+                // screen look like a karaoke screen.
+                OutlinedButton.icon(
+                  onPressed: lyrics.isEmpty
+                      ? null
+                      : () => setState(() => _ktvMode = !_ktvMode),
+                  icon: Icon(
+                    _ktvMode ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  ),
+                  label: Text(_ktvMode ? '退出 KTV' : 'KTV 模式'),
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
                 // Lyrics display
-                Expanded(
+                if (_ktvMode)
+                  Expanded(
                   flex: 1,
                   child: lyrics.isEmpty
                       ? Center(

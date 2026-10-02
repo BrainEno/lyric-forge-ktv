@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -9,8 +10,12 @@ import '../../../../features/player/domain/repositories/play_history_repository.
 import '../../../../features/project/domain/models/project_manifest.dart';
 import '../../../../features/project/domain/repositories/project_repository.dart';
 
-/// Dashboard screen - entry point for the local KTV production tool.
-/// Displays recent projects and provides entry to create new projects.
+/// Desktop home for LyricForge.
+///
+/// The information architecture deliberately starts as a local music player:
+/// open a song, resume recent listening, or continue a lyric project. Project
+/// creation stays prominent without making ordinary playback feel like a
+/// special or temporary mode.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -19,7 +24,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late final ProjectRepository _repository;
+  late final ProjectRepository _projectRepository;
   late final PlayHistoryRepository _playHistoryRepository;
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _playHistoryFuture;
@@ -27,19 +32,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = ServiceLocatorGlobal.I.projectRepository;
+    _projectRepository = ServiceLocatorGlobal.I.projectRepository;
     _playHistoryRepository = ServiceLocatorGlobal.I.playHistoryRepository;
     _loadData();
   }
 
   void _loadData() {
-    _projectsFuture = _repository.getRecentProjects(limit: 10);
-    _playHistoryFuture = _playHistoryRepository.getRecentPlayHistory(limit: 5);
+    _projectsFuture = _projectRepository.getRecentProjects(limit: 8);
+    _playHistoryFuture =
+        _playHistoryRepository.getRecentPlayHistory(limit: 8);
   }
 
   Future<void> _refreshData() async {
     setState(_loadData);
   }
+
+  Future<void> _openLocalPlayer([PlayHistory? history]) async {
+    await Navigator.pushNamed(
+      context,
+      Routes.quickPlay,
+      arguments: history,
+    );
+    if (mounted) {
+      _refreshData();
+    }
+  }
+
+  bool get _isDesktop =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   @override
   Widget build(BuildContext context) {
@@ -50,212 +73,100 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onRefresh: _refreshData,
           color: AppColors.accent,
           backgroundColor: AppColors.bgElevated,
-          child: CustomScrollView(
-            slivers: [
-              // App Header with title and new project button
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'LyricForge',
-                              style: Theme.of(context).textTheme.headlineMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              '本地 KTV 制作工具',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          _QuickPlayButton(
-                            onTap: () => Navigator.pushNamed(
-                              context,
-                              Routes.quickPlay,
-                            ).then((_) => _refreshData()),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          IconButton(
-                            tooltip: '远程音乐库',
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              !kIsWeb &&
-                                      (defaultTargetPlatform == TargetPlatform.windows ||
-                                          defaultTargetPlatform == TargetPlatform.macOS ||
-                                          defaultTargetPlatform == TargetPlatform.linux)
-                                  ? Routes.mediaSharing
-                                  : Routes.remoteLibrary,
-                            ),
-                            icon: const Icon(Icons.cast_connected),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          _NewProjectButton(
-                            onTap: () => Navigator.pushNamed(context, Routes.import),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Play history section
-              SliverToBoxAdapter(
-                child: FutureBuilder<List<PlayHistory>>(
-                  future: _playHistoryFuture,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final histories = snapshot.data!;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md,
-                            AppSpacing.lg,
-                            AppSpacing.md,
-                            AppSpacing.sm,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                '最近播放',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () {},
-                                child: const Text('查看全部'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                          ),
-                          child: Column(
-                            children: histories.map((history) {
-                              return _PlayHistoryListItem(
-                                history: history,
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  Routes.quickPlay,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-
-              // Section title
-              SliverToBoxAdapter(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1280),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
                     AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.sm,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xxxl,
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '最近项目',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('查看全部'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Project list or empty state
-              FutureBuilder<List<ProjectManifest>>(
-                future: _projectsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError) {
-                    return SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 48,
-                              color: AppColors.error,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Text(
-                              '加载失败',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
+                      _HomeHeader(
+                        isDesktop: _isDesktop,
+                        onOpenMusic: _openLocalPlayer,
+                        onOpenRemote: () => Navigator.pushNamed(
+                          context,
+                          _isDesktop
+                              ? Routes.mediaSharing
+                              : Routes.remoteLibrary,
                         ),
+                        onNewProject: () =>
+                            Navigator.pushNamed(context, Routes.import),
                       ),
-                    );
-                  }
+                      const SizedBox(height: AppSpacing.xxxl),
+                      _SectionHeading(
+                        title: '最近播放',
+                        subtitle: '像歌单一样继续播放本地音乐',
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FutureBuilder<List<PlayHistory>>(
+                        future: _playHistoryFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const _SectionLoading(height: 132);
+                          }
 
-                  final projects = snapshot.data ?? [];
+                          final histories = snapshot.data ?? [];
+                          if (histories.isEmpty) {
+                            return _EmptyListeningState(
+                              onOpenMusic: _openLocalPlayer,
+                            );
+                          }
 
-                  if (projects.isEmpty) {
-                    return const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyProjectsState(),
-                    );
-                  }
+                          return _RecentPlaylist(
+                            histories: histories,
+                            onPlay: _openLocalPlayer,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xxxl),
+                      const _SectionHeading(
+                        title: '最近项目',
+                        subtitle: '继续歌词识别、校对，或进入播放器与 KTV',
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      FutureBuilder<List<ProjectManifest>>(
+                        future: _projectsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const _SectionLoading(height: 220);
+                          }
 
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final project = projects[index];
-                          return _ProjectListItem(
-                            project: project,
-                            onTap: () => Navigator.pushNamed(
+                          if (snapshot.hasError) {
+                            return _LoadError(onRetry: _refreshData);
+                          }
+
+                          final projects = snapshot.data ?? [];
+                          if (projects.isEmpty) {
+                            return _EmptyProjectsState(
+                              onNewProject: () =>
+                                  Navigator.pushNamed(context, Routes.import),
+                            );
+                          }
+
+                          return _ProjectGrid(
+                            projects: projects,
+                            onOpen: (project) => Navigator.pushNamed(
                               context,
                               Routes.projectDetailPath(project.id),
                             ),
                           );
                         },
-                        childCount: projects.length,
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -263,134 +174,431 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _PlayHistoryListItem extends StatelessWidget {
+class _HomeHeader extends StatelessWidget {
+  final bool isDesktop;
+  final VoidCallback onOpenMusic;
+  final VoidCallback onOpenRemote;
+  final VoidCallback onNewProject;
+
+  const _HomeHeader({
+    required this.isDesktop,
+    required this.onOpenMusic,
+    required this.onOpenRemote,
+    required this.onNewProject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final identity = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'LyricForge',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '本地音乐播放器 · 歌词识别 · KTV',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
+        );
+
+        final actions = Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: onOpenMusic,
+              icon: const Icon(Icons.folder_open_rounded, size: 19),
+              label: const Text('打开音乐'),
+            ),
+            if (isDesktop)
+              IconButton(
+                tooltip: '远程音乐库',
+                onPressed: onOpenRemote,
+                icon: const Icon(Icons.cast_connected_rounded),
+              ),
+            FilledButton.icon(
+              onPressed: onNewProject,
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: const Text('新建工程'),
+            ),
+          ],
+        );
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              identity,
+              const SizedBox(height: AppSpacing.lg),
+              actions,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: identity),
+            actions,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionHeading({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentPlaylist extends StatelessWidget {
+  final List<PlayHistory> histories;
+  final ValueChanged<PlayHistory> onPlay;
+
+  const _RecentPlaylist({
+    required this.histories,
+    required this.onPlay,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        border: Border.all(color: AppColors.borderMuted),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          const _PlaylistHeader(),
+          for (var index = 0; index < histories.length; index++) ...[
+            if (index > 0)
+              const Divider(
+                height: 1,
+                indent: 76,
+                endIndent: AppSpacing.md,
+                color: AppColors.borderMuted,
+              ),
+            _RecentTrackRow(
+              index: index + 1,
+              history: histories[index],
+              onTap: () => onPlay(histories[index]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaylistHeader extends StatelessWidget {
+  const _PlaylistHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.borderSubtle),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 44,
+            child: Text(
+              '#',
+              style: TextStyle(color: AppColors.textTertiary),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '歌曲',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+          SizedBox(
+            width: 112,
+            child: Text(
+              '最近播放',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 52),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentTrackRow extends StatelessWidget {
+  final int index;
   final PlayHistory history;
   final VoidCallback onTap;
 
-  const _PlayHistoryListItem({
+  const _RecentTrackRow({
+    required this.index,
     required this.history,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
-        leading: Container(
-          width: AppSpacing.xl * 2,
-          height: AppSpacing.xl * 2,
-          decoration: BoxDecoration(
-            color: AppColors.bgSurface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+        hoverColor: AppColors.hoverOverlay,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          child: const Icon(
-            Icons.play_circle_outline,
-            color: AppColors.textSecondary,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 44,
+                child: Text(
+                  index.toString(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                ),
+              ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: AppColors.cardGradient,
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusSmall),
+                ),
+                child: const Icon(
+                  Icons.music_note_rounded,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      history.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      history.artist?.trim().isNotEmpty == true
+                          ? history.artist!
+                          : '本地音频',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 112,
+                child: Text(
+                  history.formattedPlayedAt,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                ),
+              ),
+              Tooltip(
+                message: '播放',
+                child: IconButton(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  color: AppColors.pureBlack,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    minimumSize: const Size(36, 36),
+                    maximumSize: const Size(36, 36),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        title: Text(
-          history.name,
-          style: Theme.of(context).textTheme.titleMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          history.formattedPlayedAt,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: AppColors.textTertiary,
         ),
       ),
     );
   }
 }
 
-class _ProjectListItem extends StatelessWidget {
+class _ProjectGrid extends StatelessWidget {
+  final List<ProjectManifest> projects;
+  final ValueChanged<ProjectManifest> onOpen;
+
+  const _ProjectGrid({
+    required this.projects,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1120
+            ? 4
+            : constraints.maxWidth >= 760
+                ? 3
+                : constraints.maxWidth >= 520
+                    ? 2
+                    : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: projects.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: AppSpacing.md,
+            crossAxisSpacing: AppSpacing.md,
+            childAspectRatio: 1.55,
+          ),
+          itemBuilder: (context, index) {
+            final project = projects[index];
+            return _ProjectTile(
+              project: project,
+              onTap: () => onOpen(project),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ProjectTile extends StatelessWidget {
   final ProjectManifest project;
   final VoidCallback onTap;
 
-  const _ProjectListItem({
+  const _ProjectTile({
     required this.project,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: AppSpacing.xl * 2,
-          height: AppSpacing.xl * 2,
-          decoration: BoxDecoration(
-            color: AppColors.bgSurface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-          ),
-          child: const Icon(
-            Icons.music_note,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        title: Text(
-          project.name,
-          style: Theme.of(context).textTheme.titleMedium,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: project.artist != null
-            ? Text(
-                project.artist!,
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: AppColors.textTertiary,
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickPlayButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _QuickPlayButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
     return Material(
       color: AppColors.bgElevated,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        hoverColor: AppColors.hoverOverlay,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.play_arrow,
-                size: 18,
-                color: AppColors.textSecondary,
+              Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.cardGradient,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusMedium),
+                    ),
+                    child: const Icon(
+                      Icons.album_rounded,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    project.hasLyrics
+                        ? Icons.lyrics_rounded
+                        : Icons.graphic_eq_rounded,
+                    size: 20,
+                    color: project.hasLyrics
+                        ? AppColors.accent
+                        : AppColors.textTertiary,
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.xs),
+              const Spacer(),
               Text(
-                '快速播放',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                project.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                project.artist?.trim().isNotEmpty == true
+                    ? project.artist!
+                    : project.hasLyrics
+                        ? '歌词已就绪'
+                        : '歌词工程',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
               ),
             ],
           ),
@@ -400,84 +608,143 @@ class _QuickPlayButton extends StatelessWidget {
   }
 }
 
-class _NewProjectButton extends StatelessWidget {
-  final VoidCallback onTap;
+class _SectionLoading extends StatelessWidget {
+  final double height;
 
-  const _NewProjectButton({required this.onTap});
+  const _SectionLoading({required this.height});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.accent,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(),
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _LoadError({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded, color: AppColors.error),
+          const SizedBox(width: AppSpacing.md),
+          const Expanded(child: Text('最近项目加载失败')),
+          TextButton(onPressed: onRetry, child: const Text('重试')),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyListeningState extends StatelessWidget {
+  final VoidCallback onOpenMusic;
+
+  const _EmptyListeningState({required this.onOpenMusic});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.queue_music_rounded,
+            size: 34,
+            color: AppColors.textSecondary,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.add,
-                size: 18,
-                color: AppColors.pureWhite,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                '新建工程',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: AppColors.pureWhite,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '还没有播放记录',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '打开一首本地音乐，它会出现在这里。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                ),
+              ],
+            ),
           ),
-        ),
+          OutlinedButton.icon(
+            onPressed: onOpenMusic,
+            icon: const Icon(Icons.folder_open_rounded),
+            label: const Text('打开音乐'),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _EmptyProjectsState extends StatelessWidget {
-  const _EmptyProjectsState();
+  final VoidCallback onNewProject;
+
+  const _EmptyProjectsState({required this.onNewProject});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      child: Row(
         children: [
-          Container(
-            width: AppSpacing.xxl * 3,
-            height: AppSpacing.xxl * 3,
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          const Icon(
+            Icons.lyrics_outlined,
+            size: 38,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '还没有歌词工程',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '从一首音频开始识别歌词，完成后即可进入 KTV。',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                ),
+              ],
             ),
-            child: const Icon(
-              Icons.music_note_outlined,
-              size: 48,
-              color: AppColors.textTertiary,
-            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            '还没有项目',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '点击上方按钮导入音频，开始制作你的 KTV',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pushNamed(context, Routes.import),
-            icon: const Icon(Icons.add),
-            label: const Text('导入音频'),
+          FilledButton.icon(
+            onPressed: onNewProject,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('新建工程'),
           ),
         ],
       ),
