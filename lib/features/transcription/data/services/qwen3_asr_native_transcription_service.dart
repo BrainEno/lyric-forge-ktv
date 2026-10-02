@@ -361,6 +361,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     final body = <String, dynamic>{
       'audio': audioPath,
       'return_timestamps': true,
+      // A full song can produce substantially more text than short speech
+      // samples. The native runtime still chunks forced-alignment work to
+      // <= 180 seconds internally.
+      'max_new_tokens': 1024,
+      // Keep 1.7B + aligner memory pressure predictable on a 16 GB RTX GPU.
+      'max_batch_size': 4,
+      'bucket_by_length': true,
       if (_qwenLanguage(config.language) != null)
         'language': _qwenLanguage(config.language),
     };
