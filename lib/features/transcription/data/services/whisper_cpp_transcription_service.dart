@@ -238,18 +238,31 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     final lines = <LyricLine>[];
     var lowConfidenceCount = 0;
+    var skippedSegmentCount = 0;
 
     for (final raw in rawSegments) {
-      if (raw is! Map) continue;
+      if (raw is! Map) {
+        skippedSegmentCount++;
+        continue;
+      }
       final segment = Map<String, dynamic>.from(raw);
       final text = (segment['text'] as String? ?? '').trim();
-      if (text.isEmpty) continue;
+      if (text.isEmpty) {
+        skippedSegmentCount++;
+        continue;
+      }
 
       final offsets = segment['offsets'];
-      if (offsets is! Map) continue;
+      if (offsets is! Map) {
+        skippedSegmentCount++;
+        continue;
+      }
       final from = offsets['from'];
       final to = offsets['to'];
-      if (from is! num || to is! num) continue;
+      if (from is! num || to is! num || to.toInt() <= from.toInt()) {
+        skippedSegmentCount++;
+        continue;
+      }
 
       final confidence = _segmentConfidence(segment);
       if (confidence < 65) lowConfidenceCount++;
@@ -277,6 +290,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         'segmentCount': lines.length,
         'lowConfidenceThreshold': 65,
         'lowConfidenceLineCount': lowConfidenceCount,
+        'skippedSegmentCount': skippedSegmentCount,
         'rawJsonPath': rawJsonPath,
       },
     );
@@ -291,7 +305,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
   int _segmentConfidence(Map<String, dynamic> segment) {
     final tokens = segment['tokens'];
-    if (tokens is! List) return 100;
+    if (tokens is! List) return 50;
 
     final probabilities = <double>[];
     for (final rawToken in tokens) {
@@ -305,7 +319,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       }
     }
 
-    if (probabilities.isEmpty) return 100;
+    if (probabilities.isEmpty) return 50;
     final average =
         probabilities.reduce((a, b) => a + b) / probabilities.length;
     return (average * 100).round().clamp(0, 100).toInt();
@@ -332,6 +346,9 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
 
     _activeProcess = process;
+    if (_cancelRequested) {
+      process.kill();
+    }
     final stderrLines = <String>[];
 
     final stdoutFuture = process.stdout.drain<void>();
