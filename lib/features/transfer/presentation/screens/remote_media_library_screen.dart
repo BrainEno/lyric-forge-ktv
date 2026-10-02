@@ -237,7 +237,10 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
       );
       await directory.create(recursive: true);
 
-      final fileName = _safeFileName(track.title) + '.' + track.format;
+      final idSuffix =
+          track.id.length > 8 ? track.id.substring(0, 8) : track.id;
+      final fileName =
+          _safeFileName(track.title) + '_' + idSuffix + '.' + track.format;
       final destination =
           directory.path + Platform.pathSeparator + fileName;
 
