@@ -91,7 +91,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
-    final safeIndex = startIndex.clamp(0, items.length - 1);
+    final safeIndex = startIndex.clamp(0, items.length - 1).toInt();
     _emit(
       PlaybackSessionState(
         queue: List<PlaybackItem>.unmodifiable(items),
