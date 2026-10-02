@@ -236,8 +236,12 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
 
   void _showKtvHint() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('这首音乐还没有歌词工程。新建工程并完成歌词识别后即可进入 KTV 模式。'),
+      SnackBar(
+        content: const Text('这首音乐还没有歌词工程。新建工程并完成歌词识别后即可进入 KTV 模式。'),
+        action: SnackBarAction(
+          label: '新建工程',
+          onPressed: () => Navigator.pushNamed(context, Routes.import),
+        ),
       ),
     );
   }
@@ -604,7 +608,7 @@ class _PlayerControls extends StatelessWidget {
               ),
               Expanded(
                 child: Slider(
-                  value: state.volume.clamp(0.0, 1.0),
+                  value: state.volume.clamp(0.0, 1.0).toDouble(),
                   min: 0,
                   max: 1,
                   onChanged: onVolumeChanged,
@@ -646,8 +650,10 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = state.duration;
-    final max = duration?.inMilliseconds.toDouble() ?? 1.0;
-    final value = state.position.inMilliseconds.toDouble().clamp(0.0, max);
+    final rawMax = duration?.inMilliseconds.toDouble() ?? 1.0;
+    final max = rawMax <= 0 ? 1.0 : rawMax;
+    final value =
+        state.position.inMilliseconds.toDouble().clamp(0.0, max).toDouble();
 
     return Column(
       children: [
