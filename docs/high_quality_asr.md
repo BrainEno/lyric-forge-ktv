@@ -63,7 +63,7 @@ The current Qwen provider expects a local native executable compatible with this
 command shape:
 
 ```text
-qwen3_asr_cli
+qwen3-asr
   --device cuda
   --dtype bf16
   serve
@@ -80,6 +80,13 @@ GET /healthz
 POST /v1/transcribe
 ```
 
+The currently evaluated reference implementation is the Rust/Candle
+`qwen3-asr-rs` CLI. Its forced-aligner path mirrors the official Qwen
+implementation: long audio is split into chunks no longer than 180 seconds,
+timestamps are offset back to the original song timeline, merged, and repaired
+for cross-chunk monotonicity. LyricForge therefore sends the full song once and
+does not add a second competing chunking layer.
+
 Request body:
 
 ```json
@@ -92,8 +99,10 @@ Request body:
 
 The language field is omitted for automatic language detection.
 
-The response parser accepts common timestamp layouts including:
+The reference server returns `{"results":[...]}`. LyricForge unwraps the
+first result and accepts timestamp layouts including:
 
+- `timestamps.items` (the current Rust/Candle forced-aligner shape)
 - `segments`
 - `words`
 - `time_stamps`
@@ -184,14 +193,22 @@ metadata.
 
 ## Current runtime configuration
 
-Highest Quality mode currently requires manual paths for:
+Highest Quality mode currently requires local runtime configuration for:
 
-- native Qwen3-ASR runtime
-- Qwen3-ASR 1.7B model directory
-- Qwen3 ForcedAligner 0.6B model directory
+- native CUDA-enabled `qwen3-asr` runtime
+- Qwen3-ASR 1.7B model reference
+- Qwen3 ForcedAligner 0.6B model reference
 - whisper.cpp runtime
 - Whisper large-v3 model
 - FFmpeg
+
+The Qwen model fields can use the official Hugging Face IDs directly:
+
+- `Qwen/Qwen3-ASR-1.7B`
+- `Qwen/Qwen3-ForcedAligner-0.6B`
+
+The native sidecar downloads/caches those models on first use, so a separate
+manual model-directory setup is not required.
 
 For the current high-end target machine, Qwen uses:
 
