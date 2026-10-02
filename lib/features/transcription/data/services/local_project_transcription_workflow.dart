@@ -45,7 +45,7 @@ class LocalProjectTranscriptionWorkflow
 
     final config = await _settingsStore.load();
     if (config == null || !config.isConfigured) {
-      throw const TranscriptionException('请先配置 whisper.cpp 和模型文件');
+      throw const TranscriptionException('请先完成本地歌词识别运行时配置');
     }
 
     final inputPath = await _resolveInputPath(project);
@@ -65,6 +65,7 @@ class LocalProjectTranscriptionWorkflow
           inputAudioPath: inputPath,
           outputDirectory: outputDirectory.path,
           config: config,
+          context: _buildRecognitionContext(project),
         ),
       );
 
@@ -81,13 +82,24 @@ class LocalProjectTranscriptionWorkflow
           metadata: {
             ...latest.metadata,
             'transcription': {
-              'backend': 'whisper.cpp',
+              'mode': config.mode.name,
+              'backend': result.lyrics.metadata['primaryEngine'] ??
+                  result.lyrics.metadata['generatedBy'] ??
+                  'local-asr',
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
-              'modelPath': config.modelPath,
+              'primaryModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Qwen3-ASR-1.7B'
+                  : 'whisper.cpp',
+              'alignmentModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Qwen3-ForcedAligner-0.6B'
+                  : null,
+              'fallbackModel': config.mode == TranscriptionMode.highestQuality
+                  ? 'Whisper large-v3'
+                  : null,
             },
           },
         ),
@@ -120,6 +132,17 @@ class LocalProjectTranscriptionWorkflow
       }
       rethrow;
     }
+  }
+
+  String _buildRecognitionContext(ProjectManifest project) {
+    final parts = <String>[
+      'Song title: ' + project.name,
+      if (project.artist != null && project.artist!.trim().isNotEmpty)
+        'Artist: ' + project.artist!.trim(),
+      if (project.album != null && project.album!.trim().isNotEmpty)
+        'Album: ' + project.album!.trim(),
+    ];
+    return parts.join('. ');
   }
 
   Future<String> _resolveInputPath(ProjectManifest project) async {
