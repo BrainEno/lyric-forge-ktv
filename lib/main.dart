@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'core/navigation/app_router.dart';
 import 'core/services/service_locator.dart';
 import 'core/theme/app_theme.dart';
+import 'features/player/presentation/widgets/global_player_bar.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,14 @@ class LyricForgeApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
+      builder: (context, child) {
+        return Column(
+          children: [
+            Expanded(child: child ?? const SizedBox.shrink()),
+            const GlobalPlayerBar(),
+          ],
+        );
+      },
     );
   }
 }

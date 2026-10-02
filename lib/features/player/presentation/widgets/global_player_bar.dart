@@ -1,0 +1,218 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+import '../../../../core/services/service_locator.dart';
+import '../../../../core/theme/color_tokens.dart';
+import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/models/playback_state.dart';
+import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/playback_session_service.dart';
+
+class GlobalPlayerBar extends StatefulWidget {
+  const GlobalPlayerBar({super.key});
+
+  @override
+  State<GlobalPlayerBar> createState() => _GlobalPlayerBarState();
+}
+
+class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
+  late final PlaybackSessionService _session;
+  late final AudioPlayerService _audio;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = ServiceLocatorGlobal.I.playbackSessionService;
+    _audio = ServiceLocatorGlobal.I.audioPlayerService;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    if (!isDesktop) return const SizedBox.shrink();
+
+    return StreamBuilder<PlaybackSessionState>(
+      stream: _session.stateStream,
+      initialData: _session.currentState,
+      builder: (context, sessionSnapshot) {
+        final session = sessionSnapshot.data ?? const PlaybackSessionState();
+        final item = session.currentItem;
+        if (item == null) return const SizedBox.shrink();
+
+        return StreamBuilder<PlaybackState>(
+          stream: _audio.stateStream,
+          initialData: _audio.currentState,
+          builder: (context, playbackSnapshot) {
+            final playback =
+                playbackSnapshot.data ?? const PlaybackState.idle();
+
+            return Material(
+              color: AppColors.bgElevated,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(
+                    value: playback.duration == null
+                        ? 0.0
+                        : playback.progressPercent
+                            .clamp(0.0, 1.0)
+                            .toDouble(),
+                    minHeight: 2,
+                    backgroundColor: AppColors.bgHighlight,
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.accent,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Row(
+                      children: [
+                        _Artwork(path: item.artworkPath),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                item.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                item.artist?.trim().isNotEmpty == true
+                                    ? item.artist!
+                                    : item.projectId != null
+                                        ? '歌词工程'
+                                        : '本地音乐',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: '上一首',
+                          onPressed: session.canSkipPrevious
+                              ? _session.skipPrevious
+                              : null,
+                          icon: const Icon(Icons.skip_previous_rounded),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        SizedBox(
+                          width: 42,
+                          height: 42,
+                          child: IconButton(
+                            tooltip: playback.isPlaying ? '暂停' : '播放',
+                            onPressed: playback.isBuffering
+                                ? null
+                                : _session.togglePlayPause,
+                            style: IconButton.styleFrom(
+                              backgroundColor: AppColors.pureWhite,
+                              foregroundColor: AppColors.pureBlack,
+                            ),
+                            icon: playback.isBuffering
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.pureBlack,
+                                    ),
+                                  )
+                                : Icon(
+                                    playback.isPlaying
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        IconButton(
+                          tooltip: '下一首',
+                          onPressed:
+                              session.canSkipNext ? _session.skipNext : null,
+                          icon: const Icon(Icons.skip_next_rounded),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Tooltip(
+                          message: '播放队列 ${session.queue.length} 首',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.queue_music_rounded,
+                                size: 20,
+                                color: AppColors.textTertiary,
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Text(
+                                session.queue.length.toString(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _Artwork extends StatelessWidget {
+  final String? path;
+
+  const _Artwork({this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    final file = path == null ? null : File(path!);
+    final hasArtwork = file != null && file.existsSync();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+      child: Container(
+        width: 48,
+        height: 48,
+        color: AppColors.bgSurface,
+        child: hasArtwork
+            ? Image.file(file!, fit: BoxFit.cover)
+            : const Icon(
+                Icons.music_note_rounded,
+                color: AppColors.textSecondary,
+              ),
+      ),
+    );
+  }
+}

@@ -1,7 +1,9 @@
 import '../../features/player/data/repositories/memory_play_history_repository.dart';
+import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
+import '../../features/player/domain/services/playback_session_service.dart';
 import '../../features/project/data/repositories/memory_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
@@ -31,6 +33,7 @@ class ServiceLocator {
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
   late final PlayHistoryRepository playHistoryRepository;
+  late final PlaybackSessionService playbackSessionService;
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
   late final TranscriptionProfileResolver transcriptionProfileResolver;
@@ -42,6 +45,7 @@ class ServiceLocator {
   void initialize() {
     projectRepository = MemoryProjectRepository();
     audioPlayerService = JustAudioPlayerService();
+    playbackSessionService = DefaultPlaybackSessionService(audioPlayerService);
     playHistoryRepository = MemoryPlayHistoryRepository();
     mediaHubService = HttpMediaHubService();
     mediaHubClientService = HttpMediaHubClientService();
