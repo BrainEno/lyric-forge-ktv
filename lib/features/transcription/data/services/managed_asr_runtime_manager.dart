@@ -74,9 +74,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       repaired.modelPath,
       managedWhisperModel,
     );
+    final whisperModelReady = whisperModel != null &&
+        await _validWhisperModel(whisperModel);
 
     final qwenMarker = _qwenReadyMarker(root, profile.profile);
-    final markerReady = await qwenMarker.exists();
+    final markerReady =
+        await _qwenMarkerMatches(qwenMarker, repaired);
     final qwenModelLocal = await _modelReferenceExists(
       repaired.qwenModelPath,
     );
@@ -104,41 +107,43 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       _component(
         AsrRuntimeComponent.whisperModel,
         'Whisper large-v3 模型',
-        whisperModel != null,
-        readyDetail: 'large-v3 模型已下载',
+        whisperModelReady,
+        readyDetail: 'large-v3 模型已下载并通过大小检查',
         missingDetail: '需要下载约 3.1 GB 模型',
-        path: whisperModel,
+        path: whisperModelReady ? whisperModel : null,
       ),
-      _component(
-        AsrRuntimeComponent.qwenRuntime,
-        'Qwen3-ASR 识别引擎',
-        qwen != null,
-        readyDetail: 'Qwen native runtime 已就绪',
-        missingDetail: _profileSupportsManagedRuntime(profile.profile)
-            ? '尚未安装；可由 LyricForge 自动安装'
-            : '当前自定义 Profile 需要在高级设置中指定 runtime',
-        path: qwen,
-        unavailable: !_profileSupportsManagedRuntime(profile.profile),
-      ),
-      _component(
-        AsrRuntimeComponent.qwenModel,
-        _qwenModelLabel(repaired.qwenModelPath),
-        markerReady || qwenModelLocal,
-        readyDetail: markerReady
-            ? 'Qwen 模型已下载并通过启动检查'
-            : '已找到本地 Qwen 模型',
-        missingDetail: '首次安装时会自动下载并缓存',
-      ),
-      _component(
-        AsrRuntimeComponent.qwenAligner,
-        'Qwen ForcedAligner 0.6B',
-        markerReady || alignerLocal,
-        readyDetail: markerReady
-            ? 'ForcedAligner 已下载并通过启动检查'
-            : '已找到本地 ForcedAligner',
-        missingDetail: '首次安装时会自动下载并缓存',
-      ),
-    ];
+      if (repaired.mode == TranscriptionMode.highestQuality) ...[
+        _component(
+          AsrRuntimeComponent.qwenRuntime,
+          'Qwen3-ASR 识别引擎',
+          qwen != null,
+          readyDetail: 'Qwen native runtime 已就绪',
+          missingDetail: _profileSupportsManagedRuntime(profile.profile)
+              ? '尚未安装；可由 LyricForge 自动安装'
+              : '当前自定义 Profile 需要在高级设置中指定 runtime',
+          path: qwen,
+          unavailable: !_profileSupportsManagedRuntime(profile.profile),
+        ),
+        _component(
+          AsrRuntimeComponent.qwenModel,
+          _qwenModelLabel(repaired.qwenModelPath),
+          markerReady || qwenModelLocal,
+          readyDetail: markerReady
+              ? 'Qwen 模型已下载并通过启动检查'
+              : '已找到本地 Qwen 模型',
+          missingDetail: '首次安装时会自动下载并缓存',
+        ),
+        _component(
+          AsrRuntimeComponent.qwenAligner,
+          'Qwen ForcedAligner 0.6B',
+          markerReady || alignerLocal,
+          readyDetail: markerReady
+              ? 'ForcedAligner 已下载并通过启动检查'
+              : '已找到本地 ForcedAligner',
+          missingDetail: '首次安装时会自动下载并缓存',
+        ),
+      ],
+    ];;
 
     return AsrRuntimeStatus(
       profile: profile,
@@ -237,7 +242,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         commandName: _whisperName,
       );
 
-      if (qwenPath == null || whisperPath == null) {
+      final needsQwen =
+          repaired.mode == TranscriptionMode.highestQuality;
+      if (whisperPath == null || (needsQwen && qwenPath == null)) {
         final installed = await _installManagedRuntimeBundle(
           root,
           profile.profile,
@@ -270,20 +277,29 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       _throwIfCancelled();
 
       repaired = profile.config.copyWith(
-        qwenExecutable: qwenPath,
+        qwenExecutable: qwenPath ?? profile.config.qwenExecutable,
         whisperExecutable: whisperPath,
         ffmpegExecutable: ffmpegPath,
         modelPath: whisperModelPath,
       );
 
-      final marker = _qwenReadyMarker(root, profile.profile);
-      if (!await marker.exists()) {
-        await _prepareQwenModels(
-          root: root,
-          executable: qwenPath,
-          config: repaired,
-          profile: profile.profile,
-        );
+      if (needsQwen) {
+        final marker = _qwenReadyMarker(root, profile.profile);
+        final markerReady = await _qwenMarkerMatches(marker, repaired);
+        if (!markerReady) {
+          final executable = qwenPath;
+          if (executable == null) {
+            throw const TranscriptionException(
+              'Qwen runtime 安装失败，请重新安装识别环境',
+            );
+          }
+          await _prepareQwenModels(
+            root: root,
+            executable: executable,
+            config: repaired,
+            profile: profile.profile,
+          );
+        }
       }
 
       _emit(null, 1.0, '本地歌词识别环境已准备完成');
@@ -917,6 +933,23 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       detail: ready ? readyDetail : missingDetail,
       resolvedPath: path,
     );
+  }
+
+  Future<bool> _qwenMarkerMatches(
+    File marker,
+    TranscriptionConfig config,
+  ) async {
+    if (!await marker.exists()) return false;
+    try {
+      final decoded = jsonDecode(await marker.readAsString());
+      if (decoded is! Map) return false;
+      return decoded['qwenModel'] == config.qwenModelPath &&
+          decoded['alignerModel'] == config.qwenAlignerModelPath &&
+          decoded['device'] == config.qwenDevice &&
+          decoded['dtype'] == config.qwenDtype;
+    } catch (_) {
+      return false;
+    }
   }
 
   File _qwenReadyMarker(
