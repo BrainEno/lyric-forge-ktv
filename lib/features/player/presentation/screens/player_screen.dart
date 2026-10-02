@@ -174,6 +174,8 @@ class _PlayerContent extends StatefulWidget {
 }
 
 class _PlayerContentState extends State<_PlayerContent> {
+  bool _ktvMode = false;
+
   @override
   void initState() {
     super.initState();
@@ -302,8 +304,23 @@ class _PlayerContentState extends State<_PlayerContent> {
 
                 const SizedBox(height: AppSpacing.xl),
 
+                // KTV is an explicit mode instead of making every playback
+                // screen look like a karaoke screen.
+                OutlinedButton.icon(
+                  onPressed: lyrics.isEmpty
+                      ? null
+                      : () => setState(() => _ktvMode = !_ktvMode),
+                  icon: Icon(
+                    _ktvMode ? Icons.mic_off_rounded : Icons.mic_rounded,
+                  ),
+                  label: Text(_ktvMode ? '退出 KTV' : 'KTV 模式'),
+                ),
+
+                const SizedBox(height: AppSpacing.md),
+
                 // Lyrics display
-                Expanded(
+                if (_ktvMode)
+                  Expanded(
                   flex: 1,
                   child: lyrics.isEmpty
                       ? Center(
