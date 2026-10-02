@@ -22,10 +22,19 @@ class LyricForgeApp extends StatelessWidget {
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
       builder: (context, child) {
-        return Column(
-          children: [
-            Expanded(child: child ?? const SizedBox.shrink()),
-            const GlobalPlayerBar(),
+        return Overlay(
+          clipBehavior: Clip.none,
+          initialEntries: [
+            OverlayEntry(
+              builder: (overlayContext) {
+                return Column(
+                  children: [
+                    Expanded(child: child ?? const SizedBox.shrink()),
+                    const GlobalPlayerBar(),
+                  ],
+                );
+              },
+            ),
           ],
         );
       },
