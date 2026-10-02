@@ -10,6 +10,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/playback_session_service.dart';
 
 /// Player screen - KTV playback with synced lyrics display.
 /// Desktop-first: real audio playback using just_audio.
@@ -28,6 +29,7 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late final ProjectRepository _repository;
   late final AudioPlayerService _audioService;
+  late final PlaybackSessionService _playbackSession;
   late Future<ProjectManifest?> _projectFuture;
 
   @override
@@ -35,6 +37,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _repository = ServiceLocatorGlobal.I.projectRepository;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _loadProject();
   }
 
@@ -43,29 +46,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _initializeAudio(ProjectManifest project) async {
-    if (project.audioAsset != null) {
-      try {
-        await _audioService.loadProjectAudio(
-          audioAsset: project.audioAsset!,
-        );
-      } catch (e) {
-        // Error will be shown in UI via stream
-      }
+    final audioAsset = project.audioAsset;
+    if (audioAsset == null) return;
+
+    try {
+      await _playbackSession.playItem(
+        PlaybackItem(
+          id: 'project:${project.id}',
+          title: project.name,
+          artist: project.artist,
+          projectId: project.id,
+          artworkPath: audioAsset.thumbnailPath,
+          hasLyrics: project.hasLyrics,
+          audioAsset: audioAsset,
+          preferredSource: AudioSourceType.instrumental,
+        ),
+      );
+    } catch (e) {
+      // Error will be shown in UI via the shared playback state.
     }
   }
 
-  Future<void> _playPause() async {
-    final state = _audioService.currentState;
-    if (state.isPlaying) {
-      await _audioService.pause();
-    } else {
-      await _audioService.play();
-    }
-  }
+  Future<void> _playPause() => _playbackSession.togglePlayPause();
 
-  Future<void> _seek(Duration position) async {
-    await _audioService.seek(position);
-  }
+  Future<void> _seek(Duration position) => _playbackSession.seek(position);
 
   Future<void> _switchSource(AudioSourceType source) async {
     try {
@@ -108,7 +112,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void dispose() {
-    _audioService.stop();
+    // Playback is app-scoped and intentionally survives route changes.
     super.dispose();
   }
 }
