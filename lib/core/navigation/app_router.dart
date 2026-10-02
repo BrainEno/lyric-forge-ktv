@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
+import '../../features/player/domain/models/play_history.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
@@ -43,7 +44,10 @@ class AppRouter {
       return _fadeRoute(const ImportAudioScreen(), settings);
 
     case Routes.quickPlay:
-      return _fadeRoute(const QuickPlayScreen(), settings);
+      final history = settings.arguments is PlayHistory
+          ? settings.arguments as PlayHistory
+          : null;
+      return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
 
     case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
