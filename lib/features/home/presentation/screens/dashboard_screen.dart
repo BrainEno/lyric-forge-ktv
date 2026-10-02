@@ -87,10 +87,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             tooltip: '远程音乐库',
                             onPressed: () => Navigator.pushNamed(
                               context,
-                              kIsWeb ||
-                                      defaultTargetPlatform == TargetPlatform.windows ||
-                                      defaultTargetPlatform == TargetPlatform.macOS ||
-                                      defaultTargetPlatform == TargetPlatform.linux
+                              !kIsWeb &&
+                                      (defaultTargetPlatform == TargetPlatform.windows ||
+                                          defaultTargetPlatform == TargetPlatform.macOS ||
+                                          defaultTargetPlatform == TargetPlatform.linux)
                                   ? Routes.mediaSharing
                                   : Routes.remoteLibrary,
                             ),
