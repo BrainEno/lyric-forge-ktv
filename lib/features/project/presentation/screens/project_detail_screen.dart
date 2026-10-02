@@ -600,6 +600,28 @@ class _ProjectMetadata extends StatelessWidget {
               label: '识别语言',
               value: transcription['detectedLanguage'].toString(),
             ),
+          if (transcription is Map && transcription['mode'] != null)
+            _MetadataRow(
+              label: '识别模式',
+              value: transcription['mode'] == 'highestQuality'
+                  ? '最高质量'
+                  : 'Whisper',
+            ),
+          if (project.lyricDocument?.metadata['fallbackCandidateCount'] != null)
+            _MetadataRow(
+              label: '备用复核',
+              value:
+                  project.lyricDocument!.metadata['fallbackCandidateCount'].toString() +
+                      ' 行 / 采用 ' +
+                      (project.lyricDocument!.metadata['fallbackAppliedCount'] ?? 0)
+                          .toString() +
+                      ' 行',
+            ),
+          if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
+            const _MetadataRow(
+              label: '备用引擎',
+              value: 'Whisper 复核失败 · Qwen 结果已保留',
+            ),
         ],
       ),
     );
