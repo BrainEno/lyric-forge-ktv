@@ -8,6 +8,7 @@ import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/transfer/presentation/screens/desktop_media_sharing_screen.dart';
 import '../../features/transfer/presentation/screens/remote_media_library_screen.dart';
+import '../../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
 
 abstract class Routes {
   static const String home = '/';
@@ -20,6 +21,7 @@ abstract class Routes {
   static const String settings = '/settings';
   static const String mediaSharing = '/media-sharing';
   static const String remoteLibrary = '/remote-library';
+  static const String mediaHubScanner = '/media-hub-scanner';
 
   static String projectDetailPath(String id) => '/project/$id';
   static String lyricEditorPath(String id) => '/project/$id/lyrics';
@@ -51,6 +53,9 @@ class AppRouter {
 
     case Routes.remoteLibrary:
         return _fadeRoute(const RemoteMediaLibraryScreen(), settings);
+
+    case Routes.mediaHubScanner:
+        return _fadeRoute(const MediaHubQrScannerScreen(), settings);
 
       default:
         if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'project') {
