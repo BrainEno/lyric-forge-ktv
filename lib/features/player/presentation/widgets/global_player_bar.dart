@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/service_locator.dart';
@@ -29,6 +30,12 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+    if (!isDesktop) return const SizedBox.shrink();
+
     return StreamBuilder<PlaybackSessionState>(
       stream: _session.stateStream,
       initialData: _session.currentState,
