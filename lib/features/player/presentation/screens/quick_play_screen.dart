@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -38,62 +37,76 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   }
 
   Future<void> _pickAudioFile() async {
+    const supportedExtensions = {
+      'mp3',
+      'flac',
+      'wav',
+      'm4a',
+      'aac',
+      'ogg',
+    };
+
     try {
-      debugPrint('Starting file picker...');
-      debugPrint('Platform: $defaultTargetPlatform');
-      
-      FilePickerResult? result;
-      
-      if (Platform.isMacOS) {
-        // macOS 桌面端特殊处理
-        // 使用 allowCompression: false 和 withReadStream: false 避免权限问题
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'],
-          allowMultiple: false,
-          dialogTitle: '选择音频文件',
-          allowCompression: false,
-          withData: false,
-          withReadStream: false,
-        );
-      } else {
-        // 其他平台使用标准配置
-        result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'],
-          allowMultiple: false,
-          dialogTitle: '选择音频文件',
-        );
+      final useUnfilteredMacPicker = Platform.isMacOS;
+      final result = await FilePicker.platform.pickFiles(
+        // Avoid a filtered NSOpenPanel on macOS. Older file_picker versions can
+        // make directory navigation appear disabled there. Validate the file
+        // extension after the native picker returns instead.
+        type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
+        allowedExtensions: useUnfilteredMacPicker
+            ? null
+            : supportedExtensions.toList(growable: false),
+        allowMultiple: false,
+        dialogTitle: '选择音频文件',
+        allowCompression: false,
+        withData: false,
+        withReadStream: false,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        debugPrint('User cancelled file picker or no file selected');
+        return;
       }
 
-      debugPrint('File picker result: $result');
-      
-      if (result != null && result.files.isNotEmpty) {
-        final pickedFile = result.files.first;
-        debugPrint('Picked file path: ${pickedFile.path}');
-        debugPrint('Picked file name: ${pickedFile.name}');
-        
-        if (pickedFile.path != null) {
-          final file = File(pickedFile.path!);
-          setState(() {
-            _selectedFile = file;
-            _error = null;
-          });
-          await _loadAndPlay(file);
-        } else {
+      final pickedFile = result.files.first;
+      final path = pickedFile.path;
+      debugPrint('Picked file path: $path');
+      debugPrint('Picked file name: ${pickedFile.name}');
+
+      if (path == null) {
+        if (mounted) {
           setState(() {
             _error = '无法获取文件路径';
           });
         }
-      } else {
-        debugPrint('User cancelled file picker or no file selected');
+        return;
       }
+
+      final extension = _getFileExtension(path);
+      if (!supportedExtensions.contains(extension)) {
+        if (mounted) {
+          setState(() {
+            _error = '请选择 MP3 / FLAC / WAV / M4A / AAC / OGG 音频文件';
+          });
+        }
+        return;
+      }
+
+      final selected = File(path);
+      if (!mounted) return;
+      setState(() {
+        _selectedFile = selected;
+        _error = null;
+      });
+      await _loadAndPlay(selected);
     } catch (e, stackTrace) {
       debugPrint('File picker error: $e');
       debugPrint('Stack trace: $stackTrace');
-      setState(() {
-        _error = '无法选择文件: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _error = '无法选择文件: $e';
+        });
+      }
     }
   }
 
@@ -263,11 +276,24 @@ class _FileSelectionState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '支持 MP3 / FLAC / WAV / M4A 格式',
+            '支持 MP3 / FLAC / WAV / M4A / AAC / OGG 格式',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppColors.textTertiary,
             ),
           ),
+          if (Platform.isMacOS) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Text(
+                'macOS：文件夹只用于进入目录，请进入音频所在文件夹并选中具体音频文件。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
           if (error != null) ...[
             const SizedBox(height: AppSpacing.md),
             Container(
