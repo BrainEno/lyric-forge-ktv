@@ -19,34 +19,59 @@ class TranscriptionConfigDialog extends StatefulWidget {
 
 class _TranscriptionConfigDialogState
     extends State<TranscriptionConfigDialog> {
+  late final TextEditingController _qwenExecutableController;
+  late final TextEditingController _qwenModelController;
+  late final TextEditingController _qwenAlignerController;
   late final TextEditingController _whisperController;
-  late final TextEditingController _modelController;
+  late final TextEditingController _whisperModelController;
   late final TextEditingController _ffmpegController;
+
+  late TranscriptionMode _mode;
   late String _language;
+  late int _fallbackThreshold;
+  late int _maxFallbackSegments;
 
   @override
   void initState() {
     super.initState();
     final config = widget.initialConfig;
+
+    _mode = config?.mode ?? TranscriptionMode.highestQuality;
+    _qwenExecutableController = TextEditingController(
+      text: config?.qwenExecutable ?? 'qwen3-asr',
+    );
+    _qwenModelController = TextEditingController(
+      text: config?.qwenModelPath ?? 'Qwen/Qwen3-ASR-1.7B',
+    );
+    _qwenAlignerController = TextEditingController(
+      text: config?.qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
+    );
     _whisperController = TextEditingController(
       text: config?.whisperExecutable ?? 'whisper-cli',
     );
-    _modelController = TextEditingController(text: config?.modelPath ?? '');
+    _whisperModelController = TextEditingController(
+      text: config?.modelPath ?? '',
+    );
     _ffmpegController = TextEditingController(
       text: config?.ffmpegExecutable ?? 'ffmpeg',
     );
     _language = config?.language ?? 'auto';
+    _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
+    _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
   }
 
   @override
   void dispose() {
+    _qwenExecutableController.dispose();
+    _qwenModelController.dispose();
+    _qwenAlignerController.dispose();
     _whisperController.dispose();
-    _modelController.dispose();
+    _whisperModelController.dispose();
     _ffmpegController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickInto(TextEditingController controller) async {
+  Future<void> _pickFileInto(TextEditingController controller) async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,
       allowMultiple: false,
@@ -57,65 +82,137 @@ class _TranscriptionConfigDialogState
     }
   }
 
-  void _submit() {
-    final whisper = _whisperController.text.trim();
-    final model = _modelController.text.trim();
-    final ffmpeg = _ffmpegController.text.trim();
+  Future<void> _pickDirectoryInto(TextEditingController controller) async {
+    final path = await FilePicker.platform.getDirectoryPath();
+    if (path != null && path.isNotEmpty) {
+      controller.text = path;
+    }
+  }
 
-    if (whisper.isEmpty || model.isEmpty || ffmpeg.isEmpty) {
+  void _submit() {
+    final config = TranscriptionConfig(
+      mode: _mode,
+      qwenExecutable: _qwenExecutableController.text.trim(),
+      qwenModelPath: _qwenModelController.text.trim(),
+      qwenAlignerModelPath: _qwenAlignerController.text.trim(),
+      qwenDevice: 'cuda',
+      qwenDtype: 'bf16',
+      whisperExecutable: _whisperController.text.trim(),
+      modelPath: _whisperModelController.text.trim(),
+      ffmpegExecutable: _ffmpegController.text.trim(),
+      language: _language,
+      fallbackConfidenceThreshold: _fallbackThreshold,
+      maxFallbackSegments: _maxFallbackSegments,
+    );
+
+    if (!config.isConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请完整填写 Whisper、模型和 FFmpeg 配置')),
+        SnackBar(
+          content: Text(
+            _mode == TranscriptionMode.highestQuality
+                ? '最高质量模式需要完整配置 Qwen3-ASR、ForcedAligner、Whisper 和 FFmpeg'
+                : '请完整填写 Whisper、模型和 FFmpeg 配置',
+          ),
+        ),
       );
       return;
     }
 
-    Navigator.pop(
-      context,
-      TranscriptionConfig(
-        whisperExecutable: whisper,
-        modelPath: model,
-        ffmpegExecutable: ffmpeg,
-        language: _language,
-      ),
-    );
+    Navigator.pop(context, config);
   }
 
   @override
   Widget build(BuildContext context) {
+    final highQuality = _mode == TranscriptionMode.highestQuality;
+
     return AlertDialog(
       title: const Text('本地歌词识别设置'),
       content: SizedBox(
-        width: 620,
+        width: 680,
         child: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
+              DropdownButtonFormField<TranscriptionMode>(
+                initialValue: _mode,
+                decoration: const InputDecoration(
+                  labelText: '识别模式',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: TranscriptionMode.highestQuality,
+                    child: Text('最高质量 · Qwen 1.7B + 对齐 + Whisper 复核'),
+                  ),
+                  DropdownMenuItem(
+                    value: TranscriptionMode.whisperOnly,
+                    child: Text('仅 Whisper · 兼容模式'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _mode = value);
+                },
+              ),
+              if (highQuality) ...[
+                const SizedBox(height: AppSpacing.md),
+                _InfoCard(
+                  title: 'RTX 高质量运行策略',
+                  body:
+                      'Qwen3-ASR 1.7B 使用 CUDA / BF16 本地 sidecar；ForcedAligner 负责主时间轴。Whisper large-v3 对全曲做独立第二意见，系统只突出显示最高风险的分歧行。',
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _PathField(
+                  controller: _qwenExecutableController,
+                  label: 'Qwen3-ASR native runtime',
+                  hint: 'qwen3-asr.exe 或 PATH 中的 qwen3-asr',
+                  onBrowse: () => _pickFileInto(_qwenExecutableController),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _PathField(
+                  controller: _qwenModelController,
+                  label: 'Qwen3-ASR 1.7B 模型 ID / 目录',
+                  hint: 'Qwen/Qwen3-ASR-1.7B 或本地模型目录',
+                  onBrowse: () => _pickDirectoryInto(_qwenModelController),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _PathField(
+                  controller: _qwenAlignerController,
+                  label: 'Qwen3 ForcedAligner 0.6B 模型 ID / 目录',
+                  hint: 'Qwen/Qwen3-ForcedAligner-0.6B 或本地模型目录',
+                  onBrowse: () => _pickDirectoryInto(_qwenAlignerController),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
               _PathField(
                 controller: _whisperController,
-                label: 'whisper-cli',
-                hint: '可填写 whisper-cli 或选择可执行文件',
-                onBrowse: () => _pickInto(_whisperController),
+                label: highQuality
+                    ? 'Whisper fallback runtime'
+                    : 'whisper-cli',
+                hint: 'whisper-cli.exe 或 PATH 中的 whisper-cli',
+                onBrowse: () => _pickFileInto(_whisperController),
               ),
               const SizedBox(height: AppSpacing.md),
               _PathField(
-                controller: _modelController,
-                label: 'Whisper 模型',
-                hint: '例如 ggml-medium.bin',
-                onBrowse: () => _pickInto(_modelController),
+                controller: _whisperModelController,
+                label: highQuality
+                    ? 'Whisper large-v3 fallback 模型'
+                    : 'Whisper 模型',
+                hint: highQuality
+                    ? '建议 ggml-large-v3.bin'
+                    : '例如 ggml-medium.bin',
+                onBrowse: () => _pickFileInto(_whisperModelController),
               ),
               const SizedBox(height: AppSpacing.md),
               _PathField(
                 controller: _ffmpegController,
                 label: 'FFmpeg',
-                hint: '可填写 ffmpeg 或选择可执行文件',
-                onBrowse: () => _pickInto(_ffmpegController),
+                hint: 'ffmpeg.exe 或 PATH 中的 ffmpeg',
+                onBrowse: () => _pickFileInto(_ffmpegController),
               ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 initialValue: _language,
-                decoration: const InputDecoration(
-                  labelText: '识别语言',
-                ),
+                decoration: const InputDecoration(labelText: '识别语言'),
                 items: const [
                   DropdownMenuItem(value: 'auto', child: Text('自动检测')),
                   DropdownMenuItem(value: 'zh', child: Text('中文')),
@@ -127,9 +224,47 @@ class _TranscriptionConfigDialogState
                   if (value != null) setState(() => _language = value);
                 },
               ),
+              if (highQuality) ...[
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<int>(
+                  initialValue: _fallbackThreshold,
+                  decoration: const InputDecoration(
+                    labelText: '备用识别触发阈值',
+                    helperText: '分数越高，越多低置信度 Qwen 行进入重点校对',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 60, child: Text('60 · 保守')),
+                    DropdownMenuItem(value: 70, child: Text('70 · 推荐')),
+                    DropdownMenuItem(value: 80, child: Text('80 · 严格')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _fallbackThreshold = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<int>(
+                  initialValue: _maxFallbackSegments,
+                  decoration: const InputDecoration(
+                    labelText: '最多突出显示分歧行',
+                    helperText: 'Whisper 仍会识别全曲；这里只限制编辑器重点列出的分歧数量',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 8, child: Text('8')),
+                    DropdownMenuItem(value: 12, child: Text('12')),
+                    DropdownMenuItem(value: 20, child: Text('20 · 推荐')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _maxFallbackSegments = value);
+                    }
+                  },
+                ),
+              ],
               const SizedBox(height: AppSpacing.md),
               Text(
-                '识别完全在桌面本地执行。优先使用已分离的人声；没有人声轨时自动回退原音频。自动识别结果会作为可编辑歌词草稿。',
+                '识别完全在桌面本地执行。输入优先使用已分离的人声；没有人声轨时回退标准化音频或原声。自动结果始终作为可编辑歌词草稿。',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -146,6 +281,33 @@ class _TranscriptionConfigDialogState
           child: const Text('保存'),
         ),
       ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final String body;
+
+  const _InfoCard({
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: AppSpacing.xs),
+            Text(body, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -172,7 +334,7 @@ class _PathField extends StatelessWidget {
         labelText: label,
         hintText: hint,
         suffixIcon: IconButton(
-          tooltip: '选择文件',
+          tooltip: '选择路径',
           onPressed: onBrowse,
           icon: const Icon(Icons.folder_open_outlined),
         ),
