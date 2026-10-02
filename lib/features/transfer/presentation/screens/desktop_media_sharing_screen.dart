@@ -63,11 +63,27 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
     if (_hubState.isRunning || _busy) return;
 
     try {
+      const supportedExtensions = [
+        'mp3',
+        'flac',
+        'wav',
+        'm4a',
+        'mp4',
+        'ogg',
+        'aac',
+      ];
+      final useUnfilteredMacPicker = Platform.isMacOS;
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
+        type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
+        allowedExtensions:
+            useUnfilteredMacPicker ? null : supportedExtensions,
         allowMultiple: true,
+        dialogTitle: '选择要共享的音频文件',
+        allowCompression: false,
+        withData: false,
+        withReadStream: false,
       );
-      if (result == null) return;
+      if (result == null || result.files.isEmpty) return;
 
       final selected = <SharedAudioTrack>[];
       for (final picked in result.files) {

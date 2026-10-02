@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # File picker for importing audio files
-  file_picker: ^8.0.0+1
+  file_picker: ^9.2.3
 
   # Path provider for accessing application directories
   path_provider: ^2.1.2
