@@ -7,6 +7,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/project_transcription_workflow.dart';
+import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 
@@ -15,14 +16,17 @@ class LocalProjectTranscriptionWorkflow
   final ProjectRepository _projectRepository;
   final TranscriptionService _transcriptionService;
   final TranscriptionSettingsStore _settingsStore;
+  final TranscriptionProfileResolver _profileResolver;
 
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
     required TranscriptionService transcriptionService,
     required TranscriptionSettingsStore settingsStore,
+    required TranscriptionProfileResolver profileResolver,
   })  : _projectRepository = projectRepository,
         _transcriptionService = transcriptionService,
-        _settingsStore = settingsStore;
+        _settingsStore = settingsStore,
+        _profileResolver = profileResolver;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -48,6 +52,12 @@ class LocalProjectTranscriptionWorkflow
       throw const TranscriptionException('请先完成本地歌词识别运行时配置');
     }
 
+    final resolvedProfile = await _profileResolver.resolve(config);
+    final runtimeConfig = resolvedProfile.config;
+    if (!runtimeConfig.isConfigured) {
+      throw const TranscriptionException('当前机器的识别 Profile 配置不完整');
+    }
+
     final inputPath = await _resolveInputPath(project);
     final outputDirectory = await _outputDirectory(project);
     await _backupExistingLyrics(project, outputDirectory);
@@ -64,7 +74,7 @@ class LocalProjectTranscriptionWorkflow
         TranscriptionRequest(
           inputAudioPath: inputPath,
           outputDirectory: outputDirectory.path,
-          config: config,
+          config: runtimeConfig,
           context: _buildRecognitionContext(project),
         ),
       );
@@ -82,7 +92,11 @@ class LocalProjectTranscriptionWorkflow
           metadata: {
             ...latest.metadata,
             'transcription': {
-              'mode': config.mode.name,
+              'mode': runtimeConfig.mode.name,
+              'hardwareProfile': resolvedProfile.profile.name,
+              'hardwareProfileLabel': resolvedProfile.label,
+              'hardwareOs': resolvedProfile.hardware.operatingSystem,
+              'hardwareArchitecture': resolvedProfile.hardware.architecture,
               'backend': result.lyrics.metadata['primaryEngine'] ??
                   result.lyrics.metadata['generatedBy'] ??
                   'local-asr',
@@ -91,14 +105,21 @@ class LocalProjectTranscriptionWorkflow
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
-              'primaryModel': config.mode == TranscriptionMode.highestQuality
-                  ? 'Qwen3-ASR-1.7B'
-                  : 'whisper.cpp',
-              'alignmentModel': config.mode == TranscriptionMode.highestQuality
-                  ? 'Qwen3-ForcedAligner-0.6B'
-                  : null,
-              'fallbackModel': config.mode == TranscriptionMode.highestQuality
-                  ? 'Whisper large-v3'
+              'primaryModel': runtimeConfig.mode == TranscriptionMode.whisperOnly
+                  ? 'Whisper'
+                  : runtimeConfig.engineOrder ==
+                          TranscriptionEngineOrder.qwenPrimary
+                      ? 'Qwen3-ASR-1.7B'
+                      : 'Whisper large-v3',
+              'alignmentModel':
+                  runtimeConfig.mode == TranscriptionMode.highestQuality
+                      ? 'Qwen3-ForcedAligner-0.6B'
+                      : null,
+              'fallbackModel': runtimeConfig.mode == TranscriptionMode.highestQuality
+                  ? runtimeConfig.engineOrder ==
+                          TranscriptionEngineOrder.qwenPrimary
+                      ? 'Whisper large-v3'
+                      : 'Qwen3-ASR-0.6B'
                   : null,
             },
           },
