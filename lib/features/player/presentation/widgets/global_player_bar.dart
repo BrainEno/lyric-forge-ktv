@@ -51,8 +51,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                 children: [
                   LinearProgressIndicator(
                     value: playback.duration == null
-                        ? 0
-                        : playback.progressPercent.clamp(0.0, 1.0),
+                        ? 0.0
+                        : playback.progressPercent
+                            .clamp(0.0, 1.0)
+                            .toDouble(),
                     minHeight: 2,
                     backgroundColor: AppColors.bgHighlight,
                     valueColor: const AlwaysStoppedAnimation(
