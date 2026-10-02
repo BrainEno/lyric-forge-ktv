@@ -18,8 +18,68 @@ enum TranscriptionMode {
   whisperOnly,
 }
 
+enum TranscriptionProfilePreference {
+  automatic,
+  rtx5080HighQuality,
+  intelMacHighQuality,
+  custom,
+}
+
+enum TranscriptionEngineOrder {
+  qwenPrimary,
+  whisperPrimary,
+}
+
+class TranscriptionHardwareInfo {
+  final String operatingSystem;
+  final String architecture;
+  final String? cpuName;
+  final String? gpuName;
+  final int? gpuMemoryMb;
+  final int? systemMemoryMb;
+
+  const TranscriptionHardwareInfo({
+    required this.operatingSystem,
+    required this.architecture,
+    this.cpuName,
+    this.gpuName,
+    this.gpuMemoryMb,
+    this.systemMemoryMb,
+  });
+
+  bool get isIntelMac =>
+      operatingSystem == 'macos' &&
+      (architecture == 'x86_64' || architecture == 'amd64');
+
+  bool get isWindowsNvidia =>
+      operatingSystem == 'windows' &&
+      (gpuName?.toLowerCase().contains('nvidia') == true ||
+          gpuName?.toLowerCase().contains('geforce') == true);
+
+  bool get isRtx5080 =>
+      isWindowsNvidia && gpuName?.toLowerCase().contains('rtx 5080') == true;
+}
+
+class ResolvedTranscriptionProfile {
+  final TranscriptionProfilePreference profile;
+  final String label;
+  final String description;
+  final TranscriptionHardwareInfo hardware;
+  final TranscriptionConfig config;
+
+  const ResolvedTranscriptionProfile({
+    required this.profile,
+    required this.label,
+    required this.description,
+    required this.hardware,
+    required this.config,
+  });
+}
+
 class TranscriptionConfig {
   final TranscriptionMode mode;
+  final TranscriptionProfilePreference profilePreference;
+  final TranscriptionEngineOrder engineOrder;
 
   // Qwen3-ASR native runtime
   final String qwenExecutable;
@@ -28,7 +88,7 @@ class TranscriptionConfig {
   final String qwenDevice;
   final String qwenDtype;
 
-  // Whisper fallback / compatibility runtime
+  // Whisper runtime
   final String whisperExecutable;
   final String modelPath;
 
@@ -36,12 +96,14 @@ class TranscriptionConfig {
   final String ffmpegExecutable;
   final String language;
 
-  // Highest-quality fallback policy
+  // Highest-quality review policy
   final int fallbackConfidenceThreshold;
   final int maxFallbackSegments;
 
   const TranscriptionConfig({
     this.mode = TranscriptionMode.highestQuality,
+    this.profilePreference = TranscriptionProfilePreference.automatic,
+    this.engineOrder = TranscriptionEngineOrder.qwenPrimary,
     this.qwenExecutable = '',
     this.qwenModelPath = 'Qwen/Qwen3-ASR-1.7B',
     this.qwenAlignerModelPath = 'Qwen/Qwen3-ForcedAligner-0.6B',
@@ -75,6 +137,8 @@ class TranscriptionConfig {
 
   TranscriptionConfig copyWith({
     TranscriptionMode? mode,
+    TranscriptionProfilePreference? profilePreference,
+    TranscriptionEngineOrder? engineOrder,
     String? qwenExecutable,
     String? qwenModelPath,
     String? qwenAlignerModelPath,
@@ -89,6 +153,8 @@ class TranscriptionConfig {
   }) {
     return TranscriptionConfig(
       mode: mode ?? this.mode,
+      profilePreference: profilePreference ?? this.profilePreference,
+      engineOrder: engineOrder ?? this.engineOrder,
       qwenExecutable: qwenExecutable ?? this.qwenExecutable,
       qwenModelPath: qwenModelPath ?? this.qwenModelPath,
       qwenAlignerModelPath:
@@ -109,6 +175,8 @@ class TranscriptionConfig {
   Map<String, dynamic> toJson() {
     return {
       'mode': mode.name,
+      'profilePreference': profilePreference.name,
+      'engineOrder': engineOrder.name,
       'qwenExecutable': qwenExecutable,
       'qwenModelPath': qwenModelPath,
       'qwenAlignerModelPath': qwenAlignerModelPath,
@@ -126,17 +194,32 @@ class TranscriptionConfig {
   factory TranscriptionConfig.fromJson(Map<String, dynamic> json) {
     final modeName = json['mode'] as String?;
     final mode = modeName == null
-        // Existing settings from the Whisper-only implementation remain valid.
         ? TranscriptionMode.whisperOnly
         : TranscriptionMode.values.asNameMap()[modeName] ??
             TranscriptionMode.whisperOnly;
 
+    final profileName = json['profilePreference'] as String?;
+    final profilePreference = profileName == null
+        ? TranscriptionProfilePreference.custom
+        : TranscriptionProfilePreference.values.asNameMap()[profileName] ??
+            TranscriptionProfilePreference.custom;
+
+    final orderName = json['engineOrder'] as String?;
+    final engineOrder = orderName == null
+        ? TranscriptionEngineOrder.qwenPrimary
+        : TranscriptionEngineOrder.values.asNameMap()[orderName] ??
+            TranscriptionEngineOrder.qwenPrimary;
+
     return TranscriptionConfig(
       mode: mode,
+      profilePreference: profilePreference,
+      engineOrder: engineOrder,
       qwenExecutable: json['qwenExecutable'] as String? ?? '',
-      qwenModelPath: json['qwenModelPath'] as String? ?? 'Qwen/Qwen3-ASR-1.7B',
+      qwenModelPath:
+          json['qwenModelPath'] as String? ?? 'Qwen/Qwen3-ASR-1.7B',
       qwenAlignerModelPath:
-          json['qwenAlignerModelPath'] as String? ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
+          json['qwenAlignerModelPath'] as String? ??
+              'Qwen/Qwen3-ForcedAligner-0.6B',
       qwenDevice: json['qwenDevice'] as String? ?? 'cuda',
       qwenDtype: json['qwenDtype'] as String? ?? 'bf16',
       whisperExecutable: json['whisperExecutable'] as String? ?? '',
