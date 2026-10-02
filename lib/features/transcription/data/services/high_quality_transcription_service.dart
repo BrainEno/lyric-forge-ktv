@@ -228,6 +228,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         qwenLine.text,
         whisperText,
       );
+      final durationRatio = _durationRatio(qwenLine, whisperLines);
 
       final suspicious = _isPrimarySuspicious(qwenLine, config) ||
           similarity < 0.72;
@@ -238,6 +239,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         whisperText: whisperText,
         whisperConfidence: whisperConfidence,
         similarity: similarity,
+        durationRatio: durationRatio,
       );
 
       candidates.add(
@@ -255,6 +257,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'whisperText': whisperText,
             'whisperConfidence': whisperConfidence,
             'similarity': double.parse(similarity.toStringAsFixed(3)),
+            'durationRatio': double.parse(durationRatio.toStringAsFixed(3)),
             'selected': decision.useWhisper ? 'whisper' : 'qwen',
             'reason': decision.reason,
           },
@@ -319,6 +322,27 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return result;
   }
 
+  double _durationRatio(
+    LyricLine qwenLine,
+    List<LyricLine> whisperLines,
+  ) {
+    if (whisperLines.isEmpty) return 0.0;
+
+    final qwenDuration =
+        (qwenLine.endTime - qwenLine.startTime).inMilliseconds;
+    final whisperStart = whisperLines
+        .map((line) => line.startTime)
+        .reduce((a, b) => a < b ? a : b);
+    final whisperEnd = whisperLines
+        .map((line) => line.endTime)
+        .reduce((a, b) => a > b ? a : b);
+    final whisperDuration =
+        (whisperEnd - whisperStart).inMilliseconds;
+
+    if (qwenDuration <= 0 || whisperDuration <= 0) return 0.0;
+    return whisperDuration / qwenDuration;
+  }
+
   int _candidatePriority({
     required LyricLine qwenLine,
     required double similarity,
@@ -334,11 +358,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required String whisperText,
     required int whisperConfidence,
     required double similarity,
+    required double durationRatio,
   }) {
     final qwenSuspicious = _hasSuspiciousRepetition(qwenLine.text);
     final whisperSuspicious = _hasSuspiciousRepetition(whisperText);
 
-    if (qwenSuspicious &&
+    final timingCompatible = durationRatio >= 0.55 && durationRatio <= 1.80;
+
+    if (timingCompatible &&
+        qwenSuspicious &&
         !whisperSuspicious &&
         whisperConfidence >= 55 &&
         similarity < 0.82) {
@@ -349,7 +377,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
     }
 
-    if (qwenLine.confidence <= 45 &&
+    if (timingCompatible &&
+        qwenLine.confidence <= 45 &&
         !whisperSuspicious &&
         whisperConfidence >= qwenLine.confidence + 12 &&
         similarity < 0.75) {
