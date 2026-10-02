@@ -94,19 +94,29 @@ class LocalProjectTranscriptionWorkflow
       );
     } on TranscriptionException catch (error) {
       final latest = await _projectRepository.getProjectById(projectId);
-      if (latest != null && error.message != '歌词识别已取消') {
-        await _projectRepository.updateProject(
-          latest.copyWith(
-            status: ProjectStatus.error,
-            metadata: {
-              ...latest.metadata,
-              'transcriptionError': {
-                'at': DateTime.now().toIso8601String(),
-                'message': error.toString(),
+      if (latest != null) {
+        if (error.message == '歌词识别已取消') {
+          await _projectRepository.updateProject(
+            latest.copyWith(
+              status: latest.hasLyrics
+                  ? ProjectStatus.editing
+                  : ProjectStatus.draft,
+            ),
+          );
+        } else {
+          await _projectRepository.updateProject(
+            latest.copyWith(
+              status: ProjectStatus.error,
+              metadata: {
+                ...latest.metadata,
+                'transcriptionError': {
+                  'at': DateTime.now().toIso8601String(),
+                  'message': error.toString(),
+                },
               },
-            },
-          ),
-        );
+            ),
+          );
+        }
       }
       rethrow;
     }
