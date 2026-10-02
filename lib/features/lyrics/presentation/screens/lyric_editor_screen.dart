@@ -76,10 +76,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         endTime: lastEndTime + const Duration(seconds: 5),
       ));
 
-      _editingDocument = LyricDocument(
-        language: _editingDocument?.language ?? 'zh',
+      final current = _editingDocument ??
+          const LyricDocument(language: 'zh', lines: []);
+      final metadata = Map<String, dynamic>.from(current.metadata)
+        ..remove('fallbackCandidates')
+        ..remove('fallbackCandidateCount');
+      _editingDocument = current.copyWith(
         lines: lines,
-        globalOffset: _editingDocument?.globalOffset,
+        metadata: metadata,
       );
       _hasChanges = true;
     });
@@ -98,7 +102,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     setState(() {
       final lines = List<LyricLine>.from(_editingDocument!.lines);
       lines.removeAt(index);
-      _editingDocument = _editingDocument!.copyWith(lines: lines);
+      final metadata = Map<String, dynamic>.from(_editingDocument!.metadata)
+        ..remove('fallbackCandidates')
+        ..remove('fallbackCandidateCount');
+      _editingDocument = _editingDocument!.copyWith(
+        lines: lines,
+        metadata: metadata,
+      );
       _hasChanges = true;
     });
   }
@@ -216,6 +226,21 @@ class _LyricEditorContent extends StatelessWidget {
     return '$minutes:$seconds.$millis';
   }
 
+  Map<String, dynamic>? _fallbackCandidateFor(
+    LyricDocument document,
+    int index,
+  ) {
+    final raw = document.metadata['fallbackCandidates'];
+    if (raw is! List) return null;
+
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final candidate = Map<String, dynamic>.from(item);
+      if (candidate['lineIndex'] == index) return candidate;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -260,6 +285,8 @@ class _LyricEditorContent extends StatelessWidget {
                         key: ValueKey('line_$index'),
                         index: index,
                         line: line,
+                        fallbackCandidate:
+                            _fallbackCandidateFor(document, index),
                         onUpdate: (updated) => onUpdateLine(index, updated),
                         onDelete: () => onDeleteLine(index),
                         formatDuration: _formatDuration,
@@ -392,6 +419,7 @@ class _EmptyLyricsState extends StatelessWidget {
 class _LyricLineEditor extends StatefulWidget {
   final int index;
   final LyricLine line;
+  final Map<String, dynamic>? fallbackCandidate;
   final ValueChanged<LyricLine> onUpdate;
   final VoidCallback onDelete;
   final String Function(Duration) formatDuration;
@@ -400,6 +428,7 @@ class _LyricLineEditor extends StatefulWidget {
     super.key,
     required this.index,
     required this.line,
+    this.fallbackCandidate,
     required this.onUpdate,
     required this.onDelete,
     required this.formatDuration,
@@ -434,7 +463,28 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
   }
 
   void _updateText(String text) {
-    widget.onUpdate(widget.line.copyWith(text: text));
+    widget.onUpdate(
+      widget.line.copyWith(
+        text: text,
+        confidence: 100,
+      ),
+    );
+  }
+
+  void _applyFallbackCandidate() {
+    final candidate = widget.fallbackCandidate;
+    final text = candidate?['whisperText'] as String?;
+    if (text == null || text.trim().isEmpty) return;
+
+    final confidence =
+        (candidate?['whisperConfidence'] as num?)?.toInt() ?? 70;
+    _textController.text = text;
+    widget.onUpdate(
+      widget.line.copyWith(
+        text: text,
+        confidence: confidence.clamp(0, 100).toInt(),
+      ),
+    );
   }
 
   void _updateStartTime(Duration newTime) {
@@ -459,9 +509,11 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
             ? AppColors.accent.withAlpha(13)
             : AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        border: widget.line.isChorus
-            ? Border.all(color: AppColors.accent.withAlpha(77))
-            : null,
+        border: widget.line.confidence < 70
+            ? Border.all(color: AppColors.warning.withAlpha(153))
+            : widget.line.isChorus
+                ? Border.all(color: AppColors.accent.withAlpha(77))
+                : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,7 +576,59 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
             ],
           ),
 
-          const SizedBox(height: AppSpacing.sm),
+          if (widget.line.confidence < 70 ||
+              widget.fallbackCandidate != null) ...[
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (widget.line.confidence < 70)
+                  Chip(
+                    avatar: const Icon(Icons.warning_amber_rounded, size: 16),
+                    label: Text(
+                      '低置信度 ' + widget.line.confidence.toString(),
+                    ),
+                  ),
+                if (widget.fallbackCandidate?['selected'] == 'whisper')
+                  const Chip(label: Text('已采用 Whisper 复核')),
+              ],
+            ),
+            if (widget.line.confidence < 100 &&
+                widget.fallbackCandidate?['selected'] == 'qwen' &&
+                (widget.fallbackCandidate?['whisperText'] as String?)
+                        ?.trim()
+                        .isNotEmpty ==
+                    true) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.bgSurface,
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusSmall),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Whisper 备选：' +
+                            (widget.fallbackCandidate!['whisperText']
+                                as String),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _applyFallbackCandidate,
+                      child: const Text('采用备选'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+          ],
 
           // Text input
           TextField(
