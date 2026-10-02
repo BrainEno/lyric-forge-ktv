@@ -80,7 +80,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           const LyricDocument(language: 'zh', lines: []);
       final metadata = Map<String, dynamic>.from(current.metadata)
         ..remove('fallbackCandidates')
-        ..remove('fallbackCandidateCount');
+        ..remove('fallbackCandidateCount')
+        ..remove('fallbackAppliedCount');
       _editingDocument = current.copyWith(
         lines: lines,
         metadata: metadata,
@@ -104,7 +105,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       lines.removeAt(index);
       final metadata = Map<String, dynamic>.from(_editingDocument!.metadata)
         ..remove('fallbackCandidates')
-        ..remove('fallbackCandidateCount');
+        ..remove('fallbackCandidateCount')
+        ..remove('fallbackAppliedCount');
       _editingDocument = _editingDocument!.copyWith(
         lines: lines,
         metadata: metadata,
@@ -476,13 +478,12 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
     final text = candidate?['whisperText'] as String?;
     if (text == null || text.trim().isEmpty) return;
 
-    final confidence =
-        (candidate?['whisperConfidence'] as num?)?.toInt() ?? 70;
     _textController.text = text;
     widget.onUpdate(
       widget.line.copyWith(
         text: text,
-        confidence: confidence.clamp(0, 100).toInt(),
+        // Explicit user selection is treated as a reviewed line.
+        confidence: 100,
       ),
     );
   }
@@ -577,7 +578,8 @@ class _LyricLineEditorState extends State<_LyricLineEditor> {
           ),
 
           if (widget.line.confidence < 70 ||
-              widget.fallbackCandidate != null) ...[
+              (widget.fallbackCandidate != null &&
+                  widget.line.confidence < 100)) ...[
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.xs,
