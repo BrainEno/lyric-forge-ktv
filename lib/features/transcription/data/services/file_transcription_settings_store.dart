@@ -32,7 +32,7 @@ class FileTranscriptionSettingsStore implements TranscriptionSettingsStore {
   @override
   Future<void> save(TranscriptionConfig config) async {
     if (!config.isConfigured) {
-      throw const TranscriptionException('Whisper 配置不完整');
+      throw const TranscriptionException('本地歌词识别配置不完整');
     }
     final file = await _file();
     await file.writeAsString(jsonEncode(config.toJson()), flush: true);
