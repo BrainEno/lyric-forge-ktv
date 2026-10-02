@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
@@ -86,7 +87,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             tooltip: '远程音乐库',
                             onPressed: () => Navigator.pushNamed(
                               context,
-                              Routes.mediaSharing,
+                              kIsWeb ||
+                                      defaultTargetPlatform == TargetPlatform.windows ||
+                                      defaultTargetPlatform == TargetPlatform.macOS ||
+                                      defaultTargetPlatform == TargetPlatform.linux
+                                  ? Routes.mediaSharing
+                                  : Routes.remoteLibrary,
                             ),
                             icon: const Icon(Icons.cast_connected),
                           ),
