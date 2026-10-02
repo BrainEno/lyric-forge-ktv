@@ -143,7 +143,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           missingDetail: '首次安装时会自动下载并缓存',
         ),
       ],
-    ];;
+    ];
 
     return AsrRuntimeStatus(
       profile: profile,
@@ -300,6 +300,13 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
             profile: profile.profile,
           );
         }
+      }
+
+      final finalStatus = await inspect(repaired);
+      if (!finalStatus.isReady) {
+        throw const TranscriptionException(
+          '自动安装已结束，但仍有组件未通过检查，请点击“重新检测”或“修复”',
+        );
       }
 
       _emit(null, 1.0, '本地歌词识别环境已准备完成');
