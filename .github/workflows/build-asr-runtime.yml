@@ -1,0 +1,218 @@
+name: Build managed ASR runtime
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-asr-runtime.yml"
+      - "lib/features/transcription/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-asr-runtime.yml"
+      - "lib/features/transcription/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  QWEN_REPO: https://github.com/lumosimmo/qwen3-asr-rs.git
+  QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
+  WHISPER_REPO: https://github.com/ggml-org/whisper.cpp.git
+  WHISPER_REV: 927cfce34f31707e17f2bff35c349632fb9e2c3a
+  RUNTIME_TAG: asr-runtime-v1
+
+jobs:
+  windows-cuda:
+    name: Windows x64 CUDA runtime
+    runs-on: windows-2025
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          cuda: "13.2.0"
+          method: network
+          sub-packages: '["nvcc","cudart","cublas","curand","cusparse","cusolver","nvrtc","nvjitlink"]'
+
+      - name: Fetch pinned Qwen runtime source
+        shell: pwsh
+        run: |
+          git clone $env:QWEN_REPO qwen-runtime-src
+          Set-Location qwen-runtime-src
+          git checkout $env:QWEN_REV
+
+      - name: Build Qwen CUDA runtime
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          cargo build --release -p qwen3_asr_cli --features cuda
+
+      - name: Fetch pinned whisper.cpp source
+        shell: pwsh
+        run: |
+          git clone $env:WHISPER_REPO whisper-src
+          Set-Location whisper-src
+          git checkout $env:WHISPER_REV
+
+      - name: Build whisper.cpp CUDA runtime
+        shell: pwsh
+        run: |
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build whisper-src/build --config Release --target whisper-cli --parallel 2
+
+      - name: Assemble Windows runtime bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force runtime/bin | Out-Null
+          New-Item -ItemType Directory -Force runtime/licenses | Out-Null
+
+          Copy-Item qwen-runtime-src/target/release/qwen3-asr.exe runtime/bin/qwen3-asr.exe
+
+          $whisper = Get-ChildItem whisper-src/build -Recurse -Filter whisper-cli.exe | Select-Object -First 1
+          if (-not $whisper) { throw "whisper-cli.exe not found" }
+          Copy-Item $whisper.FullName runtime/bin/whisper-cli.exe
+
+          $cudaBin = Join-Path $env:CUDA_PATH "bin"
+          $patterns = @("cudart64*.dll","cublas64*.dll","cublasLt64*.dll","curand64*.dll","cusparse64*.dll","cusolver64*.dll","nvrtc64*.dll","nvrtc-builtins64*.dll","nvJitLink*.dll")
+          foreach ($pattern in $patterns) {
+            Get-ChildItem $cudaBin -Filter $pattern -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName runtime/bin/ -Force }
+          }
+
+          Copy-Item qwen-runtime-src/LICENSE* runtime/licenses/ -ErrorAction SilentlyContinue
+          Copy-Item whisper-src/LICENSE runtime/licenses/whisper.cpp-LICENSE
+
+          @{
+            schemaVersion = 1
+            platform = "windows-x64"
+            accelerator = "cuda"
+            cuda = "13.2.0"
+            qwenRevision = $env:QWEN_REV
+            whisperRevision = $env:WHISPER_REV
+            builtAt = (Get-Date).ToUniversalTime().ToString("o")
+          } | ConvertTo-Json | Set-Content runtime/runtime-manifest.json -Encoding UTF8
+
+          Compress-Archive -Path runtime/* -DestinationPath lyricforge-asr-runtime-windows-x64-cuda.zip -CompressionLevel Optimal
+
+      - name: Smoke-check Windows bundle
+        shell: pwsh
+        run: |
+          runtime/bin/qwen3-asr.exe --help
+          runtime/bin/whisper-cli.exe --help
+
+      - name: Upload Windows runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lyricforge-asr-runtime-windows-x64-cuda
+          path: lyricforge-asr-runtime-windows-x64-cuda.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  macos-intel:
+    name: macOS Intel runtime
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Fetch pinned Qwen runtime source
+        run: |
+          git clone "$QWEN_REPO" qwen-runtime-src
+          cd qwen-runtime-src
+          git checkout "$QWEN_REV"
+
+      - name: Build Qwen Intel runtime
+        run: |
+          cd qwen-runtime-src
+          cargo build --release -p qwen3_asr_cli --features accelerate
+
+      - name: Fetch pinned whisper.cpp source
+        run: |
+          git clone "$WHISPER_REPO" whisper-src
+          cd whisper-src
+          git checkout "$WHISPER_REV"
+
+      - name: Build whisper.cpp Intel runtime
+        run: |
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_ACCELERATE=ON -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake --build whisper-src/build --config Release --target whisper-cli --parallel 4
+
+      - name: Assemble macOS Intel runtime bundle
+        run: |
+          mkdir -p runtime/bin runtime/licenses
+          cp qwen-runtime-src/target/release/qwen3-asr runtime/bin/qwen3-asr
+
+          WHISPER_BIN="$(find whisper-src/build -type f -name whisper-cli | head -n 1)"
+          test -n "$WHISPER_BIN"
+          cp "$WHISPER_BIN" runtime/bin/whisper-cli
+
+          chmod +x runtime/bin/qwen3-asr runtime/bin/whisper-cli
+
+          cp qwen-runtime-src/LICENSE* runtime/licenses/ 2>/dev/null || true
+          cp whisper-src/LICENSE runtime/licenses/whisper.cpp-LICENSE
+
+          cat > runtime/runtime-manifest.json <<EOF
+          {
+            "schemaVersion": 1,
+            "platform": "macos-x64",
+            "accelerator": "accelerate",
+            "qwenRevision": "$QWEN_REV",
+            "whisperRevision": "$WHISPER_REV"
+          }
+          EOF
+
+          ditto -c -k --sequesterRsrc --keepParent runtime lyricforge-asr-runtime-macos-x64.zip
+
+      - name: Smoke-check macOS Intel bundle
+        run: |
+          runtime/bin/qwen3-asr --help
+          runtime/bin/whisper-cli --help
+
+      - name: Upload macOS Intel runtime artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lyricforge-asr-runtime-macos-x64
+          path: lyricforge-asr-runtime-macos-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish managed runtime release
+    if: github.event_name != 'pull_request'
+    needs: [windows-cuda, macos-intel]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Windows runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: lyricforge-asr-runtime-windows-x64-cuda
+          path: dist
+
+      - name: Download macOS Intel runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: lyricforge-asr-runtime-macos-x64
+          path: dist
+
+      - name: Create or update rolling runtime release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view "$RUNTIME_TAG" >/dev/null 2>&1; then
+            gh release create "$RUNTIME_TAG" --title "LyricForge ASR Runtime v1" --prerelease --notes "Managed local ASR runtime bundles for LyricForge. Install them from the in-app setup wizard."
+          fi
+          gh release upload "$RUNTIME_TAG" dist/lyricforge-asr-runtime-windows-x64-cuda.zip dist/lyricforge-asr-runtime-macos-x64.zip --clobber
