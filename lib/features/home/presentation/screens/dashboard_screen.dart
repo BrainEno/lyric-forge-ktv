@@ -82,6 +82,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ).then((_) => _refreshData()),
                           ),
                           const SizedBox(width: AppSpacing.sm),
+                          IconButton(
+                            tooltip: '远程音乐库',
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              Routes.mediaSharing,
+                            ),
+                            icon: const Icon(Icons.cast_connected),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
                           _NewProjectButton(
                             onTap: () => Navigator.pushNamed(context, Routes.import),
                           ),

@@ -6,6 +6,7 @@ import '../../features/import/presentation/screens/import_audio_screen.dart';
 import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/transfer/presentation/screens/desktop_media_sharing_screen.dart';
 
 abstract class Routes {
   static const String home = '/';
@@ -16,6 +17,7 @@ abstract class Routes {
   static const String lyricEditor = '/project/:id/lyrics';
   static const String player = '/project/:id/player';
   static const String settings = '/settings';
+  static const String mediaSharing = '/media-sharing';
 
   static String projectDetailPath(String id) => '/project/$id';
   static String lyricEditorPath(String id) => '/project/$id/lyrics';
@@ -41,6 +43,9 @@ class AppRouter {
 
     case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
+
+    case Routes.mediaSharing:
+        return _fadeRoute(const DesktopMediaSharingScreen(), settings);
 
       default:
         if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'project') {
