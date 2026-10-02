@@ -45,6 +45,9 @@ class HttpMediaHubClientService implements MediaHubClientService {
       if (decoded is! Map<String, dynamic> || decoded['status'] != 'ok') {
         throw const MediaHubClientException('桌面端返回了无效的健康检查响应');
       }
+      if (decoded['protocolVersion'] != 1) {
+        throw const MediaHubClientException('桌面端 Media Hub 协议版本不兼容');
+      }
 
       _connection = connection;
     } on FormatException catch (error) {
