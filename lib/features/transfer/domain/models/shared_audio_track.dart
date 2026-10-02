@@ -1,3 +1,5 @@
+import '../../../project/domain/models/lyric_document.dart';
+
 class SharedAudioTrack {
   final String id;
   final String title;
@@ -7,6 +9,7 @@ class SharedAudioTrack {
   final String format;
   final int byteLength;
   final Duration? duration;
+  final LyricDocument? lyrics;
 
   const SharedAudioTrack({
     required this.id,
@@ -17,7 +20,10 @@ class SharedAudioTrack {
     required this.format,
     required this.byteLength,
     this.duration,
+    this.lyrics,
   });
+
+  bool get hasLyrics => lyrics != null && lyrics!.lines.isNotEmpty;
 
   Map<String, dynamic> toPublicJson() {
     return {
@@ -28,6 +34,7 @@ class SharedAudioTrack {
       'format': format,
       'byteLength': byteLength,
       'durationMs': duration?.inMilliseconds,
+      'hasLyrics': hasLyrics,
     };
   }
 }
