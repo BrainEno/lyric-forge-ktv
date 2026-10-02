@@ -622,8 +622,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final token = raw.trim();
       if (token.isEmpty) continue;
 
-      if (buffer.isNotEmpty &&
-          _needsSpace(buffer.toString().characters.last, token.characters.first)) {
+      if (buffer.isNotEmpty && _needsSpace(buffer.toString(), token)) {
         buffer.write(' ');
       }
       buffer.write(token);
@@ -633,8 +632,124 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }
 
   bool _needsSpace(String previous, String next) {
-    final latin = RegExp(r'[A-Za-z0-9]');
-    return latin.hasMatch(previous) && latin.hasMatch(next);
+    return RegExp(r'[A-Za-z0-9]
+
+  bool _endsPhrase(String text) {
+    return RegExp(r'[。！？!?；;]$').hasMatch(text.trim());
+  }
+
+  int _lineConfidence(
+    String text,
+    Duration start,
+    Duration end, {
+    int? explicitConfidence,
+  }) {
+    var score = explicitConfidence ?? 92;
+    final duration = end - start;
+
+    if (duration > const Duration(seconds: 9)) score -= 18;
+    if (text.length > 72) score -= 18;
+    if (duration < const Duration(milliseconds: 350) && text.length > 8) {
+      score -= 18;
+    }
+    if (_hasSuspiciousRepetition(text)) score -= 35;
+    if (text.trim().length <= 1) score -= 12;
+
+    return score.clamp(25, 99).toInt();
+  }
+
+  bool _hasSuspiciousRepetition(String text) {
+    final normalized = text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), ' ')
+        .trim();
+    if (normalized.length < 8) return false;
+
+    final tokens = normalized.contains(' ')
+        ? normalized.split(RegExp(r'\s+'))
+        : normalized.runes.map(String.fromCharCode).toList();
+    if (tokens.length < 4) return false;
+
+    var repeated = 0;
+    for (var i = 1; i < tokens.length; i++) {
+      if (tokens[i] == tokens[i - 1]) repeated++;
+    }
+    return repeated >= 2 || tokens.toSet().length / tokens.length < 0.45;
+  }
+
+  void _emit(
+    TranscriptionStage stage,
+    double progress,
+    String message,
+  ) {
+    if (_progressController.isClosed) return;
+    _progressController.add(
+      TranscriptionProgress(
+        stage: stage,
+        progress: progress.clamp(0.0, 1.0).toDouble(),
+        message: message,
+      ),
+    );
+  }
+
+  void _throwIfCancelled() {
+    if (_cancelRequested) throw const _QwenCancelledException();
+  }
+
+  @override
+  Future<void> cancel() async {
+    if (!_running) return;
+    _cancelRequested = true;
+    _activeRequest?.abort();
+    await _stopServer();
+  }
+
+  Future<void> _stopServer() async {
+    final process = _serverProcess;
+    _serverProcess = null;
+    _serverPort = null;
+    _serverKey = null;
+    _serverExited = false;
+
+    await _stdoutSubscription?.cancel();
+    await _stderrSubscription?.cancel();
+    _stdoutSubscription = null;
+    _stderrSubscription = null;
+
+    if (process != null) {
+      process.kill();
+    }
+  }
+
+  @override
+  Future<void> dispose() async {
+    _cancelRequested = true;
+    _activeRequest?.abort();
+    await _stopServer();
+    _httpClient.close(force: true);
+    await _progressController.close();
+  }
+}
+
+class _TimedToken {
+  final String text;
+  final Duration start;
+  final Duration end;
+  final int? confidence;
+
+  const _TimedToken({
+    required this.text,
+    required this.start,
+    required this.end,
+    this.confidence,
+  });
+}
+
+class _QwenCancelledException implements Exception {
+  const _QwenCancelledException();
+}
+).hasMatch(previous) &&
+        RegExp(r'^[A-Za-z0-9]').hasMatch(next);
   }
 
   bool _endsPhrase(String text) {
