@@ -19,10 +19,10 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<MediaHubConnection?> loadLastConnection() async {
-    final file = await _file();
-    if (!await file.exists()) return null;
-
     try {
+      final file = await _file();
+      if (!await file.exists()) return null;
+
       final raw = await file.readAsString();
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
@@ -43,9 +43,13 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<void> clear() async {
-    final file = await _file();
-    if (await file.exists()) {
-      await file.delete();
+    try {
+      final file = await _file();
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // Forget is best-effort; a missing/unavailable cache should not block UI.
     }
   }
 }
