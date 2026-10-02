@@ -63,15 +63,46 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
       await fallbackDirectory.create(recursive: true);
 
-      final fallbackResult = await _runFallbackFullSong(
-        TranscriptionRequest(
-          inputAudioPath: request.inputAudioPath,
-          outputDirectory: fallbackDirectory.path,
-          config: request.config.copyWith(
-            mode: TranscriptionMode.whisperOnly,
+      TranscriptionResult fallbackResult;
+      try {
+        fallbackResult = await _runFallbackFullSong(
+          TranscriptionRequest(
+            inputAudioPath: request.inputAudioPath,
+            outputDirectory: fallbackDirectory.path,
+            config: request.config.copyWith(
+              mode: TranscriptionMode.whisperOnly,
+            ),
+            context: request.context,
           ),
-        ),
-      );
+        );
+      } on TranscriptionException catch (error) {
+        if (error.message == '歌词识别已取消') rethrow;
+
+        _emit(
+          TranscriptionStage.completed,
+          1.0,
+          'Qwen 识别完成，但 Whisper 第二意见失败',
+        );
+
+        return TranscriptionResult(
+          lyrics: primaryResult.lyrics.copyWith(
+            metadata: {
+              ...primaryResult.lyrics.metadata,
+              'qualityMode': 'highestQuality',
+              'primaryEngine': 'qwen3-asr-1.7b',
+              'alignmentEngine': 'qwen3-forced-aligner-0.6b',
+              'fallbackEngine': 'whisper.cpp-large-v3',
+              'fallbackStatus': 'failed',
+              'fallbackError': error.toString(),
+              'fallbackCandidateCount': 0,
+              'fallbackAppliedCount': 0,
+            },
+          ),
+          normalizedAudioPath: primaryResult.normalizedAudioPath,
+          rawJsonPath: primaryResult.rawJsonPath,
+          detectedLanguage: primaryResult.detectedLanguage,
+        );
+      }
       _throwIfCancelled();
 
       _emit(
@@ -95,6 +126,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'alignmentEngine': 'qwen3-forced-aligner-0.6b',
           'fallbackEngine': 'whisper.cpp-large-v3',
           'fallbackStrategy': 'fullSongSecondOpinion',
+          'fallbackStatus': 'completed',
           'fallbackCandidateCount': merge.candidates.length,
           'fallbackAppliedCount': merge.appliedCount,
           'fallbackCandidates': merge.candidates,
