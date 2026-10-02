@@ -845,6 +845,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> dispose() async {
     _cancelRequested = true;
     _activeRequest?.abort();
+    _activeToolProcess?.kill();
+    _activeToolProcess = null;
     await _stopServer();
     _httpClient.close(force: true);
     await _progressController.close();
