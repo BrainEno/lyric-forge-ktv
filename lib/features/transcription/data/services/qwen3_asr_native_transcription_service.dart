@@ -86,6 +86,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final response = await _requestTranscription(
         normalizedPath,
         request.config,
+        request.context,
       );
       _throwIfCancelled();
 
@@ -355,6 +356,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<Map<String, dynamic>> _requestTranscription(
     String audioPath,
     TranscriptionConfig config,
+    String requestContext,
   ) async {
     final port = _serverPort;
     if (port == null) {
@@ -377,6 +379,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       // Keep 1.7B + aligner memory pressure predictable on a 16 GB RTX GPU.
       'max_batch_size': 4,
       'bucket_by_length': true,
+      if (requestContext.trim().isNotEmpty) 'context': requestContext.trim(),
       if (_qwenLanguage(config.language) != null)
         'language': _qwenLanguage(config.language),
     };
