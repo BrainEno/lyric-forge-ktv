@@ -15,6 +15,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: managed-asr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   QWEN_REPO: https://github.com/lumosimmo/qwen3-asr-rs.git
   QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
@@ -23,6 +27,30 @@ env:
   RUNTIME_TAG: asr-runtime-v1
 
 jobs:
+  flutter-validation:
+    name: Flutter analyze and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout LyricForge
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
   windows-cuda:
     name: Windows x64 CUDA runtime
     runs-on: windows-2025
