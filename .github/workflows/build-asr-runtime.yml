@@ -55,6 +55,8 @@ jobs:
     name: Windows x64 CUDA runtime
     runs-on: windows-2025
     timeout-minutes: 90
+    env:
+      CUDA_COMPUTE_CAP: "120"
 
     steps:
       - name: Checkout LyricForge
@@ -77,10 +79,11 @@ jobs:
           Set-Location qwen-runtime-src
           git checkout $env:QWEN_REV
 
-      - name: Build Qwen CUDA runtime
+      - name: Build Qwen CUDA runtime for RTX 5080
         shell: pwsh
         run: |
           Set-Location qwen-runtime-src
+          Write-Host "CUDA_COMPUTE_CAP=$env:CUDA_COMPUTE_CAP (sm_120 / RTX 5080)"
           cargo build --release -p qwen3_asr_cli --features cuda
 
       - name: Fetch pinned whisper.cpp source
@@ -90,10 +93,10 @@ jobs:
           Set-Location whisper-src
           git checkout $env:WHISPER_REV
 
-      - name: Build whisper.cpp CUDA runtime
+      - name: Build whisper.cpp CUDA runtime for RTX 5080
         shell: pwsh
         run: |
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=120 -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
           cmake --build whisper-src/build --config Release --target whisper-cli --parallel 2
 
       - name: Assemble Windows runtime bundle
@@ -122,6 +125,8 @@ jobs:
             platform = "windows-x64"
             accelerator = "cuda"
             cuda = "12.8.0"
+            computeCapability = "12.0"
+            cudaArchitecture = "sm_120"
             qwenRevision = $env:QWEN_REV
             whisperRevision = $env:WHISPER_REV
             builtAt = (Get-Date).ToUniversalTime().ToString("o")
