@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,6 +12,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/play_history_repository.dart';
+import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 
@@ -32,18 +33,11 @@ class QuickPlayScreen extends StatefulWidget {
 }
 
 class _QuickPlayScreenState extends State<QuickPlayScreen> {
-  static const _supportedExtensions = {
-    'mp3',
-    'flac',
-    'wav',
-    'm4a',
-    'aac',
-    'ogg',
-  };
-
   late final AudioPlayerService _audioService;
+  late final AudioLibraryImportService _audioImportService;
   late final PlaybackSessionService _playbackSession;
   late final PlayHistoryRepository _playHistoryRepository;
+  StreamSubscription<PlaybackSessionState>? _sessionSubscription;
 
   File? _selectedFile;
   String? _activeHistoryId;
@@ -54,8 +48,15 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   void initState() {
     super.initState();
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    _audioImportService = ServiceLocatorGlobal.I.audioLibraryImportService;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _playHistoryRepository = ServiceLocatorGlobal.I.playHistoryRepository;
+    final currentItem = _playbackSession.currentState.currentItem;
+    if (currentItem != null && currentItem.projectId == null) {
+      _selectedFile = File(currentItem.audioAsset.originalPath);
+    }
+    _sessionSubscription =
+        _playbackSession.stateStream.listen(_syncSessionState);
 
     if (widget.initialHistory != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -83,54 +84,110 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
     await _loadAndPlay(file, resumeFrom: history.lastPosition);
   }
 
-  Future<void> _pickAudioFile() async {
+  Future<void> _pickAudioFiles() async {
     try {
-      final useUnfilteredMacPicker = Platform.isMacOS;
-      final result = await FilePicker.platform.pickFiles(
-        // Keep macOS navigation unfiltered. Some native picker combinations can
-        // make folders look disabled when extension filters are applied.
-        type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
-        allowedExtensions: useUnfilteredMacPicker
-            ? null
-            : _supportedExtensions.toList(growable: false),
-        allowMultiple: false,
-        dialogTitle: '选择音频文件',
-        allowCompression: false,
-        withData: false,
-        withReadStream: false,
-      );
-
-      if (result == null || result.files.isEmpty) return;
-      final path = result.files.first.path;
-      if (path == null) {
-        if (!mounted) return;
-        setState(() => _error = '无法获取文件路径');
-        return;
-      }
-
-      final extension = _getFileExtension(path);
-      if (!_supportedExtensions.contains(extension)) {
-        if (!mounted) return;
-        setState(() {
-          _error = '请选择 MP3 / FLAC / WAV / M4A / AAC / OGG 音频文件';
-        });
-        return;
-      }
-
-      final file = File(path);
-      if (!mounted) return;
-      setState(() {
-        _selectedFile = file;
-        _activeHistoryId = null;
-        _error = null;
-      });
-      await _loadAndPlay(file);
+      final paths = await _audioImportService.pickAudioFiles();
+      if (paths.isEmpty) return;
+      await _queueAudioPaths(paths);
     } catch (error, stackTrace) {
-      debugPrint('File picker error: $error');
+      debugPrint('Audio multi-select error: $error');
       debugPrint('$stackTrace');
       if (!mounted) return;
-      setState(() => _error = '无法选择文件: $error');
+      setState(() => _error = '无法导入音频: $error');
     }
+  }
+
+  Future<void> _pickAudioFolder() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final paths = await _audioImportService.pickAudioDirectory();
+      if (paths.isEmpty) {
+        if (!mounted) return;
+        setState(() => _error = '这个文件夹里没有找到支持的音频文件');
+        return;
+      }
+      await _queueAudioPaths(paths);
+    } catch (error, stackTrace) {
+      debugPrint('Audio folder import error: $error');
+      debugPrint('$stackTrace');
+      if (!mounted) return;
+      setState(() => _error = '无法读取音乐文件夹: $error');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _queueAudioPaths(List<String> paths) async {
+    final items = <PlaybackItem>[];
+    for (final path in paths) {
+      final file = File(path);
+      if (!await file.exists()) continue;
+
+      final format = _getFileExtension(path);
+      if (!_audioImportService.supportedExtensions.contains(format)) continue;
+
+      final audioAsset = AudioAsset(
+        originalPath: path,
+        format: format,
+      );
+      items.add(
+        PlaybackItem(
+          id: 'local:$path',
+          title: _displayTitle(path),
+          audioAsset: audioAsset,
+          preferredSource: AudioSourceType.original,
+          artworkPath: audioAsset.thumbnailPath,
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      if (!mounted) return;
+      setState(() => _error = '没有可播放的音频文件');
+      return;
+    }
+
+    final existing = _playbackSession.currentState.queue;
+    if (_selectedFile != null && existing.isNotEmpty) {
+      for (final item in items) {
+        await _playbackSession.enqueue(item);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已添加 ${items.length} 首到播放队列')),
+        );
+      }
+      return;
+    }
+
+    _activeHistoryId = const Uuid().v4();
+    await _playbackSession.setQueue(items, startIndex: 0);
+    final first = File(items.first.audioAsset.originalPath);
+    if (mounted) {
+      setState(() {
+        _selectedFile = first;
+        _error = null;
+      });
+    }
+    await _savePlayHistory(first);
+  }
+
+  void _syncSessionState(PlaybackSessionState session) {
+    final current = session.currentItem;
+    if (current == null || current.projectId != null) return;
+
+    final path = current.audioAsset.originalPath;
+    if (!mounted) return;
+    setState(() {
+      _selectedFile = File(path);
+      _error = null;
+    });
   }
 
   Future<void> _loadAndPlay(
@@ -148,12 +205,11 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         originalPath: file.path,
         format: _getFileExtension(file.path),
       );
-      final id = _activeHistoryId ?? const Uuid().v4();
-      _activeHistoryId = id;
+      _activeHistoryId ??= const Uuid().v4();
 
       await _playbackSession.playItem(
         PlaybackItem(
-          id: id,
+          id: 'local:${file.path}',
           title: _displayTitle(file.path),
           audioAsset: audioAsset,
           preferredSource: AudioSourceType.original,
@@ -252,19 +308,27 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         title: Text(file == null ? '本地播放器' : '正在播放'),
         backgroundColor: AppColors.bgBase,
         actions: [
-          if (file != null)
+          if (file != null) ...[
             IconButton(
-              onPressed: _pickAudioFile,
-              icon: const Icon(Icons.folder_open_rounded),
-              tooltip: '打开其他音乐',
+              onPressed: _pickAudioFiles,
+              icon: const Icon(Icons.library_add_rounded),
+              tooltip: '添加音乐到队列',
             ),
+            IconButton(
+              onPressed: _pickAudioFolder,
+              icon: const Icon(Icons.folder_copy_rounded),
+              tooltip: '导入音乐文件夹',
+            ),
+          ],
           const SizedBox(width: AppSpacing.sm),
         ],
       ),
       body: SafeArea(
         child: file == null
             ? _FileSelectionState(
-                onPickFile: _pickAudioFile,
+                onPickFiles: _pickAudioFiles,
+                onPickFolder: _pickAudioFolder,
+                isLoading: _isLoading,
                 onCreateProject: () =>
                     Navigator.pushNamed(context, Routes.import),
                 error: _error,
@@ -288,19 +352,24 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
 
   @override
   void dispose() {
+    _sessionSubscription?.cancel();
     // Playback is app-scoped and intentionally survives route changes.
     super.dispose();
   }
 }
 
 class _FileSelectionState extends StatelessWidget {
-  final VoidCallback onPickFile;
+  final VoidCallback onPickFiles;
+  final VoidCallback onPickFolder;
   final VoidCallback onCreateProject;
+  final bool isLoading;
   final String? error;
 
   const _FileSelectionState({
-    required this.onPickFile,
+    required this.onPickFiles,
+    required this.onPickFolder,
     required this.onCreateProject,
+    required this.isLoading,
     this.error,
   });
 
@@ -337,14 +406,14 @@ class _FileSelectionState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
-                '打开一首本地音乐',
+                '打开本地音乐',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '直接试听，不创建工程。支持 MP3、FLAC、WAV、M4A、AAC 和 OGG。',
+                '可多选音频，也可以直接选择整个文件夹。导入后会按顺序加入播放队列。',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,
@@ -359,10 +428,27 @@ class _FileSelectionState extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.xl),
-              FilledButton.icon(
-                onPressed: onPickFile,
-                icon: const Icon(Icons.folder_open_rounded),
-                label: const Text('选择音乐'),
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
+                  child: CircularProgressIndicator(),
+                ),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                alignment: WrapAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    onPressed: isLoading ? null : onPickFiles,
+                    icon: const Icon(Icons.library_add_rounded),
+                    label: const Text('选择音乐（可多选）'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: isLoading ? null : onPickFolder,
+                    icon: const Icon(Icons.folder_copy_rounded),
+                    label: const Text('导入文件夹'),
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpacing.sm),
               TextButton.icon(
