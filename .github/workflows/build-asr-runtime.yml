@@ -91,12 +91,31 @@ jobs:
           git checkout $env:QWEN_REV
 
       - name: Build Qwen CUDA runtime for RTX 5080
+        id: qwen-build
         shell: pwsh
         run: |
           Set-Location qwen-runtime-src
           Write-Host "CUDA_COMPUTE_CAP=$env:CUDA_COMPUTE_CAP (sm_120 / RTX 5080)"
           where.exe cl.exe
-          cargo build --release -p qwen3_asr_cli --features cuda
+          $ErrorActionPreference = 'Continue'
+          cargo build --release -p qwen3_asr_cli --features cuda 2>&1 | Tee-Object -FilePath ../qwen-build.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Qwen CUDA build failure"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```text'
+            Get-Content ../qwen-build.log -Tail 160 | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+            exit $code
+          }
+
+      - name: Upload Qwen CUDA build diagnostics
+        if: failure() && steps.qwen-build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qwen-cuda-build-log
+          path: qwen-build.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Fetch pinned whisper.cpp source
         shell: pwsh
