@@ -8,9 +8,10 @@ import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
+import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
-import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
+import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 
@@ -30,6 +31,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   late final ProjectRepository _repository;
   late final ProjectTranscriptionWorkflow _transcriptionWorkflow;
   late final TranscriptionSettingsStore _transcriptionSettingsStore;
+  late final AsrRuntimeManager _asrRuntimeManager;
   late Future<ProjectManifest?> _projectFuture;
 
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
@@ -50,6 +52,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         ServiceLocatorGlobal.I.projectTranscriptionWorkflow;
     _transcriptionSettingsStore =
         ServiceLocatorGlobal.I.transcriptionSettingsStore;
+    _asrRuntimeManager = ServiceLocatorGlobal.I.asrRuntimeManager;
     _loadProject();
 
     _progressSubscription =
@@ -79,7 +82,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
     final config = await showDialog<TranscriptionConfig>(
       context: context,
-      builder: (context) => TranscriptionConfigDialog(
+      barrierDismissible: false,
+      builder: (context) => AsrRuntimeSetupDialog(
         initialConfig: current,
       ),
     );
@@ -88,7 +92,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     await _transcriptionSettingsStore.save(config);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('本地歌词识别设置已保存')),
+        const SnackBar(content: Text('本地歌词识别环境已保存')),
       );
     }
     return config;
@@ -124,6 +128,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     if (config == null) {
       config = await _configureTranscription();
       if (config == null) return;
+    } else {
+      final runtimeStatus = await _asrRuntimeManager.inspect(config);
+      if (!runtimeStatus.isReady) {
+        config = await _configureTranscription();
+        if (config == null) return;
+      }
     }
 
     setState(() {

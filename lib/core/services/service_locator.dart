@@ -12,8 +12,10 @@ import '../../features/transcription/data/services/file_transcription_settings_s
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
+import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/native_transcription_profile_resolver.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
+import '../../features/transcription/domain/services/asr_runtime_manager.dart';
 import '../../features/transcription/domain/services/project_transcription_workflow.dart';
 import '../../features/transcription/domain/services/transcription_profile_resolver.dart';
 import '../../features/transcription/domain/services/transcription_service.dart';
@@ -39,6 +41,7 @@ class ServiceLocator {
   late final PlaybackSessionService playbackSessionService;
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
+  late final AsrRuntimeManager asrRuntimeManager;
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
   late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
@@ -55,6 +58,9 @@ class ServiceLocator {
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
     transcriptionProfileResolver = NativeTranscriptionProfileResolver();
+    asrRuntimeManager = ManagedAsrRuntimeManager(
+      profileResolver: transcriptionProfileResolver,
+    );
     transcriptionService = HighQualityTranscriptionService(
       primary: Qwen3AsrNativeTranscriptionService(),
       fallback: WhisperCppTranscriptionService(),
@@ -65,6 +71,7 @@ class ServiceLocator {
       transcriptionService: transcriptionService,
       settingsStore: transcriptionSettingsStore,
       profileResolver: transcriptionProfileResolver,
+      runtimeManager: asrRuntimeManager,
     );
   }
 }
