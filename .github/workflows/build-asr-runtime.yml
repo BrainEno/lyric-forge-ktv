@@ -53,7 +53,7 @@ jobs:
 
   windows-cuda:
     name: Windows x64 CUDA runtime
-    runs-on: windows-2025
+    runs-on: windows-2022
     timeout-minutes: 90
     env:
       CUDA_COMPUTE_CAP: "120"
@@ -65,10 +65,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Configure MSVC x64 developer environment
+      - name: Configure CUDA-supported MSVC toolset
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+          vsversion: "2022"
+          toolset: "14.29"
 
       - name: Verify MSVC host compiler
         shell: pwsh
@@ -156,6 +158,7 @@ jobs:
             platform = "windows-x64"
             accelerator = "cuda"
             cuda = "12.8.0"
+            hostCompiler = "MSVC 14.29 / v142"
             computeCapability = "12.0"
             cudaArchitecture = "sm_120"
             qwenRevision = $env:QWEN_REV
