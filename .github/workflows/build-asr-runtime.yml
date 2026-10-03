@@ -149,11 +149,37 @@ jobs:
           Set-Location whisper-src
           git checkout $env:WHISPER_REV
 
+      - name: Verify Ninja and CUDA compiler
+        shell: pwsh
+        run: |
+          where.exe ninja.exe
+          where.exe cl.exe
+          $nvcc = Join-Path $env:CUDA_PATH "bin\nvcc.exe"
+          if (-not (Test-Path $nvcc)) {
+            throw "nvcc.exe not found: $nvcc"
+          }
+          & $nvcc --version
+
       - name: Build whisper.cpp CUDA runtime for RTX 5080
         shell: pwsh
         run: |
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=120 -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON
-          cmake --build whisper-src/build --config Release --target whisper-cli --parallel 2
+          $nvcc = Join-Path $env:CUDA_PATH "bin\nvcc.exe"
+          cmake -G Ninja `
+            -S whisper-src `
+            -B whisper-src/build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER=cl `
+            -DCMAKE_CXX_COMPILER=cl `
+            "-DCMAKE_CUDA_COMPILER=$nvcc" `
+            "-DCUDAToolkit_ROOT=$env:CUDA_PATH" `
+            -DGGML_CUDA=ON `
+            -DCMAKE_CUDA_ARCHITECTURES=120 `
+            -DGGML_NATIVE=OFF `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DWHISPER_BUILD_TESTS=OFF `
+            -DWHISPER_BUILD_EXAMPLES=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build whisper-src/build --target whisper-cli --parallel 2
 
       - name: Assemble Windows runtime bundle
         shell: pwsh
@@ -182,6 +208,7 @@ jobs:
             accelerator = "cuda"
             cuda = "12.8.0"
             hostCompiler = "MSVC 14.29 / v142"
+            generator = "Ninja"
             computeCapability = "12.0"
             cudaArchitecture = "sm_120"
             qwenRevision = $env:QWEN_REV
