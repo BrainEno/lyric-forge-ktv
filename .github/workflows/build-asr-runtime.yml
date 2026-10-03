@@ -65,6 +65,17 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Configure MSVC x64 developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Verify MSVC host compiler
+        shell: pwsh
+        run: |
+          where.exe cl.exe
+          & cl.exe 2>&1 | Select-Object -First 5
+
       - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
@@ -84,6 +95,7 @@ jobs:
         run: |
           Set-Location qwen-runtime-src
           Write-Host "CUDA_COMPUTE_CAP=$env:CUDA_COMPUTE_CAP (sm_120 / RTX 5080)"
+          where.exe cl.exe
           cargo build --release -p qwen3_asr_cli --features cuda
 
       - name: Fetch pinned whisper.cpp source
