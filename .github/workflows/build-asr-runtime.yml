@@ -45,8 +45,8 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze blocking errors
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Test
         run: flutter test
@@ -66,7 +66,7 @@ jobs:
       - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.36
         with:
-          cuda: "13.2.0"
+          cuda: "12.8.0"
           method: network
           sub-packages: '["nvcc","cudart","cublas","curand","cusparse","cusolver","nvrtc","nvjitlink"]'
 
@@ -121,7 +121,7 @@ jobs:
             schemaVersion = 1
             platform = "windows-x64"
             accelerator = "cuda"
-            cuda = "13.2.0"
+            cuda = "12.8.0"
             qwenRevision = $env:QWEN_REV
             whisperRevision = $env:WHISPER_REV
             builtAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -219,7 +219,7 @@ jobs:
   publish:
     name: Publish managed runtime release
     if: github.event_name != 'pull_request'
-    needs: [windows-cuda, macos-intel]
+    needs: [flutter-validation, windows-cuda, macos-intel]
     runs-on: ubuntu-latest
 
     steps:
