@@ -83,10 +83,10 @@ jobs:
         with:
           cuda: "12.8.0"
           method: network
-          # nvrtc_dev is required for nvrtc.lib at link time. The runtime-only
-          # nvrtc package supplies DLLs but not the import library used by
-          # candle/cudarc when linking qwen3-asr on Windows.
-          sub-packages: '["nvcc","cudart","cublas","curand","cusparse","cusolver","nvrtc","nvrtc_dev","nvjitlink"]'
+          # NVIDIA's network installer splits runtime and link-time import
+          # libraries into separate packages. Qwen/Candle and whisper.cpp need
+          # the *_dev packages to produce a redistributable CUDA binary.
+          sub-packages: '["nvcc","cudart","cublas","cublas_dev","curand","curand_dev","cusparse","cusparse_dev","cusolver","cusolver_dev","nvrtc","nvrtc_dev","nvjitlink"]'
 
       - name: Verify CUDA development libraries
         shell: pwsh
@@ -97,7 +97,7 @@ jobs:
             throw "CUDA library directory not found: $cudaLib"
           }
 
-          $required = @("cudart.lib", "cublas.lib", "cublasLt.lib", "curand.lib", "nvrtc.lib")
+          $required = @("cudart.lib", "cublas.lib", "cublasLt.lib", "curand.lib", "cusparse.lib", "cusolver.lib", "nvrtc.lib")
           foreach ($library in $required) {
             $path = Join-Path $cudaLib $library
             if (-not (Test-Path $path)) {
