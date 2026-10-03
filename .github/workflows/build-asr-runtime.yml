@@ -83,7 +83,30 @@ jobs:
         with:
           cuda: "12.8.0"
           method: network
-          sub-packages: '["nvcc","cudart","cublas","curand","cusparse","cusolver","nvrtc","nvjitlink"]'
+          # nvrtc_dev is required for nvrtc.lib at link time. The runtime-only
+          # nvrtc package supplies DLLs but not the import library used by
+          # candle/cudarc when linking qwen3-asr on Windows.
+          sub-packages: '["nvcc","cudart","cublas","curand","cusparse","cusolver","nvrtc","nvrtc_dev","nvjitlink"]'
+
+      - name: Verify CUDA development libraries
+        shell: pwsh
+        run: |
+          Write-Host "CUDA_PATH=$env:CUDA_PATH"
+          $cudaLib = Join-Path $env:CUDA_PATH "lib\x64"
+          if (-not (Test-Path $cudaLib)) {
+            throw "CUDA library directory not found: $cudaLib"
+          }
+
+          $required = @("cudart.lib", "cublas.lib", "cublasLt.lib", "curand.lib", "nvrtc.lib")
+          foreach ($library in $required) {
+            $path = Join-Path $cudaLib $library
+            if (-not (Test-Path $path)) {
+              Write-Host "CUDA library contents:"
+              Get-ChildItem $cudaLib | Select-Object -ExpandProperty Name | Sort-Object
+              throw "Required CUDA development library is missing: $path"
+            }
+            Write-Host "Found $path"
+          }
 
       - name: Fetch pinned Qwen runtime source
         shell: pwsh
