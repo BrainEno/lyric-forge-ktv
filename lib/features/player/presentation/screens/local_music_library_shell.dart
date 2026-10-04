@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
@@ -43,16 +43,69 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
         LocalCollectionsScreen(view: LocalCollectionView.playlists),
       ];
 
+  static const _railDestinations = [
+    NavigationRailDestination(
+      icon: Icon(Icons.music_note_outlined),
+      selectedIcon: Icon(Icons.music_note_rounded),
+      label: Text('歌曲'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: Text('艺人'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.album_outlined),
+      selectedIcon: Icon(Icons.album_rounded),
+      label: Text('专辑'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.favorite_border_rounded),
+      selectedIcon: Icon(Icons.favorite_rounded),
+      label: Text('已收藏'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.queue_music_outlined),
+      selectedIcon: Icon(Icons.queue_music_rounded),
+      label: Text('播放列表'),
+    ),
+  ];
+
+  static const _bottomDestinations = [
+    NavigationDestination(
+      icon: Icon(Icons.music_note_outlined),
+      selectedIcon: Icon(Icons.music_note_rounded),
+      label: '歌曲',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: '艺人',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.album_outlined),
+      selectedIcon: Icon(Icons.album_rounded),
+      label: '专辑',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.favorite_border_rounded),
+      selectedIcon: Icon(Icons.favorite_rounded),
+      label: '收藏',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.queue_music_outlined),
+      selectedIcon: Icon(Icons.queue_music_rounded),
+      label: '歌单',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final desktop = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (desktop && constraints.maxWidth >= 880) {
+        final layout = AppResponsive.fromConstraints(constraints);
+
+        if (layout.useNavigationRail) {
           return ColoredBox(
             color: AppColors.bgBase,
             child: Row(
@@ -61,38 +114,14 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                   backgroundColor: AppColors.bgElevated,
                   selectedIndex: _index,
                   labelType: NavigationRailLabelType.all,
+                  minWidth: 76,
+                  groupAlignment: -0.82,
                   onDestinationSelected: (value) => setState(() => _index = value),
                   leading: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
+                    padding: EdgeInsets.symmetric(vertical: 16),
                     child: Icon(Icons.library_music_rounded, size: 30),
                   ),
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.music_note_outlined),
-                      selectedIcon: Icon(Icons.music_note_rounded),
-                      label: Text('歌曲'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: Text('艺人'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.album_outlined),
-                      selectedIcon: Icon(Icons.album_rounded),
-                      label: Text('专辑'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.favorite_border_rounded),
-                      selectedIcon: Icon(Icons.favorite_rounded),
-                      label: Text('已收藏'),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.queue_music_outlined),
-                      selectedIcon: Icon(Icons.queue_music_rounded),
-                      label: Text('播放列表'),
-                    ),
-                  ],
+                  destinations: _railDestinations,
                 ),
                 const VerticalDivider(width: 1, thickness: 1),
                 Expanded(
@@ -114,34 +143,11 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
+            labelBehavior: layout.isCompact
+                ? NavigationDestinationLabelBehavior.onlyShowSelected
+                : NavigationDestinationLabelBehavior.alwaysShow,
             onDestinationSelected: (value) => setState(() => _index = value),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.music_note_outlined),
-                selectedIcon: Icon(Icons.music_note_rounded),
-                label: '歌曲',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: '艺人',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.album_outlined),
-                selectedIcon: Icon(Icons.album_rounded),
-                label: '专辑',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.favorite_border_rounded),
-                selectedIcon: Icon(Icons.favorite_rounded),
-                label: '收藏',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.queue_music_outlined),
-                selectedIcon: Icon(Icons.queue_music_rounded),
-                label: '歌单',
-              ),
-            ],
+            destinations: _bottomDestinations,
           ),
         );
       },

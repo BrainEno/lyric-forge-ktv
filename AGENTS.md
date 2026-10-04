@@ -1,52 +1,80 @@
 # Project Mission
 
-This project builds a local-first KTV production tool: desktop-first,
-mobile-consumption-second.
+This project builds a **local-first music player with integrated lyric and KTV
+production capabilities**.
+
+The local music player is a primary product surface on both desktop and mobile.
+Lyrics, local ASR, lyric editing, vocal/instrumental processing, and KTV playback
+are capabilities attached to local songs; they are not prerequisites for using
+the app as a normal local player.
 
 The product goal is to let users:
 
-1. import local audio,
-2. preprocess and normalize it,
-3. separate vocal / instrumental on desktop,
-4. run local ASR on the vocal track,
-5. merge segmented transcription into editable lyrics,
-6. export a playable local KTV project,
-7. open and use that project on desktop and mobile.
+1. build and browse a persistent local music library,
+2. play local music with queues, playlists, favorites, artwork, and metadata,
+3. attach/import common lyric files or create lyrics with local ASR,
+4. edit and synchronize lyrics,
+5. optionally preprocess and separate vocal / instrumental audio on desktop,
+6. export and reopen playable local KTV projects,
+7. use the same library/playback model coherently across desktop and mobile.
 
-This is not a generic music player. It is a local KTV creation tool with strong
-emphasis on privacy, offline workflows, editable lyrics, and playback polish.
+Privacy, offline workflows, Unicode-safe local media handling, editable lyrics,
+and playback polish are core requirements.
 
 ---
 
 # Product Scope
 
-## Desktop-first MVP
+## Core local-player experience — desktop and mobile
 
-Desktop is the primary production environment.
+The app must remain useful before the user ever starts transcription.
 
-Desktop MVP must support:
+Core playback/library scope includes:
 
-- import mp3 / flac / wav / m4a
+- persistent local music Library
+- local file/folder import
+- title / artist / album / artwork presentation
+- non-destructive user metadata overrides
+- Unicode-safe Chinese / Japanese / emoji text handling
+- queue management
+- previous / play-pause / next
+- seek and volume
+- shuffle / repeat modes
+- favorites and local playlists
+- recent listening and resume position
+- lyric file import and lyric display when available
+- responsive Now Playing / Library surfaces
+
+## Desktop production capabilities
+
+Desktop remains the primary lyric-production environment.
+
+Desktop production should support:
+
 - create and reopen local project folders
 - preprocess audio with visible progress
 - vocal / instrumental separation
 - local lyric transcription
 - editable lyric timeline
+- low-confidence / disagreement review
 - accompaniment playback with synced lyrics
 - export LRC and project manifest
 
-## Mobile-second MVP
+## Mobile playback and light editing
 
-Mobile is the playback and light-edit environment.
+Mobile should support the same local-player information architecture at a
+mobile-appropriate density, plus:
 
-Mobile MVP should support:
-
-- opening exported projects
-- accompaniment playback
+- local library browsing
+- normal local playback
+- queue / favorites / playlists
 - synced lyric display
 - global lyric offset adjustment
 - minor lyric correction
-- saving revised project metadata
+- opening exported lyric/KTV projects
+- saving revised project metadata where supported
+
+Do not make mobile playback depend on desktop-only processing tools.
 
 ## Explicit non-goals for MVP
 
@@ -55,7 +83,7 @@ Do not promise:
 - perfect fully automatic lyrics
 - mobile-side full local source separation
 - cloud-only architecture
-- online song library integration
+- online commercial song-library integration
 - exact cloning of any third-party branded product
 
 ---
@@ -79,7 +107,8 @@ Flutter owns:
 
 - app shell
 - navigation
-- state presentation
+- local-library presentation
+- playback state presentation
 - user interaction
 - playback UI
 - lyric editing UI
@@ -98,20 +127,23 @@ Processing services / adapters own:
 ## Required runtime direction
 
 - Flutter for UI and app orchestration
+- one shared app-scoped playback/session model across responsive surfaces
 - local processing behind service abstractions
-- whisper.cpp (or equivalent local ASR backend) for local transcription
+- whisper.cpp / Qwen or equivalent local ASR backend for local transcription
 - FFmpeg for preprocessing
-- desktop-only separation backend in MVP
-- local project files as the system of record
+- desktop-only separation backend where required
+- local files / manifests as the system of record
 
 ## Forbidden architecture drift
 
 - Do not introduce Python into runtime architecture.
 - Keep mobile build path free of desktop-only assumptions.
 - Do not make UI call CLI tools directly.
-- Do not couple presentation code to low-level file paths.
-- Do not bypass the project manifest / project model.
-- Do not hardcode desktop-only workflows into shared mobile flows.
+- Do not couple presentation code to low-level processing implementations.
+- Do not bypass the project manifest / project model for KTV project state.
+- Do not hardcode desktop-only workflows into shared mobile playback flows.
+- Do not create separate desktop/mobile playback queues or duplicated player
+  state solely for layout reasons.
 
 ---
 
@@ -119,8 +151,8 @@ Processing services / adapters own:
 
 ## Primary design direction
 
-The UI should comprehensively reference the Spotify player design language while
-remaining original and implementation-safe.
+The UI should reference the media-centric strengths of Spotify while remaining
+original and implementation-safe.
 
 ### Spotify-inspired qualities to preserve
 
@@ -150,6 +182,8 @@ Every new UI change should be evaluated against:
 - dark-theme polish
 - playback-centric usability
 - desktop and mobile coherence
+- window-resize behavior
+- touch-target quality
 - perceived smoothness
 - readability of lyrics while playing
 
@@ -159,7 +193,55 @@ Every new UI change should be evaluated against:
 - Avoid generic admin-dashboard aesthetics.
 - Avoid cluttered forms.
 - Prioritize media immersion over tool-panel feeling.
-- Ensure lyrics editor and player feel like parts of one coherent product.
+- Ensure Library, player, lyrics editor, and KTV feel like one coherent product.
+- Keep AI/transcription actions secondary until the user explicitly needs them.
+
+## Responsive layout standard — required
+
+`docs/responsive-layout.md` and `lib/core/layout/app_responsive.dart` are the
+responsive source of truth.
+
+Width classes:
+
+- Compact: `<600`
+- Medium: `600–839`
+- Expanded: `840–1199`
+- Large: `1200–1599`
+- Extra Large: `>=1600`
+
+Height classes:
+
+- Short: `<600`
+- Regular: `600–899`
+- Tall: `>=900`
+
+Rules:
+
+- Do not invent page-local breakpoint constants when `AppLayoutSpec` can express
+  the layout decision.
+- Responsive behavior is based on available viewport, not device name alone.
+- Consider width and height independently; phone landscape and short desktop
+  windows must not inherit tall desktop compositions.
+- Touch platforms keep at least 48dp interactive targets.
+- Collapse secondary actions before shrinking primary playback controls.
+- Large displays gain whitespace / bounded content width rather than endlessly
+  stretched cards and text.
+- Avoid `Expanded` / `Spacer` inside unbounded scroll axes.
+- Resizing must never recreate or reset playback queue, metadata, lyrics,
+  project, or transcription business state.
+- A desktop window dragged through 600 / 840 / 1080 / 1200 / 1600 must adapt
+  without requiring restart.
+
+Required responsive manual matrix when a Flutter runtime is available:
+
+- 390×844
+- 844×390
+- 768×1024
+- 1024×768
+- 1366×768
+- 1600×900
+- 1920×1080
+- 2560×1440
 
 ---
 
@@ -175,12 +257,14 @@ Every new UI change should be evaluated against:
 - Treat automatically generated lyrics as editable draft output, not guaranteed
   truth.
 - Surface low-confidence or suspicious lyric segments instead of hiding them.
+- Do not truncate Unicode user text by code-unit count; use layout overflow and
+  `maxLines`/ellipsis instead.
 
 ---
 
 # Validation
 
-Before finishing, run or explain the intended validation:
+Before finishing, run or explain the intended validation.
 
 ## Common validation
 
@@ -191,6 +275,9 @@ Before finishing, run or explain the intended validation:
 ## UI behavior validation
 
 If UI behavior changed, include a short manual verification checklist.
+
+For responsive changes, validate the viewport matrix defined above and perform
+continuous desktop drag-resizing through the shared breakpoints.
 
 ## If validation cannot run
 
@@ -230,6 +317,8 @@ For each task:
 - Do not overwrite user-edited lyrics silently.
 - Do not claim full lyric accuracy without user review.
 - Do not hide long-running failures behind generic error messages.
+- Do not make responsive layout by maintaining separate desktop/mobile business
+  state.
 
 ---
 

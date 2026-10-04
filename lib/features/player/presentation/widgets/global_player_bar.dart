@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -47,13 +47,33 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
     );
   }
 
+  Future<void> _handleSongAction(
+    BuildContext context,
+    PlaybackItem item,
+    String value,
+  ) async {
+    switch (value) {
+      case 'library':
+        Navigator.pushNamed(context, Routes.library);
+        return;
+      case 'collections':
+        Navigator.pushNamed(context, Routes.collections);
+        return;
+      case 'playlist':
+        await _addToPlaylist(context, item);
+        return;
+      case 'lyrics':
+        await importLyricsForLocalPlaybackItem(context, item);
+        return;
+      case 'edit':
+        await showLocalMediaMetadataDialog(context, item);
+        return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDesktop = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
-    if (!isDesktop) return const SizedBox.shrink();
+    if (!AppResponsive.isDesktopTarget()) return const SizedBox.shrink();
 
     return StreamBuilder<PlaybackSessionState>(
       stream: _session.stateStream,
@@ -76,63 +96,69 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           builder: (context, playbackSnapshot) {
             final playback = playbackSnapshot.data ?? const PlaybackState.idle();
 
-            return Material(
-              color: AppColors.bgElevated,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedCrossFade(
-                    duration: const Duration(milliseconds: 180),
-                    crossFadeState: _queueExpanded
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
-                    firstChild: const SizedBox(width: double.infinity),
-                    secondChild: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                      ),
-                      color: AppColors.bgBase,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 560),
-                          child: PlaybackQueuePanel(
-                            session: _session,
-                            height: 320,
-                            showBorder: false,
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final layout = AppResponsive.fromConstraints(constraints);
+                final minimal = layout.isCompact;
+                final compact = layout.isCompactOrMedium;
+                final queueHeight = layout.isShort ? 220.0 : 320.0;
+                final queueMaxWidth = layout.isExtraWideDesktop ? 640.0 : 560.0;
+
+                return Material(
+                  color: AppColors.bgElevated,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedCrossFade(
+                        duration: const Duration(milliseconds: 180),
+                        crossFadeState: _queueExpanded
+                            ? CrossFadeState.showSecond
+                            : CrossFadeState.showFirst,
+                        firstChild: const SizedBox(width: double.infinity),
+                        secondChild: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: layout.pageGutter,
+                            vertical: AppSpacing.sm,
+                          ),
+                          color: AppColors.bgBase,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: queueMaxWidth),
+                              child: PlaybackQueuePanel(
+                                session: _session,
+                                height: queueHeight,
+                                showBorder: false,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  LinearProgressIndicator(
-                    value: playback.duration == null
-                        ? 0.0
-                        : playback.progressPercent.clamp(0.0, 1.0).toDouble(),
-                    minHeight: 2,
-                    backgroundColor: AppColors.bgHighlight,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 900;
-                        return Row(
+                      LinearProgressIndicator(
+                        value: playback.duration == null
+                            ? 0.0
+                            : playback.progressPercent.clamp(0.0, 1.0).toDouble(),
+                        minHeight: 2,
+                        backgroundColor: AppColors.bgHighlight,
+                        valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: layout.pageGutter,
+                          vertical: AppSpacing.sm,
+                        ),
+                        child: Row(
                           children: [
                             InkWell(
                               borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
                               onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
-                              child: _Artwork(path: item.artworkPath),
+                              child: _Artwork(
+                                path: item.artworkPath,
+                                extent: minimal ? 40 : 48,
+                              ),
                             ),
-                            const SizedBox(width: AppSpacing.md),
+                            SizedBox(width: minimal ? AppSpacing.sm : AppSpacing.md),
                             Expanded(
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
@@ -173,103 +199,89 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 ),
                               ),
                             ),
-                            IconButton(
-                              tooltip: '音乐库',
-                              onPressed: () => Navigator.pushNamed(context, Routes.library),
-                              icon: const Icon(Icons.library_music_rounded),
-                            ),
+                            if (!compact)
+                              IconButton(
+                                tooltip: '音乐库',
+                                onPressed: () => Navigator.pushNamed(context, Routes.library),
+                                icon: const Icon(Icons.library_music_rounded),
+                              ),
                             if (!compact)
                               IconButton(
                                 tooltip: '收藏与播放列表',
-                                onPressed: () =>
-                                    Navigator.pushNamed(context, Routes.collections),
+                                onPressed: () => Navigator.pushNamed(context, Routes.collections),
                                 icon: const Icon(Icons.collections_bookmark_outlined),
                               ),
-                            if (item.projectId == null) ...[
+                            if (item.projectId == null)
                               LocalFavoriteButton(
                                 key: ValueKey('favorite:${item.audioAsset.originalPath}'),
                                 sourcePath: item.audioAsset.originalPath,
                               ),
-                              if (!compact) ...[
-                                IconButton(
-                                  tooltip: '加入播放列表',
-                                  onPressed: () => _addToPlaylist(context, item),
-                                  icon: const Icon(Icons.playlist_add_rounded),
+                            if (item.projectId == null && !compact) ...[
+                              IconButton(
+                                tooltip: '加入播放列表',
+                                onPressed: () => _addToPlaylist(context, item),
+                                icon: const Icon(Icons.playlist_add_rounded),
+                              ),
+                              IconButton(
+                                tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
+                                onPressed: () => importLyricsForLocalPlaybackItem(context, item),
+                                icon: Icon(
+                                  item.hasLyrics
+                                      ? Icons.lyrics_rounded
+                                      : Icons.file_upload_outlined,
                                 ),
-                                IconButton(
-                                  tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
-                                  onPressed: () {
-                                    importLyricsForLocalPlaybackItem(context, item);
-                                  },
-                                  icon: Icon(
-                                    item.hasLyrics
-                                        ? Icons.lyrics_rounded
-                                        : Icons.file_upload_outlined,
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: '编辑歌曲资料与封面',
-                                  onPressed: () {
-                                    showLocalMediaMetadataDialog(context, item);
-                                  },
-                                  icon: const Icon(Icons.edit_outlined),
-                                ),
-                              ] else
-                                PopupMenuButton<String>(
-                                  tooltip: '更多歌曲操作',
-                                  onSelected: (value) async {
-                                    switch (value) {
-                                      case 'collections':
-                                        Navigator.pushNamed(context, Routes.collections);
-                                        return;
-                                      case 'playlist':
-                                        await _addToPlaylist(context, item);
-                                        return;
-                                      case 'lyrics':
-                                        await importLyricsForLocalPlaybackItem(context, item);
-                                        return;
-                                      case 'edit':
-                                        await showLocalMediaMetadataDialog(context, item);
-                                        return;
-                                    }
-                                  },
-                                  itemBuilder: (_) => [
-                                    const PopupMenuItem(
-                                      value: 'collections',
-                                      child: Text('收藏与播放列表'),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'playlist',
-                                      child: Text('加入播放列表'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'lyrics',
-                                      child: Text(item.hasLyrics ? '打开歌词' : '导入歌词文件'),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('编辑歌曲资料与封面'),
-                                    ),
-                                  ],
-                                  icon: const Icon(Icons.more_horiz_rounded),
-                                ),
+                              ),
+                              IconButton(
+                                tooltip: '编辑歌曲资料与封面',
+                                onPressed: () => showLocalMediaMetadataDialog(context, item),
+                                icon: const Icon(Icons.edit_outlined),
+                              ),
                             ],
+                            if (item.projectId == null && compact)
+                              PopupMenuButton<String>(
+                                tooltip: '更多歌曲操作',
+                                onSelected: (value) => _handleSongAction(context, item, value),
+                                itemBuilder: (_) => [
+                                  if (minimal)
+                                    const PopupMenuItem(
+                                      value: 'library',
+                                      child: Text('音乐库'),
+                                    ),
+                                  const PopupMenuItem(
+                                    value: 'collections',
+                                    child: Text('收藏与播放列表'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'playlist',
+                                    child: Text('加入播放列表'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'lyrics',
+                                    child: Text(item.hasLyrics ? '打开歌词' : '导入歌词文件'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('编辑歌曲资料与封面'),
+                                  ),
+                                ],
+                                icon: const Icon(Icons.more_horiz_rounded),
+                              ),
                             if (!compact)
                               PlaybackModeControls(
                                 session: _session,
                                 compact: true,
                               ),
-                            IconButton(
-                              tooltip: '上一首 / 重新开始',
-                              onPressed: session.canSkipPrevious
-                                  ? _session.skipPrevious
-                                  : null,
-                              icon: const Icon(Icons.skip_previous_rounded),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
+                            if (!minimal)
+                              IconButton(
+                                tooltip: '上一首 / 重新开始',
+                                onPressed: session.canSkipPrevious
+                                    ? _session.skipPrevious
+                                    : null,
+                                icon: const Icon(Icons.skip_previous_rounded),
+                              ),
                             SizedBox(
-                              width: 42,
-                              height: 42,
+                              width: minimal ? 40 : 42,
+                              height: minimal ? 40 : 42,
                               child: IconButton(
                                 tooltip: playback.isPlaying ? '暂停' : '播放',
                                 onPressed: playback.isBuffering
@@ -295,15 +307,15 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                       ),
                               ),
                             ),
-                            const SizedBox(width: AppSpacing.xs),
-                            IconButton(
-                              tooltip: '下一首',
-                              onPressed: session.canSkipNext
-                                  ? _session.skipNext
-                                  : null,
-                              icon: const Icon(Icons.skip_next_rounded),
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
+                            if (!minimal)
+                              IconButton(
+                                tooltip: '下一首',
+                                onPressed: session.canSkipNext
+                                    ? _session.skipNext
+                                    : null,
+                                icon: const Icon(Icons.skip_next_rounded),
+                              ),
+                            SizedBox(width: minimal ? AppSpacing.xs : AppSpacing.sm),
                             TextButton.icon(
                               onPressed: () => setState(
                                 () => _queueExpanded = !_queueExpanded,
@@ -321,12 +333,12 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                             ),
                           ],
-                        );
-                      },
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -337,8 +349,12 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
 
 class _Artwork extends StatelessWidget {
   final String? path;
+  final double extent;
 
-  const _Artwork({this.path});
+  const _Artwork({
+    required this.path,
+    this.extent = 48,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -348,8 +364,8 @@ class _Artwork extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
       child: Container(
-        width: 48,
-        height: 48,
+        width: extent,
+        height: extent,
         color: AppColors.bgSurface,
         child: hasArtwork
             ? Image.file(file!, fit: BoxFit.cover)
