@@ -10,16 +10,19 @@ import '../../features/player/data/repositories/file_local_media_collection_repo
 import '../../features/player/data/repositories/file_local_media_library_repository.dart';
 import '../../features/player/data/repositories/file_local_media_metadata_repository.dart';
 import '../../features/player/data/repositories/file_play_history_repository.dart';
+import '../../features/player/data/repositories/file_playback_session_snapshot_repository.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
+import '../../features/player/data/services/playback_session_persistence_coordinator.dart';
 import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
 import '../../features/player/data/services/system_media_audio_handler.dart';
 import '../../features/player/domain/repositories/local_media_collection_repository.dart';
 import '../../features/player/domain/repositories/local_media_library_repository.dart';
 import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
 import '../../features/player/domain/repositories/play_history_repository.dart';
+import '../../features/player/domain/repositories/playback_session_snapshot_repository.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/embedded_audio_metadata_reader.dart';
@@ -69,7 +72,10 @@ class ServiceLocator {
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
   late final LyricFileImportService lyricFileImportService;
   late final PlayHistoryRepository playHistoryRepository;
+  late final PlaybackSessionSnapshotRepository playbackSessionSnapshotRepository;
   late final PlaybackSessionService playbackSessionService;
+  late final PlaybackSessionPersistenceCoordinator
+      playbackSessionPersistenceCoordinator;
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
   late final AsrRuntimeManager asrRuntimeManager;
@@ -103,6 +109,8 @@ class ServiceLocator {
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
     playHistoryRepository = FilePlayHistoryRepository();
+    playbackSessionSnapshotRepository =
+        FilePlaybackSessionSnapshotRepository();
     final basePlaybackSession = DefaultPlaybackSessionService(
       audioPlayerService,
       playHistoryRepository: playHistoryRepository,
@@ -111,6 +119,13 @@ class ServiceLocator {
     playbackSessionService = LibraryMetadataPlaybackSessionService(
       delegate: basePlaybackSession,
       libraryRepository: localMediaLibraryRepository,
+    );
+    playbackSessionPersistenceCoordinator =
+        PlaybackSessionPersistenceCoordinator(
+      session: playbackSessionService,
+      audio: audioPlayerService,
+      snapshots: playbackSessionSnapshotRepository,
+      playHistory: playHistoryRepository,
     );
     mediaHubService = HttpMediaHubService(
       onIncomingFile: (path) async {
@@ -158,6 +173,13 @@ class ServiceLocator {
       workflow: projectTranscriptionWorkflow,
     );
     unawaited(transcriptionQueue.initialize());
+  }
+
+  /// Restores the last local playback session before system media controls and
+  /// UI are created, then starts observing the live player for future saves.
+  Future<void> restorePlaybackSession() async {
+    await playbackSessionPersistenceCoordinator.restore();
+    playbackSessionPersistenceCoordinator.start();
   }
 
   /// Registers the OS media session only on Android/iOS. Desktop keeps using
