@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_router.dart';
@@ -129,7 +131,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (lines.isEmpty) {
         _selectedLineIndex = null;
       } else if (_selectedLineIndex == index) {
-        _selectedLineIndex = index.clamp(0, lines.length - 1);
+        _selectedLineIndex = index.clamp(0, lines.length - 1).toInt();
       } else if (_selectedLineIndex != null && _selectedLineIndex! > index) {
         _selectedLineIndex = _selectedLineIndex! - 1;
       }
@@ -154,8 +156,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   Duration _effectiveLineStart(LyricLine line) {
-    final shifted = line.startTime +
-        (_editingDocument?.globalOffset ?? Duration.zero);
+    final shifted =
+        line.startTime + (_editingDocument?.globalOffset ?? Duration.zero);
     return shifted.isNegative ? Duration.zero : shifted;
   }
 
@@ -246,7 +248,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             final playback =
                 playbackSnapshot.data ?? const PlaybackState.idle();
             final activeProject =
-                _playbackSession.currentState.currentItem?.projectId == project.id;
+                _playbackSession.currentState.currentItem?.projectId ==
+                    project.id;
 
             return _LyricEditorContent(
               project: project,
@@ -991,7 +994,8 @@ class _LineInspectorState extends State<_LineInspector> {
 
   void _nudgeEnd(Duration delta) {
     var next = widget.line.endTime + delta;
-    final earliest = widget.line.startTime + const Duration(milliseconds: 10);
+    final earliest =
+        widget.line.startTime + const Duration(milliseconds: 10);
     if (next < earliest) next = earliest;
     widget.onUpdate(widget.line.copyWith(endTime: next));
   }
