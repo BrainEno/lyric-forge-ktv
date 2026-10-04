@@ -25,13 +25,13 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  late final ProjectRepository _projectRepository;
-  late final PlayHistoryRepository _playHistoryRepository;
+  late final ProjectRepository _projects;
+  late final PlayHistoryRepository _history;
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioPlayer;
   late final BatchTranscriptionQueue _transcriptionQueue;
   late Future<List<ProjectManifest>> _projectsFuture;
-  late Future<List<PlayHistory>> _playHistoryFuture;
+  late Future<List<PlayHistory>> _historyFuture;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -43,8 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     final services = ServiceLocatorGlobal.I;
-    _projectRepository = services.projectRepository;
-    _playHistoryRepository = services.playHistoryRepository;
+    _projects = services.projectRepository;
+    _history = services.playHistoryRepository;
     _playbackSession = services.playbackSessionService;
     _audioPlayer = services.audioPlayerService;
     _transcriptionQueue = services.transcriptionQueue;
@@ -52,34 +52,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _loadData() {
-    _projectsFuture = _projectRepository.getRecentProjects(limit: 8);
-    _playHistoryFuture = _playHistoryRepository.getRecentPlayHistory(limit: 10);
+    _projectsFuture = _projects.getRecentProjects(limit: 8);
+    _historyFuture = _history.getRecentPlayHistory(limit: 10);
   }
 
-  Future<void> _refreshData() async {
-    setState(_loadData);
-  }
+  Future<void> _refresh() async => setState(_loadData);
 
   Future<void> _openLocalPlayer([PlayHistory? history]) async {
-    await Navigator.pushNamed(
-      context,
-      Routes.quickPlay,
-      arguments: history,
-    );
-    if (mounted) _refreshData();
+    await Navigator.pushNamed(context, Routes.quickPlay, arguments: history);
+    if (mounted) _refresh();
   }
 
-  void _openCurrentPlayer(PlaybackItem item) {
+  void _openCurrent(PlaybackItem item) {
     final projectId = item.projectId;
-    if (projectId != null) {
-      Navigator.pushNamed(context, Routes.playerPath(projectId));
-    } else {
-      Navigator.pushNamed(context, Routes.quickPlay);
-    }
-  }
-
-  Future<void> _playQueueItem(PlaybackItem item) async {
-    await _playbackSession.playItem(item);
+    Navigator.pushNamed(
+      context,
+      projectId == null ? Routes.quickPlay : Routes.playerPath(projectId),
+    );
   }
 
   @override
@@ -91,14 +80,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           stream: _playbackSession.stateStream,
           initialData: _playbackSession.currentState,
           builder: (context, sessionSnapshot) {
-            final session = sessionSnapshot.data ??
-                const PlaybackSessionState();
+            final session =
+                sessionSnapshot.data ?? const PlaybackSessionState();
             return StreamBuilder<PlaybackState>(
               stream: _audioPlayer.stateStream,
               initialData: _audioPlayer.currentState,
               builder: (context, playbackSnapshot) {
-                final playback = playbackSnapshot.data ??
-                    const PlaybackState.idle();
+                final playback =
+                    playbackSnapshot.data ?? const PlaybackState.idle();
                 return StreamBuilder<TranscriptionQueueSnapshot>(
                   stream: _transcriptionQueue.snapshots,
                   initialData: _transcriptionQueue.current,
@@ -110,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           isProcessing: false,
                         );
                     return RefreshIndicator(
-                      onRefresh: _refreshData,
+                      onRefresh: _refresh,
                       color: AppColors.accent,
                       backgroundColor: AppColors.bgElevated,
                       child: SingleChildScrollView(
@@ -128,10 +117,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _DashboardHeader(
+                                  _Header(
                                     isDesktop: _isDesktop,
                                     onOpenMusic: _openLocalPlayer,
-                                    onNewProject: () => Navigator.pushNamed(
+                                    onImport: () => Navigator.pushNamed(
                                       context,
                                       Routes.import,
                                     ),
@@ -147,13 +136,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     session: session,
                                     playback: playback,
                                     onOpenMusic: _openLocalPlayer,
-                                    onOpenCurrent: _openCurrentPlayer,
+                                    onOpenCurrent: _openCurrent,
                                     onPlayPause:
                                         _playbackSession.togglePlayPause,
                                     onPrevious:
                                         _playbackSession.skipPrevious,
                                     onNext: _playbackSession.skipNext,
-                                    onPlayQueueItem: _playQueueItem,
+                                    onPlayQueueItem:
+                                        _playbackSession.playItem,
                                   ),
                                   if (queue.items.isNotEmpty) ...[
                                     const SizedBox(height: AppSpacing.lg),
@@ -172,31 +162,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   _SectionHeader(
                                     title: '最近播放',
                                     subtitle: '继续你最近听过的本地音乐',
-                                    actionLabel: '打开音乐',
+                                    action: '打开音乐',
                                     onAction: _openLocalPlayer,
                                   ),
                                   const SizedBox(height: AppSpacing.md),
                                   FutureBuilder<List<PlayHistory>>(
-                                    future: _playHistoryFuture,
+                                    future: _historyFuture,
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
-                                        return const _SectionLoading(
-                                          height: 190,
-                                        );
+                                        return const _LoadingBlock(height: 190);
                                       }
-                                      final histories = snapshot.data ?? [];
-                                      if (histories.isEmpty) {
-                                        return _EmptyMediaCard(
+                                      final items = snapshot.data ?? [];
+                                      if (items.isEmpty) {
+                                        return _EmptyCard(
                                           icon: Icons.headphones_rounded,
                                           title: '还没有播放记录',
                                           message: '打开一首本地音乐后，会从这里快速继续。',
-                                          actionLabel: '选择音乐',
+                                          action: '选择音乐',
                                           onAction: _openLocalPlayer,
                                         );
                                       }
-                                      return _RecentListeningShelf(
-                                        histories: histories,
+                                      return _RecentShelf(
+                                        histories: items,
                                         onPlay: _openLocalPlayer,
                                       );
                                     },
@@ -205,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   _SectionHeader(
                                     title: '最近工程',
                                     subtitle: '继续识别、校对，或打开已经准备好的 KTV 工程',
-                                    actionLabel: '批量导入',
+                                    action: '批量导入',
                                     onAction: () => Navigator.pushNamed(
                                       context,
                                       Routes.import,
@@ -217,31 +205,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
-                                        return const _SectionLoading(
-                                          height: 260,
-                                        );
+                                        return const _LoadingBlock(height: 260);
                                       }
                                       if (snapshot.hasError) {
-                                        return _LoadError(
-                                          onRetry: _refreshData,
+                                        return _EmptyCard(
+                                          icon: Icons.error_outline_rounded,
+                                          title: '最近工程加载失败',
+                                          message: '工程文件暂时无法读取，可以重新加载一次。',
+                                          action: '重试',
+                                          onAction: _refresh,
                                         );
                                       }
-                                      final projects = snapshot.data ?? [];
-                                      if (projects.isEmpty) {
-                                        return _EmptyMediaCard(
+                                      final items = snapshot.data ?? [];
+                                      if (items.isEmpty) {
+                                        return _EmptyCard(
                                           icon: Icons.auto_awesome_rounded,
                                           title: '还没有歌词工程',
                                           message:
                                               '导入歌曲后，LyricForge 会在后台逐首识别并保存工程。',
-                                          actionLabel: '导入歌曲',
+                                          action: '导入歌曲',
                                           onAction: () => Navigator.pushNamed(
                                             context,
                                             Routes.import,
                                           ),
                                         );
                                       }
-                                      return _ProjectShelf(
-                                        projects: projects,
+                                      return _ProjectGrid(
+                                        projects: items,
                                         onOpen: (project) =>
                                             Navigator.pushNamed(
                                           context,
@@ -268,16 +258,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _DashboardHeader extends StatelessWidget {
+class _Header extends StatelessWidget {
   final bool isDesktop;
   final VoidCallback onOpenMusic;
-  final VoidCallback onNewProject;
+  final VoidCallback onImport;
   final VoidCallback onRemote;
 
-  const _DashboardHeader({
+  const _Header({
     required this.isDesktop,
     required this.onOpenMusic,
-    required this.onNewProject,
+    required this.onImport,
     required this.onRemote,
   });
 
@@ -286,7 +276,7 @@ class _DashboardHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 720;
-        final title = Column(
+        final identity = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -322,28 +312,22 @@ class _DashboardHeader extends StatelessWidget {
                 icon: const Icon(Icons.cast_connected_rounded),
               ),
             FilledButton.icon(
-              onPressed: onNewProject,
+              onPressed: onImport,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: const Text('导入并识别'),
             ),
           ],
         );
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              title,
-              const SizedBox(height: AppSpacing.md),
-              actions,
-            ],
-          );
-        }
-        return Row(
-          children: [
-            Expanded(child: title),
-            actions,
-          ],
-        );
+        return compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  identity,
+                  const SizedBox(height: AppSpacing.md),
+                  actions,
+                ],
+              )
+            : Row(children: [Expanded(child: identity), actions]);
       },
     );
   }
@@ -373,25 +357,25 @@ class _NowPlayingArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = session.currentItem;
+    final hero = current == null
+        ? _IdleHero(onOpenMusic: onOpenMusic)
+        : _PlayingHero(
+            item: current,
+            playback: playback,
+            session: session,
+            onOpen: () => onOpenCurrent(current),
+            onPlayPause: onPlayPause,
+            onPrevious: onPrevious,
+            onNext: onNext,
+          );
+    final queue = _PlaybackQueueCard(
+      session: session,
+      onPlayItem: onPlayQueueItem,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 900;
-        final hero = current == null
-            ? _IdleHero(onOpenMusic: onOpenMusic)
-            : _NowPlayingHero(
-                item: current,
-                playback: playback,
-                session: session,
-                onOpen: () => onOpenCurrent(current),
-                onPlayPause: onPlayPause,
-                onPrevious: onPrevious,
-                onNext: onNext,
-              );
-        final queue = _PlaybackQueueCard(
-          session: session,
-          onPlayItem: onPlayQueueItem,
-        );
-        if (!wide) {
+        if (constraints.maxWidth < 900) {
           return Column(
             children: [
               hero,
@@ -401,7 +385,7 @@ class _NowPlayingArea extends StatelessWidget {
           );
         }
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: hero),
             const SizedBox(width: AppSpacing.md),
@@ -423,64 +407,55 @@ class _IdleHero extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 250),
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        gradient: AppColors.playerGradient,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _Eyebrow(label: 'LOCAL FIRST'),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '把你的音乐库变成\n可以继续制作的 KTV 工程',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
+      decoration: _heroDecoration(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showArtwork = constraints.maxWidth >= 520;
+          return Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _Eyebrow('LOCAL FIRST'),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '把你的音乐库变成\n可以继续制作的 KTV 工程',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            height: 1.15,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      '先正常听歌，需要歌词时再交给后台批量识别。',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    FilledButton.icon(
+                      onPressed: onOpenMusic,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('选择音乐开始播放'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  '先正常听歌，需要歌词时再交给后台批量识别。',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FilledButton.icon(
-                  onPressed: onOpenMusic,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('选择音乐开始播放'),
-                ),
+              ),
+              if (showArtwork) ...[
+                const SizedBox(width: AppSpacing.lg),
+                const _Artwork(size: 150),
               ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Container(
-            width: 150,
-            height: 150,
-            decoration: BoxDecoration(
-              color: AppColors.bgSurface.withAlpha(190),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-            ),
-            child: const Icon(
-              Icons.album_rounded,
-              size: 74,
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _NowPlayingHero extends StatelessWidget {
+class _PlayingHero extends StatelessWidget {
   final PlaybackItem item;
   final PlaybackState playback;
   final PlaybackSessionState session;
@@ -489,7 +464,7 @@ class _NowPlayingHero extends StatelessWidget {
   final Future<void> Function() onPrevious;
   final Future<void> Function() onNext;
 
-  const _NowPlayingHero({
+  const _PlayingHero({
     required this.item,
     required this.playback,
     required this.session,
@@ -504,23 +479,15 @@ class _NowPlayingHero extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 250),
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        gradient: AppColors.playerGradient,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
+      decoration: _heroDecoration(),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 620;
-          final artwork = _Artwork(
-            path: item.artworkPath,
-            size: compact ? 104 : 172,
-          );
-          final details = Column(
+          final detail = Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Eyebrow(label: '正在播放'),
+              const _Eyebrow('正在播放'),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 item.title,
@@ -534,9 +501,9 @@ class _NowPlayingHero extends StatelessWidget {
               Text(
                 item.artist?.trim().isNotEmpty == true
                     ? item.artist!
-                    : item.projectId != null
-                        ? 'LyricForge 工程'
-                        : '本地音乐',
+                    : item.projectId == null
+                        ? '本地音乐'
+                        : 'LyricForge 工程',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -544,7 +511,7 @@ class _NowPlayingHero extends StatelessWidget {
                     ),
               ),
               const SizedBox(height: AppSpacing.md),
-              _HeroProgress(playback: playback),
+              _HeroProgress(playback),
               const SizedBox(height: AppSpacing.md),
               Wrap(
                 spacing: AppSpacing.sm,
@@ -596,17 +563,17 @@ class _NowPlayingHero extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                artwork,
+                _Artwork(path: item.artworkPath, size: 104),
                 const SizedBox(height: AppSpacing.md),
-                details,
+                detail,
               ],
             );
           }
           return Row(
             children: [
-              artwork,
+              _Artwork(path: item.artworkPath, size: 172),
               const SizedBox(width: AppSpacing.lg),
-              Expanded(child: details),
+              Expanded(child: detail),
             ],
           );
         },
@@ -617,16 +584,14 @@ class _NowPlayingHero extends StatelessWidget {
 
 class _HeroProgress extends StatelessWidget {
   final PlaybackState playback;
-
-  const _HeroProgress({required this.playback});
+  const _HeroProgress(this.playback);
 
   @override
   Widget build(BuildContext context) {
-    final progress = playback.progressPercent.clamp(0.0, 1.0).toDouble();
     return Column(
       children: [
         LinearProgressIndicator(
-          value: progress,
+          value: playback.progressPercent.clamp(0.0, 1.0).toDouble(),
           minHeight: 4,
           backgroundColor: AppColors.bgHighlight,
           borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
@@ -634,19 +599,9 @@ class _HeroProgress extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
-            Text(
-              playback.formattedPosition,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-            ),
+            Text(playback.formattedPosition, style: _mutedLabel(context)),
             const Spacer(),
-            Text(
-              playback.formattedDuration,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-            ),
+            Text(playback.formattedDuration, style: _mutedLabel(context)),
           ],
         ),
       ],
@@ -658,26 +613,20 @@ class _PlaybackQueueCard extends StatelessWidget {
   final PlaybackSessionState session;
   final Future<void> Function(PlaybackItem) onPlayItem;
 
-  const _PlaybackQueueCard({
-    required this.session,
-    required this.onPlayItem,
-  });
+  const _PlaybackQueueCard({required this.session, required this.onPlayItem});
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = session.currentIndex;
-    final start = currentIndex < 0 ? 0 : currentIndex;
+    final start = session.currentIndex < 0 ? 0 : session.currentIndex;
     final end = (start + 5).clamp(0, session.queue.length).toInt();
-    final items = start < end ? session.queue.sublist(start, end) : <PlaybackItem>[];
+    final items = start < end
+        ? session.queue.sublist(start, end)
+        : const <PlaybackItem>[];
 
     return Container(
       constraints: const BoxConstraints(minHeight: 250),
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -690,17 +639,13 @@ class _PlaybackQueueCard extends StatelessWidget {
                     ),
               ),
               const Spacer(),
-              Text(
-                '${session.queue.length} 首',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-              ),
+              Text('${session.queue.length} 首', style: _mutedLabel(context)),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           if (items.isEmpty)
-            Expanded(
+            SizedBox(
+              height: 155,
               child: Center(
                 child: Text(
                   '播放音乐后，这里会显示当前队列',
@@ -712,21 +657,17 @@ class _PlaybackQueueCard extends StatelessWidget {
               ),
             )
           else
-            for (var localIndex = 0;
-                localIndex < items.length;
-                localIndex++)
+            for (var i = 0; i < items.length; i++)
               _QueueRow(
-                item: items[localIndex],
-                isCurrent: start + localIndex == currentIndex,
-                onTap: () => onPlayItem(items[localIndex]),
+                item: items[i],
+                current: start + i == session.currentIndex,
+                onTap: () => onPlayItem(items[i]),
               ),
-          if (session.queue.length > items.length && items.isNotEmpty) ...[
-            const Spacer(),
+          if (session.queue.length > end && items.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
             Text(
               '还有 ${session.queue.length - end} 首未显示',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: _mutedLabel(context),
             ),
           ],
         ],
@@ -737,19 +678,19 @@ class _PlaybackQueueCard extends StatelessWidget {
 
 class _QueueRow extends StatelessWidget {
   final PlaybackItem item;
-  final bool isCurrent;
+  final bool current;
   final VoidCallback onTap;
 
   const _QueueRow({
     required this.item,
-    required this.isCurrent,
+    required this.current,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isCurrent ? AppColors.accent.withAlpha(16) : Colors.transparent,
+      color: current ? AppColors.accent.withAlpha(16) : Colors.transparent,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
       child: InkWell(
         onTap: onTap,
@@ -772,11 +713,11 @@ class _QueueRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight:
-                                isCurrent ? FontWeight.w700 : FontWeight.w500,
-                            color: isCurrent
+                            color: current
                                 ? AppColors.accent
                                 : AppColors.textPrimary,
+                            fontWeight:
+                                current ? FontWeight.w700 : FontWeight.w500,
                           ),
                     ),
                     Text(
@@ -787,21 +728,15 @@ class _QueueRow extends StatelessWidget {
                               : '歌词工程',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                      style: _mutedLabel(context),
                     ),
                   ],
                 ),
               ),
               Icon(
-                isCurrent
-                    ? Icons.graphic_eq_rounded
-                    : Icons.play_arrow_rounded,
+                current ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded,
                 size: 18,
-                color: isCurrent
-                    ? AppColors.accent
-                    : AppColors.textTertiary,
+                color: current ? AppColors.accent : AppColors.textTertiary,
               ),
             ],
           ),
@@ -824,15 +759,15 @@ class _BackgroundWorkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final running = snapshot.items
-        .where((item) => item.status == TranscriptionQueueItemStatus.running)
-        .toList();
-    final active = snapshot.items
-        .where((item) =>
-            item.status == TranscriptionQueueItemStatus.running ||
-            item.status == TranscriptionQueueItemStatus.queued ||
-            item.status == TranscriptionQueueItemStatus.paused)
-        .length;
+    final running = snapshot.items.where(
+      (item) => item.status == TranscriptionQueueItemStatus.running,
+    );
+    final active = snapshot.items.where(
+      (item) =>
+          item.status == TranscriptionQueueItemStatus.running ||
+          item.status == TranscriptionQueueItemStatus.queued ||
+          item.status == TranscriptionQueueItemStatus.paused,
+    ).length;
     final current = running.isEmpty ? null : running.first;
     final progress = snapshot.items.isEmpty
         ? 0.0
@@ -846,14 +781,9 @@ class _BackgroundWorkCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
+      decoration: _cardDecoration(),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 680;
           final info = Row(
             children: [
               Container(
@@ -898,9 +828,7 @@ class _BackgroundWorkCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '完成 ${snapshot.completedCount} · 等待 ${snapshot.queuedCount} · 失败 ${snapshot.failedCount}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                      style: _mutedLabel(context),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     LinearProgressIndicator(
@@ -937,9 +865,8 @@ class _BackgroundWorkCard extends StatelessWidget {
               ),
             ],
           );
-          if (compact) {
+          if (constraints.maxWidth < 680) {
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 info,
                 const SizedBox(height: AppSpacing.sm),
@@ -963,14 +890,14 @@ class _BackgroundWorkCard extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;
-  final String? actionLabel;
-  final VoidCallback? onAction;
+  final String action;
+  final VoidCallback onAction;
 
   const _SectionHeader({
     required this.title,
     required this.subtitle,
-    this.actionLabel,
-    this.onAction,
+    required this.action,
+    required this.onAction,
   });
 
   @override
@@ -998,24 +925,17 @@ class _SectionHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actionLabel != null && onAction != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(actionLabel!),
-          ),
+        TextButton(onPressed: onAction, child: Text(action)),
       ],
     );
   }
 }
 
-class _RecentListeningShelf extends StatelessWidget {
+class _RecentShelf extends StatelessWidget {
   final List<PlayHistory> histories;
   final ValueChanged<PlayHistory> onPlay;
 
-  const _RecentListeningShelf({
-    required this.histories,
-    required this.onPlay,
-  });
+  const _RecentShelf({required this.histories, required this.onPlay});
 
   @override
   Widget build(BuildContext context) {
@@ -1049,8 +969,8 @@ class _ListeningCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           hoverColor: AppColors.hoverOverlay,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.sm),
             child: Column(
@@ -1086,9 +1006,7 @@ class _ListeningCard extends StatelessWidget {
                       : history.formattedPlayedAt,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                  style: _mutedLabel(context),
                 ),
               ],
             ),
@@ -1099,14 +1017,11 @@ class _ListeningCard extends StatelessWidget {
   }
 }
 
-class _ProjectShelf extends StatelessWidget {
+class _ProjectGrid extends StatelessWidget {
   final List<ProjectManifest> projects;
   final ValueChanged<ProjectManifest> onOpen;
 
-  const _ProjectShelf({
-    required this.projects,
-    required this.onOpen,
-  });
+  const _ProjectGrid({required this.projects, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -1163,10 +1078,7 @@ class _ProjectCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Artwork(
-                    path: project.audioAsset?.thumbnailPath,
-                    size: 64,
-                  ),
+                  _Artwork(path: project.audioAsset?.thumbnailPath, size: 64),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -1188,15 +1100,12 @@ class _ProjectCard extends StatelessWidget {
                               : '歌词工程',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
+                          style: _mutedLabel(context),
                         ),
                       ],
                     ),
                   ),
-                  _ProjectStatusDot(status: project.status),
+                  _StatusDot(project.status),
                 ],
               ),
               const Spacer(),
@@ -1213,7 +1122,7 @@ class _ProjectCard extends StatelessWidget {
                   ),
                   _MetaChip(
                     icon: Icons.schedule_rounded,
-                    label: _projectStageLabel(project.currentStage),
+                    label: _stageLabel(project.currentStage),
                   ),
                 ],
               ),
@@ -1235,22 +1144,19 @@ class _ProjectCard extends StatelessWidget {
 class _Artwork extends StatelessWidget {
   final String? path;
   final double size;
-
   const _Artwork({this.path, required this.size});
 
   @override
   Widget build(BuildContext context) {
     File? file;
-    if (!kIsWeb && path?.trim().isNotEmpty == true) {
-      file = File(path!);
-    }
-    final hasFile = file != null && file.existsSync();
+    if (!kIsWeb && path?.trim().isNotEmpty == true) file = File(path!);
+    final exists = file != null && file.existsSync();
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
       child: SizedBox(
         width: size,
         height: size,
-        child: hasFile
+        child: exists
             ? Image.file(file!, fit: BoxFit.cover)
             : Container(
                 decoration: const BoxDecoration(gradient: AppColors.cardGradient),
@@ -1265,10 +1171,9 @@ class _Artwork extends StatelessWidget {
   }
 }
 
-class _ProjectStatusDot extends StatelessWidget {
+class _StatusDot extends StatelessWidget {
   final ProjectStatus status;
-
-  const _ProjectStatusDot({required this.status});
+  const _StatusDot(this.status);
 
   @override
   Widget build(BuildContext context) {
@@ -1291,20 +1196,12 @@ class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool accent;
-
-  const _MetaChip({
-    required this.icon,
-    required this.label,
-    this.accent = false,
-  });
+  const _MetaChip({required this.icon, required this.label, this.accent = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
       decoration: BoxDecoration(
         color: accent ? AppColors.accent.withAlpha(16) : AppColors.bgSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
@@ -1321,9 +1218,7 @@ class _MetaChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: accent
-                      ? AppColors.accent
-                      : AppColors.textSecondary,
+                  color: accent ? AppColors.accent : AppColors.textSecondary,
                 ),
           ),
         ],
@@ -1333,14 +1228,13 @@ class _MetaChip extends StatelessWidget {
 }
 
 class _Eyebrow extends StatelessWidget {
-  final String label;
-
-  const _Eyebrow({required this.label});
+  final String text;
+  const _Eyebrow(this.text);
 
   @override
   Widget build(BuildContext context) {
     return Text(
-      label,
+      text,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: AppColors.accent,
             fontWeight: FontWeight.w800,
@@ -1350,18 +1244,18 @@ class _Eyebrow extends StatelessWidget {
   }
 }
 
-class _EmptyMediaCard extends StatelessWidget {
+class _EmptyCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
-  final String actionLabel;
+  final String action;
   final VoidCallback onAction;
 
-  const _EmptyMediaCard({
+  const _EmptyCard({
     required this.icon,
     required this.title,
     required this.message,
-    required this.actionLabel,
+    required this.action,
     required this.onAction,
   });
 
@@ -1370,64 +1264,61 @@ class _EmptyMediaCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        border: Border.all(color: AppColors.borderMuted),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 42, color: AppColors.textTertiary),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      decoration: _cardDecoration(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final info = Row(
+            children: [
+              Icon(icon, size: 42, color: AppColors.textTertiary),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          if (constraints.maxWidth < 520) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                ),
+                info,
+                const SizedBox(height: AppSpacing.md),
+                OutlinedButton(onPressed: onAction, child: Text(action)),
               ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
-        ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: info),
+              const SizedBox(width: AppSpacing.md),
+              OutlinedButton(onPressed: onAction, child: Text(action)),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _LoadError extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _LoadError({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return _EmptyMediaCard(
-      icon: Icons.error_outline_rounded,
-      title: '最近工程加载失败',
-      message: '工程文件暂时无法读取，可以重新加载一次。',
-      actionLabel: '重试',
-      onAction: onRetry,
-    );
-  }
-}
-
-class _SectionLoading extends StatelessWidget {
+class _LoadingBlock extends StatelessWidget {
   final double height;
-
-  const _SectionLoading({required this.height});
+  const _LoadingBlock({required this.height});
 
   @override
   Widget build(BuildContext context) {
@@ -1443,14 +1334,29 @@ class _SectionLoading extends StatelessWidget {
   }
 }
 
-String _projectStageLabel(ProcessingStage stage) {
-  return switch (stage) {
-    ProcessingStage.none => '待开始',
-    ProcessingStage.audioImported => '已导入',
-    ProcessingStage.audioNormalized => '音频处理',
-    ProcessingStage.vocalsSeparated => '人声已分离',
-    ProcessingStage.transcriptionComplete => '歌词已识别',
-    ProcessingStage.lyricsEdited => '歌词已校对',
-    ProcessingStage.exported => '已导出',
-  };
-}
+BoxDecoration _heroDecoration() => BoxDecoration(
+      gradient: AppColors.playerGradient,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+      border: Border.all(color: AppColors.borderMuted),
+    );
+
+BoxDecoration _cardDecoration() => BoxDecoration(
+      color: AppColors.bgElevated,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      border: Border.all(color: AppColors.borderMuted),
+    );
+
+TextStyle? _mutedLabel(BuildContext context) =>
+    Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.textTertiary,
+        );
+
+String _stageLabel(ProcessingStage stage) => switch (stage) {
+      ProcessingStage.none => '待开始',
+      ProcessingStage.audioImported => '已导入',
+      ProcessingStage.audioNormalized => '音频处理',
+      ProcessingStage.vocalsSeparated => '人声已分离',
+      ProcessingStage.transcriptionComplete => '歌词已识别',
+      ProcessingStage.lyricsEdited => '歌词已校对',
+      ProcessingStage.exported => '已导出',
+    };
