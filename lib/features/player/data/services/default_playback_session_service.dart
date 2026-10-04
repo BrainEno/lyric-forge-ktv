@@ -109,11 +109,107 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       queue.add(item);
       _emit(
         PlaybackSessionState(
-          queue: queue,
+          queue: List<PlaybackItem>.unmodifiable(queue),
           currentIndex: _state.currentIndex,
         ),
       );
     }
+  }
+
+  @override
+  Future<void> playAt(int index) async {
+    if (index < 0 || index >= _state.queue.length) return;
+    if (index == _state.currentIndex) return;
+
+    _emit(
+      PlaybackSessionState(
+        queue: _state.queue,
+        currentIndex: index,
+      ),
+    );
+    _handledCompletion = false;
+    await _loadCurrent();
+  }
+
+  @override
+  Future<void> removeAt(int index) async {
+    if (index < 0 || index >= _state.queue.length) return;
+
+    final queue = List<PlaybackItem>.from(_state.queue);
+    final removingCurrent = index == _state.currentIndex;
+    final removingBeforeCurrent = index < _state.currentIndex;
+    queue.removeAt(index);
+
+    if (queue.isEmpty) {
+      _emit(const PlaybackSessionState());
+      _handledCompletion = false;
+      await _audioPlayer.stop();
+      return;
+    }
+
+    if (removingCurrent) {
+      final nextIndex = index < queue.length ? index : queue.length - 1;
+      _emit(
+        PlaybackSessionState(
+          queue: List<PlaybackItem>.unmodifiable(queue),
+          currentIndex: nextIndex,
+        ),
+      );
+      _handledCompletion = false;
+      await _loadCurrent();
+      return;
+    }
+
+    final nextCurrentIndex =
+        removingBeforeCurrent ? _state.currentIndex - 1 : _state.currentIndex;
+    _emit(
+      PlaybackSessionState(
+        queue: List<PlaybackItem>.unmodifiable(queue),
+        currentIndex: nextCurrentIndex,
+      ),
+    );
+  }
+
+  @override
+  Future<void> moveItem(int oldIndex, int newIndex) async {
+    final length = _state.queue.length;
+    if (oldIndex < 0 || oldIndex >= length || newIndex < 0 || newIndex >= length) {
+      return;
+    }
+    if (oldIndex == newIndex) return;
+
+    final currentId = _state.currentItem?.id;
+    final queue = List<PlaybackItem>.from(_state.queue);
+    final item = queue.removeAt(oldIndex);
+    queue.insert(newIndex, item);
+
+    final currentIndex = currentId == null
+        ? -1
+        : queue.indexWhere((entry) => entry.id == currentId);
+    _emit(
+      PlaybackSessionState(
+        queue: List<PlaybackItem>.unmodifiable(queue),
+        currentIndex: currentIndex,
+      ),
+    );
+  }
+
+  @override
+  Future<void> clearQueue({bool keepCurrent = true}) async {
+    final current = _state.currentItem;
+    if (keepCurrent && current != null) {
+      _emit(
+        PlaybackSessionState(
+          queue: List<PlaybackItem>.unmodifiable([current]),
+          currentIndex: 0,
+        ),
+      );
+      return;
+    }
+
+    _emit(const PlaybackSessionState());
+    _handledCompletion = false;
+    await _audioPlayer.stop();
   }
 
   @override

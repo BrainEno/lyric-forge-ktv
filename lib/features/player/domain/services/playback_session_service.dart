@@ -41,6 +41,8 @@ class PlaybackSessionState {
 
   bool get canSkipPrevious => currentItem != null;
   bool get canSkipNext => currentIndex >= 0 && currentIndex + 1 < queue.length;
+  int get upcomingCount =>
+      currentIndex < 0 ? queue.length : queue.length - currentIndex - 1;
 }
 
 abstract class PlaybackSessionService {
@@ -59,6 +61,22 @@ abstract class PlaybackSessionService {
   });
 
   Future<void> enqueue(PlaybackItem item);
+
+  /// Switches playback to an existing item without rebuilding the queue.
+  Future<void> playAt(int index);
+
+  /// Removes one queue item. Removing the active item advances to the next
+  /// item when possible, otherwise falls back to the previous item.
+  Future<void> removeAt(int index);
+
+  /// Moves an item to its final zero-based index while keeping the currently
+  /// playing item active even when its position in the queue changes.
+  Future<void> moveItem(int oldIndex, int newIndex);
+
+  /// Clears the queue. By default the current item is kept as a one-song queue
+  /// so clearing "up next" does not interrupt playback.
+  Future<void> clearQueue({bool keepCurrent = true});
+
   Future<void> skipPrevious();
   Future<void> skipNext();
   Future<void> togglePlayPause();
