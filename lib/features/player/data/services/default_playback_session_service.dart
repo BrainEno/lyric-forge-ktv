@@ -16,6 +16,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   StreamSubscription<PlaybackState>? _playbackSubscription;
   StreamSubscription<Duration>? _positionSubscription;
   bool _handledCompletion = false;
+  bool _wasPlaying = false;
   Duration? _lastHistorySavedPosition;
 
   DefaultPlaybackSessionService(
@@ -23,7 +24,9 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     PlayHistoryRepository? playHistoryRepository,
   }) : _playHistoryRepository = playHistoryRepository {
     _playbackSubscription = _audioPlayer.stateStream.listen((playback) {
-      if (!playback.isPlaying && !playback.isLoading) {
+      final paused = _wasPlaying && !playback.isPlaying && !playback.isCompleted;
+      _wasPlaying = playback.isPlaying;
+      if (paused) {
         unawaited(_persistCurrentHistory());
       }
 
@@ -66,6 +69,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     _state = next;
     if (_state.currentItem?.id != previousId) {
       _lastHistorySavedPosition = null;
+      _wasPlaying = false;
     }
     _stateController.add(_state);
   }
@@ -340,7 +344,6 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   Future<void> togglePlayPause() async {
     if (_audioPlayer.currentState.isPlaying) {
       await _audioPlayer.pause();
-      await _persistCurrentHistory();
     } else {
       await _audioPlayer.play();
     }
@@ -348,6 +351,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> seek(Duration position) async {
+    _lastHistorySavedPosition = position;
     await _audioPlayer.seek(position);
     await _persistCurrentHistory(position: position);
   }
