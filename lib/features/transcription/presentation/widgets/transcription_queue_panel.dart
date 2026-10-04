@@ -53,7 +53,9 @@ class TranscriptionQueuePanel extends StatelessWidget {
                   if (state.failedCount > 0)
                     _CountChip(label: '失败 ${state.failedCount}'),
                   if (state.isPaused)
-                    const _CountChip(label: '已暂停'),
+                    _CountChip(
+                      label: state.isProcessing ? '正在暂停...' : '已暂停',
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -63,25 +65,31 @@ class TranscriptionQueuePanel extends StatelessWidget {
                 children: [
                   if (state.isPaused)
                     FilledButton.tonalIcon(
-                      onPressed: service.resume,
+                      onPressed: state.isProcessing
+                          ? null
+                          : () => service.resume(),
                       icon: const Icon(Icons.play_arrow),
-                      label: const Text('继续队列'),
+                      label: Text(
+                        state.isProcessing ? '正在保存进度...' : '继续队列',
+                      ),
                     )
                   else
                     FilledButton.tonalIcon(
-                      onPressed: state.isProcessing ? service.pause : null,
+                      onPressed: state.isProcessing
+                          ? () => service.pause()
+                          : null,
                       icon: const Icon(Icons.pause),
                       label: const Text('暂停'),
                     ),
                   if (state.failedCount > 0)
                     OutlinedButton.icon(
-                      onPressed: service.retryFailed,
+                      onPressed: () => service.retryFailed(),
                       icon: const Icon(Icons.refresh),
                       label: const Text('重试失败项'),
                     ),
                   if (state.completedCount > 0)
                     TextButton.icon(
-                      onPressed: service.clearCompleted,
+                      onPressed: () => service.clearCompleted(),
                       icon: const Icon(Icons.cleaning_services_outlined),
                       label: const Text('清理已完成'),
                     ),
