@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_session_snapshot.dart';
+import '../../domain/models/playback_state.dart';
 import '../../domain/models/remote_playback_source.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/repositories/playback_session_snapshot_repository.dart';
@@ -16,7 +17,7 @@ class PlaybackSessionPersistenceCoordinator {
 
   StreamSubscription<PlaybackSessionState>? _sessionSubscription;
   StreamSubscription<Duration>? _positionSubscription;
-  StreamSubscription? _audioSubscription;
+  StreamSubscription<PlaybackState>? _audioSubscription;
 
   Duration? _lastSavedPosition;
   bool _lastPlaying = false;
@@ -71,6 +72,11 @@ class PlaybackSessionPersistenceCoordinator {
         await session.setShuffleEnabled(true);
       }
 
+      // DefaultPlaybackSessionService records play/pause history asynchronously.
+      // Let those callbacks enqueue their writes first, then make the snapshot's
+      // original timestamp the final serialized history write. Merely restoring
+      // the app must not make an old song appear as "just played".
+      await Future<void>.delayed(const Duration(milliseconds: 20));
       final current = session.currentState.currentItem;
       if (current != null && _isLocal(current)) {
         await playHistory.savePlayHistory(
