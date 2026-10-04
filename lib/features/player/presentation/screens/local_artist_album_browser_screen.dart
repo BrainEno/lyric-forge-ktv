@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -221,51 +222,74 @@ class _LocalArtistAlbumBrowserScreenState
 
   Widget _buildArtistGrid() {
     final artists = _artists;
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 270,
-        mainAxisExtent: 310,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-      ),
-      itemCount: artists.length,
-      itemBuilder: (context, index) {
-        final artist = artists[index];
-        return _CatalogCard(
-          artworkPath: artist.artworkPath,
-          title: artist.name,
-          subtitle: '${artist.songs.length} 首 · ${artist.albumCount} 张专辑',
-          roundArtwork: true,
-          onTap: () => setState(() => _selectedArtist = artist.name),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final columns = layout.gridColumns(
+          minTileWidth: layout.isCompact ? 160 : 190,
+          min: layout.isCompact ? 2 : 2,
+          max: 7,
+        );
+        return GridView.builder(
+          padding: EdgeInsets.all(layout.pageGutter),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: layout.isCompact ? 0.78 : 0.76,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+          ),
+          itemCount: artists.length,
+          itemBuilder: (context, index) {
+            final artist = artists[index];
+            return _CatalogCard(
+              artworkPath: artist.artworkPath,
+              title: artist.name,
+              subtitle: '${artist.songs.length} 首 · ${artist.albumCount} 张专辑',
+              roundArtwork: true,
+              compact: layout.isCompact,
+              onTap: () => setState(() => _selectedArtist = artist.name),
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildAlbumGrid(List<_AlbumGroup> albums) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 270,
-        mainAxisExtent: 330,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.md,
-      ),
-      itemCount: albums.length,
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        return _CatalogCard(
-          artworkPath: album.artworkPath,
-          title: album.title,
-          subtitle: '${album.artist} · ${album.songs.length} 首',
-          onTap: () => setState(() => _selectedAlbumKey = album.key),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final columns = layout.gridColumns(
+          minTileWidth: layout.isCompact ? 160 : 190,
+          min: layout.isCompact ? 2 : 2,
+          max: 7,
+        );
+        return GridView.builder(
+          padding: EdgeInsets.all(layout.pageGutter),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: layout.isCompact ? 0.73 : 0.72,
+            crossAxisSpacing: AppSpacing.md,
+            mainAxisSpacing: AppSpacing.md,
+          ),
+          itemCount: albums.length,
+          itemBuilder: (context, index) {
+            final album = albums[index];
+            return _CatalogCard(
+              artworkPath: album.artworkPath,
+              title: album.title,
+              subtitle: '${album.artist} · ${album.songs.length} 首',
+              compact: layout.isCompact,
+              onTap: () => setState(() => _selectedAlbumKey = album.key),
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildArtistDetail(_ArtistGroup artist) {
+    final layout = AppResponsive.of(context);
     final albums = _albumsFor(artist.songs);
     final songs = List<_CatalogSong>.from(artist.songs)
       ..sort((a, b) {
@@ -278,6 +302,12 @@ class _LocalArtistAlbumBrowserScreenState
         return a.title.toLowerCase().compareTo(b.title.toLowerCase());
       });
     final playable = songs.where((song) => song.playbackItem != null).length;
+    final miniWidth = layout.isCompact
+        ? 132.0
+        : layout.isMedium
+            ? 148.0
+            : 160.0;
+    final shelfHeight = miniWidth + 58;
 
     return Column(
       children: [
@@ -291,17 +321,17 @@ class _LocalArtistAlbumBrowserScreenState
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+            padding: EdgeInsets.fromLTRB(
+              layout.pageGutter,
               0,
-              AppSpacing.lg,
-              AppSpacing.xl,
+              layout.pageGutter,
+              layout.pageGutter,
             ),
             children: [
               if (albums.isNotEmpty) ...[
                 const _SectionTitle('专辑'),
                 SizedBox(
-                  height: 210,
+                  height: shelfHeight,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: albums.length,
@@ -310,9 +340,10 @@ class _LocalArtistAlbumBrowserScreenState
                     itemBuilder: (context, index) {
                       final album = albums[index];
                       return SizedBox(
-                        width: 160,
+                        width: miniWidth,
                         child: _MiniAlbumCard(
                           album: album,
+                          artworkSize: miniWidth - 10,
                           onTap: () =>
                               setState(() => _selectedAlbumKey = album.key),
                         ),
@@ -320,7 +351,7 @@ class _LocalArtistAlbumBrowserScreenState
                     },
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: layout.sectionGap),
               ],
               const _SectionTitle('全部歌曲'),
               ...List.generate(
@@ -340,6 +371,7 @@ class _LocalArtistAlbumBrowserScreenState
   }
 
   Widget _buildAlbumDetail(_AlbumGroup album) {
+    final layout = AppResponsive.of(context);
     final songs = List<_CatalogSong>.from(album.songs)
       ..sort((a, b) {
         final aTrack = a.entry.embeddedTrackNumber ?? 1 << 20;
@@ -368,11 +400,11 @@ class _LocalArtistAlbumBrowserScreenState
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+            padding: EdgeInsets.fromLTRB(
+              layout.pageGutter,
               AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.xl,
+              layout.pageGutter,
+              layout.pageGutter,
             ),
             itemCount: songs.length,
             itemBuilder: (context, index) => _CatalogSongTile(
@@ -406,18 +438,21 @@ class _CatalogSong {
   String get title => override?.resolvedTitle(embeddedTitle) ?? embeddedTitle;
 
   String get artistDisplay {
-    final value = override?.resolvedArtist(entry.embeddedArtist) ?? entry.embeddedArtist;
+    final value =
+        override?.resolvedArtist(entry.embeddedArtist) ?? entry.embeddedArtist;
     return value?.trim().isNotEmpty == true ? value!.trim() : '未知艺人';
   }
 
   String get albumDisplay {
-    final value = override?.resolvedAlbum(entry.embeddedAlbum) ?? entry.embeddedAlbum;
+    final value =
+        override?.resolvedAlbum(entry.embeddedAlbum) ?? entry.embeddedAlbum;
     return value?.trim().isNotEmpty == true ? value!.trim() : '未知专辑';
   }
 
   String get albumKey => '$artistDisplay\u0000$albumDisplay';
   String? get artworkPath =>
-      override?.resolvedArtwork(entry.embeddedArtworkPath) ?? entry.embeddedArtworkPath;
+      override?.resolvedArtwork(entry.embeddedArtworkPath) ??
+      entry.embeddedArtworkPath;
   bool get hasLyrics => override?.metadata['linkedProjectId'] is String;
 
   PlaybackItem? get playbackItem {
@@ -496,77 +531,91 @@ class _CatalogHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
-          final artwork = _CatalogArtwork(
-            path: artworkPath,
-            size: compact ? 112 : 150,
-            round: roundArtwork,
-          );
-          final info = Column(
-            crossAxisAlignment:
-                compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                subtitle,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('播放'),
-              ),
-            ],
-          );
-
-          if (compact) {
-            return Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    tooltip: '返回',
-                    onPressed: onBack,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final compact = layout.isCompactOrMedium || layout.isShort;
+        final artworkSize = layout.isShort
+            ? 96.0
+            : layout.isCompact
+                ? 112.0
+                : layout.isMedium
+                    ? 128.0
+                    : 150.0;
+        final artwork = _CatalogArtwork(
+          path: artworkPath,
+          size: artworkSize,
+          round: roundArtwork,
+        );
+        final info = Column(
+          crossAxisAlignment:
+              compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: compact ? TextAlign.center : TextAlign.start,
+              style: (layout.isCompact
+                      ? Theme.of(context).textTheme.headlineSmall
+                      : Theme.of(context).textTheme.headlineMedium)
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              textAlign: compact ? TextAlign.center : TextAlign.start,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: Size(
+                  layout.minimumInteractiveExtent,
+                  layout.minimumInteractiveExtent,
                 ),
-                artwork,
-                const SizedBox(height: AppSpacing.md),
-                info,
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              IconButton(
-                tooltip: '返回',
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_rounded),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              artwork,
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: info),
-            ],
-          );
-        },
-      ),
+              onPressed: onPlay,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('播放'),
+            ),
+          ],
+        );
+
+        return Padding(
+          padding: EdgeInsets.all(layout.pageGutter),
+          child: compact
+              ? Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        tooltip: '返回',
+                        onPressed: onBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                    ),
+                    artwork,
+                    const SizedBox(height: AppSpacing.md),
+                    info,
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: '返回',
+                      onPressed: onBack,
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    artwork,
+                    SizedBox(width: layout.sectionGap),
+                    Expanded(child: info),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -589,17 +638,42 @@ class _CatalogSongTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = song.playbackItem;
+    final layout = AppResponsive.of(context);
+    final compact = layout.isCompact;
+
+    final queueAction = IconButton(
+      tooltip: '加入播放队列',
+      onPressed: item == null ? null : onEnqueue,
+      icon: const Icon(Icons.queue_music_rounded),
+    );
+    final playlistAction = IconButton(
+      tooltip: '加入播放列表',
+      onPressed: item == null
+          ? null
+          : () => showAddToLocalPlaylistDialog(
+                context,
+                sourcePath: song.entry.sourcePath,
+                title: song.title,
+              ),
+      icon: const Icon(Icons.playlist_add_rounded),
+    );
+
     return ListTile(
       enabled: item != null,
+      minVerticalPadding: compact ? AppSpacing.sm : null,
       leading: SizedBox(
-        width: 44,
+        width: layout.minimumInteractiveExtent,
+        height: layout.minimumInteractiveExtent,
         child: showTrackNumber
             ? Center(
                 child: Text(
                   song.entry.embeddedTrackNumber?.toString() ?? '${index + 1}',
                 ),
               )
-            : _CatalogArtwork(path: song.artworkPath, size: 44),
+            : _CatalogArtwork(
+                path: song.artworkPath,
+                size: layout.minimumInteractiveExtent,
+              ),
       ),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
@@ -610,31 +684,51 @@ class _CatalogSongTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       ),
       onTap: item == null ? null : onPlay,
-      trailing: Wrap(
-        spacing: AppSpacing.xs,
-        children: [
-          LocalFavoriteButton(
-            sourcePath: song.entry.sourcePath,
-            iconSize: 20,
-          ),
-          IconButton(
-            tooltip: '加入播放列表',
-            onPressed: item == null
-                ? null
-                : () => showAddToLocalPlaylistDialog(
-                      context,
-                      sourcePath: song.entry.sourcePath,
-                      title: song.title,
+      trailing: compact
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LocalFavoriteButton(
+                  sourcePath: song.entry.sourcePath,
+                  iconSize: 20,
+                ),
+                PopupMenuButton<String>(
+                  tooltip: '更多歌曲操作',
+                  onSelected: (value) {
+                    if (value == 'playlist' && item != null) {
+                      showAddToLocalPlaylistDialog(
+                        context,
+                        sourcePath: song.entry.sourcePath,
+                        title: song.title,
+                      );
+                    }
+                    if (value == 'queue' && item != null) onEnqueue();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'playlist',
+                      child: Text('加入播放列表'),
                     ),
-            icon: const Icon(Icons.playlist_add_rounded),
-          ),
-          IconButton(
-            tooltip: '加入播放队列',
-            onPressed: item == null ? null : onEnqueue,
-            icon: const Icon(Icons.queue_music_rounded),
-          ),
-        ],
-      ),
+                    PopupMenuItem(
+                      value: 'queue',
+                      child: Text('加入播放队列'),
+                    ),
+                  ],
+                  icon: const Icon(Icons.more_horiz_rounded),
+                ),
+              ],
+            )
+          : Wrap(
+              spacing: AppSpacing.xs,
+              children: [
+                LocalFavoriteButton(
+                  sourcePath: song.entry.sourcePath,
+                  iconSize: 20,
+                ),
+                playlistAction,
+                queueAction,
+              ],
+            ),
     );
   }
 }
@@ -644,6 +738,7 @@ class _CatalogCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool roundArtwork;
+  final bool compact;
   final VoidCallback onTap;
 
   const _CatalogCard({
@@ -652,6 +747,7 @@ class _CatalogCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.roundArtwork = false,
+    this.compact = false,
   });
 
   @override
@@ -660,7 +756,7 @@ class _CatalogCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
           borderRadius: BorderRadius.circular(16),
@@ -670,12 +766,17 @@ class _CatalogCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Center(
-                child: _CatalogArtwork(
-                  path: artworkPath,
-                  size: 200,
-                  round: roundArtwork,
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = constraints.biggest.shortestSide;
+                  return Center(
+                    child: _CatalogArtwork(
+                      path: artworkPath,
+                      size: size,
+                      round: roundArtwork,
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -701,9 +802,14 @@ class _CatalogCard extends StatelessWidget {
 
 class _MiniAlbumCard extends StatelessWidget {
   final _AlbumGroup album;
+  final double artworkSize;
   final VoidCallback onTap;
 
-  const _MiniAlbumCard({required this.album, required this.onTap});
+  const _MiniAlbumCard({
+    required this.album,
+    required this.artworkSize,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -713,7 +819,7 @@ class _MiniAlbumCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CatalogArtwork(path: album.artworkPath, size: 150),
+          _CatalogArtwork(path: album.artworkPath, size: artworkSize),
           const SizedBox(height: AppSpacing.xs),
           Text(
             album.title,
@@ -793,9 +899,10 @@ class _CatalogEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: EdgeInsets.all(layout.pageGutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -823,9 +930,10 @@ class _CatalogError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: EdgeInsets.all(layout.pageGutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
