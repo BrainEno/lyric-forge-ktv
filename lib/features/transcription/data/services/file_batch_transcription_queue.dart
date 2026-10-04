@@ -35,6 +35,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   bool _processing = false;
   bool _pauseRequested = false;
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
+  Future<void> _writeChain = Future<void>.value();
 
   FileBatchTranscriptionQueue({
     required this.projectRepository,
@@ -82,7 +83,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
     _initialized = true;
 
     final file = await _storeFile();
-    var recoveredRunningItem = false;
+    var recoveredInterruptedItem = false;
     if (await file.exists()) {
       try {
         final decoded = jsonDecode(await file.readAsString());
@@ -95,11 +96,16 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
               var item = TranscriptionQueueItem.fromJson(
                 Map<String, dynamic>.from(value),
               );
-              if (item.status == TranscriptionQueueItemStatus.running) {
-                recoveredRunningItem = true;
+              final interruptedRunning =
+                  item.status == TranscriptionQueueItemStatus.running;
+              final interruptedStopping =
+                  !_paused &&
+                  item.status == TranscriptionQueueItemStatus.paused;
+              if (interruptedRunning || interruptedStopping) {
+                recoveredInterruptedItem = true;
                 item = item.copyWith(
                   status: TranscriptionQueueItemStatus.queued,
-                  message: '应用上次退出时正在识别，已恢复到等待队列',
+                  message: '应用上次退出时处理中断，已恢复到等待队列',
                   updatedAt: DateTime.now(),
                 );
               }
@@ -113,7 +119,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       }
     }
 
-    if (recoveredRunningItem) await _persist();
+    if (recoveredInterruptedItem) await _persist();
     _emit();
     if (!_paused && _items.any(_isQueued)) unawaited(_pump());
   }
@@ -121,13 +127,14 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   @override
   Future<int> enqueuePaths(Iterable<String> paths) async {
     await initialize();
-    final existing = _items.map((item) => _canonical(item.sourcePath)).toSet();
+    final existing = _items.map((item) => _pathKey(item.sourcePath)).toSet();
     var added = 0;
     var seed = DateTime.now().microsecondsSinceEpoch;
 
     for (final raw in paths) {
       final path = _canonical(raw);
-      if (existing.contains(path) || !_isSupported(path)) continue;
+      final key = _pathKey(path);
+      if (existing.contains(key) || !_isSupported(path)) continue;
       if (!await File(path).exists()) continue;
 
       final now = DateTime.now();
@@ -140,7 +147,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
           updatedAt: now,
         ),
       );
-      existing.add(path);
+      existing.add(key);
       added++;
     }
 
@@ -165,6 +172,10 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   @override
   Future<void> resume() async {
     await initialize();
+    // UI disables resume while the active worker is still unwinding, but keep
+    // the service safe for non-UI callers too.
+    if (_processing) return;
+
     _paused = false;
     _pauseRequested = false;
     final now = DateTime.now();
@@ -399,19 +410,33 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
   String _canonical(String path) => File(path).absolute.path;
 
-  Future<void> _persist() async {
-    final file = await _storeFile();
-    final temporary = File(file.path + '.tmp');
-    await temporary.writeAsString(
-      const JsonEncoder.withIndent('  ').convert({
-        'version': 1,
-        'paused': _paused,
-        'items': _items.map((item) => item.toJson()).toList(growable: false),
-      }),
-      flush: true,
-    );
-    if (await file.exists()) await file.delete();
-    await temporary.rename(file.path);
+  String _pathKey(String path) {
+    final canonical = _canonical(path);
+    return Platform.isWindows ? canonical.toLowerCase() : canonical;
+  }
+
+  Future<void> _persist() {
+    final payload = const JsonEncoder.withIndent('  ').convert({
+      'version': 1,
+      'paused': _paused,
+      'items': _items.map((item) => item.toJson()).toList(growable: false),
+    });
+    final previous = _writeChain;
+    final operation = () async {
+      // A failed previous write should be surfaced to its caller without
+      // permanently poisoning all future queue persistence attempts.
+      try {
+        await previous;
+      } catch (_) {}
+
+      final file = await _storeFile();
+      final temporary = File(file.path + '.tmp');
+      await temporary.writeAsString(payload, flush: true);
+      if (await file.exists()) await file.delete();
+      await temporary.rename(file.path);
+    }();
+    _writeChain = operation;
+    return operation;
   }
 
   void _emit() {
@@ -420,7 +445,9 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
   @override
   Future<void> dispose() async {
-    _paused = true;
+    // Do not persist a user-visible global pause merely because the app is
+    // shutting down. If cancellation leaves an item in paused state, startup
+    // recovery converts it back to queued when the queue itself was not paused.
     _pauseRequested = true;
     await _progressSubscription?.cancel();
     if (workflow.isRunning) await workflow.cancel();
