@@ -7,9 +7,11 @@ import 'core/theme/app_theme.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ServiceLocatorGlobal.I.initialize();
+  final services = ServiceLocatorGlobal.I;
+  services.initialize();
+  await services.initializeSystemMediaControls();
   runApp(const LyricForgeApp());
 }
 

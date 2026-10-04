@@ -1,113 +1,83 @@
-# 技术决策文档：音频播放器选型
+# 技术决策文档：音频播放器与系统媒体会话
 
-## 候选方案对比
+## 当前决策
 
-| 维度 | just_audio | audioplayers |
-|------|------------|--------------|
-| **版本** | 0.10.5 (7个月前) | 6.6.0 (51天前) |
-| **下载量** | 704k | 673k |
-| **点赞数** | 4.12k | 3.41k |
-| **维护状态** | 活跃 (Flutter Favorite) | 活跃 |
-| **平台支持** | Android/iOS/macOS/Web/Windows/Linux* | Android/iOS/Linux/macOS/Web/Windows |
-| **核心定位** | 功能丰富的专业播放器 | 多实例同时播放 |
+LyricForge 使用分层播放器架构：
 
-*注：Windows/Linux 需要额外插件
+- `just_audio`：唯一的底层音频输出引擎；
+- `PlaybackSessionService`：唯一的应用级播放队列、当前项、随机、循环和上一首/下一首 Source of Truth；
+- `audio_service`：Android/iOS 系统媒体会话桥接，用于后台播放、锁屏/通知栏、耳机/蓝牙按键、Android Auto / CarPlay 等系统控制；
+- `audio_session`：配置 music audio session，并与来电/其他音频 App 的系统焦点规则协作。
 
-## 功能对比
+不要再同时初始化 `just_audio_background`。LyricForge 的队列并不由 `just_audio` 内部 playlist 管理，而由 `PlaybackSessionService` 管理；直接使用 `audio_service` 可以把系统上一首/下一首、Seek、Shuffle 和 Repeat 精确转发到现有应用队列，避免出现两套状态。
 
-### just_audio 优势
-- ✅ **完整的播放列表支持** - ConcatenatingAudioSource, gapless playback
-- ✅ **音频剪辑** - 支持播放片段 (setClip)
-- ✅ **高级状态管理** - playing + processingState 正交状态模型
-- ✅ **缓存支持** - LockCachingAudioSource 边下边播
-- ✅ **流媒体支持** - StreamAudioSource 自定义字节流
-- ✅ **背景播放** - just_audio_background 插件
-- ✅ **均衡器/音效** - 有社区支持
-- ✅ **更详细的错误处理** - PlayerException, PlayerInterruptedException
+## 核心原则
 
-### audioplayers 优势
-- ✅ **多播放器实例** - 天生支持同时播放多个音频
-- ✅ **更简单的 API** - 适合快速集成
-- ✅ **Windows/Linux 原生支持** - 无需额外插件
-- ✅ **更新的版本** - 6.6.0 比 just_audio 更新
+1. **只有一个真实播放器。** `audio_service` 不创建第二个 `AudioPlayer`，只桥接系统控制。
+2. **只有一个队列状态。** App 内播放器、锁屏、通知栏和耳机按键都调用同一个 `PlaybackSessionService`。
+3. **系统媒体信息来自当前 `PlaybackItem`。** 标题、艺人、封面、时长与当前 queue index 必须跟随应用状态更新。
+4. **后台能力只在 Android / iOS 初始化。** Windows 桌面端继续使用现有 in-process 播放路径，不因移动端媒体服务增加启动风险。
+5. **播放中断交给系统音频会话。** `just_audio` 默认处理 `audio_session` interruption/focus 事件，不自行实现另一套来电抢占逻辑。
 
-## 本项目需求匹配度分析
-
-### 需求清单
-
-| 需求 | just_audio | audioplayers | 说明 |
-|------|------------|--------------|------|
-| 播放本地音频文件 | ✅ | ✅ | 都支持 |
-| 播放列表/下一首 | ✅ 原生 | ⚠️ 需自行管理 | just_audio 更完整 |
-| 音频源切换（原声/伴奏/人声） | ✅ | ✅ | 都可以 |
-| 进度条拖动/Seek | ✅ | ✅ | 都支持 |
-| 速度调节 | ✅ | ✅ | 都支持 |
-| 音量调节 | ✅ | ✅ | 都支持 |
-| 背景播放 | ✅ 官方 | ⚠️ 第三方 | just_audio 更好 |
-| 状态流监听 | ✅ 详细 | ✅ 基础 | just_audio 更完整 |
-| 错误处理 | ✅ 详细 | ⚠️ 基础 | just_audio 更好 |
-| 缓存管理 | ✅ 内置 | ❌ 无 | KTV 需要 |
-
-## 关键决策因素
-
-### 1. KTV 场景的特殊需求
-- **需要精确控制** - 歌词同步要求毫秒级精度
-- **需要丰富状态流** - 播放状态、缓冲状态、位置流都需要
-- **需要背景播放** - 用户锁屏后仍需播放
-- **可能多音轨切换** - 原声/伴奏/人声切换
-
-### 2. 跨端一致性
-- just_audio: 所有平台统一 API，Windows/Linux 需要额外依赖
-- audioplayers: 原生支持所有平台，但功能在各平台有差异
-
-### 3. 社区与生态
-- just_audio: Flutter Favorite，更详细的文档和教程
-- audioplayers: 社区活跃，版本更新频繁
-
-## 推荐方案
-
-### 🎯 选用：just_audio
-
-**理由**：
-1. **KTV 场景的专业性** - just_audio 提供更完整的播放控制、状态流、背景播放支持
-2. **生态完整性** - just_audio_background 提供官方背景播放方案
-3. **状态管理清晰** - playing + processingState 模型适合复杂的播放器 UI
-4. **缓存支持** - LockCachingAudioSource 对未来支持大文件/流媒体友好
-5. **错误处理** - 更详细的异常类型有助于调试和用户体验
-
-**Windows/Linux 方案**：
-- 使用 just_audio_media_kit 或 just_audio_windows/just_audio_libwinmedia
-- 添加依赖：`just_audio_media_kit` + `media_kit_libs_windows_audio` / `media_kit_libs_linux`
-
-## 依赖配置
+## 依赖
 
 ```yaml
 dependencies:
-  # 核心音频播放
   just_audio: ^0.10.5
-  
-  # 背景播放（锁屏控制）
-  just_audio_background: ^0.0.1-beta.15
-  
-  # 音频会话管理（与其他音频应用共存）
+  audio_service: ^0.18.19
   audio_session: ^0.1.24
-  
-dependencies:
-  # Windows 支持
-  just_audio_media_kit: ^0.0.1
-  media_kit_libs_windows_audio: ^1.0.9
-  
-  # Linux 支持
-  media_kit_libs_linux: ^1.0.9
 ```
 
-## 备选方案
+`pubspec.lock` 必须由真实 `flutter pub get` 生成，不手工伪造。
 
-如果在实现过程中遇到平台兼容性问题，可以回退到 **audioplayers** + **audio_service** 组合，但需要做更多自定义封装。
+## Android
 
-## 下一步行动
+需要：
 
-1. 添加 `just_audio` 和相关依赖到 pubspec.yaml
-2. 创建 `AudioPlayerService` 领域接口
-3. 实现 `JustAudioPlayerService` 适配器
-4. 集成 `just_audio_background` 支持锁屏播放控制
+- `WAKE_LOCK`
+- `FOREGROUND_SERVICE`
+- `FOREGROUND_SERVICE_MEDIA_PLAYBACK`
+- `AudioService` foreground service
+- `MediaButtonReceiver`
+- `MainActivity` 继承 `AudioServiceActivity`（或兼容的 AudioService activity 基类）
+
+系统播放通知由 `audio_service` 的 `PlaybackState` 和 `MediaItem` 驱动。
+
+## iOS
+
+`Info.plist` 必须包含：
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>audio</string>
+</array>
+```
+
+移动端启动时配置 `AudioSessionConfiguration.music()`。
+
+## 系统操作映射
+
+| 系统动作 | LyricForge 动作 |
+|---|---|
+| Play / Pause | `PlaybackSessionService.togglePlayPause()` |
+| Previous | `skipPrevious()` |
+| Next | `skipNext()` |
+| Seek | `seek()` |
+| 选择队列歌曲 | `playAt()` |
+| Shuffle | `setShuffleEnabled()` |
+| Repeat | `setRepeatMode()` |
+
+系统动作不直接修改 `just_audio` playlist。
+
+## 验证要求
+
+在合并移动后台播放相关改动前，应在真实设备验证：
+
+- Android 锁屏、通知栏、蓝牙耳机播放/暂停/上一首/下一首；
+- iOS Control Center、锁屏和耳机按键；
+- App 进入后台、熄屏后继续播放；
+- 来电/音频焦点中断后行为；
+- 系统显示标题、艺人、封面、时长和进度；
+- Shuffle / Repeat 从 App 改动后同步到系统，从系统改动后同步回 App；
+- 桌面 Windows 启动和播放行为不受影响。

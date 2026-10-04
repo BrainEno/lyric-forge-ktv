@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:audio_service/audio_service.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
+
 import '../../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../../features/lyrics/domain/services/lyric_file_import_service.dart';
 import '../../features/player/data/repositories/file_local_media_collection_repository.dart';
@@ -11,6 +15,7 @@ import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
 import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
+import '../../features/player/data/services/system_media_audio_handler.dart';
 import '../../features/player/domain/repositories/local_media_collection_repository.dart';
 import '../../features/player/domain/repositories/local_media_library_repository.dart';
 import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
@@ -76,6 +81,7 @@ class ServiceLocator {
   late final MediaHubConnectionStore mediaHubConnectionStore;
   late final MediaTransferService mediaTransferService;
   late final MediaTransferQueueService mediaTransferQueueService;
+  SystemMediaAudioHandler? systemMediaAudioHandler;
 
   void initialize() {
     projectRepository = FileProjectRepository();
@@ -152,6 +158,37 @@ class ServiceLocator {
       workflow: projectTranscriptionWorkflow,
     );
     unawaited(transcriptionQueue.initialize());
+  }
+
+  /// Registers the OS media session only on Android/iOS. Desktop keeps using
+  /// the existing in-process playback path and is unaffected by audio_service.
+  Future<void> initializeSystemMediaControls() async {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      return;
+    }
+    if (systemMediaAudioHandler != null) return;
+
+    final audioSession = await AudioSession.instance;
+    await audioSession.configure(const AudioSessionConfiguration.music());
+
+    systemMediaAudioHandler = await AudioService.init<SystemMediaAudioHandler>(
+      builder: () => SystemMediaAudioHandler(
+        session: playbackSessionService,
+        audio: audioPlayerService,
+      ),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId:
+            'com.example.lyric_forge_ktv.channel.audio',
+        androidNotificationChannelName: 'LyricForge 音乐播放',
+        androidNotificationChannelDescription: '本地音乐后台播放与媒体控制',
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: true,
+        fastForwardInterval: Duration(seconds: 10),
+        rewindInterval: Duration(seconds: 10),
+      ),
+    );
   }
 }
 
