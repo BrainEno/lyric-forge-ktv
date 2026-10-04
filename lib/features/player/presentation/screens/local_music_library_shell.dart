@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
+import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
 import 'local_media_library_screen_v2.dart';
 
@@ -23,19 +24,21 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
   @override
   void initState() {
     super.initState();
-    _index = widget.initialIndex.clamp(0, 2).toInt();
+    _index = widget.initialIndex.clamp(0, 4).toInt();
   }
 
   @override
   void didUpdateWidget(covariant LocalMusicLibraryShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialIndex != widget.initialIndex) {
-      _index = widget.initialIndex.clamp(0, 2).toInt();
+      _index = widget.initialIndex.clamp(0, 4).toInt();
     }
   }
 
   List<Widget> get _pages => const [
         LocalMediaLibraryScreenV2(),
+        LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
+        LocalArtistAlbumBrowserScreen(view: LocalCatalogView.albums),
         LocalCollectionsScreen(view: LocalCollectionView.favorites),
         LocalCollectionsScreen(view: LocalCollectionView.playlists),
       ];
@@ -68,6 +71,16 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                       icon: Icon(Icons.music_note_outlined),
                       selectedIcon: Icon(Icons.music_note_rounded),
                       label: Text('歌曲'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.person_outline_rounded),
+                      selectedIcon: Icon(Icons.person_rounded),
+                      label: Text('艺人'),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.album_outlined),
+                      selectedIcon: Icon(Icons.album_rounded),
+                      label: Text('专辑'),
                     ),
                     NavigationRailDestination(
                       icon: Icon(Icons.favorite_border_rounded),
@@ -109,14 +122,24 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                 label: '歌曲',
               ),
               NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: '艺人',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.album_outlined),
+                selectedIcon: Icon(Icons.album_rounded),
+                label: '专辑',
+              ),
+              NavigationDestination(
                 icon: Icon(Icons.favorite_border_rounded),
                 selectedIcon: Icon(Icons.favorite_rounded),
-                label: '已收藏',
+                label: '收藏',
               ),
               NavigationDestination(
                 icon: Icon(Icons.queue_music_outlined),
                 selectedIcon: Icon(Icons.queue_music_rounded),
-                label: '播放列表',
+                label: '歌单',
               ),
             ],
           ),

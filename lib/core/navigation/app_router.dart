@@ -18,7 +18,10 @@ abstract class Routes {
   static const String dashboard = '/dashboard';
   static const String import = '/import';
   static const String library = '/library';
+  static const String libraryArtists = '/library/artists';
+  static const String libraryAlbums = '/library/albums';
   static const String collections = '/collections';
+  static const String playlists = '/playlists';
   static const String quickPlay = '/quick-play';
   static const String nowPlaying = '/now-playing';
   static const String projectDetail = '/project/:id';
@@ -51,8 +54,17 @@ class AppRouter {
       case Routes.library:
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
-      case Routes.collections:
+      case Routes.libraryArtists:
         return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 1), settings);
+
+      case Routes.libraryAlbums:
+        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 2), settings);
+
+      case Routes.collections:
+        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 3), settings);
+
+      case Routes.playlists:
+        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 4), settings);
 
       case Routes.quickPlay:
         final history = settings.arguments is PlayHistory
