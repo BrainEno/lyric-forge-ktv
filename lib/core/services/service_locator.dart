@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../features/player/data/repositories/memory_play_history_repository.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
@@ -6,8 +8,9 @@ import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/playback_session_service.dart';
-import '../../features/project/data/repositories/memory_project_repository.dart';
+import '../../features/project/data/repositories/file_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
+import '../../features/transcription/data/services/file_batch_transcription_queue.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
@@ -18,6 +21,7 @@ import '../../features/transcription/data/services/managed_model_asr_runtime_man
 import '../../features/transcription/data/services/native_transcription_profile_resolver.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
+import '../../features/transcription/domain/services/batch_transcription_queue.dart';
 import '../../features/transcription/domain/services/project_transcription_workflow.dart';
 import '../../features/transcription/domain/services/transcription_profile_resolver.dart';
 import '../../features/transcription/domain/services/transcription_service.dart';
@@ -47,11 +51,12 @@ class ServiceLocator {
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
   late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
+  late final BatchTranscriptionQueue transcriptionQueue;
   late final MediaHubClientService mediaHubClientService;
   late final MediaHubConnectionStore mediaHubConnectionStore;
 
   void initialize() {
-    projectRepository = MemoryProjectRepository();
+    projectRepository = FileProjectRepository();
     audioPlayerService = JustAudioPlayerService();
     audioLibraryImportService = LocalAudioLibraryImportService();
     playbackSessionService = DefaultPlaybackSessionService(audioPlayerService);
@@ -81,6 +86,11 @@ class ServiceLocator {
       profileResolver: transcriptionProfileResolver,
       runtimeManager: asrRuntimeManager,
     );
+    transcriptionQueue = FileBatchTranscriptionQueue(
+      projectRepository: projectRepository,
+      workflow: projectTranscriptionWorkflow,
+    );
+    unawaited(transcriptionQueue.initialize());
   }
 }
 
