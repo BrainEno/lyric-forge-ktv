@@ -102,3 +102,8 @@ them in a later UI refinement.
 - project persistence is still backed by the current repository implementation;
 - Whisper and model installation/download automation are not included yet;
 - automatically generated lyrics are drafts and require user review.
+
+
+## Resumable long-audio transcription
+
+Long audio is processed as 3-minute chunks with an 8-second overlap. Each completed chunk is checkpointed under the project's transcription output before the next chunk starts. Restarting the same source resumes from those checkpoints instead of rerunning completed inference. A chunk is retried up to three times; cancellation keeps completed checkpoints. Overlap lines are merged by normalized text and timing, preferring the higher-confidence duplicate. Short audio continues through the existing whole-song path.
