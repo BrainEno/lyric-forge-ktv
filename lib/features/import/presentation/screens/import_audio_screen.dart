@@ -148,7 +148,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                       );
                     }
                     return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: chooseFiles),
                         const SizedBox(width: AppSpacing.md),
