@@ -8,7 +8,9 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 void main() {
   test('projects survive repository recreation', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-projects-');
-    addTearDown(() => root.delete(recursive: true));
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
 
     final first = FileProjectRepository(rootDirectory: root);
     var project = await first.createProject(name: 'Persistent Song');
