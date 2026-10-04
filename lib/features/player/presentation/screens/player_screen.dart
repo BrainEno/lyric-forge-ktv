@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_chrome_controller.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
@@ -166,18 +167,28 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: AppSpacing.md),
-            const Text('加载播放器失败'),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(onPressed: onRetry, child: const Text('重试')),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(spec.pageGutter),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+              const SizedBox(height: AppSpacing.md),
+              const Text('加载播放器失败'),
+              const SizedBox(height: AppSpacing.md),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+                ),
+                child: const Text('重试'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -258,6 +269,7 @@ class _PlayerContentState extends State<_PlayerContent> {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final document = widget.project.lyricDocument;
     final lyrics = document?.lines ?? const <LyricLine>[];
 
@@ -274,34 +286,43 @@ class _PlayerContentState extends State<_PlayerContent> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            Text(
-              widget.project.artist?.trim().isNotEmpty == true
-                  ? widget.project.artist!
-                  : '本地工程',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-            ),
+            if (!spec.isShort)
+              Text(
+                widget.project.artist?.trim().isNotEmpty == true
+                    ? widget.project.artist!
+                    : '本地工程',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+              ),
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: '工程详情',
-            onPressed: () => Navigator.pushNamed(
-              context,
-              Routes.projectDetailPath(widget.project.id),
+          SizedBox(
+            width: spec.minimumInteractiveExtent,
+            height: spec.minimumInteractiveExtent,
+            child: IconButton(
+              tooltip: '工程详情',
+              onPressed: () => Navigator.pushNamed(
+                context,
+                Routes.projectDetailPath(widget.project.id),
+              ),
+              icon: const Icon(Icons.info_outline_rounded),
             ),
-            icon: const Icon(Icons.info_outline_rounded),
           ),
-          IconButton(
-            tooltip: '校对歌词',
-            onPressed: () => Navigator.pushNamed(
-              context,
-              Routes.lyricEditorPath(widget.project.id),
+          SizedBox(
+            width: spec.minimumInteractiveExtent,
+            height: spec.minimumInteractiveExtent,
+            child: IconButton(
+              tooltip: '校对歌词',
+              onPressed: () => Navigator.pushNamed(
+                context,
+                Routes.lyricEditorPath(widget.project.id),
+              ),
+              icon: const Icon(Icons.edit_rounded),
             ),
-            icon: const Icon(Icons.edit_rounded),
           ),
           const SizedBox(width: AppSpacing.xs),
         ],
@@ -392,12 +413,12 @@ class _PlayerWorkspace extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 980;
-        if (wide) {
+        final spec = AppResponsive.fromConstraints(constraints);
+        if (spec.supportsTwoPane) {
           return Row(
             children: [
               SizedBox(
-                width: constraints.maxWidth.clamp(360.0, 460.0).toDouble(),
+                width: spec.sidePanelWidth,
                 child: _TransportPane(
                   project: project,
                   playback: playback,
@@ -491,25 +512,29 @@ class _TransportPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final padding = spec.pageGutter.clamp(16, 28).toDouble();
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(padding),
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 310),
+            constraints: BoxConstraints(
+              maxWidth: spec.playerArtworkMaxExtent.clamp(220, 320).toDouble(),
+            ),
             child: _ProjectArtwork(
               path: project.audioAsset?.thumbnailPath,
               loading: playback.isLoading,
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: spec.sectionGap),
         _SongIdentity(project: project),
         if (playback.error != null) ...[
           const SizedBox(height: AppSpacing.md),
           _PlaybackError(message: playback.error!),
         ],
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: spec.sectionGap),
         _ProgressBar(state: playback, onSeek: onSeek),
         const SizedBox(height: AppSpacing.md),
         _PlaybackControls(
@@ -529,7 +554,7 @@ class _TransportPane extends StatelessWidget {
             onSourceChanged: onSwitchSource,
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: spec.sectionGap),
         _PlayerModeControls(
           ktvMode: ktvMode,
           hasLyrics: project.hasLyrics,
@@ -572,15 +597,84 @@ class _CompactTransportHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final padding = spec.isCompact ? 12.0 : 16.0;
+
+    if (spec.isShort) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(padding, 6, padding, 8),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: _ProjectArtwork(
+                    path: project.audioAsset?.thumbnailPath,
+                    loading: playback.isLoading,
+                    compact: true,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(child: _SongIdentity(project: project, compact: true)),
+                const SizedBox(width: AppSpacing.xs),
+                _PlaybackControls(
+                  isPlaying: playback.isPlaying,
+                  isBuffering: playback.isBuffering,
+                  canPrevious: session.currentItem != null,
+                  canNext: session.canSkipNext,
+                  onPrevious: onSkipPrevious,
+                  onPlayPause: onPlayPause,
+                  onNext: onSkipNext,
+                  compact: true,
+                ),
+              ],
+            ),
+            if (playback.error != null) ...[
+              const SizedBox(height: 6),
+              _PlaybackError(message: playback.error!),
+            ],
+            _ProgressBar(state: playback, onSeek: onSeek, compact: true),
+            const SizedBox(height: 2),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (availableSources.length > 1) ...[
+                    _AudioSourceSelector(
+                      availableSources: availableSources,
+                      currentSource: playback.currentSource,
+                      onSourceChanged: onSwitchSource,
+                      compact: true,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
+                  _PlayerModeControls(
+                    ktvMode: ktvMode,
+                    hasLyrics: project.hasLyrics,
+                    onModeChanged: onModeChanged,
+                    onOpenFullScreenKtv: onOpenFullScreenKtv,
+                    compact: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(padding),
       child: Column(
         children: [
           Row(
             children: [
               SizedBox(
-                width: 64,
-                height: 64,
+                width: spec.isCompact ? 56 : 64,
+                height: spec.isCompact ? 56 : 64,
                 child: _ProjectArtwork(
                   path: project.audioAsset?.thumbnailPath,
                   loading: playback.isLoading,
@@ -654,33 +748,42 @@ class _LyricsPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lyrics.isEmpty) return const _NoLyricsState();
+    final spec = AppResponsive.of(context);
+    final gutter = spec.pageGutter.clamp(12, 28).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.sm,
+          padding: EdgeInsets.fromLTRB(
+            gutter,
+            spec.isShort ? 6 : AppSpacing.md,
+            gutter,
+            spec.isShort ? 4 : AppSpacing.sm,
           ),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   ktvMode ? 'KTV 歌词' : '同步歌词',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: (spec.isCompact || spec.isShort
+                          ? Theme.of(context).textTheme.titleMedium
+                          : Theme.of(context).textTheme.titleLarge)
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (ktvMode && onOpenFullScreenKtv != null)
-                TextButton.icon(
-                  onPressed: onOpenFullScreenKtv,
-                  icon: const Icon(Icons.fullscreen_rounded),
-                  label: const Text('全屏'),
-                ),
+                spec.isCompact
+                    ? IconButton(
+                        tooltip: '全屏 KTV',
+                        onPressed: onOpenFullScreenKtv,
+                        icon: const Icon(Icons.fullscreen_rounded),
+                      )
+                    : TextButton.icon(
+                        onPressed: onOpenFullScreenKtv,
+                        icon: const Icon(Icons.fullscreen_rounded),
+                        label: const Text('全屏'),
+                      ),
             ],
           ),
         ),
@@ -715,12 +818,14 @@ class _ScrollableLyrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final gutter = spec.pageGutter.clamp(10, 28).toDouble();
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
-        AppSpacing.xxl,
+      padding: EdgeInsets.fromLTRB(
+        gutter,
+        spec.isShort ? 4 : AppSpacing.sm,
+        gutter,
+        spec.isShort ? AppSpacing.md : AppSpacing.xxl,
       ),
       itemCount: lyrics.length,
       itemBuilder: (context, index) {
@@ -732,16 +837,17 @@ class _ScrollableLyrics extends StatelessWidget {
           child: InkWell(
             onTap: () => onLyricTap(line),
             borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+            child: Container(
+              constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+              padding: EdgeInsets.symmetric(
+                horizontal: spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+                vertical: spec.isShort ? 6 : AppSpacing.sm,
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: 58,
+                    width: spec.isCompact ? 48 : 58,
                     child: Text(
                       _formatTime(line.startTime),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -760,11 +866,11 @@ class _ScrollableLyrics extends StatelessWidget {
                                 : AppColors.textSecondary,
                             fontWeight:
                                 current ? FontWeight.w800 : FontWeight.w500,
-                            height: 1.45,
+                            height: spec.isShort ? 1.3 : 1.45,
                           ),
                     ),
                   ),
-                  if (line.isChorus)
+                  if (line.isChorus && !spec.isCompact)
                     const Padding(
                       padding: EdgeInsets.only(left: AppSpacing.sm),
                       child: Icon(
@@ -796,42 +902,54 @@ class _KtvFocusLyrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final index = (currentIndex ?? 0).clamp(0, lyrics.length - 1).toInt();
     final previous = index > 0 ? lyrics[index - 1] : null;
     final current = lyrics[index];
     final next = index + 1 < lyrics.length ? lyrics[index + 1] : null;
+    final gap = spec.isShort ? AppSpacing.sm : AppSpacing.xl;
+    final horizontal = spec.pageGutter.clamp(16, 48).toDouble();
+
+    final previousStyle = (spec.isShort || spec.isCompact
+            ? Theme.of(context).textTheme.bodyLarge
+            : Theme.of(context).textTheme.titleMedium)
+        ?.copyWith(color: AppColors.textTertiary);
+    final currentStyle = (spec.isShort || spec.isCompact
+            ? Theme.of(context).textTheme.headlineSmall
+            : Theme.of(context).textTheme.headlineMedium)
+        ?.copyWith(
+      color: AppColors.accent,
+      fontWeight: FontWeight.w900,
+      height: 1.3,
+    );
+    final nextStyle = (spec.isShort || spec.isCompact
+            ? Theme.of(context).textTheme.titleMedium
+            : Theme.of(context).textTheme.titleLarge)
+        ?.copyWith(color: AppColors.textSecondary);
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-          vertical: AppSpacing.xxl,
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontal,
+          vertical: spec.isShort ? AppSpacing.sm : AppSpacing.xxl,
         ),
         child: Column(
           children: [
             _FocusLyricLine(
               line: previous,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: previousStyle,
               onTap: previous == null ? null : () => onLyricTap(previous),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: gap),
             _FocusLyricLine(
               line: current,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.w900,
-                    height: 1.35,
-                  ),
+              style: currentStyle,
               onTap: () => onLyricTap(current),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: gap),
             _FocusLyricLine(
               line: next,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: nextStyle,
               onTap: next == null ? null : () => onLyricTap(next),
             ),
           ],
@@ -854,12 +972,16 @@ class _FocusLyricLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (line == null) return const SizedBox(height: 32);
+    final spec = AppResponsive.of(context);
+    if (line == null) {
+      return SizedBox(height: spec.isShort ? 18 : 32);
+    }
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+      child: Container(
+        constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+        padding: EdgeInsets.all(spec.isShort ? 6 : AppSpacing.sm),
         child: Text(
           line!.text,
           textAlign: TextAlign.center,
@@ -950,6 +1072,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
               stream: widget.audioService.stateStream,
               initialData: widget.audioService.currentState,
               builder: (context, playbackSnapshot) {
+                final spec = AppResponsive.of(context);
                 final playback =
                     playbackSnapshot.data ?? const PlaybackState.idle();
                 final currentIndex =
@@ -963,6 +1086,42 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                 final next = lyrics.isNotEmpty && safeIndex + 1 < lyrics.length
                     ? lyrics[safeIndex + 1]
                     : null;
+                final topGutter = spec.pageGutter.clamp(12, 32).toDouble();
+                final lyricGutter = spec.isExtraLarge
+                    ? 120.0
+                    : spec.isLarge
+                        ? 88.0
+                        : spec.pageGutter.clamp(16, 48).toDouble();
+                final lyricGap = spec.isShort
+                    ? AppSpacing.sm
+                    : spec.isCompact
+                        ? AppSpacing.lg
+                        : AppSpacing.xxl;
+
+                final previousStyle = (spec.isShort || spec.isCompact
+                        ? Theme.of(context).textTheme.titleMedium
+                        : Theme.of(context).textTheme.headlineSmall)
+                    ?.copyWith(
+                  color: AppColors.textTertiary,
+                  height: 1.35,
+                );
+                final currentStyle = (spec.isShort
+                        ? Theme.of(context).textTheme.headlineMedium
+                        : spec.isCompact
+                            ? Theme.of(context).textTheme.headlineLarge
+                            : Theme.of(context).textTheme.displaySmall)
+                    ?.copyWith(
+                  color: AppColors.pureWhite,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                );
+                final nextStyle = (spec.isShort || spec.isCompact
+                        ? Theme.of(context).textTheme.titleLarge
+                        : Theme.of(context).textTheme.headlineMedium)
+                    ?.copyWith(
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                );
 
                 return Container(
                   decoration: const BoxDecoration(
@@ -975,10 +1134,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                   child: Column(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.md,
-                          AppSpacing.md,
+                        padding: EdgeInsets.fromLTRB(
+                          topGutter,
+                          spec.isShort ? 6 : AppSpacing.md,
+                          topGutter,
                           0,
                         ),
                         child: Row(
@@ -991,12 +1150,17 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                     _project.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleLarge
+                                    style: (spec.isShort
+                                            ? Theme.of(context)
+                                                .textTheme
+                                                .titleMedium
+                                            : Theme.of(context)
+                                                .textTheme
+                                                .titleLarge)
                                         ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
-                                  if (_project.artist?.trim().isNotEmpty == true)
+                                  if (!spec.isShort &&
+                                      _project.artist?.trim().isNotEmpty == true)
                                     Text(
                                       _project.artist!,
                                       maxLines: 1,
@@ -1011,20 +1175,32 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 ],
                               ),
                             ),
-                            if (availableSources.length > 1)
-                              Flexible(
-                                child: _AudioSourceSelector(
+                            if (availableSources.length > 1) ...[
+                              if (spec.isCompact || spec.isShort)
+                                _CompactSourceMenu(
                                   availableSources: availableSources,
                                   currentSource: playback.currentSource,
                                   onSourceChanged: widget.onSwitchSource,
-                                  compact: true,
+                                )
+                              else
+                                Flexible(
+                                  child: _AudioSourceSelector(
+                                    availableSources: availableSources,
+                                    currentSource: playback.currentSource,
+                                    onSourceChanged: widget.onSwitchSource,
+                                    compact: true,
+                                  ),
                                 ),
+                              const SizedBox(width: AppSpacing.sm),
+                            ],
+                            SizedBox(
+                              width: spec.minimumInteractiveExtent,
+                              height: spec.minimumInteractiveExtent,
+                              child: IconButton.filledTonal(
+                                tooltip: '退出全屏 KTV',
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.fullscreen_exit_rounded),
                               ),
-                            const SizedBox(width: AppSpacing.sm),
-                            IconButton.filledTonal(
-                              tooltip: '退出全屏 KTV',
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(Icons.fullscreen_exit_rounded),
                             ),
                           ],
                         ),
@@ -1034,44 +1210,30 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                             ? const _FullscreenNoLyrics()
                             : Center(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.xxxl,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: lyricGutter,
+                                    vertical:
+                                        spec.isShort ? 4 : AppSpacing.sm,
                                   ),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       _FullscreenLyric(
                                         line: previous,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineSmall
-                                            ?.copyWith(
-                                              color: AppColors.textTertiary,
-                                              height: 1.4,
-                                            ),
+                                        style: previousStyle,
+                                        maxLines: spec.isShort ? 1 : 2,
                                       ),
-                                      const SizedBox(height: AppSpacing.xxl),
+                                      SizedBox(height: lyricGap),
                                       _FullscreenLyric(
                                         line: current,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .displaySmall
-                                            ?.copyWith(
-                                              color: AppColors.pureWhite,
-                                              fontWeight: FontWeight.w900,
-                                              height: 1.25,
-                                            ),
+                                        style: currentStyle,
+                                        maxLines: spec.isShort ? 2 : 3,
                                       ),
-                                      const SizedBox(height: AppSpacing.xxl),
+                                      SizedBox(height: lyricGap),
                                       _FullscreenLyric(
                                         line: next,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .headlineMedium
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                              height: 1.35,
-                                            ),
+                                        style: nextStyle,
+                                        maxLines: spec.isShort ? 1 : 2,
                                       ),
                                     ],
                                   ),
@@ -1079,24 +1241,28 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.xl,
+                        padding: EdgeInsets.fromLTRB(
+                          topGutter,
                           0,
-                          AppSpacing.xl,
-                          AppSpacing.lg,
+                          topGutter,
+                          spec.isShort ? 6 : AppSpacing.lg,
                         ),
                         child: Column(
                           children: [
                             if (playback.error != null) ...[
                               _PlaybackError(message: playback.error!),
-                              const SizedBox(height: AppSpacing.sm),
+                              SizedBox(
+                                height: spec.isShort ? 4 : AppSpacing.sm,
+                              ),
                             ],
                             _ProgressBar(
                               state: playback,
                               onSeek: widget.onSeek,
                               compact: true,
                             ),
-                            const SizedBox(height: AppSpacing.sm),
+                            SizedBox(
+                              height: spec.isShort ? 2 : AppSpacing.sm,
+                            ),
                             _PlaybackControls(
                               isPlaying: playback.isPlaying,
                               isBuffering: playback.isBuffering,
@@ -1105,6 +1271,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               onPrevious: widget.onSkipPrevious,
                               onPlayPause: widget.onPlayPause,
                               onNext: widget.onSkipNext,
+                              compact: spec.isShort || spec.isCompact,
                             ),
                           ],
                         ),
@@ -1121,11 +1288,51 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 }
 
+class _CompactSourceMenu extends StatelessWidget {
+  final List<AudioSourceType> availableSources;
+  final AudioSourceType? currentSource;
+  final ValueChanged<AudioSourceType> onSourceChanged;
+
+  const _CompactSourceMenu({
+    required this.availableSources,
+    required this.currentSource,
+    required this.onSourceChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    return SizedBox(
+      width: spec.minimumInteractiveExtent,
+      height: spec.minimumInteractiveExtent,
+      child: PopupMenuButton<AudioSourceType>(
+        tooltip: '切换音源',
+        icon: const Icon(Icons.tune_rounded),
+        onSelected: onSourceChanged,
+        itemBuilder: (context) => availableSources
+            .map(
+              (source) => CheckedPopupMenuItem<AudioSourceType>(
+                value: source,
+                checked: source == currentSource,
+                child: Text(_sourceLabel(source)),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
 class _FullscreenLyric extends StatelessWidget {
   final LyricLine? line;
   final TextStyle? style;
+  final int maxLines;
 
-  const _FullscreenLyric({required this.line, required this.style});
+  const _FullscreenLyric({
+    required this.line,
+    required this.style,
+    this.maxLines = 3,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1135,7 +1342,7 @@ class _FullscreenLyric extends StatelessWidget {
         line?.text ?? '',
         key: ValueKey<String?>(line?.text),
         textAlign: TextAlign.center,
-        maxLines: 3,
+        maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
         style: style,
       ),
@@ -1148,12 +1355,17 @@ class _FullscreenNoLyrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Center(
-      child: Text(
-        '当前歌曲没有可用歌词',
-        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              color: AppColors.textTertiary,
-            ),
+      child: Padding(
+        padding: EdgeInsets.all(spec.pageGutter),
+        child: Text(
+          '当前歌曲没有可用歌词',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
+        ),
       ),
     );
   }
@@ -1207,6 +1419,7 @@ class _SongIdentity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Column(
       crossAxisAlignment:
           compact ? CrossAxisAlignment.start : CrossAxisAlignment.center,
@@ -1221,18 +1434,20 @@ class _SongIdentity extends StatelessWidget {
                   : Theme.of(context).textTheme.headlineSmall)
               ?.copyWith(fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          project.artist?.trim().isNotEmpty == true
-              ? project.artist!
-              : '未知艺术家',
-          textAlign: compact ? TextAlign.left : TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-        ),
+        if (!spec.isShort) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            project.artist?.trim().isNotEmpty == true
+                ? project.artist!
+                : '未知艺术家',
+            textAlign: compact ? TextAlign.left : TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ],
         if (!compact && project.album?.trim().isNotEmpty == true) ...[
           const SizedBox(height: 2),
           Text(
@@ -1287,8 +1502,7 @@ class _ProgressBar extends StatelessWidget {
             max: max,
             onChanged: durationMs <= 0
                 ? null
-                : (next) =>
-                    onSeek(Duration(milliseconds: next.round())),
+                : (next) => onSeek(Duration(milliseconds: next.round())),
           ),
         ),
         Padding(
@@ -1339,16 +1553,24 @@ class _PlaybackControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final playSize = compact ? 38.0 : 52.0;
+    final spec = AppResponsive.of(context);
+    final secondaryExtent = spec.minimumInteractiveExtent;
+    final playSize = compact
+        ? spec.minimumInteractiveExtent
+        : spec.primaryPlayerControlExtent;
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        IconButton(
-          tooltip: '上一首 / 回到开头',
-          onPressed: canPrevious ? onPrevious : null,
-          icon: const Icon(Icons.skip_previous_rounded),
-          iconSize: compact ? 24 : 30,
+        SizedBox(
+          width: secondaryExtent,
+          height: secondaryExtent,
+          child: IconButton(
+            tooltip: '上一首 / 回到开头',
+            onPressed: canPrevious ? onPrevious : null,
+            icon: const Icon(Icons.skip_previous_rounded),
+            iconSize: compact ? 24 : 30,
+          ),
         ),
         SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
         SizedBox(
@@ -1376,11 +1598,15 @@ class _PlaybackControls extends StatelessWidget {
           ),
         ),
         SizedBox(width: compact ? AppSpacing.xs : AppSpacing.sm),
-        IconButton(
-          tooltip: '下一首',
-          onPressed: canNext ? onNext : null,
-          icon: const Icon(Icons.skip_next_rounded),
-          iconSize: compact ? 24 : 30,
+        SizedBox(
+          width: secondaryExtent,
+          height: secondaryExtent,
+          child: IconButton(
+            tooltip: '下一首',
+            onPressed: canNext ? onNext : null,
+            icon: const Icon(Icons.skip_next_rounded),
+            iconSize: compact ? 24 : 30,
+          ),
         ),
       ],
     );
@@ -1435,6 +1661,7 @@ class _PlayerModeControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: AppSpacing.sm,
@@ -1458,7 +1685,10 @@ class _PlayerModeControls extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onOpenFullScreenKtv,
             icon: const Icon(Icons.fullscreen_rounded, size: 18),
-            label: const Text('全屏 KTV'),
+            label: Text(spec.isCompact || spec.isShort ? '全屏' : '全屏 KTV'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, spec.minimumInteractiveExtent),
+            ),
           ),
       ],
     );
@@ -1497,9 +1727,10 @@ class _NoLyricsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: EdgeInsets.all(spec.pageGutter),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
