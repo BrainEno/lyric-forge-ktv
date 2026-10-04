@@ -276,9 +276,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         throw const TranscriptionException('源音频文件已经不存在');
       }
 
-      var project = item.projectId == null
-          ? null
-          : await projectRepository.getProjectById(item.projectId!);
+      var project = await _resolveProject(item);
       if (project == null) {
         project = await projectRepository.createProject(name: item.projectName);
         project = await projectRepository.updateProject(
@@ -296,9 +294,12 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
             },
           ),
         );
+      }
+
+      if (item.projectId != project.id) {
         item = item.copyWith(
           projectId: project.id,
-          message: '工程已创建，准备歌词识别',
+          message: '工程已关联，准备歌词识别',
           updatedAt: DateTime.now(),
         );
         _items[index] = item;
@@ -379,6 +380,25 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       await _persist();
       _emit();
     }
+  }
+
+  Future<ProjectManifest?> _resolveProject(TranscriptionQueueItem item) async {
+    final projectId = item.projectId;
+    if (projectId != null) {
+      final direct = await projectRepository.getProjectById(projectId);
+      if (direct != null) return direct;
+    }
+
+    // If the app stopped after project persistence but before the queue item
+    // received projectId, recover by the durable queue-item marker instead of
+    // creating a duplicate project.
+    final projects = await projectRepository.getAllProjects();
+    for (final project in projects) {
+      if (project.metadata['batchQueueItemId']?.toString() == item.id) {
+        return project;
+      }
+    }
+    return null;
   }
 
   bool _isEnvironmentBlocked(TranscriptionException error) {
