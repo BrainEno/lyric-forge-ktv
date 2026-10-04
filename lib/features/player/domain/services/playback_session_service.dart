@@ -23,6 +23,31 @@ class PlaybackItem {
     this.hasLyrics = false,
     this.preferredSource = AudioSourceType.original,
   });
+
+  PlaybackItem copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? projectId,
+    String? artworkPath,
+    bool? hasLyrics,
+    AudioAsset? audioAsset,
+    AudioSourceType? preferredSource,
+    bool clearArtist = false,
+    bool clearProjectId = false,
+    bool clearArtwork = false,
+  }) {
+    return PlaybackItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: clearArtist ? null : artist ?? this.artist,
+      projectId: clearProjectId ? null : projectId ?? this.projectId,
+      artworkPath: clearArtwork ? null : artworkPath ?? this.artworkPath,
+      hasLyrics: hasLyrics ?? this.hasLyrics,
+      audioAsset: audioAsset ?? this.audioAsset,
+      preferredSource: preferredSource ?? this.preferredSource,
+    );
+  }
 }
 
 class PlaybackSessionState {
@@ -61,6 +86,10 @@ abstract class PlaybackSessionService {
   });
 
   Future<void> enqueue(PlaybackItem item);
+
+  /// Replaces the matching queue item without reloading or seeking audio.
+  /// Intended for user-edited title/artist/artwork metadata.
+  Future<void> updateItem(PlaybackItem item);
 
   /// Switches playback to an existing item without rebuilding the queue.
   Future<void> playAt(int index);

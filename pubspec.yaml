@@ -41,6 +41,10 @@ dependencies:
   # Path provider for accessing application directories
   path_provider: ^2.1.2
 
+  # Unicode/legacy text decoding for imported lyrics (UTF-16, GBK, Shift-JIS,
+  # EUC-JP, Windows code pages). Pure Dart and cross-platform.
+  charset: ^2.0.1
+
   # Audio playback
   just_audio: ^0.10.5
   just_audio_background: ^0.0.1-beta.15
