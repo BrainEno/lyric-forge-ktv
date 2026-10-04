@@ -86,6 +86,14 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
       delegate.clearQueue(keepCurrent: keepCurrent);
 
   @override
+  Future<void> setShuffleEnabled(bool enabled) =>
+      delegate.setShuffleEnabled(enabled);
+
+  @override
+  Future<void> setRepeatMode(PlaybackRepeatMode mode) =>
+      delegate.setRepeatMode(mode);
+
+  @override
   Future<void> skipPrevious() => delegate.skipPrevious();
 
   @override

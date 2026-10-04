@@ -3,6 +3,8 @@ import 'dart:async';
 import '../../../project/domain/models/audio_asset.dart';
 import '../models/playback_state.dart';
 
+enum PlaybackRepeatMode { off, all, one }
+
 class PlaybackItem {
   final String id;
   final String title;
@@ -53,10 +55,14 @@ class PlaybackItem {
 class PlaybackSessionState {
   final List<PlaybackItem> queue;
   final int currentIndex;
+  final bool shuffleEnabled;
+  final PlaybackRepeatMode repeatMode;
 
   const PlaybackSessionState({
     this.queue = const [],
     this.currentIndex = -1,
+    this.shuffleEnabled = false,
+    this.repeatMode = PlaybackRepeatMode.off,
   });
 
   PlaybackItem? get currentItem =>
@@ -65,9 +71,25 @@ class PlaybackSessionState {
           : null;
 
   bool get canSkipPrevious => currentItem != null;
-  bool get canSkipNext => currentIndex >= 0 && currentIndex + 1 < queue.length;
+  bool get canSkipNext => currentItem != null &&
+      (currentIndex + 1 < queue.length ||
+          (repeatMode == PlaybackRepeatMode.all && queue.isNotEmpty));
   int get upcomingCount =>
       currentIndex < 0 ? queue.length : queue.length - currentIndex - 1;
+
+  PlaybackSessionState copyWith({
+    List<PlaybackItem>? queue,
+    int? currentIndex,
+    bool? shuffleEnabled,
+    PlaybackRepeatMode? repeatMode,
+  }) {
+    return PlaybackSessionState(
+      queue: queue ?? this.queue,
+      currentIndex: currentIndex ?? this.currentIndex,
+      shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
+      repeatMode: repeatMode ?? this.repeatMode,
+    );
+  }
 }
 
 abstract class PlaybackSessionService {
@@ -105,6 +127,13 @@ abstract class PlaybackSessionService {
   /// Clears the queue. By default the current item is kept as a one-song queue
   /// so clearing "up next" does not interrupt playback.
   Future<void> clearQueue({bool keepCurrent = true});
+
+  /// Enables/disables shuffle. Enabling keeps the already-played prefix and
+  /// current song in place while randomising only upcoming songs. Disabling
+  /// restores the queue's pre-shuffle order where those items still exist.
+  Future<void> setShuffleEnabled(bool enabled);
+
+  Future<void> setRepeatMode(PlaybackRepeatMode mode);
 
   Future<void> skipPrevious();
   Future<void> skipNext();

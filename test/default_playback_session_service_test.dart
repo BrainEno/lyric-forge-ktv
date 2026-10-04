@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/default_playback_session_service.dart';
@@ -14,7 +15,7 @@ void main() {
 
     setUp(() {
       audio = _FakeAudioPlayer();
-      session = DefaultPlaybackSessionService(audio);
+      session = DefaultPlaybackSessionService(audio, random: Random(42));
     });
 
     tearDown(() async {
@@ -112,7 +113,101 @@ void main() {
       expect(session.currentState.currentIndex, -1);
       expect(audio.stopCount, 1);
     });
+
+    test('shuffle preserves current prefix and disabling restores order', () async {
+      final items = [_item('a'), _item('b'), _item('c'), _item('d'), _item('e')];
+      await session.setQueue(items, startIndex: 1);
+
+      await session.setShuffleEnabled(true);
+
+      expect(session.currentState.shuffleEnabled, isTrue);
+      expect(session.currentState.currentItem?.id, 'b');
+      expect(session.currentState.queue.take(2).map((item) => item.id), ['a', 'b']);
+      expect(
+        session.currentState.queue.skip(2).map((item) => item.id).toSet(),
+        {'c', 'd', 'e'},
+      );
+
+      await session.setShuffleEnabled(false);
+
+      expect(session.currentState.shuffleEnabled, isFalse);
+      expect(session.currentState.queue.map((item) => item.id),
+          ['a', 'b', 'c', 'd', 'e']);
+      expect(session.currentState.currentItem?.id, 'b');
+    });
+
+    test('repeat all wraps manual next from the end to the first song', () async {
+      await session.setQueue([_item('a'), _item('b')], startIndex: 1);
+      await session.setRepeatMode(PlaybackRepeatMode.all);
+
+      await session.skipNext();
+
+      expect(session.currentState.currentItem?.id, 'a');
+      expect(audio.loadedIds.last, 'a');
+    });
+
+    test('repeat all wraps previous from the first song when near start', () async {
+      await session.setQueue([_item('a'), _item('b'), _item('c')]);
+      await audio.setPosition(const Duration(seconds: 2));
+      await session.setRepeatMode(PlaybackRepeatMode.all);
+
+      await session.skipPrevious();
+
+      expect(session.currentState.currentItem?.id, 'c');
+      expect(audio.loadedIds.last, 'c');
+    });
+
+    test('repeat one reloads the same song after automatic completion', () async {
+      await session.setQueue([_item('a'), _item('b')]);
+      await session.setRepeatMode(PlaybackRepeatMode.one);
+      final before = audio.loadedIds.length;
+
+      await audio.complete();
+      await _flushAsyncPlayback();
+
+      expect(session.currentState.currentItem?.id, 'a');
+      expect(audio.loadedIds.length, greaterThan(before));
+      expect(audio.loadedIds.last, 'a');
+    });
+
+    test('repeat one does not block an explicit manual next action', () async {
+      await session.setQueue([_item('a'), _item('b')]);
+      await session.setRepeatMode(PlaybackRepeatMode.one);
+
+      await session.skipNext();
+
+      expect(session.currentState.currentItem?.id, 'b');
+      expect(audio.loadedIds.last, 'b');
+    });
+
+    test('repeat all advances automatically from last to first', () async {
+      await session.setQueue([_item('a'), _item('b')], startIndex: 1);
+      await session.setRepeatMode(PlaybackRepeatMode.all);
+
+      await audio.complete();
+      await _flushAsyncPlayback();
+
+      expect(session.currentState.currentItem?.id, 'a');
+      expect(audio.loadedIds.last, 'a');
+    });
+
+    test('queue edits retain playback mode state', () async {
+      await session.setQueue([_item('a'), _item('b'), _item('c')]);
+      await session.setShuffleEnabled(true);
+      await session.setRepeatMode(PlaybackRepeatMode.all);
+
+      await session.enqueue(_item('d'));
+      await session.removeAt(1);
+
+      expect(session.currentState.shuffleEnabled, isTrue);
+      expect(session.currentState.repeatMode, PlaybackRepeatMode.all);
+    });
   });
+}
+
+Future<void> _flushAsyncPlayback() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
 }
 
 PlaybackItem _item(String id) {
@@ -169,6 +264,21 @@ class _FakeAudioPlayer implements AudioPlayerService {
     _stateController.add(_state);
   }
 
+  Future<void> complete() async {
+    _state = _state.copyWith(
+      isPlaying: false,
+      isCompleted: true,
+      position: _state.duration ?? _state.position,
+    );
+    _stateController.add(_state);
+  }
+
+  Future<void> setPosition(Duration position) async {
+    _state = _state.copyWith(position: position, isCompleted: false);
+    _positionController.add(position);
+    _stateController.add(_state);
+  }
+
   @override
   Future<void> loadAudioUri({
     required Uri uri,
@@ -177,7 +287,7 @@ class _FakeAudioPlayer implements AudioPlayerService {
 
   @override
   Future<void> play() async {
-    _state = _state.copyWith(isPlaying: true);
+    _state = _state.copyWith(isPlaying: true, isCompleted: false);
     _stateController.add(_state);
   }
 
@@ -196,7 +306,7 @@ class _FakeAudioPlayer implements AudioPlayerService {
 
   @override
   Future<void> seek(Duration position) async {
-    _state = _state.copyWith(position: position);
+    _state = _state.copyWith(position: position, isCompleted: false);
     _positionController.add(position);
     _stateController.add(_state);
   }
