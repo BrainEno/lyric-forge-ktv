@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -167,7 +168,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('歌词识别失败：' + error.toString()),
+            content: Text('歌词识别失败：$error'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -239,11 +240,22 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+          const Icon(Icons.error_outline, size: 56, color: AppColors.error),
           const SizedBox(height: AppSpacing.md),
           Text('加载工程失败', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.md),
-          ElevatedButton(onPressed: onRetry, child: const Text('重试')),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '工程文件暂时无法读取，请重新加载。',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          FilledButton.tonalIcon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('重新加载'),
+          ),
         ],
       ),
     );
@@ -271,30 +283,6 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onConfigureTranscription,
   });
 
-  String _getStatusLabel(ProjectStatus status) {
-    return switch (status) {
-      ProjectStatus.draft => '草稿',
-      ProjectStatus.importing => '导入中',
-      ProjectStatus.processing => '处理中',
-      ProjectStatus.transcribing => '识别中',
-      ProjectStatus.editing => '编辑中',
-      ProjectStatus.ready => '就绪',
-      ProjectStatus.error => '错误',
-    };
-  }
-
-  Color _getStatusColor(ProjectStatus status) {
-    return switch (status) {
-      ProjectStatus.draft => AppColors.textTertiary,
-      ProjectStatus.importing => AppColors.info,
-      ProjectStatus.processing => AppColors.info,
-      ProjectStatus.transcribing => AppColors.info,
-      ProjectStatus.editing => AppColors.warning,
-      ProjectStatus.ready => AppColors.accent,
-      ProjectStatus.error => AppColors.error,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -304,91 +292,320 @@ class _ProjectDetailContent extends StatelessWidget {
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 200,
             pinned: true,
             backgroundColor: AppColors.bgBase,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                project.name,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+            surfaceTintColor: Colors.transparent,
+            title: Text(
+              project.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            actions: [
+              IconButton(
+                tooltip: '刷新工程',
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh_rounded),
               ),
-              background: Container(
-                decoration: BoxDecoration(gradient: AppColors.playerGradient),
-                child: Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: AppColors.bgSurface,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusLarge),
-                    ),
-                    child: const Icon(
-                      Icons.album,
-                      size: 64,
-                      color: AppColors.textTertiary,
-                    ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenPadding,
+                    AppSpacing.lg,
+                    AppSpacing.screenPadding,
+                    AppSpacing.xxxl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ProjectHero(project: project),
+                      const SizedBox(height: AppSpacing.lg),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final wide = constraints.maxWidth >= 880;
+                          final mainColumn = Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _ProcessingProgress(
+                                stage: project.currentStage,
+                                progress: project.progressPercent,
+                                liveProgress:
+                                    isTranscribing ? liveProgress : null,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              _LyricStatusCard(project: project),
+                            ],
+                          );
+                          final sideColumn = Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _ActionPanel(
+                                project: project,
+                                isDesktop: isDesktop,
+                                isTranscribing: isTranscribing,
+                                onTranscribe: onTranscribe,
+                                onCancelTranscription:
+                                    onCancelTranscription,
+                                onConfigureTranscription:
+                                    onConfigureTranscription,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              _ProjectMetadata(project: project),
+                            ],
+                          );
+
+                          if (!wide) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                sideColumn,
+                                const SizedBox(height: AppSpacing.md),
+                                mainColumn,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 7, child: mainColumn),
+                              const SizedBox(width: AppSpacing.lg),
+                              SizedBox(width: 330, child: sideColumn),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectHero extends StatelessWidget {
+  final ProjectManifest project;
+
+  const _ProjectHero({required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: AppColors.cardGradient,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+        border: Border.all(color: AppColors.borderMuted),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 640;
+          final artwork = _ProjectArtwork(project: project, compact: compact);
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(project.status).withAlpha(26),
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusCircular),
-                    ),
-                    child: Text(
-                      _getStatusLabel(project.status),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: _getStatusColor(project.status),
-                          ),
-                    ),
+                  Text(
+                    '歌曲工程',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: AppColors.textTertiary,
+                          letterSpacing: 0.6,
+                        ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (project.artist != null) ...[
-                    Text(
-                      project.artist!,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                  _StatusPill(status: project.status),
+                  if (project.lyricDocument?.lines.isNotEmpty == true)
+                    _MiniPill(
+                      icon: Icons.lyrics_rounded,
+                      label: '${project.lyricDocument!.lines.length} 行歌词',
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                  ],
-                  if (project.album != null)
-                    Text(
-                      project.album!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _ProcessingProgress(
-                    stage: project.currentStage,
-                    progress: project.progressPercent,
-                    liveProgress: isTranscribing ? liveProgress : null,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  _ActionButtons(
-                    project: project,
-                    isDesktop: isDesktop,
-                    isTranscribing: isTranscribing,
-                    onTranscribe: onTranscribe,
-                    onCancelTranscription: onCancelTranscription,
-                    onConfigureTranscription: onConfigureTranscription,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  _ProjectMetadata(project: project),
                 ],
               ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                project.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _subtitle(project),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  if (project.audioAsset != null)
+                    _MiniPill(
+                      icon: Icons.graphic_eq_rounded,
+                      label: project.audioAsset!.format.toUpperCase(),
+                    ),
+                  _MiniPill(
+                    icon: project.hasLyrics
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.edit_note_rounded,
+                    label: project.hasLyrics ? '已有歌词草稿' : '等待生成歌词',
+                  ),
+                  if (project.canPlay)
+                    const _MiniPill(
+                      icon: Icons.play_circle_outline_rounded,
+                      label: '可进入播放器',
+                    ),
+                ],
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                artwork,
+                const SizedBox(height: AppSpacing.lg),
+                details,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              artwork,
+              const SizedBox(width: AppSpacing.xl),
+              Expanded(child: details),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  String _subtitle(ProjectManifest project) {
+    final parts = <String>[];
+    if (project.artist?.trim().isNotEmpty == true) {
+      parts.add(project.artist!.trim());
+    }
+    if (project.album?.trim().isNotEmpty == true) {
+      parts.add(project.album!.trim());
+    }
+    return parts.isEmpty ? '本地音频 · LyricForge KTV 工程' : parts.join(' · ');
+  }
+}
+
+class _ProjectArtwork extends StatelessWidget {
+  final ProjectManifest project;
+  final bool compact;
+
+  const _ProjectArtwork({
+    required this.project,
+    required this.compact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final path = project.audioAsset?.thumbnailPath;
+    final file = path == null ? null : File(path);
+    final hasArtwork = file != null && file.existsSync();
+    final size = compact ? 112.0 : 164.0;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(gradient: AppColors.playerGradient),
+        child: hasArtwork
+            ? Image.file(file!, fit: BoxFit.cover)
+            : const Center(
+                child: Icon(
+                  Icons.album_rounded,
+                  size: 68,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final ProjectStatus status;
+
+  const _StatusPill({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withAlpha(24),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
+      ),
+    );
+  }
+}
+
+class _MiniPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MiniPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.hoverOverlay,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.textSecondary),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
           ),
         ],
       ),
@@ -407,57 +624,89 @@ class _ProcessingProgress extends StatelessWidget {
     this.liveProgress,
   });
 
-  String _getStageLabel(ProcessingStage stage) {
-    return switch (stage) {
-      ProcessingStage.none => '等待开始',
-      ProcessingStage.audioImported => '音频已导入',
-      ProcessingStage.audioNormalized => '音频已标准化',
-      ProcessingStage.vocalsSeparated => '人声已分离',
-      ProcessingStage.transcriptionComplete => '歌词已识别',
-      ProcessingStage.lyricsEdited => '歌词已编辑',
-      ProcessingStage.exported => '已导出',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final displayProgress = liveProgress?.progress ?? progress;
-    final displayLabel = liveProgress?.message ?? _getStageLabel(stage);
+    final displayProgress = (liveProgress?.progress ?? progress)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    final displayLabel = liveProgress?.message ?? _stageLabel(stage);
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
+    return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('处理进度', style: Theme.of(context).textTheme.titleMedium),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '制作进度',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      displayLabel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${(displayProgress * 100).round()}%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: displayProgress,
             backgroundColor: AppColors.bgHighlight,
-            valueColor:
-                const AlwaysStoppedAnimation<Color>(AppColors.accent),
-            minHeight: 6,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+            minHeight: 5,
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
             children: [
-              Expanded(
-                child: Text(
-                  displayLabel,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+              _StagePill(
+                label: '导入',
+                icon: Icons.audio_file_outlined,
+                completed: stage.index >= ProcessingStage.audioImported.index,
               ),
-              Text(
-                (displayProgress * 100).toInt().toString() + '%',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.accent,
-                    ),
+              _StagePill(
+                label: '音频处理',
+                icon: Icons.tune_rounded,
+                completed: stage.index >= ProcessingStage.audioNormalized.index,
+              ),
+              _StagePill(
+                label: '歌词识别',
+                icon: Icons.auto_awesome,
+                completed:
+                    stage.index >= ProcessingStage.transcriptionComplete.index,
+                active: liveProgress != null,
+              ),
+              _StagePill(
+                label: '歌词校对',
+                icon: Icons.edit_note_rounded,
+                completed: stage.index >= ProcessingStage.lyricsEdited.index,
+              ),
+              _StagePill(
+                label: '导出',
+                icon: Icons.ios_share_rounded,
+                completed: stage.index >= ProcessingStage.exported.index,
               ),
             ],
           ),
@@ -467,7 +716,167 @@ class _ProcessingProgress extends StatelessWidget {
   }
 }
 
-class _ActionButtons extends StatelessWidget {
+class _StagePill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool completed;
+  final bool active;
+
+  const _StagePill({
+    required this.label,
+    required this.icon,
+    required this.completed,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = completed || active ? AppColors.accent : AppColors.textTertiary;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: completed || active
+            ? AppColors.accent.withAlpha(18)
+            : AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            completed ? Icons.check_circle_rounded : icon,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: completed || active
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LyricStatusCard extends StatelessWidget {
+  final ProjectManifest project;
+
+  const _LyricStatusCard({required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    final document = project.lyricDocument;
+    final hasLyrics = project.hasLyrics;
+    final lowConfidence = document?.metadata['lowConfidenceLineCount'];
+    final fallback = document?.metadata['fallbackCandidateCount'];
+
+    return _SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: (hasLyrics ? AppColors.accent : AppColors.info)
+                      .withAlpha(22),
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusMedium),
+                ),
+                child: Icon(
+                  hasLyrics ? Icons.lyrics_rounded : Icons.edit_note_rounded,
+                  color: hasLyrics ? AppColors.accent : AppColors.info,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasLyrics ? '歌词草稿已生成' : '还没有歌词草稿',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasLyrics
+                          ? '自动识别结果仍建议进入歌词编辑器逐行校对。'
+                          : '在桌面端完成本地识别后，会在这里生成可编辑时间轴。',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (hasLyrics) ...[
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                _MetricChip(
+                  label: '歌词行',
+                  value: document!.lines.length.toString(),
+                ),
+                if (document.language.trim().isNotEmpty)
+                  _MetricChip(label: '语言', value: document.language),
+                if (lowConfidence != null)
+                  _MetricChip(label: '低置信度', value: '$lowConfidence 行'),
+                if (fallback != null)
+                  _MetricChip(label: '重点复核', value: '$fallback 行'),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _MetricChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+      ),
+      child: Text(
+        '$label · $value',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+      ),
+    );
+  }
+}
+
+class _ActionPanel extends StatelessWidget {
   final ProjectManifest project;
   final bool isDesktop;
   final bool isTranscribing;
@@ -475,7 +884,7 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
 
-  const _ActionButtons({
+  const _ActionPanel({
     required this.project,
     required this.isDesktop,
     required this.isTranscribing,
@@ -486,77 +895,121 @@ class _ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (isDesktop) ...[
-          ElevatedButton.icon(
-            onPressed: isTranscribing || project.audioAsset == null
-                ? null
-                : onTranscribe,
-            icon: isTranscribing
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.pureWhite,
-                    ),
-                  )
-                : const Icon(Icons.auto_awesome),
-            label: Text(
-              isTranscribing
-                  ? '正在本地识别...'
-                  : project.hasLyrics
-                      ? '重新识别歌词'
-                      : '生成歌词',
-            ),
+    return _SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '下一步',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          if (isTranscribing)
+          const SizedBox(height: 2),
+          Text(
+            _nextStepText(project),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          if (project.hasLyrics)
+            FilledButton.icon(
+              onPressed: () => Navigator.pushNamed(
+                context,
+                Routes.lyricEditorPath(project.id),
+              ),
+              icon: const Icon(Icons.edit_note_rounded),
+              label: const Text('校对歌词'),
+            )
+          else if (isDesktop)
+            FilledButton.icon(
+              onPressed: isTranscribing || project.audioAsset == null
+                  ? null
+                  : onTranscribe,
+              icon: isTranscribing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.pureWhite,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome),
+              label: Text(isTranscribing ? '正在生成歌词…' : '生成歌词'),
+            )
+          else
+            const _DesktopRequiredNotice(),
+          if (project.hasLyrics) ...[
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: project.canPlay
+                  ? () => Navigator.pushNamed(
+                        context,
+                        Routes.playerPath(project.id),
+                      )
+                  : null,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(project.canPlay ? '打开播放器' : '等待伴奏处理'),
+            ),
+          ],
+          if (isDesktop && project.hasLyrics && !isTranscribing) ...[
+            const SizedBox(height: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: onTranscribe,
+              icon: const Icon(Icons.replay_rounded),
+              label: const Text('重新识别歌词'),
+            ),
+          ],
+          if (isTranscribing) ...[
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: onCancelTranscription,
               icon: const Icon(Icons.stop_circle_outlined),
               label: const Text('取消识别'),
-            )
-          else
+            ),
+          ],
+          if (isDesktop) ...[
+            const Divider(height: AppSpacing.xl),
             TextButton.icon(
-              onPressed: onConfigureTranscription,
-              icon: const Icon(Icons.settings_outlined),
-              label: const Text('本地识别设置'),
+              onPressed: isTranscribing ? null : onConfigureTranscription,
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('识别环境与高级设置'),
             ),
-          const SizedBox(height: AppSpacing.md),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.bgElevated,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-            ),
-            child: const Text('歌词自动识别需要在桌面端本地完成'),
-          ),
-          const SizedBox(height: AppSpacing.md),
+          ],
         ],
-        ElevatedButton.icon(
-          onPressed: project.canPlay
-              ? () => Navigator.pushNamed(
-                    context,
-                    Routes.playerPath(project.id),
-                  )
-              : null,
-          icon: const Icon(Icons.play_arrow),
-          label: Text(project.canPlay ? '打开播放器' : '等待音频处理'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        OutlinedButton.icon(
-          onPressed: () => Navigator.pushNamed(
-            context,
-            Routes.lyricEditorPath(project.id),
-          ),
-          icon: const Icon(Icons.edit),
-          label: const Text('编辑歌词'),
-        ),
-      ],
+      ),
+    );
+  }
+
+  String _nextStepText(ProjectManifest project) {
+    if (!project.hasLyrics) return '先生成歌词草稿，再进入逐行校对。';
+    if (project.currentStage.index < ProcessingStage.lyricsEdited.index) {
+      return '识别已经完成，建议先校对时间轴和文本。';
+    }
+    if (project.canPlay) return '歌词已经校对，可以进入播放器预览 KTV 效果。';
+    return '歌词已准备好，等待伴奏处理后即可播放。';
+  }
+}
+
+class _DesktopRequiredNotice extends StatelessWidget {
+  const _DesktopRequiredNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.info.withAlpha(18),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+      ),
+      child: Text(
+        '本地歌词自动识别需要在桌面端完成。',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+      ),
     );
   }
 }
@@ -566,110 +1019,167 @@ class _ProjectMetadata extends StatelessWidget {
 
   const _ProjectMetadata({required this.project});
 
-  String _formatDate(DateTime date) {
-    return date.year.toString() +
-        '-' +
-        date.month.toString().padLeft(2, '0') +
-        '-' +
-        date.day.toString().padLeft(2, '0');
-  }
-
   @override
   Widget build(BuildContext context) {
     final transcription = project.metadata['transcription'];
+    final rows = <_MetadataValue>[
+      _MetadataValue('创建', _formatDate(project.createdAt)),
+      _MetadataValue('更新', _formatDate(project.updatedAt)),
+      if (project.audioAsset != null)
+        _MetadataValue('音频', project.audioAsset!.format.toUpperCase()),
+      if (transcription is Map && transcription['detectedLanguage'] != null)
+        _MetadataValue('识别语言', transcription['detectedLanguage'].toString()),
+      if (transcription is Map && transcription['mode'] != null)
+        _MetadataValue(
+          '识别模式',
+          transcription['mode'] == 'highestQuality' ? '最高质量' : 'Whisper',
+        ),
+      if (transcription is Map &&
+          transcription['hardwareProfileLabel'] != null)
+        _MetadataValue(
+          '本机方案',
+          transcription['hardwareProfileLabel'].toString(),
+        ),
+      if (project.lyricDocument?.metadata['fallbackCandidateCount'] != null)
+        _MetadataValue(
+          '备用复核',
+          '${project.lyricDocument!.metadata['fallbackCandidateCount']} 行 / 采用 ${project.lyricDocument!.metadata['fallbackAppliedCount'] ?? 0} 行',
+        ),
+      if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
+        const _MetadataValue('备用引擎', '失败 · 已保留主结果'),
+    ];
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
+    return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('工程信息', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: AppSpacing.md),
-          _MetadataRow(label: '创建时间', value: _formatDate(project.createdAt)),
-          _MetadataRow(label: '更新时间', value: _formatDate(project.updatedAt)),
-          _MetadataRow(
-            label: '工程 ID',
-            value: project.id.substring(
-              0,
-              project.id.length > 8 ? 8 : project.id.length,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '工程信息',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              Tooltip(
+                message: '工程 ID ${project.id}',
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  size: 17,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
           ),
-          if (project.audioAsset != null)
-            _MetadataRow(
-              label: '音频格式',
-              value: project.audioAsset!.format.toUpperCase(),
-            ),
-          if (project.hasLyrics)
-            const _MetadataRow(label: '歌词状态', value: '待校对 / 已生成'),
-          if (transcription is Map && transcription['detectedLanguage'] != null)
-            _MetadataRow(
-              label: '识别语言',
-              value: transcription['detectedLanguage'].toString(),
-            ),
-          if (transcription is Map && transcription['mode'] != null)
-            _MetadataRow(
-              label: '识别模式',
-              value: transcription['mode'] == 'highestQuality'
-                  ? '最高质量'
-                  : 'Whisper',
-            ),
-          if (transcription is Map &&
-              transcription['hardwareProfileLabel'] != null)
-            _MetadataRow(
-              label: '本机 Profile',
-              value: transcription['hardwareProfileLabel'].toString(),
-            ),
-          if (project.lyricDocument?.metadata['fallbackCandidateCount'] != null)
-            _MetadataRow(
-              label: '备用复核',
-              value:
-                  project.lyricDocument!.metadata['fallbackCandidateCount'].toString() +
-                      ' 行 / 采用 ' +
-                      (project.lyricDocument!.metadata['fallbackAppliedCount'] ?? 0)
-                          .toString() +
-                      ' 行',
-            ),
-          if (project.lyricDocument?.metadata['fallbackStatus'] == 'failed')
-            const _MetadataRow(
-              label: '备用引擎',
-              value: '第二意见识别失败 · 主识别结果已保留',
-            ),
+          const SizedBox(height: AppSpacing.md),
+          for (final row in rows) _MetadataRow(row: row),
         ],
       ),
     );
   }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
 }
 
-class _MetadataRow extends StatelessWidget {
+class _MetadataValue {
   final String label;
   final String value;
 
-  const _MetadataRow({
-    required this.label,
-    required this.value,
-  });
+  const _MetadataValue(this.label, this.value);
+}
+
+class _MetadataRow extends StatelessWidget {
+  final _MetadataValue row;
+
+  const _MetadataRow({required this.row});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-          const Spacer(),
-          Flexible(
+          SizedBox(
+            width: 74,
             child: Text(
-              value,
+              row.label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              row.value,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _SurfaceCard extends StatelessWidget {
+  final Widget child;
+
+  const _SurfaceCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        border: Border.all(color: AppColors.borderMuted),
+      ),
+      child: child,
+    );
+  }
+}
+
+String _statusLabel(ProjectStatus status) {
+  return switch (status) {
+    ProjectStatus.draft => '草稿',
+    ProjectStatus.importing => '导入中',
+    ProjectStatus.processing => '处理中',
+    ProjectStatus.transcribing => '识别中',
+    ProjectStatus.editing => '待校对',
+    ProjectStatus.ready => '就绪',
+    ProjectStatus.error => '需要处理',
+  };
+}
+
+Color _statusColor(ProjectStatus status) {
+  return switch (status) {
+    ProjectStatus.draft => AppColors.textTertiary,
+    ProjectStatus.importing => AppColors.info,
+    ProjectStatus.processing => AppColors.info,
+    ProjectStatus.transcribing => AppColors.info,
+    ProjectStatus.editing => AppColors.warning,
+    ProjectStatus.ready => AppColors.accent,
+    ProjectStatus.error => AppColors.error,
+  };
+}
+
+String _stageLabel(ProcessingStage stage) {
+  return switch (stage) {
+    ProcessingStage.none => '等待开始',
+    ProcessingStage.audioImported => '音频已经导入，可以开始制作歌词',
+    ProcessingStage.audioNormalized => '音频已经标准化',
+    ProcessingStage.vocalsSeparated => '人声与伴奏已经准备好',
+    ProcessingStage.transcriptionComplete => '歌词草稿已经生成，等待人工校对',
+    ProcessingStage.lyricsEdited => '歌词校对完成',
+    ProcessingStage.exported => '工程已经导出',
+  };
 }
