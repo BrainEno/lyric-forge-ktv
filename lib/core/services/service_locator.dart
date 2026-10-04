@@ -7,12 +7,15 @@ import '../../features/player/data/repositories/file_local_media_metadata_reposi
 import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
+import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
+import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
 import '../../features/player/domain/repositories/local_media_library_repository.dart';
 import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
 import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
+import '../../features/player/domain/services/embedded_audio_metadata_reader.dart';
 import '../../features/player/domain/services/playback_session_service.dart';
 import '../../features/project/data/repositories/file_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
@@ -49,6 +52,7 @@ class ServiceLocator {
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
   late final AudioLibraryImportService audioLibraryImportService;
+  late final EmbeddedAudioMetadataReader embeddedAudioMetadataReader;
   late final LocalMediaLibraryRepository localMediaLibraryRepository;
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
   late final LyricFileImportService lyricFileImportService;
@@ -67,7 +71,10 @@ class ServiceLocator {
   void initialize() {
     projectRepository = FileProjectRepository();
     audioPlayerService = JustAudioPlayerService();
-    localMediaLibraryRepository = FileLocalMediaLibraryRepository();
+    embeddedAudioMetadataReader = const PureDartEmbeddedAudioMetadataReader();
+    localMediaLibraryRepository = FileLocalMediaLibraryRepository(
+      metadataReader: embeddedAudioMetadataReader,
+    );
     audioLibraryImportService = LocalAudioLibraryImportService(
       onFilesPicked: (paths) async {
         await localMediaLibraryRepository.addPaths(paths);
@@ -80,10 +87,14 @@ class ServiceLocator {
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
     playHistoryRepository = FilePlayHistoryRepository();
-    playbackSessionService = DefaultPlaybackSessionService(
+    final basePlaybackSession = DefaultPlaybackSessionService(
       audioPlayerService,
       playHistoryRepository: playHistoryRepository,
       localMediaMetadataRepository: localMediaMetadataRepository,
+    );
+    playbackSessionService = LibraryMetadataPlaybackSessionService(
+      delegate: basePlaybackSession,
+      libraryRepository: localMediaLibraryRepository,
     );
     mediaHubService = HttpMediaHubService();
     mediaHubClientService = HttpMediaHubClientService();
