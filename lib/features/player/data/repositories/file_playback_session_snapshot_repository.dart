@@ -47,7 +47,16 @@ class FilePlaybackSessionSnapshotRepository
       final snapshot = PlaybackSessionSnapshot.fromJson(
         Map<String, dynamic>.from(decoded),
       );
-      return _pruneMissing(snapshot);
+      final pruned = _pruneMissing(snapshot);
+      if (pruned == null) {
+        await clear();
+        return null;
+      }
+      if (pruned.items.length != snapshot.items.length ||
+          pruned.currentIndex != snapshot.currentIndex) {
+        await save(pruned);
+      }
+      return pruned;
     } catch (_) {
       return null;
     }
