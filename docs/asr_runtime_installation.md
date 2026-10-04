@@ -11,6 +11,7 @@ Generate lyrics
   -> inspect local runtime
   -> show missing components
   -> one-click install / repair
+  -> download managed models with resume support
   -> verify runtime and models
   -> save machine-local configuration
   -> continue transcription
@@ -31,14 +32,20 @@ LyricForge/ASRRuntime/
     bin/
   models/
     whisper/
+    qwen/
+      Qwen--Qwen3-ASR-1.7B/
+      Qwen--Qwen3-ASR-0.6B/
+      Qwen--Qwen3-ForcedAligner-0.6B/
   state/
 ```
 
 The exact operating-system application-support prefix is resolved by
 `path_provider`.
 
-Qwen Hugging Face model caching is currently controlled by the native Qwen
-runtime. LyricForge does not expose that cache directory to normal users.
+Normal users never need to find or configure a Hugging Face cache. LyricForge
+downloads the supported Qwen model files into its own application-support
+directory, validates that the required files are present, and passes those
+local directories directly to the native runtime.
 
 ## Components
 
@@ -141,13 +148,29 @@ Qwen/Qwen3-ForcedAligner-0.6B
 CPU / F32
 ```
 
-During setup LyricForge starts the native sidecar and waits for `/healthz`.
-This forces first-run model download and model loading to complete before the
-environment is marked ready.
+For the managed profiles, LyricForge downloads the model repository files
+itself. Large files are first written as `.part` files and use HTTP Range when
+the server supports it, so an interrupted download can continue instead of
+starting from zero.
 
-A ready marker records model ID, aligner ID, device, and dtype. Changing any of
-those invalidates the marker and causes the setup wizard to prepare the new
-configuration.
+After all required files are present, LyricForge stores them under
+`ASRRuntime/models/qwen/` and rewrites the machine-local transcription config
+to those local model directories. The native Qwen sidecar therefore receives a
+local `--model` path and a local `--forced-aligner` path instead of depending on
+a hidden user-level Hugging Face cache.
+
+During setup LyricForge then starts the native sidecar and waits for `/healthz`.
+This verifies that both managed model directories can actually be loaded before
+the environment is marked ready.
+
+A ready marker records model path, aligner path, device, and dtype. Changing any
+of those invalidates the runtime marker and causes the setup wizard to prepare
+the new configuration.
+
+The RTX 5080 highest-quality path requires roughly 6.5 GB for Qwen +
+ForcedAligner in addition to the approximately 3.1 GB Whisper large-v3 model.
+The setup UI therefore treats model preparation as a long-running resumable
+operation rather than asking the user to download files manually.
 
 ## Beginner UI
 
@@ -215,6 +238,7 @@ The installer does not silently fall back to fake paths.
 If installation or verification fails:
 
 - the component remains not ready;
+- unfinished model files remain as resumable `.part` downloads;
 - the error is shown in the setup wizard;
 - transcription is blocked until required components are ready;
 - the user can retry installation;

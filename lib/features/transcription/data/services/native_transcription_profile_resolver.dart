@@ -72,6 +72,29 @@ class NativeTranscriptionProfileResolver
         ? _automaticProfileFor(hardware)
         : config.profilePreference;
 
+    var qwenModelPath = config.qwenModelPath;
+    var qwenAlignerModelPath = config.qwenAlignerModelPath;
+    if (selected == TranscriptionProfilePreference.rtx5080HighQuality) {
+      qwenModelPath = await _preferMatchingLocalModel(
+        config.qwenModelPath,
+        _qwen17,
+      );
+      qwenAlignerModelPath = await _preferMatchingLocalModel(
+        config.qwenAlignerModelPath,
+        _aligner06,
+      );
+    } else if (selected ==
+        TranscriptionProfilePreference.intelMacHighQuality) {
+      qwenModelPath = await _preferMatchingLocalModel(
+        config.qwenModelPath,
+        _qwen06,
+      );
+      qwenAlignerModelPath = await _preferMatchingLocalModel(
+        config.qwenAlignerModelPath,
+        _aligner06,
+      );
+    }
+
     return switch (selected) {
       TranscriptionProfilePreference.rtx5080HighQuality =>
         ResolvedTranscriptionProfile(
@@ -83,8 +106,8 @@ class NativeTranscriptionProfileResolver
           config: config.copyWith(
             profilePreference: selected,
             engineOrder: TranscriptionEngineOrder.qwenPrimary,
-            qwenModelPath: _qwen17,
-            qwenAlignerModelPath: _aligner06,
+            qwenModelPath: qwenModelPath,
+            qwenAlignerModelPath: qwenAlignerModelPath,
             qwenDevice: 'cuda',
             qwenDtype: 'bf16',
           ),
@@ -99,8 +122,8 @@ class NativeTranscriptionProfileResolver
           config: config.copyWith(
             profilePreference: selected,
             engineOrder: TranscriptionEngineOrder.whisperPrimary,
-            qwenModelPath: _qwen06,
-            qwenAlignerModelPath: _aligner06,
+            qwenModelPath: qwenModelPath,
+            qwenAlignerModelPath: qwenAlignerModelPath,
             qwenDevice: 'cpu',
             qwenDtype: 'f32',
           ),
@@ -116,6 +139,26 @@ class NativeTranscriptionProfileResolver
       TranscriptionProfilePreference.automatic =>
         throw StateError('automatic profile must resolve before this point'),
     };
+  }
+
+  Future<String> _preferMatchingLocalModel(
+    String configured,
+    String expectedModelId,
+  ) async {
+    final value = configured.trim();
+    if (value.isEmpty) return expectedModelId;
+
+    final expectedName = expectedModelId.split('/').last.toLowerCase();
+    if (!value.toLowerCase().contains(expectedName)) {
+      return expectedModelId;
+    }
+
+    try {
+      final type = await FileSystemEntity.type(value, followLinks: true);
+      return type == FileSystemEntityType.directory ? value : expectedModelId;
+    } catch (_) {
+      return expectedModelId;
+    }
   }
 
   TranscriptionProfilePreference _automaticProfileFor(
