@@ -25,6 +25,22 @@ class RemoteAudioTrack {
     this.lyricsPath,
   });
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artist': artist,
+      'album': album,
+      'format': format,
+      'byteLength': byteLength,
+      'durationMs': duration?.inMilliseconds,
+      'streamPath': streamPath,
+      'downloadPath': downloadPath,
+      'hasLyrics': hasLyrics,
+      'lyricsPath': lyricsPath,
+    };
+  }
+
   factory RemoteAudioTrack.fromJson(Map<String, dynamic> json) {
     final durationMs = json['durationMs'];
     return RemoteAudioTrack(

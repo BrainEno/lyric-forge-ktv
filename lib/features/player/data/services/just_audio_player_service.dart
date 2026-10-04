@@ -4,6 +4,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/playback_state.dart';
+import '../../domain/models/remote_playback_source.dart';
 import '../../domain/services/audio_player_service.dart';
 
 /// just_audio 实现的音频播放器服务
@@ -67,6 +68,16 @@ class JustAudioPlayerService implements AudioPlayerService {
   }) async {
     _currentAsset = audioAsset;
 
+    if (RemotePlaybackSource.isRemote(audioAsset)) {
+      final remoteUri = RemotePlaybackSource.streamUri(audioAsset);
+      if (remoteUri == null) {
+        throw StateError('远程播放项目缺少有效的 http/https 音频地址');
+      }
+      _currentSource = AudioSourceType.original;
+      await _player.setUrl(remoteUri.toString());
+      return;
+    }
+
     AudioSourceType source = preferredSource;
     if (!audioAsset.hasSource(source)) {
       source = audioAsset.defaultSource;
@@ -129,6 +140,9 @@ class JustAudioPlayerService implements AudioPlayerService {
   Future<void> switchSource(AudioSourceType source) async {
     if (_currentAsset == null) {
       throw StateError('当前播放项不是可切换音源的本地工程');
+    }
+    if (RemotePlaybackSource.isRemote(_currentAsset!)) {
+      throw StateError('远程流媒体不支持切换工程音源');
     }
     if (!_currentAsset!.hasSource(source)) {
       throw Exception('Source $source not available for this project');
