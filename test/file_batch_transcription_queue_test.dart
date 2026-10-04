@@ -50,6 +50,38 @@ void main() {
     await queue.dispose();
   });
 
+  test('environment setup errors pause the queue without failing later songs',
+      () async {
+    final root = await Directory.systemTemp.createTemp('lyricforge-blocked-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final blocked = File('${root.path}${Platform.pathSeparator}blocked.mp3');
+    final later = File('${root.path}${Platform.pathSeparator}later.mp3');
+    await blocked.writeAsBytes(<int>[1]);
+    await later.writeAsBytes(<int>[2]);
+
+    final repository = FileProjectRepository(
+      rootDirectory: Directory('${root.path}${Platform.pathSeparator}projects'),
+    );
+    final queue = FileBatchTranscriptionQueue(
+      projectRepository: repository,
+      workflow: _FakeWorkflow(repository),
+      rootDirectory: Directory('${root.path}${Platform.pathSeparator}queue'),
+    );
+
+    await queue.initialize();
+    await queue.enqueuePaths(<String>[blocked.path, later.path]);
+    await _waitUntil(() => queue.current.isPaused && !queue.current.isProcessing);
+
+    expect(queue.current.failedCount, 0);
+    expect(queue.current.completedCount, 0);
+    expect(queue.current.items[0].status, TranscriptionQueueItemStatus.queued);
+    expect(queue.current.items[1].status, TranscriptionQueueItemStatus.queued);
+    expect(queue.current.items[0].message, contains('识别环境'));
+    await queue.dispose();
+  });
+
   test('running item is restored as queued after restart', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-recover-');
     addTearDown(() async {
@@ -134,6 +166,11 @@ class _FakeWorkflow implements ProjectTranscriptionWorkflow {
       ));
       if (project.name == 'fail') {
         throw const TranscriptionException('mock song failure');
+      }
+      if (project.name == 'blocked') {
+        throw const TranscriptionException(
+          '本机识别环境尚未准备完成，请先运行自动安装向导',
+        );
       }
       await repository.updateProject(
         project.copyWith(
