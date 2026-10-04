@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../domain/models/embedded_audio_metadata.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
+import '../../domain/services/embedded_audio_metadata_reader.dart';
 
 class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   static const _defaultAudioExtensions = <String>{
@@ -17,12 +19,16 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   };
 
   final Directory? rootDirectory;
+  final EmbeddedAudioMetadataReader? metadataReader;
   final List<LocalMediaLibraryEntry> _entries = <LocalMediaLibraryEntry>[];
   final List<String> _roots = <String>[];
   Future<void>? _loadFuture;
   Future<void> _writeChain = Future<void>.value();
 
-  FileLocalMediaLibraryRepository({this.rootDirectory});
+  FileLocalMediaLibraryRepository({
+    this.rootDirectory,
+    this.metadataReader,
+  });
 
   Future<void> _ensureLoaded() => _loadFuture ??= _load();
 
@@ -114,7 +120,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 2,
+      'version': 3,
       'roots': _roots,
       'entries': _entries.map((entry) => entry.toJson()).toList(growable: false),
     });
@@ -141,6 +147,16 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   }
 
   @override
+  Future<LocalMediaLibraryEntry?> getByPath(String sourcePath) async {
+    await _ensureLoaded();
+    final key = _pathKey(sourcePath);
+    for (final entry in _entries) {
+      if (_pathKey(entry.sourcePath) == key) return entry;
+    }
+    return null;
+  }
+
+  @override
   Future<List<String>> getRoots() async {
     await _ensureLoaded();
     return List<String>.unmodifiable(_roots);
@@ -159,46 +175,111 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   Future<bool> _addPathsLoaded(Iterable<String> paths) async {
     final now = DateTime.now();
     final indexes = <String, int>{
-      for (var i = 0; i < _entries.length; i++) _pathKey(_entries[i].sourcePath): i,
+      for (var i = 0; i < _entries.length; i++)
+        _pathKey(_entries[i].sourcePath): i,
     };
     var changed = false;
 
     for (final rawPath in paths) {
       if (rawPath.trim().isEmpty) continue;
-      final path = File(rawPath).absolute.path;
+      final file = File(rawPath);
+      final path = file.absolute.path;
       final key = _pathKey(path);
-      final exists = await File(path).exists();
+      final exists = await file.exists();
       final index = indexes[key];
 
       if (index == null) {
-        _entries.add(
-          LocalMediaLibraryEntry(
-            sourcePath: path,
-            format: _formatOf(path),
-            addedAt: now,
-            lastSeenAt: now,
-            isMissing: !exists,
-          ),
+        var entry = LocalMediaLibraryEntry(
+          sourcePath: path,
+          format: _formatOf(path),
+          addedAt: now,
+          lastSeenAt: now,
+          isMissing: !exists,
         );
+        if (exists) entry = await _refreshEntryMetadata(entry, force: true);
+        _entries.add(entry);
         indexes[key] = _entries.length - 1;
         changed = true;
         continue;
       }
 
       final current = _entries[index];
-      final updated = current.copyWith(
+      var updated = current.copyWith(
         format: current.format.isEmpty ? _formatOf(path) : current.format,
         lastSeenAt: exists ? now : current.lastSeenAt,
         isMissing: !exists,
       );
-      if (updated.isMissing != current.isMissing ||
-          updated.lastSeenAt != current.lastSeenAt ||
-          updated.format != current.format) {
+      if (exists) updated = await _refreshEntryMetadata(updated);
+      if (_entryChanged(current, updated)) {
         _entries[index] = updated;
         changed = true;
       }
     }
     return changed;
+  }
+
+  bool _entryChanged(
+    LocalMediaLibraryEntry before,
+    LocalMediaLibraryEntry after,
+  ) {
+    return jsonEncode(before.toJson()) != jsonEncode(after.toJson());
+  }
+
+  Future<LocalMediaLibraryEntry> _refreshEntryMetadata(
+    LocalMediaLibraryEntry entry, {
+    bool force = false,
+  }) async {
+    final reader = metadataReader;
+    if (reader == null || entry.isMissing) return entry;
+
+    final file = File(entry.sourcePath);
+    if (!await file.exists()) return entry.copyWith(isMissing: true);
+    final stat = await file.stat();
+    final unchanged = entry.metadataScannedAt != null &&
+        entry.sourceSizeBytes == stat.size &&
+        entry.sourceModifiedAt?.millisecondsSinceEpoch ==
+            stat.modified.millisecondsSinceEpoch;
+    if (!force && unchanged) return entry;
+
+    try {
+      final metadata = await reader.read(entry.sourcePath);
+      return _applyEmbeddedMetadata(entry, metadata);
+    } catch (_) {
+      // A malformed or unsupported tag must never make the audio disappear
+      // from the local library. Cache the source fingerprint to avoid parsing
+      // the same broken tag on every refresh until the file changes.
+      return entry.copyWith(
+        sourceSizeBytes: stat.size,
+        sourceModifiedAt: stat.modified,
+        metadataScannedAt: DateTime.now(),
+      );
+    }
+  }
+
+  LocalMediaLibraryEntry _applyEmbeddedMetadata(
+    LocalMediaLibraryEntry entry,
+    EmbeddedAudioMetadata metadata,
+  ) {
+    return entry.copyWith(
+      embeddedTitle: metadata.title,
+      embeddedArtist: metadata.artist,
+      embeddedAlbum: metadata.album,
+      embeddedArtworkPath: metadata.artworkPath,
+      embeddedGenres: metadata.genres,
+      embeddedTrackNumber: metadata.trackNumber,
+      embeddedYear: metadata.year,
+      durationMs: metadata.duration?.inMilliseconds,
+      sourceSizeBytes: metadata.sourceSizeBytes,
+      sourceModifiedAt: metadata.sourceModifiedAt,
+      metadataScannedAt: metadata.scannedAt,
+      clearEmbeddedTitle: metadata.title == null,
+      clearEmbeddedArtist: metadata.artist == null,
+      clearEmbeddedAlbum: metadata.album == null,
+      clearEmbeddedArtwork: metadata.artworkPath == null,
+      clearEmbeddedTrackNumber: metadata.trackNumber == null,
+      clearEmbeddedYear: metadata.year == null,
+      clearDuration: metadata.duration == null,
+    );
   }
 
   @override
@@ -225,9 +306,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     Iterable<String> supportedExtensions,
   ) async {
     await _ensureLoaded();
-    final extensions = supportedExtensions
-        .map((value) => value.toLowerCase())
-        .toSet();
+    final extensions = supportedExtensions.map((value) => value.toLowerCase()).toSet();
     await _discoverFromRoots(extensions);
     return _refreshKnownAvailability();
   }
@@ -261,12 +340,12 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     for (var i = 0; i < _entries.length; i++) {
       final entry = _entries[i];
       final exists = await File(entry.sourcePath).exists();
-      final updated = entry.copyWith(
+      var updated = entry.copyWith(
         isMissing: !exists,
         lastSeenAt: exists ? now : entry.lastSeenAt,
       );
-      if (updated.isMissing != entry.isMissing ||
-          updated.lastSeenAt != entry.lastSeenAt) {
+      if (exists) updated = await _refreshEntryMetadata(updated);
+      if (_entryChanged(entry, updated)) {
         _entries[i] = updated;
         changed = true;
       }
@@ -275,6 +354,23 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
       _sort();
       await _persist();
     }
+    return List<LocalMediaLibraryEntry>.unmodifiable(_entries);
+  }
+
+  @override
+  Future<List<LocalMediaLibraryEntry>> refreshMetadata({bool force = false}) async {
+    await _ensureLoaded();
+    var changed = false;
+    for (var i = 0; i < _entries.length; i++) {
+      final entry = _entries[i];
+      if (entry.isMissing) continue;
+      final updated = await _refreshEntryMetadata(entry, force: force);
+      if (_entryChanged(entry, updated)) {
+        _entries[i] = updated;
+        changed = true;
+      }
+    }
+    if (changed) await _persist();
     return List<LocalMediaLibraryEntry>.unmodifiable(_entries);
   }
 

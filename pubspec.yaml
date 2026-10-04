@@ -45,6 +45,9 @@ dependencies:
   # EUC-JP, Windows code pages). Pure Dart and cross-platform.
   charset: ^2.0.1
 
+  # Pure-Dart reader for embedded ID3/Vorbis/MP4/RIFF tags and cover art.
+  audio_metadata_reader: ^1.8.0
+
   # Audio playback
   just_audio: ^0.10.5
   just_audio_background: ^0.0.1-beta.15
