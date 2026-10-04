@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
-import 'local_media_library_screen_v2.dart';
+import 'local_library_explorer_screen.dart';
 
 class LocalMusicLibraryShell extends StatefulWidget {
   final int initialIndex;
@@ -36,7 +36,7 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
   }
 
   List<Widget> get _pages => const [
-        LocalMediaLibraryScreenV2(),
+        LocalLibraryExplorerScreen(),
         LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
         LocalArtistAlbumBrowserScreen(view: LocalCatalogView.albums),
         LocalCollectionsScreen(view: LocalCollectionView.favorites),
