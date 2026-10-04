@@ -13,6 +13,7 @@ import '../../domain/services/playback_session_service.dart';
 import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
+import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
@@ -253,6 +254,11 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                   icon: const Icon(Icons.more_horiz_rounded),
                                 ),
                             ],
+                            if (!compact)
+                              PlaybackModeControls(
+                                session: _session,
+                                compact: true,
+                              ),
                             IconButton(
                               tooltip: '上一首 / 重新开始',
                               onPressed: session.canSkipPrevious

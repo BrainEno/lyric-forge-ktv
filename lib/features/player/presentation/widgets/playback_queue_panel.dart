@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'playback_mode_controls.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
   final PlaybackSessionService session;
@@ -38,6 +39,7 @@ class PlaybackQueuePanel extends StatelessWidget {
           child: Column(
             children: [
               _QueueHeader(
+                session: session,
                 state: state,
                 allowClearAll: allowClearAll,
                 onClearUpcoming: state.upcomingCount > 0
@@ -85,12 +87,14 @@ class PlaybackQueuePanel extends StatelessWidget {
 }
 
 class _QueueHeader extends StatelessWidget {
+  final PlaybackSessionService session;
   final PlaybackSessionState state;
   final bool allowClearAll;
   final VoidCallback? onClearUpcoming;
   final VoidCallback? onClearAll;
 
   const _QueueHeader({
+    required this.session,
     required this.state,
     required this.allowClearAll,
     required this.onClearUpcoming,
@@ -104,28 +108,34 @@ class _QueueHeader extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.sm,
         AppSpacing.sm,
-        AppSpacing.sm,
+        AppSpacing.xs,
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.queue_music_rounded,
-            size: 20,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+          Row(
+            children: [
+              const Icon(
+                Icons.queue_music_rounded,
+                size: 20,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
                   '播放队列',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                 ),
-                Text(
+              ),
+              PlaybackModeControls(session: session, compact: true),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   state.currentItem == null
                       ? '暂无歌曲'
                       : '${state.queue.length} 首 · 待播 ${state.upcomingCount} 首',
@@ -133,19 +143,19 @@ class _QueueHeader extends StatelessWidget {
                         color: AppColors.textTertiary,
                       ),
                 ),
-              ],
-            ),
+              ),
+              TextButton(
+                onPressed: onClearUpcoming,
+                child: const Text('清空待播'),
+              ),
+              if (allowClearAll)
+                IconButton(
+                  tooltip: '停止并清空全部',
+                  onPressed: onClearAll,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                ),
+            ],
           ),
-          TextButton(
-            onPressed: onClearUpcoming,
-            child: const Text('清空待播'),
-          ),
-          if (allowClearAll)
-            IconButton(
-              tooltip: '停止并清空全部',
-              onPressed: onClearAll,
-              icon: const Icon(Icons.delete_sweep_outlined),
-            ),
         ],
       ),
     );
