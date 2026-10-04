@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -32,6 +33,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final AudioPlayerService _audioService;
   late final PlaybackSessionService _playbackSession;
   late Future<ProjectManifest?> _projectFuture;
+  late String _activeProjectId;
+  StreamSubscription<PlaybackSessionState>? _sessionSubscription;
 
   @override
   void initState() {
@@ -39,11 +42,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _repository = ServiceLocatorGlobal.I.projectRepository;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
-    _loadProject();
+    _activeProjectId = widget.projectId;
+    _loadProject(_activeProjectId);
+    _sessionSubscription =
+        _playbackSession.stateStream.listen(_handleSessionChange);
   }
 
-  void _loadProject() {
-    _projectFuture = _repository.getProjectById(widget.projectId);
+  void _loadProject(String projectId) {
+    _projectFuture = _repository.getProjectById(projectId);
+  }
+
+  void _handleSessionChange(PlaybackSessionState state) {
+    final projectId = state.currentItem?.projectId;
+    if (!mounted || projectId == null || projectId == _activeProjectId) return;
+
+    setState(() {
+      _activeProjectId = projectId;
+      _loadProject(projectId);
+    });
   }
 
   Future<void> _initializeAudio(ProjectManifest project) async {
@@ -92,6 +108,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _skipNext() => _playbackSession.skipNext();
 
   @override
+  void dispose() {
+    _sessionSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProjectManifest?>(
       future: _projectFuture,
@@ -101,12 +123,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return _ErrorState(onRetry: () => setState(_loadProject));
+          return _ErrorState(
+            onRetry: () => setState(() => _loadProject(_activeProjectId)),
+          );
         }
 
         final project = snapshot.data!;
         return _PlayerContent(
+          key: ValueKey('player_${project.id}'),
           project: project,
+          repository: _repository,
           audioService: _audioService,
           playbackSession: _playbackSession,
           onInitialize: () => _initializeAudio(project),
@@ -160,6 +186,7 @@ class _ErrorState extends StatelessWidget {
 
 class _PlayerContent extends StatefulWidget {
   final ProjectManifest project;
+  final ProjectRepository repository;
   final AudioPlayerService audioService;
   final PlaybackSessionService playbackSession;
   final VoidCallback onInitialize;
@@ -170,7 +197,9 @@ class _PlayerContent extends StatefulWidget {
   final VoidCallback onSkipNext;
 
   const _PlayerContent({
+    super.key,
     required this.project,
+    required this.repository,
     required this.audioService,
     required this.playbackSession,
     required this.onInitialize,
@@ -211,7 +240,8 @@ class _PlayerContentState extends State<_PlayerContent> {
           return FadeTransition(
             opacity: animation,
             child: _FullScreenKtvView(
-              project: widget.project,
+              initialProject: widget.project,
+              repository: widget.repository,
               audioService: widget.audioService,
               playbackSession: widget.playbackSession,
               onPlayPause: widget.onPlayPause,
@@ -367,7 +397,7 @@ class _PlayerWorkspace extends StatelessWidget {
           return Row(
             children: [
               SizedBox(
-                width: constraints.maxWidth.clamp(360.0, 460.0),
+                width: constraints.maxWidth.clamp(360.0, 460.0).toDouble(),
                 child: _TransportPane(
                   project: project,
                   playback: playback,
@@ -475,13 +505,17 @@ class _TransportPane extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         _SongIdentity(project: project),
+        if (playback.error != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          _PlaybackError(message: playback.error!),
+        ],
         const SizedBox(height: AppSpacing.lg),
         _ProgressBar(state: playback, onSeek: onSeek),
         const SizedBox(height: AppSpacing.md),
         _PlaybackControls(
           isPlaying: playback.isPlaying,
           isBuffering: playback.isBuffering,
-          canPrevious: session.currentIndex > 0,
+          canPrevious: session.currentItem != null,
           canNext: session.canSkipNext,
           onPrevious: onSkipPrevious,
           onPlayPause: onPlayPause,
@@ -545,8 +579,8 @@ class _CompactTransportHeader extends StatelessWidget {
           Row(
             children: [
               SizedBox(
-                width: 72,
-                height: 72,
+                width: 64,
+                height: 64,
                 child: _ProjectArtwork(
                   path: project.audioAsset?.thumbnailPath,
                   loading: playback.isLoading,
@@ -555,21 +589,26 @@ class _CompactTransportHeader extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(child: _SongIdentity(project: project, compact: true)),
-              _PlaybackControls(
-                isPlaying: playback.isPlaying,
-                isBuffering: playback.isBuffering,
-                canPrevious: session.currentIndex > 0,
-                canNext: session.canSkipNext,
-                onPrevious: onSkipPrevious,
-                onPlayPause: onPlayPause,
-                onNext: onSkipNext,
-                compact: true,
-              ),
             ],
           ),
+          if (playback.error != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _PlaybackError(message: playback.error!),
+          ],
           const SizedBox(height: AppSpacing.sm),
           _ProgressBar(state: playback, onSeek: onSeek, compact: true),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
+          _PlaybackControls(
+            isPlaying: playback.isPlaying,
+            isBuffering: playback.isBuffering,
+            canPrevious: session.currentItem != null,
+            canNext: session.canSkipNext,
+            onPrevious: onSkipPrevious,
+            onPlayPause: onPlayPause,
+            onNext: onSkipNext,
+            compact: true,
+          ),
+          const SizedBox(height: AppSpacing.xs),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: AppSpacing.sm,
@@ -614,56 +653,51 @@ class _LyricsPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (lyrics.isEmpty) {
-      return const _NoLyricsState();
-    }
+    if (lyrics.isEmpty) return const _NoLyricsState();
 
-    return Container(
-      color: AppColors.bgBase,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              AppSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    ktvMode ? 'KTV 歌词' : '同步歌词',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ktvMode ? 'KTV 歌词' : '同步歌词',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
-                if (ktvMode && onOpenFullScreenKtv != null)
-                  TextButton.icon(
-                    onPressed: onOpenFullScreenKtv,
-                    icon: const Icon(Icons.fullscreen_rounded),
-                    label: const Text('全屏'),
-                  ),
-              ],
-            ),
+              ),
+              if (ktvMode && onOpenFullScreenKtv != null)
+                TextButton.icon(
+                  onPressed: onOpenFullScreenKtv,
+                  icon: const Icon(Icons.fullscreen_rounded),
+                  label: const Text('全屏'),
+                ),
+            ],
           ),
-          Expanded(
-            child: ktvMode
-                ? _KtvFocusLyrics(
-                    lyrics: lyrics,
-                    currentIndex: currentIndex,
-                    onLyricTap: onLyricTap,
-                  )
-                : _ScrollableLyrics(
-                    lyrics: lyrics,
-                    currentIndex: currentIndex,
-                    onLyricTap: onLyricTap,
-                  ),
-          ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: ktvMode
+              ? _KtvFocusLyrics(
+                  lyrics: lyrics,
+                  currentIndex: currentIndex,
+                  onLyricTap: onLyricTap,
+                )
+              : _ScrollableLyrics(
+                  lyrics: lyrics,
+                  currentIndex: currentIndex,
+                  onLyricTap: onLyricTap,
+                ),
+        ),
+      ],
     );
   }
 }
@@ -837,7 +871,8 @@ class _FocusLyricLine extends StatelessWidget {
 }
 
 class _FullScreenKtvView extends StatefulWidget {
-  final ProjectManifest project;
+  final ProjectManifest initialProject;
+  final ProjectRepository repository;
   final AudioPlayerService audioService;
   final PlaybackSessionService playbackSession;
   final VoidCallback onPlayPause;
@@ -847,7 +882,8 @@ class _FullScreenKtvView extends StatefulWidget {
   final VoidCallback onSkipNext;
 
   const _FullScreenKtvView({
-    required this.project,
+    required this.initialProject,
+    required this.repository,
     required this.audioService,
     required this.playbackSession,
     required this.onPlayPause,
@@ -862,24 +898,44 @@ class _FullScreenKtvView extends StatefulWidget {
 }
 
 class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
+  late ProjectManifest _project;
+  StreamSubscription<PlaybackSessionState>? _sessionSubscription;
+  int _projectLoadGeneration = 0;
+
   @override
   void initState() {
     super.initState();
+    _project = widget.initialProject;
     AppChromeController.enterImmersive();
+    _sessionSubscription =
+        widget.playbackSession.stateStream.listen(_handleSessionChange);
+  }
+
+  Future<void> _handleSessionChange(PlaybackSessionState state) async {
+    final projectId = state.currentItem?.projectId;
+    if (projectId == null || projectId == _project.id) return;
+
+    final generation = ++_projectLoadGeneration;
+    final nextProject = await widget.repository.getProjectById(projectId);
+    if (!mounted || generation != _projectLoadGeneration || nextProject == null) {
+      return;
+    }
+    setState(() => _project = nextProject);
   }
 
   @override
   void dispose() {
+    _sessionSubscription?.cancel();
     AppChromeController.exitImmersive();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final document = widget.project.lyricDocument;
+    final document = _project.lyricDocument;
     final lyrics = document?.lines ?? const <LyricLine>[];
-    final availableSources = widget.project.audioAsset?.availableSources ??
-        const <AudioSourceType>[];
+    final availableSources =
+        _project.audioAsset?.availableSources ?? const <AudioSourceType>[];
 
     return Material(
       color: AppColors.pureBlack,
@@ -932,7 +988,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    widget.project.name,
+                                    _project.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context)
@@ -940,10 +996,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                         .titleLarge
                                         ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
-                                  if (widget.project.artist?.trim().isNotEmpty ==
-                                      true)
+                                  if (_project.artist?.trim().isNotEmpty == true)
                                     Text(
-                                      widget.project.artist!,
+                                      _project.artist!,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: Theme.of(context)
@@ -957,11 +1012,13 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               ),
                             ),
                             if (availableSources.length > 1)
-                              _AudioSourceSelector(
-                                availableSources: availableSources,
-                                currentSource: playback.currentSource,
-                                onSourceChanged: widget.onSwitchSource,
-                                compact: true,
+                              Flexible(
+                                child: _AudioSourceSelector(
+                                  availableSources: availableSources,
+                                  currentSource: playback.currentSource,
+                                  onSourceChanged: widget.onSwitchSource,
+                                  compact: true,
+                                ),
                               ),
                             const SizedBox(width: AppSpacing.sm),
                             IconButton.filledTonal(
@@ -973,51 +1030,53 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                         ),
                       ),
                       Expanded(
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xxxl,
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _FullscreenLyric(
-                                  line: previous,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        color: AppColors.textTertiary,
-                                        height: 1.4,
+                        child: lyrics.isEmpty
+                            ? const _FullscreenNoLyrics()
+                            : Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xxxl,
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _FullscreenLyric(
+                                        line: previous,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineSmall
+                                            ?.copyWith(
+                                              color: AppColors.textTertiary,
+                                              height: 1.4,
+                                            ),
                                       ),
-                                ),
-                                const SizedBox(height: AppSpacing.xxl),
-                                _FullscreenLyric(
-                                  line: current,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .displaySmall
-                                      ?.copyWith(
-                                        color: AppColors.pureWhite,
-                                        fontWeight: FontWeight.w900,
-                                        height: 1.25,
+                                      const SizedBox(height: AppSpacing.xxl),
+                                      _FullscreenLyric(
+                                        line: current,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .displaySmall
+                                            ?.copyWith(
+                                              color: AppColors.pureWhite,
+                                              fontWeight: FontWeight.w900,
+                                              height: 1.25,
+                                            ),
                                       ),
-                                ),
-                                const SizedBox(height: AppSpacing.xxl),
-                                _FullscreenLyric(
-                                  line: next,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineMedium
-                                      ?.copyWith(
-                                        color: AppColors.textSecondary,
-                                        height: 1.35,
+                                      const SizedBox(height: AppSpacing.xxl),
+                                      _FullscreenLyric(
+                                        line: next,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .headlineMedium
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                              height: 1.35,
+                                            ),
                                       ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
+                              ),
                       ),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(
@@ -1028,6 +1087,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                         ),
                         child: Column(
                           children: [
+                            if (playback.error != null) ...[
+                              _PlaybackError(message: playback.error!),
+                              const SizedBox(height: AppSpacing.sm),
+                            ],
                             _ProgressBar(
                               state: playback,
                               onSeek: widget.onSeek,
@@ -1037,7 +1100,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                             _PlaybackControls(
                               isPlaying: playback.isPlaying,
                               isBuffering: playback.isBuffering,
-                              canPrevious: session.currentIndex > 0,
+                              canPrevious: session.currentItem != null,
                               canNext: session.canSkipNext,
                               onPrevious: widget.onSkipPrevious,
                               onPlayPause: widget.onPlayPause,
@@ -1075,6 +1138,22 @@ class _FullscreenLyric extends StatelessWidget {
         maxLines: 3,
         overflow: TextOverflow.ellipsis,
         style: style,
+      ),
+    );
+  }
+}
+
+class _FullscreenNoLyrics extends StatelessWidget {
+  const _FullscreenNoLyrics();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        '当前歌曲没有可用歌词',
+        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: AppColors.textTertiary,
+            ),
       ),
     );
   }
@@ -1185,7 +1264,8 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = state.duration;
-    final max = duration?.inMilliseconds.toDouble() ?? 1.0;
+    final durationMs = duration?.inMilliseconds ?? 0;
+    final max = durationMs > 0 ? durationMs.toDouble() : 1.0;
     final value = state.position.inMilliseconds.toDouble().clamp(0.0, max);
 
     return Column(
@@ -1202,7 +1282,7 @@ class _ProgressBar extends StatelessWidget {
             value: value,
             min: 0,
             max: max,
-            onChanged: duration == null
+            onChanged: durationMs <= 0
                 ? null
                 : (next) =>
                     onSeek(Duration(milliseconds: next.round())),
@@ -1262,7 +1342,7 @@ class _PlaybackControls extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          tooltip: '上一首',
+          tooltip: '上一首 / 回到开头',
           onPressed: canPrevious ? onPrevious : null,
           icon: const Icon(Icons.skip_previous_rounded),
           iconSize: compact ? 24 : 30,
@@ -1324,9 +1404,8 @@ class _AudioSourceSelector extends StatelessWidget {
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
       children: availableSources.map((source) {
-        final selected = source == currentSource;
         return ChoiceChip(
-          selected: selected,
+          selected: source == currentSource,
           onSelected: (_) => onSourceChanged(source),
           visualDensity: compact ? VisualDensity.compact : null,
           label: Text(_sourceLabel(source)),
@@ -1379,6 +1458,33 @@ class _PlayerModeControls extends StatelessWidget {
             label: const Text('全屏 KTV'),
           ),
       ],
+    );
+  }
+}
+
+class _PlaybackError extends StatelessWidget {
+  final String message;
+
+  const _PlaybackError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(20),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: Border.all(color: AppColors.error.withAlpha(70)),
+      ),
+      child: Text(
+        message,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.error,
+            ),
+      ),
     );
   }
 }
