@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -33,11 +34,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _historyFuture;
 
-  bool get _isDesktop =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.macOS ||
-          defaultTargetPlatform == TargetPlatform.linux);
+  bool get _isDesktop => AppResponsive.isDesktopTarget();
 
   @override
   void initState() {
@@ -73,6 +70,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
+    final verticalStart = layout.isShort ? AppSpacing.sm : AppSpacing.md;
+    final bottomPadding = layout.isCompact ? AppSpacing.xxl : AppSpacing.xxxl;
+
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       body: SafeArea(
@@ -106,13 +107,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: Center(
                           child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1360),
+                            constraints: BoxConstraints(
+                              maxWidth: layout.contentMaxWidth,
+                            ),
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.lg,
-                                AppSpacing.md,
-                                AppSpacing.lg,
-                                AppSpacing.xxxl,
+                              padding: EdgeInsets.fromLTRB(
+                                layout.pageGutter,
+                                verticalStart,
+                                layout.pageGutter,
+                                bottomPadding,
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +134,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           : Routes.remoteLibrary,
                                     ),
                                   ),
-                                  const SizedBox(height: AppSpacing.xl),
+                                  SizedBox(height: layout.sectionGap),
                                   _NowPlayingArea(
                                     session: session,
                                     playback: playback,
@@ -139,14 +142,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     onOpenCurrent: _openCurrent,
                                     onPlayPause:
                                         _playbackSession.togglePlayPause,
-                                    onPrevious:
-                                        _playbackSession.skipPrevious,
+                                    onPrevious: _playbackSession.skipPrevious,
                                     onNext: _playbackSession.skipNext,
-                                    onPlayQueueItem:
-                                        _playbackSession.playItem,
+                                    onPlayQueueItem: _playbackSession.playItem,
                                   ),
                                   if (queue.items.isNotEmpty) ...[
-                                    const SizedBox(height: AppSpacing.lg),
+                                    SizedBox(height: layout.sectionGap),
                                     _BackgroundWorkCard(
                                       snapshot: queue,
                                       onOpen: () => Navigator.pushNamed(
@@ -158,7 +159,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           : _transcriptionQueue.pause,
                                     ),
                                   ],
-                                  const SizedBox(height: AppSpacing.xxxl),
+                                  SizedBox(
+                                    height: layout.isCompact
+                                        ? AppSpacing.xl
+                                        : AppSpacing.xxxl,
+                                  ),
                                   _SectionHeader(
                                     title: '最近播放',
                                     subtitle: '继续你最近听过的本地音乐',
@@ -171,7 +176,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
-                                        return const _LoadingBlock(height: 190);
+                                        return _LoadingBlock(
+                                          height: layout.isCompact ? 170 : 190,
+                                        );
                                       }
                                       final items = snapshot.data ?? [];
                                       if (items.isEmpty) {
@@ -189,7 +196,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       );
                                     },
                                   ),
-                                  const SizedBox(height: AppSpacing.xxxl),
+                                  SizedBox(
+                                    height: layout.isCompact
+                                        ? AppSpacing.xl
+                                        : AppSpacing.xxxl,
+                                  ),
                                   _SectionHeader(
                                     title: '最近工程',
                                     subtitle: '继续识别、校对，或打开已经准备好的 KTV 工程',
@@ -205,7 +216,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
                                           ConnectionState.waiting) {
-                                        return const _LoadingBlock(height: 260);
+                                        return _LoadingBlock(
+                                          height: layout.isCompact ? 220 : 260,
+                                        );
                                       }
                                       if (snapshot.hasError) {
                                         return _EmptyCard(
@@ -275,16 +288,20 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 720;
+        final layout = AppResponsive.fromConstraints(constraints);
+        final compact = layout.isCompactOrMedium || layout.isShort;
         final identity = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'LyricForge',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.8,
-                  ),
+              style: (layout.isCompact
+                      ? Theme.of(context).textTheme.headlineSmall
+                      : Theme.of(context).textTheme.headlineMedium)
+                  ?.copyWith(
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.8,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
@@ -301,23 +318,40 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(
+                  layout.minimumInteractiveExtent,
+                  layout.minimumInteractiveExtent,
+                ),
+              ),
               onPressed: onOpenMusic,
               icon: const Icon(Icons.library_music_rounded, size: 18),
               label: const Text('打开音乐'),
             ),
             if (isDesktop)
-              IconButton.filledTonal(
-                tooltip: '远程音乐库',
-                onPressed: onRemote,
-                icon: const Icon(Icons.cast_connected_rounded),
+              SizedBox(
+                width: layout.minimumInteractiveExtent,
+                height: layout.minimumInteractiveExtent,
+                child: IconButton.filledTonal(
+                  tooltip: '远程音乐库',
+                  onPressed: onRemote,
+                  icon: const Icon(Icons.cast_connected_rounded),
+                ),
               ),
             FilledButton.icon(
+              style: FilledButton.styleFrom(
+                minimumSize: Size(
+                  layout.minimumInteractiveExtent,
+                  layout.minimumInteractiveExtent,
+                ),
+              ),
               onPressed: onImport,
               icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('导入并识别'),
+              label: Text(layout.isCompact ? '识别歌词' : '导入并识别'),
             ),
           ],
         );
+
         return compact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,11 +409,12 @@ class _NowPlayingArea extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 900) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        if (!layout.supportsTwoPane) {
           return Column(
             children: [
               hero,
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: layout.sectionGap),
               queue,
             ],
           );
@@ -388,8 +423,8 @@ class _NowPlayingArea extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 2, child: hero),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(child: queue),
+            SizedBox(width: layout.sectionGap),
+            SizedBox(width: layout.sidePanelWidth, child: queue),
           ],
         );
       },
@@ -404,14 +439,23 @@ class _IdleHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: _heroDecoration(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final showArtwork = constraints.maxWidth >= 520;
-          return Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final showArtwork = !layout.isShort &&
+            (layout.isExpanded || layout.isLarge || layout.isExtraLarge);
+        final minHeight = layout.isShort
+            ? 190.0
+            : layout.isCompact
+                ? 220.0
+                : 250.0;
+        return Container(
+          constraints: BoxConstraints(minHeight: minHeight),
+          padding: EdgeInsets.all(
+            layout.isCompact ? AppSpacing.md : AppSpacing.xl,
+          ),
+          decoration: _heroDecoration(),
+          child: Row(
             children: [
               Expanded(
                 child: Column(
@@ -422,10 +466,13 @@ class _IdleHero extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       '把你的音乐库变成\n可以继续制作的 KTV 工程',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            height: 1.15,
-                          ),
+                      style: (layout.isCompact
+                              ? Theme.of(context).textTheme.headlineSmall
+                              : Theme.of(context).textTheme.headlineMedium)
+                          ?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
@@ -436,6 +483,12 @@ class _IdleHero extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: Size(
+                          layout.minimumInteractiveExtent,
+                          layout.minimumInteractiveExtent,
+                        ),
+                      ),
                       onPressed: onOpenMusic,
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: const Text('选择音乐开始播放'),
@@ -444,13 +497,15 @@ class _IdleHero extends StatelessWidget {
                 ),
               ),
               if (showArtwork) ...[
-                const SizedBox(width: AppSpacing.lg),
-                const _Artwork(size: 150),
+                SizedBox(width: layout.sectionGap),
+                _Artwork(
+                  size: layout.isExpanded ? 130 : 150,
+                ),
               ],
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -476,54 +531,65 @@ class _PlayingHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: _heroDecoration(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
-          final detail = Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _Eyebrow('正在播放'),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                item.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item.artist?.trim().isNotEmpty == true
-                    ? item.artist!
-                    : item.projectId == null
-                        ? '本地音乐'
-                        : 'LyricForge 工程',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _HeroProgress(playback),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  IconButton.filledTonal(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final compact = layout.isCompactOrMedium || layout.isShort;
+        final artworkSize = layout.isShort
+            ? 88.0
+            : layout.isCompact
+                ? 104.0
+                : layout.isMedium
+                    ? 120.0
+                    : 172.0;
+        final detail = Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _Eyebrow('正在播放'),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.artist?.trim().isNotEmpty == true
+                  ? item.artist!
+                  : item.projectId == null
+                      ? '本地音乐'
+                      : 'LyricForge 工程',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _HeroProgress(playback),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: layout.minimumInteractiveExtent,
+                  height: layout.minimumInteractiveExtent,
+                  child: IconButton.filledTonal(
                     tooltip: '上一首 / 回到开头',
                     onPressed: onPrevious,
                     icon: const Icon(Icons.skip_previous_rounded),
                   ),
-                  IconButton.filled(
+                ),
+                SizedBox(
+                  width: layout.primaryPlayerControlExtent,
+                  height: layout.primaryPlayerControlExtent,
+                  child: IconButton.filled(
                     tooltip: playback.isPlaying ? '暂停' : '播放',
                     onPressed: playback.isBuffering ? null : onPlayPause,
                     icon: playback.isBuffering
@@ -538,46 +604,69 @@ class _PlayingHero extends StatelessWidget {
                                 : Icons.play_arrow_rounded,
                           ),
                   ),
-                  IconButton.filledTonal(
+                ),
+                SizedBox(
+                  width: layout.minimumInteractiveExtent,
+                  height: layout.minimumInteractiveExtent,
+                  child: IconButton.filledTonal(
                     tooltip: '下一首',
                     onPressed: session.canSkipNext ? onNext : null,
                     icon: const Icon(Icons.skip_next_rounded),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: onOpen,
-                    icon: Icon(
-                      item.projectId == null
-                          ? Icons.open_in_new_rounded
-                          : Icons.lyrics_rounded,
-                      size: 17,
-                    ),
-                    label: Text(
-                      item.projectId == null ? '打开播放器' : '打开歌词播放器',
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: Size(
+                      layout.minimumInteractiveExtent,
+                      layout.minimumInteractiveExtent,
                     ),
                   ),
-                ],
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _Artwork(path: item.artworkPath, size: 104),
-                const SizedBox(height: AppSpacing.md),
-                detail,
+                  onPressed: onOpen,
+                  icon: Icon(
+                    item.projectId == null
+                        ? Icons.open_in_new_rounded
+                        : Icons.lyrics_rounded,
+                    size: 17,
+                  ),
+                  label: Text(
+                    item.projectId == null ? '打开播放器' : '打开歌词播放器',
+                  ),
+                ),
               ],
-            );
-          }
-          return Row(
-            children: [
-              _Artwork(path: item.artworkPath, size: 172),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(child: detail),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+
+        return Container(
+          constraints: BoxConstraints(
+            minHeight: layout.isShort
+                ? 190
+                : layout.isCompact
+                    ? 220
+                    : 250,
+          ),
+          padding: EdgeInsets.all(
+            layout.isCompact ? AppSpacing.md : AppSpacing.lg,
+          ),
+          decoration: _heroDecoration(),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Artwork(path: item.artworkPath, size: artworkSize),
+                    const SizedBox(height: AppSpacing.md),
+                    detail,
+                  ],
+                )
+              : Row(
+                  children: [
+                    _Artwork(path: item.artworkPath, size: artworkSize),
+                    SizedBox(width: layout.sectionGap),
+                    Expanded(child: detail),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -617,15 +706,28 @@ class _PlaybackQueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
     final start = session.currentIndex < 0 ? 0 : session.currentIndex;
-    final end = (start + 5).clamp(0, session.queue.length).toInt();
+    final visibleCount = layout.isShort
+        ? 3
+        : layout.isCompact
+            ? 4
+            : 5;
+    final end =
+        (start + visibleCount).clamp(0, session.queue.length).toInt();
     final items = start < end
         ? session.queue.sublist(start, end)
         : const <PlaybackItem>[];
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 250),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      constraints: BoxConstraints(
+        minHeight: layout.isShort
+            ? 180
+            : layout.isCompact
+                ? 220
+                : 250,
+      ),
+      padding: EdgeInsets.all(layout.isCompact ? AppSpacing.sm : AppSpacing.md),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +747,7 @@ class _PlaybackQueueCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           if (items.isEmpty)
             SizedBox(
-              height: 155,
+              height: layout.isShort ? 100 : 155,
               child: Center(
                 child: Text(
                   '播放音乐后，这里会显示当前队列',
@@ -689,6 +791,7 @@ class _QueueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
     return Material(
       color: current ? AppColors.accent.withAlpha(16) : Colors.transparent,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
@@ -702,7 +805,10 @@ class _QueueRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _Artwork(path: item.artworkPath, size: 38),
+              _Artwork(
+                path: item.artworkPath,
+                size: layout.minimumInteractiveExtent,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -784,6 +890,7 @@ class _BackgroundWorkCard extends StatelessWidget {
       decoration: _cardDecoration(),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final layout = AppResponsive.fromConstraints(constraints);
           final info = Row(
             children: [
               Container(
@@ -859,13 +966,19 @@ class _BackgroundWorkCard extends StatelessWidget {
                   label: Text(snapshot.isPaused ? '继续' : '暂停'),
                 ),
               OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: Size(
+                    layout.minimumInteractiveExtent,
+                    layout.minimumInteractiveExtent,
+                  ),
+                ),
                 onPressed: onOpen,
                 icon: const Icon(Icons.arrow_forward_rounded, size: 17),
                 label: const Text('查看队列'),
               ),
             ],
           );
-          if (constraints.maxWidth < 680) {
+          if (layout.isCompactOrMedium || layout.isShort) {
             return Column(
               children: [
                 info,
@@ -902,29 +1015,39 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
+        ),
+      ],
+    );
+    if (layout.isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          info,
+          const SizedBox(height: AppSpacing.xs),
+          TextButton(onPressed: onAction, child: Text(action)),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-              ),
-            ],
-          ),
-        ),
+        Expanded(child: info),
         TextButton(onPressed: onAction, child: Text(action)),
       ],
     );
@@ -939,14 +1062,16 @@ class _RecentShelf extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = AppResponsive.of(context);
     return SizedBox(
-      height: 190,
+      height: layout.isCompact ? 174 : 190,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: histories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, __) => SizedBox(width: layout.sectionGap / 2),
         itemBuilder: (context, index) => _ListeningCard(
           history: histories[index],
+          width: layout.isCompact ? 146 : 160,
           onTap: () => onPlay(histories[index]),
         ),
       ),
@@ -956,14 +1081,19 @@ class _RecentShelf extends StatelessWidget {
 
 class _ListeningCard extends StatelessWidget {
   final PlayHistory history;
+  final double width;
   final VoidCallback onTap;
 
-  const _ListeningCard({required this.history, required this.onTap});
+  const _ListeningCard({
+    required this.history,
+    required this.width,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 160,
+      width: width,
       child: Material(
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -1027,13 +1157,12 @@ class _ProjectGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1160
-            ? 4
-            : constraints.maxWidth >= 820
-                ? 3
-                : constraints.maxWidth >= 540
-                    ? 2
-                    : 1;
+        final layout = AppResponsive.fromConstraints(constraints);
+        final columns = layout.gridColumns(
+          minTileWidth: 280,
+          min: 1,
+          max: 4,
+        );
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -1042,7 +1171,9 @@ class _ProjectGrid extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: AppSpacing.md,
             crossAxisSpacing: AppSpacing.md,
-            childAspectRatio: columns == 1 ? 2.5 : 1.35,
+            childAspectRatio: columns == 1
+                ? (layout.isCompact ? 2.05 : 2.35)
+                : 1.35,
           ),
           itemBuilder: (context, index) => _ProjectCard(
             project: projects[index],
@@ -1063,6 +1194,7 @@ class _ProjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lyricCount = project.lyricDocument?.lines.length ?? 0;
+    final layout = AppResponsive.of(context);
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -1071,14 +1203,17 @@ class _ProjectCard extends StatelessWidget {
         hoverColor: AppColors.hoverOverlay,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.all(layout.isCompact ? AppSpacing.sm : AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Artwork(path: project.audioAsset?.thumbnailPath, size: 64),
+                  _Artwork(
+                    path: project.audioAsset?.thumbnailPath,
+                    size: layout.isCompact ? 52 : 64,
+                  ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
@@ -1159,7 +1294,8 @@ class _Artwork extends StatelessWidget {
         child: exists
             ? Image.file(file!, fit: BoxFit.cover)
             : Container(
-                decoration: const BoxDecoration(gradient: AppColors.cardGradient),
+                decoration:
+                    const BoxDecoration(gradient: AppColors.cardGradient),
                 child: Icon(
                   Icons.album_rounded,
                   size: size * 0.42,
@@ -1201,7 +1337,10 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: accent ? AppColors.accent.withAlpha(16) : AppColors.bgSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
@@ -1261,57 +1400,57 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: _cardDecoration(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final info = Row(
-            children: [
-              Icon(icon, size: 42, color: AppColors.textTertiary),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final info = Row(
+          children: [
+            Icon(icon, size: layout.isCompact ? 34 : 42, color: AppColors.textTertiary),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.xl),
+          decoration: _cardDecoration(),
+          child: layout.isCompactOrMedium || layout.isShort
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      message,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
-                    ),
+                    info,
+                    const SizedBox(height: AppSpacing.md),
+                    OutlinedButton(onPressed: onAction, child: Text(action)),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: info),
+                    const SizedBox(width: AppSpacing.md),
+                    OutlinedButton(onPressed: onAction, child: Text(action)),
                   ],
                 ),
-              ),
-            ],
-          );
-          if (constraints.maxWidth < 520) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                info,
-                const SizedBox(height: AppSpacing.md),
-                OutlinedButton(onPressed: onAction, child: Text(action)),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: info),
-              const SizedBox(width: AppSpacing.md),
-              OutlinedButton(onPressed: onAction, child: Text(action)),
-            ],
-          );
-        },
-      ),
+        );
+      },
     );
   }
 }
