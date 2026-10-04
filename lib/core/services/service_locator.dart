@@ -11,6 +11,7 @@ import '../../features/project/domain/repositories/project_repository.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
+import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
@@ -66,9 +67,11 @@ class ServiceLocator {
       delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
     );
-    transcriptionService = HighQualityTranscriptionService(
-      primary: Qwen3AsrNativeTranscriptionService(),
-      fallback: WhisperCppTranscriptionService(),
+    transcriptionService = ResumableChunkedTranscriptionService(
+      delegate: HighQualityTranscriptionService(
+        primary: Qwen3AsrNativeTranscriptionService(),
+        fallback: WhisperCppTranscriptionService(),
+      ),
     );
     transcriptionSettingsStore = FileTranscriptionSettingsStore();
     projectTranscriptionWorkflow = LocalProjectTranscriptionWorkflow(
