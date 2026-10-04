@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/navigation/app_chrome_controller.dart';
 import 'core/navigation/app_router.dart';
 import 'core/services/service_locator.dart';
 import 'core/theme/app_theme.dart';
@@ -29,12 +30,19 @@ class LyricForgeApp extends StatelessWidget {
           initialEntries: [
             OverlayEntry(
               builder: (overlayContext) {
-                return Column(
-                  children: [
-                    Expanded(child: child ?? const SizedBox.shrink()),
-                    const GlobalTranscriptionQueueBar(),
-                    const GlobalPlayerBar(),
-                  ],
+                return ValueListenableBuilder<bool>(
+                  valueListenable: AppChromeController.immersive,
+                  builder: (context, immersive, _) {
+                    return Column(
+                      children: [
+                        Expanded(child: child ?? const SizedBox.shrink()),
+                        if (!immersive) ...[
+                          const GlobalTranscriptionQueueBar(),
+                          const GlobalPlayerBar(),
+                        ],
+                      ],
+                    );
+                  },
                 );
               },
             ),
