@@ -4,6 +4,12 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../domain/services/audio_library_import_service.dart';
 
+typedef AudioFilesPickedCallback = Future<void> Function(List<String> paths);
+typedef AudioDirectoryPickedCallback = Future<void> Function(
+  String rootPath,
+  List<String> paths,
+);
+
 class LocalAudioLibraryImportService implements AudioLibraryImportService {
   static const _supported = <String>[
     'mp3',
@@ -13,6 +19,14 @@ class LocalAudioLibraryImportService implements AudioLibraryImportService {
     'aac',
     'ogg',
   ];
+
+  final AudioFilesPickedCallback? onFilesPicked;
+  final AudioDirectoryPickedCallback? onDirectoryPicked;
+
+  const LocalAudioLibraryImportService({
+    this.onFilesPicked,
+    this.onDirectoryPicked,
+  });
 
   @override
   List<String> get supportedExtensions => _supported;
@@ -39,19 +53,26 @@ class LocalAudioLibraryImportService implements AudioLibraryImportService {
       if (path == null || !_isSupported(path) || !seen.add(path)) continue;
       paths.add(path);
     }
+    if (paths.isNotEmpty) await onFilesPicked?.call(paths);
     return paths;
   }
 
   @override
   Future<List<String>> pickAudioDirectory() async {
+    final selection = await pickAudioDirectorySelection();
+    return selection?.audioPaths ?? const [];
+  }
+
+  @override
+  Future<AudioDirectorySelection?> pickAudioDirectorySelection() async {
     final directoryPath = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '选择音乐文件夹',
       lockParentWindow: true,
     );
-    if (directoryPath == null) return const [];
+    if (directoryPath == null) return null;
 
     final directory = Directory(directoryPath);
-    if (!await directory.exists()) return const [];
+    if (!await directory.exists()) return null;
 
     final paths = <String>[];
     await for (final entity in directory.list(
@@ -64,7 +85,9 @@ class LocalAudioLibraryImportService implements AudioLibraryImportService {
     }
 
     paths.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return paths;
+    final root = directory.absolute.path;
+    await onDirectoryPicked?.call(root, paths);
+    return AudioDirectorySelection(rootPath: root, audioPaths: paths);
   }
 
   bool _isSupported(String path) {

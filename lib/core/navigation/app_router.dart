@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../services/service_locator.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
 import '../../features/player/domain/models/play_history.dart';
+import '../../features/player/presentation/screens/local_media_library_screen.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
@@ -15,7 +17,9 @@ abstract class Routes {
   static const String home = '/';
   static const String dashboard = '/dashboard';
   static const String import = '/import';
+  static const String library = '/library';
   static const String quickPlay = '/quick-play';
+  static const String nowPlaying = '/now-playing';
   static const String projectDetail = '/project/:id';
   static const String lyricEditor = '/project/:id/lyrics';
   static const String player = '/project/:id/player';
@@ -40,25 +44,41 @@ class AppRouter {
       case Routes.dashboard:
         return _fadeRoute(const DashboardScreen(), settings);
 
-    case Routes.import:
-      return _fadeRoute(const ImportAudioScreen(), settings);
+      case Routes.import:
+        return _fadeRoute(const ImportAudioScreen(), settings);
 
-    case Routes.quickPlay:
-      final history = settings.arguments is PlayHistory
-          ? settings.arguments as PlayHistory
-          : null;
-      return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
+      case Routes.library:
+        return _fadeRoute(const LocalMediaLibraryScreen(), settings);
 
-    case Routes.settings:
+      case Routes.quickPlay:
+        final history = settings.arguments is PlayHistory
+            ? settings.arguments as PlayHistory
+            : null;
+        if (history != null) {
+          return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
+        }
+        final current = ServiceLocatorGlobal.I
+            .playbackSessionService
+            .currentState
+            .currentItem;
+        if (current != null) {
+          return _fadeRoute(const QuickPlayScreen(), settings);
+        }
+        return _fadeRoute(const LocalMediaLibraryScreen(), settings);
+
+      case Routes.nowPlaying:
+        return _fadeRoute(const QuickPlayScreen(), settings);
+
+      case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
 
-    case Routes.mediaSharing:
+      case Routes.mediaSharing:
         return _fadeRoute(const DesktopMediaSharingScreen(), settings);
 
-    case Routes.remoteLibrary:
+      case Routes.remoteLibrary:
         return _fadeRoute(const RemoteMediaLibraryScreen(), settings);
 
-    case Routes.mediaHubScanner:
+      case Routes.mediaHubScanner:
         return _fadeRoute(const MediaHubQrScannerScreen(), settings);
 
       default:
