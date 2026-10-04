@@ -505,6 +505,7 @@ class _LyricEditorContent extends StatelessWidget {
                         return Column(
                           children: [
                             Expanded(
+                              flex: 3,
                               child: _LyricListPane(
                                 document: document,
                                 visibleIndices: visibleIndices,
@@ -516,8 +517,8 @@ class _LyricEditorContent extends StatelessWidget {
                             ),
                             if (selectedIndex != null) ...[
                               const Divider(height: 1),
-                              SizedBox(
-                                height: 330,
+                              Expanded(
+                                flex: 2,
                                 child: _InspectorPane(
                                   document: document,
                                   selectedIndex: selectedIndex,
@@ -1089,7 +1090,8 @@ class _LineInspectorState extends State<_LineInspector> {
               ),
             ),
           ),
-          if (widget.fallbackCandidate != null &&
+          if (widget.line.confidence < 100 &&
+              widget.fallbackCandidate != null &&
               alternative?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.md),
             _AlternativeCandidateCard(
