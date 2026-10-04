@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -59,8 +60,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           stream: _audio.stateStream,
           initialData: _audio.currentState,
           builder: (context, playbackSnapshot) {
-            final playback =
-                playbackSnapshot.data ?? const PlaybackState.idle();
+            final playback = playbackSnapshot.data ?? const PlaybackState.idle();
 
             return Material(
               color: AppColors.bgElevated,
@@ -98,14 +98,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                   LinearProgressIndicator(
                     value: playback.duration == null
                         ? 0.0
-                        : playback.progressPercent
-                            .clamp(0.0, 1.0)
-                            .toDouble(),
+                        : playback.progressPercent.clamp(0.0, 1.0).toDouble(),
                     minHeight: 2,
                     backgroundColor: AppColors.bgHighlight,
-                    valueColor: const AlwaysStoppedAnimation(
-                      AppColors.accent,
-                    ),
+                    valueColor: const AlwaysStoppedAnimation(AppColors.accent),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -117,46 +113,60 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                         final compact = constraints.maxWidth < 760;
                         return Row(
                           children: [
-                            _Artwork(path: item.artworkPath),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                              onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
+                              child: _Artwork(path: item.artworkPath),
+                            ),
                             const SizedBox(width: AppSpacing.md),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(fontWeight: FontWeight.w700),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                                onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(fontWeight: FontWeight.w700),
+                                      ),
+                                      if (!compact) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.artist?.trim().isNotEmpty == true
+                                              ? item.artist!
+                                              : item.projectId != null
+                                                  ? '歌词工程'
+                                                  : '本地音乐',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(color: AppColors.textTertiary),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                  if (!compact) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      item.artist?.trim().isNotEmpty == true
-                                          ? item.artist!
-                                          : item.projectId != null
-                                              ? '歌词工程'
-                                              : '本地音乐',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: AppColors.textTertiary,
-                                          ),
-                                    ),
-                                  ],
-                                ],
+                                ),
                               ),
+                            ),
+                            IconButton(
+                              tooltip: '音乐库',
+                              onPressed: () => Navigator.pushNamed(context, Routes.library),
+                              icon: const Icon(Icons.library_music_rounded),
                             ),
                             if (item.projectId == null) ...[
                               IconButton(
-                                tooltip: '导入歌词文件',
+                                tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
                                 onPressed: () {
                                   importLyricsForLocalPlaybackItem(context, item);
                                 },
