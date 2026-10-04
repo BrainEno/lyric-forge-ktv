@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'playback_queue_panel.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
   const GlobalPlayerBar({super.key});
@@ -20,6 +21,7 @@ class GlobalPlayerBar extends StatefulWidget {
 class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   late final PlaybackSessionService _session;
   late final AudioPlayerService _audio;
+  bool _queueExpanded = false;
 
   @override
   void initState() {
@@ -42,7 +44,14 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
       builder: (context, sessionSnapshot) {
         final session = sessionSnapshot.data ?? const PlaybackSessionState();
         final item = session.currentItem;
-        if (item == null) return const SizedBox.shrink();
+        if (item == null) {
+          if (_queueExpanded) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _queueExpanded = false);
+            });
+          }
+          return const SizedBox.shrink();
+        }
 
         return StreamBuilder<PlaybackState>(
           stream: _audio.stateStream,
@@ -56,6 +65,34 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  AnimatedCrossFade(
+                    duration: const Duration(milliseconds: 180),
+                    crossFadeState: _queueExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    firstChild: const SizedBox(width: double.infinity),
+                    secondChild: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                      ),
+                      color: AppColors.bgBase,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: PlaybackQueuePanel(
+                            session: _session,
+                            height: 320,
+                            showBorder: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                   LinearProgressIndicator(
                     value: playback.duration == null
                         ? 0.0
@@ -73,111 +110,112 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                       horizontal: AppSpacing.md,
                       vertical: AppSpacing.sm,
                     ),
-                    child: Row(
-                      children: [
-                        _Artwork(path: item.artworkPath),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                item.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                item.artist?.trim().isNotEmpty == true
-                                    ? item.artist!
-                                    : item.projectId != null
-                                        ? '歌词工程'
-                                        : '本地音乐',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textTertiary,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: '上一首',
-                          onPressed: session.canSkipPrevious
-                              ? _session.skipPrevious
-                              : null,
-                          icon: const Icon(Icons.skip_previous_rounded),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        SizedBox(
-                          width: 42,
-                          height: 42,
-                          child: IconButton(
-                            tooltip: playback.isPlaying ? '暂停' : '播放',
-                            onPressed: playback.isBuffering
-                                ? null
-                                : _session.togglePlayPause,
-                            style: IconButton.styleFrom(
-                              backgroundColor: AppColors.pureWhite,
-                              foregroundColor: AppColors.pureBlack,
-                            ),
-                            icon: playback.isBuffering
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppColors.pureBlack,
-                                    ),
-                                  )
-                                : Icon(
-                                    playback.isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 760;
+                        return Row(
+                          children: [
+                            _Artwork(path: item.artworkPath),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    item.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        IconButton(
-                          tooltip: '下一首',
-                          onPressed:
-                              session.canSkipNext ? _session.skipNext : null,
-                          icon: const Icon(Icons.skip_next_rounded),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Tooltip(
-                          message: '播放队列 ${session.queue.length} 首',
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.queue_music_rounded,
-                                size: 20,
-                                color: AppColors.textTertiary,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                session.queue.length.toString(),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: AppColors.textTertiary,
+                                  if (!compact) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.artist?.trim().isNotEmpty == true
+                                          ? item.artist!
+                                          : item.projectId != null
+                                              ? '歌词工程'
+                                              : '本地音乐',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.textTertiary,
+                                          ),
                                     ),
+                                  ],
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            ),
+                            IconButton(
+                              tooltip: '上一首 / 重新开始',
+                              onPressed: session.canSkipPrevious
+                                  ? _session.skipPrevious
+                                  : null,
+                              icon: const Icon(Icons.skip_previous_rounded),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            SizedBox(
+                              width: 42,
+                              height: 42,
+                              child: IconButton(
+                                tooltip: playback.isPlaying ? '暂停' : '播放',
+                                onPressed: playback.isBuffering
+                                    ? null
+                                    : _session.togglePlayPause,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: AppColors.pureWhite,
+                                  foregroundColor: AppColors.pureBlack,
+                                ),
+                                icon: playback.isBuffering
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.pureBlack,
+                                        ),
+                                      )
+                                    : Icon(
+                                        playback.isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            IconButton(
+                              tooltip: '下一首',
+                              onPressed: session.canSkipNext
+                                  ? _session.skipNext
+                                  : null,
+                              icon: const Icon(Icons.skip_next_rounded),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            TextButton.icon(
+                              onPressed: () => setState(
+                                () => _queueExpanded = !_queueExpanded,
+                              ),
+                              icon: Icon(
+                                _queueExpanded
+                                    ? Icons.keyboard_arrow_down_rounded
+                                    : Icons.queue_music_rounded,
+                                size: 20,
+                              ),
+                              label: Text(
+                                compact
+                                    ? '${session.queue.length}'
+                                    : '队列 ${session.queue.length}',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
