@@ -14,6 +14,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   static const String _qwen17 = 'Qwen/Qwen3-ASR-1.7B';
   static const String _qwen06 = 'Qwen/Qwen3-ASR-0.6B';
   static const String _aligner06 = 'Qwen/Qwen3-ForcedAligner-0.6B';
+  static const String _runtimeReleaseTag = 'asr-runtime-v1';
 
   static const Map<String, List<String>> _modelFiles = {
     _qwen17: [
@@ -133,6 +134,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
               expectedAligner != null;
 
       if (shouldManageModels) {
+        await _preflightRuntimeBundle(prepared, resolved.profile);
+        _throwIfCancelled();
+
         _installingModels = true;
         _delegateProgressBase = 0.62;
         final root = await _managedRoot();
@@ -179,6 +183,82 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       _cancelRequested = false;
       _delegateProgressBase = 0;
     }
+  }
+
+  Future<void> _preflightRuntimeBundle(
+    TranscriptionConfig config,
+    TranscriptionProfilePreference profile,
+  ) async {
+    final status = await delegate.inspect(config);
+    final whisperReady = _componentReady(
+      status,
+      AsrRuntimeComponent.whisperRuntime,
+    );
+    final qwenReady = config.mode != TranscriptionMode.highestQuality ||
+        _componentReady(status, AsrRuntimeComponent.qwenRuntime);
+    if (whisperReady && qwenReady) return;
+
+    final asset = switch (profile) {
+      TranscriptionProfilePreference.rtx5080HighQuality =>
+        'lyricforge-asr-runtime-windows-x64-cuda.zip',
+      TranscriptionProfilePreference.intelMacHighQuality =>
+        'lyricforge-asr-runtime-macos-x64.zip',
+      _ => null,
+    };
+    if (asset == null) return;
+
+    final uri = Uri.parse(
+      'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
+      '$_runtimeReleaseTag/$asset',
+    );
+    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    _activeClient = client;
+
+    try {
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.005,
+        '正在检查识别引擎安装包是否可用',
+      );
+      final request = await client.headUrl(uri);
+      _activeRequest = request;
+      final response = await request.close();
+      _activeRequest = null;
+      await response.drain<void>();
+
+      if (response.statusCode < 200 || response.statusCode >= 400) {
+        throw TranscriptionException(
+          'LyricForge 识别引擎安装包暂不可用，因此尚未开始下载大型模型。',
+          details: '$asset: HTTP ${response.statusCode}',
+        );
+      }
+    } on TranscriptionException {
+      rethrow;
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const TranscriptionException('识别环境安装已取消');
+      }
+      throw TranscriptionException(
+        '无法确认 LyricForge 识别引擎安装包，因此尚未开始下载大型模型。',
+        details: error.toString(),
+      );
+    } finally {
+      _activeRequest = null;
+      _activeClient = null;
+      client.close(force: true);
+    }
+  }
+
+  bool _componentReady(
+    AsrRuntimeStatus status,
+    AsrRuntimeComponent component,
+  ) {
+    for (final item in status.components) {
+      if (item.component == component) {
+        return item.state == AsrRuntimeComponentState.ready;
+      }
+    }
+    return false;
   }
 
   Future<String> _useOrInstallModel({
@@ -278,8 +358,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         fileName: fileName,
         target: target,
         onProgress: (fraction) {
-          final modelFraction = fileStart +
-              (fileEnd - fileStart) * fraction;
+          final modelFraction =
+              fileStart + (fileEnd - fileStart) * fraction;
           _emit(
             component,
             _mapProgress(modelFraction, startProgress, endProgress),
@@ -347,8 +427,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         );
       }
 
-      final append = existing > 0 &&
-          response.statusCode == HttpStatus.partialContent;
+      final append =
+          existing > 0 && response.statusCode == HttpStatus.partialContent;
       if (!append) existing = 0;
 
       final contentLength = response.contentLength;
@@ -439,11 +519,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   String? _alignerForProfile(TranscriptionProfilePreference profile) {
-    return switch (profile) {
-      TranscriptionProfilePreference.rtx5080HighQuality ||
-      TranscriptionProfilePreference.intelMacHighQuality => _aligner06,
-      _ => null,
-    };
+    if (profile == TranscriptionProfilePreference.rtx5080HighQuality ||
+        profile == TranscriptionProfilePreference.intelMacHighQuality) {
+      return _aligner06;
+    }
+    return null;
   }
 
   String _modelLabel(String modelId) {
@@ -479,7 +559,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   double _mapProgress(double fraction, double start, double end) {
-    return start + (end - start) * fraction.clamp(0.0, 1.0);
+    final normalized = fraction.clamp(0.0, 1.0).toDouble();
+    return start + (end - start) * normalized;
   }
 
   String _percent(double fraction) {
