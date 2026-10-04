@@ -204,6 +204,68 @@ class HttpMediaHubClientService implements MediaHubClientService {
   }
 
   @override
+  Future<void> uploadFile({
+    required String sourcePath,
+    String? remoteFileName,
+    TransferProgressCallback? onProgress,
+  }) async {
+    final connection = _requireConnection();
+    final file = File(sourcePath);
+    if (!await file.exists()) {
+      throw const MediaHubClientException('要发送的本地音频文件不存在');
+    }
+
+    final total = await file.length();
+    final fallbackName = file.uri.pathSegments.isEmpty
+        ? 'audio'
+        : file.uri.pathSegments.last;
+    final uri = connection.resolve('/v1/incoming/audio').replace(
+      queryParameters: {
+        'filename': remoteFileName?.trim().isNotEmpty == true
+            ? remoteFileName!.trim()
+            : fallbackName,
+      },
+    );
+
+    try {
+      final request = await _httpClient.postUrl(uri);
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${connection.token}',
+      );
+      request.headers.contentType = ContentType.binary;
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.contentLength = total;
+
+      var transferred = 0;
+      await for (final chunk in file.openRead()) {
+        request.add(chunk);
+        transferred += chunk.length;
+        onProgress?.call(transferred, total);
+      }
+
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.created &&
+          response.statusCode != HttpStatus.ok) {
+        final body = await utf8.decoder.bind(response).join();
+        throw MediaHubClientException(
+          '上传音频失败，HTTP ${response.statusCode}'
+          '${body.isEmpty ? '' : '：$body'}',
+        );
+      }
+      await response.drain<void>();
+    } on MediaHubClientException {
+      rethrow;
+    } on SocketException catch (error) {
+      throw MediaHubClientException('上传时无法连接桌面端: ${error.message}');
+    } on HttpException catch (error) {
+      throw MediaHubClientException('上传连接失败: ${error.message}');
+    } catch (error) {
+      throw MediaHubClientException('上传音频失败: $error');
+    }
+  }
+
+  @override
   Future<void> dispose() async {
     _connection = null;
     _httpClient.close(force: true);

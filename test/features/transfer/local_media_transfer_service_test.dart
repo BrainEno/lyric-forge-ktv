@@ -47,10 +47,10 @@ void main() {
     }
   });
 
-  test('one failed transfer does not stop remaining tracks', () async {
+  test('one failed download does not stop remaining tracks', () async {
     client.payloads['a'] = List<int>.filled(4, 1);
     client.payloads['c'] = List<int>.filled(6, 3);
-    client.failIds.add('b');
+    client.failDownloadIds.add('b');
     final service = LocalMediaTransferService(
       client: client,
       libraryRepository: library,
@@ -85,6 +85,46 @@ void main() {
     expect(client.downloadedIds, isEmpty);
     expect(library.addedPaths, [existing.path]);
   });
+
+  test('uploads multiple local files and isolates one failed upload', () async {
+    final a = File('${temp.path}${Platform.pathSeparator}A.mp3');
+    final b = File('${temp.path}${Platform.pathSeparator}B.mp3');
+    final c = File('${temp.path}${Platform.pathSeparator}C.mp3');
+    await a.writeAsBytes(List<int>.filled(3, 1));
+    await b.writeAsBytes(List<int>.filled(4, 2));
+    await c.writeAsBytes(List<int>.filled(5, 3));
+    client.failUploadPaths.add(b.absolute.path);
+    final service = LocalMediaTransferService(
+      client: client,
+      libraryRepository: library,
+      downloadDirectory: temp,
+    );
+
+    final result = await service.uploadLocalFiles([
+      a.path,
+      b.path,
+      c.path,
+    ]);
+
+    expect(result.completed.map((item) => item.title), ['A', 'C']);
+    expect(result.failed.single.title, 'B');
+    expect(client.uploadedPaths, [a.absolute.path, c.absolute.path]);
+  });
+
+  test('missing upload source fails without calling client', () async {
+    final service = LocalMediaTransferService(
+      client: client,
+      libraryRepository: library,
+      downloadDirectory: temp,
+    );
+    final missing = '${temp.path}${Platform.pathSeparator}missing.mp3';
+
+    final result = await service.uploadLocalFiles([missing]);
+
+    expect(result.completed, isEmpty);
+    expect(result.failed.single.title, 'missing');
+    expect(client.uploadedPaths, isEmpty);
+  });
 }
 
 RemoteAudioTrack _track(String id, String title, int bytes) => RemoteAudioTrack(
@@ -98,8 +138,10 @@ RemoteAudioTrack _track(String id, String title, int bytes) => RemoteAudioTrack(
 
 class _FakeMediaHubClient implements MediaHubClientService {
   final Map<String, List<int>> payloads = {};
-  final Set<String> failIds = {};
+  final Set<String> failDownloadIds = {};
+  final Set<String> failUploadPaths = {};
   final List<String> downloadedIds = [];
+  final List<String> uploadedPaths = [];
 
   @override
   MediaHubConnection? get currentConnection => null;
@@ -113,13 +155,30 @@ class _FakeMediaHubClient implements MediaHubClientService {
     required String destinationPath,
     TransferProgressCallback? onProgress,
   }) async {
-    if (failIds.contains(track.id)) throw Exception('failed ${track.id}');
+    if (failDownloadIds.contains(track.id)) {
+      throw Exception('failed ${track.id}');
+    }
     final bytes = payloads[track.id] ?? List<int>.filled(track.byteLength, 1);
     final file = File(destinationPath);
     await file.parent.create(recursive: true);
     await file.writeAsBytes(bytes);
     downloadedIds.add(track.id);
     onProgress?.call(bytes.length, bytes.length);
+  }
+
+  @override
+  Future<void> uploadFile({
+    required String sourcePath,
+    String? remoteFileName,
+    TransferProgressCallback? onProgress,
+  }) async {
+    final absolute = File(sourcePath).absolute.path;
+    if (failUploadPaths.contains(absolute)) {
+      throw Exception('failed $absolute');
+    }
+    final length = await File(sourcePath).length();
+    uploadedPaths.add(absolute);
+    onProgress?.call(length, length);
   }
 
   @override

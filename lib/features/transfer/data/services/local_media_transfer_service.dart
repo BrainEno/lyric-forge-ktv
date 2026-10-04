@@ -133,6 +133,127 @@ class LocalMediaTransferService implements MediaTransferService {
     return MediaTransferBatchResult(List.unmodifiable(results));
   }
 
+  @override
+  Future<MediaTransferBatchResult> uploadLocalFiles(
+    List<String> sourcePaths, {
+    MediaTransferProgressCallback? onProgress,
+  }) async {
+    if (sourcePaths.isEmpty) return const MediaTransferBatchResult([]);
+
+    final results = <MediaTransferItemResult>[];
+    for (final rawPath in sourcePaths) {
+      final file = File(rawPath);
+      final path = file.absolute.path;
+      final fileName = file.uri.pathSegments.isEmpty
+          ? path
+          : file.uri.pathSegments.last;
+      final title = _titleFromFileName(fileName);
+
+      if (!await file.exists()) {
+        const error = '本地音频文件不存在';
+        onProgress?.call(
+          MediaTransferItemProgress(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            status: MediaTransferItemStatus.failed,
+            error: error,
+          ),
+        );
+        results.add(
+          MediaTransferItemResult(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            succeeded: false,
+            error: error,
+          ),
+        );
+        continue;
+      }
+
+      final total = await file.length();
+      onProgress?.call(
+        MediaTransferItemProgress(
+          id: path,
+          title: title,
+          direction: MediaTransferDirection.uploadToDesktop,
+          status: MediaTransferItemStatus.queued,
+          totalBytes: total,
+        ),
+      );
+
+      try {
+        onProgress?.call(
+          MediaTransferItemProgress(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            status: MediaTransferItemStatus.transferring,
+            totalBytes: total,
+          ),
+        );
+        await client.uploadFile(
+          sourcePath: path,
+          remoteFileName: fileName,
+          onProgress: (transferred, expected) {
+            onProgress?.call(
+              MediaTransferItemProgress(
+                id: path,
+                title: title,
+                direction: MediaTransferDirection.uploadToDesktop,
+                status: MediaTransferItemStatus.transferring,
+                bytesTransferred: transferred,
+                totalBytes: expected ?? total,
+              ),
+            );
+          },
+        );
+        onProgress?.call(
+          MediaTransferItemProgress(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            status: MediaTransferItemStatus.completed,
+            bytesTransferred: total,
+            totalBytes: total,
+          ),
+        );
+        results.add(
+          MediaTransferItemResult(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            succeeded: true,
+          ),
+        );
+      } catch (error) {
+        final message = error.toString();
+        onProgress?.call(
+          MediaTransferItemProgress(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            status: MediaTransferItemStatus.failed,
+            totalBytes: total,
+            error: message,
+          ),
+        );
+        results.add(
+          MediaTransferItemResult(
+            id: path,
+            title: title,
+            direction: MediaTransferDirection.uploadToDesktop,
+            succeeded: false,
+            error: message,
+          ),
+        );
+      }
+    }
+
+    return MediaTransferBatchResult(List.unmodifiable(results));
+  }
+
   Future<Directory> _resolveDownloadDirectory() async {
     final configured = downloadDirectory;
     if (configured != null) return configured;
@@ -154,6 +275,11 @@ class LocalMediaTransferService implements MediaTransferService {
         ? 'audio'
         : track.format.trim().toLowerCase();
     return '${title}_$suffix.$format';
+  }
+
+  String _titleFromFileName(String fileName) {
+    final dot = fileName.lastIndexOf('.');
+    return dot > 0 ? fileName.substring(0, dot) : fileName;
   }
 
   String _safeFileName(String value) {

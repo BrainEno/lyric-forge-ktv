@@ -30,5 +30,13 @@ abstract class MediaHubClientService {
     TransferProgressCallback? onProgress,
   });
 
+  /// Sends one local audio file to the connected desktop Media Hub.
+  /// The desktop decides its final Incoming path and imports it into Library.
+  Future<void> uploadFile({
+    required String sourcePath,
+    String? remoteFileName,
+    TransferProgressCallback? onProgress,
+  });
+
   Future<void> dispose();
 }
