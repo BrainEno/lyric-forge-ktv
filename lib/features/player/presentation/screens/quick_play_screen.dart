@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -324,90 +325,118 @@ class _EmptyPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            decoration: BoxDecoration(
-              gradient: AppColors.cardGradient,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-              border: Border.all(color: AppColors.borderMuted),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 156,
-                  height: 156,
-                  decoration: BoxDecoration(
-                    color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-                  ),
-                  child: const Icon(
-                    Icons.library_music_rounded,
-                    size: 68,
-                    color: AppColors.textSecondary,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layout = AppResponsive.fromConstraints(constraints);
+        final heroExtent = layout.isShort
+            ? 92.0
+            : layout.isCompact
+                ? 112.0
+                : 156.0;
+        final cardPadding = layout.isCompact ? AppSpacing.md : AppSpacing.xl;
+
+        return Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(layout.pageGutter),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: layout.isCompact ? 560 : 760,
+              ),
+              child: Container(
+                padding: EdgeInsets.all(cardPadding),
+                decoration: BoxDecoration(
+                  gradient: AppColors.cardGradient,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+                  border: Border.all(color: AppColors.borderMuted),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                Text(
-                  '你的本地音乐',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
+                child: Column(
+                  children: [
+                    Container(
+                      width: heroExtent,
+                      height: heroExtent,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgSurface,
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusXLarge),
                       ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      child: Icon(
+                        Icons.library_music_rounded,
+                        size: heroExtent * 0.44,
                         color: AppColors.textSecondary,
                       ),
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.error),
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: AppSpacing.md),
-                    child: CircularProgressIndicator(),
-                  ),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: isLoading ? null : onPickFiles,
-                      icon: const Icon(Icons.library_add_rounded),
-                      label: const Text('选择音乐'),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: isLoading ? null : onPickFolder,
-                      icon: const Icon(Icons.folder_copy_rounded),
-                      label: const Text('打开音乐文件夹'),
+                    SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
+                    Text(
+                      '你的本地音乐',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    ],
+                    SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
+                    if (isLoading)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: AppSpacing.md),
+                        child: CircularProgressIndicator(),
+                      ),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: Size(
+                              layout.minimumInteractiveExtent,
+                              layout.minimumInteractiveExtent,
+                            ),
+                          ),
+                          onPressed: isLoading ? null : onPickFiles,
+                          icon: const Icon(Icons.library_add_rounded),
+                          label: const Text('选择音乐'),
+                        ),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: Size(
+                              layout.minimumInteractiveExtent,
+                              layout.minimumInteractiveExtent,
+                            ),
+                          ),
+                          onPressed: isLoading ? null : onPickFolder,
+                          icon: const Icon(Icons.folder_copy_rounded),
+                          label: const Text('打开音乐文件夹'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextButton.icon(
+                      onPressed: onCreateProject,
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: const Text('需要 AI 识别？进入歌词制作'),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                TextButton.icon(
-                  onPressed: onCreateProject,
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('需要 AI 识别？进入歌词制作'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -448,8 +477,9 @@ class _PlayerWorkspace extends StatelessWidget {
         final state = snapshot.data ?? const PlaybackState.idle();
         return LayoutBuilder(
           builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 1080;
+            final layout = AppResponsive.fromConstraints(constraints);
             final player = _PlayerCard(
+              layout: layout,
               item: item,
               format: format,
               fileName: fileName,
@@ -463,48 +493,66 @@ class _PlayerWorkspace extends StatelessWidget {
               onEditMetadata: onEditMetadata,
               onLyrics: onLyrics,
             );
+            final queueHeight = layout.isShort
+                ? 220.0
+                : layout.isCompact
+                    ? 300.0
+                    : 360.0;
 
-            if (!wide) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  children: [
-                    player,
-                    const SizedBox(height: AppSpacing.lg),
-                    PlaybackQueuePanel(
-                      session: session,
-                      height: 380,
-                      allowClearAll: true,
+            if (!layout.supportsTwoPane) {
+              return Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(layout.pageGutter),
+                    child: Column(
+                      children: [
+                        player,
+                        SizedBox(height: layout.sectionGap),
+                        PlaybackQueuePanel(
+                          session: session,
+                          height: queueHeight,
+                          allowClearAll: true,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             }
 
-            final queueHeight = constraints.maxHeight > 80
-                ? constraints.maxHeight - 32
-                : constraints.maxHeight;
-            return Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: player,
-                    ),
+            final availableQueueHeight = constraints.maxHeight.isFinite
+                ? (constraints.maxHeight - layout.pageGutter * 2)
+                    .clamp(260.0, 720.0)
+                    .toDouble()
+                : 520.0;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                child: Padding(
+                  padding: EdgeInsets.all(layout.pageGutter),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: player,
+                        ),
+                      ),
+                      SizedBox(width: layout.sectionGap),
+                      SizedBox(
+                        width: layout.sidePanelWidth,
+                        child: PlaybackQueuePanel(
+                          session: session,
+                          height: availableQueueHeight,
+                          allowClearAll: true,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: AppSpacing.lg),
-                  SizedBox(
-                    width: 390,
-                    child: PlaybackQueuePanel(
-                      session: session,
-                      height: queueHeight,
-                      allowClearAll: true,
-                    ),
-                  ),
-                ],
+                ),
               ),
             );
           },
@@ -515,6 +563,7 @@ class _PlayerWorkspace extends StatelessWidget {
 }
 
 class _PlayerCard extends StatelessWidget {
+  final AppLayoutSpec layout;
   final PlaybackItem item;
   final String format;
   final String fileName;
@@ -529,6 +578,7 @@ class _PlayerCard extends StatelessWidget {
   final VoidCallback onLyrics;
 
   const _PlayerCard({
+    required this.layout,
     required this.item,
     required this.format,
     required this.fileName,
@@ -545,62 +595,66 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final horizontal = !layout.isShort &&
+        (layout.isExpanded || layout.isLarge || layout.isExtraLarge);
+    final artworkExtent = horizontal
+        ? layout.playerArtworkMaxExtent.clamp(210.0, 300.0).toDouble()
+        : layout.playerArtworkMaxExtent.clamp(200.0, 360.0).toDouble();
+    final cardPadding = layout.isCompact
+        ? AppSpacing.md
+        : layout.isMedium
+            ? AppSpacing.lg
+            : AppSpacing.xl;
+
+    final artwork = SizedBox(
+      width: artworkExtent,
+      child: _Artwork(
+        path: item.artworkPath ?? item.audioAsset.thumbnailPath,
+        isLoading: isLoading || state.isLoading,
+      ),
+    );
+    final details = _PlayerDetails(
+      layout: layout,
+      item: item,
+      format: format,
+      fileName: fileName,
+      state: state,
+      error: error,
+      session: session,
+      audio: audio,
+      onSkipBack: onSkipBack,
+      onSkipForward: onSkipForward,
+      onEditMetadata: onEditMetadata,
+      onLyrics: onLyrics,
+    );
+
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 820),
+        constraints: const BoxConstraints(maxWidth: 860),
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          width: double.infinity,
+          padding: EdgeInsets.all(cardPadding),
           decoration: BoxDecoration(
             gradient: AppColors.cardGradient,
             borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
             border: Border.all(color: AppColors.borderMuted),
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final horizontal = constraints.maxWidth >= 650;
-              final artwork = ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: horizontal ? 270 : 330,
-                ),
-                child: _Artwork(
-                  path: item.artworkPath ?? item.audioAsset.thumbnailPath,
-                  isLoading: isLoading || state.isLoading,
-                ),
-              );
-              final details = _PlayerDetails(
-                item: item,
-                format: format,
-                fileName: fileName,
-                state: state,
-                error: error,
-                session: session,
-                audio: audio,
-                onSkipBack: onSkipBack,
-                onSkipForward: onSkipForward,
-                onEditMetadata: onEditMetadata,
-                onLyrics: onLyrics,
-              );
-
-              if (!horizontal) {
-                return Column(
+          child: horizontal
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     artwork,
-                    const SizedBox(height: AppSpacing.xl),
+                    SizedBox(width: layout.sectionGap),
+                    Expanded(child: details),
+                  ],
+                )
+              : Column(
+                  children: [
+                    artwork,
+                    SizedBox(height: layout.sectionGap),
                     details,
                   ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(width: 270, child: artwork),
-                  const SizedBox(width: AppSpacing.xl),
-                  Expanded(child: details),
-                ],
-              );
-            },
-          ),
+                ),
         ),
       ),
     );
@@ -608,6 +662,7 @@ class _PlayerCard extends StatelessWidget {
 }
 
 class _PlayerDetails extends StatelessWidget {
+  final AppLayoutSpec layout;
   final PlaybackItem item;
   final String format;
   final String fileName;
@@ -621,6 +676,7 @@ class _PlayerDetails extends StatelessWidget {
   final VoidCallback onLyrics;
 
   const _PlayerDetails({
+    required this.layout,
     required this.item,
     required this.format,
     required this.fileName,
@@ -637,6 +693,15 @@ class _PlayerDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artist = item.artist?.trim();
+    final titleStyle = (layout.isCompact
+            ? Theme.of(context).textTheme.headlineSmall
+            : Theme.of(context).textTheme.headlineMedium)
+        ?.copyWith(
+      fontWeight: FontWeight.w900,
+      height: 1.08,
+      letterSpacing: -0.5,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -651,13 +716,9 @@ class _PlayerDetails extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
         Text(
           item.title,
-          maxLines: 3,
+          maxLines: layout.isCompact ? 2 : 3,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                height: 1.08,
-                letterSpacing: -0.5,
-              ),
+          style: titleStyle,
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -703,10 +764,11 @@ class _PlayerDetails extends StatelessWidget {
             ),
           ),
         ],
-        const SizedBox(height: AppSpacing.xl),
+        SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
         _ProgressBar(state: state, onSeek: session.seek),
         const SizedBox(height: AppSpacing.md),
         _Transport(
+          layout: layout,
           state: state,
           session: session,
           onSkipBack: onSkipBack,
@@ -741,11 +803,23 @@ class _PlayerDetails extends StatelessWidget {
           runSpacing: AppSpacing.sm,
           children: [
             FilledButton.tonalIcon(
+              style: FilledButton.styleFrom(
+                minimumSize: Size(
+                  layout.minimumInteractiveExtent,
+                  layout.minimumInteractiveExtent,
+                ),
+              ),
               onPressed: onLyrics,
               icon: const Icon(Icons.lyrics_rounded),
               label: Text(item.hasLyrics ? '打开歌词' : '导入歌词'),
             ),
             OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(
+                  layout.minimumInteractiveExtent,
+                  layout.minimumInteractiveExtent,
+                ),
+              ),
               onPressed: onEditMetadata,
               icon: const Icon(Icons.edit_outlined),
               label: const Text('编辑资料与封面'),
@@ -832,12 +906,14 @@ class _InfoChip extends StatelessWidget {
 }
 
 class _Transport extends StatelessWidget {
+  final AppLayoutSpec layout;
   final PlaybackState state;
   final PlaybackSessionService session;
   final VoidCallback onSkipBack;
   final VoidCallback onSkipForward;
 
   const _Transport({
+    required this.layout,
     required this.state,
     required this.session,
     required this.onSkipBack,
@@ -847,24 +923,44 @@ class _Transport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final queue = session.currentState;
+    final secondaryExtent = layout.minimumInteractiveExtent;
+    final primaryExtent = layout.primaryPlayerControlExtent;
+
+    Widget secondaryButton({
+      required String tooltip,
+      required IconData icon,
+      required VoidCallback? onPressed,
+    }) {
+      return SizedBox(
+        width: secondaryExtent,
+        height: secondaryExtent,
+        child: IconButton(
+          onPressed: onPressed,
+          tooltip: tooltip,
+          icon: Icon(icon),
+        ),
+      );
+    }
+
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: AppSpacing.sm,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
       children: [
-        IconButton(
+        secondaryButton(
           onPressed: queue.canSkipPrevious ? session.skipPrevious : null,
           tooltip: '上一首 / 重新开始',
-          icon: const Icon(Icons.skip_previous_rounded),
+          icon: Icons.skip_previous_rounded,
         ),
-        IconButton(
+        secondaryButton(
           onPressed: onSkipBack,
           tooltip: '后退 10 秒',
-          icon: const Icon(Icons.replay_10_rounded),
+          icon: Icons.replay_10_rounded,
         ),
         SizedBox(
-          width: 64,
-          height: 64,
+          width: primaryExtent,
+          height: primaryExtent,
           child: IconButton(
             onPressed: state.isBuffering || state.isLoading
                 ? null
@@ -887,19 +983,19 @@ class _Transport extends StatelessWidget {
                     state.isPlaying
                         ? Icons.pause_rounded
                         : Icons.play_arrow_rounded,
-                    size: 34,
+                    size: layout.isCompact ? 30 : 34,
                   ),
           ),
         ),
-        IconButton(
+        secondaryButton(
           onPressed: onSkipForward,
           tooltip: '前进 10 秒',
-          icon: const Icon(Icons.forward_10_rounded),
+          icon: Icons.forward_10_rounded,
         ),
-        IconButton(
+        secondaryButton(
           onPressed: queue.canSkipNext ? session.skipNext : null,
           tooltip: '下一首',
-          icon: const Icon(Icons.skip_next_rounded),
+          icon: Icons.skip_next_rounded,
         ),
       ],
     );
