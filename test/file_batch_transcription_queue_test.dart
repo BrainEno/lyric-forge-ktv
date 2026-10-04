@@ -15,7 +15,9 @@ import 'package:lyric_forge_ktv/features/transcription/domain/services/project_t
 void main() {
   test('one failed song does not block the next queue item', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-queue-');
-    addTearDown(() => root.delete(recursive: true));
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
     final audioA = File('${root.path}${Platform.pathSeparator}fail.mp3');
     final audioB = File('${root.path}${Platform.pathSeparator}ok.mp3');
     await audioA.writeAsBytes(<int>[1]);
@@ -50,7 +52,9 @@ void main() {
 
   test('running item is restored as queued after restart', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-recover-');
-    addTearDown(() => root.delete(recursive: true));
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
     final projectRoot = Directory(
       '${root.path}${Platform.pathSeparator}projects',
     );
