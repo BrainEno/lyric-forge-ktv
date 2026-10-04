@@ -118,7 +118,10 @@ class ProjectManifest {
     );
   }
 
-  bool get canPlay => audioAsset?.instrumentalPath != null;
+  /// Every project with an AudioAsset can play its required original audio.
+  /// Instrumental and vocal stems are optional alternate sources, not a gate
+  /// for entering the player.
+  bool get canPlay => audioAsset != null;
   bool get hasLyrics => lyricDocument != null && lyricDocument!.lines.isNotEmpty;
   double get progressPercent {
     final stages = ProcessingStage.values.length - 1;

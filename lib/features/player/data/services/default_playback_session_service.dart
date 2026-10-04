@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import '../../domain/models/local_media_metadata.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
+import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -9,6 +11,7 @@ import '../../domain/services/playback_session_service.dart';
 class DefaultPlaybackSessionService implements PlaybackSessionService {
   final AudioPlayerService _audioPlayer;
   final PlayHistoryRepository? _playHistoryRepository;
+  final LocalMediaMetadataRepository? _localMediaMetadataRepository;
   final _stateController =
       StreamController<PlaybackSessionState>.broadcast();
 
@@ -22,7 +25,9 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   DefaultPlaybackSessionService(
     this._audioPlayer, {
     PlayHistoryRepository? playHistoryRepository,
-  }) : _playHistoryRepository = playHistoryRepository {
+    LocalMediaMetadataRepository? localMediaMetadataRepository,
+  })  : _playHistoryRepository = playHistoryRepository,
+        _localMediaMetadataRepository = localMediaMetadataRepository {
     _playbackSubscription = _audioPlayer.stateStream.listen((playback) {
       final paused = _wasPlaying && !playback.isPlaying && !playback.isCompleted;
       _wasPlaying = playback.isPlaying;
@@ -72,6 +77,25 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       _wasPlaying = false;
     }
     _stateController.add(_state);
+  }
+
+  Future<PlaybackItem> _withLocalMediaMetadata(PlaybackItem item) async {
+    final repository = _localMediaMetadataRepository;
+    if (repository == null || item.projectId != null) return item;
+
+    LocalMediaMetadata? metadata;
+    try {
+      metadata = await repository.getForAudio(item.audioAsset.originalPath);
+    } catch (_) {
+      return item;
+    }
+    if (metadata == null || !metadata.hasOverrides) return item;
+
+    return item.copyWith(
+      title: metadata.resolvedTitle(item.title),
+      artist: metadata.resolvedArtist(item.artist),
+      artworkPath: metadata.resolvedArtwork(item.artworkPath),
+    );
   }
 
   Duration _historyPosition(PlaybackState playback, Duration position) {
@@ -145,13 +169,14 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       await _persistCurrentHistory();
     }
 
+    final resolved = await _withLocalMediaMetadata(item);
     final queue = List<PlaybackItem>.from(_state.queue);
-    var index = queue.indexWhere((entry) => entry.id == item.id);
+    var index = queue.indexWhere((entry) => entry.id == resolved.id);
 
     if (index >= 0) {
-      queue[index] = item;
+      queue[index] = resolved;
     } else {
-      queue.add(item);
+      queue.add(resolved);
       index = queue.length - 1;
     }
 
@@ -172,10 +197,11 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
-    final safeIndex = startIndex.clamp(0, items.length - 1).toInt();
+    final resolvedItems = await Future.wait(items.map(_withLocalMediaMetadata));
+    final safeIndex = startIndex.clamp(0, resolvedItems.length - 1).toInt();
     _emit(
       PlaybackSessionState(
-        queue: List<PlaybackItem>.unmodifiable(items),
+        queue: List<PlaybackItem>.unmodifiable(resolvedItems),
         currentIndex: safeIndex,
       ),
     );
@@ -185,15 +211,34 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> enqueue(PlaybackItem item) async {
+    final resolved = await _withLocalMediaMetadata(item);
     final queue = List<PlaybackItem>.from(_state.queue);
-    if (queue.every((entry) => entry.id != item.id)) {
-      queue.add(item);
+    if (queue.every((entry) => entry.id != resolved.id)) {
+      queue.add(resolved);
       _emit(
         PlaybackSessionState(
           queue: List<PlaybackItem>.unmodifiable(queue),
           currentIndex: _state.currentIndex,
         ),
       );
+    }
+  }
+
+  @override
+  Future<void> updateItem(PlaybackItem item) async {
+    final index = _state.queue.indexWhere((entry) => entry.id == item.id);
+    if (index < 0) return;
+
+    final queue = List<PlaybackItem>.from(_state.queue);
+    queue[index] = item;
+    _emit(
+      PlaybackSessionState(
+        queue: List<PlaybackItem>.unmodifiable(queue),
+        currentIndex: _state.currentIndex,
+      ),
+    );
+    if (index == _state.currentIndex) {
+      await _persistCurrentHistory();
     }
   }
 

@@ -9,6 +9,8 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'local_media_metadata_dialog.dart';
+import 'local_song_lyrics_import_action.dart';
 import 'playback_queue_panel.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
@@ -152,6 +154,26 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 ],
                               ),
                             ),
+                            if (item.projectId == null) ...[
+                              IconButton(
+                                tooltip: '导入歌词文件',
+                                onPressed: () {
+                                  importLyricsForLocalPlaybackItem(context, item);
+                                },
+                                icon: Icon(
+                                  item.hasLyrics
+                                      ? Icons.lyrics_rounded
+                                      : Icons.file_upload_outlined,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: '编辑歌曲资料与封面',
+                                onPressed: () {
+                                  showLocalMediaMetadataDialog(context, item);
+                                },
+                                icon: const Icon(Icons.edit_outlined),
+                              ),
+                            ],
                             IconButton(
                               tooltip: '上一首 / 重新开始',
                               onPressed: session.canSkipPrevious
