@@ -11,6 +11,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final services = ServiceLocatorGlobal.I;
   services.initialize();
+  await services.restorePlaybackSession();
   await services.initializeSystemMediaControls();
   runApp(const LyricForgeApp());
 }
