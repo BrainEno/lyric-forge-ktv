@@ -37,7 +37,14 @@ class PlaybackSessionPersistenceCoordinator {
   }
 
   Future<void> restore() async {
-    final snapshot = await snapshots.load();
+    PlaybackSessionSnapshot? snapshot;
+    try {
+      snapshot = await snapshots.load();
+    } catch (_) {
+      // Playback session state is recoverable convenience data. Storage errors
+      // must never prevent the application from starting.
+      return;
+    }
     if (snapshot == null || snapshot.items.isEmpty) return;
 
     final items = snapshot.items
@@ -96,7 +103,9 @@ class PlaybackSessionPersistenceCoordinator {
       _lastObservedWasLocal = true;
     } catch (_) {
       // A stale/corrupt snapshot must never block app startup.
-      await snapshots.clear();
+      try {
+        await snapshots.clear();
+      } catch (_) {}
       try {
         await session.clearQueue(keepCurrent: false);
       } catch (_) {}
