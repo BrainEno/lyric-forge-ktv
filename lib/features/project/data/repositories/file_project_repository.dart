@@ -69,25 +69,29 @@ class FileProjectRepository implements ProjectRepository {
     }
   }
 
-  Future<void> _persist() async {
-    final snapshot = _projects.values
-        .map((project) => project.toJson())
-        .toList(growable: false);
+  Future<void> _persist() {
+    final payload = const JsonEncoder.withIndent('  ').convert({
+      'version': 1,
+      'projects': _projects.values
+          .map((project) => project.toJson())
+          .toList(growable: false),
+    });
+    final previous = _writeChain;
+    final operation = () async {
+      // Surface a failed write to the caller that initiated it, but allow later
+      // mutations to retry instead of inheriting a permanently failed chain.
+      try {
+        await previous;
+      } catch (_) {}
 
-    _writeChain = _writeChain.then((_) async {
       final file = await _storeFile();
       final temporary = File(file.path + '.tmp');
-      await temporary.writeAsString(
-        const JsonEncoder.withIndent('  ').convert({
-          'version': 1,
-          'projects': snapshot,
-        }),
-        flush: true,
-      );
+      await temporary.writeAsString(payload, flush: true);
       if (await file.exists()) await file.delete();
       await temporary.rename(file.path);
-    });
-    await _writeChain;
+    }();
+    _writeChain = operation;
+    return operation;
   }
 
   @override
