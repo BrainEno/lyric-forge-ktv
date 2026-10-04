@@ -1,28 +1,56 @@
 import 'dart:async';
 
+import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
+import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 
 class DefaultPlaybackSessionService implements PlaybackSessionService {
   final AudioPlayerService _audioPlayer;
+  final PlayHistoryRepository? _playHistoryRepository;
   final _stateController =
       StreamController<PlaybackSessionState>.broadcast();
 
   PlaybackSessionState _state = const PlaybackSessionState();
   StreamSubscription<PlaybackState>? _playbackSubscription;
+  StreamSubscription<Duration>? _positionSubscription;
   bool _handledCompletion = false;
+  bool _wasPlaying = false;
+  Duration? _lastHistorySavedPosition;
 
-  DefaultPlaybackSessionService(this._audioPlayer) {
+  DefaultPlaybackSessionService(
+    this._audioPlayer, {
+    PlayHistoryRepository? playHistoryRepository,
+  }) : _playHistoryRepository = playHistoryRepository {
     _playbackSubscription = _audioPlayer.stateStream.listen((playback) {
+      final paused = _wasPlaying && !playback.isPlaying && !playback.isCompleted;
+      _wasPlaying = playback.isPlaying;
+      if (paused) {
+        unawaited(_persistCurrentHistory());
+      }
+
       if (!playback.isCompleted) {
         _handledCompletion = false;
         return;
       }
       if (_handledCompletion) return;
       _handledCompletion = true;
+      unawaited(_persistCurrentHistory());
       if (_state.canSkipNext) {
         unawaited(skipNext());
+      }
+    });
+
+    _positionSubscription = _audioPlayer.positionStream.listen((position) {
+      final item = _state.currentItem;
+      if (item == null || item.projectId != null) return;
+
+      final previous = _lastHistorySavedPosition;
+      if (previous == null ||
+          (position.inSeconds - previous.inSeconds).abs() >= 15) {
+        _lastHistorySavedPosition = position;
+        unawaited(_persistCurrentHistory(position: position));
       }
     });
   }
@@ -37,8 +65,55 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   PlaybackState get playbackState => _audioPlayer.currentState;
 
   void _emit(PlaybackSessionState next) {
+    final previousId = _state.currentItem?.id;
     _state = next;
+    if (_state.currentItem?.id != previousId) {
+      _lastHistorySavedPosition = null;
+      _wasPlaying = false;
+    }
     _stateController.add(_state);
+  }
+
+  Duration _historyPosition(PlaybackState playback, Duration position) {
+    final duration = playback.duration;
+    if (duration != null && duration > Duration.zero) {
+      final remaining = duration - position;
+      if (remaining <= const Duration(seconds: 3)) {
+        return Duration.zero;
+      }
+    }
+    return position < Duration.zero ? Duration.zero : position;
+  }
+
+  Future<void> _persistCurrentHistory({Duration? position}) async {
+    final repository = _playHistoryRepository;
+    final item = _state.currentItem;
+    if (repository == null || item == null || item.projectId != null) return;
+
+    final playback = _audioPlayer.currentState;
+    final resolvedPosition = _historyPosition(
+      playback,
+      position ?? playback.position,
+    );
+    _lastHistorySavedPosition = resolvedPosition;
+
+    try {
+      await repository.savePlayHistory(
+        PlayHistory(
+          id: item.id,
+          name: item.title,
+          artist: item.artist,
+          filePath: item.audioAsset.originalPath,
+          playedAt: DateTime.now(),
+          lastPosition: resolvedPosition,
+          duration: playback.duration,
+          lastSource: playback.currentSource ?? item.preferredSource,
+        ),
+      );
+    } catch (_) {
+      // Playback must never fail because non-critical recent-play metadata could
+      // not be persisted.
+    }
   }
 
   Future<void> _loadCurrent({Duration? resumeFrom}) async {
@@ -58,6 +133,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     }
 
     await _audioPlayer.play();
+    await _persistCurrentHistory();
   }
 
   @override
@@ -65,6 +141,10 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     PlaybackItem item, {
     Duration? resumeFrom,
   }) async {
+    if (_state.currentItem?.id != item.id) {
+      await _persistCurrentHistory();
+    }
+
     final queue = List<PlaybackItem>.from(_state.queue);
     var index = queue.indexWhere((entry) => entry.id == item.id);
 
@@ -85,6 +165,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     List<PlaybackItem> items, {
     int startIndex = 0,
   }) async {
+    await _persistCurrentHistory();
     if (items.isEmpty) {
       _emit(const PlaybackSessionState());
       await _audioPlayer.stop();
@@ -121,6 +202,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     if (index < 0 || index >= _state.queue.length) return;
     if (index == _state.currentIndex) return;
 
+    await _persistCurrentHistory();
     _emit(
       PlaybackSessionState(
         queue: _state.queue,
@@ -138,6 +220,9 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     final queue = List<PlaybackItem>.from(_state.queue);
     final removingCurrent = index == _state.currentIndex;
     final removingBeforeCurrent = index < _state.currentIndex;
+    if (removingCurrent) {
+      await _persistCurrentHistory();
+    }
     queue.removeAt(index);
 
     if (queue.isEmpty) {
@@ -207,6 +292,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
+    await _persistCurrentHistory();
     _emit(const PlaybackSessionState());
     _handledCompletion = false;
     await _audioPlayer.stop();
@@ -218,14 +304,17 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
     if (_audioPlayer.currentState.position > const Duration(seconds: 3)) {
       await _audioPlayer.seek(Duration.zero);
+      await _persistCurrentHistory(position: Duration.zero);
       return;
     }
 
     if (_state.currentIndex <= 0) {
       await _audioPlayer.seek(Duration.zero);
+      await _persistCurrentHistory(position: Duration.zero);
       return;
     }
 
+    await _persistCurrentHistory();
     _emit(
       PlaybackSessionState(
         queue: _state.queue,
@@ -240,6 +329,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   Future<void> skipNext() async {
     if (!_state.canSkipNext) return;
 
+    await _persistCurrentHistory();
     _emit(
       PlaybackSessionState(
         queue: _state.queue,
@@ -260,10 +350,16 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   }
 
   @override
-  Future<void> seek(Duration position) => _audioPlayer.seek(position);
+  Future<void> seek(Duration position) async {
+    _lastHistorySavedPosition = position;
+    await _audioPlayer.seek(position);
+    await _persistCurrentHistory(position: position);
+  }
 
   @override
   Future<void> dispose() async {
+    await _persistCurrentHistory();
+    await _positionSubscription?.cancel();
     await _playbackSubscription?.cancel();
     await _stateController.close();
   }

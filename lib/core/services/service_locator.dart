@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../features/player/data/repositories/memory_play_history_repository.dart';
+import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
@@ -59,8 +59,11 @@ class ServiceLocator {
     projectRepository = FileProjectRepository();
     audioPlayerService = JustAudioPlayerService();
     audioLibraryImportService = LocalAudioLibraryImportService();
-    playbackSessionService = DefaultPlaybackSessionService(audioPlayerService);
-    playHistoryRepository = MemoryPlayHistoryRepository();
+    playHistoryRepository = FilePlayHistoryRepository();
+    playbackSessionService = DefaultPlaybackSessionService(
+      audioPlayerService,
+      playHistoryRepository: playHistoryRepository,
+    );
     mediaHubService = HttpMediaHubService();
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
