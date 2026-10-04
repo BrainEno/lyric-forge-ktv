@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
@@ -125,6 +126,62 @@ void main() {
       TranscriptionQueueItemStatus.queued,
     );
     expect(queue.current.items.single.message, contains('已恢复'));
+    await queue.dispose();
+  });
+
+  test('existing batch-marked project is reused when projectId write was lost',
+      () async {
+    final root = await Directory.systemTemp.createTemp('lyricforge-link-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final audio = File('${root.path}${Platform.pathSeparator}song.mp3');
+    await audio.writeAsBytes(<int>[1]);
+    final projectRoot = Directory(
+      '${root.path}${Platform.pathSeparator}projects',
+    );
+    final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
+    await queueRoot.create(recursive: true);
+
+    final repository = FileProjectRepository(rootDirectory: projectRoot);
+    var project = await repository.createProject(name: 'song');
+    project = await repository.updateProject(
+      project.copyWith(
+        currentStage: ProcessingStage.audioImported,
+        audioAsset: AudioAsset(originalPath: audio.path, format: 'mp3'),
+        metadata: const {'batchQueueItemId': 'recover-link'},
+      ),
+    );
+
+    final now = DateTime.now();
+    final item = TranscriptionQueueItem(
+      id: 'recover-link',
+      sourcePath: audio.path,
+      projectName: 'song',
+      status: TranscriptionQueueItemStatus.queued,
+      createdAt: now,
+      updatedAt: now,
+    );
+    await File(
+      '${queueRoot.path}${Platform.pathSeparator}transcription_queue.json',
+    ).writeAsString(jsonEncode({
+      'version': 1,
+      'paused': true,
+      'items': <Map<String, dynamic>>[item.toJson()],
+    }));
+
+    final queue = FileBatchTranscriptionQueue(
+      projectRepository: repository,
+      workflow: _FakeWorkflow(repository),
+      rootDirectory: queueRoot,
+    );
+    await queue.initialize();
+    await queue.resume();
+    await _waitUntil(() => queue.current.completedCount == 1);
+
+    final projects = await repository.getAllProjects();
+    expect(projects, hasLength(1));
+    expect(queue.current.items.single.projectId, project.id);
     await queue.dispose();
   });
 }
