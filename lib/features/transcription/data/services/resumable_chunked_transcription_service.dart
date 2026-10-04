@@ -333,7 +333,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       for (final line in document.lines) {
         final duplicateIndex = lines.lastIndexWhere((existing) =>
           _normalize(existing.text) == _normalize(line.text) &&
-          (existing.startTime - line.startTime).abs() <= overlap);
+          _absoluteDuration(existing.startTime - line.startTime) <= overlap);
         if (duplicateIndex >= 0) {
           if (line.confidence > lines[duplicateIndex].confidence) {
             lines[duplicateIndex] = line;
@@ -350,6 +350,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       metadata: {'mergeStrategy': 'overlapTextAndTimeDedup'},
     );
   }
+
+  Duration _absoluteDuration(Duration value) =>
+      value.isNegative ? -value : value;
 
   String _normalize(String value) => value
       .toLowerCase()
