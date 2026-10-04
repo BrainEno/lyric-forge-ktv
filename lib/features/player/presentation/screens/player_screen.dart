@@ -1266,7 +1266,10 @@ class _ProgressBar extends StatelessWidget {
     final duration = state.duration;
     final durationMs = duration?.inMilliseconds ?? 0;
     final max = durationMs > 0 ? durationMs.toDouble() : 1.0;
-    final value = state.position.inMilliseconds.toDouble().clamp(0.0, max);
+    final value = state.position.inMilliseconds
+        .toDouble()
+        .clamp(0.0, max)
+        .toDouble();
 
     return Column(
       children: [
