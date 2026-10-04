@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../../features/lyrics/domain/services/lyric_file_import_service.dart';
+import '../../features/player/data/repositories/file_local_media_collection_repository.dart';
 import '../../features/player/data/repositories/file_local_media_library_repository.dart';
 import '../../features/player/data/repositories/file_local_media_metadata_repository.dart';
 import '../../features/player/data/repositories/file_play_history_repository.dart';
@@ -10,6 +11,7 @@ import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
 import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
+import '../../features/player/domain/repositories/local_media_collection_repository.dart';
 import '../../features/player/domain/repositories/local_media_library_repository.dart';
 import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
 import '../../features/player/domain/repositories/play_history_repository.dart';
@@ -54,6 +56,7 @@ class ServiceLocator {
   late final AudioLibraryImportService audioLibraryImportService;
   late final EmbeddedAudioMetadataReader embeddedAudioMetadataReader;
   late final LocalMediaLibraryRepository localMediaLibraryRepository;
+  late final LocalMediaCollectionRepository localMediaCollectionRepository;
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
   late final LyricFileImportService lyricFileImportService;
   late final PlayHistoryRepository playHistoryRepository;
@@ -75,6 +78,7 @@ class ServiceLocator {
     localMediaLibraryRepository = FileLocalMediaLibraryRepository(
       metadataReader: embeddedAudioMetadataReader,
     );
+    localMediaCollectionRepository = FileLocalMediaCollectionRepository();
     audioLibraryImportService = LocalAudioLibraryImportService(
       onFilesPicked: (paths) async {
         await localMediaLibraryRepository.addPaths(paths);

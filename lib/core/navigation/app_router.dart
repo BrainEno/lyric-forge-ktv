@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/service_locator.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
 import '../../features/player/domain/models/play_history.dart';
-import '../../features/player/presentation/screens/local_media_library_screen_v2.dart';
+import '../../features/player/presentation/screens/local_music_library_shell.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
@@ -18,6 +18,7 @@ abstract class Routes {
   static const String dashboard = '/dashboard';
   static const String import = '/import';
   static const String library = '/library';
+  static const String collections = '/collections';
   static const String quickPlay = '/quick-play';
   static const String nowPlaying = '/now-playing';
   static const String projectDetail = '/project/:id';
@@ -48,7 +49,10 @@ class AppRouter {
         return _fadeRoute(const ImportAudioScreen(), settings);
 
       case Routes.library:
-        return _fadeRoute(const LocalMediaLibraryScreenV2(), settings);
+        return _fadeRoute(const LocalMusicLibraryShell(), settings);
+
+      case Routes.collections:
+        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 1), settings);
 
       case Routes.quickPlay:
         final history = settings.arguments is PlayHistory
@@ -64,7 +68,7 @@ class AppRouter {
         if (current != null) {
           return _fadeRoute(const QuickPlayScreen(), settings);
         }
-        return _fadeRoute(const LocalMediaLibraryScreenV2(), settings);
+        return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
       case Routes.nowPlaying:
         return _fadeRoute(const QuickPlayScreen(), settings);

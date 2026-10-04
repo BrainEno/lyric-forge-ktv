@@ -10,6 +10,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
 import 'playback_queue_panel.dart';
@@ -31,6 +32,18 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
     super.initState();
     _session = ServiceLocatorGlobal.I.playbackSessionService;
     _audio = ServiceLocatorGlobal.I.audioPlayerService;
+  }
+
+  Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {
+    final playlist = await showAddToLocalPlaylistDialog(
+      context,
+      sourcePath: item.audioAsset.originalPath,
+      title: item.title,
+    );
+    if (!context.mounted || playlist == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已加入“${playlist.name}”')),
+    );
   }
 
   @override
@@ -110,7 +123,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                     ),
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 760;
+                        final compact = constraints.maxWidth < 900;
                         return Row(
                           children: [
                             InkWell(
@@ -164,25 +177,81 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               onPressed: () => Navigator.pushNamed(context, Routes.library),
                               icon: const Icon(Icons.library_music_rounded),
                             ),
+                            if (!compact)
+                              IconButton(
+                                tooltip: '收藏与播放列表',
+                                onPressed: () =>
+                                    Navigator.pushNamed(context, Routes.collections),
+                                icon: const Icon(Icons.collections_bookmark_outlined),
+                              ),
                             if (item.projectId == null) ...[
-                              IconButton(
-                                tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
-                                onPressed: () {
-                                  importLyricsForLocalPlaybackItem(context, item);
-                                },
-                                icon: Icon(
-                                  item.hasLyrics
-                                      ? Icons.lyrics_rounded
-                                      : Icons.file_upload_outlined,
+                              LocalFavoriteButton(
+                                key: ValueKey('favorite:${item.audioAsset.originalPath}'),
+                                sourcePath: item.audioAsset.originalPath,
+                              ),
+                              if (!compact) ...[
+                                IconButton(
+                                  tooltip: '加入播放列表',
+                                  onPressed: () => _addToPlaylist(context, item),
+                                  icon: const Icon(Icons.playlist_add_rounded),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: '编辑歌曲资料与封面',
-                                onPressed: () {
-                                  showLocalMediaMetadataDialog(context, item);
-                                },
-                                icon: const Icon(Icons.edit_outlined),
-                              ),
+                                IconButton(
+                                  tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
+                                  onPressed: () {
+                                    importLyricsForLocalPlaybackItem(context, item);
+                                  },
+                                  icon: Icon(
+                                    item.hasLyrics
+                                        ? Icons.lyrics_rounded
+                                        : Icons.file_upload_outlined,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: '编辑歌曲资料与封面',
+                                  onPressed: () {
+                                    showLocalMediaMetadataDialog(context, item);
+                                  },
+                                  icon: const Icon(Icons.edit_outlined),
+                                ),
+                              ] else
+                                PopupMenuButton<String>(
+                                  tooltip: '更多歌曲操作',
+                                  onSelected: (value) async {
+                                    switch (value) {
+                                      case 'collections':
+                                        Navigator.pushNamed(context, Routes.collections);
+                                        return;
+                                      case 'playlist':
+                                        await _addToPlaylist(context, item);
+                                        return;
+                                      case 'lyrics':
+                                        await importLyricsForLocalPlaybackItem(context, item);
+                                        return;
+                                      case 'edit':
+                                        await showLocalMediaMetadataDialog(context, item);
+                                        return;
+                                    }
+                                  },
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
+                                      value: 'collections',
+                                      child: Text('收藏与播放列表'),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'playlist',
+                                      child: Text('加入播放列表'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'lyrics',
+                                      child: Text(item.hasLyrics ? '打开歌词' : '导入歌词文件'),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('编辑歌曲资料与封面'),
+                                    ),
+                                  ],
+                                  icon: const Icon(Icons.more_horiz_rounded),
+                                ),
                             ],
                             IconButton(
                               tooltip: '上一首 / 重新开始',
