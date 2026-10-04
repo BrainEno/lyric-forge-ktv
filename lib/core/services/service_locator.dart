@@ -13,6 +13,7 @@ import '../../features/transcription/data/services/high_quality_transcription_se
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
+import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/native_transcription_profile_resolver.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
@@ -58,7 +59,11 @@ class ServiceLocator {
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
     transcriptionProfileResolver = NativeTranscriptionProfileResolver();
-    asrRuntimeManager = ManagedAsrRuntimeManager(
+    final runtimeInstaller = ManagedAsrRuntimeManager(
+      profileResolver: transcriptionProfileResolver,
+    );
+    asrRuntimeManager = ManagedModelAsrRuntimeManager(
+      delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
     );
     transcriptionService = HighQualityTranscriptionService(
