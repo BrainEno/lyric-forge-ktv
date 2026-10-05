@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -236,27 +237,35 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 56, color: AppColors.error),
-          const SizedBox(height: AppSpacing.md),
-          Text('加载工程失败', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            '工程文件暂时无法读取，请重新加载。',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton.tonalIcon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('重新加载'),
-          ),
-        ],
+      child: Padding(
+        padding: EdgeInsets.all(spec.pageGutter),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 56, color: AppColors.error),
+            const SizedBox(height: AppSpacing.md),
+            Text('加载工程失败', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '工程文件暂时无法读取，请重新加载。',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.tonalIcon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('重新加载'),
+              style: FilledButton.styleFrom(
+                minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -285,6 +294,14 @@ class _ProjectDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final verticalStart = spec.isCompact || spec.isShort
+        ? AppSpacing.md
+        : AppSpacing.lg;
+    final verticalEnd = spec.isCompact || spec.isShort
+        ? AppSpacing.xl
+        : AppSpacing.xxxl;
+
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
       color: AppColors.accent,
@@ -302,33 +319,37 @@ class _ProjectDetailContent extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             actions: [
-              IconButton(
-                tooltip: '刷新工程',
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh_rounded),
+              SizedBox(
+                width: spec.minimumInteractiveExtent,
+                height: spec.minimumInteractiveExtent,
+                child: IconButton(
+                  tooltip: '刷新工程',
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: spec.isCompact ? 4 : AppSpacing.sm),
             ],
           ),
           SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
+                constraints: BoxConstraints(maxWidth: spec.contentMaxWidth),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenPadding,
-                    AppSpacing.lg,
-                    AppSpacing.screenPadding,
-                    AppSpacing.xxxl,
+                  padding: EdgeInsets.fromLTRB(
+                    spec.pageGutter,
+                    verticalStart,
+                    spec.pageGutter,
+                    verticalEnd,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _ProjectHero(project: project),
-                      const SizedBox(height: AppSpacing.lg),
+                      SizedBox(height: spec.sectionGap),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final wide = constraints.maxWidth >= 880;
+                          final twoPane = spec.supportsTwoPane;
                           final mainColumn = Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -360,12 +381,12 @@ class _ProjectDetailContent extends StatelessWidget {
                             ],
                           );
 
-                          if (!wide) {
+                          if (!twoPane) {
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 sideColumn,
-                                const SizedBox(height: AppSpacing.md),
+                                SizedBox(height: spec.sectionGap),
                                 mainColumn,
                               ],
                             );
@@ -374,9 +395,12 @@ class _ProjectDetailContent extends StatelessWidget {
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(flex: 7, child: mainColumn),
-                              const SizedBox(width: AppSpacing.lg),
-                              SizedBox(width: 330, child: sideColumn),
+                              Expanded(child: mainColumn),
+                              SizedBox(width: spec.sectionGap),
+                              SizedBox(
+                                width: spec.sidePanelWidth,
+                                child: sideColumn,
+                              ),
                             ],
                           );
                         },
@@ -400,106 +424,105 @@ class _ProjectHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final stacked = spec.isCompactOrMedium || spec.isShort;
+    final heroPadding = spec.isCompact ? AppSpacing.md : AppSpacing.lg;
+    final artwork = _ProjectArtwork(project: project, compact: stacked);
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              '歌曲工程',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textTertiary,
+                    letterSpacing: 0.6,
+                  ),
+            ),
+            _StatusPill(status: project.status),
+            if (project.lyricDocument?.lines.isNotEmpty == true)
+              _MiniPill(
+                icon: Icons.lyrics_rounded,
+                label: '${project.lyricDocument!.lines.length} 行歌词',
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          project.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: (spec.isCompact
+                  ? Theme.of(context).textTheme.headlineSmall
+                  : Theme.of(context).textTheme.headlineMedium)
+              ?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          _subtitle(project),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            if (project.audioAsset != null)
+              _MiniPill(
+                icon: Icons.graphic_eq_rounded,
+                label: project.audioAsset!.format.toUpperCase(),
+              ),
+            _MiniPill(
+              icon: project.hasLyrics
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.edit_note_rounded,
+              label: project.hasLyrics ? '已有歌词草稿' : '等待生成歌词',
+            ),
+            if (project.canPlay)
+              const _MiniPill(
+                icon: Icons.play_circle_outline_rounded,
+                label: '可进入播放器',
+              ),
+          ],
+        ),
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(heroPadding),
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
         border: Border.all(color: AppColors.borderMuted),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 640;
-          final artwork = _ProjectArtwork(project: project, compact: compact);
-          final details = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '歌曲工程',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.6,
-                        ),
-                  ),
-                  _StatusPill(status: project.status),
-                  if (project.lyricDocument?.lines.isNotEmpty == true)
-                    _MiniPill(
-                      icon: Icons.lyrics_rounded,
-                      label: '${project.lyricDocument!.lines.length} 行歌词',
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                project.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                _subtitle(project),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (project.audioAsset != null)
-                    _MiniPill(
-                      icon: Icons.graphic_eq_rounded,
-                      label: project.audioAsset!.format.toUpperCase(),
-                    ),
-                  _MiniPill(
-                    icon: project.hasLyrics
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.edit_note_rounded,
-                    label: project.hasLyrics ? '已有歌词草稿' : '等待生成歌词',
-                  ),
-                  if (project.canPlay)
-                    const _MiniPill(
-                      icon: Icons.play_circle_outline_rounded,
-                      label: '可进入播放器',
-                    ),
-                ],
-              ),
-            ],
-          );
-
-          if (compact) {
-            return Column(
+      child: stacked
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 artwork,
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: spec.isShort ? AppSpacing.md : AppSpacing.lg),
                 details,
               ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              artwork,
-              const SizedBox(width: AppSpacing.xl),
-              Expanded(child: details),
-            ],
-          );
-        },
-      ),
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                artwork,
+                const SizedBox(width: AppSpacing.xl),
+                Expanded(child: details),
+              ],
+            ),
     );
   }
 
@@ -526,10 +549,17 @@ class _ProjectArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final path = project.audioAsset?.thumbnailPath;
     final file = path == null ? null : File(path);
     final hasArtwork = file != null && file.existsSync();
-    final size = compact ? 112.0 : 164.0;
+    final size = spec.isShort
+        ? 96.0
+        : compact
+            ? 112.0
+            : spec.isExtraLarge
+                ? 180.0
+                : 164.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -539,10 +569,10 @@ class _ProjectArtwork extends StatelessWidget {
         decoration: const BoxDecoration(gradient: AppColors.playerGradient),
         child: hasArtwork
             ? Image.file(file!, fit: BoxFit.cover)
-            : const Center(
+            : Center(
                 child: Icon(
                   Icons.album_rounded,
-                  size: 68,
+                  size: size * 0.42,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -601,11 +631,15 @@ class _MiniPill extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
           ),
         ],
       ),
@@ -626,10 +660,39 @@ class _ProcessingProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final displayProgress = (liveProgress?.progress ?? progress)
         .clamp(0.0, 1.0)
         .toDouble();
     final displayLabel = liveProgress?.message ?? _stageLabel(stage);
+    final stages = <Widget>[
+      _StagePill(
+        label: '导入',
+        icon: Icons.audio_file_outlined,
+        completed: stage.index >= ProcessingStage.audioImported.index,
+      ),
+      _StagePill(
+        label: '音频处理',
+        icon: Icons.tune_rounded,
+        completed: stage.index >= ProcessingStage.audioNormalized.index,
+      ),
+      _StagePill(
+        label: '歌词识别',
+        icon: Icons.auto_awesome,
+        completed: stage.index >= ProcessingStage.transcriptionComplete.index,
+        active: liveProgress != null,
+      ),
+      _StagePill(
+        label: '歌词校对',
+        icon: Icons.edit_note_rounded,
+        completed: stage.index >= ProcessingStage.lyricsEdited.index,
+      ),
+      _StagePill(
+        label: '导出',
+        icon: Icons.ios_share_rounded,
+        completed: stage.index >= ProcessingStage.exported.index,
+      ),
+    ];
 
     return _SurfaceCard(
       child: Column(
@@ -677,39 +740,24 @@ class _ProcessingProgress extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              _StagePill(
-                label: '导入',
-                icon: Icons.audio_file_outlined,
-                completed: stage.index >= ProcessingStage.audioImported.index,
+          if (spec.isCompactOrMedium || spec.isShort)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var index = 0; index < stages.length; index++) ...[
+                    if (index > 0) const SizedBox(width: AppSpacing.sm),
+                    stages[index],
+                  ],
+                ],
               ),
-              _StagePill(
-                label: '音频处理',
-                icon: Icons.tune_rounded,
-                completed: stage.index >= ProcessingStage.audioNormalized.index,
-              ),
-              _StagePill(
-                label: '歌词识别',
-                icon: Icons.auto_awesome,
-                completed:
-                    stage.index >= ProcessingStage.transcriptionComplete.index,
-                active: liveProgress != null,
-              ),
-              _StagePill(
-                label: '歌词校对',
-                icon: Icons.edit_note_rounded,
-                completed: stage.index >= ProcessingStage.lyricsEdited.index,
-              ),
-              _StagePill(
-                label: '导出',
-                icon: Icons.ios_share_rounded,
-                completed: stage.index >= ProcessingStage.exported.index,
-              ),
-            ],
-          ),
+            )
+          else
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: stages,
+            ),
         ],
       ),
     );
@@ -895,6 +943,14 @@ class _ActionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final buttonStyle = FilledButton.styleFrom(
+      minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+    );
+    final outlinedStyle = OutlinedButton.styleFrom(
+      minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+    );
+
     return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -915,6 +971,7 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           if (project.hasLyrics)
             FilledButton.icon(
+              style: buttonStyle,
               onPressed: () => Navigator.pushNamed(
                 context,
                 Routes.lyricEditorPath(project.id),
@@ -924,6 +981,7 @@ class _ActionPanel extends StatelessWidget {
             )
           else if (isDesktop)
             FilledButton.icon(
+              style: buttonStyle,
               onPressed: isTranscribing || project.audioAsset == null
                   ? null
                   : onTranscribe,
@@ -944,6 +1002,7 @@ class _ActionPanel extends StatelessWidget {
           if (project.hasLyrics) ...[
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
+              style: outlinedStyle,
               onPressed: project.canPlay
                   ? () => Navigator.pushNamed(
                         context,
@@ -965,6 +1024,7 @@ class _ActionPanel extends StatelessWidget {
           if (isTranscribing) ...[
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
+              style: outlinedStyle,
               onPressed: onCancelTranscription,
               icon: const Icon(Icons.stop_circle_outlined),
               label: const Text('取消识别'),
@@ -1099,6 +1159,31 @@ class _MetadataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    if (spec.isCompact) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              row.label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              row.value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
@@ -1136,8 +1221,9 @@ class _SurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
