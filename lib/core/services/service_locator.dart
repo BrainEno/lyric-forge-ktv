@@ -40,9 +40,11 @@ import '../../features/transcription/domain/services/transcription_settings_stor
 import '../../features/transfer/data/services/file_media_hub_connection_store.dart';
 import '../../features/transfer/data/services/http_media_hub_client_service.dart';
 import '../../features/transfer/data/services/http_media_hub_service.dart';
+import '../../features/transfer/data/services/local_media_transfer_service.dart';
 import '../../features/transfer/domain/services/media_hub_client_service.dart';
 import '../../features/transfer/domain/services/media_hub_connection_store.dart';
 import '../../features/transfer/domain/services/media_hub_service.dart';
+import '../../features/transfer/domain/services/media_transfer_service.dart';
 
 /// Simple service locator for dependency injection.
 /// Replaced with proper DI (e.g., get_it, injectable) as project grows.
@@ -70,6 +72,7 @@ class ServiceLocator {
   late final BatchTranscriptionQueue transcriptionQueue;
   late final MediaHubClientService mediaHubClientService;
   late final MediaHubConnectionStore mediaHubConnectionStore;
+  late final MediaTransferService mediaTransferService;
 
   void initialize() {
     projectRepository = FileProjectRepository();
@@ -103,6 +106,10 @@ class ServiceLocator {
     mediaHubService = HttpMediaHubService();
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
+    mediaTransferService = LocalMediaTransferService(
+      client: mediaHubClientService,
+      libraryRepository: localMediaLibraryRepository,
+    );
     transcriptionProfileResolver = NativeTranscriptionProfileResolver();
     final runtimeInstaller = ManagedAsrRuntimeManager(
       profileResolver: transcriptionProfileResolver,
