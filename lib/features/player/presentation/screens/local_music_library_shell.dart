@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../../../../core/theme/color_tokens.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
@@ -33,6 +34,15 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     if (oldWidget.initialIndex != widget.initialIndex) {
       _index = widget.initialIndex.clamp(0, 4).toInt();
     }
+  }
+
+  void _openTransfer(BuildContext context) {
+    Navigator.pushNamed(
+      context,
+      AppResponsive.isDesktopTarget()
+          ? Routes.mediaSharing
+          : Routes.remoteLibrary,
+    );
   }
 
   List<Widget> get _pages => const [
@@ -115,11 +125,22 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                   selectedIndex: _index,
                   labelType: NavigationRailLabelType.all,
                   minWidth: 76,
-                  groupAlignment: -0.82,
+                  groupAlignment: -0.72,
                   onDestinationSelected: (value) => setState(() => _index = value),
-                  leading: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Icon(Icons.library_music_rounded, size: 30),
+                  leading: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.library_music_rounded, size: 30),
+                        const SizedBox(height: 12),
+                        IconButton.filledTonal(
+                          tooltip: '跨设备传输',
+                          onPressed: () => _openTransfer(context),
+                          icon: const Icon(Icons.devices_rounded),
+                        ),
+                      ],
+                    ),
                   ),
                   destinations: _railDestinations,
                 ),
@@ -140,6 +161,11 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
           body: IndexedStack(
             index: _index,
             children: _pages,
+          ),
+          floatingActionButton: FloatingActionButton.small(
+            tooltip: '跨设备传输',
+            onPressed: () => _openTransfer(context),
+            child: const Icon(Icons.devices_rounded),
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,

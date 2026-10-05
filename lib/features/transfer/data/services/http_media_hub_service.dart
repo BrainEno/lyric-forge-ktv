@@ -2,16 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
 
+typedef IncomingMediaCallback = Future<void> Function(String path);
+
 class HttpMediaHubService implements MediaHubService {
   static const int preferredPort = 48517;
 
   final Uuid _uuid;
+  final Directory? incomingDirectory;
+  final IncomingMediaCallback? onIncomingFile;
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
 
@@ -19,7 +24,11 @@ class HttpMediaHubService implements MediaHubService {
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
 
-  HttpMediaHubService({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  HttpMediaHubService({
+    Uuid? uuid,
+    this.incomingDirectory,
+    this.onIncomingFile,
+  }) : _uuid = uuid ?? const Uuid();
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -35,10 +44,6 @@ class HttpMediaHubService implements MediaHubService {
 
   @override
   Future<MediaHubSession> startSharing(List<SharedAudioTrack> tracks) async {
-    if (tracks.isEmpty) {
-      throw const MediaHubException('至少需要选择一个音频文件才能开始共享');
-    }
-
     await stopSharing();
     _emit(const MediaHubState(status: MediaHubStatus.starting));
 
@@ -46,12 +51,12 @@ class HttpMediaHubService implements MediaHubService {
       final validated = <String, SharedAudioTrack>{};
       for (final track in tracks) {
         if (validated.containsKey(track.id)) {
-          throw MediaHubException('存在重复的曲目 ID: ' + track.id);
+          throw MediaHubException('存在重复的曲目 ID: ${track.id}');
         }
 
         final file = File(track.localPath);
         if (!await file.exists()) {
-          throw MediaHubException('音频文件不存在: ' + track.title);
+          throw MediaHubException('音频文件不存在: ${track.title}');
         }
 
         final actualLength = await file.length();
@@ -232,6 +237,7 @@ class HttpMediaHubService implements MediaHubService {
             'protocolVersion': 1,
             'startedAt': session.startedAt.toIso8601String(),
             'trackCount': _tracks.length,
+            'acceptsUploads': true,
             'remoteAccessAvailable': session.remoteAccessAvailable,
             'endpoints':
                 session.endpoints.map((endpoint) => endpoint.toJson()).toList(),
@@ -254,12 +260,21 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
-      final isLyricsRequest =
-          request.method == 'GET' &&
-              segments.length == 4 &&
-              segments[0] == 'v1' &&
-              segments[1] == 'tracks' &&
-              segments[3] == 'lyrics';
+      final isIncomingAudio = request.method == 'POST' &&
+          segments.length == 3 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'incoming' &&
+          segments[2] == 'audio';
+      if (isIncomingAudio) {
+        await _receiveIncomingAudio(request);
+        return;
+      }
+
+      final isLyricsRequest = request.method == 'GET' &&
+          segments.length == 4 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'tracks' &&
+          segments[3] == 'lyrics';
 
       if (isLyricsRequest) {
         final track = _tracks[segments[2]];
@@ -330,6 +345,122 @@ class HttpMediaHubService implements MediaHubService {
     }
   }
 
+  Future<void> _receiveIncomingAudio(HttpRequest request) async {
+    final rawName = request.uri.queryParameters['filename']?.trim();
+    if (rawName == null || rawName.isEmpty) {
+      await _writeJson(
+        request.response,
+        HttpStatus.badRequest,
+        {'error': 'missing_filename'},
+      );
+      return;
+    }
+
+    final directory = await _resolveIncomingDirectory();
+    await directory.create(recursive: true);
+    final destination = await _uniqueDestination(
+      directory,
+      _safeIncomingName(rawName),
+    );
+    final partial = File('${destination.path}.part');
+    if (await partial.exists()) await partial.delete();
+
+    final expected = request.contentLength >= 0 ? request.contentLength : null;
+    final sink = partial.openWrite();
+    var received = 0;
+    try {
+      await for (final chunk in request) {
+        sink.add(chunk);
+        received += chunk.length;
+      }
+      await sink.flush();
+      await sink.close();
+
+      if (expected != null && received != expected) {
+        if (await partial.exists()) await partial.delete();
+        await _writeJson(
+          request.response,
+          HttpStatus.badRequest,
+          {
+            'error': 'length_mismatch',
+            'expected': expected,
+            'received': received,
+          },
+        );
+        return;
+      }
+
+      await partial.rename(destination.path);
+      final callback = onIncomingFile;
+      if (callback != null) {
+        try {
+          await callback(destination.path);
+        } catch (error) {
+          if (await destination.exists()) await destination.delete();
+          await _writeJson(
+            request.response,
+            HttpStatus.internalServerError,
+            {'error': 'library_import_failed', 'message': error.toString()},
+          );
+          return;
+        }
+      }
+
+      await _writeJson(
+        request.response,
+        HttpStatus.created,
+        {
+          'status': 'ok',
+          'filename': destination.uri.pathSegments.last,
+          'byteLength': received,
+          'imported': callback != null,
+        },
+      );
+    } catch (error) {
+      try {
+        await sink.close();
+      } catch (_) {}
+      if (await partial.exists()) await partial.delete();
+      rethrow;
+    }
+  }
+
+  Future<Directory> _resolveIncomingDirectory() async {
+    final configured = incomingDirectory;
+    if (configured != null) return configured;
+    final documents = await getApplicationDocumentsDirectory();
+    return Directory(
+      documents.path +
+          Platform.pathSeparator +
+          'LyricForge' +
+          Platform.pathSeparator +
+          'Incoming',
+    );
+  }
+
+  Future<File> _uniqueDestination(Directory directory, String fileName) async {
+    final dot = fileName.lastIndexOf('.');
+    final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
+    final extension = dot > 0 ? fileName.substring(dot) : '';
+    var candidate = File('${directory.path}${Platform.pathSeparator}$fileName');
+    var suffix = 1;
+    while (await candidate.exists() || await File('${candidate.path}.part').exists()) {
+      candidate = File(
+        '${directory.path}${Platform.pathSeparator}${stem}_$suffix$extension',
+      );
+      suffix++;
+    }
+    return candidate;
+  }
+
+  String _safeIncomingName(String value) {
+    var name = value.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    while (name.startsWith('.')) {
+      name = name.substring(1);
+    }
+    return name.isEmpty ? 'audio' : name;
+  }
+
   Future<void> _serveAudio(
     HttpRequest request,
     SharedAudioTrack track,
@@ -362,7 +493,7 @@ class HttpMediaHubService implements MediaHubService {
       request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
       request.response.headers.set(
         HttpHeaders.contentRangeHeader,
-        'bytes */' + length.toString(),
+        'bytes */$length',
       );
       await request.response.close();
       return;
@@ -387,12 +518,7 @@ class HttpMediaHubService implements MediaHubService {
     request.response.contentLength = range.length;
     request.response.headers.set(
       HttpHeaders.contentRangeHeader,
-      'bytes ' +
-          range.start.toString() +
-          '-' +
-          range.endInclusive.toString() +
-          '/' +
-          length.toString(),
+      'bytes ${range.start}-${range.endInclusive}/$length',
     );
 
     if (request.method == 'HEAD') {
@@ -410,9 +536,9 @@ class HttpMediaHubService implements MediaHubService {
     final encodedId = Uri.encodeComponent(track.id);
     return {
       ...track.toPublicJson(),
-      'streamPath': '/v1/tracks/' + encodedId + '/audio',
-      'downloadPath': '/v1/tracks/' + encodedId + '/audio?download=1',
-      if (track.hasLyrics) 'lyricsPath': '/v1/tracks/' + encodedId + '/lyrics',
+      'streamPath': '/v1/tracks/$encodedId/audio',
+      'downloadPath': '/v1/tracks/$encodedId/audio?download=1',
+      if (track.hasLyrics) 'lyricsPath': '/v1/tracks/$encodedId/lyrics',
     };
   }
 
@@ -534,11 +660,11 @@ class HttpMediaHubService implements MediaHubService {
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set(
       'Access-Control-Allow-Headers',
-      'Authorization, Range, Content-Type',
+      'Authorization, Range, Content-Type, Content-Length',
     );
     response.headers.set(
       'Access-Control-Allow-Methods',
-      'GET, HEAD, OPTIONS',
+      'GET, HEAD, POST, OPTIONS',
     );
     response.headers.set('X-LyricForge-Protocol', '1');
   }
@@ -568,7 +694,7 @@ class MediaHubException implements Exception {
   const MediaHubException(this.message);
 
   @override
-  String toString() => 'MediaHubException: ' + message;
+  String toString() => 'MediaHubException: $message';
 }
 
 class _ByteRange {

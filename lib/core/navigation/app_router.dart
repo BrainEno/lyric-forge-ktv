@@ -9,8 +9,9 @@ import '../../features/import/presentation/screens/import_audio_screen.dart';
 import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
-import '../../features/transfer/presentation/screens/desktop_media_sharing_screen.dart';
+import '../../features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart';
 import '../../features/transfer/presentation/screens/cross_device_media_library_screen.dart';
+import '../../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
 
 abstract class Routes {
@@ -30,6 +31,7 @@ abstract class Routes {
   static const String settings = '/settings';
   static const String mediaSharing = '/media-sharing';
   static const String remoteLibrary = '/remote-library';
+  static const String remoteBrowse = '/remote-library/browse';
   static const String mediaHubScanner = '/media-hub-scanner';
 
   static String projectDetailPath(String id) => '/project/$id';
@@ -89,9 +91,12 @@ class AppRouter {
         return _fadeRoute(const SettingsScreen(), settings);
 
       case Routes.mediaSharing:
-        return _fadeRoute(const DesktopMediaSharingScreen(), settings);
+        return _fadeRoute(const DesktopMediaTransferHubScreen(), settings);
 
       case Routes.remoteLibrary:
+        return _fadeRoute(const MobileMediaTransferHubScreen(), settings);
+
+      case Routes.remoteBrowse:
         return _fadeRoute(const CrossDeviceMediaLibraryScreen(), settings);
 
       case Routes.mediaHubScanner:

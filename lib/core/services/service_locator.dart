@@ -103,7 +103,14 @@ class ServiceLocator {
       delegate: basePlaybackSession,
       libraryRepository: localMediaLibraryRepository,
     );
-    mediaHubService = HttpMediaHubService();
+    mediaHubService = HttpMediaHubService(
+      onIncomingFile: (path) async {
+        if (!_isSupportedIncomingAudio(path)) {
+          throw UnsupportedError('不支持的音频格式');
+        }
+        await localMediaLibraryRepository.addPaths([path]);
+      },
+    );
     mediaHubClientService = HttpMediaHubClientService();
     mediaHubConnectionStore = FileMediaHubConnectionStore();
     mediaTransferService = LocalMediaTransferService(
@@ -138,6 +145,14 @@ class ServiceLocator {
     );
     unawaited(transcriptionQueue.initialize());
   }
+}
+
+bool _isSupportedIncomingAudio(String path) {
+  final dot = path.lastIndexOf('.');
+  if (dot < 0 || dot == path.length - 1) return false;
+  final extension = path.substring(dot + 1).toLowerCase();
+  return const {'mp3', 'flac', 'wav', 'm4a', 'mp4', 'ogg', 'aac'}
+      .contains(extension);
 }
 
 /// Global accessor for services.

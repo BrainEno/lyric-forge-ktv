@@ -10,4 +10,9 @@ abstract class MediaTransferService {
     List<RemoteAudioTrack> tracks, {
     MediaTransferProgressCallback? onProgress,
   });
+
+  Future<MediaTransferBatchResult> uploadLocalFiles(
+    List<String> sourcePaths, {
+    MediaTransferProgressCallback? onProgress,
+  });
 }
