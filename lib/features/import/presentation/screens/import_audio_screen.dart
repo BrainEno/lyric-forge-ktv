@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -98,6 +99,10 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final contentWidth = spec.contentMaxWidth.clamp(0.0, 1040.0).toDouble();
+    final stackActions = spec.isCompactOrMedium || spec.isShort;
+
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
@@ -107,62 +112,29 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1040),
+            constraints: BoxConstraints(maxWidth: contentWidth),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenPadding,
-                AppSpacing.md,
-                AppSpacing.screenPadding,
-                AppSpacing.xxxl,
+              padding: EdgeInsets.fromLTRB(
+                spec.pageGutter,
+                spec.isShort ? AppSpacing.sm : AppSpacing.md,
+                spec.pageGutter,
+                spec.isShort ? AppSpacing.xl : AppSpacing.xxxl,
               ),
               children: [
                 const _ImportHero(),
-                const SizedBox(height: AppSpacing.lg),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 680;
-                    final chooseFiles = _ImportActionCard(
-                      icon: Icons.library_music_outlined,
-                      title: '选择音频',
-                      subtitle: '一次选择多首歌曲，适合从不同位置挑选文件',
-                      actionLabel: '选择文件',
-                      enabled: !_isPicking,
-                      onTap: _pickFiles,
-                    );
-                    final chooseFolder = _ImportActionCard(
-                      icon: Icons.folder_copy_outlined,
-                      title: '扫描音乐文件夹',
-                      subtitle: '递归查找整个文件夹中的支持格式，适合整批导入',
-                      actionLabel: '选择文件夹',
-                      enabled: !_isPicking,
-                      onTap: _pickDirectory,
-                    );
-
-                    if (compact) {
-                      return Column(
-                        children: [
-                          chooseFiles,
-                          const SizedBox(height: AppSpacing.sm),
-                          chooseFolder,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: chooseFiles),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(child: chooseFolder),
-                      ],
-                    );
-                  },
+                SizedBox(height: spec.isShort ? AppSpacing.md : AppSpacing.lg),
+                _ImportActions(
+                  stacked: stackActions,
+                  enabled: !_isPicking,
+                  onPickFiles: _pickFiles,
+                  onPickFolder: _pickDirectory,
                 ),
                 if (_isPicking) ...[
                   const SizedBox(height: AppSpacing.sm),
                   const LinearProgressIndicator(minHeight: 2),
                 ],
                 if (_selectedPaths.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: spec.isShort ? AppSpacing.md : AppSpacing.lg),
                   _SelectionPanel(
                     paths: _selectedPaths,
                     onRemove: (path) {
@@ -172,7 +144,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   SizedBox(
-                    height: 48,
+                    height: spec.minimumInteractiveExtent,
                     child: FilledButton.icon(
                       onPressed: _isEnqueueing ? null : _enqueue,
                       icon: _isEnqueueing
@@ -189,11 +161,13 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                         _isEnqueueing
                             ? '正在加入队列...'
                             : '加入后台解析队列 · ${_selectedPaths.length} 首',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.xl),
+                SizedBox(height: spec.isShort ? AppSpacing.lg : AppSpacing.xl),
                 const TranscriptionQueuePanel(),
               ],
             ),
@@ -209,63 +183,80 @@ class _ImportHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final compact = spec.isCompact || spec.isShort;
+    final iconExtent = compact ? spec.minimumInteractiveExtent : 52.0;
+    final icon = Container(
+      width: iconExtent,
+      height: iconExtent,
+      decoration: BoxDecoration(
+        color: AppColors.accent.withAlpha(24),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      child: const Icon(
+        Icons.auto_awesome_rounded,
+        color: AppColors.accent,
+        size: 26,
+      ),
+    );
+
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '批量导入与歌词解析',
+          style: (compact
+                  ? Theme.of(context).textTheme.titleLarge
+                  : Theme.of(context).textTheme.headlineSmall)
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '选择歌曲后交给后台队列逐首创建工程和生成歌词。离开此页面不会中断任务，单首失败也不会卡住后面的歌曲。',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textSecondary,
+                height: 1.45,
+              ),
+        ),
+        if (!spec.isShort) ...[
+          const SizedBox(height: AppSpacing.md),
+          const Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _FeaturePill(icon: Icons.queue_music_rounded, label: '逐首处理'),
+              _FeaturePill(icon: Icons.pause_rounded, label: '可暂停 / 恢复'),
+              _FeaturePill(icon: Icons.save_outlined, label: '进度持久化'),
+            ],
+          ),
+        ],
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: AppColors.cardGradient,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
         border: Border.all(color: AppColors.borderMuted),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: AppColors.accent.withAlpha(24),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              color: AppColors.accent,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
+      child: compact
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '批量导入与歌词解析',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '选择歌曲后交给后台队列逐首创建工程和生成歌词。离开此页面不会中断任务，单首失败也不会卡住后面的歌曲。',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                        height: 1.45,
-                      ),
-                ),
+                icon,
                 const SizedBox(height: AppSpacing.md),
-                const Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    _FeaturePill(icon: Icons.queue_music_rounded, label: '逐首处理'),
-                    _FeaturePill(icon: Icons.pause_rounded, label: '可暂停 / 恢复'),
-                    _FeaturePill(icon: Icons.save_outlined, label: '进度持久化'),
-                  ],
-                ),
+                copy,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                icon,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(child: copy),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -304,6 +295,59 @@ class _FeaturePill extends StatelessWidget {
   }
 }
 
+class _ImportActions extends StatelessWidget {
+  final bool stacked;
+  final bool enabled;
+  final VoidCallback onPickFiles;
+  final VoidCallback onPickFolder;
+
+  const _ImportActions({
+    required this.stacked,
+    required this.enabled,
+    required this.onPickFiles,
+    required this.onPickFolder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chooseFiles = _ImportActionCard(
+      icon: Icons.library_music_outlined,
+      title: '选择音频',
+      subtitle: '一次选择多首歌曲，适合从不同位置挑选文件',
+      actionLabel: '选择文件',
+      enabled: enabled,
+      onTap: onPickFiles,
+    );
+    final chooseFolder = _ImportActionCard(
+      icon: Icons.folder_copy_outlined,
+      title: '扫描音乐文件夹',
+      subtitle: '递归查找整个文件夹中的支持格式，适合整批导入',
+      actionLabel: '选择文件夹',
+      enabled: enabled,
+      onTap: onPickFolder,
+    );
+
+    if (stacked) {
+      return Column(
+        children: [
+          chooseFiles,
+          const SizedBox(height: AppSpacing.sm),
+          chooseFolder,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: chooseFiles),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: chooseFolder),
+      ],
+    );
+  }
+}
+
 class _ImportActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -323,6 +367,7 @@ class _ImportActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Material(
       color: AppColors.bgElevated,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -331,7 +376,10 @@ class _ImportActionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         hoverColor: AppColors.hoverOverlay,
         child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+          padding: EdgeInsets.all(
+            spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
             border: Border.all(color: AppColors.borderMuted),
@@ -339,8 +387,8 @@ class _ImportActionCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: spec.minimumInteractiveExtent,
+                height: spec.minimumInteractiveExtent,
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
@@ -375,23 +423,30 @@ class _ImportActionCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.arrow_forward_rounded,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    actionLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                  ),
-                ],
-              ),
+              if (!spec.isCompact)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      actionLabel,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
+                )
+              else
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
             ],
           ),
         ),
@@ -413,7 +468,8 @@ class _SelectionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const previewLimit = 12;
+    final spec = AppResponsive.of(context);
+    final previewLimit = spec.isShort ? 5 : spec.isCompact ? 8 : 12;
     final preview = paths.take(previewLimit).toList(growable: false);
     final hiddenCount = paths.length - preview.length;
     final totalBytes = paths.fold<int>(0, (total, path) {
@@ -422,7 +478,7 @@ class _SelectionPanel extends StatelessWidget {
     });
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.bgElevated,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -458,7 +514,13 @@ class _SelectionPanel extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton(onPressed: onClear, child: const Text('清空')),
+              TextButton(
+                onPressed: onClear,
+                style: TextButton.styleFrom(
+                  minimumSize: Size(0, spec.minimumInteractiveExtent),
+                ),
+                child: const Text('清空'),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -508,6 +570,7 @@ class _SelectedPathTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final file = File(path);
     final fileName = path.split(Platform.pathSeparator).last;
     final size = file.existsSync() ? file.lengthSync() : 0;
@@ -515,8 +578,8 @@ class _SelectedPathTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(
         left: AppSpacing.sm,
-        top: 6,
-        bottom: 6,
+        top: 4,
+        bottom: 4,
       ),
       child: Row(
         children: [
@@ -542,18 +605,23 @@ class _SelectedPathTile extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            _formatBytes(size),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-          ),
-          IconButton(
-            onPressed: onRemove,
-            tooltip: '移除',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.close_rounded, size: 17),
+          if (!spec.isCompact) ...[
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              _formatBytes(size),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ],
+          SizedBox(
+            width: spec.minimumInteractiveExtent,
+            height: spec.minimumInteractiveExtent,
+            child: IconButton(
+              onPressed: onRemove,
+              tooltip: '移除',
+              icon: const Icon(Icons.close_rounded, size: 17),
+            ),
           ),
         ],
       ),
