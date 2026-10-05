@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import '../services/service_locator.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
 import '../../features/player/domain/models/play_history.dart';
+import '../../features/player/domain/models/remote_playback_source.dart';
 import '../../features/player/presentation/screens/local_music_library_shell.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
+import '../../features/player/presentation/screens/remote_stream_now_playing_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
 import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/transfer/presentation/screens/desktop_media_transfer_hub_screen.dart';
-import '../../features/transfer/presentation/screens/cross_device_media_library_screen.dart';
+import '../../features/transfer/presentation/screens/unified_remote_media_library_screen.dart';
 import '../../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
 
@@ -79,12 +81,24 @@ class AppRouter {
             .playbackSessionService
             .currentState
             .currentItem;
+        if (current != null &&
+            RemotePlaybackSource.isRemote(current.audioAsset)) {
+          return _fadeRoute(const RemoteStreamNowPlayingScreen(), settings);
+        }
         if (current != null) {
           return _fadeRoute(const QuickPlayScreen(), settings);
         }
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
       case Routes.nowPlaying:
+        final current = ServiceLocatorGlobal.I
+            .playbackSessionService
+            .currentState
+            .currentItem;
+        if (current != null &&
+            RemotePlaybackSource.isRemote(current.audioAsset)) {
+          return _fadeRoute(const RemoteStreamNowPlayingScreen(), settings);
+        }
         return _fadeRoute(const QuickPlayScreen(), settings);
 
       case Routes.settings:
@@ -97,7 +111,7 @@ class AppRouter {
         return _fadeRoute(const MobileMediaTransferHubScreen(), settings);
 
       case Routes.remoteBrowse:
-        return _fadeRoute(const CrossDeviceMediaLibraryScreen(), settings);
+        return _fadeRoute(const UnifiedRemoteMediaLibraryScreen(), settings);
 
       case Routes.mediaHubScanner:
         return _fadeRoute(const MediaHubQrScannerScreen(), settings);
