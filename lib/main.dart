@@ -8,6 +8,44 @@ import 'features/player/data/services/mobile_system_media_session.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
+final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(
+  Routes.home,
+);
+final NavigatorObserver _chromeRouteObserver = _ChromeRouteObserver(
+  _currentRouteName,
+);
+
+class _ChromeRouteObserver extends NavigatorObserver {
+  final ValueNotifier<String?> routeName;
+
+  _ChromeRouteObserver(this.routeName);
+
+  void _sync(Route<dynamic>? route) {
+    final nextName = route?.settings.name;
+    if (nextName != null && routeName.value != nextName) {
+      routeName.value = nextName;
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    _sync(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _sync(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    _sync(newRoute);
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -32,6 +70,7 @@ class LyricForgeApp extends StatelessWidget {
       theme: AppTheme.darkTheme,
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
+      navigatorObservers: [_chromeRouteObserver],
       builder: (context, child) {
         return Overlay(
           clipBehavior: Clip.none,
@@ -44,10 +83,32 @@ class LyricForgeApp extends StatelessWidget {
                     return Column(
                       children: [
                         Expanded(child: child ?? const SizedBox.shrink()),
-                        if (!immersive) ...[
-                          const GlobalTranscriptionQueueBar(),
-                          const GlobalPlayerBar(),
-                        ],
+                        if (!immersive)
+                          ValueListenableBuilder<String?>(
+                            valueListenable: _currentRouteName,
+                            builder: (context, routeName, _) {
+                              final isDashboard = routeName == Routes.home ||
+                                  routeName == Routes.dashboard;
+                              final ownsPlaybackControls = isDashboard ||
+                                  routeName == Routes.quickPlay ||
+                                  routeName == Routes.nowPlaying ||
+                                  (routeName?.endsWith('/player') ?? false);
+
+                              if (isDashboard && ownsPlaybackControls) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isDashboard)
+                                    const GlobalTranscriptionQueueBar(),
+                                  if (!ownsPlaybackControls)
+                                    const GlobalPlayerBar(),
+                                ],
+                              );
+                            },
+                          ),
                       ],
                     );
                   },
