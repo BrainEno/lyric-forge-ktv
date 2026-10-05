@@ -2,6 +2,7 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -395,8 +396,51 @@ class _LyricEditorContent extends StatelessWidget {
     return indices;
   }
 
+  Future<void> _showInspectorSheet(BuildContext context, int index) async {
+    if (index < 0 || index >= document.lines.length) return;
+    onSelectLine(index);
+    final spec = AppResponsive.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (sheetContext) {
+        final sheetSpec = AppResponsive.of(sheetContext);
+        final heightFactor = sheetSpec.isShort ? 0.96 : 0.88;
+        return FractionallySizedBox(
+          heightFactor: heightFactor,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: spec.isCompact ? double.infinity : 720,
+              ),
+              child: _LineInspector(
+                key: ValueKey('sheet_inspector_$index'),
+                index: index,
+                line: document.lines[index],
+                fallbackCandidate: _fallbackCandidateFor(index),
+                isCurrentPlaybackLine:
+                    playbackBelongsToProject &&
+                        _currentPlaybackLineIndex() == index,
+                isPlaying: playbackBelongsToProject && playback.isPlaying,
+                onUpdate: (updated) => onUpdateLine(index, updated),
+                onDelete: () {
+                  onDeleteLine(index);
+                  Navigator.of(sheetContext).pop();
+                },
+                onPreview: () => onPreviewLine(index),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final lowConfidenceCount =
         document.lines.where((line) => line.confidence < 70).length;
     final reviewCount = List<int>.generate(document.lines.length, (i) => i)
@@ -433,11 +477,17 @@ class _LyricEditorContent extends StatelessWidget {
           if (hasChanges)
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: FilledButton.icon(
-                onPressed: onSave,
-                icon: const Icon(Icons.save_rounded, size: 18),
-                label: const Text('保存修改'),
-              ),
+              child: spec.isCompact
+                  ? IconButton.filledTonal(
+                      tooltip: '保存修改',
+                      onPressed: onSave,
+                      icon: const Icon(Icons.save_rounded),
+                    )
+                  : FilledButton.icon(
+                      onPressed: onSave,
+                      icon: const Icon(Icons.save_rounded, size: 18),
+                      label: const Text('保存修改'),
+                    ),
             ),
         ],
       ),
@@ -466,74 +516,42 @@ class _LyricEditorContent extends StatelessWidget {
                   ? _EmptyLyricsState(onAddLine: onAddLine)
                   : LayoutBuilder(
                       builder: (context, constraints) {
-                        final wide = constraints.maxWidth >= 980;
-                        if (wide) {
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _LyricListPane(
-                                  document: document,
-                                  visibleIndices: visibleIndices,
-                                  selectedIndex: selectedIndex,
-                                  currentPlaybackLine: currentPlaybackLine,
-                                  fallbackCandidateFor: _fallbackCandidateFor,
-                                  onSelectLine: onSelectLine,
-                                ),
-                              ),
-                              const VerticalDivider(width: 1),
-                              SizedBox(
-                                width: 430,
-                                child: _InspectorPane(
-                                  document: document,
-                                  selectedIndex: selectedIndex,
-                                  fallbackCandidate: selectedIndex == null
-                                      ? null
-                                      : _fallbackCandidateFor(selectedIndex),
-                                  playback: playback,
-                                  playbackBelongsToProject:
-                                      playbackBelongsToProject,
-                                  currentPlaybackLine: currentPlaybackLine,
-                                  onUpdateLine: onUpdateLine,
-                                  onDeleteLine: onDeleteLine,
-                                  onPreviewLine: onPreviewLine,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
+                        final layout = AppResponsive.fromConstraints(constraints);
+                        final twoPane = layout.supportsTwoPane;
+                        final list = _LyricListPane(
+                          document: document,
+                          visibleIndices: visibleIndices,
+                          selectedIndex: selectedIndex,
+                          currentPlaybackLine: currentPlaybackLine,
+                          fallbackCandidateFor: _fallbackCandidateFor,
+                          onSelectLine: twoPane
+                              ? onSelectLine
+                              : (index) => _showInspectorSheet(context, index),
+                        );
 
-                        return Column(
+                        if (!twoPane) return list;
+
+                        return Row(
                           children: [
-                            Expanded(
-                              flex: 3,
-                              child: _LyricListPane(
+                            Expanded(child: list),
+                            const VerticalDivider(width: 1),
+                            SizedBox(
+                              width: layout.sidePanelWidth,
+                              child: _InspectorPane(
                                 document: document,
-                                visibleIndices: visibleIndices,
                                 selectedIndex: selectedIndex,
+                                fallbackCandidate: selectedIndex == null
+                                    ? null
+                                    : _fallbackCandidateFor(selectedIndex),
+                                playback: playback,
+                                playbackBelongsToProject:
+                                    playbackBelongsToProject,
                                 currentPlaybackLine: currentPlaybackLine,
-                                fallbackCandidateFor: _fallbackCandidateFor,
-                                onSelectLine: onSelectLine,
+                                onUpdateLine: onUpdateLine,
+                                onDeleteLine: onDeleteLine,
+                                onPreviewLine: onPreviewLine,
                               ),
                             ),
-                            if (selectedIndex != null) ...[
-                              const Divider(height: 1),
-                              Expanded(
-                                flex: 2,
-                                child: _InspectorPane(
-                                  document: document,
-                                  selectedIndex: selectedIndex,
-                                  fallbackCandidate:
-                                      _fallbackCandidateFor(selectedIndex),
-                                  playback: playback,
-                                  playbackBelongsToProject:
-                                      playbackBelongsToProject,
-                                  currentPlaybackLine: currentPlaybackLine,
-                                  onUpdateLine: onUpdateLine,
-                                  onDeleteLine: onDeleteLine,
-                                  onPreviewLine: onPreviewLine,
-                                ),
-                              ),
-                            ],
                           ],
                         );
                       },
@@ -579,12 +597,38 @@ class _EditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final offset = document.globalOffset ?? Duration.zero;
+    final compactControls = spec.isCompactOrMedium || spec.isShort;
+    final horizontalPadding = spec.pageGutter.clamp(12, 24).toDouble();
+
+    Widget adaptiveControls(List<Widget> children) {
+      if (!compactControls) {
+        return Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: children,
+        );
+      }
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (var index = 0; index < children.length; index++) ...[
+              if (index > 0) const SizedBox(width: AppSpacing.sm),
+              children[index],
+            ],
+          ],
+        ),
+      );
+    }
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
         AppSpacing.sm,
-        AppSpacing.md,
+        horizontalPadding,
         AppSpacing.sm,
       ),
       decoration: const BoxDecoration(
@@ -594,55 +638,48 @@ class _EditorToolbar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _MetricPill(
-                icon: Icons.format_list_numbered_rounded,
-                label: '${document.lines.length} 行',
-              ),
-              _MetricPill(
-                icon: Icons.language_rounded,
-                label: document.language.toUpperCase(),
-              ),
-              _MetricPill(
-                icon: Icons.rule_rounded,
-                label: '待复核 $reviewCount',
-                emphasized: reviewCount > 0,
-              ),
-              _MetricPill(
-                icon: Icons.warning_amber_rounded,
-                label: '低置信度 $lowConfidenceCount',
-                warning: lowConfidenceCount > 0,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              ChoiceChip(
-                selected: filter == _ReviewFilter.all,
-                onSelected: (_) => onFilterChanged(_ReviewFilter.all),
-                label: const Text('全部'),
-              ),
-              ChoiceChip(
-                selected: filter == _ReviewFilter.needsReview,
-                onSelected: (_) => onFilterChanged(_ReviewFilter.needsReview),
-                label: const Text('待复核'),
-              ),
-              ChoiceChip(
-                selected: filter == _ReviewFilter.lowConfidence,
-                onSelected: (_) =>
-                    onFilterChanged(_ReviewFilter.lowConfidence),
-                label: const Text('低置信度'),
-              ),
-            ],
-          ),
+          adaptiveControls([
+            _MetricPill(
+              icon: Icons.format_list_numbered_rounded,
+              label: '${document.lines.length} 行',
+            ),
+            _MetricPill(
+              icon: Icons.language_rounded,
+              label: document.language.toUpperCase(),
+            ),
+            _MetricPill(
+              icon: Icons.rule_rounded,
+              label: '待复核 $reviewCount',
+              emphasized: reviewCount > 0,
+            ),
+            _MetricPill(
+              icon: Icons.warning_amber_rounded,
+              label: '低置信度 $lowConfidenceCount',
+              warning: lowConfidenceCount > 0,
+            ),
+            ChoiceChip(
+              selected: filter == _ReviewFilter.all,
+              onSelected: (_) => onFilterChanged(_ReviewFilter.all),
+              label: const Text('全部'),
+            ),
+            ChoiceChip(
+              selected: filter == _ReviewFilter.needsReview,
+              onSelected: (_) => onFilterChanged(_ReviewFilter.needsReview),
+              label: const Text('待复核'),
+            ),
+            ChoiceChip(
+              selected: filter == _ReviewFilter.lowConfidence,
+              onSelected: (_) =>
+                  onFilterChanged(_ReviewFilter.lowConfidence),
+              label: const Text('低置信度'),
+            ),
+          ]),
           const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              IconButton(
+          adaptiveControls([
+            SizedBox(
+              width: spec.minimumInteractiveExtent,
+              height: spec.minimumInteractiveExtent,
+              child: IconButton(
                 tooltip: playbackBelongsToProject && playback.isPlaying
                     ? '暂停试听'
                     : '继续试听',
@@ -653,63 +690,61 @@ class _EditorToolbar extends StatelessWidget {
                       : Icons.play_circle_fill_rounded,
                 ),
               ),
-              Text(
-                playbackBelongsToProject
-                    ? '${_formatDuration(playback.position)} / ${playback.duration == null ? '--:--' : _formatDuration(playback.duration!)}'
-                    : '尚未开始试听',
+            ),
+            Text(
+              playbackBelongsToProject
+                  ? '${_formatDuration(playback.position)} / ${playback.duration == null ? '--:--' : _formatDuration(playback.duration!)}'
+                  : '尚未开始试听',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            if (onOpenPlayer != null)
+              TextButton.icon(
+                onPressed: onOpenPlayer,
+                icon: const Icon(Icons.open_in_full_rounded, size: 17),
+                label: Text(spec.isCompact ? '播放器' : '完整播放器'),
+              ),
+            Text(
+              '全局偏移',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+            _OffsetButton(
+              label: '-100ms',
+              onPressed: () => onUpdateOffset(
+                offset - const Duration(milliseconds: 100),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.bgSurface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
+              ),
+              child: Text(
+                _formatSignedDuration(offset),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
               ),
-              if (onOpenPlayer != null)
-                TextButton.icon(
-                  onPressed: onOpenPlayer,
-                  icon: const Icon(Icons.open_in_full_rounded, size: 17),
-                  label: const Text('完整播放器'),
-                ),
-              const SizedBox(width: AppSpacing.md),
-              Text(
-                '全局偏移',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+            ),
+            _OffsetButton(
+              label: '+100ms',
+              onPressed: () => onUpdateOffset(
+                offset + const Duration(milliseconds: 100),
               ),
-              _OffsetButton(
-                label: '-100ms',
-                onPressed: () => onUpdateOffset(
-                  offset - const Duration(milliseconds: 100),
-                ),
+            ),
+            if (offset != Duration.zero)
+              TextButton(
+                onPressed: () => onUpdateOffset(Duration.zero),
+                child: const Text('归零'),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusCircular),
-                ),
-                child: Text(
-                  _formatSignedDuration(offset),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                ),
-              ),
-              _OffsetButton(
-                label: '+100ms',
-                onPressed: () => onUpdateOffset(
-                  offset + const Duration(milliseconds: 100),
-                ),
-              ),
-              if (offset != Duration.zero)
-                TextButton(
-                  onPressed: () => onUpdateOffset(Duration.zero),
-                  child: const Text('归零'),
-                ),
-            ],
-          ),
+          ]),
         ],
       ),
     );
@@ -739,8 +774,13 @@ class _LyricListPane extends StatelessWidget {
       return const _FilteredEmptyState();
     }
 
+    final spec = AppResponsive.of(context);
+    final padding = spec.isCompact
+        ? 8.0
+        : spec.pageGutter.clamp(12, 24).toDouble();
+
     return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(padding),
       itemCount: visibleIndices.length,
       itemBuilder: (context, visibleIndex) {
         final index = visibleIndices[visibleIndex];
@@ -778,6 +818,7 @@ class _LyricReviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final needsReview = line.confidence < 70 ||
         (line.confidence < 100 && fallbackCandidate != null);
     final background = selected
@@ -795,6 +836,7 @@ class _LyricReviewRow extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           child: Container(
+            constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
               vertical: AppSpacing.sm,
@@ -808,7 +850,7 @@ class _LyricReviewRow extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                  width: 34,
+                  width: spec.isCompact ? 28 : 34,
                   child: playing
                       ? const Icon(
                           Icons.graphic_eq_rounded,
@@ -824,7 +866,7 @@ class _LyricReviewRow extends StatelessWidget {
                         ),
                 ),
                 SizedBox(
-                  width: 82,
+                  width: spec.isCompact ? 68 : 82,
                   child: Text(
                     _formatDuration(line.startTime),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -836,7 +878,7 @@ class _LyricReviewRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     line.text.trim().isEmpty ? '（空歌词）' : line.text,
-                    maxLines: 2,
+                    maxLines: spec.isCompact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: line.text.trim().isEmpty
@@ -847,10 +889,12 @@ class _LyricReviewRow extends StatelessWidget {
                         ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                if (line.isChorus)
+                const SizedBox(width: AppSpacing.xs),
+                if (!spec.isCompact && line.isChorus)
                   const _TinyBadge(label: '副歌', accent: true),
-                if (fallbackCandidate != null && line.confidence < 100) ...[
+                if (!spec.isCompact &&
+                    fallbackCandidate != null &&
+                    line.confidence < 100) ...[
                   const SizedBox(width: AppSpacing.xs),
                   const _TinyBadge(label: '双引擎'),
                 ],
@@ -859,6 +903,14 @@ class _LyricReviewRow extends StatelessWidget {
                   _TinyBadge(
                     label: '${line.confidence}',
                     warning: line.confidence < 70,
+                  ),
+                ],
+                if (!spec.supportsTwoPane) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.textTertiary,
                   ),
                 ],
               ],
@@ -944,16 +996,21 @@ class _LineInspector extends StatefulWidget {
 
 class _LineInspectorState extends State<_LineInspector> {
   late final TextEditingController _textController;
+  late LyricLine _workingLine;
 
   @override
   void initState() {
     super.initState();
+    _workingLine = widget.line;
     _textController = TextEditingController(text: widget.line.text);
   }
 
   @override
   void didUpdateWidget(covariant _LineInspector oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.line != widget.line) {
+      _workingLine = widget.line;
+    }
     if (oldWidget.line.text != widget.line.text &&
         _textController.text != widget.line.text) {
       _textController.text = widget.line.text;
@@ -981,44 +1038,48 @@ class _LineInspectorState extends State<_LineInspector> {
     };
   }
 
+  void _emitUpdate(LyricLine updated) {
+    setState(() => _workingLine = updated);
+    widget.onUpdate(updated);
+  }
+
   void _updateText(String text) {
-    widget.onUpdate(widget.line.copyWith(text: text, confidence: 100));
+    _emitUpdate(_workingLine.copyWith(text: text, confidence: 100));
   }
 
   void _nudgeStart(Duration delta) {
-    var next = widget.line.startTime + delta;
+    var next = _workingLine.startTime + delta;
     if (next.isNegative) next = Duration.zero;
-    final latest = widget.line.endTime - const Duration(milliseconds: 10);
+    final latest = _workingLine.endTime - const Duration(milliseconds: 10);
     if (next > latest) next = latest.isNegative ? Duration.zero : latest;
-    widget.onUpdate(widget.line.copyWith(startTime: next));
+    _emitUpdate(_workingLine.copyWith(startTime: next));
   }
 
   void _nudgeEnd(Duration delta) {
-    var next = widget.line.endTime + delta;
-    final earliest =
-        widget.line.startTime + const Duration(milliseconds: 10);
+    var next = _workingLine.endTime + delta;
+    final earliest = _workingLine.startTime + const Duration(milliseconds: 10);
     if (next < earliest) next = earliest;
-    widget.onUpdate(widget.line.copyWith(endTime: next));
+    _emitUpdate(_workingLine.copyWith(endTime: next));
   }
 
   void _applyAlternative() {
     final alternative = _alternativeText();
     if (alternative == null || alternative.trim().isEmpty) return;
     _textController.text = alternative;
-    widget.onUpdate(
-      widget.line.copyWith(text: alternative, confidence: 100),
-    );
+    _emitUpdate(_workingLine.copyWith(text: alternative, confidence: 100));
   }
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     final alternative = _alternativeText();
-    final duration = widget.line.endTime - widget.line.startTime;
+    final duration = _workingLine.endTime - _workingLine.startTime;
+    final inspectorPadding = spec.pageGutter.clamp(12, 24).toDouble();
 
     return Container(
       color: AppColors.bgElevated,
       child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(inspectorPadding),
         children: [
           Row(
             children: [
@@ -1034,7 +1095,7 @@ class _LineInspectorState extends State<_LineInspector> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${_formatDuration(widget.line.startTime)} → ${_formatDuration(widget.line.endTime)} · ${_formatCompactDuration(duration)}',
+                      '${_formatDuration(_workingLine.startTime)} → ${_formatDuration(_workingLine.endTime)} · ${_formatCompactDuration(duration)}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: AppColors.textTertiary,
                             fontFeatures: const [FontFeature.tabularFigures()],
@@ -1043,13 +1104,17 @@ class _LineInspectorState extends State<_LineInspector> {
                   ],
                 ),
               ),
-              IconButton.filledTonal(
-                tooltip: '从这一行开始试听',
-                onPressed: widget.onPreview,
-                icon: Icon(
-                  widget.isCurrentPlaybackLine && widget.isPlaying
-                      ? Icons.graphic_eq_rounded
-                      : Icons.play_arrow_rounded,
+              SizedBox(
+                width: spec.minimumInteractiveExtent,
+                height: spec.minimumInteractiveExtent,
+                child: IconButton.filledTonal(
+                  tooltip: '从这一行开始试听',
+                  onPressed: widget.onPreview,
+                  icon: Icon(
+                    widget.isCurrentPlaybackLine && widget.isPlaying
+                        ? Icons.graphic_eq_rounded
+                        : Icons.play_arrow_rounded,
+                  ),
                 ),
               ),
             ],
@@ -1059,14 +1124,14 @@ class _LineInspectorState extends State<_LineInspector> {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              if (widget.line.confidence < 70)
+              if (_workingLine.confidence < 70)
                 _TinyBadge(
-                  label: '低置信度 ${widget.line.confidence}',
+                  label: '低置信度 ${_workingLine.confidence}',
                   warning: true,
                 )
               else
-                _TinyBadge(label: '置信度 ${widget.line.confidence}'),
-              if (widget.line.isChorus)
+                _TinyBadge(label: '置信度 ${_workingLine.confidence}'),
+              if (_workingLine.isChorus)
                 const _TinyBadge(label: '副歌', accent: true),
               if (widget.fallbackCandidate != null)
                 const _TinyBadge(label: '双引擎复核'),
@@ -1077,7 +1142,7 @@ class _LineInspectorState extends State<_LineInspector> {
             controller: _textController,
             onChanged: _updateText,
             minLines: 2,
-            maxLines: 4,
+            maxLines: spec.isShort ? 3 : 4,
             style: Theme.of(context).textTheme.titleMedium,
             decoration: InputDecoration(
               labelText: '歌词文本',
@@ -1090,7 +1155,7 @@ class _LineInspectorState extends State<_LineInspector> {
               ),
             ),
           ),
-          if (widget.line.confidence < 100 &&
+          if (_workingLine.confidence < 100 &&
               widget.fallbackCandidate != null &&
               alternative?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.md),
@@ -1108,13 +1173,13 @@ class _LineInspectorState extends State<_LineInspector> {
           const SizedBox(height: AppSpacing.lg),
           _TimingEditor(
             title: '开始时间',
-            value: widget.line.startTime,
+            value: _workingLine.startTime,
             onNudge: _nudgeStart,
           ),
           const SizedBox(height: AppSpacing.sm),
           _TimingEditor(
             title: '结束时间',
-            value: widget.line.endTime,
+            value: _workingLine.endTime,
             onNudge: _nudgeEnd,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -1122,16 +1187,19 @@ class _LineInspectorState extends State<_LineInspector> {
             contentPadding: EdgeInsets.zero,
             title: const Text('标记为副歌'),
             subtitle: const Text('播放器可使用这一标记强化副歌段落'),
-            value: widget.line.isChorus,
+            value: _workingLine.isChorus,
             onChanged: (value) =>
-                widget.onUpdate(widget.line.copyWith(isChorus: value)),
+                _emitUpdate(_workingLine.copyWith(isChorus: value)),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(
             onPressed: widget.onDelete,
             icon: const Icon(Icons.delete_outline_rounded),
             label: const Text('删除这一行'),
-            style: OutlinedButton.styleFrom(foregroundColor: AppColors.error),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+            ),
           ),
         ],
       ),
@@ -1152,6 +1220,7 @@ class _TimingEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -1186,20 +1255,24 @@ class _TimingEditor extends StatelessWidget {
             children: [
               _NudgeButton(
                 label: '-1s',
+                minHeight: spec.minimumInteractiveExtent,
                 onPressed: () => onNudge(const Duration(seconds: -1)),
               ),
               _NudgeButton(
                 label: '-100ms',
+                minHeight: spec.minimumInteractiveExtent,
                 onPressed: () =>
                     onNudge(const Duration(milliseconds: -100)),
               ),
               _NudgeButton(
                 label: '+100ms',
+                minHeight: spec.minimumInteractiveExtent,
                 onPressed: () =>
                     onNudge(const Duration(milliseconds: 100)),
               ),
               _NudgeButton(
                 label: '+1s',
+                minHeight: spec.minimumInteractiveExtent,
                 onPressed: () => onNudge(const Duration(seconds: 1)),
               ),
             ],
@@ -1314,9 +1387,11 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final horizontalPadding = spec.pageGutter.clamp(12, 24).toDouble();
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
         vertical: AppSpacing.sm,
       ),
       decoration: const BoxDecoration(
@@ -1325,24 +1400,35 @@ class _BottomBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            visibleLines == totalLines
-                ? '$totalLines 行歌词'
-                : '显示 $visibleLines / $totalLines 行',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+          Flexible(
+            child: Text(
+              visibleLines == totalLines
+                  ? '$totalLines 行歌词'
+                  : '显示 $visibleLines / $totalLines 行',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
           ),
-          if (hasChanges) ...[
+          if (hasChanges && !spec.isCompact) ...[
             const SizedBox(width: AppSpacing.sm),
             const _TinyBadge(label: '有未保存修改', warning: true),
           ],
           const Spacer(),
-          FilledButton.tonalIcon(
-            onPressed: onAddLine,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('添加歌词行'),
-          ),
+          if (spec.isCompact)
+            IconButton.filledTonal(
+              tooltip: '添加歌词行',
+              onPressed: onAddLine,
+              icon: const Icon(Icons.add_rounded),
+            )
+          else
+            FilledButton.tonalIcon(
+              onPressed: onAddLine,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('添加歌词行'),
+            ),
         ],
       ),
     );
@@ -1356,10 +1442,11 @@ class _EmptyLyricsState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 420),
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.lg : AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1388,6 +1475,9 @@ class _EmptyLyricsState extends StatelessWidget {
               onPressed: onAddLine,
               icon: const Icon(Icons.add_rounded),
               label: const Text('添加第一行'),
+              style: FilledButton.styleFrom(
+                minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
+              ),
             ),
           ],
         ),
@@ -1510,9 +1600,11 @@ class _OffsetButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
+        minimumSize: Size(0, spec.minimumInteractiveExtent),
         visualDensity: VisualDensity.compact,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       ),
@@ -1523,16 +1615,21 @@ class _OffsetButton extends StatelessWidget {
 
 class _NudgeButton extends StatelessWidget {
   final String label;
+  final double minHeight;
   final VoidCallback onPressed;
 
-  const _NudgeButton({required this.label, required this.onPressed});
+  const _NudgeButton({
+    required this.label,
+    required this.minHeight,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(70, 36),
+        minimumSize: Size(70, minHeight),
         visualDensity: VisualDensity.compact,
       ),
       child: Text(label),
