@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -63,7 +64,8 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   @override
   void didUpdateWidget(covariant LocalCollectionsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.view != widget.view && widget.view == LocalCollectionView.favorites) {
+    if (oldWidget.view != widget.view &&
+        widget.view == LocalCollectionView.favorites) {
       _selectedPlaylistId = null;
     }
     unawaited(_reload());
@@ -108,7 +110,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
         _error = null;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = '收藏与播放列表加载失败：$error');
+      if (mounted) {
+        setState(() => _error = '收藏与播放列表加载失败：$error');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -140,7 +144,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
 
   List<_CollectionSong> get _favoriteSongs {
     final songs = _favoritePaths.map(_song).toList(growable: false);
-    songs.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    songs.sort(
+      (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
     return songs;
   }
 
@@ -167,10 +173,10 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       if (i < requestedIndex) playableBeforeRequested += 1;
       playable.add(item);
     }
+
     if (playable.isEmpty) return;
-    final startIndex = playableBeforeRequested
-        .clamp(0, playable.length - 1)
-        .toInt();
+    final startIndex =
+        playableBeforeRequested.clamp(0, playable.length - 1).toInt();
     await _session.setQueue(playable, startIndex: startIndex);
   }
 
@@ -185,6 +191,16 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       await _collections.setFavorite(song.sourcePath, false);
       await _reload();
     });
+  }
+
+  Future<void> _addFavoriteToPlaylist(_CollectionSong song) async {
+    await showAddToLocalPlaylistDialog(
+      context,
+      sourcePath: song.sourcePath,
+      title: song.title,
+      repository: _collections,
+    );
+    await _reload();
   }
 
   Future<void> _createPlaylist() async {
@@ -226,6 +242,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       ),
     );
     if (confirmed != true) return;
+
     await _withWork(() async {
       await _collections.deletePlaylist(playlist.id);
       if (mounted) setState(() => _selectedPlaylistId = null);
@@ -270,25 +287,54 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.view == LocalCollectionView.favorites ? '已收藏' : '播放列表';
+    final spec = AppResponsive.of(context);
+    final title =
+        widget.view == LocalCollectionView.favorites ? '已收藏' : '播放列表';
+
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
         backgroundColor: AppColors.bgBase,
         title: Text(title),
         actions: [
-          if (widget.view == LocalCollectionView.playlists)
+          if (spec.isCompact && widget.view == LocalCollectionView.playlists)
+            PopupMenuButton<String>(
+              tooltip: '播放列表操作',
+              onSelected: (value) {
+                if (value == 'create') unawaited(_createPlaylist());
+                if (value == 'refresh') unawaited(_reload());
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'create',
+                  child: ListTile(
+                    leading: Icon(Icons.playlist_add_rounded),
+                    title: Text('新建播放列表'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'refresh',
+                  child: ListTile(
+                    leading: Icon(Icons.refresh_rounded),
+                    title: Text('刷新'),
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            if (widget.view == LocalCollectionView.playlists)
+              IconButton(
+                tooltip: '新建播放列表',
+                onPressed: _working ? null : _createPlaylist,
+                icon: const Icon(Icons.playlist_add_rounded),
+              ),
             IconButton(
-              tooltip: '新建播放列表',
-              onPressed: _working ? null : _createPlaylist,
-              icon: const Icon(Icons.playlist_add_rounded),
+              tooltip: '刷新',
+              onPressed: _working ? null : _reload,
+              icon: const Icon(Icons.refresh_rounded),
             ),
-          IconButton(
-            tooltip: '刷新',
-            onPressed: _working ? null : _reload,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(width: AppSpacing.sm),
+          ],
+          SizedBox(width: spec.isCompact ? 0 : AppSpacing.sm),
         ],
       ),
       body: Column(
@@ -296,7 +342,10 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
           if (_working) const LinearProgressIndicator(minHeight: 2),
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: EdgeInsets.symmetric(
+                horizontal: spec.pageGutter,
+                vertical: AppSpacing.sm,
+              ),
               child: Text(
                 _error!,
                 style: const TextStyle(color: AppColors.error),
@@ -306,15 +355,15 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : widget.view == LocalCollectionView.favorites
-                    ? _buildFavorites()
-                    : _buildPlaylists(),
+                    ? _buildFavorites(spec)
+                    : _buildPlaylists(spec),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFavorites() {
+  Widget _buildFavorites(AppLayoutSpec spec) {
     final songs = _favoriteSongs;
     if (songs.isEmpty) {
       return const _CollectionEmptyState(
@@ -324,7 +373,8 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       );
     }
 
-    final playableCount = songs.where((song) => song.playbackItem != null).length;
+    final playableCount =
+        songs.where((song) => song.playbackItem != null).length;
     return Column(
       children: [
         _CollectionHero(
@@ -336,11 +386,11 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+            padding: EdgeInsets.fromLTRB(
+              spec.pageGutter,
               0,
-              AppSpacing.lg,
-              AppSpacing.xl,
+              spec.pageGutter,
+              spec.sectionGap,
             ),
             itemCount: songs.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
@@ -351,33 +401,12 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                 onTap: song.playbackItem == null
                     ? null
                     : () => _playSongs(songs, requestedIndex: index),
-                trailing: Wrap(
-                  spacing: AppSpacing.xs,
-                  children: [
-                    IconButton(
-                      tooltip: '加入播放队列',
-                      onPressed: song.playbackItem == null ? null : () => _enqueue(song),
-                      icon: const Icon(Icons.queue_music_rounded),
-                    ),
-                    IconButton(
-                      tooltip: '取消收藏',
-                      onPressed: () => _removeFavorite(song),
-                      icon: const Icon(Icons.favorite_rounded),
-                    ),
-                    IconButton(
-                      tooltip: '加入播放列表',
-                      onPressed: () async {
-                        await showAddToLocalPlaylistDialog(
-                          context,
-                          sourcePath: song.sourcePath,
-                          title: song.title,
-                          repository: _collections,
-                        );
-                        await _reload();
-                      },
-                      icon: const Icon(Icons.playlist_add_rounded),
-                    ),
-                  ],
+                trailing: _FavoriteActions(
+                  compact: spec.isCompactOrMedium,
+                  canPlay: song.playbackItem != null,
+                  onEnqueue: () => _enqueue(song),
+                  onRemoveFavorite: () => _removeFavorite(song),
+                  onAddToPlaylist: () => _addFavoriteToPlaylist(song),
                 ),
               );
             },
@@ -387,9 +416,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     );
   }
 
-  Widget _buildPlaylists() {
+  Widget _buildPlaylists(AppLayoutSpec spec) {
     final selected = _selectedPlaylist;
-    if (selected != null) return _buildPlaylistDetail(selected);
+    if (selected != null) return _buildPlaylistDetail(selected, spec);
 
     if (_playlists.isEmpty) {
       return _CollectionEmptyState(
@@ -401,11 +430,22 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       );
     }
 
+    final columns = spec.gridColumns(
+      minTileWidth: 240,
+      min: 1,
+      max: spec.isExtraLarge ? 5 : 4,
+    );
+    final cardHeight = spec.isCompact
+        ? 190.0
+        : spec.isMedium
+            ? 205.0
+            : 220.0;
+
     return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 320,
-        mainAxisExtent: 210,
+      padding: EdgeInsets.all(spec.pageGutter),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisExtent: cardHeight,
         crossAxisSpacing: AppSpacing.md,
         mainAxisSpacing: AppSpacing.md,
       ),
@@ -413,11 +453,13 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       itemBuilder: (context, index) {
         final playlist = _playlists[index];
         final songs = playlist.sourcePaths.map(_song).toList(growable: false);
-        final missing = songs.where((song) => song.playbackItem == null).length;
+        final missing =
+            songs.where((song) => song.playbackItem == null).length;
         final artwork = songs
             .map((song) => song.artworkPath)
             .whereType<String>()
             .firstOrNull;
+
         return _PlaylistCard(
           playlist: playlist,
           artworkPath: artwork,
@@ -430,9 +472,13 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     );
   }
 
-  Widget _buildPlaylistDetail(LocalPlaylist playlist) {
+  Widget _buildPlaylistDetail(
+    LocalPlaylist playlist,
+    AppLayoutSpec spec,
+  ) {
     final songs = playlist.sourcePaths.map(_song).toList(growable: false);
-    final playableCount = songs.where((song) => song.playbackItem != null).length;
+    final playableCount =
+        songs.where((song) => song.playbackItem != null).length;
     final current = _session.currentState.currentItem;
     final canAddCurrent = current != null && current.projectId == null;
 
@@ -459,11 +505,11 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                 )
               : ReorderableListView.builder(
                   buildDefaultDragHandles: false,
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
+                  padding: EdgeInsets.fromLTRB(
+                    spec.pageGutter,
                     AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.xl,
+                    spec.pageGutter,
+                    spec.sectionGap,
                   ),
                   itemCount: songs.length,
                   onReorder: (oldIndex, newIndex) =>
@@ -477,39 +523,167 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                         leadingIndex: index + 1,
                         onTap: song.playbackItem == null
                             ? null
-                            : () => _playSongs(songs, requestedIndex: index),
-                        trailing: Wrap(
-                          spacing: AppSpacing.xs,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            IconButton(
-                              tooltip: '加入播放队列',
-                              onPressed:
-                                  song.playbackItem == null ? null : () => _enqueue(song),
-                              icon: const Icon(Icons.queue_music_rounded),
-                            ),
-                            IconButton(
-                              tooltip: '从播放列表移除',
-                              onPressed: () => _removeFromPlaylist(playlist, song),
-                              icon: const Icon(Icons.remove_circle_outline_rounded),
-                            ),
-                            Tooltip(
-                              message: '拖动排序',
-                              child: ReorderableDragStartListener(
-                                index: index,
-                                child: const Padding(
-                                  padding: EdgeInsets.all(10),
-                                  child: Icon(Icons.drag_handle_rounded),
+                            : () => _playSongs(
+                                  songs,
+                                  requestedIndex: index,
                                 ),
-                              ),
-                            ),
-                          ],
+                        trailing: _PlaylistSongActions(
+                          index: index,
+                          compact: spec.isCompactOrMedium,
+                          canPlay: song.playbackItem != null,
+                          onEnqueue: () => _enqueue(song),
+                          onRemove: () =>
+                              _removeFromPlaylist(playlist, song),
                         ),
                       ),
                     );
                   },
                 ),
         ),
+      ],
+    );
+  }
+}
+
+class _FavoriteActions extends StatelessWidget {
+  final bool compact;
+  final bool canPlay;
+  final VoidCallback onEnqueue;
+  final VoidCallback onRemoveFavorite;
+  final VoidCallback onAddToPlaylist;
+
+  const _FavoriteActions({
+    required this.compact,
+    required this.canPlay,
+    required this.onEnqueue,
+    required this.onRemoveFavorite,
+    required this.onAddToPlaylist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      return PopupMenuButton<String>(
+        tooltip: '歌曲操作',
+        onSelected: (value) {
+          if (value == 'queue' && canPlay) onEnqueue();
+          if (value == 'unfavorite') onRemoveFavorite();
+          if (value == 'playlist') onAddToPlaylist();
+        },
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            value: 'queue',
+            enabled: canPlay,
+            child: const Text('加入播放队列'),
+          ),
+          const PopupMenuItem(
+            value: 'playlist',
+            child: Text('加入播放列表'),
+          ),
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'unfavorite',
+            child: Text('取消收藏'),
+          ),
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: AppSpacing.xs,
+      children: [
+        IconButton(
+          tooltip: '加入播放队列',
+          onPressed: canPlay ? onEnqueue : null,
+          icon: const Icon(Icons.queue_music_rounded),
+        ),
+        IconButton(
+          tooltip: '取消收藏',
+          onPressed: onRemoveFavorite,
+          icon: const Icon(Icons.favorite_rounded),
+        ),
+        IconButton(
+          tooltip: '加入播放列表',
+          onPressed: onAddToPlaylist,
+          icon: const Icon(Icons.playlist_add_rounded),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaylistSongActions extends StatelessWidget {
+  final int index;
+  final bool compact;
+  final bool canPlay;
+  final VoidCallback onEnqueue;
+  final VoidCallback onRemove;
+
+  const _PlaylistSongActions({
+    required this.index,
+    required this.compact,
+    required this.canPlay,
+    required this.onEnqueue,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dragHandle = Tooltip(
+      message: '拖动排序',
+      child: ReorderableDragStartListener(
+        index: index,
+        child: const SizedBox(
+          width: 48,
+          height: 48,
+          child: Icon(Icons.drag_handle_rounded),
+        ),
+      ),
+    );
+
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PopupMenuButton<String>(
+            tooltip: '歌曲操作',
+            onSelected: (value) {
+              if (value == 'queue' && canPlay) onEnqueue();
+              if (value == 'remove') onRemove();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'queue',
+                enabled: canPlay,
+                child: const Text('加入播放队列'),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'remove',
+                child: Text('从播放列表移除'),
+              ),
+            ],
+          ),
+          dragHandle,
+        ],
+      );
+    }
+
+    return Wrap(
+      spacing: AppSpacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        IconButton(
+          tooltip: '加入播放队列',
+          onPressed: canPlay ? onEnqueue : null,
+          icon: const Icon(Icons.queue_music_rounded),
+        ),
+        IconButton(
+          tooltip: '从播放列表移除',
+          onPressed: onRemove,
+          icon: const Icon(Icons.remove_circle_outline_rounded),
+        ),
+        dragHandle,
       ],
     );
   }
@@ -529,7 +703,10 @@ class _CollectionSong {
   String get fileName => sourcePath.split(Platform.pathSeparator).last;
 
   String get fallbackTitle => fileName.replaceAll(
-        RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+        RegExp(
+          r'\.(mp3|flac|wav|m4a|aac|ogg)$',
+          caseSensitive: false,
+        ),
         '',
       );
 
@@ -545,7 +722,8 @@ class _CollectionSong {
   String? get album =>
       override?.resolvedAlbum(entry?.embeddedAlbum) ?? entry?.embeddedAlbum;
 
-  String? get artworkPath => override?.resolvedArtwork(entry?.embeddedArtworkPath) ??
+  String? get artworkPath =>
+      override?.resolvedArtwork(entry?.embeddedArtworkPath) ??
       entry?.embeddedArtworkPath;
 
   bool get sourceExists => File(sourcePath).existsSync();
@@ -602,59 +780,126 @@ class _CollectionHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final compact = spec.isCompactOrMedium || spec.isShort;
+    final extent = spec.isCompact ? 56.0 : 72.0;
+    final button = FilledButton.icon(
+      onPressed: onPrimary,
+      icon: const Icon(Icons.play_arrow_rounded),
+      label: Text(primaryLabel),
+      style: FilledButton.styleFrom(
+        minimumSize: Size(0, spec.minimumInteractiveExtent),
+      ),
+    );
+
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(spec.pageGutter),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(
+          spec.isCompact ? AppSpacing.md : AppSpacing.lg,
+        ),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           border: Border.all(color: AppColors.borderMuted),
         ),
-        child: Wrap(
-          spacing: AppSpacing.lg,
-          runSpacing: AppSpacing.md,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.bgHighlight,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, size: 38),
-            ),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 220, maxWidth: 620),
-              child: Column(
+        child: compact
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w800),
+                  Row(
+                    children: [
+                      _HeroIcon(icon: icon, extent: extent),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: _HeroText(
+                          title: title,
+                          subtitle: subtitle,
+                          compact: true,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.textSecondary),
+                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(width: double.infinity, child: button),
+                ],
+              )
+            : Row(
+                children: [
+                  _HeroIcon(icon: icon, extent: extent),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: _HeroText(
+                      title: title,
+                      subtitle: subtitle,
+                    ),
                   ),
+                  const SizedBox(width: AppSpacing.lg),
+                  button,
                 ],
               ),
-            ),
-            FilledButton.icon(
-              onPressed: onPrimary,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(primaryLabel),
-            ),
-          ],
-        ),
       ),
+    );
+  }
+}
+
+class _HeroIcon extends StatelessWidget {
+  final IconData icon;
+  final double extent;
+
+  const _HeroIcon({
+    required this.icon,
+    required this.extent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: extent,
+      height: extent,
+      decoration: BoxDecoration(
+        color: AppColors.bgHighlight,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      ),
+      child: Icon(icon, size: extent * 0.52),
+    );
+  }
+}
+
+class _HeroText extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool compact;
+
+  const _HeroText({
+    required this.title,
+    required this.subtitle,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: (compact
+                  ? Theme.of(context).textTheme.titleLarge
+                  : Theme.of(context).textTheme.headlineSmall)
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 }
@@ -684,7 +929,11 @@ class _PlaylistDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final compact = spec.isCompactOrMedium || spec.isShort;
+
     final menu = PopupMenuButton<String>(
+      tooltip: '播放列表操作',
       onSelected: (value) {
         if (value == 'rename') onRename();
         if (value == 'delete') onDelete();
@@ -696,89 +945,123 @@ class _PlaylistDetailHeader extends StatelessWidget {
       ],
     );
 
-    Widget titleBlock() => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            Text(
-              subtitle,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        );
-
     final playButton = FilledButton.icon(
       onPressed: canPlay ? onPlay : null,
       icon: const Icon(Icons.play_arrow_rounded),
       label: const Text('播放'),
+      style: FilledButton.styleFrom(
+        minimumSize: Size(0, spec.minimumInteractiveExtent),
+      ),
     );
     final addButton = OutlinedButton.icon(
       onPressed: canAddCurrent ? onAddCurrent : null,
       icon: const Icon(Icons.add_rounded),
       label: const Text('加入当前歌曲'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: Size(0, spec.minimumInteractiveExtent),
+      ),
     );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.md,
-        AppSpacing.lg,
+      padding: EdgeInsets.fromLTRB(
+        spec.pageGutter,
+        AppSpacing.sm,
+        spec.pageGutter,
         AppSpacing.sm,
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 720) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
                   children: [
-                    IconButton(
-                      tooltip: '返回播放列表',
-                      onPressed: onBack,
-                      icon: const Icon(Icons.arrow_back_rounded),
+                    SizedBox(
+                      width: spec.minimumInteractiveExtent,
+                      height: spec.minimumInteractiveExtent,
+                      child: IconButton(
+                        tooltip: '返回播放列表',
+                        onPressed: onBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Expanded(child: titleBlock()),
+                    Expanded(
+                      child: _PlaylistTitleBlock(
+                        name: name,
+                        subtitle: subtitle,
+                        compact: true,
+                      ),
+                    ),
                     menu,
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [playButton, addButton],
+                Row(
+                  children: [
+                    Expanded(child: playButton),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: addButton),
+                  ],
                 ),
               ],
-            );
-          }
+            )
+          : Row(
+              children: [
+                IconButton(
+                  tooltip: '返回播放列表',
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _PlaylistTitleBlock(
+                    name: name,
+                    subtitle: subtitle,
+                  ),
+                ),
+                playButton,
+                const SizedBox(width: AppSpacing.sm),
+                addButton,
+                menu,
+              ],
+            ),
+    );
+  }
+}
 
-          return Row(
-            children: [
-              IconButton(
-                tooltip: '返回播放列表',
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: titleBlock()),
-              playButton,
-              const SizedBox(width: AppSpacing.sm),
-              addButton,
-              menu,
-            ],
-          );
-        },
-      ),
+class _PlaylistTitleBlock extends StatelessWidget {
+  final String name;
+  final String subtitle;
+  final bool compact;
+
+  const _PlaylistTitleBlock({
+    required this.name,
+    required this.subtitle,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: (compact
+                  ? Theme.of(context).textTheme.titleLarge
+                  : Theme.of(context).textTheme.headlineSmall)
+              ?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 }
@@ -798,23 +1081,36 @@ class _CollectionSongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final artworkExtent = spec.isCompact ? 44.0 : 48.0;
+    final leadingWidth =
+        artworkExtent + (leadingIndex == null ? 0 : 28.0);
+
     return ListTile(
       onTap: onTap,
       enabled: song.canPlay,
+      minVerticalPadding: AppSpacing.xs,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: spec.isCompact ? AppSpacing.xs : AppSpacing.sm,
+      ),
       leading: SizedBox(
-        width: 54,
+        width: leadingWidth,
         child: Row(
           children: [
             if (leadingIndex != null)
               SizedBox(
-                width: 22,
+                width: 24,
                 child: Text(
                   '$leadingIndex',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: AppColors.textTertiary),
                 ),
               ),
-            Expanded(child: _CollectionArtwork(path: song.artworkPath)),
+            SizedBox(
+              width: artworkExtent,
+              height: artworkExtent,
+              child: _CollectionArtwork(path: song.artworkPath),
+            ),
           ],
         ),
       ),
@@ -825,7 +1121,7 @@ class _CollectionSongTile extends StatelessWidget {
       ),
       subtitle: Text(
         song.secondary,
-        maxLines: 1,
+        maxLines: spec.isCompact ? 1 : 2,
         overflow: TextOverflow.ellipsis,
       ),
       trailing: trailing,
@@ -852,35 +1148,52 @@ class _PlaylistCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+
     return InkWell(
       onTap: onOpen,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(
+          spec.isCompact ? AppSpacing.sm : AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
           border: Border.all(color: AppColors.borderMuted),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Row(
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Expanded(child: _CollectionArtwork(path: artworkPath, large: true)),
+                  _CollectionArtwork(path: artworkPath, large: true),
                   Align(
                     alignment: Alignment.topRight,
-                    child: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'rename') onRename();
-                        if (value == 'delete') onDelete();
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'rename', child: Text('重命名')),
-                        PopupMenuDivider(),
-                        PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
-                      ],
+                    child: Material(
+                      color: AppColors.pureBlack.withAlpha(90),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.radiusCircular),
+                      child: PopupMenuButton<String>(
+                        tooltip: '播放列表操作',
+                        onSelected: (value) {
+                          if (value == 'rename') onRename();
+                          if (value == 'delete') onDelete();
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'rename',
+                            child: Text('重命名'),
+                          ),
+                          PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('删除播放列表'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -899,8 +1212,11 @@ class _PlaylistCard extends StatelessWidget {
                 '${playlist.sourcePaths.length} 首歌曲',
                 if (missing > 0) '$missing 首不可用',
               ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: missing > 0 ? AppColors.error : AppColors.textTertiary,
+                color:
+                    missing > 0 ? AppColors.error : AppColors.textTertiary,
               ),
             ),
           ],
@@ -914,18 +1230,27 @@ class _CollectionArtwork extends StatelessWidget {
   final String? path;
   final bool large;
 
-  const _CollectionArtwork({this.path, this.large = false});
+  const _CollectionArtwork({
+    this.path,
+    this.large = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final file = path == null ? null : File(path!);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(large ? 14 : 8),
+      borderRadius:
+          BorderRadius.circular(large ? AppSpacing.radiusLarge : 8),
       child: Container(
         color: AppColors.bgSurface,
         alignment: Alignment.center,
         child: file?.existsSync() == true
-            ? Image.file(file!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+            ? Image.file(
+                file!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              )
             : Icon(
                 Icons.music_note_rounded,
                 size: large ? 54 : 24,
@@ -953,22 +1278,27 @@ class _CollectionEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: EdgeInsets.all(spec.pageGutter),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 68, color: AppColors.textTertiary),
+              Icon(
+                icon,
+                size: spec.isCompact ? 52 : 68,
+                color: AppColors.textTertiary,
+              ),
               const SizedBox(height: AppSpacing.md),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
+                style: (spec.isCompact
+                        ? Theme.of(context).textTheme.titleLarge
+                        : Theme.of(context).textTheme.headlineSmall)
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -983,6 +1313,10 @@ class _CollectionEmptyState extends StatelessWidget {
                   onPressed: onAction,
                   icon: const Icon(Icons.add_rounded),
                   label: Text(actionLabel!),
+                  style: FilledButton.styleFrom(
+                    minimumSize:
+                        Size(0, spec.minimumInteractiveExtent),
+                  ),
                 ),
               ],
             ],
