@@ -164,7 +164,9 @@ class _CrossDeviceMediaLibraryScreenState
   }
 
   Future<void> _disconnect({bool forget = false}) async {
-    await _audio.stop();
+    if (_playbackSession.currentState.currentItem?.isRemoteStream == true) {
+      await _playbackSession.clearQueue(keepCurrent: false);
+    }
     await _client.disconnect();
     if (forget) await _connectionStore.clear();
     if (!mounted) return;
@@ -216,8 +218,26 @@ class _CrossDeviceMediaLibraryScreenState
       _error = null;
     });
     try {
-      await _audio.loadAudioUri(uri: _client.playbackUriFor(track));
-      await _audio.play();
+      final uri = _client.playbackUriFor(track);
+      final host = _client.currentConnection?.host ?? 'desktop';
+      final item = PlaybackItem(
+        id: 'remote:$host:${track.id}',
+        title: track.title,
+        artist: track.artist,
+        hasLyrics: track.hasLyrics,
+        streamUri: uri,
+        audioAsset: AudioAsset(
+          originalPath: uri.toString(),
+          format: track.format,
+          duration: track.duration,
+          metadata: {
+            'transferSource': 'media-hub-stream',
+            'remoteTrackId': track.id,
+            if (track.album?.trim().isNotEmpty == true) 'album': track.album!.trim(),
+          },
+        ),
+      );
+      await _playbackSession.setQueue([item]);
       if (track.hasLyrics) {
         try {
           final lyrics = await _client.fetchLyrics(track);

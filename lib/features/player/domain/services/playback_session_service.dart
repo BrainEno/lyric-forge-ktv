@@ -15,6 +15,10 @@ class PlaybackItem {
   final AudioAsset audioAsset;
   final AudioSourceType preferredSource;
 
+  /// Optional remote URI for streamed playback. Local songs/projects leave this
+  /// null and continue to use [audioAsset] file paths.
+  final Uri? streamUri;
+
   const PlaybackItem({
     required this.id,
     required this.title,
@@ -24,7 +28,10 @@ class PlaybackItem {
     this.artworkPath,
     this.hasLyrics = false,
     this.preferredSource = AudioSourceType.original,
+    this.streamUri,
   });
+
+  bool get isRemoteStream => streamUri != null;
 
   PlaybackItem copyWith({
     String? id,
@@ -35,9 +42,11 @@ class PlaybackItem {
     bool? hasLyrics,
     AudioAsset? audioAsset,
     AudioSourceType? preferredSource,
+    Uri? streamUri,
     bool clearArtist = false,
     bool clearProjectId = false,
     bool clearArtwork = false,
+    bool clearStreamUri = false,
   }) {
     return PlaybackItem(
       id: id ?? this.id,
@@ -48,6 +57,7 @@ class PlaybackItem {
       hasLyrics: hasLyrics ?? this.hasLyrics,
       audioAsset: audioAsset ?? this.audioAsset,
       preferredSource: preferredSource ?? this.preferredSource,
+      streamUri: clearStreamUri ? null : streamUri ?? this.streamUri,
     );
   }
 }

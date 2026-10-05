@@ -50,6 +50,11 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     return Platform.isWindows ? normalized.toLowerCase() : normalized;
   }
 
+  bool _isRemotePath(String path) {
+    final uri = Uri.tryParse(path);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
   Future<void> _load() async {
     final file = await _storeFile();
     if (!await file.exists()) return;
@@ -67,6 +72,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
           final history = PlayHistory.fromJson(
             Map<String, dynamic>.from(entry),
           );
+          if (_isRemotePath(history.filePath)) continue;
           final key = _pathKey(history.filePath);
           if (!seenPaths.add(key)) continue;
           _histories.add(history);
@@ -116,7 +122,9 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     var changed = false;
     final retained = <PlayHistory>[];
     for (final history in _histories) {
-      if (await File(history.filePath).exists()) {
+      if (_isRemotePath(history.filePath)) {
+        changed = true;
+      } else if (await File(history.filePath).exists()) {
         retained.add(history);
       } else {
         changed = true;
@@ -133,6 +141,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
   @override
   Future<void> savePlayHistory(PlayHistory history) async {
+    if (_isRemotePath(history.filePath)) return;
     await _ensureLoaded();
     final key = _pathKey(history.filePath);
     _histories.removeWhere((entry) => _pathKey(entry.filePath) == key);
@@ -178,6 +187,11 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     if (index < 0) return null;
 
     final history = _histories[index];
+    if (_isRemotePath(history.filePath)) {
+      _histories.removeAt(index);
+      await _persist();
+      return null;
+    }
     if (await File(history.filePath).exists()) return history;
 
     _histories.removeAt(index);
