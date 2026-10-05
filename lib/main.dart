@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'core/navigation/app_chrome_controller.dart';
@@ -7,9 +8,18 @@ import 'core/theme/app_theme.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ServiceLocatorGlobal.I.initialize();
+  final services = ServiceLocatorGlobal.I;
+  services.initialize();
+  try {
+    await services.initializeSystemMediaControls();
+  } catch (error, stackTrace) {
+    // Playback inside the app should still be available if the platform media
+    // service cannot initialise on a particular device/build configuration.
+    debugPrint('System media controls unavailable: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
   runApp(const LyricForgeApp());
 }
 
