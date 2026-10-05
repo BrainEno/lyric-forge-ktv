@@ -87,6 +87,22 @@ void main() {
       expect(await restored.getRecentPlayHistory(), isEmpty);
     });
 
+    test('remote stream URLs are never persisted as local recent history', () async {
+      final repository = FilePlayHistoryRepository(rootDirectory: root);
+
+      await repository.savePlayHistory(
+        _history(
+          id: 'remote',
+          path: 'http://192.168.1.8:48517/v1/tracks/remote/audio?token=test',
+          position: const Duration(seconds: 31),
+        ),
+      );
+
+      expect(await repository.getRecentPlayHistory(), isEmpty);
+      final restored = FilePlayHistoryRepository(rootDirectory: root);
+      expect(await restored.getRecentPlayHistory(), isEmpty);
+    });
+
     test('clear removes persisted history', () async {
       final audio = File('${root.path}${Platform.pathSeparator}clear.mp3');
       await audio.writeAsBytes([1]);

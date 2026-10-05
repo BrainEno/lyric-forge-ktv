@@ -26,7 +26,7 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
   PlaybackState get playbackState => delegate.playbackState;
 
   Future<PlaybackItem> _enrich(PlaybackItem item) async {
-    if (item.projectId != null) return item;
+    if (item.projectId != null || item.isRemoteStream) return item;
     LocalMediaLibraryEntry? entry;
     try {
       entry = await libraryRepository.getByPath(item.audioAsset.originalPath);

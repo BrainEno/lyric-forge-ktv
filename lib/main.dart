@@ -4,12 +4,20 @@ import 'core/navigation/app_chrome_controller.dart';
 import 'core/navigation/app_router.dart';
 import 'core/services/service_locator.dart';
 import 'core/theme/app_theme.dart';
+import 'features/player/data/services/mobile_system_media_session.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ServiceLocatorGlobal.I.initialize();
+
+  final services = ServiceLocatorGlobal.I;
+  services.initialize();
+  await initializeMobileSystemMediaSession(
+    playbackSession: services.playbackSessionService,
+    audioPlayer: services.audioPlayerService,
+  );
+
   runApp(const LyricForgeApp());
 }
 

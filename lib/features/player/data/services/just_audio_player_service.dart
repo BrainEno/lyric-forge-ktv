@@ -110,6 +110,15 @@ class JustAudioPlayerService implements AudioPlayerService {
     }
 
     _currentSource = source;
+    final uri = Uri.tryParse(path);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      await _player.setUrl(uri.toString());
+      return;
+    }
+    if (uri != null && uri.scheme == 'file') {
+      await _player.setFilePath(uri.toFilePath());
+      return;
+    }
     await _player.setFilePath(path);
   }
 
