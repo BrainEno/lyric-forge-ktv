@@ -1,0 +1,684 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# LyricForge · iOS Dev
+# Flutter's machine-readable device list is the source of truth for runnable
+# targets. devicectl/simctl are only used to diagnose physical devices or boot
+# installed simulators that Flutter cannot use yet.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+INVENTORY_HELPER="$SCRIPT_DIR/ios_dev_inventory.dart"
+cd "$ROOT_DIR"
+
+COMMAND="${1:-help}"
+if [[ $# -gt 0 ]]; then shift; fi
+
+RUN_AFTER_BUILD=0
+CLEAN_FIRST=0
+SKIP_PUB=0
+SIMULATOR_BUILD=0
+DEVICE_ID=""
+DEVICE_TIMEOUT=10
+DISCOVERY_RETRIES=3
+
+TARGET_NAMES=()
+TARGET_IDS=()
+TARGET_KINDS=()
+TARGET_OS=()
+TARGET_STATUS=()
+TARGET_SOURCES=()
+TARGET_RUNNABLE=()
+SELECTED_INDEX=-1
+
+FLUTTER_BIN=""
+DART_BIN=""
+FLUTTER_VERSION="unknown"
+XCODE_VERSION="unknown"
+
+usage() {
+  cat <<'USAGE'
+LyricForge · iOS Dev
+
+Usage:
+  ./Scripts/ios-dev build                Build iOS Debug for a physical device
+  ./Scripts/ios-dev build --simulator    Build iOS Simulator Debug
+  ./Scripts/ios-dev build --run          Select one target and run Debug
+  ./Scripts/ios-dev run                  Select one target and run Debug
+  ./Scripts/ios-dev devices              Show Flutter/Xcode iOS target status
+
+Options:
+  --run                      Select one target and run Debug
+  --device <id>              Skip the picker and resolve this target ID
+  --simulator                Build for Simulator when build does not run
+  --clean                    flutter clean before build/run
+  --no-pub                   Skip conditional flutter pub get
+  -h, --help                 Show this help
+
+Picker:
+  ↑ / ↓                      Select one target
+  Enter                      Confirm and run
+  q                          Cancel
+
+Examples:
+  ./Scripts/ios-dev build --run
+  ./Scripts/ios-dev run
+  ./Scripts/ios-dev build
+  ./Scripts/ios-dev build --simulator
+  ./Scripts/ios-dev build --run --clean
+  ./Scripts/ios-dev run --device <flutter-device-id>
+USAGE
+}
+
+say() {
+  printf '%s\n' "$*"
+}
+
+warn() {
+  printf '%s\n' "$*" >&2
+}
+
+fail() {
+  warn "$*"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --run)
+      RUN_AFTER_BUILD=1
+      shift
+      ;;
+    --device)
+      [[ $# -ge 2 ]] || { warn "Missing value for --device"; exit 2; }
+      DEVICE_ID="$2"
+      shift 2
+      ;;
+    --simulator)
+      SIMULATOR_BUILD=1
+      shift
+      ;;
+    --clean)
+      CLEAN_FIRST=1
+      shift
+      ;;
+    --no-pub)
+      SKIP_PUB=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      warn "Unknown option: $1"
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$COMMAND" == "run" ]]; then
+  COMMAND="build"
+  RUN_AFTER_BUILD=1
+fi
+
+if [[ "$COMMAND" == "help" || "$COMMAND" == "--help" || "$COMMAND" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "$COMMAND" != "build" && "$COMMAND" != "devices" ]]; then
+  warn "Unknown command: $COMMAND"
+  usage
+  exit 2
+fi
+
+setup_tooling() {
+  [[ "$(uname -s)" == "Darwin" ]] || fail "iOS Dev only runs on macOS."
+
+  FLUTTER_BIN="$(command -v flutter || true)"
+  [[ -n "$FLUTTER_BIN" ]] || fail "Flutter was not found in PATH."
+
+  DART_BIN="$(dirname "$FLUTTER_BIN")/dart"
+  if [[ ! -x "$DART_BIN" ]]; then
+    DART_BIN="$(command -v dart || true)"
+  fi
+  [[ -n "$DART_BIN" && -x "$DART_BIN" ]] || \
+    fail "Dart was not found next to Flutter. Check the Flutter SDK installation."
+  [[ -f "$INVENTORY_HELPER" ]] || fail "Missing $INVENTORY_HELPER"
+
+  local developer_dir
+  developer_dir="$(xcode-select -p 2>/dev/null || true)"
+  [[ -n "$developer_dir" ]] || \
+    fail "Xcode developer tools are not configured. Install Xcode first."
+
+  if [[ "$developer_dir" == "/Library/Developer/CommandLineTools" ]]; then
+    warn "Full Xcode is not the active developer directory:"
+    warn "  $developer_dir"
+    warn "Use Xcode.app for iOS development, for example:"
+    warn "  sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer"
+    fail "Active developer directory is Command Line Tools only."
+  fi
+
+  if ! xcodebuild -version >/dev/null 2>&1; then
+    warn "xcodebuild could not start with the active developer directory:"
+    warn "  $developer_dir"
+    warn "If Xcode.app is installed at the standard path, use:"
+    warn "  sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer"
+    fail "Xcode is not ready for iOS builds."
+  fi
+
+  local xcode_help
+  xcode_help="$(xcodebuild -help 2>&1 || true)"
+  if [[ "$xcode_help" == *"-checkFirstLaunchStatus"* ]]; then
+    if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+      warn "Xcode still has first-launch components to install."
+      warn "Open Xcode once, or run the command Xcode recommends for first launch."
+      exit 1
+    fi
+  fi
+
+  if ! xcodebuild -license check >/dev/null 2>&1; then
+    warn "The Xcode license is not accepted."
+    warn "Review it in Xcode, or explicitly run: sudo xcodebuild -license accept"
+    exit 1
+  fi
+
+  FLUTTER_VERSION="$($FLUTTER_BIN --version 2>/dev/null | sed -n '1s/^Flutter[[:space:]]*//p')"
+  XCODE_VERSION="$(xcodebuild -version 2>/dev/null | sed -n '1s/^Xcode[[:space:]]*//p')"
+}
+
+check_cocoapods() {
+  if ! command -v pod >/dev/null 2>&1; then
+    warn "CocoaPods is required by ios/Podfile but 'pod' was not found."
+    if command -v brew >/dev/null 2>&1; then
+      warn "Install it with: brew install cocoapods"
+    else
+      warn "Install CocoaPods, then rerun iOS Dev."
+    fi
+    exit 1
+  fi
+}
+
+print_header() {
+  say "LyricForge · iOS Dev"
+  say ""
+  say "Flutter    $FLUTTER_VERSION"
+  say "Xcode      $XCODE_VERSION"
+  say "Mode       Debug"
+  say ""
+}
+
+maybe_pub_get() {
+  [[ $SKIP_PUB -eq 0 ]] || return 0
+
+  local package_config='.dart_tool/package_config.json'
+  if [[ ! -f "$package_config" || pubspec.yaml -nt "$package_config" || \
+        ( -f pubspec.lock && pubspec.lock -nt "$package_config" ) ]]; then
+    say "==> flutter pub get"
+    "$FLUTTER_BIN" pub get
+  else
+    say "==> Dependencies are up to date; skipping flutter pub get"
+  fi
+}
+
+flutter_records() {
+  local json_file err_file
+  json_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-flutter-devices.XXXXXX")"
+  err_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-flutter-devices-err.XXXXXX")"
+
+  if "$FLUTTER_BIN" devices --machine --device-timeout "$DEVICE_TIMEOUT" \
+      >"$json_file" 2>"$err_file"; then
+    "$DART_BIN" "$INVENTORY_HELPER" flutter <"$json_file"
+    rm -f "$json_file" "$err_file"
+    return 0
+  fi
+
+  if [[ -s "$err_file" ]]; then
+    cat "$err_file" >&2
+  fi
+  rm -f "$json_file" "$err_file"
+  return 1
+}
+
+simulator_records() {
+  local json_file
+  json_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-simctl.XXXXXX")"
+  if xcrun simctl list devices available -j >"$json_file" 2>/dev/null; then
+    "$DART_BIN" "$INVENTORY_HELPER" simctl <"$json_file"
+  fi
+  rm -f "$json_file"
+}
+
+devicectl_records() {
+  local json_file
+  json_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-devicectl.XXXXXX")"
+  rm -f "$json_file"
+
+  if xcrun --find devicectl >/dev/null 2>&1 && \
+      xcrun devicectl list devices --json-output "$json_file" >/dev/null 2>&1 && \
+      [[ -s "$json_file" ]]; then
+    "$DART_BIN" "$INVENTORY_HELPER" devicectl <"$json_file"
+  fi
+  rm -f "$json_file"
+}
+
+has_target_id() {
+  local wanted="$1"
+  local i
+  for ((i=0; i<${#TARGET_IDS[@]}; i++)); do
+    [[ "${TARGET_IDS[$i]}" == "$wanted" ]] && return 0
+  done
+  return 1
+}
+
+has_physical_target_name() {
+  local wanted="$1"
+  local i
+  for ((i=0; i<${#TARGET_NAMES[@]}; i++)); do
+    if [[ "${TARGET_NAMES[$i]}" == "$wanted" && \
+          "${TARGET_KINDS[$i]}" == "physical" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+add_target() {
+  local id="$1" name="$2" kind="$3" os="$4" status="$5" source="$6" runnable="$7"
+  [[ -n "$id" && -n "$name" ]] || return 0
+  has_target_id "$id" && return 0
+  TARGET_IDS+=("$id")
+  TARGET_NAMES+=("$name")
+  TARGET_KINDS+=("$kind")
+  TARGET_OS+=("$os")
+  TARGET_STATUS+=("$status")
+  TARGET_SOURCES+=("$source")
+  TARGET_RUNNABLE+=("$runnable")
+}
+
+collect_targets() {
+  TARGET_NAMES=()
+  TARGET_IDS=()
+  TARGET_KINDS=()
+  TARGET_OS=()
+  TARGET_STATUS=()
+  TARGET_SOURCES=()
+  TARGET_RUNNABLE=()
+
+  local id name kind os status runnable
+  while IFS=$'\t' read -r id name kind os status runnable; do
+    [[ -n "$id" ]] || continue
+    add_target "$id" "$name" "$kind" "$os" "$status" "flutter" "$runnable"
+  done < <(flutter_records || true)
+
+  local state
+  while IFS=$'\t' read -r id name kind os state; do
+    [[ -n "$id" ]] || continue
+    if ! has_target_id "$id"; then
+      if [[ "$state" == "Booted" ]]; then
+        add_target "$id" "$name" "simulator" "$os" "Flutter unavailable" "simctl" "0"
+      else
+        add_target "$id" "$name" "simulator" "$os" "$state" "simctl" "0"
+      fi
+    fi
+  done < <(simulator_records || true)
+
+  local dev_state connection developer_mode pairing locked detail lower
+  while IFS=$'\t' read -r id name kind os dev_state connection developer_mode pairing locked; do
+    [[ -n "$id" ]] || continue
+    if ! has_target_id "$id" && ! has_physical_target_name "$name"; then
+      detail="Flutter unavailable"
+      lower="$(printf '%s' "$locked" | tr '[:upper:]' '[:lower:]')"
+      if [[ "$lower" == "true" || "$lower" == "yes" || "$lower" == "locked" ]]; then
+        detail="Locked · Flutter unavailable"
+      elif [[ "$(printf '%s' "$developer_mode" | tr '[:upper:]' '[:lower:]')" == *"disabled"* ]]; then
+        detail="Developer Mode off · Flutter unavailable"
+      elif [[ "$(printf '%s' "$pairing" | tr '[:upper:]' '[:lower:]')" == *"unpaired"* ]]; then
+        detail="Not paired · Flutter unavailable"
+      elif [[ -n "$dev_state" ]]; then
+        detail="Flutter unavailable · $dev_state"
+      fi
+      add_target "$id" "$name" "physical-system" "$os" "$detail" "devicectl" "0"
+    fi
+  done < <(devicectl_records || true)
+}
+
+kind_label() {
+  case "$1" in
+    physical) printf '%s' 'Physical iPhone/iOS device' ;;
+    physical-system) printf '%s' 'Physical iPhone/iOS device' ;;
+    simulator) printf '%s' 'Simulator' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+render_target() {
+  local index="$1" prefix="$2"
+  local kind_text
+  kind_text="$(kind_label "${TARGET_KINDS[$index]}")"
+  printf '%s%s\n' "$prefix" "${TARGET_NAMES[$index]}"
+  if [[ -n "${TARGET_OS[$index]}" ]]; then
+    printf '  %s · %s\n' "$kind_text" "${TARGET_OS[$index]}"
+  else
+    printf '  %s\n' "$kind_text"
+  fi
+  printf '  %s\n' "${TARGET_STATUS[$index]}"
+}
+
+print_targets() {
+  collect_targets
+  if [[ ${#TARGET_IDS[@]} -eq 0 ]]; then
+    warn "No iPhone or iOS Simulator target was found."
+    diagnose_no_targets
+    return 1
+  fi
+
+  local i
+  for ((i=0; i<${#TARGET_IDS[@]}; i++)); do
+    render_target "$i" "- "
+    printf '  %s\n\n' "${TARGET_IDS[$i]}"
+  done
+}
+
+pick_target_index() {
+  collect_targets
+  if [[ ${#TARGET_IDS[@]} -eq 0 ]]; then
+    diagnose_no_targets
+    return 1
+  fi
+  if [[ ! -t 0 ]]; then
+    fail "No interactive terminal. Use --device <id> for non-interactive runs."
+  fi
+
+  local index=0 key="" rest="" count=${#TARGET_IDS[@]}
+  tput civis 2>/dev/null || true
+  trap 'tput cnorm 2>/dev/null || true' EXIT INT TERM
+
+  while true; do
+    printf '\033[2J\033[H' >&2
+    print_header >&2
+    warn "Select target:"
+    warn ""
+
+    local i prefix
+    for ((i=0; i<count; i++)); do
+      prefix='  '
+      [[ $i -eq $index ]] && prefix='› '
+      render_target "$i" "$prefix" >&2
+      warn ""
+    done
+    warn "↑/↓ Select · Enter Run · q Cancel"
+
+    key=""
+    rest=""
+    IFS= read -rsn1 key || true
+    if [[ "$key" == $'\x1b' ]]; then
+      IFS= read -rsn2 rest || true
+      key+="$rest"
+    fi
+
+    case "$key" in
+      $'\x1b[A') index=$(( (index - 1 + count) % count )) ;;
+      $'\x1b[B') index=$(( (index + 1) % count )) ;;
+      '') break ;;
+      q|Q)
+        tput cnorm 2>/dev/null || true
+        trap - EXIT INT TERM
+        warn "Cancelled."
+        return 1
+        ;;
+    esac
+  done
+
+  tput cnorm 2>/dev/null || true
+  trap - EXIT INT TERM
+  SELECTED_INDEX="$index"
+}
+
+find_flutter_record() {
+  local wanted_id="$1" wanted_name="${2:-}" wanted_kind="${3:-}"
+  local records_file
+  records_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-flutter-records.XXXXXX")"
+  flutter_records >"$records_file" || true
+
+  local record
+  record="$(awk -F '\t' -v id="$wanted_id" '$1 == id { print; exit }' "$records_file")"
+  if [[ -z "$record" && -n "$wanted_name" ]]; then
+    record="$(awk -F '\t' -v name="$wanted_name" -v kind="$wanted_kind" '
+      $2 == name && (kind == "" || $3 == kind) { print; exit }
+    ' "$records_file")"
+  fi
+  rm -f "$records_file"
+  printf '%s' "$record"
+}
+
+wait_for_flutter_target() {
+  local wanted_id="$1" wanted_name="${2:-}" wanted_kind="${3:-}"
+  local attempt record
+  for ((attempt=1; attempt<=DISCOVERY_RETRIES; attempt++)); do
+    warn "Waiting for Flutter to recognize target... $attempt/$DISCOVERY_RETRIES"
+    record="$(find_flutter_record "$wanted_id" "$wanted_name" "$wanted_kind")"
+    if [[ -n "$record" ]]; then
+      printf '%s' "$record"
+      return 0
+    fi
+    [[ $attempt -lt $DISCOVERY_RETRIES ]] && sleep 2
+  done
+  return 1
+}
+
+find_simulator_record() {
+  local wanted_id="$1"
+  simulator_records | awk -F '\t' -v id="$wanted_id" '!found && $1 == id { print; found=1 }'
+}
+
+find_devicectl_record() {
+  local wanted_id="$1"
+  devicectl_records | awk -F '\t' -v id="$wanted_id" '!found && $1 == id { print; found=1 }'
+}
+
+boot_simulator() {
+  local id="$1" name="$2"
+  warn "==> Booting Simulator: $name"
+  if ! xcrun simctl boot "$id" >/dev/null 2>&1; then
+    local state
+    state="$(xcrun simctl list devices -j 2>/dev/null | \
+      "$DART_BIN" "$INVENTORY_HELPER" simctl | \
+      awk -F '\t' -v id="$id" '!found && $1 == id { print $5; found=1 }')"
+    [[ "$state" == "Booted" ]] || fail "Simulator could not be booted: $name"
+  fi
+  open -a Simulator >/dev/null 2>&1 || true
+}
+
+show_device_details() {
+  local id="$1"
+  local json_file
+  json_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-device-details.XXXXXX")"
+  rm -f "$json_file"
+
+  if xcrun devicectl device info details --device "$id" \
+      --json-output "$json_file" >/dev/null 2>&1 && [[ -s "$json_file" ]]; then
+    "$DART_BIN" "$INVENTORY_HELPER" details <"$json_file" | while IFS=$'\t' read -r key value; do
+      [[ -n "$key" ]] && printf '  %-16s %s\n' "$key" "$value" >&2
+    done
+  else
+    warn "  devicectl could not read detailed device properties."
+  fi
+  rm -f "$json_file"
+}
+
+show_flutter_doctor() {
+  warn ""
+  warn "Flutter doctor:"
+  "$FLUTTER_BIN" doctor -v >&2 || true
+}
+
+diagnose_physical_device() {
+  local id="$1" name="$2"
+  warn ""
+  warn "Detected iPhone/iOS device '$name' in Xcode/devicectl, but Flutter cannot use it yet."
+  warn ""
+  warn "Xcode:"
+  warn "  Developer dir    $(xcode-select -p 2>/dev/null || echo unavailable)"
+  xcodebuild -version 2>/dev/null | sed 's/^/  /' >&2 || true
+  warn ""
+  warn "Device details:"
+  show_device_details "$id"
+  warn ""
+  warn "Flutter devices:"
+  "$FLUTTER_BIN" devices --device-timeout "$DEVICE_TIMEOUT" >&2 || true
+  show_flutter_doctor
+  warn ""
+  warn "Check these before retrying:"
+  warn "  ✓ iPhone is unlocked"
+  warn "  ✓ 'Trust This Computer' has been accepted"
+  warn "  ✓ Developer Mode is enabled on the iPhone"
+  warn "  ✓ Xcode Device Hub / Devices and Simulators shows the device as available"
+  warn "  ✓ Xcode has finished preparing debugger/device support"
+  warn ""
+  warn "If xcode-select points at the wrong Xcode, switch it manually; iOS Dev never runs sudo for you."
+}
+
+has_ios_runtime() {
+  local json_file result
+  json_file="$(mktemp "${TMPDIR:-/tmp}/lyricforge-runtimes.XXXXXX")"
+  result=""
+  if xcrun simctl list runtimes -j >"$json_file" 2>/dev/null; then
+    result="$("$DART_BIN" "$INVENTORY_HELPER" runtimes <"$json_file" | sed -n '1p')"
+  fi
+  rm -f "$json_file"
+  [[ -n "$result" ]]
+}
+
+diagnose_no_targets() {
+  warn ""
+  warn "Flutter currently has no usable iPhone/iOS Simulator target."
+  if ! has_ios_runtime; then
+    warn "No available iOS Simulator runtime was found."
+    warn "Install an iOS runtime from Xcode Settings (Components/Platforms)."
+  fi
+
+  local system_count
+  system_count="$(devicectl_records | wc -l | tr -d ' ')"
+  if [[ "$system_count" != "0" ]]; then
+    warn "Xcode/devicectl can see physical iOS device(s), so this is a Flutter availability problem."
+    show_flutter_doctor
+  else
+    warn "For a physical iPhone: unlock it, trust this Mac, and enable Developer Mode."
+    warn "For Simulator: create/boot an iPhone simulator in Xcode, then rerun iOS Dev."
+  fi
+}
+
+resolve_run_target() {
+  local selected_id="$1" selected_name="$2" selected_kind="$3" selected_source="$4" selected_status="$5"
+  local record id name kind os status runnable
+
+  if [[ "$selected_source" == "simctl" ]]; then
+    boot_simulator "$selected_id" "$selected_name"
+    if ! record="$(wait_for_flutter_target "$selected_id" "$selected_name" "simulator")"; then
+      fail "Simulator booted, but Flutter still does not recognize it. Run: flutter doctor -v"
+    fi
+  elif [[ "$selected_source" == "devicectl" ]]; then
+    if ! record="$(wait_for_flutter_target "$selected_id" "$selected_name" "physical")"; then
+      diagnose_physical_device "$selected_id" "$selected_name"
+      fail "Xcode can see '$selected_name', but Flutter still cannot run on it."
+    fi
+  else
+    if ! record="$(wait_for_flutter_target "$selected_id" "$selected_name" "$selected_kind")"; then
+      if [[ "$selected_kind" == "physical" ]]; then
+        local system_record
+        system_record="$(devicectl_records | awk -F '\t' -v name="$selected_name" '!found && $2 == name { print; found=1 }')"
+        if [[ -n "$system_record" ]]; then
+          local system_id
+          IFS=$'\t' read -r system_id _rest <<<"$system_record"
+          diagnose_physical_device "$system_id" "$selected_name"
+        fi
+      fi
+      fail "Target disappeared from Flutter before launch: $selected_name"
+    fi
+  fi
+
+  IFS=$'\t' read -r id name kind os status runnable <<<"$record"
+  [[ "$runnable" == "1" ]] || fail "Flutter reports target as unsupported: $name"
+  printf '%s\t%s\t%s\t%s\n' "$id" "$name" "$kind" "$os"
+}
+
+resolve_explicit_device() {
+  local wanted_id="$1"
+  local record id name kind os status runnable
+
+  record="$(find_flutter_record "$wanted_id")"
+  if [[ -n "$record" ]]; then
+    IFS=$'\t' read -r id name kind os status runnable <<<"$record"
+    resolve_run_target "$id" "$name" "$kind" "flutter" "$status"
+    return
+  fi
+
+  record="$(find_simulator_record "$wanted_id")"
+  if [[ -n "$record" ]]; then
+    IFS=$'\t' read -r id name kind os status <<<"$record"
+    resolve_run_target "$id" "$name" "simulator" "simctl" "$status"
+    return
+  fi
+
+  record="$(find_devicectl_record "$wanted_id")"
+  if [[ -n "$record" ]]; then
+    IFS=$'\t' read -r id name kind os status _rest <<<"$record"
+    resolve_run_target "$id" "$name" "physical-system" "devicectl" "$status"
+    return
+  fi
+
+  fail "No iOS target with ID '$wanted_id' was found by Flutter, simctl, or devicectl."
+}
+
+setup_tooling
+
+if [[ "$COMMAND" == "devices" ]]; then
+  print_header
+  print_targets
+  exit $?
+fi
+
+check_cocoapods
+
+if [[ $CLEAN_FIRST -eq 1 ]]; then
+  say "==> flutter clean"
+  "$FLUTTER_BIN" clean
+fi
+
+maybe_pub_get
+
+if [[ $RUN_AFTER_BUILD -eq 1 ]]; then
+  local_result=""
+  if [[ -n "$DEVICE_ID" ]]; then
+    local_result="$(resolve_explicit_device "$DEVICE_ID")"
+  else
+    pick_target_index
+    selected_index="$SELECTED_INDEX"
+    local_result="$(resolve_run_target \
+      "${TARGET_IDS[$selected_index]}" \
+      "${TARGET_NAMES[$selected_index]}" \
+      "${TARGET_KINDS[$selected_index]}" \
+      "${TARGET_SOURCES[$selected_index]}" \
+      "${TARGET_STATUS[$selected_index]}")"
+  fi
+
+  IFS=$'\t' read -r RUN_ID RUN_NAME RUN_KIND RUN_OS <<<"$local_result"
+  say ""
+  say "==> Run Debug on: $RUN_NAME"
+  say "    $RUN_OS · $RUN_ID"
+  say "    Flutter incremental build artifacts will be reused."
+  exec "$FLUTTER_BIN" run --debug -d "$RUN_ID"
+fi
+
+say ""
+if [[ $SIMULATOR_BUILD -eq 1 ]]; then
+  say "==> Build iOS Simulator Debug"
+  exec "$FLUTTER_BIN" build ios --simulator --debug
+else
+  say "==> Build iOS Device Debug"
+  say "    Physical-device builds require valid Apple signing."
+  exec "$FLUTTER_BIN" build ios --debug
+fi
