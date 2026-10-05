@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
@@ -196,80 +198,80 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final media = MediaQuery.of(context);
+    final compact = spec.isCompactOrMedium || spec.isShort;
+    final maxDialogWidth = spec.isCompact
+        ? (spec.width - spec.pageGutter * 2).clamp(280.0, 560.0).toDouble()
+        : spec.isMedium
+            ? 560.0
+            : 680.0;
+    final chromeReserve = spec.isShort ? 132.0 : 156.0;
+    final maxDialogHeight = (media.size.height -
+            media.viewInsets.bottom -
+            spec.pageGutter * 2 -
+            chromeReserve)
+        .clamp(64.0, 760.0)
+        .toDouble();
+
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
+      insetPadding: EdgeInsets.all(spec.pageGutter),
+      titlePadding: EdgeInsets.fromLTRB(
+        spec.pageGutter,
+        spec.pageGutter,
+        spec.pageGutter,
+        AppSpacing.sm,
+      ),
+      contentPadding: EdgeInsets.fromLTRB(
+        spec.pageGutter,
+        0,
+        spec.pageGutter,
+        AppSpacing.sm,
+      ),
+      actionsPadding: EdgeInsets.fromLTRB(
+        spec.pageGutter,
+        AppSpacing.sm,
+        spec.pageGutter,
+        spec.pageGutter,
+      ),
       title: const Text('编辑歌曲资料'),
-      content: SizedBox(
-        width: 620,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxDialogWidth,
+          maxHeight: maxDialogHeight,
+        ),
         child: _loading
             ? const SizedBox(
                 height: 220,
                 child: Center(child: CircularProgressIndicator()),
               )
             : SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ArtworkPreview(path: _previewArtworkPath),
-                        const SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '封面图片',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                '图片会复制到 LyricForge 自己的媒体目录，不修改原音频文件。',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: AppColors.textSecondary),
-                              ),
-                              const SizedBox(height: AppSpacing.md),
-                              Wrap(
-                                spacing: AppSpacing.sm,
-                                runSpacing: AppSpacing.sm,
-                                children: [
-                                  OutlinedButton.icon(
-                                    onPressed: _saving ? null : _pickArtwork,
-                                    icon: const Icon(Icons.image_outlined),
-                                    label: Text(
-                                      _previewArtworkPath == null
-                                          ? '选择封面'
-                                          : '更换封面',
-                                    ),
-                                  ),
-                                  if (_previewArtworkPath != null)
-                                    TextButton.icon(
-                                      onPressed: _saving ? null : _clearArtwork,
-                                      icon: const Icon(Icons.close_rounded),
-                                      label: const Text('移除封面'),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    _ArtworkEditor(
+                      path: _previewArtworkPath,
+                      compact: compact,
+                      saving: _saving,
+                      onPick: _pickArtwork,
+                      onClear:
+                          _previewArtworkPath == null ? null : _clearArtwork,
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    SizedBox(
+                      height: spec.isShort ? AppSpacing.md : AppSpacing.xl,
+                    ),
                     TextField(
                       controller: _titleController,
                       enabled: !_saving,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: '歌曲名称',
-                        helperText: '支持中文、日文、emoji；以 UTF-8 保存，不写回原文件标签。',
+                        helperText:
+                            '支持中文、日文、emoji；以 UTF-8 保存，不写回原文件标签。',
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -283,26 +285,47 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
                     TextField(
                       controller: _albumController,
                       enabled: !_saving,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) {
+                        if (!_saving && !_loading) unawaited(_save());
+                      },
                       decoration: const InputDecoration(labelText: '专辑'),
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: AppSpacing.md),
-                      Text(
-                        _error!,
-                        style: const TextStyle(color: AppColors.error),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withAlpha(18),
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMedium),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: AppColors.error),
+                        ),
                       ),
                     ],
                   ],
                 ),
               ),
       ),
+      actionsAlignment: MainAxisAlignment.end,
+      actionsOverflowDirection: VerticalDirection.down,
+      actionsOverflowAlignment: OverflowBarAlignment.end,
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            minimumSize: Size(0, spec.minimumInteractiveExtent),
+          ),
           child: const Text('取消'),
         ),
         FilledButton.icon(
           onPressed: _loading || _saving ? null : _save,
+          style: FilledButton.styleFrom(
+            minimumSize: Size(0, spec.minimumInteractiveExtent),
+          ),
           icon: _saving
               ? const SizedBox(
                   width: 16,
@@ -325,10 +348,101 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
   }
 }
 
+class _ArtworkEditor extends StatelessWidget {
+  final String? path;
+  final bool compact;
+  final bool saving;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  const _ArtworkEditor({
+    required this.path,
+    required this.compact,
+    required this.saving,
+    required this.onPick,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final preview = _ArtworkPreview(
+      path: path,
+      extent: compact ? 112 : 132,
+    );
+    final copy = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '封面图片',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '图片会复制到 LyricForge 自己的媒体目录，不修改原音频文件。',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            OutlinedButton.icon(
+              onPressed: saving ? null : onPick,
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size(0, spec.minimumInteractiveExtent),
+              ),
+              icon: const Icon(Icons.image_outlined),
+              label: Text(path == null ? '选择封面' : '更换封面'),
+            ),
+            if (onClear != null)
+              TextButton.icon(
+                onPressed: saving ? null : onClear,
+                style: TextButton.styleFrom(
+                  minimumSize: Size(0, spec.minimumInteractiveExtent),
+                ),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('移除封面'),
+              ),
+          ],
+        ),
+      ],
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Align(alignment: Alignment.centerLeft, child: preview),
+          const SizedBox(height: AppSpacing.md),
+          copy,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        preview,
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(child: copy),
+      ],
+    );
+  }
+}
+
 class _ArtworkPreview extends StatelessWidget {
   final String? path;
+  final double extent;
 
-  const _ArtworkPreview({this.path});
+  const _ArtworkPreview({
+    this.path,
+    required this.extent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -337,14 +451,14 @@ class _ArtworkPreview extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Container(
-        width: 132,
-        height: 132,
+        width: extent,
+        height: extent,
         color: AppColors.bgSurface,
         child: exists
             ? Image.file(file!, fit: BoxFit.cover)
-            : const Icon(
+            : Icon(
                 Icons.album_rounded,
-                size: 52,
+                size: extent * 0.4,
                 color: AppColors.textTertiary,
               ),
       ),
