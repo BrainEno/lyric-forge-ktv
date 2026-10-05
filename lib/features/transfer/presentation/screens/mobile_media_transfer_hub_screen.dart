@@ -9,8 +9,9 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/media_transfer_batch.dart';
+import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/services/media_hub_client_service.dart';
-import '../../domain/services/media_transfer_service.dart';
+import '../../domain/services/media_transfer_queue_service.dart';
 
 class MobileMediaTransferHubScreen extends StatefulWidget {
   const MobileMediaTransferHubScreen({super.key});
@@ -23,70 +24,47 @@ class MobileMediaTransferHubScreen extends StatefulWidget {
 class _MobileMediaTransferHubScreenState
     extends State<MobileMediaTransferHubScreen> {
   late final MediaHubClientService _client;
-  late final MediaTransferService _transfers;
+  late final MediaTransferQueueService _queue;
   late final AudioLibraryImportService _audioImport;
 
-  MediaTransferItemProgress? _activeUpload;
-  MediaTransferBatchResult? _lastResult;
-  bool _busy = false;
+  bool _picking = false;
 
   @override
   void initState() {
     super.initState();
     final services = ServiceLocatorGlobal.I;
     _client = services.mediaHubClientService;
-    _transfers = services.mediaTransferService;
+    _queue = services.mediaTransferQueueService;
     _audioImport = services.audioLibraryImportService;
+    if (_client.isConnected) unawaited(_queue.resume());
   }
 
   Future<void> _openDesktopLibrary() async {
     await Navigator.pushNamed(context, Routes.remoteBrowse);
+    if (!mounted) return;
+    if (_client.isConnected) await _queue.resume();
     if (mounted) setState(() {});
   }
 
   Future<void> _sendLocalMusic() async {
-    if (_busy) return;
+    if (_picking) return;
     if (!_client.isConnected) {
       _showMessage('请先连接电脑，再发送本机音乐');
       await _openDesktopLibrary();
       return;
     }
 
-    setState(() {
-      _busy = true;
-      _activeUpload = null;
-      _lastResult = null;
-    });
-
+    setState(() => _picking = true);
     try {
       final paths = await _audioImport.pickAudioFiles();
       if (paths.isEmpty) return;
-
-      final result = await _transfers.uploadLocalFiles(
-        paths,
-        onProgress: (progress) {
-          if (!mounted) return;
-          setState(() => _activeUpload = progress);
-        },
-      );
-      if (!mounted) return;
-      setState(() {
-        _lastResult = result;
-        _activeUpload = null;
-      });
-
-      final completed = result.completed.length;
-      final failed = result.failed.length;
-      _showMessage(
-        failed == 0
-            ? '已发送 $completed 首音乐到电脑并自动加入电脑音乐库'
-            : '已发送 $completed 首，$failed 首失败，可再次选择重试',
-        error: completed == 0 && failed > 0,
-      );
+      await _queue.enqueueUploads(paths);
+      await _queue.resume();
+      _showMessage('已加入 ${paths.length} 首到后台传输队列');
     } catch (error) {
-      _showMessage('发送音乐失败：$error', error: true);
+      _showMessage('加入传输队列失败：$error', error: true);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _picking = false);
     }
   }
 
@@ -130,26 +108,31 @@ class _MobileMediaTransferHubScreenState
                   title: '浏览电脑音乐',
                   subtitle: '直接流式播放电脑里的歌曲，或多选后批量下载到手机并自动加入本地音乐库。',
                   actionLabel: connected ? '打开电脑音乐库' : '连接电脑',
-                  onPressed: _busy ? null : _openDesktopLibrary,
+                  onPressed: _picking ? null : _openDesktopLibrary,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _TransferActionCard(
                   icon: Icons.upload_file_rounded,
                   title: '发送本机音乐到电脑',
                   subtitle: connected
-                      ? '可一次多选多首歌曲。电脑完整收到文件后会保存到 LyricForge/Incoming，并自动读取标签、封面并加入 Library。'
+                      ? '可一次多选多首歌曲。任务会进入持久化后台队列，电脑完整收到后自动读取标签、封面并加入 Library。'
                       : '连接电脑后，可以把手机里的本地音乐批量发送到电脑。',
-                  actionLabel: connected ? '选择歌曲并发送' : '先连接电脑',
-                  onPressed: _busy ? null : _sendLocalMusic,
+                  actionLabel: connected
+                      ? (_picking ? '正在选择...' : '选择歌曲并加入队列')
+                      : '先连接电脑',
+                  onPressed: _picking ? null : _sendLocalMusic,
                 ),
-                if (_activeUpload != null) ...[
-                  SizedBox(height: layout.sectionGap),
-                  _UploadProgressCard(progress: _activeUpload!),
-                ],
-                if (_lastResult != null) ...[
-                  SizedBox(height: layout.sectionGap),
-                  _TransferResultCard(result: _lastResult!),
-                ],
+                SizedBox(height: layout.sectionGap),
+                StreamBuilder<MediaTransferQueueSnapshot>(
+                  stream: _queue.stateStream,
+                  initialData: _queue.currentState,
+                  builder: (context, snapshot) {
+                    return _PersistentTransferQueueCard(
+                      snapshot: snapshot.data ?? const MediaTransferQueueSnapshot(),
+                      queue: _queue,
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -293,38 +276,114 @@ class _TransferActionCard extends StatelessWidget {
   }
 }
 
-class _UploadProgressCard extends StatelessWidget {
-  final MediaTransferItemProgress progress;
+class _PersistentTransferQueueCard extends StatelessWidget {
+  final MediaTransferQueueSnapshot snapshot;
+  final MediaTransferQueueService queue;
 
-  const _UploadProgressCard({required this.progress});
+  const _PersistentTransferQueueCard({
+    required this.snapshot,
+    required this.queue,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final status = switch (progress.status) {
-      MediaTransferItemStatus.queued => '等待发送',
-      MediaTransferItemStatus.transferring => '正在发送',
-      MediaTransferItemStatus.completed => '已完成',
-      MediaTransferItemStatus.failed => '发送失败',
-    };
+    final active = snapshot.active;
+    final recent = snapshot.items.reversed.take(6).toList(growable: false);
+    final pending = snapshot.queued.length;
+    final failed = snapshot.failed.length;
+    final completed = snapshot.completed.length;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '$status · ${progress.title}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall,
+            Row(
+              children: [
+                const Icon(Icons.sync_alt_rounded, color: AppColors.accent),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '传输队列',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                if (snapshot.isPaused)
+                  const Chip(label: Text('已暂停'))
+                else if (snapshot.isProcessing)
+                  const Chip(label: Text('传输中')),
+              ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            LinearProgressIndicator(value: progress.fraction),
-            if (progress.error != null) ...[
-              const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '等待 $pending · 失败 $failed · 已完成 $completed',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            if (snapshot.pauseReason != null) ...[
+              const SizedBox(height: AppSpacing.xs),
               Text(
-                progress.error!,
-                style: const TextStyle(color: AppColors.error),
+                snapshot.pauseReason!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+              ),
+            ],
+            if (active != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '正在传输 · ${active.title}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              LinearProgressIndicator(value: _fraction(active)),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                if (snapshot.isPaused)
+                  FilledButton.icon(
+                    onPressed: queue.resume,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('继续'),
+                  )
+                else if (snapshot.isProcessing || pending > 0)
+                  OutlinedButton.icon(
+                    onPressed: () => queue.pause(),
+                    icon: const Icon(Icons.pause_rounded),
+                    label: const Text('暂停'),
+                  ),
+                if (failed > 0)
+                  OutlinedButton.icon(
+                    onPressed: queue.retryFailed,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('重试失败项'),
+                  ),
+                if (completed > 0)
+                  TextButton.icon(
+                    onPressed: queue.clearCompleted,
+                    icon: const Icon(Icons.cleaning_services_outlined),
+                    label: const Text('清理已完成'),
+                  ),
+              ],
+            ),
+            if (recent.isNotEmpty) ...[
+              const Divider(height: AppSpacing.lg),
+              for (final item in recent) _QueueItemRow(item: item, queue: queue),
+            ] else ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                '还没有传输任务。选择本机音乐后会从这里进入后台队列。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
               ),
             ],
           ],
@@ -332,47 +391,59 @@ class _UploadProgressCard extends StatelessWidget {
       ),
     );
   }
+
+  double? _fraction(MediaTransferQueueItem item) {
+    final total = item.totalBytes;
+    if (total == null || total <= 0) return null;
+    return (item.bytesTransferred / total).clamp(0.0, 1.0).toDouble();
+  }
 }
 
-class _TransferResultCard extends StatelessWidget {
-  final MediaTransferBatchResult result;
+class _QueueItemRow extends StatelessWidget {
+  final MediaTransferQueueItem item;
+  final MediaTransferQueueService queue;
 
-  const _TransferResultCard({required this.result});
+  const _QueueItemRow({required this.item, required this.queue});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '发送结果',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text('成功 ${result.completed.length} 首 · 失败 ${result.failed.length} 首'),
-            if (result.failed.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              for (final item in result.failed.take(5))
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${item.title}：${item.error ?? '未知错误'}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.error,
-                        ),
-                  ),
-                ),
-            ],
-          ],
-        ),
+    final (icon, label, color) = switch (item.status) {
+      MediaTransferQueueStatus.queued =>
+        (Icons.schedule_rounded, '等待', AppColors.textSecondary),
+      MediaTransferQueueStatus.transferring =>
+        (Icons.sync_rounded, '传输中', AppColors.accent),
+      MediaTransferQueueStatus.completed =>
+        (Icons.check_circle_rounded, '完成', AppColors.success),
+      MediaTransferQueueStatus.failed =>
+        (Icons.error_rounded, '失败', AppColors.error),
+    };
+    final direction = item.direction == MediaTransferDirection.uploadToDesktop
+        ? '发送到电脑'
+        : '下载到本机';
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: color),
+      title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        item.error == null ? '$direction · $label' : '$direction · ${item.error}',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
+      trailing: item.status == MediaTransferQueueStatus.failed
+          ? IconButton(
+              tooltip: '重试',
+              onPressed: () => queue.retry(item.id),
+              icon: const Icon(Icons.refresh_rounded),
+            )
+          : item.status == MediaTransferQueueStatus.completed
+              ? IconButton(
+                  tooltip: '从队列移除',
+                  onPressed: () => queue.remove(item.id),
+                  icon: const Icon(Icons.close_rounded),
+                )
+              : null,
     );
   }
 }
