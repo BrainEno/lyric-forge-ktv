@@ -10,6 +10,8 @@ class RemoteAudioTrack {
   final String downloadPath;
   final bool hasLyrics;
   final String? lyricsPath;
+  final bool hasArtwork;
+  final String? artworkPath;
 
   const RemoteAudioTrack({
     required this.id,
@@ -23,6 +25,8 @@ class RemoteAudioTrack {
     required this.downloadPath,
     this.hasLyrics = false,
     this.lyricsPath,
+    this.hasArtwork = false,
+    this.artworkPath,
   });
 
   factory RemoteAudioTrack.fromJson(Map<String, dynamic> json) {
@@ -41,6 +45,8 @@ class RemoteAudioTrack {
       downloadPath: json['downloadPath'] as String,
       hasLyrics: json['hasLyrics'] as bool? ?? false,
       lyricsPath: json['lyricsPath'] as String?,
+      hasArtwork: json['hasArtwork'] as bool? ?? false,
+      artworkPath: json['artworkPath'] as String?,
     );
   }
 }
