@@ -53,6 +53,7 @@ class _DesktopMediaTransferHubV2ScreenState
     _hub = services.mediaHubService;
     _catalog = LocalLibraryMediaShareCatalog(
       libraryRepository: services.localMediaLibraryRepository,
+      metadataRepository: services.localMediaMetadataRepository,
     );
     _hubState = _hub.currentState;
     _hubSubscription = _hub.stateStream.listen((state) {
@@ -122,9 +123,10 @@ class _DesktopMediaTransferHubV2ScreenState
     try {
       final tracks = await _catalog.build();
       await _hub.startSharing(tracks);
-      if (mounted) setState(() => _tracks = tracks);
+      if (!mounted) return;
+      setState(() => _tracks = tracks);
     } catch (error) {
-      if (mounted) setState(() => _error = '启动传输服务失败：$error');
+      if (mounted) setState(() => _error = '启动失败：$error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -135,132 +137,94 @@ class _DesktopMediaTransferHubV2ScreenState
     setState(() => _busy = true);
     try {
       await _hub.stopSharing();
-    } catch (error) {
-      if (mounted) setState(() => _error = '停止传输服务失败：$error');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _copyPairing(MediaHubSession session) async {
-    await Clipboard.setData(
-      ClipboardData(text: session.pairingUri.toString()),
-    );
-    _showMessage('配对信息已复制，可以粘贴到手机端。');
+  void _copyPairingUri(MediaHubSession session) {
+    Clipboard.setData(ClipboardData(text: session.pairingUri.toString()));
+    _showMessage('配对信息已复制');
   }
 
-  void _showMessage(String message, {bool error = false}) {
+  void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? AppColors.error : AppColors.bgSurface,
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isDesktop) {
-      return const Scaffold(
-        backgroundColor: AppColors.bgBase,
-        body: Center(child: Text('请在 Windows / macOS / Linux 桌面端打开此页面')),
-      );
-    }
-
     final layout = AppResponsive.of(context);
     final session = _hubState.session;
-    final running = _hubState.isRunning;
+    final running = _hubState.isRunning && session != null;
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
-        title: const Text('电脑 ↔ 手机传输'),
         backgroundColor: AppColors.bgBase,
+        title: const Text('跨设备传输'),
         actions: [
-          IconButton(
-            tooltip: '打开电脑本地音乐库',
-            onPressed: () => Navigator.pushNamed(context, Routes.library),
-            icon: const Icon(Icons.library_music_rounded),
-          ),
+          if (running)
+            IconButton(
+              tooltip: '刷新电脑音乐库',
+              onPressed: _busy ? null : _refreshAndRestart,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: layout.contentMaxWidth),
-            child: ListView(
-              padding: EdgeInsets.all(layout.pageGutter),
-              children: [
-                _OverviewCard(
-                  running: running,
-                  initializing: _initializing,
-                  busy: _busy,
-                  trackCount: session?.trackCount ?? _tracks.length,
-                  onStart: _start,
-                  onStop: _stop,
-                  onRefresh: _refreshAndRestart,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _ErrorCard(message: _error!),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                if (session != null && running)
-                  _PairingCard(
-                    session: session,
-                    onCopy: () => _copyPairing(session),
-                  )
-                else
-                  _WaitingForPairingCard(
-                    initializing: _initializing ||
-                        _hubState.status == MediaHubStatus.starting,
-                    onStart: _start,
+        child: !_isDesktop
+            ? const Center(child: Text('请在桌面端使用跨设备传输中心'))
+            : Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: layout.contentMaxWidth),
+                  child: ListView(
+                    padding: EdgeInsets.all(layout.pageGutter),
+                    children: [
+                      _StatusCard(
+                        running: running,
+                        trackCount: _tracks.length,
+                        busy: _busy || _initializing,
+                        error: _error,
+                        onStart: _start,
+                        onStop: _stop,
+                      ),
+                      SizedBox(height: layout.sectionGap),
+                      if (running && session != null)
+                        _PairingCard(
+                          session: session,
+                          onCopy: () => _copyPairingUri(session),
+                        )
+                      else if (_initializing)
+                        const Center(child: CircularProgressIndicator()),
+                      if (running && session != null) ...[
+                        SizedBox(height: layout.sectionGap),
+                        _ConnectionHints(session: session),
+                      ],
+                    ],
                   ),
-                const SizedBox(height: AppSpacing.md),
-                _DirectionCard(
-                  icon: Icons.phone_iphone_rounded,
-                  title: '电脑 → 手机',
-                  subtitle: running
-                      ? '电脑 Library 里的 ${session?.trackCount ?? _tracks.length} 首可用歌曲已经自动共享。手机扫码后可以在线播放，或选择“下载并播放”，下载完成后会进入手机本地音乐库。'
-                      : '启动服务后，电脑本地音乐库会自动作为手机可下载列表。',
                 ),
-                const SizedBox(height: AppSpacing.md),
-                _DirectionCard(
-                  icon: Icons.computer_rounded,
-                  title: '手机 → 电脑',
-                  subtitle: running
-                      ? '手机连接后可多选本机音频发送到电脑。文件完整传完后会保存到 LyricForge/Incoming，并自动加入电脑 Library；点右上角音乐库按钮即可直接播放。'
-                      : '启动服务后，手机即可把本地音乐批量发送到这台电脑。',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _SharedTracksCard(tracks: _tracks, running: running),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
     );
   }
 }
 
-class _OverviewCard extends StatelessWidget {
+class _StatusCard extends StatelessWidget {
   final bool running;
-  final bool initializing;
-  final bool busy;
   final int trackCount;
+  final bool busy;
+  final String? error;
   final VoidCallback onStart;
   final VoidCallback onStop;
-  final VoidCallback onRefresh;
 
-  const _OverviewCard({
+  const _StatusCard({
     required this.running,
-    required this.initializing,
-    required this.busy,
     required this.trackCount,
+    required this.busy,
+    required this.error,
     required this.onStart,
     required this.onStop,
-    required this.onRefresh,
   });
 
   @override
@@ -272,20 +236,11 @@ class _OverviewCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: (running ? AppColors.success : AppColors.accent)
-                        .withAlpha(20),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                  ),
-                  child: Icon(
-                    running ? Icons.sync_alt_rounded : Icons.devices_rounded,
-                    color: running ? AppColors.success : AppColors.accent,
-                  ),
+                Icon(
+                  running ? Icons.wifi_tethering_rounded : Icons.devices_rounded,
+                  size: 34,
+                  color: running ? AppColors.success : AppColors.accent,
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -295,16 +250,14 @@ class _OverviewCard extends StatelessWidget {
                       Text(
                         running ? '电脑端已准备好配对' : '跨设备传输尚未启动',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                             ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        initializing
-                            ? '正在读取电脑音乐库并启动传输服务…'
-                            : running
-                                ? '二维码就在下方。当前自动共享 $trackCount 首电脑本地音乐。'
-                                : '启动后会立即生成二维码，并自动共享电脑本地音乐库。',
+                        running
+                            ? '$trackCount 首本地音乐已共享给已配对设备'
+                            : '启动后，手机可以浏览、在线播放或下载桌面音乐库。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -312,35 +265,30 @@ class _OverviewCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (running)
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : onStop,
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('停止'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: busy ? null : onStart,
+                    icon: busy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.play_arrow_rounded),
+                    label: Text(busy ? '正在启动...' : '启动'),
+                  ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                FilledButton.icon(
-                  onPressed: busy || initializing
-                      ? null
-                      : running
-                          ? onStop
-                          : onStart,
-                  icon: busy || initializing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(running ? Icons.stop_rounded : Icons.play_arrow_rounded),
-                  label: Text(running ? '停止传输服务' : '启动传输服务'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: busy || initializing ? null : onRefresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('刷新电脑音乐库'),
-                ),
-              ],
-            ),
+            if (error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(error!, style: const TextStyle(color: AppColors.error)),
+            ],
           ],
         ),
       ),
@@ -356,272 +304,116 @@ class _PairingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layout = AppResponsive.of(context);
-    final qr = Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.pureWhite,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      ),
-      child: QrImageView(
-        data: session.pairingUri.toString(),
-        size: layout.isCompact ? 180 : 220,
-        backgroundColor: AppColors.pureWhite,
-      ),
-    );
-
-    final details = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '1. 用手机扫描这个二维码',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
+    final pairingUri = session.pairingUri.toString();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 220,
+              height: 220,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.pureWhite,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
               ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '手机端：跨设备传输 → 连接电脑 → 扫描桌面二维码。',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
+              child: QrImageView(
+                data: pairingUri,
+                backgroundColor: AppColors.pureWhite,
+                eyeStyle: const QrEyeStyle(color: AppColors.pureBlack),
+                dataModuleStyle:
+                    const QrDataModuleStyle(color: AppColors.pureBlack),
               ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          '2. 或复制下面的配对码',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppColors.bgSurface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-          ),
-          child: SelectableText(
-            session.pairingUri.toString(),
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        OutlinedButton.icon(
-          onPressed: onCopy,
-          icon: const Icon(Icons.copy_rounded),
-          label: const Text('复制配对码'),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text('可连接地址', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 4),
-        for (final endpoint in session.endpoints)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Text(
-              '${endpoint.kind.name}: ${endpoint.host}:${endpoint.port}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
             ),
-          ),
-      ],
-    );
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: layout.isCompactOrMedium
-            ? Column(
+            const SizedBox(width: AppSpacing.xl),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: qr),
-                  const SizedBox(height: AppSpacing.lg),
-                  details,
-                ],
-              )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  qr,
-                  const SizedBox(width: AppSpacing.xl),
-                  Expanded(child: details),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _WaitingForPairingCard extends StatelessWidget {
-  final bool initializing;
-  final VoidCallback onStart;
-
-  const _WaitingForPairingCard({
-    required this.initializing,
-    required this.onStart,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            if (initializing)
-              const CircularProgressIndicator()
-            else
-              const Icon(Icons.qr_code_2_rounded, size: 56, color: AppColors.accent),
-            const SizedBox(height: AppSpacing.md),
-            Text(initializing ? '正在生成配对二维码…' : '启动服务后显示配对二维码'),
-            if (!initializing) ...[
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: onStart,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('启动并生成二维码'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DirectionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _DirectionCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(AppSpacing.md),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.accent.withAlpha(18),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          ),
-          child: Icon(icon, color: AppColors.accent),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(subtitle),
-        ),
-      ),
-    );
-  }
-}
-
-class _SharedTracksCard extends StatelessWidget {
-  final List<SharedAudioTrack> tracks;
-  final bool running;
-
-  const _SharedTracksCard({required this.tracks, required this.running});
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = tracks.take(12).toList(growable: false);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '电脑共享音乐 · ${tracks.length} 首',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                  Text(
+                    '用手机扫描二维码',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
                         ),
                   ),
-                ),
-                Chip(label: Text(running ? '手机可访问' : '服务已停止')),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '这里直接来自电脑本地音乐库，不需要再重复选择文件。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    '手机端：跨设备传输 → 连接电脑 → 扫描桌面二维码。',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                   ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            if (tracks.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                child: Text('电脑 Library 还没有可用音乐。先导入音乐后，点击“刷新电脑音乐库”。'),
-              )
-            else ...[
-              for (final track in visible)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.music_note_rounded),
-                  title: Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    [
-                      if (track.artist?.isNotEmpty == true) track.artist!,
-                      track.format.toUpperCase(),
-                      _formatBytes(track.byteLength),
-                    ].join(' · '),
-                  ),
-                ),
-              if (tracks.length > visible.length)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Text(
-                    '另有 ${tracks.length - visible.length} 首未在此预览；手机端会看到完整列表。',
+                  const SizedBox(height: AppSpacing.md),
+                  SelectableText(
+                    pairingUri,
+                    maxLines: 5,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textTertiary,
+                          fontFamily: 'monospace',
                         ),
                   ),
-                ),
-            ],
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: onCopy,
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('复制配对信息'),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-
-  static String _formatBytes(int bytes) {
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    }
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
 }
 
-class _ErrorCard extends StatelessWidget {
-  final String message;
+class _ConnectionHints extends StatelessWidget {
+  final MediaHubSession session;
 
-  const _ErrorCard({required this.message});
+  const _ConnectionHints({required this.session});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.error_outline_rounded, color: AppColors.error),
-        title: const Text('跨设备传输暂时不可用'),
-        subtitle: Text(message),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '连接方式',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            for (final endpoint in session.endpoints)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  endpoint.kind == MediaHubEndpointKind.tailscale
+                      ? Icons.public_rounded
+                      : Icons.wifi_rounded,
+                  color: endpoint.kind == MediaHubEndpointKind.tailscale
+                      ? AppColors.accent
+                      : AppColors.textSecondary,
+                ),
+                title: Text('${endpoint.host}:${endpoint.port}'),
+                subtitle: Text(
+                  endpoint.kind == MediaHubEndpointKind.tailscale
+                      ? 'Tailscale · 可跨网络访问'
+                      : endpoint.kind == MediaHubEndpointKind.lan
+                          ? '局域网'
+                          : '其他网络接口',
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
