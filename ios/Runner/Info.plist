@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Lyric Forge Ktv</string>
+	<string>Elysium Player</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>lyric_forge_ktv</string>
+	<string>Elysium Player</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于连接你自己的 LyricForge 桌面端音乐库并播放或下载音频。</string>
+	<string>用于连接你自己的 Elysium Player 桌面端音乐库并播放或下载音频。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>用于扫描 LyricForge 桌面端生成的配对二维码。</string>
+	<string>用于扫描 Elysium Player 桌面端生成的配对二维码。</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
