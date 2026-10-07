@@ -662,7 +662,13 @@ class _RemoteTrackTile extends StatelessWidget {
     final queued = status == MediaTransferQueueStatus.queued;
     final transferring = status == MediaTransferQueueStatus.transferring;
     final failed = status == MediaTransferQueueStatus.failed;
-    final completed = status == MediaTransferQueueStatus.completed;
+    final destination = queueItem?.destinationPath;
+    final completedFileExists = destination != null && File(destination).existsSync();
+    final completed = status == MediaTransferQueueStatus.completed &&
+        (downloaded || completedFileExists);
+    final staleCompleted = status == MediaTransferQueueStatus.completed &&
+        !downloaded &&
+        !completedFileExists;
     final total = queueItem?.totalBytes;
     final fraction = total == null || total <= 0
         ? null
@@ -720,16 +726,18 @@ class _RemoteTrackTile extends StatelessWidget {
                       const SizedBox(height: 6),
                       LinearProgressIndicator(value: transferring ? fraction : null),
                     ],
-                    if (failed) ...[
+                    if (failed || staleCompleted) ...[
                       const SizedBox(height: 4),
                       Text(
-                        queueItem?.error ?? '下载失败，点击右侧重试',
+                        failed
+                            ? queueItem?.error ?? '下载失败，点击右侧重试'
+                            : '本地文件已不存在，可重新下载',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall
-                            ?.copyWith(color: AppColors.error),
+                            ?.copyWith(color: failed ? AppColors.error : AppColors.textTertiary),
                       ),
                     ],
                   ],
@@ -748,8 +756,8 @@ class _RemoteTrackTile extends StatelessWidget {
               IconButton(
                 tooltip: downloaded || completed
                     ? '已下载到手机'
-                    : failed
-                        ? '重试下载'
+                    : failed || staleCompleted
+                        ? '重新下载'
                         : queued
                             ? '等待下载'
                             : transferring
@@ -767,7 +775,7 @@ class _RemoteTrackTile extends StatelessWidget {
                     : Icon(
                         downloaded || completed
                             ? Icons.download_done_rounded
-                            : failed
+                            : failed || staleCompleted
                                 ? Icons.refresh_rounded
                                 : queued
                                     ? Icons.schedule_rounded
