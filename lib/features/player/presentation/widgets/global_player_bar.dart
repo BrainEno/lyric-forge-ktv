@@ -36,6 +36,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   }
 
   Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {
+    if (item.isRemoteStream) return;
     final playlist = await showAddToLocalPlaylistDialog(
       context,
       sourcePath: item.audioAsset.originalPath,
@@ -60,13 +61,17 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
         Navigator.pushNamed(context, Routes.collections);
         return;
       case 'playlist':
-        await _addToPlaylist(context, item);
+        if (!item.isRemoteStream) await _addToPlaylist(context, item);
         return;
       case 'lyrics':
-        await importLyricsForLocalPlaybackItem(context, item);
+        if (!item.isRemoteStream) {
+          await importLyricsForLocalPlaybackItem(context, item);
+        }
         return;
       case 'edit':
-        await showLocalMediaMetadataDialog(context, item);
+        if (!item.isRemoteStream) {
+          await showLocalMediaMetadataDialog(context, item);
+        }
         return;
     }
   }
@@ -89,6 +94,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           }
           return const SizedBox.shrink();
         }
+
+        final localSong = item.projectId == null && !item.isRemoteStream;
 
         return StreamBuilder<PlaybackState>(
           stream: _audio.stateStream,
@@ -154,7 +161,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
                               onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
                               child: _Artwork(
-                                path: item.artworkPath,
+                                item: item,
                                 extent: minimal ? 40 : 48,
                               ),
                             ),
@@ -185,7 +192,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                               ? item.artist!
                                               : item.projectId != null
                                                   ? '歌词工程'
-                                                  : '本地音乐',
+                                                  : item.isRemoteStream
+                                                      ? '远程音乐'
+                                                      : '本地音乐',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: Theme.of(context)
@@ -211,12 +220,12 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 onPressed: () => Navigator.pushNamed(context, Routes.collections),
                                 icon: const Icon(Icons.collections_bookmark_outlined),
                               ),
-                            if (item.projectId == null)
+                            if (localSong)
                               LocalFavoriteButton(
                                 key: ValueKey('favorite:${item.audioAsset.originalPath}'),
                                 sourcePath: item.audioAsset.originalPath,
                               ),
-                            if (item.projectId == null && !compact) ...[
+                            if (localSong && !compact) ...[
                               IconButton(
                                 tooltip: '加入播放列表',
                                 onPressed: () => _addToPlaylist(context, item),
@@ -237,7 +246,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 icon: const Icon(Icons.edit_outlined),
                               ),
                             ],
-                            if (item.projectId == null && compact)
+                            if (localSong && compact)
                               PopupMenuButton<String>(
                                 tooltip: '更多歌曲操作',
                                 onSelected: (value) => _handleSongAction(context, item, value),
@@ -348,18 +357,31 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
 }
 
 class _Artwork extends StatelessWidget {
-  final String? path;
+  final PlaybackItem item;
   final double extent;
 
   const _Artwork({
-    required this.path,
+    required this.item,
     this.extent = 48,
   });
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
+    final localPath = item.artworkPath?.trim().isNotEmpty == true
+        ? item.artworkPath!.trim()
+        : item.audioAsset.thumbnailPath?.trim();
+    final file = localPath == null ? null : File(localPath);
     final hasArtwork = file != null && file.existsSync();
+    final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
+    final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
+    final hasRemote = item.isRemoteStream &&
+        remote != null &&
+        (remote.scheme == 'http' || remote.scheme == 'https');
+
+    final fallback = Icon(
+      item.isRemoteStream ? Icons.cloud_rounded : Icons.music_note_rounded,
+      color: AppColors.textSecondary,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
@@ -369,10 +391,13 @@ class _Artwork extends StatelessWidget {
         color: AppColors.bgSurface,
         child: hasArtwork
             ? Image.file(file!, fit: BoxFit.cover)
-            : const Icon(
-                Icons.music_note_rounded,
-                color: AppColors.textSecondary,
-              ),
+            : hasRemote
+                ? Image.network(
+                    remote.toString(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => fallback,
+                  )
+                : fallback,
       ),
     );
   }
