@@ -51,6 +51,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
             final progress = playback.duration == null
                 ? 0.0
                 : playback.progressPercent.clamp(0.0, 1.0).toDouble();
+            final rawRemoteArtwork = item.audioAsset.metadata['remoteArtworkUri'];
+            final remoteArtwork = rawRemoteArtwork is String
+                ? Uri.tryParse(rawRemoteArtwork)
+                : null;
 
             return Material(
               color: AppColors.bgElevated,
@@ -79,6 +83,7 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                             children: [
                               _MobileArtwork(
                                 path: item.artworkPath,
+                                remoteUri: remoteArtwork,
                                 remote: item.isRemoteStream,
                               ),
                               const SizedBox(width: AppSpacing.sm),
@@ -174,14 +179,23 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
 
 class _MobileArtwork extends StatelessWidget {
   final String? path;
+  final Uri? remoteUri;
   final bool remote;
 
-  const _MobileArtwork({required this.path, required this.remote});
+  const _MobileArtwork({
+    required this.path,
+    required this.remoteUri,
+    required this.remote,
+  });
 
   @override
   Widget build(BuildContext context) {
     final file = path == null ? null : File(path!);
     final hasArtwork = file != null && file.existsSync();
+    final fallback = Icon(
+      remote ? Icons.cloud_rounded : Icons.music_note_rounded,
+      color: AppColors.textSecondary,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
@@ -191,10 +205,13 @@ class _MobileArtwork extends StatelessWidget {
         color: AppColors.bgSurface,
         child: hasArtwork
             ? Image.file(file!, fit: BoxFit.cover)
-            : Icon(
-                remote ? Icons.cloud_rounded : Icons.music_note_rounded,
-                color: AppColors.textSecondary,
-              ),
+            : remoteUri == null
+                ? fallback
+                : Image.network(
+                    remoteUri.toString(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => fallback,
+                  ),
       ),
     );
   }
