@@ -127,18 +127,18 @@ class _CurrentRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    _sync(route);
+    if (route is PageRoute<dynamic>) _sync(route);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    _sync(previousRoute);
+    if (route is PageRoute<dynamic>) _sync(previousRoute);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    _sync(newRoute);
+    if (newRoute is PageRoute<dynamic>) _sync(newRoute);
   }
 }
