@@ -65,7 +65,14 @@ include(flutter/generated_plugins.cmake)
 set(BUILD_BUNDLE_DIR "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 # Make the "install" step default, as it's required to run.
 set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+
+# BINARY_NAME used to be lyric_forge_ktv. Existing Flutter build directories
+# can therefore keep a cached install prefix that points at the removed target:
+#   $<TARGET_FILE_DIR:lyric_forge_ktv>
+# Refresh that cache entry during the rename migration so `flutter run -d
+# windows` works after a normal git pull without requiring a manual clean.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT
+   OR CMAKE_INSTALL_PREFIX MATCHES "TARGET_FILE_DIR:lyric_forge_ktv")
   set(CMAKE_INSTALL_PREFIX "${BUILD_BUNDLE_DIR}" CACHE PATH "..." FORCE)
 endif()
 
