@@ -139,8 +139,13 @@ class LyricForgeSystemMediaHandler extends BaseAudioHandler {
   Uri? _artUriFor(PlaybackItem item) {
     final localArtwork = item.artworkPath?.trim();
     if (localArtwork != null && localArtwork.isNotEmpty) {
-      final file = File(localArtwork);
-      if (file.existsSync()) return Uri.file(file.path);
+      // Preserve the previous local-track behaviour: platform media sessions may
+      // receive the URI before the file is observed by this isolate. For remote
+      // streams, however, a deleted cache file should fall back to the protected
+      // Media Hub artwork URL instead of publishing a dead file URI.
+      if (!item.isRemoteStream || File(localArtwork).existsSync()) {
+        return Uri.file(localArtwork);
+      }
     }
 
     final rawRemoteArtwork = item.audioAsset.metadata['remoteArtworkUri'];
