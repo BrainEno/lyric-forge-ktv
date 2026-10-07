@@ -109,7 +109,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         builder: (context) => AlertDialog(
           title: const Text('重新识别歌词？'),
           content: const Text(
-            '新的识别草稿会替换当前歌词。LyricForge 会先自动备份现有歌词，再开始本地识别。',
+            '新的识别草稿会替换当前歌词。Elysium Player 会先自动备份现有歌词，再开始本地识别。',
           ),
           actions: [
             TextButton(
@@ -534,7 +534,7 @@ class _ProjectHero extends StatelessWidget {
     if (project.album?.trim().isNotEmpty == true) {
       parts.add(project.album!.trim());
     }
-    return parts.isEmpty ? '本地音频 · LyricForge KTV 工程' : parts.join(' · ');
+    return parts.isEmpty ? '本地音频 · Elysium Player KTV 工程' : parts.join(' · ');
   }
 }
 
