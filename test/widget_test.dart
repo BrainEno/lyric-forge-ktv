@@ -5,7 +5,7 @@ import 'package:lyric_forge_ktv/core/navigation/app_router.dart';
 import 'package:lyric_forge_ktv/main.dart';
 
 void main() {
-  testWidgets('LyricForge app root keeps production shell wiring', (
+  testWidgets('Elysium Player app root keeps production shell wiring', (
     WidgetTester tester,
   ) async {
     MaterialApp? builtApp;
@@ -14,7 +14,7 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            final root = const LyricForgeApp().build(context);
+            final root = const ElysiumPlayerApp().build(context);
             expect(root, isA<MaterialApp>());
             builtApp = root as MaterialApp;
             return const SizedBox.shrink();
@@ -24,7 +24,7 @@ void main() {
     );
 
     expect(builtApp, isNotNull);
-    expect(builtApp!.title, 'LyricForge KTV');
+    expect(builtApp!.title, 'Elysium Player');
     expect(builtApp!.initialRoute, Routes.home);
     expect(builtApp!.onGenerateRoute, isNotNull);
     expect(builtApp!.builder, isNotNull);
@@ -42,7 +42,7 @@ void main() {
       MaterialApp(
         home: Builder(
           builder: (context) {
-            builtApp = const LyricForgeApp().build(context) as MaterialApp;
+            builtApp = const ElysiumPlayerApp().build(context) as MaterialApp;
             return const SizedBox.shrink();
           },
         ),

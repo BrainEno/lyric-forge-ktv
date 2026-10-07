@@ -26,7 +26,7 @@ class MediaHubConnection {
 
   factory MediaHubConnection.fromPairingUri(Uri uri) {
     if (uri.scheme != 'lyricforge' || uri.host != 'media-hub') {
-      throw const FormatException('不是有效的 LyricForge Media Hub 配对地址');
+      throw const FormatException('不是有效的 Elysium Player Media Hub 配对地址');
     }
 
     final version = uri.queryParameters['v'];

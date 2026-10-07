@@ -23,7 +23,7 @@ void main() {
   // Waiting here used to leave iOS sitting on the native white launch view with
   // no Flutter frame. Render the app first, then attach lock-screen/background
   // controls as a best-effort enhancement.
-  runApp(const LyricForgeApp());
+  runApp(const ElysiumPlayerApp());
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(_initializeMobileMediaSessionAfterLaunch());
   });
@@ -44,8 +44,8 @@ Future<void> _initializeMobileMediaSessionAfterLaunch() async {
   }
 }
 
-class LyricForgeApp extends StatelessWidget {
-  const LyricForgeApp({super.key});
+class ElysiumPlayerApp extends StatelessWidget {
+  const ElysiumPlayerApp({super.key});
 
   @override
   Widget build(BuildContext context) {

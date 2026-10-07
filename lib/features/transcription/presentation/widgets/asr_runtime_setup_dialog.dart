@@ -189,7 +189,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   _SectionLabel(
                     number: '1',
                     title: '选择识别方案',
-                    subtitle: '大多数电脑保持推荐选项即可，模型和路径由 LyricForge 自动处理。',
+                    subtitle: '大多数电脑保持推荐选项即可，模型和路径由 Elysium Player 自动处理。',
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<TranscriptionMode>(
@@ -272,7 +272,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            '普通使用不需要自己寻找模型、填写路径或设置运行参数。所有文件都会保存在 LyricForge 自己的应用目录中。',
+                            '普通使用不需要自己寻找模型、填写路径或设置运行参数。所有文件都会保存在 Elysium Player 自己的应用目录中。',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: AppColors.textSecondary,
@@ -340,7 +340,7 @@ class _SetupHeader extends StatelessWidget {
             : '首次使用，只需完成一次准备';
     final subtitle = ready
         ? '之后可以直接导入歌曲并在后台生成歌词。'
-        : 'LyricForge 会自动检测电脑、下载所需组件并完成配置。';
+        : 'Elysium Player 会自动检测电脑、下载所需组件并完成配置。';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(
