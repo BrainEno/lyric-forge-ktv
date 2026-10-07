@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 
@@ -6,9 +7,9 @@ import '../../domain/models/playback_state.dart' as app;
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 
-/// Bridges LyricForge's existing playback/session services into the platform
-/// media session used by Android notifications, iOS Control Center/lock screen,
-/// Bluetooth devices, headset buttons and automotive integrations.
+/// Bridges Elysium Player's existing playback/session services into the
+/// platform media session used by Android notifications, iOS Control Center/
+/// lock screen, Bluetooth devices, headset buttons and automotive integrations.
 ///
 /// This class deliberately does NOT own a second audio player. The existing
 /// [PlaybackSessionService] remains the single queue/repeat/shuffle authority and
@@ -135,6 +136,25 @@ class LyricForgeSystemMediaHandler extends BaseAudioHandler {
     return AudioProcessingState.ready;
   }
 
+  Uri? _artUriFor(PlaybackItem item) {
+    final localArtwork = item.artworkPath?.trim();
+    if (localArtwork != null && localArtwork.isNotEmpty) {
+      final file = File(localArtwork);
+      if (file.existsSync()) return Uri.file(file.path);
+    }
+
+    final rawRemoteArtwork = item.audioAsset.metadata['remoteArtworkUri'];
+    if (rawRemoteArtwork is! String || rawRemoteArtwork.trim().isEmpty) {
+      return null;
+    }
+    final remote = Uri.tryParse(rawRemoteArtwork.trim());
+    if (remote == null ||
+        (remote.scheme != 'http' && remote.scheme != 'https')) {
+      return null;
+    }
+    return remote;
+  }
+
   MediaItem _toMediaItem(
     PlaybackItem item, {
     Duration? duration,
@@ -143,7 +163,6 @@ class LyricForgeSystemMediaHandler extends BaseAudioHandler {
     final album = rawAlbum is String && rawAlbum.trim().isNotEmpty
         ? rawAlbum.trim()
         : null;
-    final artwork = item.artworkPath?.trim();
 
     return MediaItem(
       id: item.id,
@@ -151,7 +170,7 @@ class LyricForgeSystemMediaHandler extends BaseAudioHandler {
       artist: item.artist,
       album: album,
       duration: duration ?? item.audioAsset.duration,
-      artUri: artwork == null || artwork.isEmpty ? null : Uri.file(artwork),
+      artUri: _artUriFor(item),
       playable: true,
       extras: {
         if (item.streamUri != null) 'streamUri': item.streamUri.toString(),
