@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于连接你自己的 Elysium Player 桌面端音乐库并播放或下载音频。</string>
 	<key>NSCameraUsageDescription</key>
