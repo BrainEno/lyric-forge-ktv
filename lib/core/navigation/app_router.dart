@@ -3,6 +3,7 @@ import '../services/service_locator.dart';
 import '../../features/home/presentation/screens/dashboard_screen.dart';
 import '../../features/player/domain/models/play_history.dart';
 import '../../features/player/presentation/screens/local_music_library_shell.dart';
+import '../../features/player/presentation/screens/now_playing_screen.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
 import '../../features/import/presentation/screens/import_audio_screen.dart';
@@ -79,13 +80,16 @@ class AppRouter {
             .playbackSessionService
             .currentState
             .currentItem;
+        if (current?.isRemoteStream == true) {
+          return _fadeRoute(const NowPlayingScreen(), settings);
+        }
         if (current != null) {
           return _fadeRoute(const QuickPlayScreen(), settings);
         }
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
       case Routes.nowPlaying:
-        return _fadeRoute(const QuickPlayScreen(), settings);
+        return _fadeRoute(const NowPlayingScreen(), settings);
 
       case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
