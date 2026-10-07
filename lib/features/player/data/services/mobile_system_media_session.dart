@@ -13,7 +13,7 @@ StreamSubscription<void>? _becomingNoisySubscription;
 
 /// Installs the platform media session on Android/iOS only.
 ///
-/// Desktop playback keeps using the exact same LyricForge audio/session stack
+/// Desktop playback keeps using the exact same audio/session stack
 /// without initialising a mobile AudioService implementation.
 Future<void> initializeMobileSystemMediaSession({
   required PlaybackSessionService playbackSession,
@@ -36,7 +36,7 @@ Future<void> initializeMobileSystemMediaSession({
     ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.braineno.lyricforge.playback',
-      androidNotificationChannelName: 'LyricForge 播放',
+      androidNotificationChannelName: 'Elysium Player 播放',
       androidNotificationChannelDescription: '本地音乐播放、锁屏和耳机控制',
       androidNotificationIcon: 'drawable/ic_stat_lyricforge_music',
       androidShowNotificationBadge: false,
