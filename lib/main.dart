@@ -12,6 +12,8 @@ import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/player/presentation/widgets/mobile_global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
+final _appRouteObserver = _CurrentRouteObserver();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -56,49 +58,87 @@ class ElysiumPlayerApp extends StatelessWidget {
       title: 'Elysium Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      navigatorObservers: <NavigatorObserver>[_appRouteObserver],
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
       builder: (context, child) {
-        if (!desktopChrome) {
-          return ValueListenableBuilder<bool>(
-            valueListenable: AppChromeController.immersive,
-            builder: (context, immersive, _) {
-              final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
-              return Column(
-                children: [
-                  Expanded(child: child ?? const SizedBox.shrink()),
-                  if (!immersive && !keyboardVisible)
-                    const MobileGlobalPlayerBar(),
-                ],
-              );
-            },
-          );
-        }
+        return ValueListenableBuilder<String?>(
+          valueListenable: _appRouteObserver.routeName,
+          builder: (context, routeName, _) {
+            final suppressPlayerBar = routeName == Routes.nowPlaying;
 
-        return Overlay(
-          clipBehavior: Clip.none,
-          initialEntries: [
-            OverlayEntry(
-              builder: (overlayContext) {
-                return ValueListenableBuilder<bool>(
-                  valueListenable: AppChromeController.immersive,
-                  builder: (context, immersive, _) {
-                    return Column(
-                      children: [
-                        Expanded(child: child ?? const SizedBox.shrink()),
-                        if (!immersive) ...[
-                          const GlobalTranscriptionQueueBar(),
-                          const GlobalPlayerBar(),
-                        ],
-                      ],
+            if (!desktopChrome) {
+              return ValueListenableBuilder<bool>(
+                valueListenable: AppChromeController.immersive,
+                builder: (context, immersive, _) {
+                  final keyboardVisible =
+                      MediaQuery.viewInsetsOf(context).bottom > 0;
+                  return Column(
+                    children: [
+                      Expanded(child: child ?? const SizedBox.shrink()),
+                      if (!immersive &&
+                          !keyboardVisible &&
+                          !suppressPlayerBar)
+                        const MobileGlobalPlayerBar(),
+                    ],
+                  );
+                },
+              );
+            }
+
+            return Overlay(
+              clipBehavior: Clip.none,
+              initialEntries: [
+                OverlayEntry(
+                  builder: (overlayContext) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: AppChromeController.immersive,
+                      builder: (context, immersive, _) {
+                        return Column(
+                          children: [
+                            Expanded(child: child ?? const SizedBox.shrink()),
+                            if (!immersive) ...[
+                              const GlobalTranscriptionQueueBar(),
+                              if (!suppressPlayerBar)
+                                const GlobalPlayerBar(),
+                            ],
+                          ],
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         );
       },
     );
+  }
+}
+
+class _CurrentRouteObserver extends NavigatorObserver {
+  final ValueNotifier<String?> routeName = ValueNotifier<String?>(null);
+
+  void _sync(Route<dynamic>? route) {
+    routeName.value = route?.settings.name;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (route is PageRoute<dynamic>) _sync(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    if (route is PageRoute<dynamic>) _sync(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (newRoute is PageRoute<dynamic>) _sync(newRoute);
   }
 }
