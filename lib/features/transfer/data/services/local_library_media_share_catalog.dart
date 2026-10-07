@@ -34,6 +34,7 @@ class LocalLibraryMediaShareCatalog {
       final format = entry.format.trim().isNotEmpty
           ? entry.format.trim().toLowerCase()
           : _extensionFromFileName(fileName);
+      final artworkPath = await _existingArtworkPath(entry.embeddedArtworkPath);
 
       tracks.add(
         SharedAudioTrack(
@@ -42,6 +43,7 @@ class LocalLibraryMediaShareCatalog {
           artist: _nonEmpty(entry.embeddedArtist),
           album: _nonEmpty(entry.embeddedAlbum),
           localPath: entry.sourcePath,
+          artworkPath: artworkPath,
           format: format,
           byteLength: byteLength,
           duration: entry.durationMs == null
@@ -57,6 +59,12 @@ class LocalLibraryMediaShareCatalog {
       return a.localPath.compareTo(b.localPath);
     });
     return List.unmodifiable(tracks);
+  }
+
+  Future<String?> _existingArtworkPath(String? value) async {
+    final path = _nonEmpty(value);
+    if (path == null) return null;
+    return await File(path).exists() ? path : null;
   }
 
   String? _nonEmpty(String? value) {
