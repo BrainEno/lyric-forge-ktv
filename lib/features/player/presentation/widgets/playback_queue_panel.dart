@@ -203,7 +203,7 @@ class _QueueRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
-              _QueueArtwork(path: item.artworkPath),
+              _QueueArtwork(item: item),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
@@ -243,7 +243,9 @@ class _QueueRow extends StatelessWidget {
                           ? item.artist!
                           : item.projectId != null
                               ? '歌词工程'
-                              : '本地音乐',
+                              : item.isRemoteStream
+                                  ? '桌面音乐库'
+                                  : '本地音乐',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -273,14 +275,27 @@ class _QueueRow extends StatelessWidget {
 }
 
 class _QueueArtwork extends StatelessWidget {
-  final String? path;
+  final PlaybackItem item;
 
-  const _QueueArtwork({this.path});
+  const _QueueArtwork({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
+    final rawLocal = item.artworkPath?.trim().isNotEmpty == true
+        ? item.artworkPath!.trim()
+        : item.audioAsset.thumbnailPath?.trim();
+    final file = rawLocal == null ? null : File(rawLocal);
     final hasArtwork = file != null && file.existsSync();
+    final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
+    final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
+    final validRemote = remote != null &&
+        (remote.scheme == 'http' || remote.scheme == 'https');
+
+    final fallback = Icon(
+      item.isRemoteStream ? Icons.cloud_rounded : Icons.music_note_rounded,
+      size: 18,
+      color: AppColors.textSecondary,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
@@ -290,11 +305,13 @@ class _QueueArtwork extends StatelessWidget {
         color: AppColors.bgSurface,
         child: hasArtwork
             ? Image.file(file!, fit: BoxFit.cover)
-            : const Icon(
-                Icons.music_note_rounded,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
+            : validRemote
+                ? Image.network(
+                    remote.toString(),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => fallback,
+                  )
+                : fallback,
       ),
     );
   }
