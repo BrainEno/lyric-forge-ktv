@@ -1,18 +1,23 @@
 import 'dart:io';
 
 import '../../../player/domain/repositories/local_media_library_repository.dart';
+import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/models/shared_audio_track.dart';
 
 /// Builds the desktop Media Hub share list from the same persistent local
 /// library used by the regular player.
 ///
-/// This keeps cross-device transfer predictable: anything that is playable in
-/// the desktop Library is automatically available to the paired phone, while
-/// missing files are filtered out before the HTTP hub validates the catalog.
+/// User-edited presentation metadata has the same priority here as in local
+/// playback: override > embedded file tag > file-name fallback. This keeps the
+/// phone's remote catalog visually aligned with the desktop Library.
 class LocalLibraryMediaShareCatalog {
   final LocalMediaLibraryRepository libraryRepository;
+  final LocalMediaMetadataRepository? metadataRepository;
 
-  const LocalLibraryMediaShareCatalog({required this.libraryRepository});
+  const LocalLibraryMediaShareCatalog({
+    required this.libraryRepository,
+    this.metadataRepository,
+  });
 
   Future<List<SharedAudioTrack>> build() async {
     final entries = await libraryRepository.getAll();
@@ -24,24 +29,33 @@ class LocalLibraryMediaShareCatalog {
       final file = File(entry.sourcePath);
       if (!await file.exists()) continue;
 
+      final override = await metadataRepository?.getForAudio(entry.sourcePath);
       final fileName = file.uri.pathSegments.isEmpty
           ? entry.sourcePath
           : file.uri.pathSegments.last;
-      final title = entry.embeddedTitle?.trim().isNotEmpty == true
+      final embeddedTitle = entry.embeddedTitle?.trim().isNotEmpty == true
           ? entry.embeddedTitle!.trim()
           : _titleFromFileName(fileName);
+      final title = override?.resolvedTitle(embeddedTitle) ?? embeddedTitle;
+      final artist = override?.resolvedArtist(entry.embeddedArtist) ??
+          _nonEmpty(entry.embeddedArtist);
+      final album = override?.resolvedAlbum(entry.embeddedAlbum) ??
+          _nonEmpty(entry.embeddedAlbum);
+      final resolvedArtwork =
+          override?.resolvedArtwork(entry.embeddedArtworkPath) ??
+              entry.embeddedArtworkPath;
+      final artworkPath = await _existingArtworkPath(resolvedArtwork);
       final byteLength = entry.sourceSizeBytes ?? await file.length();
       final format = entry.format.trim().isNotEmpty
           ? entry.format.trim().toLowerCase()
           : _extensionFromFileName(fileName);
-      final artworkPath = await _existingArtworkPath(entry.embeddedArtworkPath);
 
       tracks.add(
         SharedAudioTrack(
           id: _stableTrackId(entry.sourcePath),
           title: title,
-          artist: _nonEmpty(entry.embeddedArtist),
-          album: _nonEmpty(entry.embeddedAlbum),
+          artist: _nonEmpty(artist),
+          album: _nonEmpty(album),
           localPath: entry.sourcePath,
           artworkPath: artworkPath,
           format: format,
