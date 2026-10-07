@@ -52,7 +52,7 @@ class LyricForgeApp extends StatelessWidget {
     final desktopChrome = AppResponsive.isDesktopTarget();
 
     return MaterialApp(
-      title: 'LyricForge KTV',
+      title: 'Elysium Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       onGenerateRoute: AppRouter.onGenerateRoute,
