@@ -15,17 +15,14 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/models/media_transfer_batch.dart';
+import '../../domain/models/media_transfer_queue.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
-import '../../domain/services/media_transfer_service.dart';
+import '../../domain/services/media_transfer_queue_service.dart';
+import '../widgets/remote_media_artwork.dart';
+import 'remote_catalog_utils.dart';
 
-/// Mobile-first browser for the paired desktop music library.
-///
-/// The screen deliberately behaves like a normal music library rather than a
-/// transfer utility: search/filter first, tap to play, download as a secondary
-/// action. Downloaded files are detected again from the persistent local library
-/// after relaunch, so the "downloaded" badge is not session-only state.
 class MobileRemoteMusicLibraryScreen extends StatefulWidget {
   const MobileRemoteMusicLibraryScreen({super.key});
 
@@ -40,16 +37,17 @@ class _MobileRemoteMusicLibraryScreenState
     extends State<MobileRemoteMusicLibraryScreen> {
   late final MediaHubClientService _client;
   late final MediaHubConnectionStore _connectionStore;
-  late final MediaTransferService _transfers;
+  late final MediaTransferQueueService _transferQueue;
   late final LocalMediaLibraryRepository _localLibrary;
   late final PlaybackSessionService _playbackSession;
 
   final TextEditingController _pairingController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
-  final Map<String, String> _downloadedPaths = <String, String>{};
-  final Map<String, MediaTransferItemProgress> _progress =
-      <String, MediaTransferItemProgress>{};
+  final Map<String, LocalMediaLibraryEntry> _downloaded =
+      <String, LocalMediaLibraryEntry>{};
+  final Set<String> _handledCompletedTasks = <String>{};
 
+  StreamSubscription<MediaTransferQueueSnapshot>? _queueSubscription;
   List<RemoteAudioTrack> _tracks = const <RemoteAudioTrack>[];
   MediaHubConnection? _savedConnection;
   _RemoteLibraryFilter _filter = _RemoteLibraryFilter.all;
@@ -62,10 +60,15 @@ class _MobileRemoteMusicLibraryScreenState
     final services = ServiceLocatorGlobal.I;
     _client = services.mediaHubClientService;
     _connectionStore = services.mediaHubConnectionStore;
-    _transfers = services.mediaTransferService;
+    _transferQueue = services.mediaTransferQueueService;
     _localLibrary = services.localMediaLibraryRepository;
     _playbackSession = services.playbackSessionService;
     _searchController.addListener(_refreshSearch);
+
+    _handledCompletedTasks.addAll(
+      _transferQueue.currentState.completed.map((item) => item.id),
+    );
+    _queueSubscription = _transferQueue.stateStream.listen(_onQueueChanged);
 
     if (_client.isConnected) {
       unawaited(_loadTracks());
@@ -76,6 +79,7 @@ class _MobileRemoteMusicLibraryScreenState
 
   @override
   void dispose() {
+    unawaited(_queueSubscription?.cancel());
     _pairingController.dispose();
     _searchController
       ..removeListener(_refreshSearch)
@@ -87,11 +91,22 @@ class _MobileRemoteMusicLibraryScreenState
     if (mounted) setState(() {});
   }
 
+  void _onQueueChanged(MediaTransferQueueSnapshot snapshot) {
+    if (!mounted) return;
+    var completedNewDownload = false;
+    for (final item in snapshot.completed) {
+      if (item.direction != MediaTransferDirection.downloadFromDesktop) continue;
+      if (_handledCompletedTasks.add(item.id)) completedNewDownload = true;
+    }
+    setState(() {});
+    if (completedNewDownload) unawaited(_syncDownloadedState());
+  }
+
   List<RemoteAudioTrack> get _visibleTracks {
     final query = _searchController.text.trim().toLowerCase();
     return _tracks.where((track) {
       if (_filter == _RemoteLibraryFilter.downloaded &&
-          !_downloadedPaths.containsKey(track.id)) {
+          !_downloaded.containsKey(track.id)) {
         return false;
       }
       if (_filter == _RemoteLibraryFilter.lyrics && !track.hasLyrics) {
@@ -158,6 +173,13 @@ class _MobileRemoteMusicLibraryScreenState
         _tracks = tracks;
       });
       await _syncDownloadedState();
+      final queueState = _transferQueue.currentState;
+      if (queueState.isPaused &&
+          queueState.pauseReason?.contains('尚未连接') == true) {
+        unawaited(_transferQueue.resume());
+      } else {
+        unawaited(_transferQueue.processPending());
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -191,17 +213,17 @@ class _MobileRemoteMusicLibraryScreenState
   Future<void> _syncDownloadedState() async {
     final entries = await _localLibrary.getAll();
     if (!mounted) return;
-    final next = <String, String>{};
+    final next = <String, LocalMediaLibraryEntry>{};
     for (final track in _tracks) {
       for (final entry in entries) {
-        if (!entry.isMissing && remoteTrackMatchesLocalEntry(track, entry)) {
-          next[track.id] = entry.sourcePath;
+        if (!entry.isMissing && remoteTrackMatchesDownloadedEntry(track, entry)) {
+          next[track.id] = entry;
           break;
         }
       }
     }
     setState(() {
-      _downloadedPaths
+      _downloaded
         ..clear()
         ..addAll(next);
     });
@@ -216,8 +238,7 @@ class _MobileRemoteMusicLibraryScreenState
     if (!mounted) return;
     setState(() {
       _tracks = const <RemoteAudioTrack>[];
-      _downloadedPaths.clear();
-      _progress.clear();
+      _downloaded.clear();
       _error = null;
       if (forget) {
         _savedConnection = null;
@@ -226,18 +247,23 @@ class _MobileRemoteMusicLibraryScreenState
     });
   }
 
+  Uri? _remoteArtwork(RemoteAudioTrack track) =>
+      remoteArtworkUriFor(_client, track);
+
   PlaybackItem _itemFor(RemoteAudioTrack track) {
-    final localPath = _downloadedPaths[track.id];
-    if (localPath != null && File(localPath).existsSync()) {
+    final local = _downloaded[track.id];
+    if (local != null && File(local.sourcePath).existsSync()) {
       return PlaybackItem(
-        id: 'local:$localPath',
+        id: 'local:${local.sourcePath}',
         title: track.title,
         artist: track.artist,
+        artworkPath: local.embeddedArtworkPath,
         hasLyrics: track.hasLyrics,
         audioAsset: AudioAsset(
-          originalPath: localPath,
+          originalPath: local.sourcePath,
           format: track.format,
           duration: track.duration,
+          thumbnailPath: local.embeddedArtworkPath,
           metadata: <String, dynamic>{
             'transferSource': 'media-hub',
             'remoteTrackId': track.id,
@@ -249,6 +275,7 @@ class _MobileRemoteMusicLibraryScreenState
     }
 
     final uri = _client.playbackUriFor(track);
+    final artworkUri = _remoteArtwork(track);
     final host = _client.currentConnection?.host ?? 'desktop';
     return PlaybackItem(
       id: 'remote:$host:${track.id}',
@@ -265,6 +292,7 @@ class _MobileRemoteMusicLibraryScreenState
           'remoteTrackId': track.id,
           if (track.album?.trim().isNotEmpty == true)
             'album': track.album!.trim(),
+          if (artworkUri != null) 'remoteArtworkUri': artworkUri.toString(),
         },
       ),
     );
@@ -274,9 +302,11 @@ class _MobileRemoteMusicLibraryScreenState
     final visible = _visibleTracks;
     final index = visible.indexWhere((candidate) => candidate.id == track.id);
     if (index < 0) return;
-    final queue = visible.map(_itemFor).toList(growable: false);
     try {
-      await _playbackSession.setQueue(queue, startIndex: index);
+      await _playbackSession.setQueue(
+        visible.map(_itemFor).toList(growable: false),
+        startIndex: index,
+      );
     } catch (error) {
       if (mounted) setState(() => _error = '播放失败：$error');
     }
@@ -295,54 +325,43 @@ class _MobileRemoteMusicLibraryScreenState
     }
   }
 
-  Future<void> _download(RemoteAudioTrack track) async {
-    final currentProgress = _progress[track.id];
-    if (currentProgress?.status == MediaTransferItemStatus.queued ||
-        currentProgress?.status == MediaTransferItemStatus.transferring ||
-        _downloadedPaths.containsKey(track.id)) {
-      return;
-    }
-
-    setState(() {
-      _error = null;
-      _progress[track.id] = MediaTransferItemProgress(
-        id: track.id,
-        title: track.title,
-        direction: MediaTransferDirection.downloadFromDesktop,
-        status: MediaTransferItemStatus.queued,
-        totalBytes: track.byteLength > 0 ? track.byteLength : null,
-      );
-    });
-
-    final result = await _transfers.downloadRemoteTracks(
-      <RemoteAudioTrack>[track],
-      onProgress: (progress) {
-        if (!mounted) return;
-        setState(() => _progress[track.id] = progress);
-      },
-    );
-
-    if (!mounted) return;
-    if (result.completed.isNotEmpty) {
-      final path = result.completed.first.destinationPath;
-      if (path != null) {
-        setState(() => _downloadedPaths[track.id] = path);
+  MediaTransferQueueItem? _queueItemFor(RemoteAudioTrack track) {
+    final items = _transferQueue.currentState.items;
+    for (var i = items.length - 1; i >= 0; i--) {
+      final item = items[i];
+      if (item.direction == MediaTransferDirection.downloadFromDesktop &&
+          item.remoteTrack?.id == track.id) {
+        return item;
       }
-      await _syncDownloadedState();
-      _showMessage('“${track.title}”已下载到本地音乐库');
-    } else {
-      final message = result.failed.isEmpty
-          ? '下载失败'
-          : result.failed.first.error ?? '下载失败';
-      setState(() => _error = message);
+    }
+    return null;
+  }
+
+  Future<void> _download(RemoteAudioTrack track) async {
+    if (_downloaded.containsKey(track.id)) return;
+    setState(() => _error = null);
+    try {
+      final existing = _queueItemFor(track);
+      if (existing?.status == MediaTransferQueueStatus.completed) {
+        await _transferQueue.remove(existing!.id);
+      } else if (existing?.status == MediaTransferQueueStatus.failed) {
+        await _transferQueue.retry(existing!.id);
+        _showMessage('已重新加入下载队列');
+        return;
+      } else if (existing?.status == MediaTransferQueueStatus.queued ||
+          existing?.status == MediaTransferQueueStatus.transferring) {
+        return;
+      }
+      await _transferQueue.enqueueDownloads(<RemoteAudioTrack>[track]);
+      _showMessage('“${track.title}”已加入下载队列');
+    } catch (error) {
+      if (mounted) setState(() => _error = '加入下载队列失败：$error');
     }
   }
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -351,6 +370,7 @@ class _MobileRemoteMusicLibraryScreenState
     return Scaffold(
       backgroundColor: AppColors.bgBase,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: AppColors.bgBase,
         title: const Text('桌面音乐库'),
         actions: [
@@ -414,7 +434,7 @@ class _MobileRemoteMusicLibraryScreenState
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  '连接后可以像普通音乐库一样搜索、在线播放，并把歌曲下载到手机离线播放。',
+                  '连接后可以搜索、在线播放，并把歌曲加入持久化下载队列。',
                   textAlign: TextAlign.center,
                   style: Theme.of(context)
                       .textTheme
@@ -453,10 +473,7 @@ class _MobileRemoteMusicLibraryScreenState
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _error!,
-                    style: const TextStyle(color: AppColors.error),
-                  ),
+                  Text(_error!, style: const TextStyle(color: AppColors.error)),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 OutlinedButton.icon(
@@ -481,9 +498,6 @@ class _MobileRemoteMusicLibraryScreenState
   Widget _buildLibrary(MediaHubConnection connection) {
     final layout = AppResponsive.of(context);
     final visible = _visibleTracks;
-    final downloadedCount = _tracks
-        .where((track) => _downloadedPaths.containsKey(track.id))
-        .length;
 
     return RefreshIndicator(
       onRefresh: _loadTracks,
@@ -523,9 +537,8 @@ class _MobileRemoteMusicLibraryScreenState
                             .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        '${_tracks.length} 首歌曲 · $downloadedCount 首已下载',
+                        '${_tracks.length} 首歌曲 · ${_downloaded.length} 首已下载',
                         style: Theme.of(context)
                             .textTheme
                             .bodySmall
@@ -598,29 +611,22 @@ class _MobileRemoteMusicLibraryScreenState
               child: Center(child: CircularProgressIndicator()),
             )
           else if (visible.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.search_off_rounded,
-                    size: 42,
-                    color: AppColors.textTertiary,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    _tracks.isEmpty ? '桌面端当前没有共享音乐' : '没有匹配的歌曲',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
+            const Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: Center(
+                child: Text(
+                  '没有匹配的歌曲',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             )
           else
             for (final track in visible) ...[
               _RemoteTrackTile(
                 track: track,
-                downloaded: _downloadedPaths.containsKey(track.id),
-                progress: _progress[track.id],
+                client: _client,
+                localEntry: _downloaded[track.id],
+                queueItem: _queueItemFor(track),
                 onPlay: () => _play(track),
                 onDownload: () => _download(track),
               ),
@@ -634,24 +640,35 @@ class _MobileRemoteMusicLibraryScreenState
 
 class _RemoteTrackTile extends StatelessWidget {
   final RemoteAudioTrack track;
-  final bool downloaded;
-  final MediaTransferItemProgress? progress;
+  final MediaHubClientService client;
+  final LocalMediaLibraryEntry? localEntry;
+  final MediaTransferQueueItem? queueItem;
   final VoidCallback onPlay;
   final VoidCallback onDownload;
 
   const _RemoteTrackTile({
     required this.track,
-    required this.downloaded,
-    required this.progress,
+    required this.client,
+    required this.localEntry,
+    required this.queueItem,
     required this.onPlay,
     required this.onDownload,
   });
 
   @override
   Widget build(BuildContext context) {
-    final transferring = progress?.status == MediaTransferItemStatus.queued ||
-        progress?.status == MediaTransferItemStatus.transferring;
-    final failed = progress?.status == MediaTransferItemStatus.failed;
+    final downloaded = localEntry != null;
+    final status = queueItem?.status;
+    final queued = status == MediaTransferQueueStatus.queued;
+    final transferring = status == MediaTransferQueueStatus.transferring;
+    final failed = status == MediaTransferQueueStatus.failed;
+    final completed = status == MediaTransferQueueStatus.completed;
+    final total = queueItem?.totalBytes;
+    final fraction = total == null || total <= 0
+        ? null
+        : ((queueItem?.bytesTransferred ?? 0) / total)
+            .clamp(0.0, 1.0)
+            .toDouble();
 
     return Material(
       color: AppColors.bgElevated,
@@ -663,19 +680,11 @@ class _RemoteTrackTile extends StatelessWidget {
           padding: const EdgeInsets.all(AppSpacing.sm),
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.bgSurface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                ),
-                child: Icon(
-                  downloaded
-                      ? Icons.offline_pin_rounded
-                      : Icons.music_note_rounded,
-                  color: downloaded ? AppColors.accent : AppColors.textSecondary,
-                ),
+              RemoteMediaArtwork(
+                track: track,
+                client: client,
+                localPath: localEntry?.embeddedArtworkPath,
+                extent: 52,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -707,14 +716,14 @@ class _RemoteTrackTile extends StatelessWidget {
                           .bodySmall
                           ?.copyWith(color: AppColors.textTertiary),
                     ),
-                    if (transferring) ...[
+                    if (queued || transferring) ...[
                       const SizedBox(height: 6),
-                      LinearProgressIndicator(value: progress?.fraction),
+                      LinearProgressIndicator(value: transferring ? fraction : null),
                     ],
                     if (failed) ...[
                       const SizedBox(height: 4),
                       Text(
-                        progress?.error ?? '下载失败',
+                        queueItem?.error ?? '下载失败，点击右侧重试',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context)
@@ -737,12 +746,18 @@ class _RemoteTrackTile extends StatelessWidget {
                 ),
               const SizedBox(width: AppSpacing.xs),
               IconButton(
-                tooltip: downloaded
+                tooltip: downloaded || completed
                     ? '已下载到手机'
-                    : transferring
-                        ? '正在下载'
-                        : '下载到手机',
-                onPressed: downloaded || transferring ? null : onDownload,
+                    : failed
+                        ? '重试下载'
+                        : queued
+                            ? '等待下载'
+                            : transferring
+                                ? '正在下载'
+                                : '下载到手机',
+                onPressed: downloaded || completed || queued || transferring
+                    ? null
+                    : onDownload,
                 icon: transferring
                     ? const SizedBox(
                         width: 20,
@@ -750,9 +765,13 @@ class _RemoteTrackTile extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(
-                        downloaded
+                        downloaded || completed
                             ? Icons.download_done_rounded
-                            : Icons.download_rounded,
+                            : failed
+                                ? Icons.refresh_rounded
+                                : queued
+                                    ? Icons.schedule_rounded
+                                    : Icons.download_rounded,
                       ),
               ),
             ],
@@ -763,20 +782,9 @@ class _RemoteTrackTile extends StatelessWidget {
   }
 }
 
-/// The transfer service names downloaded files as
-/// `<sanitised-title>_<first-8-id>.<format>`. Matching on the stable id suffix
-/// lets the UI recover downloaded state after relaunch even when the title
-/// contains characters that were sanitised on disk.
+/// Backward-compatible helper kept for older tests and callers.
 bool remoteTrackMatchesLocalEntry(
   RemoteAudioTrack track,
   LocalMediaLibraryEntry entry,
-) {
-  final segments = entry.sourcePath.replaceAll('\\', '/').split('/');
-  final fileName = segments.isEmpty ? entry.sourcePath : segments.last;
-  final id = track.id.trim();
-  final suffix = id.length > 8 ? id.substring(0, 8) : id;
-  final format = track.format.trim().toLowerCase().isEmpty
-      ? 'audio'
-      : track.format.trim().toLowerCase();
-  return fileName.toLowerCase().endsWith('_${suffix.toLowerCase()}.$format');
-}
+) =>
+    remoteTrackMatchesDownloadedEntry(track, entry);
