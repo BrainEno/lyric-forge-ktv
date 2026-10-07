@@ -195,7 +195,7 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
         final name = entity.uri.pathSegments.isEmpty
             ? entity.path
             : entity.uri.pathSegments.last;
-        if (!name.startsWith(prefix)) continue;
+        if (!name.startsWith(prefix) || name.endsWith('.part')) continue;
         if (await entity.length() <= 0) continue;
         return entity;
       }
