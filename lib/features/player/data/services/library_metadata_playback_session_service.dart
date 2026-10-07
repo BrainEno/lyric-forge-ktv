@@ -18,13 +18,16 @@ import '../../domain/services/playback_session_service.dart';
 class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
   static const int _maxArtworkBytes = 16 * 1024 * 1024;
   static const int _maxCachedArtworkFiles = 96;
+  static const int _maxConcurrentArtworkDownloads = 3;
 
   final PlaybackSessionService delegate;
   final LocalMediaLibraryRepository libraryRepository;
   final Directory? remoteArtworkCacheDirectory;
 
-  final Map<String, Future<void>> _artworkHydrations =
-      <String, Future<void>>{};
+  final Set<String> _scheduledArtworkKeys = <String>{};
+  final List<_RemoteArtworkJob> _pendingArtwork = <_RemoteArtworkJob>[];
+  int _activeArtworkDownloads = 0;
+  bool _disposed = false;
 
   LibraryMetadataPlaybackSessionService({
     required this.delegate,
@@ -86,19 +89,30 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
   }
 
   void _scheduleRemoteArtwork(PlaybackItem item, {bool prioritize = false}) {
+    if (_disposed) return;
     final uri = _remoteArtworkUri(item);
     if (uri == null || _hasUsableLocalArtwork(item)) return;
 
     final key = '${item.id}|$uri';
-    if (_artworkHydrations.containsKey(key)) return;
+    if (_scheduledArtworkKeys.contains(key)) {
+      if (prioritize) {
+        final index = _pendingArtwork.indexWhere((job) => job.key == key);
+        if (index > 0) {
+          final job = _pendingArtwork.removeAt(index);
+          _pendingArtwork.insert(0, job);
+        }
+      }
+      return;
+    }
 
-    final task = _hydrateRemoteArtwork(item, uri);
-    _artworkHydrations[key] = task;
-    unawaited(
-      task.whenComplete(() {
-        _artworkHydrations.remove(key);
-      }),
-    );
+    final job = _RemoteArtworkJob(key: key, item: item, uri: uri);
+    _scheduledArtworkKeys.add(key);
+    if (prioritize) {
+      _pendingArtwork.insert(0, job);
+    } else {
+      _pendingArtwork.add(job);
+    }
+    _pumpArtworkQueue();
   }
 
   void _scheduleQueueArtwork(
@@ -119,6 +133,22 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
     }
     for (final item in remainder) {
       _scheduleRemoteArtwork(item);
+    }
+  }
+
+  void _pumpArtworkQueue() {
+    if (_disposed) return;
+    while (_activeArtworkDownloads < _maxConcurrentArtworkDownloads &&
+        _pendingArtwork.isNotEmpty) {
+      final job = _pendingArtwork.removeAt(0);
+      _activeArtworkDownloads++;
+      unawaited(
+        _hydrateRemoteArtwork(job.item, job.uri).whenComplete(() {
+          _activeArtworkDownloads--;
+          _scheduledArtworkKeys.remove(job.key);
+          _pumpArtworkQueue();
+        }),
+      );
     }
   }
 
@@ -206,7 +236,8 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
       }
 
       final extension = _extensionFor(contentType);
-      final destination = File('${directory.path}${Platform.pathSeparator}$prefix$extension');
+      final destination =
+          File('${directory.path}${Platform.pathSeparator}$prefix$extension');
       partial = File('${destination.path}.part');
       if (await partial.exists()) await partial.delete();
 
@@ -251,6 +282,7 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
     Uri expectedRemoteUri,
     String path,
   ) async {
+    if (_disposed) return;
     PlaybackItem? current;
     for (final candidate in delegate.currentState.queue) {
       if (candidate.id == itemId) {
@@ -302,8 +334,10 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
   Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async {
     final enriched = await _enrich(item);
     await delegate.playItem(enriched, resumeFrom: resumeFrom);
-    _scheduleRemoteArtwork(delegate.currentState.currentItem ?? enriched,
-        prioritize: true);
+    _scheduleRemoteArtwork(
+      delegate.currentState.currentItem ?? enriched,
+      prioritize: true,
+    );
   }
 
   @override
@@ -373,5 +407,22 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
   Future<void> seek(Duration position) => delegate.seek(position);
 
   @override
-  Future<void> dispose() => delegate.dispose();
+  Future<void> dispose() async {
+    _disposed = true;
+    _pendingArtwork.clear();
+    _scheduledArtworkKeys.clear();
+    await delegate.dispose();
+  }
+}
+
+class _RemoteArtworkJob {
+  final String key;
+  final PlaybackItem item;
+  final Uri uri;
+
+  const _RemoteArtworkJob({
+    required this.key,
+    required this.item,
+    required this.uri,
+  });
 }
