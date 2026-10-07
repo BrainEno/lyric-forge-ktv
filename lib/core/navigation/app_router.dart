@@ -12,7 +12,7 @@ import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart';
 import '../../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
-import '../../features/transfer/presentation/screens/mobile_remote_music_library_screen.dart';
+import '../../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
 
 abstract class Routes {
   static const String home = '/';
@@ -97,7 +97,7 @@ class AppRouter {
         return _fadeRoute(const MobileMediaTransferHubScreen(), settings);
 
       case Routes.remoteBrowse:
-        return _fadeRoute(const MobileRemoteMusicLibraryScreen(), settings);
+        return _fadeRoute(const MobileRemoteLibraryShell(), settings);
 
       case Routes.mediaHubScanner:
         return _fadeRoute(const MediaHubQrScannerScreen(), settings);
