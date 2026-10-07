@@ -85,6 +85,8 @@ class MediaTransferQueueItem {
                 'downloadPath': remoteTrack!.downloadPath,
                 'hasLyrics': remoteTrack!.hasLyrics,
                 'lyricsPath': remoteTrack!.lyricsPath,
+                'hasArtwork': remoteTrack!.hasArtwork,
+                'artworkPath': remoteTrack!.artworkPath,
               },
         'bytesTransferred': bytesTransferred,
         'totalBytes': totalBytes,

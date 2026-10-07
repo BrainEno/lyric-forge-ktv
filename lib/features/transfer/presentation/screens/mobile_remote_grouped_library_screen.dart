@@ -13,6 +13,7 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
+import '../widgets/remote_media_artwork.dart';
 import 'remote_catalog_utils.dart';
 
 enum RemoteCatalogView { artists, albums }
@@ -48,6 +49,10 @@ class _MobileRemoteGroupedLibraryScreenState
 
   String get _title =>
       widget.view == RemoteCatalogView.artists ? '艺人' : '专辑';
+
+  IconData get _fallbackIcon => widget.view == RemoteCatalogView.artists
+      ? Icons.person_rounded
+      : Icons.album_rounded;
 
   @override
   void initState() {
@@ -148,6 +153,7 @@ class _MobileRemoteGroupedLibraryScreenState
     }
 
     final uri = _client.playbackUriFor(track);
+    final artworkUri = remoteArtworkUriFor(_client, track);
     final host = _client.currentConnection?.host ?? 'desktop';
     return PlaybackItem(
       id: 'remote:$host:${track.id}',
@@ -164,6 +170,7 @@ class _MobileRemoteGroupedLibraryScreenState
           'remoteTrackId': track.id,
           if (track.album?.trim().isNotEmpty == true)
             'album': track.album!.trim(),
+          if (artworkUri != null) 'remoteArtworkUri': artworkUri.toString(),
         },
       ),
     );
@@ -188,12 +195,15 @@ class _MobileRemoteGroupedLibraryScreenState
     }
   }
 
-  String? _coverFor(List<RemoteAudioTrack> tracks) {
+  RemoteAudioTrack _representativeTrack(List<RemoteAudioTrack> tracks) {
     for (final track in tracks) {
-      final path = _localEntries[track.id]?.embeddedArtworkPath;
-      if (path != null && File(path).existsSync()) return path;
+      final localArtwork = _localEntries[track.id]?.embeddedArtworkPath;
+      if (localArtwork != null && File(localArtwork).existsSync()) return track;
     }
-    return null;
+    for (final track in tracks) {
+      if (track.hasArtwork) return track;
+    }
+    return tracks.first;
   }
 
   Future<void> _openGroup(String name, List<RemoteAudioTrack> tracks) async {
@@ -261,11 +271,11 @@ class _MobileRemoteGroupedLibraryScreenState
                       final local = _localEntries[track.id];
                       return ListTile(
                         onTap: () => _playTracks(tracks, start: track),
-                        leading: _CatalogArtwork(
-                          path: local?.embeddedArtworkPath,
-                          icon: widget.view == RemoteCatalogView.artists
-                              ? Icons.person_rounded
-                              : Icons.album_rounded,
+                        leading: RemoteMediaArtwork(
+                          track: track,
+                          client: _client,
+                          localPath: local?.embeddedArtworkPath,
+                          fallbackIcon: _fallbackIcon,
                           extent: 46,
                         ),
                         title: Text(
@@ -387,13 +397,15 @@ class _MobileRemoteGroupedLibraryScreenState
                         itemBuilder: (context, index) {
                           final name = groups.keys.elementAt(index);
                           final tracks = groups[name]!;
+                          final representative = _representativeTrack(tracks);
+                          final local = _localEntries[representative.id];
                           return _CatalogGroupCard(
                             name: name,
                             count: tracks.length,
-                            coverPath: _coverFor(tracks),
-                            icon: widget.view == RemoteCatalogView.artists
-                                ? Icons.person_rounded
-                                : Icons.album_rounded,
+                            track: representative,
+                            client: _client,
+                            localArtworkPath: local?.embeddedArtworkPath,
+                            icon: _fallbackIcon,
                             onTap: () => _openGroup(name, tracks),
                           );
                         },
@@ -446,14 +458,18 @@ class _DisconnectedCatalogState extends StatelessWidget {
 class _CatalogGroupCard extends StatelessWidget {
   final String name;
   final int count;
-  final String? coverPath;
+  final RemoteAudioTrack track;
+  final MediaHubClientService client;
+  final String? localArtworkPath;
   final IconData icon;
   final VoidCallback onTap;
 
   const _CatalogGroupCard({
     required this.name,
     required this.count,
-    required this.coverPath,
+    required this.track,
+    required this.client,
+    required this.localArtworkPath,
     required this.icon,
     required this.onTap,
   });
@@ -472,10 +488,13 @@ class _CatalogGroupCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _CatalogArtwork(
-                  path: coverPath,
-                  icon: icon,
+                child: RemoteMediaArtwork(
+                  track: track,
+                  client: client,
+                  localPath: localArtworkPath,
+                  fallbackIcon: icon,
                   extent: double.infinity,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -499,35 +518,6 @@ class _CatalogGroupCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CatalogArtwork extends StatelessWidget {
-  final String? path;
-  final IconData icon;
-  final double extent;
-
-  const _CatalogArtwork({
-    required this.path,
-    required this.icon,
-    required this.extent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final file = path == null ? null : File(path!);
-    final hasImage = file != null && file.existsSync();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-      child: Container(
-        width: extent,
-        height: extent,
-        color: AppColors.bgSurface,
-        child: hasImage
-            ? Image.file(file!, fit: BoxFit.cover)
-            : Icon(icon, size: 46, color: AppColors.textSecondary),
       ),
     );
   }

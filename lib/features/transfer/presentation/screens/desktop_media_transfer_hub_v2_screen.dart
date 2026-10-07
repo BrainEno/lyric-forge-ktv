@@ -53,6 +53,7 @@ class _DesktopMediaTransferHubV2ScreenState
     _hub = services.mediaHubService;
     _catalog = LocalLibraryMediaShareCatalog(
       libraryRepository: services.localMediaLibraryRepository,
+      metadataRepository: services.localMediaMetadataRepository,
     );
     _hubState = _hub.currentState;
     _hubSubscription = _hub.stateStream.listen((state) {

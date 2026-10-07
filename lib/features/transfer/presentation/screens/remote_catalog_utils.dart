@@ -1,5 +1,6 @@
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../domain/models/remote_audio_track.dart';
+import '../../domain/services/media_hub_client_service.dart';
 
 enum RemoteCatalogGrouping { artists, albums }
 
@@ -36,6 +37,24 @@ Map<String, List<RemoteAudioTrack>> groupRemoteCatalog(
     ordered[key] = List<RemoteAudioTrack>.unmodifiable(items);
   }
   return Map<String, List<RemoteAudioTrack>>.unmodifiable(ordered);
+}
+
+Uri? remoteArtworkUriFor(
+  MediaHubClientService client,
+  RemoteAudioTrack track,
+) {
+  final connection = client.currentConnection;
+  final path = track.artworkPath?.trim();
+  if (connection == null || !track.hasArtwork || path == null || path.isEmpty) {
+    return null;
+  }
+  final uri = connection.resolve(path);
+  return uri.replace(
+    queryParameters: {
+      ...uri.queryParameters,
+      'token': connection.token,
+    },
+  );
 }
 
 bool remoteTrackMatchesDownloadedEntry(

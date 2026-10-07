@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_library_entry.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_library_repository.dart';
+import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/local_library_media_share_catalog.dart';
 
 void main() {
@@ -80,6 +82,57 @@ void main() {
     expect(tracks.single.format, 'wav');
     expect(tracks.single.byteLength, 321);
   });
+
+  test('build shares user-edited presentation metadata and existing artwork',
+      () async {
+    final directory = await Directory.systemTemp.createTemp('elysium-share-art-');
+    addTearDown(() async {
+      if (await directory.exists()) await directory.delete(recursive: true);
+    });
+
+    final audio = File('${directory.path}${Platform.pathSeparator}Original.mp3');
+    final embeddedArt =
+        File('${directory.path}${Platform.pathSeparator}embedded.jpg');
+    final editedArt = File('${directory.path}${Platform.pathSeparator}edited.png');
+    await audio.writeAsBytes(List<int>.filled(100, 1));
+    await embeddedArt.writeAsBytes(const [1, 2, 3]);
+    await editedArt.writeAsBytes(const [4, 5, 6]);
+    final now = DateTime(2026, 10, 8);
+
+    final library = _FakeLibraryRepository([
+      LocalMediaLibraryEntry(
+        sourcePath: audio.path,
+        format: 'mp3',
+        addedAt: now,
+        lastSeenAt: now,
+        embeddedTitle: 'Embedded Title',
+        embeddedArtist: 'Embedded Artist',
+        embeddedAlbum: 'Embedded Album',
+        embeddedArtworkPath: embeddedArt.path,
+      ),
+    ]);
+    final metadata = _FakeMetadataRepository(
+      LocalMediaMetadata(
+        sourcePath: audio.path,
+        title: 'Edited Title',
+        artist: 'Edited Artist',
+        album: 'Edited Album',
+        artworkPath: editedArt.path,
+        updatedAt: now,
+      ),
+    );
+
+    final tracks = await LocalLibraryMediaShareCatalog(
+      libraryRepository: library,
+      metadataRepository: metadata,
+    ).build();
+
+    expect(tracks.single.title, 'Edited Title');
+    expect(tracks.single.artist, 'Edited Artist');
+    expect(tracks.single.album, 'Edited Album');
+    expect(tracks.single.artworkPath, editedArt.path);
+    expect(tracks.single.hasArtwork, isTrue);
+  });
 }
 
 class _FakeLibraryRepository implements LocalMediaLibraryRepository {
@@ -127,4 +180,32 @@ class _FakeLibraryRepository implements LocalMediaLibraryRepository {
 
   @override
   Future<void> removeMissing() async {}
+}
+
+class _FakeMetadataRepository implements LocalMediaMetadataRepository {
+  final LocalMediaMetadata metadata;
+
+  _FakeMetadataRepository(this.metadata);
+
+  @override
+  Future<LocalMediaMetadata?> getForAudio(String sourcePath) async =>
+      sourcePath == metadata.sourcePath ? metadata : null;
+
+  @override
+  Future<List<LocalMediaMetadata>> getAll() async => [metadata];
+
+  @override
+  Future<LocalMediaMetadata> save(LocalMediaMetadata value) async => value;
+
+  @override
+  Future<void> removeForAudio(String sourcePath) async {}
+
+  @override
+  Future<String> importArtwork({
+    required String sourcePath,
+    required String imagePath,
+  }) async => imagePath;
+
+  @override
+  Future<void> removeManagedArtwork(String? artworkPath) async {}
 }

@@ -6,6 +6,7 @@ class SharedAudioTrack {
   final String? artist;
   final String? album;
   final String localPath;
+  final String? artworkPath;
   final String format;
   final int byteLength;
   final Duration? duration;
@@ -17,6 +18,7 @@ class SharedAudioTrack {
     this.artist,
     this.album,
     required this.localPath,
+    this.artworkPath,
     required this.format,
     required this.byteLength,
     this.duration,
@@ -24,6 +26,7 @@ class SharedAudioTrack {
   });
 
   bool get hasLyrics => lyrics != null && lyrics!.lines.isNotEmpty;
+  bool get hasArtwork => artworkPath?.trim().isNotEmpty == true;
 
   Map<String, dynamic> toPublicJson() {
     return {
@@ -35,6 +38,7 @@ class SharedAudioTrack {
       'byteLength': byteLength,
       'durationMs': duration?.inMilliseconds,
       'hasLyrics': hasLyrics,
+      'hasArtwork': hasArtwork,
     };
   }
 }
