@@ -174,9 +174,10 @@ class _MobileRemoteGroupedLibraryScreenState
     RemoteAudioTrack? start,
   }) async {
     if (tracks.isEmpty) return;
-    final startIndex = start == null
+    final rawIndex = start == null
         ? 0
-        : tracks.indexWhere((track) => track.id == start.id).clamp(0, tracks.length - 1);
+        : tracks.indexWhere((track) => track.id == start.id);
+    final startIndex = rawIndex < 0 ? 0 : rawIndex;
     try {
       await _session.setQueue(
         tracks.map(_itemFor).toList(growable: false),
