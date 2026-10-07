@@ -243,11 +243,40 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
     await _session.seek(target);
   }
 
+  Future<void> _showQueue() async {
+    final height = (MediaQuery.sizeOf(context).height * 0.62)
+        .clamp(280.0, 520.0)
+        .toDouble();
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.bgSurface,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: PlaybackQueuePanel(
+            session: _session,
+            height: height,
+            allowClearAll: true,
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final file = _selectedFile;
     final current = _session.currentState.currentItem;
     final localItem = current != null && current.projectId == null ? current : null;
+    final screenLayout = AppResponsive.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -256,6 +285,12 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         backgroundColor: AppColors.bgBase,
         actions: [
           if (file != null) ...[
+            if (screenLayout.isCompact)
+              IconButton(
+                onPressed: _showQueue,
+                icon: const Icon(Icons.queue_music_rounded),
+                tooltip: '播放队列',
+              ),
             IconButton(
               onPressed: _pickFiles,
               icon: const Icon(Icons.library_add_rounded),
@@ -365,7 +400,9 @@ class _EmptyPlayer extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
+                    SizedBox(
+                      height: layout.isShort ? AppSpacing.md : AppSpacing.xl,
+                    ),
                     Text(
                       '你的本地音乐',
                       textAlign: TextAlign.center,
@@ -389,7 +426,9 @@ class _EmptyPlayer extends StatelessWidget {
                         style: const TextStyle(color: AppColors.error),
                       ),
                     ],
-                    SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
+                    SizedBox(
+                      height: layout.isShort ? AppSpacing.md : AppSpacing.xl,
+                    ),
                     if (isLoading)
                       const Padding(
                         padding: EdgeInsets.only(bottom: AppSpacing.md),
@@ -499,11 +538,31 @@ class _PlayerWorkspace extends StatelessWidget {
                     ? 300.0
                     : 360.0;
 
+            if (layout.isCompact) {
+              final playerWidth = (constraints.maxWidth - layout.pageGutter * 2)
+                  .clamp(0.0, layout.playerContentMaxWidth)
+                  .toDouble();
+              return Padding(
+                padding: EdgeInsets.all(layout.pageGutter),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: playerWidth,
+                      child: player,
+                    ),
+                  ),
+                ),
+              );
+            }
+
             if (!layout.supportsTwoPane) {
               return Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                  constraints:
+                      BoxConstraints(maxWidth: layout.playerContentMaxWidth),
                   child: SingleChildScrollView(
                     padding: EdgeInsets.all(layout.pageGutter),
                     child: Column(
@@ -530,7 +589,8 @@ class _PlayerWorkspace extends StatelessWidget {
             return Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                constraints:
+                    BoxConstraints(maxWidth: layout.playerContentMaxWidth),
                 child: Padding(
                   padding: EdgeInsets.all(layout.pageGutter),
                   child: Row(
@@ -597,9 +657,11 @@ class _PlayerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final horizontal = !layout.isShort &&
         (layout.isExpanded || layout.isLarge || layout.isExtraLarge);
-    final artworkExtent = horizontal
-        ? layout.playerArtworkMaxExtent.clamp(210.0, 300.0).toDouble()
-        : layout.playerArtworkMaxExtent.clamp(200.0, 360.0).toDouble();
+    final artworkExtent = layout.isCompact
+        ? (layout.height * 0.28).clamp(180.0, 240.0).toDouble()
+        : horizontal
+            ? layout.playerArtworkMaxExtent.clamp(210.0, 300.0).toDouble()
+            : layout.playerArtworkMaxExtent.clamp(200.0, 360.0).toDouble();
     final cardPadding = layout.isCompact
         ? AppSpacing.md
         : layout.isMedium
@@ -608,9 +670,11 @@ class _PlayerCard extends StatelessWidget {
 
     final artwork = SizedBox(
       width: artworkExtent,
-      child: _Artwork(
-        path: item.artworkPath ?? item.audioAsset.thumbnailPath,
-        isLoading: isLoading || state.isLoading,
+      child: RepaintBoundary(
+        child: _Artwork(
+          path: item.artworkPath ?? item.audioAsset.thumbnailPath,
+          isLoading: isLoading || state.isLoading,
+        ),
       ),
     );
     final details = _PlayerDetails(
@@ -1002,19 +1066,32 @@ class _Transport extends StatelessWidget {
   }
 }
 
-class _ProgressBar extends StatelessWidget {
+class _ProgressBar extends StatefulWidget {
   final PlaybackState state;
   final ValueChanged<Duration> onSeek;
 
   const _ProgressBar({required this.state, required this.onSeek});
 
   @override
+  State<_ProgressBar> createState() => _ProgressBarState();
+}
+
+class _ProgressBarState extends State<_ProgressBar> {
+  double? _dragValue;
+
+  @override
   Widget build(BuildContext context) {
-    final duration = state.duration;
+    final duration = widget.state.duration;
     final rawMax = duration?.inMilliseconds.toDouble() ?? 1.0;
     final max = rawMax <= 0 ? 1.0 : rawMax;
-    final value =
-        state.position.inMilliseconds.toDouble().clamp(0.0, max).toDouble();
+    final playbackValue = widget.state.position.inMilliseconds
+        .toDouble()
+        .clamp(0.0, max)
+        .toDouble();
+    final value = (_dragValue ?? playbackValue).clamp(0.0, max).toDouble();
+    final displayPosition = _dragValue == null
+        ? widget.state.formattedPosition
+        : _formatDuration(Duration(milliseconds: value.round()));
 
     return Column(
       children: [
@@ -1031,22 +1108,31 @@ class _ProgressBar extends StatelessWidget {
             value: value,
             min: 0,
             max: max,
+            onChangeStart: duration == null
+                ? null
+                : (next) => setState(() => _dragValue = next),
             onChanged: duration == null
                 ? null
-                : (next) => onSeek(Duration(milliseconds: next.round())),
+                : (next) => setState(() => _dragValue = next),
+            onChangeEnd: duration == null
+                ? null
+                : (next) {
+                    setState(() => _dragValue = null);
+                    widget.onSeek(Duration(milliseconds: next.round()));
+                  },
           ),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              state.formattedPosition,
+              displayPosition,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AppColors.textTertiary,
                   ),
             ),
             Text(
-              state.formattedDuration,
+              widget.state.formattedDuration,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AppColors.textTertiary,
                   ),
@@ -1055,5 +1141,11 @@ class _ProgressBar extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes.toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 }
