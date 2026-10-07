@@ -59,6 +59,13 @@ class HttpMediaHubService implements MediaHubService {
           throw MediaHubException('音频文件不存在: ${track.title}');
         }
 
+        String? artworkPath;
+        final requestedArtwork = track.artworkPath?.trim();
+        if (requestedArtwork != null && requestedArtwork.isNotEmpty) {
+          final artwork = File(requestedArtwork);
+          if (await artwork.exists()) artworkPath = artwork.path;
+        }
+
         final actualLength = await file.length();
         validated[track.id] = SharedAudioTrack(
           id: track.id,
@@ -66,6 +73,7 @@ class HttpMediaHubService implements MediaHubService {
           artist: track.artist,
           album: track.album,
           localPath: track.localPath,
+          artworkPath: artworkPath,
           format: track.format,
           byteLength: actualLength,
           duration: track.duration,
@@ -305,6 +313,27 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
+      final isArtworkRequest =
+          (request.method == 'GET' || request.method == 'HEAD') &&
+              segments.length == 4 &&
+              segments[0] == 'v1' &&
+              segments[1] == 'tracks' &&
+              segments[3] == 'artwork';
+
+      if (isArtworkRequest) {
+        final track = _tracks[segments[2]];
+        if (track == null) {
+          await _writeJson(
+            request.response,
+            HttpStatus.notFound,
+            {'error': 'track_not_found'},
+          );
+          return;
+        }
+        await _serveArtwork(request, track);
+        return;
+      }
+
       final isAudioRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
               segments.length == 4 &&
@@ -461,6 +490,46 @@ class HttpMediaHubService implements MediaHubService {
     return name.isEmpty ? 'audio' : name;
   }
 
+  Future<void> _serveArtwork(
+    HttpRequest request,
+    SharedAudioTrack track,
+  ) async {
+    final path = track.artworkPath;
+    if (path == null || path.trim().isEmpty) {
+      await _writeJson(
+        request.response,
+        HttpStatus.notFound,
+        {'error': 'artwork_not_found'},
+      );
+      return;
+    }
+
+    final file = File(path);
+    if (!await file.exists()) {
+      await _writeJson(
+        request.response,
+        HttpStatus.gone,
+        {'error': 'artwork_missing'},
+      );
+      return;
+    }
+
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType =
+        ContentType.parse(_imageMimeTypeFor(path));
+    request.response.headers.set(
+      HttpHeaders.cacheControlHeader,
+      'private, max-age=3600',
+    );
+    request.response.contentLength = await file.length();
+    if (request.method == 'HEAD') {
+      await request.response.close();
+      return;
+    }
+    await request.response.addStream(file.openRead());
+    await request.response.close();
+  }
+
   Future<void> _serveAudio(
     HttpRequest request,
     SharedAudioTrack track,
@@ -539,6 +608,7 @@ class HttpMediaHubService implements MediaHubService {
       'streamPath': '/v1/tracks/$encodedId/audio',
       'downloadPath': '/v1/tracks/$encodedId/audio?download=1',
       if (track.hasLyrics) 'lyricsPath': '/v1/tracks/$encodedId/lyrics',
+      if (track.hasArtwork) 'artworkPath': '/v1/tracks/$encodedId/artwork',
     };
   }
 
@@ -607,6 +677,15 @@ class HttpMediaHubService implements MediaHubService {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  String _imageMimeTypeFor(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.bmp')) return 'image/bmp';
+    return 'image/jpeg';
   }
 
   _ParsedRange _parseRange(String? header, int length) {
