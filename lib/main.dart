@@ -9,6 +9,7 @@ import 'core/services/service_locator.dart';
 import 'core/theme/app_theme.dart';
 import 'features/player/data/services/mobile_system_media_session.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
+import 'features/player/presentation/widgets/mobile_global_player_bar.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
 void main() {
@@ -58,11 +59,20 @@ class ElysiumPlayerApp extends StatelessWidget {
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
       builder: (context, child) {
-        // Keep the global playback/transcription chrome desktop-only. Mobile
-        // renders the Navigator directly so native launch and media-session
-        // startup stay independent from desktop UI chrome.
         if (!desktopChrome) {
-          return child ?? const SizedBox.shrink();
+          return ValueListenableBuilder<bool>(
+            valueListenable: AppChromeController.immersive,
+            builder: (context, immersive, _) {
+              final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+              return Column(
+                children: [
+                  Expanded(child: child ?? const SizedBox.shrink()),
+                  if (!immersive && !keyboardVisible)
+                    const MobileGlobalPlayerBar(),
+                ],
+              );
+            },
+          );
         }
 
         return Overlay(
