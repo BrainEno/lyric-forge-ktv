@@ -64,21 +64,22 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
     }
   }
 
-  Future<void> _refreshItemById(
+  PlaybackItem? _itemById(String id) {
+    for (final item in delegate.currentState.queue) {
+      if (item.id == id) return item;
+    }
+    return null;
+  }
+
+  Future<PlaybackItem?> _refreshItemById(
     String id, {
     required bool throwOnFailure,
   }) async {
-    if (!_refreshingIds.add(id)) return;
+    final existingBeforeGuard = _itemById(id);
+    if (!_refreshingIds.add(id)) return existingBeforeGuard;
     try {
-      final currentQueue = delegate.currentState.queue;
-      PlaybackItem? existing;
-      for (final item in currentQueue) {
-        if (item.id == id) {
-          existing = item;
-          break;
-        }
-      }
-      if (existing == null || !existing.isRemoteStream) return;
+      final existing = _itemById(id);
+      if (existing == null || !existing.isRemoteStream) return existing;
       final resolved = await _resolve(
         existing,
         throwOnFailure: throwOnFailure,
@@ -86,6 +87,7 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
       if (!_sameResolvedItem(existing, resolved)) {
         await delegate.updateItem(resolved);
       }
+      return resolved;
     } finally {
       _refreshingIds.remove(id);
     }
@@ -138,10 +140,28 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> playAt(int index) async {
-    final queue = delegate.currentState.queue;
-    if (index >= 0 && index < queue.length && queue[index].isRemoteStream) {
+    final state = delegate.currentState;
+    if (index < 0 || index >= state.queue.length) {
+      await delegate.playAt(index);
+      return;
+    }
+
+    final target = state.queue[index];
+    if (target.isRemoteStream) {
       _remoteRefreshEnabled = true;
-      await _refreshItemById(queue[index].id, throwOnFailure: true);
+      final resolved = await _resolve(target, throwOnFailure: true);
+      final changed = !_sameResolvedItem(target, resolved);
+      if (changed &&
+          index == state.currentIndex &&
+          !delegate.playbackState.isPlaying &&
+          delegate.playbackState.duration != null) {
+        await delegate.playItem(
+          resolved,
+          resumeFrom: delegate.playbackState.position,
+        );
+        return;
+      }
+      if (changed) await delegate.updateItem(resolved);
     }
     await delegate.playAt(index);
   }
@@ -205,9 +225,19 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
   @override
   Future<void> togglePlayPause() async {
     final current = delegate.currentState.currentItem;
-    if (!delegate.playbackState.isPlaying && current?.isRemoteStream == true) {
+    final playback = delegate.playbackState;
+    if (!playback.isPlaying && current?.isRemoteStream == true) {
       _remoteRefreshEnabled = true;
-      await _refreshItemById(current!.id, throwOnFailure: true);
+      final resolved = await _resolve(current!, throwOnFailure: true);
+      final changed = !_sameResolvedItem(current, resolved);
+      if (changed && playback.duration != null) {
+        await delegate.playItem(
+          resolved,
+          resumeFrom: playback.position,
+        );
+        return;
+      }
+      if (changed) await delegate.updateItem(resolved);
     }
     await delegate.togglePlayPause();
   }
