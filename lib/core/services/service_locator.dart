@@ -96,7 +96,18 @@ class ServiceLocator {
     final discoveryService = UdpMediaHubDiscoveryService();
     mediaHubClientService = HttpMediaHubClientService(
       discoveryService: discoveryService,
-      onConnectionResolved: mediaHubConnectionStore.saveConnection,
+      onConnectionResolved: (connection) {
+        // Older UI surfaces still write the connection argument they started
+        // with immediately after connectTo returns. Persist the verified /
+        // auto-discovered endpoint on the next event turn so it remains the
+        // final cached value without forcing a destructive rewrite of them.
+        unawaited(
+          Future<void>.delayed(
+            Duration.zero,
+            () => mediaHubConnectionStore.saveConnection(connection),
+          ),
+        );
+      },
     );
     final rawAudioPlayer = JustAudioPlayerService();
     audioPlayerService = MediaHubRebindingAudioPlayerService(
