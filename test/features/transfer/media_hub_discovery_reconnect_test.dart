@@ -81,7 +81,7 @@ void main() {
     expect(restored.discoveryKey, parsed.discoveryKey);
   });
 
-  test('stale saved endpoint is recovered through paired discovery', () async {
+  test('stale token is recovered through paired device discovery', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() async {
       await server.close(force: true);
@@ -123,9 +123,9 @@ void main() {
     );
     addTearDown(client.dispose);
 
-    const stale = MediaHubConnection(
-      host: '127.0.0.1',
-      port: 1,
+    final stale = MediaHubConnection(
+      host: InternetAddress.loopbackIPv4.address,
+      port: server.port,
       token: 'expired-token',
       deviceId: 'desktop-device-1',
       discoveryKey: 'paired-discovery-key',
