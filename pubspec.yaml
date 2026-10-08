@@ -67,11 +67,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
+  # The "flutter_lints" package below contains the set of recommended lints to
   # encourage good coding practices. The lint set is activated in the
-  # analysis_options.yaml file at the root of the package. See that file for
-  # information about deactivating specific lint rules and activating additional
-  # ones.
+  # analysis_options.yaml file located at the root of your package. See that file
+  # for information about deactivating specific lint rules and activating
+  # additional ones.
   flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
@@ -85,16 +85,15 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # App artwork shared by the Flutter UI and native platform packaging.
   assets:
-    - images/icon.png
-  #   - images/a_dot_ham.jpeg
+    - assets/images/icon.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
   # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-package
+  # https://flutter.dev/to/asset-from-package
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
@@ -111,4 +110,5 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details, see https://flutter.dev/to/font-from-package
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package
