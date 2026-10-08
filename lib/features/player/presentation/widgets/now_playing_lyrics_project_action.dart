@@ -6,6 +6,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_lyrics_project_resolver.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../screens/immersive_ktv_screen.dart';
 
 class NowPlayingLyricsProjectAction extends StatefulWidget {
   final PlaybackItem item;
@@ -73,12 +74,24 @@ class _NowPlayingLyricsProjectActionState
 
         final localLinkedLyrics = widget.item.projectId == null;
         return TextButton.icon(
-          onPressed: () => Navigator.pushNamed(
-            context,
-            Routes.playerPath(projectId),
+          onPressed: localLinkedLyrics
+              ? () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ImmersiveKtvScreen(
+                        initialProjectId: projectId,
+                        projectRepository: _projects,
+                        metadataRepository: _metadata,
+                      ),
+                    ),
+                  )
+              : () => Navigator.pushNamed(
+                    context,
+                    Routes.playerPath(projectId),
+                  ),
+          icon: Icon(
+            localLinkedLyrics ? Icons.fullscreen_rounded : Icons.lyrics_rounded,
           ),
-          icon: const Icon(Icons.lyrics_rounded),
-          label: Text(localLinkedLyrics ? '歌词 / KTV' : '打开工程播放器'),
+          label: Text(localLinkedLyrics ? '全屏 KTV' : '打开工程播放器'),
         );
       },
     );
