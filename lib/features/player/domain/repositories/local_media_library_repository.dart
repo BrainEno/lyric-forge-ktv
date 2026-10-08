@@ -13,12 +13,6 @@ abstract class LocalMediaLibraryRepository {
 
   Future<void> addRoot(String rootPath);
 
-  /// Stops monitoring a previously-added music folder.
-  ///
-  /// Existing library rows and files are kept. This only removes the folder
-  /// from future automatic/manual root rescans.
-  Future<void> removeRoot(String rootPath);
-
   /// Re-checks known file availability and discovers new files from roots.
   Future<List<LocalMediaLibraryEntry>> refreshAvailability();
 
@@ -33,4 +27,12 @@ abstract class LocalMediaLibraryRepository {
   Future<void> remove(String sourcePath);
 
   Future<void> removeMissing();
+}
+
+/// Optional capability for repositories that persist watched music folders.
+///
+/// Kept separate from [LocalMediaLibraryRepository] so lightweight test and
+/// remote/download repositories are not forced to implement root management.
+abstract class LocalMediaLibraryRootManager {
+  Future<void> removeRoot(String rootPath);
 }
