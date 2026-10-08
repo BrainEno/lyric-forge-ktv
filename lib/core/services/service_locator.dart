@@ -12,6 +12,7 @@ import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
 import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
+import '../../features/player/data/services/remote_rebinding_playback_session_service.dart';
 import '../../features/player/domain/repositories/local_media_collection_repository.dart';
 import '../../features/player/domain/repositories/local_media_library_repository.dart';
 import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
@@ -44,6 +45,8 @@ import '../../features/transfer/data/services/file_media_transfer_queue_service.
 import '../../features/transfer/data/services/http_media_hub_client_service.dart';
 import '../../features/transfer/data/services/http_media_hub_service.dart';
 import '../../features/transfer/data/services/local_media_transfer_service.dart';
+import '../../features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
+import '../../features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
 import '../../features/transfer/domain/services/media_hub_client_service.dart';
 import '../../features/transfer/domain/services/media_hub_connection_store.dart';
 import '../../features/transfer/domain/services/media_hub_service.dart';
@@ -82,7 +85,18 @@ class ServiceLocator {
 
   void initialize() {
     projectRepository = FileProjectRepository();
-    audioPlayerService = JustAudioPlayerService();
+
+    // Connection state must exist before the player is built so restored remote
+    // sessions can rebase stale Media Hub URLs at the lowest audio-load layer.
+    mediaHubClientService = HttpMediaHubClientService();
+    mediaHubConnectionStore = FileMediaHubConnectionStore();
+    final rawAudioPlayer = JustAudioPlayerService();
+    audioPlayerService = MediaHubRebindingAudioPlayerService(
+      delegate: rawAudioPlayer,
+      client: mediaHubClientService,
+      connectionStore: mediaHubConnectionStore,
+    );
+
     embeddedAudioMetadataReader = const PureDartEmbeddedAudioMetadataReader();
     localMediaLibraryRepository = FileLocalMediaLibraryRepository(
       metadataReader: embeddedAudioMetadataReader,
@@ -107,10 +121,19 @@ class ServiceLocator {
       localMediaMetadataRepository: localMediaMetadataRepository,
       sessionStore: playbackSessionStore,
     );
-    playbackSessionService = LibraryMetadataPlaybackSessionService(
+    final metadataPlaybackSession = LibraryMetadataPlaybackSessionService(
       delegate: basePlaybackSession,
       libraryRepository: localMediaLibraryRepository,
     );
+    final remoteResolver = MediaHubRemotePlaybackItemResolver(
+      client: mediaHubClientService,
+      connectionStore: mediaHubConnectionStore,
+    );
+    playbackSessionService = RemoteRebindingPlaybackSessionService(
+      delegate: metadataPlaybackSession,
+      resolver: remoteResolver,
+    );
+
     mediaHubService = HttpMediaHubService(
       onIncomingFile: (path) async {
         if (!_isSupportedIncomingAudio(path)) {
@@ -119,8 +142,6 @@ class ServiceLocator {
         await localMediaLibraryRepository.addPaths([path]);
       },
     );
-    mediaHubClientService = HttpMediaHubClientService();
-    mediaHubConnectionStore = FileMediaHubConnectionStore();
     mediaTransferService = LocalMediaTransferService(
       client: mediaHubClientService,
       libraryRepository: localMediaLibraryRepository,

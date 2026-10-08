@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
@@ -72,7 +73,10 @@ class PlaybackQueuePanel extends StatelessWidget {
                             index: index,
                             item: item,
                             isCurrent: index == state.currentIndex,
-                            onPlay: () => session.playAt(index),
+                            onPlay: () => runPlaybackActionWithFeedback(
+                              context,
+                              () => session.playAt(index),
+                            ),
                             onRemove: () => session.removeAt(index),
                           );
                         },
