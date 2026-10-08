@@ -58,11 +58,13 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
-    _projects = widget.projectRepository ?? services.projectRepository;
-    _metadata = widget.metadataRepository ?? services.localMediaMetadataRepository;
-    _audio = widget.audioService ?? services.audioPlayerService;
-    _session = widget.playbackSession ?? services.playbackSessionService;
+    _projects = widget.projectRepository ??
+        ServiceLocatorGlobal.I.projectRepository;
+    _metadata = widget.metadataRepository ??
+        ServiceLocatorGlobal.I.localMediaMetadataRepository;
+    _audio = widget.audioService ?? ServiceLocatorGlobal.I.audioPlayerService;
+    _session = widget.playbackSession ??
+        ServiceLocatorGlobal.I.playbackSessionService;
 
     AppChromeController.enterImmersive();
     unawaited(_loadProject(widget.initialProjectId));
@@ -71,13 +73,6 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
 
   Future<void> _loadProject(String projectId) async {
     final generation = ++_loadGeneration;
-    if (mounted && _project == null) {
-      setState(() {
-        _loading = true;
-        _loadError = null;
-      });
-    }
-
     try {
       final project = await _projects.getProjectById(projectId);
       if (!mounted || generation != _loadGeneration) return;
@@ -421,7 +416,7 @@ class _LyricStage extends StatelessWidget {
   final Object? loadError;
   final List<LyricLine> lyrics;
   final int? currentIndex;
-  final AppResponsive spec;
+  final AppLayoutSpec spec;
 
   const _LyricStage({
     required this.project,
