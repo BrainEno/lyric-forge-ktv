@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'playback_action_feedback.dart';
 
 /// Compact Spotify-style player chrome for mobile.
 ///
@@ -121,7 +122,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                               IconButton(
                                 tooltip: '上一首',
                                 onPressed: session.canSkipPrevious
-                                    ? _session.skipPrevious
+                                    ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipPrevious,
+                                        )
                                     : null,
                                 icon: const Icon(Icons.skip_previous_rounded),
                               ),
@@ -132,7 +136,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                   tooltip: playback.isPlaying ? '暂停' : '播放',
                                   onPressed: playback.isBuffering || playback.isLoading
                                       ? null
-                                      : _session.togglePlayPause,
+                                      : () => runPlaybackActionWithFeedback(
+                                            context,
+                                            _session.togglePlayPause,
+                                          ),
                                   style: IconButton.styleFrom(
                                     backgroundColor: AppColors.pureWhite,
                                     foregroundColor: AppColors.pureBlack,
@@ -157,7 +164,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                               IconButton(
                                 tooltip: '下一首',
                                 onPressed: session.canSkipNext
-                                    ? _session.skipNext
+                                    ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipNext,
+                                        )
                                     : null,
                                 icon: const Icon(Icons.skip_next_rounded),
                               ),
