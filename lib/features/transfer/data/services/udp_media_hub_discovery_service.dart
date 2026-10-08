@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/models/media_hub_discovery.dart';
 import '../../domain/services/media_hub_discovery_service.dart';
+import 'media_hub_discovery_auth.dart';
 
 class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
   static const int discoveryPort = 48518;
@@ -23,7 +24,13 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
     Duration timeout = const Duration(seconds: 2),
   }) async {
     final deviceId = knownConnection.deviceId?.trim();
-    if (deviceId == null || deviceId.isEmpty) return null;
+    final discoveryKey = knownConnection.discoveryKey?.trim();
+    if (deviceId == null ||
+        deviceId.isEmpty ||
+        discoveryKey == null ||
+        discoveryKey.isEmpty) {
+      return null;
+    }
 
     RawDatagramSocket? socket;
     StreamSubscription<RawSocketEvent>? subscription;
@@ -31,6 +38,11 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
     Timer? timeoutTimer;
     final completer = Completer<MediaHubDiscoveryResult?>();
     final requestId = _uuid.v4();
+    final requestProof = mediaHubDiscoveryRequestProof(
+      key: discoveryKey,
+      deviceId: deviceId,
+      requestId: requestId,
+    );
     final payload = utf8.encode(
       jsonEncode({
         'service': serviceName,
@@ -38,6 +50,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
         'type': 'discover',
         'deviceId': deviceId,
         'requestId': requestId,
+        'proof': requestProof,
       }),
     );
 
@@ -99,13 +112,31 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
               continue;
             }
             final port = body['port'];
-            if (port is! num || port.toInt() <= 0) continue;
+            final token = body['token'];
+            final proof = body['proof'];
+            if (port is! num ||
+                port.toInt() <= 0 ||
+                token is! String ||
+                token.trim().isEmpty ||
+                proof is! String ||
+                proof.trim().isEmpty) {
+              continue;
+            }
+            final expectedProof = mediaHubDiscoveryOfferProof(
+              key: discoveryKey,
+              deviceId: deviceId,
+              requestId: requestId,
+              port: port.toInt(),
+              token: token.trim(),
+            );
+            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) continue;
 
             finish(
               MediaHubDiscoveryResult(
                 deviceId: deviceId,
                 host: currentDatagram.address.address,
                 port: port.toInt(),
+                token: token.trim(),
               ),
             );
             break;
