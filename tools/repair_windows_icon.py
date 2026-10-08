@@ -1,4 +1,4 @@
-"""Rebuild the Windows runner icon from the known-good macOS PNG artwork.
+"""Rebuild the Windows runner icon from assets/images/icon.png.
 
 Usage: python tools/repair_windows_icon.py
 Requires: python -m pip install Pillow
@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
+SOURCE = ROOT / "assets/images/icon.png"
 ICON = ROOT / "windows/runner/resources/app_icon.ico"
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 
@@ -18,9 +18,6 @@ def main():
 
     ICON.parent.mkdir(parents=True, exist_ok=True)
 
-    # Do not attempt to decode the existing Windows ICO. It may be malformed
-    # (RC2176 / old DIB) and Pillow may reject it entirely. Instead, rebuild it
-    # from the repository's known-good 1024px PNG artwork.
     with Image.open(SOURCE) as source:
         image = source.convert("RGBA").copy()
 
@@ -31,7 +28,6 @@ def main():
         bitmap_format="bmp",
     )
 
-    # Verify that the replacement is a readable multi-resolution ICO.
     with Image.open(ICON) as repaired:
         available = repaired.info.get("sizes", set())
         required = {(16, 16), (32, 32), (48, 48), (256, 256)}
