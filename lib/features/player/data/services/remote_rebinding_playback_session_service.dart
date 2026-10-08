@@ -228,11 +228,12 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
     final playback = delegate.playbackState;
     if (!playback.isPlaying && current?.isRemoteStream == true) {
       _remoteRefreshEnabled = true;
-      final itemId = current!.id;
+      final remoteCurrent = current!;
+      final itemId = remoteCurrent.id;
       final acquiredRefreshGuard = _refreshingIds.add(itemId);
       try {
-        final resolved = await _resolve(current, throwOnFailure: true);
-        final changed = !_sameResolvedItem(current, resolved);
+        final resolved = await _resolve(remoteCurrent, throwOnFailure: true);
+        final changed = !_sameResolvedItem(remoteCurrent, resolved);
         if (changed && playback.duration != null) {
           await delegate.playItem(
             resolved,
