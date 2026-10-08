@@ -141,10 +141,12 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       var currentIndex = originalCurrentId == null
           ? snapshot.state.currentIndex.clamp(0, restored.length - 1).toInt()
           : restored.indexWhere((item) => item.id == originalCurrentId);
+      var resumePosition = snapshot.position;
       if (currentIndex < 0) {
         currentIndex = snapshot.state.currentIndex
             .clamp(0, restored.length - 1)
             .toInt();
+        resumePosition = Duration.zero;
       }
 
       final restoredIds = restored.map((item) => item.id).toSet();
@@ -162,21 +164,21 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
         shuffleEnabled: snapshot.state.shuffleEnabled,
         repeatMode: snapshot.state.repeatMode,
       );
-      _pendingResumePosition = snapshot.position;
-      _lastSessionSavedPosition = snapshot.position;
+      _pendingResumePosition = resumePosition;
+      _lastSessionSavedPosition = resumePosition;
       _stateController.add(_state);
 
       final current = _state.currentItem;
       if (current != null && !current.isRemoteStream) {
         try {
           await _loadCurrent(
-            resumeFrom: snapshot.position,
+            resumeFrom: resumePosition,
             autoplay: false,
             persistHistory: false,
           );
         } catch (_) {
           _loadedItemId = null;
-          _pendingResumePosition = snapshot.position;
+          _pendingResumePosition = resumePosition;
         }
       }
     } catch (_) {
