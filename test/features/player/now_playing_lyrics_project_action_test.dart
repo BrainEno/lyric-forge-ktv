@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_resolver.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
-import 'package:lyric_forge_ktv/features/player/presentation/widgets/now_playing_lyrics_project_action.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
