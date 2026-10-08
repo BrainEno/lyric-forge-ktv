@@ -73,10 +73,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       final rawIndex = (map['currentIndex'] as num?)?.toInt() ?? 0;
       final currentIndex = rawIndex.clamp(0, queue.length - 1).toInt();
       final shuffleEnabled = map['shuffleEnabled'] as bool? ?? false;
-      final repeatName = map['repeatMode'] as String?;
-      final repeatMode = PlaybackRepeatMode.values.where(
-        (mode) => mode.name == repeatName,
-      ).firstOrNull ?? PlaybackRepeatMode.off;
+      final repeatMode = _repeatModeFor(map['repeatMode'] as String?);
       final rawOrder = map['unshuffledOrder'];
       final unshuffledOrder = rawOrder is List
           ? rawOrder.whereType<String>().toList(growable: false)
@@ -102,6 +99,20 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
     } catch (_) {
       return null;
     }
+  }
+
+  PlaybackRepeatMode _repeatModeFor(String? name) {
+    for (final mode in PlaybackRepeatMode.values) {
+      if (mode.name == name) return mode;
+    }
+    return PlaybackRepeatMode.off;
+  }
+
+  AudioSourceType _sourceFor(String? name) {
+    for (final source in AudioSourceType.values) {
+      if (source.name == name) return source;
+    }
+    return AudioSourceType.original;
   }
 
   @override
@@ -164,10 +175,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
   }
 
   PlaybackItem _itemFromJson(Map<String, dynamic> json) {
-    final sourceName = json['preferredSource'] as String?;
-    final preferredSource = AudioSourceType.values.where(
-      (source) => source.name == sourceName,
-    ).firstOrNull ?? AudioSourceType.original;
+    final preferredSource = _sourceFor(json['preferredSource'] as String?);
     final rawStreamUri = json['streamUri'] as String?;
     final streamUri = rawStreamUri == null || rawStreamUri.trim().isEmpty
         ? null
