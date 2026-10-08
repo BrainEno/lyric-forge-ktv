@@ -17,6 +17,7 @@ void main() {
   var artworkRequests = 0;
 
   setUp(() async {
+    artworkRequests = 0;
     cache = await Directory.systemTemp.createTemp('elysium-remote-artwork-');
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     delegate = _FakePlaybackSession();
