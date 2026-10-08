@@ -40,7 +40,8 @@ class FileMediaHubDeviceIdentityStore implements MediaHubDeviceIdentityStore {
 
     final identity = MediaHubDeviceIdentity(
       deviceId: _uuid.v4(),
-      discoveryKey: _uuid.v4().replaceAll('-', '') + _uuid.v4().replaceAll('-', ''),
+      accessToken:
+          _uuid.v4().replaceAll('-', '') + _uuid.v4().replaceAll('-', ''),
     );
     final temporary = File('${file.path}.tmp');
     await temporary.writeAsString(jsonEncode(identity.toJson()), flush: true);
