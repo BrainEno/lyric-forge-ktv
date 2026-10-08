@@ -7,6 +7,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
+import 'playback_queue_playlist_action.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
   final PlaybackSessionService session;
@@ -22,6 +23,25 @@ class PlaybackQueuePanel extends StatelessWidget {
     this.showBorder = true,
   });
 
+  Future<void> _saveQueue(
+    BuildContext context,
+    PlaybackSessionState state,
+  ) async {
+    final result = await savePlaybackQueueToPlaylist(context, state);
+    if (!context.mounted || result == null) return;
+
+    final skipped = result.skippedCount > 0
+        ? '，跳过 ${result.skippedCount} 个远程串流或歌词工程项目'
+        : '';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '已将 ${result.savedCount} 首本地歌曲保存到“${result.playlistName}”$skipped',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<PlaybackSessionState>(
@@ -29,6 +49,7 @@ class PlaybackQueuePanel extends StatelessWidget {
       initialData: session.currentState,
       builder: (context, snapshot) {
         final state = snapshot.data ?? const PlaybackSessionState();
+        final savableQueueCount = localQueuePlaylistPaths(state).length;
         return Container(
           height: height,
           decoration: BoxDecoration(
@@ -43,6 +64,9 @@ class PlaybackQueuePanel extends StatelessWidget {
                 session: session,
                 state: state,
                 allowClearAll: allowClearAll,
+                onSaveQueue: savableQueueCount > 0
+                    ? () => _saveQueue(context, state)
+                    : null,
                 onClearUpcoming: state.upcomingCount > 0
                     ? () => session.clearQueue()
                     : null,
@@ -94,6 +118,7 @@ class _QueueHeader extends StatelessWidget {
   final PlaybackSessionService session;
   final PlaybackSessionState state;
   final bool allowClearAll;
+  final VoidCallback? onSaveQueue;
   final VoidCallback? onClearUpcoming;
   final VoidCallback? onClearAll;
 
@@ -101,6 +126,7 @@ class _QueueHeader extends StatelessWidget {
     required this.session,
     required this.state,
     required this.allowClearAll,
+    required this.onSaveQueue,
     required this.onClearUpcoming,
     required this.onClearAll,
   });
@@ -132,6 +158,14 @@ class _QueueHeader extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                 ),
+              ),
+              IconButton(
+                tooltip: onSaveQueue == null
+                    ? '当前队列没有可保存的本地歌曲'
+                    : '保存队列到播放列表',
+                onPressed: onSaveQueue,
+                icon: const Icon(Icons.playlist_add_rounded),
+                iconSize: 20,
               ),
               PlaybackModeControls(session: session, compact: true),
             ],
