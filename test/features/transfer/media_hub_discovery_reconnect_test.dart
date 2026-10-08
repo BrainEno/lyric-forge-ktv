@@ -1,13 +1,19 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/discoverable_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/file_media_hub_device_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_device_identity.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_discovery.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_session.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/models/shared_audio_track.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_device_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_discovery_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_service.dart';
 
 void main() {
   test('device identity remains stable across store instances', () async {
@@ -27,6 +33,31 @@ void main() {
     expect(second.discoveryKey, first.discoveryKey);
     expect(first.deviceId, isNotEmpty);
     expect(first.discoveryKey.length, greaterThanOrEqualTo(32));
+  });
+
+  test('discoverable hub decorates each session with stable pairing identity',
+      () async {
+    const identity = MediaHubDeviceIdentity(
+      deviceId: 'desktop-device-1',
+      discoveryKey: 'paired-discovery-key',
+    );
+    final rawHub = _FakeMediaHubService();
+    final hub = DiscoverableMediaHubService(
+      delegate: rawHub,
+      identityStore: const _FixedIdentityStore(identity),
+    );
+    addTearDown(hub.dispose);
+
+    final session = await hub.startSharing(const <SharedAudioTrack>[]);
+
+    expect(session.deviceId, identity.deviceId);
+    expect(session.discoveryKey, identity.discoveryKey);
+    expect(session.pairingUri.queryParameters['deviceId'], identity.deviceId);
+    expect(
+      session.pairingUri.queryParameters['discoveryKey'],
+      identity.discoveryKey,
+    );
+    expect(rawHub.startCalls, 1);
   });
 
   test('pairing URI and saved connection round-trip discovery identity', () {
@@ -52,7 +83,9 @@ void main() {
 
   test('stale saved endpoint is recovered through paired discovery', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    addTearDown(() => server.close(force: true));
+    addTearDown(() async {
+      await server.close(force: true);
+    });
     server.listen((request) async {
       final authorization =
           request.headers.value(HttpHeaders.authorizationHeader);
@@ -145,5 +178,57 @@ class _FakeDiscoveryService implements MediaHubDiscoveryService {
     expect(knownConnection.deviceId, 'desktop-device-1');
     expect(knownConnection.discoveryKey, 'paired-discovery-key');
     return result;
+  }
+}
+
+class _FixedIdentityStore implements MediaHubDeviceIdentityStore {
+  final MediaHubDeviceIdentity identity;
+
+  const _FixedIdentityStore(this.identity);
+
+  @override
+  Future<MediaHubDeviceIdentity> loadOrCreate() async => identity;
+}
+
+class _FakeMediaHubService implements MediaHubService {
+  final StreamController<MediaHubState> _controller =
+      StreamController<MediaHubState>.broadcast();
+  MediaHubState _state = const MediaHubState.stopped();
+  int startCalls = 0;
+
+  @override
+  Stream<MediaHubState> get stateStream => _controller.stream;
+
+  @override
+  MediaHubState get currentState => _state;
+
+  @override
+  MediaHubSession? get currentSession => _state.session;
+
+  @override
+  bool get isRunning => _state.isRunning;
+
+  @override
+  Future<MediaHubSession> startSharing(List<SharedAudioTrack> tracks) async {
+    startCalls++;
+    final session = MediaHubSession(
+      host: InternetAddress.loopbackIPv4.address,
+      port: 48517,
+      token: 'raw-session-token-$startCalls',
+      startedAt: DateTime.utc(2026, 10, 8),
+      trackCount: tracks.length,
+    );
+    _state = MediaHubState(
+      status: MediaHubStatus.running,
+      session: session,
+    );
+    _controller.add(_state);
+    return session;
+  }
+
+  @override
+  Future<void> stopSharing() async {
+    _state = const MediaHubState.stopped();
+    _controller.add(_state);
   }
 }
