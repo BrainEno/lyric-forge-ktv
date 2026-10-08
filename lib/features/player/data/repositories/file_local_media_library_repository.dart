@@ -295,6 +295,16 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   }
 
   @override
+  Future<void> removeRoot(String rootPath) async {
+    await _ensureLoaded();
+    if (rootPath.trim().isEmpty) return;
+    final key = _directoryKey(rootPath);
+    final before = _roots.length;
+    _roots.removeWhere((value) => _directoryKey(value) == key);
+    if (_roots.length != before) await _persist();
+  }
+
+  @override
   Future<List<LocalMediaLibraryEntry>> refreshAvailability() async {
     await _ensureLoaded();
     await _discoverFromRoots(_defaultAudioExtensions);
