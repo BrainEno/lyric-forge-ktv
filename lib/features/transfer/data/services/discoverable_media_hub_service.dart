@@ -9,13 +9,12 @@ import '../../domain/services/media_hub_device_identity_store.dart';
 import '../../domain/services/media_hub_service.dart';
 import 'udp_media_hub_discovery_service.dart';
 
-/// Adds a stable desktop identity and an authenticated-by-pairing UDP discovery
-/// responder around the existing HTTP Media Hub.
+/// Adds a stable desktop identity and credential-free UDP endpoint discovery
+/// around the existing HTTP Media Hub.
 ///
-/// The current HTTP access token is only returned in a unicast discovery offer
-/// after the requester presents the discovery key it previously received via
-/// the pairing URI. This is a convenience/recovery protocol for the same local
-/// network trust model as the existing HTTP Media Hub; it is not TLS.
+/// UDP exposes only the stable device ID and current HTTP port. Authentication
+/// always stays on the HTTP connection with the bearer token obtained during
+/// explicit pairing; no access credential is sent in discovery packets.
 class DiscoverableMediaHubService implements MediaHubService {
   final MediaHubService delegate;
   final MediaHubDeviceIdentityStore identityStore;
@@ -59,7 +58,6 @@ class DiscoverableMediaHubService implements MediaHubService {
         trackCount: raw.trackCount,
         endpoints: raw.endpoints,
         deviceId: identity.deviceId,
-        discoveryKey: identity.discoveryKey,
       );
       await _startDiscoveryResponder(session, identity);
       _emit(
@@ -130,7 +128,6 @@ class DiscoverableMediaHubService implements MediaHubService {
           body['version'] != UdpMediaHubDiscoveryService.protocolVersion ||
           body['type'] != 'discover' ||
           body['deviceId'] != identity.deviceId ||
-          body['discoveryKey'] != identity.discoveryKey ||
           requestId is! String ||
           requestId.trim().isEmpty) {
         return;
@@ -144,7 +141,6 @@ class DiscoverableMediaHubService implements MediaHubService {
           'deviceId': identity.deviceId,
           'requestId': requestId,
           'port': session.port,
-          'token': session.token,
           'deviceName': Platform.localHostname,
         }),
       );
