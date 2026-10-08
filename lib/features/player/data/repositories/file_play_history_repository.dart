@@ -9,8 +9,9 @@ import '../../domain/repositories/play_history_repository.dart';
 /// File-backed recent-play history for local audio.
 ///
 /// History is stored under LyricForge's application-support Data directory and
-/// rewritten atomically after every mutation. Missing local files are pruned
-/// whenever recent history is read so stale cards do not survive indefinitely.
+/// rewritten atomically after every mutation. Missing local files are hidden
+/// from normal recent-history reads but retained so a moved file can be relinked
+/// without losing its resume position or last-played timestamp.
 class FilePlayHistoryRepository implements PlayHistoryRepository {
   final Directory? rootDirectory;
 
@@ -116,29 +117,6 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     return operation;
   }
 
-  Future<bool> _pruneMissingFiles() async {
-    if (_histories.isEmpty) return false;
-
-    var changed = false;
-    final retained = <PlayHistory>[];
-    for (final history in _histories) {
-      if (_isRemotePath(history.filePath)) {
-        changed = true;
-      } else if (await File(history.filePath).exists()) {
-        retained.add(history);
-      } else {
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      _histories
-        ..clear()
-        ..addAll(retained);
-    }
-    return changed;
-  }
-
   @override
   Future<void> savePlayHistory(PlayHistory history) async {
     if (_isRemotePath(history.filePath)) return;
@@ -155,16 +133,22 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
   @override
   Future<List<PlayHistory>> getRecentPlayHistory({int limit = 10}) async {
     await _ensureLoaded();
-    if (await _pruneMissingFiles()) {
-      await _persist();
-    }
     final safeLimit = limit < 0 ? 0 : limit;
-    return _histories.take(safeLimit).toList(growable: false);
+    if (safeLimit == 0) return const [];
+
+    final visible = <PlayHistory>[];
+    for (final history in _histories) {
+      if (await File(history.filePath).exists()) {
+        visible.add(history);
+        if (visible.length >= safeLimit) break;
+      }
+    }
+    return visible;
   }
 
-  /// Rebinds a recent-play row before normal reads have a chance to prune the
-  /// now-missing old path. If the destination already has history, whichever
-  /// row was played most recently wins so resume state remains deterministic.
+  /// Rebinds a retained local history row after the source file has moved.
+  /// If the destination already has history, whichever row was played most
+  /// recently wins so resume state remains deterministic.
   Future<bool> replaceLocalPath({
     required String oldPath,
     required String newPath,
@@ -224,15 +208,8 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     if (index < 0) return null;
 
     final history = _histories[index];
-    if (_isRemotePath(history.filePath)) {
-      _histories.removeAt(index);
-      await _persist();
-      return null;
-    }
-    if (await File(history.filePath).exists()) return history;
-
-    _histories.removeAt(index);
-    await _persist();
-    return null;
+    if (_isRemotePath(history.filePath)) return null;
+    if (!await File(history.filePath).exists()) return null;
+    return history;
   }
 }
