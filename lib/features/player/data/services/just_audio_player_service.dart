@@ -5,17 +5,25 @@ import 'package:just_audio/just_audio.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
+import 'desktop_audio_backend.dart';
 
-/// just_audio 实现的音频播放器服务
+/// just_audio 实现的音频播放器服务。
+///
+/// Windows/Linux 会在构造底层 AudioPlayer 前注册 media-kit/libmpv/FFmpeg
+/// 后端，以兼容 VBR、较老 MPEG Layer III 变体以及宿主系统解码器不支持的
+/// MP3 文件。移动端继续使用 just_audio 原生后端。
 class JustAudioPlayerService implements AudioPlayerService {
-  final AudioPlayer _player = AudioPlayer();
+  late final AudioPlayer _player;
   AudioAsset? _currentAsset;
   AudioSourceType? _currentSource;
+  String? _lastError;
 
   final _stateController = StreamController<PlaybackState>.broadcast();
   PlaybackState _currentState = const PlaybackState.idle();
 
   JustAudioPlayerService() {
+    initializeDesktopAudioBackend();
+    _player = AudioPlayer();
     _initStateStreams();
   }
 
@@ -35,9 +43,32 @@ class JustAudioPlayerService implements AudioPlayerService {
     _player.bufferedPositionStream.listen((buffered) {
       _updateState();
     });
+
+    _player.errorStream.listen((error) {
+      _lastError = _friendlyPlaybackError(error);
+      _updateState();
+    });
+  }
+
+  String _friendlyPlaybackError(Object error) {
+    return '无法解码或播放此音频。文件可能损坏，或实际编码与扩展名不一致。'
+        '桌面端已启用兼容解码后端。\n$error';
+  }
+
+  Future<void> _runLoad(Future<void> Function() operation) async {
+    _lastError = null;
+    try {
+      await operation();
+    } catch (error) {
+      _lastError = _friendlyPlaybackError(error);
+      _updateState();
+      rethrow;
+    }
   }
 
   void _updateState() {
+    if (_stateController.isClosed) return;
+
     final playerState = _player.playerState;
     final isLoading = playerState.processingState == ProcessingState.loading;
     final isBuffering = playerState.processingState == ProcessingState.buffering;
@@ -54,7 +85,7 @@ class JustAudioPlayerService implements AudioPlayerService {
       speed: _player.speed,
       volume: _player.volume,
       currentSource: _currentSource,
-      error: null,
+      error: _lastError,
     );
 
     _stateController.add(_currentState);
@@ -94,11 +125,13 @@ class JustAudioPlayerService implements AudioPlayerService {
     _currentSource = source;
 
     if (uri.scheme == 'file') {
-      await _player.setFilePath(uri.toFilePath());
+      await _runLoad(
+        () async => _player.setFilePath(uri.toFilePath()),
+      );
       return;
     }
 
-    await _player.setUrl(uri.toString());
+    await _runLoad(() async => _player.setUrl(uri.toString()));
   }
 
   Future<void> _loadProjectSource(AudioSourceType source) async {
@@ -112,18 +145,26 @@ class JustAudioPlayerService implements AudioPlayerService {
     _currentSource = source;
     final uri = Uri.tryParse(path);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      await _player.setUrl(uri.toString());
+      await _runLoad(() async => _player.setUrl(uri.toString()));
       return;
     }
     if (uri != null && uri.scheme == 'file') {
-      await _player.setFilePath(uri.toFilePath());
+      await _runLoad(() async => _player.setFilePath(uri.toFilePath()));
       return;
     }
-    await _player.setFilePath(path);
+    await _runLoad(() async => _player.setFilePath(path));
   }
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() async {
+    try {
+      await _player.play();
+    } catch (error) {
+      _lastError = _friendlyPlaybackError(error);
+      _updateState();
+      rethrow;
+    }
+  }
 
   @override
   Future<void> pause() => _player.pause();
@@ -150,7 +191,7 @@ class JustAudioPlayerService implements AudioPlayerService {
     await _player.seek(currentPosition);
 
     if (wasPlaying) {
-      await _player.play();
+      await play();
     }
   }
 
@@ -174,7 +215,7 @@ class JustAudioPlayerService implements AudioPlayerService {
 
   @override
   Future<void> dispose() async {
-    await _stateController.close();
     await _player.dispose();
+    await _stateController.close();
   }
 }
