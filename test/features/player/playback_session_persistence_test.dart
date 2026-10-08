@@ -47,6 +47,11 @@ void main() {
     expect(restored.currentIndex, 1);
     expect(restored.shuffleEnabled, isTrue);
     expect(restored.repeatMode, PlaybackRepeatMode.one);
+    for (var attempt = 0;
+        attempt < 20 && audio.lastSeek != const Duration(seconds: 42);
+        attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+    }
     expect(audio.loadProjectCalls, 1);
     expect(audio.loadUriCalls, 0);
     expect(audio.lastSeek, const Duration(seconds: 42));
