@@ -7,8 +7,9 @@ import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
-/// Guarantees that every Media Hub audio load uses the latest connection known
-/// to the app, including loads triggered internally by automatic queue advance.
+/// Guarantees that every Media Hub audio load uses the latest usable connection
+/// known to the app, including loads triggered internally by automatic queue
+/// advance.
 ///
 /// Non-Media-Hub HTTP audio and local/project audio pass through unchanged.
 class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
@@ -57,16 +58,35 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     if (!_looksLikeMediaHubAudio(original)) return original;
 
     final active = client.currentConnection;
-    if (active != null) return _rebase(original, active);
-
     final saved = await connectionStore.loadLastConnection();
-    if (saved == null) return original;
+    final candidates = <MediaHubConnection>[];
+    if (active != null) candidates.add(active);
+    if (saved != null &&
+        (active == null || !_sameConnection(active, saved))) {
+      candidates.add(saved);
+    }
 
-    // On a freshly launched app this health-checks the saved desktop and makes
-    // it the shared current connection before just_audio sees the URI.
-    await client.connectTo(saved);
-    return _rebase(original, saved);
+    if (candidates.isEmpty) return original;
+
+    Object? lastError;
+    for (final connection in candidates) {
+      try {
+        // connectTo performs the Media Hub health/protocol check and updates the
+        // client's shared current connection on success. This matters for
+        // automatic queue advancement, which has no UI layer to refresh first.
+        await client.connectTo(connection);
+        return _rebase(original, connection);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (lastError != null) throw lastError;
+    return original;
   }
+
+  bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
+      a.host == b.host && a.port == b.port && a.token == b.token;
 
   bool _looksLikeMediaHubAudio(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
