@@ -4,37 +4,8 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/playback_lyrics_project_resolver.dart';
 import '../../domain/services/playback_session_service.dart';
-
-/// Resolves the project that should back the current playback item's lyrics.
-///
-/// Project queue items already carry [PlaybackItem.projectId]. Local-library
-/// items instead keep their lyric relationship in user metadata as
-/// `linkedProjectId`, so Now Playing needs to bridge that persisted link before
-/// it can enter the existing project/KTV player.
-Future<String?> resolvePlaybackLyricsProjectId({
-  required PlaybackItem item,
-  required ProjectRepository projectRepository,
-  required LocalMediaMetadataRepository metadataRepository,
-}) async {
-  final directProjectId = item.projectId?.trim();
-  if (directProjectId != null && directProjectId.isNotEmpty) {
-    final project = await projectRepository.getProjectById(directProjectId);
-    return project?.id;
-  }
-
-  if (item.isRemoteStream || !item.hasLyrics) return null;
-
-  final metadata = await metadataRepository.getForAudio(
-    item.audioAsset.originalPath,
-  );
-  final rawProjectId = metadata?.metadata['linkedProjectId'];
-  if (rawProjectId is! String || rawProjectId.trim().isEmpty) return null;
-
-  final project = await projectRepository.getProjectById(rawProjectId.trim());
-  if (project == null || !project.hasLyrics) return null;
-  return project.id;
-}
 
 class NowPlayingLyricsProjectAction extends StatefulWidget {
   final PlaybackItem item;
