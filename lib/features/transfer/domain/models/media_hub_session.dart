@@ -46,11 +46,6 @@ class MediaHubSession {
   /// when its address changes.
   final String? deviceId;
 
-  /// Pairing-only credential used by the UDP discovery responder. It is never
-  /// included in discovery offers; only clients that previously paired receive
-  /// it through the QR/pairing URI.
-  final String? discoveryKey;
-
   const MediaHubSession({
     required this.host,
     required this.port,
@@ -59,7 +54,6 @@ class MediaHubSession {
     required this.trackCount,
     this.endpoints = const [],
     this.deviceId,
-    this.discoveryKey,
   });
 
   Uri get baseUri => Uri(
@@ -90,8 +84,6 @@ class MediaHubSession {
           'token': token,
           'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
           if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
-          if (discoveryKey?.trim().isNotEmpty == true)
-            'discoveryKey': discoveryKey!.trim(),
         },
       );
 }
