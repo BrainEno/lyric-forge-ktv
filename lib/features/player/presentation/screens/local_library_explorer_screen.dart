@@ -16,6 +16,7 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
+import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
@@ -35,6 +36,7 @@ class _LocalLibraryExplorerScreenState
   late final LocalMediaCollectionRepository _collections;
   late final PlayHistoryRepository _history;
   late final AudioLibraryImportService _importer;
+  late final LocalMediaRelinkService _relink;
   late final PlaybackSessionService _session;
   late final TextEditingController _searchController;
   StreamSubscription<int>? _collectionSubscription;
@@ -57,6 +59,7 @@ class _LocalLibraryExplorerScreenState
     _collections = services.localMediaCollectionRepository;
     _history = services.playHistoryRepository;
     _importer = services.audioLibraryImportService;
+    _relink = services.localMediaRelinkService;
     _session = services.playbackSessionService;
     _searchController = TextEditingController();
     _collectionSubscription = _collections.changes.listen((_) {
@@ -232,6 +235,23 @@ class _LocalLibraryExplorerScreenState
     await _reload(showLoading: false);
   }
 
+  Future<void> _relinkMissing(_ExplorerSong song) => _withWork(() async {
+        if (song.playable) return;
+        final result = await _relink.pickReplacementAndRelink(
+          song.entry.sourcePath,
+        );
+        if (result == null) return;
+        await _reload(showLoading: false);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留',
+            ),
+          ),
+        );
+      });
+
   Future<void> _remove(_ExplorerSong song) async {
     await _library.remove(song.entry.sourcePath);
     await _reload(showLoading: false);
@@ -367,6 +387,7 @@ class _LocalLibraryExplorerScreenState
                                   onEnqueue: _enqueue,
                                   onEdit: _edit,
                                   onLyrics: _lyrics,
+                                  onRelink: _relinkMissing,
                                   onRemove: _remove,
                                 )
                               : _ExplorerList(
@@ -375,6 +396,7 @@ class _LocalLibraryExplorerScreenState
                                   onEnqueue: _enqueue,
                                   onEdit: _edit,
                                   onLyrics: _lyrics,
+                                  onRelink: _relinkMissing,
                                   onRemove: _remove,
                                 ),
             ),
@@ -670,6 +692,7 @@ class _ExplorerGrid extends StatelessWidget {
   final ValueChanged<_ExplorerSong> onEnqueue;
   final ValueChanged<_ExplorerSong> onEdit;
   final ValueChanged<_ExplorerSong> onLyrics;
+  final ValueChanged<_ExplorerSong> onRelink;
   final ValueChanged<_ExplorerSong> onRemove;
 
   const _ExplorerGrid({
@@ -678,6 +701,7 @@ class _ExplorerGrid extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onRelink,
     required this.onRemove,
   });
 
@@ -709,6 +733,7 @@ class _ExplorerGrid extends StatelessWidget {
               onEnqueue: () => onEnqueue(song),
               onEdit: () => onEdit(song),
               onLyrics: () => onLyrics(song),
+              onRelink: () => onRelink(song),
               onRemove: () => onRemove(song),
             );
           },
@@ -724,6 +749,7 @@ class _ExplorerList extends StatelessWidget {
   final ValueChanged<_ExplorerSong> onEnqueue;
   final ValueChanged<_ExplorerSong> onEdit;
   final ValueChanged<_ExplorerSong> onLyrics;
+  final ValueChanged<_ExplorerSong> onRelink;
   final ValueChanged<_ExplorerSong> onRemove;
 
   const _ExplorerList({
@@ -732,6 +758,7 @@ class _ExplorerList extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onRelink,
     required this.onRemove,
   });
 
@@ -745,7 +772,6 @@ class _ExplorerList extends StatelessWidget {
       itemBuilder: (context, index) {
         final song = songs[index];
         return ListTile(
-          enabled: song.playable,
           minVerticalPadding: layout.isCompact ? AppSpacing.sm : null,
           leading: SizedBox(
             width: layout.minimumInteractiveExtent,
@@ -764,6 +790,7 @@ class _ExplorerList extends StatelessWidget {
             onEnqueue: () => onEnqueue(song),
             onEdit: () => onEdit(song),
             onLyrics: () => onLyrics(song),
+            onRelink: () => onRelink(song),
             onRemove: () => onRemove(song),
           ),
         );
@@ -779,6 +806,7 @@ class _ExplorerCard extends StatelessWidget {
   final VoidCallback onEnqueue;
   final VoidCallback onEdit;
   final VoidCallback onLyrics;
+  final VoidCallback onRelink;
   final VoidCallback onRemove;
 
   const _ExplorerCard({
@@ -788,6 +816,7 @@ class _ExplorerCard extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onRelink,
     required this.onRemove,
   });
 
@@ -827,6 +856,7 @@ class _ExplorerCard extends StatelessWidget {
                   onEnqueue: onEnqueue,
                   onEdit: onEdit,
                   onLyrics: onLyrics,
+                  onRelink: onRelink,
                   onRemove: onRemove,
                 ),
               ],
@@ -869,6 +899,7 @@ class _SongMenu extends StatelessWidget {
   final VoidCallback onEnqueue;
   final VoidCallback onEdit;
   final VoidCallback onLyrics;
+  final VoidCallback onRelink;
   final VoidCallback onRemove;
 
   const _SongMenu({
@@ -876,6 +907,7 @@ class _SongMenu extends StatelessWidget {
     required this.onEnqueue,
     required this.onEdit,
     required this.onLyrics,
+    required this.onRelink,
     required this.onRemove,
   });
 
@@ -893,6 +925,9 @@ class _SongMenu extends StatelessWidget {
           case 'lyrics':
             onLyrics();
             return;
+          case 'relink':
+            onRelink();
+            return;
           case 'remove':
             onRemove();
             return;
@@ -908,6 +943,8 @@ class _SongMenu extends StatelessWidget {
             value: 'lyrics',
             child: Text(song.hasLyrics ? '打开歌词' : '导入歌词'),
           ),
+        if (!song.playable)
+          const PopupMenuItem(value: 'relink', child: Text('重新定位文件')),
         const PopupMenuDivider(),
         const PopupMenuItem(value: 'remove', child: Text('从音乐库移除')),
       ],
