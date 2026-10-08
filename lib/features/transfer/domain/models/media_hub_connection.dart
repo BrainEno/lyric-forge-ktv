@@ -13,15 +13,22 @@ class MediaHubConnection {
   /// Stable desktop installation identity. Null for legacy saved connections.
   final String? deviceId;
 
+  /// Secret obtained only during explicit pairing. It is stored locally and is
+  /// used to sign/verify UDP discovery packets without sending the raw secret.
+  final String? discoveryKey;
+
   const MediaHubConnection({
     required this.host,
     required this.port,
     required this.token,
     this.transport = MediaHubTransport.unknown,
     this.deviceId,
+    this.discoveryKey,
   });
 
-  bool get supportsDiscovery => deviceId?.trim().isNotEmpty == true;
+  bool get supportsDiscovery =>
+      deviceId?.trim().isNotEmpty == true &&
+      discoveryKey?.trim().isNotEmpty == true;
 
   Uri get baseUri => Uri(
         scheme: 'http',
@@ -36,6 +43,7 @@ class MediaHubConnection {
     String? token,
     MediaHubTransport? transport,
     String? deviceId,
+    String? discoveryKey,
   }) {
     return MediaHubConnection(
       host: host ?? this.host,
@@ -43,6 +51,7 @@ class MediaHubConnection {
       token: token ?? this.token,
       transport: transport ?? this.transport,
       deviceId: deviceId ?? this.deviceId,
+      discoveryKey: discoveryKey ?? this.discoveryKey,
     );
   }
 
@@ -74,6 +83,7 @@ class MediaHubConnection {
       _ => MediaHubTransport.unknown,
     };
     final deviceId = uri.queryParameters['deviceId']?.trim();
+    final discoveryKey = uri.queryParameters['discoveryKey']?.trim();
 
     return MediaHubConnection(
       host: host,
@@ -81,6 +91,7 @@ class MediaHubConnection {
       token: token,
       transport: transport,
       deviceId: deviceId?.isNotEmpty == true ? deviceId : null,
+      discoveryKey: discoveryKey?.isNotEmpty == true ? discoveryKey : null,
     );
   }
 
@@ -100,6 +111,7 @@ class MediaHubConnection {
       _ => MediaHubTransport.unknown,
     };
     final deviceId = json['deviceId'] as String?;
+    final discoveryKey = json['discoveryKey'] as String?;
 
     return MediaHubConnection(
       host: host,
@@ -107,6 +119,9 @@ class MediaHubConnection {
       token: token,
       transport: transport,
       deviceId: deviceId?.trim().isNotEmpty == true ? deviceId!.trim() : null,
+      discoveryKey: discoveryKey?.trim().isNotEmpty == true
+          ? discoveryKey!.trim()
+          : null,
     );
   }
 
@@ -117,6 +132,8 @@ class MediaHubConnection {
       'token': token,
       'transport': transport.name,
       if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
+      if (discoveryKey?.trim().isNotEmpty == true)
+        'discoveryKey': discoveryKey!.trim(),
     };
   }
 
