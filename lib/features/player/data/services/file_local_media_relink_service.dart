@@ -77,10 +77,14 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
     if (oldEntry == null) {
       throw StateError('音乐库中找不到需要重新定位的条目');
     }
+    if (!oldEntry.isMissing && await File(oldAbsolute).exists()) {
+      throw StateError('原音频文件仍然可用，不需要重新定位');
+    }
 
-    // Add the replacement first. The old missing library row is removed only
-    // after every related store has migrated successfully, so a failed relink
-    // never starts by deleting the user's existing reference.
+    // Add the replacement first. The old row and its metadata stay intact until
+    // every related store has received the replacement path. A failed migration
+    // can therefore leave duplicate references, but never starts by deleting the
+    // user's only known reference.
     await libraryRepository.addPaths([newAbsolute]);
     final replacement = await libraryRepository.getByPath(newAbsolute);
     if (replacement == null || replacement.isMissing) {
@@ -93,7 +97,6 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
       await metadataRepository.save(
         oldMetadata.copyWith(sourcePath: newAbsolute),
       );
-      await metadataRepository.removeForAudio(oldAbsolute);
       metadataMigrated = true;
     }
 
@@ -125,12 +128,12 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
           [newAbsolute],
         );
       }
+
       var updated = await collectionRepository.removeFromPlaylist(
         playlist.id,
         oldAbsolute,
       );
-
-      if (!alreadyContainsNew && updated.sourcePaths.isNotEmpty) {
+      if (updated.sourcePaths.isNotEmpty) {
         final currentIndex = updated.sourcePaths.indexWhere(
           (path) => _pathKey(path) == _pathKey(newAbsolute),
         );
@@ -149,6 +152,9 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
       playlistsMigrated += 1;
     }
 
+    if (oldMetadata != null) {
+      await metadataRepository.removeForAudio(oldAbsolute);
+    }
     await libraryRepository.remove(oldAbsolute);
 
     return LocalMediaRelinkResult(
