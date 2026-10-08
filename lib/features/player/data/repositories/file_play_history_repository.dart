@@ -162,6 +162,43 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     return _histories.take(safeLimit).toList(growable: false);
   }
 
+  /// Rebinds a recent-play row before normal reads have a chance to prune the
+  /// now-missing old path. If the destination already has history, whichever
+  /// row was played most recently wins so resume state remains deterministic.
+  Future<bool> replaceLocalPath({
+    required String oldPath,
+    required String newPath,
+  }) async {
+    await _ensureLoaded();
+    final oldKey = _pathKey(oldPath);
+    final newAbsolute = File(newPath).absolute.path;
+    final newKey = _pathKey(newAbsolute);
+    final oldIndex = _histories.indexWhere(
+      (history) => _pathKey(history.filePath) == oldKey,
+    );
+    if (oldIndex < 0) return false;
+
+    final oldHistory = _histories[oldIndex];
+    final migrated = oldHistory.copyWith(filePath: newAbsolute);
+    final existingIndex = _histories.indexWhere(
+      (history) => _pathKey(history.filePath) == newKey,
+    );
+    PlayHistory retained = migrated;
+    if (existingIndex >= 0 && existingIndex != oldIndex) {
+      final existing = _histories[existingIndex];
+      if (existing.playedAt.isAfter(migrated.playedAt)) retained = existing;
+    }
+
+    _histories.removeWhere((history) {
+      final key = _pathKey(history.filePath);
+      return key == oldKey || key == newKey;
+    });
+    _histories.add(retained);
+    _histories.sort((a, b) => b.playedAt.compareTo(a.playedAt));
+    await _persist();
+    return true;
+  }
+
   @override
   Future<void> clearPlayHistory() async {
     await _ensureLoaded();
