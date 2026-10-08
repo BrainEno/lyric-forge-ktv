@@ -53,6 +53,11 @@ dependencies:
 
   # Audio playback
   just_audio: ^0.10.5
+  # Windows/Linux decoder backend for broader MP3/VBR/container compatibility.
+  # Mobile/macOS continue using just_audio's native implementations.
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
+  media_kit_libs_linux: ^1.2.1
   audio_service: ^0.18.19
   audio_session: ^0.2.4
 
