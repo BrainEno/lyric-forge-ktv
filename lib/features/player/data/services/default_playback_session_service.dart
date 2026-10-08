@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/models/play_history.dart';
+import '../../domain/models/playback_session_snapshot.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/repositories/play_history_repository.dart';
+import '../../domain/repositories/playback_session_store.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 
@@ -13,30 +16,42 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   final AudioPlayerService _audioPlayer;
   final PlayHistoryRepository? _playHistoryRepository;
   final LocalMediaMetadataRepository? _localMediaMetadataRepository;
+  final PlaybackSessionStore? _sessionStore;
   final Random _random;
   final _stateController = StreamController<PlaybackSessionState>.broadcast();
 
   PlaybackSessionState _state = const PlaybackSessionState();
   StreamSubscription<PlaybackState>? _playbackSubscription;
   StreamSubscription<Duration>? _positionSubscription;
+  Timer? _sessionPersistTimer;
+  Future<void>? _restoreFuture;
+  bool _restoring = false;
+  bool _disposed = false;
   bool _handledCompletion = false;
   bool _wasPlaying = false;
   Duration? _lastHistorySavedPosition;
+  Duration? _lastSessionSavedPosition;
+  Duration? _pendingResumePosition;
+  String? _loadedItemId;
   List<String>? _unshuffledOrder;
 
   DefaultPlaybackSessionService(
     this._audioPlayer, {
     PlayHistoryRepository? playHistoryRepository,
     LocalMediaMetadataRepository? localMediaMetadataRepository,
+    PlaybackSessionStore? sessionStore,
     Random? random,
   })  : _playHistoryRepository = playHistoryRepository,
         _localMediaMetadataRepository = localMediaMetadataRepository,
+        _sessionStore = sessionStore,
         _random = random ?? Random() {
     _playbackSubscription = _audioPlayer.stateStream.listen((playback) {
+      if (_restoring || _disposed) return;
       final paused = _wasPlaying && !playback.isPlaying && !playback.isCompleted;
       _wasPlaying = playback.isPlaying;
       if (paused) {
         unawaited(_persistCurrentHistory());
+        unawaited(_persistSessionNow());
       }
 
       if (!playback.isCompleted) {
@@ -49,9 +64,17 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     });
 
     _positionSubscription = _audioPlayer.positionStream.listen((position) {
+      if (_restoring || _disposed || _state.currentItem == null) return;
+
+      final previousSession = _lastSessionSavedPosition;
+      if (previousSession == null ||
+          (position.inSeconds - previousSession.inSeconds).abs() >= 10) {
+        _lastSessionSavedPosition = position;
+        unawaited(_persistSessionNow(position: position));
+      }
+
       final item = _state.currentItem;
       if (item == null || item.projectId != null) return;
-
       final previous = _lastHistorySavedPosition;
       if (previous == null ||
           (position.inSeconds - previous.inSeconds).abs() >= 15) {
@@ -59,6 +82,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
         unawaited(_persistCurrentHistory(position: position));
       }
     });
+
+    _restoreFuture = _restorePersistedSession();
   }
 
   @override
@@ -70,19 +95,162 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   @override
   PlaybackState get playbackState => _audioPlayer.currentState;
 
+  Future<void> _awaitRestore() async {
+    final restore = _restoreFuture;
+    if (restore != null) await restore;
+  }
+
+  bool _isRemotePath(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
+  Future<bool> _isRestorable(PlaybackItem item) async {
+    if (item.isRemoteStream) return true;
+    final path = item.audioAsset.originalPath.trim();
+    if (path.isEmpty) return false;
+    if (_isRemotePath(path)) return true;
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.scheme == 'file') {
+      return File(uri.toFilePath()).exists();
+    }
+    return File(path).exists();
+  }
+
+  Future<void> _restorePersistedSession() async {
+    final store = _sessionStore;
+    if (store == null) return;
+
+    _restoring = true;
+    try {
+      final snapshot = await store.load();
+      if (snapshot == null || snapshot.state.queue.isEmpty) return;
+
+      final originalCurrentId = snapshot.state.currentItem?.id;
+      final restored = <PlaybackItem>[];
+      for (final item in snapshot.state.queue) {
+        if (!await _isRestorable(item)) continue;
+        restored.add(await _withLocalMediaMetadata(item));
+      }
+
+      if (restored.isEmpty) {
+        await store.clear();
+        return;
+      }
+
+      var currentIndex = originalCurrentId == null
+          ? snapshot.state.currentIndex.clamp(0, restored.length - 1).toInt()
+          : restored.indexWhere((item) => item.id == originalCurrentId);
+      var resumePosition = snapshot.position;
+      if (currentIndex < 0) {
+        currentIndex = snapshot.state.currentIndex
+            .clamp(0, restored.length - 1)
+            .toInt();
+        resumePosition = Duration.zero;
+      }
+
+      final restoredIds = restored.map((item) => item.id).toSet();
+      final savedUnshuffled = snapshot.unshuffledOrder
+          ?.where(restoredIds.contains)
+          .toList(growable: true);
+      _unshuffledOrder = snapshot.state.shuffleEnabled
+          ? (savedUnshuffled == null || savedUnshuffled.isEmpty
+              ? restored.map((item) => item.id).toList(growable: true)
+              : savedUnshuffled)
+          : null;
+      _state = PlaybackSessionState(
+        queue: List<PlaybackItem>.unmodifiable(restored),
+        currentIndex: currentIndex,
+        shuffleEnabled: snapshot.state.shuffleEnabled,
+        repeatMode: snapshot.state.repeatMode,
+      );
+      _pendingResumePosition = resumePosition;
+      _lastSessionSavedPosition = resumePosition;
+      _stateController.add(_state);
+
+      final current = _state.currentItem;
+      if (current != null && !current.isRemoteStream) {
+        try {
+          await _loadCurrent(
+            resumeFrom: resumePosition,
+            autoplay: false,
+            persistHistory: false,
+          );
+        } catch (_) {
+          _loadedItemId = null;
+          _pendingResumePosition = resumePosition;
+        }
+      }
+    } catch (_) {
+      // A stale/corrupt session is recoverable state and must never block app
+      // startup. The next normal playback mutation will overwrite it.
+    } finally {
+      _restoring = false;
+    }
+  }
+
+  void _scheduleSessionPersist() {
+    if (_sessionStore == null || _restoring || _disposed) return;
+    _sessionPersistTimer?.cancel();
+    _sessionPersistTimer = Timer(
+      const Duration(milliseconds: 250),
+      () => unawaited(_persistSessionNow()),
+    );
+  }
+
+  Duration _sessionPosition() {
+    final current = _state.currentItem;
+    if (current == null) return Duration.zero;
+    if (_loadedItemId == current.id) return _audioPlayer.currentState.position;
+    return _pendingResumePosition ?? Duration.zero;
+  }
+
+  Future<void> _persistSessionNow({Duration? position}) async {
+    final store = _sessionStore;
+    if (store == null || _restoring) return;
+    try {
+      if (_state.queue.isEmpty || _state.currentItem == null) {
+        await store.clear();
+        return;
+      }
+      final resolvedPosition = position ?? _sessionPosition();
+      _lastSessionSavedPosition = resolvedPosition;
+      await store.save(
+        PlaybackSessionSnapshot(
+          state: _state,
+          position: resolvedPosition < Duration.zero
+              ? Duration.zero
+              : resolvedPosition,
+          unshuffledOrder: _unshuffledOrder == null
+              ? null
+              : List<String>.unmodifiable(_unshuffledOrder!),
+          savedAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      // Session persistence is best-effort and must never interrupt playback.
+    }
+  }
+
   void _emit(PlaybackSessionState next) {
     final previousId = _state.currentItem?.id;
     _state = next;
     if (_state.currentItem?.id != previousId) {
       _lastHistorySavedPosition = null;
+      _lastSessionSavedPosition = null;
+      _pendingResumePosition = null;
+      _loadedItemId = null;
       _wasPlaying = false;
     }
     _stateController.add(_state);
+    _scheduleSessionPersist();
   }
 
   Future<PlaybackItem> _withLocalMediaMetadata(PlaybackItem item) async {
     final repository = _localMediaMetadataRepository;
-    if (repository == null || item.projectId != null) return item;
+    if (repository == null || item.projectId != null || item.isRemoteStream) {
+      return item;
+    }
 
     LocalMediaMetadata? metadata;
     try {
@@ -113,7 +281,12 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   Future<void> _persistCurrentHistory({Duration? position}) async {
     final repository = _playHistoryRepository;
     final item = _state.currentItem;
-    if (repository == null || item == null || item.projectId != null) return;
+    if (repository == null ||
+        item == null ||
+        item.projectId != null ||
+        item.isRemoteStream) {
+      return;
+    }
 
     final playback = _audioPlayer.currentState;
     final resolvedPosition = _historyPosition(
@@ -141,24 +314,49 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     }
   }
 
-  Future<void> _loadCurrent({Duration? resumeFrom}) async {
+  Future<void> _loadCurrent({
+    Duration? resumeFrom,
+    bool autoplay = true,
+    bool persistHistory = true,
+  }) async {
     final item = _state.currentItem;
     if (item == null) return;
 
-    await _audioPlayer.loadProjectAudio(
-      audioAsset: item.audioAsset,
-      preferredSource: item.preferredSource,
-    );
+    if (item.streamUri != null) {
+      await _audioPlayer.loadAudioUri(
+        uri: item.streamUri!,
+        source: item.preferredSource,
+      );
+    } else {
+      await _audioPlayer.loadProjectAudio(
+        audioAsset: item.audioAsset,
+        preferredSource: item.preferredSource,
+      );
+    }
+    _loadedItemId = item.id;
 
-    if (resumeFrom != null && resumeFrom > Duration.zero) {
+    final position = resumeFrom ?? _pendingResumePosition;
+    if (position != null && position > Duration.zero) {
       final duration = _audioPlayer.currentState.duration;
-      if (duration == null || resumeFrom < duration) {
-        await _audioPlayer.seek(resumeFrom);
+      if (duration == null || position < duration) {
+        await _audioPlayer.seek(position);
       }
     }
+    _pendingResumePosition = null;
 
-    await _audioPlayer.play();
-    await _persistCurrentHistory();
+    if (autoplay) await _audioPlayer.play();
+    if (persistHistory) await _persistCurrentHistory();
+    _scheduleSessionPersist();
+  }
+
+  Future<void> _ensureCurrentLoaded() async {
+    final current = _state.currentItem;
+    if (current == null || _loadedItemId == current.id) return;
+    await _loadCurrent(
+      resumeFrom: _pendingResumePosition,
+      autoplay: false,
+      persistHistory: false,
+    );
   }
 
   List<PlaybackItem> _shuffleUpcoming(
@@ -229,6 +427,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   }
 
   Future<void> _handleCompletion() async {
+    await _awaitRestore();
+    if (_restoring || _disposed) return;
     await _persistCurrentHistory();
     if (_state.currentItem == null) return;
 
@@ -257,6 +457,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     PlaybackItem item, {
     Duration? resumeFrom,
   }) async {
+    await _awaitRestore();
     if (_state.currentItem?.id != item.id) {
       await _persistCurrentHistory();
     }
@@ -293,11 +494,15 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     List<PlaybackItem> items, {
     int startIndex = 0,
   }) async {
+    await _awaitRestore();
     await _persistCurrentHistory();
     if (items.isEmpty) {
       _unshuffledOrder = _state.shuffleEnabled ? <String>[] : null;
       _emit(_state.copyWith(queue: const [], currentIndex: -1));
       await _audioPlayer.stop();
+      _loadedItemId = null;
+      _pendingResumePosition = null;
+      await _persistSessionNow();
       return;
     }
 
@@ -324,6 +529,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> enqueue(PlaybackItem item) async {
+    await _awaitRestore();
     final resolved = await _withLocalMediaMetadata(item);
     final queue = List<PlaybackItem>.from(_state.queue);
     if (queue.every((entry) => entry.id != resolved.id)) {
@@ -354,6 +560,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> updateItem(PlaybackItem item) async {
+    await _awaitRestore();
     final index = _state.queue.indexWhere((entry) => entry.id == item.id);
     if (index < 0) return;
 
@@ -367,13 +574,21 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> playAt(int index) async {
+    await _awaitRestore();
     if (index < 0 || index >= _state.queue.length) return;
-    if (index == _state.currentIndex) return;
+    if (index == _state.currentIndex) {
+      if (!_audioPlayer.currentState.isPlaying) {
+        await _ensureCurrentLoaded();
+        await _audioPlayer.play();
+      }
+      return;
+    }
     await _playIndex(index);
   }
 
   @override
   Future<void> removeAt(int index) async {
+    await _awaitRestore();
     if (index < 0 || index >= _state.queue.length) return;
 
     final queue = List<PlaybackItem>.from(_state.queue);
@@ -389,7 +604,10 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     if (queue.isEmpty) {
       _emit(_state.copyWith(queue: const [], currentIndex: -1));
       _handledCompletion = false;
+      _loadedItemId = null;
+      _pendingResumePosition = null;
       await _audioPlayer.stop();
+      await _persistSessionNow();
       return;
     }
 
@@ -418,6 +636,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> moveItem(int oldIndex, int newIndex) async {
+    await _awaitRestore();
     final length = _state.queue.length;
     if (oldIndex < 0 || oldIndex >= length || newIndex < 0 || newIndex >= length) {
       return;
@@ -439,10 +658,12 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       ),
     );
     _syncUnshuffledOrderToQueue(queue);
+    _scheduleSessionPersist();
   }
 
   @override
   Future<void> clearQueue({bool keepCurrent = true}) async {
+    await _awaitRestore();
     final current = _state.currentItem;
     if (keepCurrent && current != null) {
       if (_state.shuffleEnabled) _unshuffledOrder = <String>[current.id];
@@ -459,11 +680,15 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     _unshuffledOrder = _state.shuffleEnabled ? <String>[] : null;
     _emit(_state.copyWith(queue: const [], currentIndex: -1));
     _handledCompletion = false;
+    _loadedItemId = null;
+    _pendingResumePosition = null;
     await _audioPlayer.stop();
+    await _persistSessionNow();
   }
 
   @override
   Future<void> setShuffleEnabled(bool enabled) async {
+    await _awaitRestore();
     if (_state.shuffleEnabled == enabled) return;
     final currentId = _state.currentItem?.id;
     var queue = List<PlaybackItem>.from(_state.queue);
@@ -490,26 +715,40 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> setRepeatMode(PlaybackRepeatMode mode) async {
+    await _awaitRestore();
     if (_state.repeatMode == mode) return;
     _emit(_state.copyWith(repeatMode: mode));
   }
 
   @override
   Future<void> skipPrevious() async {
+    await _awaitRestore();
     if (_state.currentItem == null) return;
 
-    if (_audioPlayer.currentState.position > const Duration(seconds: 3)) {
-      await _audioPlayer.seek(Duration.zero);
+    final position = _loadedItemId == _state.currentItem?.id
+        ? _audioPlayer.currentState.position
+        : (_pendingResumePosition ?? Duration.zero);
+    if (position > const Duration(seconds: 3)) {
+      if (_loadedItemId == _state.currentItem?.id) {
+        await _audioPlayer.seek(Duration.zero);
+      } else {
+        _pendingResumePosition = Duration.zero;
+      }
       await _persistCurrentHistory(position: Duration.zero);
+      await _persistSessionNow(position: Duration.zero);
       return;
     }
 
     if (_state.currentIndex <= 0) {
       if (_state.repeatMode == PlaybackRepeatMode.all && _state.queue.isNotEmpty) {
         await _playIndex(_state.queue.length - 1);
-      } else {
+      } else if (_loadedItemId == _state.currentItem?.id) {
         await _audioPlayer.seek(Duration.zero);
         await _persistCurrentHistory(position: Duration.zero);
+        await _persistSessionNow(position: Duration.zero);
+      } else {
+        _pendingResumePosition = Duration.zero;
+        await _persistSessionNow(position: Duration.zero);
       }
       return;
     }
@@ -519,6 +758,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> skipNext() async {
+    await _awaitRestore();
     if (_state.currentItem == null) return;
     if (_state.currentIndex + 1 < _state.queue.length) {
       await _playIndex(_state.currentIndex + 1);
@@ -536,23 +776,40 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
 
   @override
   Future<void> togglePlayPause() async {
+    await _awaitRestore();
+    if (_state.currentItem == null) return;
     if (_audioPlayer.currentState.isPlaying) {
       await _audioPlayer.pause();
+      await _persistSessionNow();
     } else {
+      await _ensureCurrentLoaded();
       await _audioPlayer.play();
+      _scheduleSessionPersist();
     }
   }
 
   @override
   Future<void> seek(Duration position) async {
+    await _awaitRestore();
     _lastHistorySavedPosition = position;
-    await _audioPlayer.seek(position);
-    await _persistCurrentHistory(position: position);
+    _lastSessionSavedPosition = position;
+    if (_state.currentItem == null) return;
+    if (_loadedItemId == _state.currentItem?.id) {
+      await _audioPlayer.seek(position);
+      await _persistCurrentHistory(position: position);
+    } else {
+      _pendingResumePosition = position;
+    }
+    await _persistSessionNow(position: position);
   }
 
   @override
   Future<void> dispose() async {
+    await _awaitRestore();
+    _sessionPersistTimer?.cancel();
     await _persistCurrentHistory();
+    await _persistSessionNow();
+    _disposed = true;
     await _positionSubscription?.cancel();
     await _playbackSubscription?.cancel();
     await _stateController.close();
