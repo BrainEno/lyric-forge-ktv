@@ -13,6 +13,7 @@ import '../../domain/services/playback_session_service.dart';
 import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
+import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
 
@@ -284,7 +285,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               IconButton(
                                 tooltip: '上一首 / 重新开始',
                                 onPressed: session.canSkipPrevious
-                                    ? _session.skipPrevious
+                                    ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipPrevious,
+                                        )
                                     : null,
                                 icon: const Icon(Icons.skip_previous_rounded),
                               ),
@@ -295,7 +299,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 tooltip: playback.isPlaying ? '暂停' : '播放',
                                 onPressed: playback.isBuffering
                                     ? null
-                                    : _session.togglePlayPause,
+                                    : () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.togglePlayPause,
+                                        ),
                                 style: IconButton.styleFrom(
                                   backgroundColor: AppColors.pureWhite,
                                   foregroundColor: AppColors.pureBlack,
@@ -320,7 +327,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               IconButton(
                                 tooltip: '下一首',
                                 onPressed: session.canSkipNext
-                                    ? _session.skipNext
+                                    ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipNext,
+                                        )
                                     : null,
                                 icon: const Icon(Icons.skip_next_rounded),
                               ),
