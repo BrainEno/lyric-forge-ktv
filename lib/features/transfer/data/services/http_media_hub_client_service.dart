@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,13 +6,23 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
+import '../../domain/services/media_hub_discovery_service.dart';
+
+typedef MediaHubConnectionResolvedCallback = FutureOr<void> Function(
+  MediaHubConnection connection,
+);
 
 class HttpMediaHubClientService implements MediaHubClientService {
   final HttpClient _httpClient;
+  final MediaHubDiscoveryService? discoveryService;
+  final MediaHubConnectionResolvedCallback? onConnectionResolved;
   MediaHubConnection? _connection;
 
-  HttpMediaHubClientService({HttpClient? httpClient})
-      : _httpClient = httpClient ?? HttpClient();
+  HttpMediaHubClientService({
+    HttpClient? httpClient,
+    this.discoveryService,
+    this.onConnectionResolved,
+  }) : _httpClient = httpClient ?? HttpClient();
 
   @override
   MediaHubConnection? get currentConnection => _connection;
@@ -23,11 +34,43 @@ class HttpMediaHubClientService implements MediaHubClientService {
   Future<MediaHubConnection> connect(Uri pairingUri) async {
     final connection = MediaHubConnection.fromPairingUri(pairingUri);
     await connectTo(connection);
-    return connection;
+    return _connection ?? connection;
   }
 
   @override
   Future<void> connectTo(MediaHubConnection connection) async {
+    Object? directError;
+    try {
+      await _connectExact(connection);
+      return;
+    } catch (error) {
+      directError = error;
+    }
+
+    final discovery = discoveryService;
+    if (discovery != null && connection.supportsDiscovery) {
+      final discovered = await discovery.discover(connection);
+      if (discovered != null) {
+        final recovered = connection.copyWith(
+          host: discovered.host,
+          port: discovered.port,
+          token: discovered.token,
+          deviceId: discovered.deviceId,
+        );
+        try {
+          await _connectExact(recovered);
+          return;
+        } catch (error) {
+          directError = error;
+        }
+      }
+    }
+
+    if (directError is MediaHubClientException) throw directError;
+    throw MediaHubClientException('连接桌面端失败: $directError');
+  }
+
+  Future<void> _connectExact(MediaHubConnection connection) async {
     final response = await _authorizedGet(
       connection,
       connection.resolve('/v1/health'),
@@ -50,6 +93,15 @@ class HttpMediaHubClientService implements MediaHubClientService {
       }
 
       _connection = connection;
+      final callback = onConnectionResolved;
+      if (callback != null) {
+        try {
+          await callback(connection);
+        } catch (_) {
+          // A usable live connection must not fail because its cache cannot be
+          // refreshed on disk.
+        }
+      }
     } on FormatException catch (error) {
       throw MediaHubClientException('无法解析桌面端响应: $error');
     }

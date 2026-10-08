@@ -41,6 +41,15 @@ class MediaHubSession {
   final int trackCount;
   final List<MediaHubEndpoint> endpoints;
 
+  /// Stable identity of this desktop installation. Older sessions can leave it
+  /// null; once present it lets paired clients recognize the same computer even
+  /// when its address changes.
+  final String? deviceId;
+
+  /// Long-lived discovery secret delivered only by explicit QR/manual pairing.
+  /// Discovery uses HMAC proof; this raw key is never transmitted over UDP.
+  final String? discoveryKey;
+
   const MediaHubSession({
     required this.host,
     required this.port,
@@ -48,6 +57,8 @@ class MediaHubSession {
     required this.startedAt,
     required this.trackCount,
     this.endpoints = const [],
+    this.deviceId,
+    this.discoveryKey,
   });
 
   Uri get baseUri => Uri(
@@ -77,6 +88,9 @@ class MediaHubSession {
           'port': port.toString(),
           'token': token,
           'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
+          if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
+          if (discoveryKey?.trim().isNotEmpty == true)
+            'discoveryKey': discoveryKey!.trim(),
         },
       );
 }

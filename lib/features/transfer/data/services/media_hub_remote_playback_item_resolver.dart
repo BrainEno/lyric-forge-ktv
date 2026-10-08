@@ -47,6 +47,7 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
     for (final connection in _connectionCandidates(active, saved)) {
       try {
         final catalog = await _catalogFor(connection);
+        final resolvedConnection = client.currentConnection ?? connection;
         RemoteAudioTrack? track;
         for (final candidate in catalog) {
           if (candidate.id == trackId) {
@@ -59,10 +60,10 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
             '桌面音乐库中已找不到“${item.title}”，请刷新音乐库后重试。',
           );
         }
-        return _rebind(item, track, connection);
+        return _rebind(item, track, resolvedConnection);
       } catch (error) {
         lastError = error;
-        _invalidateCatalogFor(connection);
+        _invalidateCatalog();
       }
     }
 
@@ -70,7 +71,7 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
         ? lastError.message
         : '无法重新连接保存的桌面音乐库。';
     throw RemotePlaybackResolutionException(
-      '$detail 请确认桌面端 Media Hub 已开启；如果桌面端已重新配对，请先在“桌面音乐库”连接一次。',
+      '$detail 请确认桌面端 Media Hub 已开启；如果设备自动发现不可用，可以回到“桌面音乐库”重新扫码。',
     );
   }
 
@@ -103,28 +104,25 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
   Future<List<RemoteAudioTrack>> _catalogFor(
     MediaHubConnection connection,
   ) async {
-    if (_catalogIsFresh(connection) &&
-        client.currentConnection != null &&
-        _sameConnection(client.currentConnection!, connection)) {
-      return _catalog!;
-    }
+    final current = client.currentConnection;
+    if (current != null && _catalogIsFresh(current)) return _catalog!;
 
-    // connectTo performs the protocol/health check. Running it here makes a
-    // restored session validate the saved desktop before using persisted URLs.
+    // connectTo performs the normal health/protocol check and may transparently
+    // discover a new endpoint for the same paired device when host/port/token
+    // are stale.
     await client.connectTo(connection);
+    final resolvedConnection = client.currentConnection ?? connection;
     final tracks = await client.fetchTracks();
-    _catalogConnectionKey = _connectionKey(connection);
+    _catalogConnectionKey = _connectionKey(resolvedConnection);
     _catalogLoadedAt = DateTime.now();
     _catalog = List<RemoteAudioTrack>.unmodifiable(tracks);
     return _catalog!;
   }
 
-  void _invalidateCatalogFor(MediaHubConnection connection) {
-    if (_catalogConnectionKey == _connectionKey(connection)) {
-      _catalogConnectionKey = null;
-      _catalogLoadedAt = null;
-      _catalog = null;
-    }
+  void _invalidateCatalog() {
+    _catalogConnectionKey = null;
+    _catalogLoadedAt = null;
+    _catalog = null;
   }
 
   PlaybackItem _rebind(

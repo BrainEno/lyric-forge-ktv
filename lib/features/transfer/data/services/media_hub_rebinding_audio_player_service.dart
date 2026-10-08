@@ -71,11 +71,12 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     Object? lastError;
     for (final connection in candidates) {
       try {
-        // connectTo performs the Media Hub health/protocol check and updates the
-        // client's shared current connection on success. This matters for
-        // automatic queue advancement, which has no UI layer to refresh first.
+        // connectTo may transparently replace a stale endpoint through the UDP
+        // device discovery flow. Always rebase with the connection it actually
+        // resolved, not the stale candidate passed into this call.
         await client.connectTo(connection);
-        return _rebase(original, connection);
+        final resolvedConnection = client.currentConnection ?? connection;
+        return _rebase(original, resolvedConnection);
       } catch (error) {
         lastError = error;
       }
