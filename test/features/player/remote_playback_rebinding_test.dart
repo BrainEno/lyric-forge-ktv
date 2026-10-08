@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/remote_rebinding_playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
