@@ -50,11 +50,16 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
-    _projects = widget.projectRepository ?? services.projectRepository;
-    _metadata = widget.metadataRepository ?? services.localMediaMetadataRepository;
-    _audio = widget.audioService ?? services.audioPlayerService;
-    _session = widget.playbackSession ?? services.playbackSessionService;
+    final needsGlobal = widget.projectRepository == null ||
+        widget.metadataRepository == null ||
+        widget.audioService == null ||
+        widget.playbackSession == null;
+    final services = needsGlobal ? ServiceLocatorGlobal.I : null;
+    _projects = widget.projectRepository ?? services!.projectRepository;
+    _metadata =
+        widget.metadataRepository ?? services!.localMediaMetadataRepository;
+    _audio = widget.audioService ?? services!.audioPlayerService;
+    _session = widget.playbackSession ?? services!.playbackSessionService;
     AppChromeController.enterImmersive();
     unawaited(_loadProject(widget.initialProjectId));
     _sessionSub = _session.stateStream.listen(_syncProjectToPlayback);
@@ -195,7 +200,10 @@ class _ControlLayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final durationMs = playback.duration?.inMilliseconds ?? 0;
     final max = durationMs > 0 ? durationMs.toDouble() : 1.0;
-    final value = playback.position.inMilliseconds.toDouble().clamp(0.0, max);
+    final value = playback.position.inMilliseconds
+        .toDouble()
+        .clamp(0.0, max)
+        .toDouble();
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedOpacity(
