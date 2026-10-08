@@ -68,9 +68,11 @@ void main() {
       expect(histories.single.lastPosition, const Duration(seconds: 45));
     });
 
-    test('missing local files are pruned and the cleanup is persisted', () async {
+    test('missing local history is hidden but can be relinked later', () async {
       final audio = File('${root.path}${Platform.pathSeparator}missing.mp3');
+      final replacement = File('${root.path}${Platform.pathSeparator}moved.mp3');
       await audio.writeAsBytes([1]);
+      await replacement.writeAsBytes([2]);
       final repository = FilePlayHistoryRepository(rootDirectory: root);
       await repository.savePlayHistory(
         _history(
@@ -82,9 +84,19 @@ void main() {
 
       await audio.delete();
       expect(await repository.getRecentPlayHistory(), isEmpty);
+      expect(
+        await repository.replaceLocalPath(
+          oldPath: audio.path,
+          newPath: replacement.path,
+        ),
+        isTrue,
+      );
 
       final restored = FilePlayHistoryRepository(rootDirectory: root);
-      expect(await restored.getRecentPlayHistory(), isEmpty);
+      final histories = await restored.getRecentPlayHistory();
+      expect(histories, hasLength(1));
+      expect(histories.single.filePath, replacement.absolute.path);
+      expect(histories.single.lastPosition, const Duration(seconds: 30));
     });
 
     test('remote stream URLs are never persisted as local recent history', () async {

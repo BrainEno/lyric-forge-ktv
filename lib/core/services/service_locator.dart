@@ -8,6 +8,7 @@ import '../../features/player/data/repositories/file_local_media_metadata_reposi
 import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/repositories/file_playback_session_store.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
+import '../../features/player/data/services/file_local_media_relink_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
@@ -21,6 +22,7 @@ import '../../features/player/domain/repositories/playback_session_store.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/embedded_audio_metadata_reader.dart';
+import '../../features/player/domain/services/local_media_relink_service.dart';
 import '../../features/player/domain/services/playback_session_service.dart';
 import '../../features/project/data/repositories/file_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
@@ -70,6 +72,7 @@ class ServiceLocator {
   late final LocalMediaLibraryRepository localMediaLibraryRepository;
   late final LocalMediaCollectionRepository localMediaCollectionRepository;
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
+  late final LocalMediaRelinkService localMediaRelinkService;
   late final LyricFileImportService lyricFileImportService;
   late final PlayHistoryRepository playHistoryRepository;
   late final PlaybackSessionStore playbackSessionStore;
@@ -132,7 +135,15 @@ class ServiceLocator {
     );
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
-    playHistoryRepository = FilePlayHistoryRepository();
+    final filePlayHistoryRepository = FilePlayHistoryRepository();
+    playHistoryRepository = filePlayHistoryRepository;
+    localMediaRelinkService = FileLocalMediaRelinkService(
+      libraryRepository: localMediaLibraryRepository,
+      collectionRepository: localMediaCollectionRepository,
+      metadataRepository: localMediaMetadataRepository,
+      historyRepository: filePlayHistoryRepository,
+      supportedExtensions: audioLibraryImportService.supportedExtensions,
+    );
     playbackSessionStore = FilePlaybackSessionStore();
     final basePlaybackSession = DefaultPlaybackSessionService(
       audioPlayerService,
