@@ -125,13 +125,15 @@ class JustAudioPlayerService implements AudioPlayerService {
     _currentSource = source;
 
     if (uri.scheme == 'file') {
-      await _runLoad(
-        () async => _player.setFilePath(uri.toFilePath()),
-      );
+      await _runLoad(() async {
+        await _player.setFilePath(uri.toFilePath());
+      });
       return;
     }
 
-    await _runLoad(() async => _player.setUrl(uri.toString()));
+    await _runLoad(() async {
+      await _player.setUrl(uri.toString());
+    });
   }
 
   Future<void> _loadProjectSource(AudioSourceType source) async {
@@ -145,14 +147,20 @@ class JustAudioPlayerService implements AudioPlayerService {
     _currentSource = source;
     final uri = Uri.tryParse(path);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
-      await _runLoad(() async => _player.setUrl(uri.toString()));
+      await _runLoad(() async {
+        await _player.setUrl(uri.toString());
+      });
       return;
     }
     if (uri != null && uri.scheme == 'file') {
-      await _runLoad(() async => _player.setFilePath(uri.toFilePath()));
+      await _runLoad(() async {
+        await _player.setFilePath(uri.toFilePath());
+      });
       return;
     }
-    await _runLoad(() async => _player.setFilePath(path));
+    await _runLoad(() async {
+      await _player.setFilePath(path);
+    });
   }
 
   @override
