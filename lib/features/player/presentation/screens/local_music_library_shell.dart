@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
+import '../widgets/local_library_folder_manager_dialog.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
 import 'local_library_explorer_screen.dart';
@@ -19,13 +23,35 @@ class LocalMusicLibraryShell extends StatefulWidget {
   State<LocalMusicLibraryShell> createState() => _LocalMusicLibraryShellState();
 }
 
-class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
+class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell>
+    with WidgetsBindingObserver {
   late int _index;
+  int _libraryRevision = 0;
+  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex.clamp(0, 4).toInt();
+    WidgetsBinding.instance.addObserver(this);
+    // ServiceLocator already starts a non-blocking scan at app startup. This
+    // joins that scan (or reuses its fresh result) and then refreshes visible
+    // library tabs so newly-discovered songs appear without a manual button.
+    unawaited(_syncLibrary());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncLibrary());
+    }
   }
 
   @override
@@ -34,6 +60,33 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     if (oldWidget.initialIndex != widget.initialIndex) {
       _index = widget.initialIndex.clamp(0, 4).toInt();
     }
+  }
+
+  Future<void> _syncLibrary({bool force = false}) async {
+    if (_syncing) return;
+    _syncing = true;
+    try {
+      await ServiceLocatorGlobal.I.localMediaLibraryAutoSync.sync(force: force);
+      if (mounted) setState(() => _libraryRevision++);
+    } catch (_) {
+      // The existing library remains usable when a removable/inaccessible
+      // folder cannot be scanned. Manual refresh surfaces detailed errors in
+      // the Songs tab.
+    } finally {
+      _syncing = false;
+    }
+  }
+
+  Future<void> _openFolderManager(BuildContext context) async {
+    final services = ServiceLocatorGlobal.I;
+    await showLocalLibraryFolderManagerDialog(
+      context,
+      library: services.localMediaLibraryRepository,
+      importer: services.audioLibraryImportService,
+      onLibraryChanged: () async {
+        if (mounted) setState(() => _libraryRevision++);
+      },
+    );
   }
 
   void _openTransfer(BuildContext context) {
@@ -45,12 +98,26 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     );
   }
 
-  List<Widget> get _pages => const [
-        LocalLibraryExplorerScreen(),
-        LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
-        LocalArtistAlbumBrowserScreen(view: LocalCatalogView.albums),
-        LocalCollectionsScreen(view: LocalCollectionView.favorites),
-        LocalCollectionsScreen(view: LocalCollectionView.playlists),
+  List<Widget> get _pages => [
+        LocalLibraryExplorerScreen(
+          key: ValueKey('library-songs-$_libraryRevision'),
+        ),
+        LocalArtistAlbumBrowserScreen(
+          key: ValueKey('library-artists-$_libraryRevision'),
+          view: LocalCatalogView.artists,
+        ),
+        LocalArtistAlbumBrowserScreen(
+          key: ValueKey('library-albums-$_libraryRevision'),
+          view: LocalCatalogView.albums,
+        ),
+        LocalCollectionsScreen(
+          key: ValueKey('library-favorites-$_libraryRevision'),
+          view: LocalCollectionView.favorites,
+        ),
+        LocalCollectionsScreen(
+          key: ValueKey('library-playlists-$_libraryRevision'),
+          view: LocalCollectionView.playlists,
+        ),
       ];
 
   static const _railDestinations = [
@@ -135,6 +202,12 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                         const Icon(Icons.library_music_rounded, size: 30),
                         const SizedBox(height: 12),
                         IconButton.filledTonal(
+                          tooltip: '音乐文件夹',
+                          onPressed: () => _openFolderManager(context),
+                          icon: const Icon(Icons.folder_special_rounded),
+                        ),
+                        const SizedBox(height: 8),
+                        IconButton.filledTonal(
                           tooltip: '跨设备传输',
                           onPressed: () => _openTransfer(context),
                           icon: const Icon(Icons.devices_rounded),
@@ -162,10 +235,23 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
             index: _index,
             children: _pages,
           ),
-          floatingActionButton: FloatingActionButton.small(
-            tooltip: '跨设备传输',
-            onPressed: () => _openTransfer(context),
-            child: const Icon(Icons.devices_rounded),
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FloatingActionButton.small(
+                heroTag: 'local-library-folders',
+                tooltip: '音乐文件夹',
+                onPressed: () => _openFolderManager(context),
+                child: const Icon(Icons.folder_special_rounded),
+              ),
+              const SizedBox(height: 10),
+              FloatingActionButton.small(
+                heroTag: 'local-library-transfer',
+                tooltip: '跨设备传输',
+                onPressed: () => _openTransfer(context),
+                child: const Icon(Icons.devices_rounded),
+              ),
+            ],
           ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
