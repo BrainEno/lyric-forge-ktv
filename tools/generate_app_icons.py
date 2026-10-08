@@ -18,6 +18,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/images/icon.png"
+GENERATOR_VERSION = 1
 
 ANDROID = {
     "android/app/src/main/res/mipmap-mdpi/ic_launcher.png": 48,
@@ -155,6 +156,7 @@ def main() -> None:
     _write_windows_ico(source)
 
     print(f"Generated platform icons from {SOURCE}")
+    print(f"Generator version: {GENERATOR_VERSION}")
     print("Android: 5 launcher icons")
     print("iOS: 15 AppIcon images (RGB/no alpha)")
     print("macOS: 7 AppIcon images")
