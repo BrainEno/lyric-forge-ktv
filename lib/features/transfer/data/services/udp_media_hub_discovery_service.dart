@@ -23,13 +23,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
     Duration timeout = const Duration(seconds: 2),
   }) async {
     final deviceId = knownConnection.deviceId?.trim();
-    final discoveryKey = knownConnection.discoveryKey?.trim();
-    if (deviceId == null ||
-        deviceId.isEmpty ||
-        discoveryKey == null ||
-        discoveryKey.isEmpty) {
-      return null;
-    }
+    if (deviceId == null || deviceId.isEmpty) return null;
 
     RawDatagramSocket? socket;
     StreamSubscription<RawSocketEvent>? subscription;
@@ -43,7 +37,6 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
         'version': protocolVersion,
         'type': 'discover',
         'deviceId': deviceId,
-        'discoveryKey': discoveryKey,
         'requestId': requestId,
       }),
     );
@@ -106,19 +99,13 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
               continue;
             }
             final port = body['port'];
-            final token = body['token'];
-            if (port is! num ||
-                port.toInt() <= 0 ||
-                token is! String ||
-                token.trim().isEmpty) {
-              continue;
-            }
+            if (port is! num || port.toInt() <= 0) continue;
+
             finish(
               MediaHubDiscoveryResult(
                 deviceId: deviceId,
                 host: currentDatagram.address.address,
                 port: port.toInt(),
-                token: token.trim(),
               ),
             );
             break;
