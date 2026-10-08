@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_router.dart';
 import 'package:lyric_forge_ktv/main.dart';
 
@@ -35,7 +36,11 @@ void main() {
     WidgetTester tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    AppChromeController.enterImmersive();
+    addTearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      AppChromeController.exitImmersive();
+    });
 
     MaterialApp? builtApp;
     await tester.pumpWidget(
@@ -61,9 +66,15 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
 
-    expect(shell, same(marker));
-    expect(builtApp!.navigatorObservers, isEmpty);
+    expect(shell, isNot(isA<Overlay>()));
+    expect(builtApp!.navigatorObservers, hasLength(1));
     expect(find.byKey(const ValueKey('mobile-navigator-child')), findsOneWidget);
+    expect(
+      find.byType(Overlay),
+      findsOneWidget,
+      reason: 'mobile chrome must not add the desktop-only Overlay',
+    );
   });
 }
