@@ -10,6 +10,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../widgets/now_playing_lyrics_project_action.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
 
@@ -458,15 +459,7 @@ class _NowPlayingDetails extends StatelessWidget {
           children: [
             PlaybackModeControls(session: session, compact: true),
             const Spacer(),
-            if (item.projectId != null)
-              TextButton.icon(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  Routes.playerPath(item.projectId!),
-                ),
-                icon: const Icon(Icons.lyrics_rounded),
-                label: const Text('打开工程播放器'),
-              ),
+            NowPlayingLyricsProjectAction(item: item),
           ],
         ),
       ],
