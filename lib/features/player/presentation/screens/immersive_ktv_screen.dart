@@ -230,8 +230,8 @@ class _ImmersiveKtvBody extends StatelessWidget {
     final document = project?.lyricDocument;
     final lyrics = document?.lines ?? const <LyricLine>[];
     final currentIndex = _currentLyricIndex(document, playback.position);
-    final availableSources =
-        project?.audioAsset?.availableSources ?? const <AudioSourceType>[];
+    final availableSources = session.currentItem?.audioAsset.availableSources ??
+        const <AudioSourceType>[];
 
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -333,10 +333,13 @@ class _TopControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final gutter = spec.pageGutter.clamp(12, 32).toDouble();
-    final title = project?.name ?? currentItem?.title ?? 'KTV';
-    final artist = project?.artist?.trim().isNotEmpty == true
-        ? project!.artist!
-        : currentItem?.artist;
+    final title = currentItem?.title ?? project?.name ?? 'KTV';
+    final itemArtist = currentItem?.artist?.trim();
+    final artist = itemArtist?.isNotEmpty == true
+        ? itemArtist
+        : project?.artist?.trim().isNotEmpty == true
+            ? project!.artist
+            : null;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
