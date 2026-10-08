@@ -7,15 +7,18 @@ import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_device_identity_store.dart';
 import '../../domain/services/media_hub_service.dart';
+import 'media_hub_discovery_auth.dart';
 import 'udp_media_hub_discovery_service.dart';
 
-/// Adds a stable desktop identity and credential-free UDP endpoint discovery
+/// Adds a stable desktop identity and authenticated UDP endpoint discovery
 /// around the existing HTTP Media Hub.
 ///
-/// UDP exposes only the stable device ID and current HTTP port. Authentication
-/// always stays on the HTTP connection with the bearer token obtained during
-/// explicit pairing; no access credential is sent in discovery packets.
+/// The discovery secret is never transmitted over UDP. Requesters prove they
+/// previously paired by signing a per-request nonce with HMAC-SHA256; offers are
+/// signed too before a client accepts the current endpoint/session token.
 class DiscoverableMediaHubService implements MediaHubService {
+  static const Duration _requestReplayWindow = Duration(seconds: 30);
+
   final MediaHubService delegate;
   final MediaHubDeviceIdentityStore identityStore;
   final StreamController<MediaHubState> _stateController =
@@ -24,6 +27,7 @@ class DiscoverableMediaHubService implements MediaHubService {
   MediaHubState _state = const MediaHubState.stopped();
   RawDatagramSocket? _discoverySocket;
   StreamSubscription<RawSocketEvent>? _discoverySubscription;
+  final Map<String, DateTime> _seenDiscoveryRequests = <String, DateTime>{};
 
   DiscoverableMediaHubService({
     required this.delegate,
@@ -58,6 +62,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         trackCount: raw.trackCount,
         endpoints: raw.endpoints,
         deviceId: identity.deviceId,
+        discoveryKey: identity.discoveryKey,
       );
       await _startDiscoveryResponder(session, identity);
       _emit(
@@ -124,23 +129,44 @@ class DiscoverableMediaHubService implements MediaHubService {
       if (decoded is! Map) return;
       final body = Map<String, dynamic>.from(decoded);
       final requestId = body['requestId'];
+      final proof = body['proof'];
       if (body['service'] != UdpMediaHubDiscoveryService.serviceName ||
           body['version'] != UdpMediaHubDiscoveryService.protocolVersion ||
           body['type'] != 'discover' ||
           body['deviceId'] != identity.deviceId ||
           requestId is! String ||
-          requestId.trim().isEmpty) {
+          requestId.trim().isEmpty ||
+          proof is! String ||
+          proof.trim().isEmpty) {
         return;
       }
 
+      final normalizedRequestId = requestId.trim();
+      final expectedProof = mediaHubDiscoveryRequestProof(
+        key: identity.discoveryKey,
+        deviceId: identity.deviceId,
+        requestId: normalizedRequestId,
+      );
+      if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) return;
+      if (!_acceptFreshRequest(normalizedRequestId)) return;
+
+      final offerProof = mediaHubDiscoveryOfferProof(
+        key: identity.discoveryKey,
+        deviceId: identity.deviceId,
+        requestId: normalizedRequestId,
+        port: session.port,
+        token: session.token,
+      );
       final payload = utf8.encode(
         jsonEncode({
           'service': UdpMediaHubDiscoveryService.serviceName,
           'version': UdpMediaHubDiscoveryService.protocolVersion,
           'type': 'offer',
           'deviceId': identity.deviceId,
-          'requestId': requestId,
+          'requestId': normalizedRequestId,
           'port': session.port,
+          'token': session.token,
+          'proof': offerProof,
           'deviceName': Platform.localHostname,
         }),
       );
@@ -148,6 +174,16 @@ class DiscoverableMediaHubService implements MediaHubService {
     } catch (_) {
       // Ignore unrelated/malformed UDP traffic.
     }
+  }
+
+  bool _acceptFreshRequest(String requestId) {
+    final now = DateTime.now();
+    _seenDiscoveryRequests.removeWhere(
+      (_, seenAt) => now.difference(seenAt) > _requestReplayWindow,
+    );
+    if (_seenDiscoveryRequests.containsKey(requestId)) return false;
+    _seenDiscoveryRequests[requestId] = now;
+    return true;
   }
 
   @override
@@ -163,6 +199,7 @@ class DiscoverableMediaHubService implements MediaHubService {
     await subscription?.cancel();
     _discoverySocket?.close();
     _discoverySocket = null;
+    _seenDiscoveryRequests.clear();
   }
 
   Future<void> dispose() async {
