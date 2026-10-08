@@ -47,8 +47,44 @@ Future<void> _initializeMobileMediaSessionAfterLaunch() async {
   }
 }
 
-class ElysiumPlayerApp extends StatelessWidget {
+class ElysiumPlayerApp extends StatefulWidget {
   const ElysiumPlayerApp({super.key});
+
+  @override
+  State<ElysiumPlayerApp> createState() => _ElysiumPlayerAppState();
+}
+
+class _ElysiumPlayerAppState extends State<ElysiumPlayerApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncLocalLibraryAfterResume());
+    }
+  }
+
+  Future<void> _syncLocalLibraryAfterResume() async {
+    try {
+      await ServiceLocatorGlobal.I.localMediaLibraryAutoSync.sync();
+    } catch (error, stackTrace) {
+      // Library maintenance must never prevent the app from resuming playback.
+      debugPrint('Automatic local library sync failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
