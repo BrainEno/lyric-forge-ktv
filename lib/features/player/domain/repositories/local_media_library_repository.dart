@@ -13,6 +13,12 @@ abstract class LocalMediaLibraryRepository {
 
   Future<void> addRoot(String rootPath);
 
+  /// Stops monitoring a previously-added music folder.
+  ///
+  /// Existing library rows and files are kept. This only removes the folder
+  /// from future automatic/manual root rescans.
+  Future<void> removeRoot(String rootPath);
+
   /// Re-checks known file availability and discovers new files from roots.
   Future<List<LocalMediaLibraryEntry>> refreshAvailability();
 
