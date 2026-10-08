@@ -25,7 +25,6 @@ class DiscoverableMediaHubService implements MediaHubService {
   MediaHubState _state = const MediaHubState.stopped();
   RawDatagramSocket? _discoverySocket;
   StreamSubscription<RawSocketEvent>? _discoverySubscription;
-  MediaHubDeviceIdentity? _identity;
 
   DiscoverableMediaHubService({
     required this.delegate,
@@ -51,7 +50,6 @@ class DiscoverableMediaHubService implements MediaHubService {
 
     try {
       final identity = await identityStore.loadOrCreate();
-      _identity = identity;
       final raw = await delegate.startSharing(tracks);
       final session = MediaHubSession(
         host: raw.host,
