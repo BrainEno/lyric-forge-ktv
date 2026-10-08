@@ -31,7 +31,7 @@ class PlaybackQueuePanel extends StatelessWidget {
     if (!context.mounted || result == null) return;
 
     final skipped = result.skippedCount > 0
-        ? '，跳过 ${result.skippedCount} 个远程串流或歌词工程项目'
+        ? '，跳过 ${result.skippedCount} 个远程、工程或重复队列项'
         : '';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
