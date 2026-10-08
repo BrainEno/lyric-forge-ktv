@@ -48,7 +48,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
       }),
     );
 
-    Future<void> finish(MediaHubDiscoveryResult? result) async {
+    void finish(MediaHubDiscoveryResult? result) {
       if (!completer.isCompleted) completer.complete(result);
     }
 
@@ -81,19 +81,21 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
     }
 
     try {
-      socket = await RawDatagramSocket.bind(
+      final boundSocket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         0,
         reuseAddress: true,
       );
-      socket.broadcastEnabled = true;
+      socket = boundSocket;
+      boundSocket.broadcastEnabled = true;
 
-      subscription = socket.listen((event) {
+      subscription = boundSocket.listen((event) {
         if (event != RawSocketEvent.read || completer.isCompleted) return;
         Datagram? datagram;
-        while ((datagram = socket?.receive()) != null) {
+        while ((datagram = boundSocket.receive()) != null) {
           try {
-            final decoded = jsonDecode(utf8.decode(datagram!.data));
+            final currentDatagram = datagram!;
+            final decoded = jsonDecode(utf8.decode(currentDatagram.data));
             if (decoded is! Map) continue;
             final body = Map<String, dynamic>.from(decoded);
             if (body['service'] != serviceName ||
@@ -111,14 +113,12 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 token.trim().isEmpty) {
               continue;
             }
-            unawaited(
-              finish(
-                MediaHubDiscoveryResult(
-                  deviceId: deviceId,
-                  host: datagram!.address.address,
-                  port: port.toInt(),
-                  token: token.trim(),
-                ),
+            finish(
+              MediaHubDiscoveryResult(
+                deviceId: deviceId,
+                host: currentDatagram.address.address,
+                port: port.toInt(),
+                token: token.trim(),
               ),
             );
             break;
@@ -133,7 +133,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
         const Duration(milliseconds: 400),
         (_) => unawaited(sendProbe()),
       );
-      timeoutTimer = Timer(timeout, () => unawaited(finish(null)));
+      timeoutTimer = Timer(timeout, () => finish(null));
       return await completer.future;
     } catch (_) {
       return null;
