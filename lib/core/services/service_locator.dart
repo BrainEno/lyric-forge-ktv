@@ -40,13 +40,16 @@ import '../../features/transcription/domain/services/project_transcription_workf
 import '../../features/transcription/domain/services/transcription_profile_resolver.dart';
 import '../../features/transcription/domain/services/transcription_service.dart';
 import '../../features/transcription/domain/services/transcription_settings_store.dart';
+import '../../features/transfer/data/services/discoverable_media_hub_service.dart';
 import '../../features/transfer/data/services/file_media_hub_connection_store.dart';
+import '../../features/transfer/data/services/file_media_hub_device_identity_store.dart';
 import '../../features/transfer/data/services/file_media_transfer_queue_service.dart';
 import '../../features/transfer/data/services/http_media_hub_client_service.dart';
 import '../../features/transfer/data/services/http_media_hub_service.dart';
 import '../../features/transfer/data/services/local_media_transfer_service.dart';
 import '../../features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
 import '../../features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
+import '../../features/transfer/data/services/udp_media_hub_discovery_service.dart';
 import '../../features/transfer/domain/services/media_hub_client_service.dart';
 import '../../features/transfer/domain/services/media_hub_connection_store.dart';
 import '../../features/transfer/domain/services/media_hub_service.dart';
@@ -86,10 +89,15 @@ class ServiceLocator {
   void initialize() {
     projectRepository = FileProjectRepository();
 
-    // Connection state must exist before the player is built so restored remote
-    // sessions can rebase stale Media Hub URLs at the lowest audio-load layer.
-    mediaHubClientService = HttpMediaHubClientService();
+    // Connection state and discovery exist before the player is built so a
+    // restored remote session can recover a moved/restarted desktop from its
+    // stable paired device identity at the lowest audio-load layer.
     mediaHubConnectionStore = FileMediaHubConnectionStore();
+    final discoveryService = UdpMediaHubDiscoveryService();
+    mediaHubClientService = HttpMediaHubClientService(
+      discoveryService: discoveryService,
+      onConnectionResolved: mediaHubConnectionStore.saveConnection,
+    );
     final rawAudioPlayer = JustAudioPlayerService();
     audioPlayerService = MediaHubRebindingAudioPlayerService(
       delegate: rawAudioPlayer,
@@ -134,13 +142,17 @@ class ServiceLocator {
       resolver: remoteResolver,
     );
 
-    mediaHubService = HttpMediaHubService(
+    final rawMediaHub = HttpMediaHubService(
       onIncomingFile: (path) async {
         if (!_isSupportedIncomingAudio(path)) {
           throw UnsupportedError('不支持的音频格式');
         }
         await localMediaLibraryRepository.addPaths([path]);
       },
+    );
+    mediaHubService = DiscoverableMediaHubService(
+      delegate: rawMediaHub,
+      identityStore: FileMediaHubDeviceIdentityStore(),
     );
     mediaTransferService = LocalMediaTransferService(
       client: mediaHubClientService,
