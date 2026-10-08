@@ -16,6 +16,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
   final String projectId;
@@ -243,26 +244,13 @@ class _PlayerContentState extends State<_PlayerContent> {
     if (document == null || document.lines.isEmpty) return;
 
     await Navigator.of(context).push<void>(
-      PageRouteBuilder<void>(
-        opaque: true,
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 150),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return FadeTransition(
-            opacity: animation,
-            child: _FullScreenKtvView(
-              initialProject: widget.project,
-              repository: widget.repository,
-              audioService: widget.audioService,
-              playbackSession: widget.playbackSession,
-              onPlayPause: widget.onPlayPause,
-              onSeek: widget.onSeek,
-              onSwitchSource: widget.onSwitchSource,
-              onSkipPrevious: widget.onSkipPrevious,
-              onSkipNext: widget.onSkipNext,
-            ),
-          );
-        },
+      MaterialPageRoute<void>(
+        builder: (_) => ImmersiveKtvScreen(
+          initialProjectId: widget.project.id,
+          projectRepository: widget.repository,
+          audioService: widget.audioService,
+          playbackSession: widget.playbackSession,
+        ),
       ),
     );
   }
@@ -1080,8 +1068,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                 final safeIndex = lyrics.isEmpty
                     ? 0
                     : currentIndex.clamp(0, lyrics.length - 1).toInt();
-                final previous =
-                    lyrics.isNotEmpty && safeIndex > 0 ? lyrics[safeIndex - 1] : null;
+                final previous = lyrics.isNotEmpty && safeIndex > 0
+                    ? lyrics[safeIndex - 1]
+                    : null;
                 final current = lyrics.isEmpty ? null : lyrics[safeIndex];
                 final next = lyrics.isNotEmpty && safeIndex + 1 < lyrics.length
                     ? lyrics[safeIndex + 1]
