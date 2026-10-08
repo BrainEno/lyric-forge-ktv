@@ -11,6 +11,7 @@ import '../../features/player/data/services/default_playback_session_service.dar
 import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
+import '../../features/player/data/services/local_media_library_auto_sync.dart';
 import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
 import '../../features/player/data/services/remote_rebinding_playback_session_service.dart';
 import '../../features/player/domain/repositories/local_media_collection_repository.dart';
@@ -66,6 +67,7 @@ class ServiceLocator {
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
   late final AudioLibraryImportService audioLibraryImportService;
+  late final LocalMediaLibraryAutoSync localMediaLibraryAutoSync;
   late final EmbeddedAudioMetadataReader embeddedAudioMetadataReader;
   late final LocalMediaLibraryRepository localMediaLibraryRepository;
   late final LocalMediaCollectionRepository localMediaCollectionRepository;
@@ -130,6 +132,16 @@ class ServiceLocator {
         await localMediaLibraryRepository.addPaths(paths);
       },
     );
+    localMediaLibraryAutoSync = LocalMediaLibraryAutoSync(
+      libraryRepository: localMediaLibraryRepository,
+      supportedExtensions: audioLibraryImportService.supportedExtensions,
+    );
+    // Start one best-effort scan without blocking the first Flutter frame.
+    // With no persisted folders this returns immediately.
+    unawaited(
+      localMediaLibraryAutoSync.sync(force: true).catchError((_) => false),
+    );
+
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
     playHistoryRepository = FilePlayHistoryRepository();
