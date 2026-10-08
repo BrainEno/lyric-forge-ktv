@@ -26,7 +26,7 @@ void main() {
     WidgetTester tester, {
     required Size size,
     int? currentIndex = 1,
-    List<LyricLine> source = lyrics,
+    List<LyricLine>? source,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -35,7 +35,7 @@ void main() {
         theme: ThemeData.dark(),
         home: Scaffold(
           body: KtvLyricStage(
-            lyrics: source,
+            lyrics: source ?? lyrics,
             currentIndex: currentIndex,
           ),
         ),
