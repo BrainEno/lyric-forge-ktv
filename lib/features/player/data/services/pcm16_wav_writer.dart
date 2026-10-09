@@ -22,6 +22,52 @@ class Pcm16WavWriter {
     );
   }
 
+  /// Repairs a WAV interrupted before its RIFF/data sizes were finalized.
+  /// Returns the recovered audio duration, or null for an invalid file.
+  static Future<Duration?> recoverInterruptedFile(
+    String path, {
+    int sampleRate = 48000,
+    int channels = 1,
+  }) async {
+    final file = File(path);
+    if (await FileSystemEntity.type(path, followLinks: false) !=
+        FileSystemEntityType.file) return null;
+    final handle = await file.open(mode: FileMode.append);
+    try {
+      final size = await handle.length();
+      if (size < 44 || size > 0xffffffff) return null;
+      await handle.setPosition(0);
+      final header = await handle.read(44);
+      if (header.length != 44 ||
+          String.fromCharCodes(header.sublist(0, 4)) != 'RIFF' ||
+          String.fromCharCodes(header.sublist(8, 12)) != 'WAVE' ||
+          String.fromCharCodes(header.sublist(36, 40)) != 'data') {
+        return null;
+      }
+      final bytes = ByteData.sublistView(Uint8List.fromList(header));
+      if (bytes.getUint16(20, Endian.little) != 1 ||
+          bytes.getUint16(22, Endian.little) != channels ||
+          bytes.getUint32(24, Endian.little) != sampleRate ||
+          bytes.getUint16(34, Endian.little) != 16) return null;
+      final audioBytes = (size - 44) - ((size - 44) % (channels * 2));
+      if (audioBytes <= 0) return null;
+      if (bytes.getUint32(40, Endian.little) != audioBytes ||
+          bytes.getUint32(4, Endian.little) != 36 + audioBytes) {
+        bytes.setUint32(4, 36 + audioBytes, Endian.little);
+        bytes.setUint32(40, audioBytes, Endian.little);
+        await handle.setPosition(0);
+        await handle.writeFrom(bytes.buffer.asUint8List());
+        await handle.flush();
+      }
+      return Duration(
+        microseconds: audioBytes * Duration.microsecondsPerSecond ~/
+            (sampleRate * channels * 2),
+      );
+    } finally {
+      await handle.close();
+    }
+  }
+
   Future<void> open(String path) async {
     if (_file != null) throw StateError('WAV writer is already open');
     final target = File(path);
