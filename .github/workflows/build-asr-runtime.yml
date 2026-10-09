@@ -83,9 +83,9 @@ jobs:
         with:
           cuda: "12.8.0"
           method: network
-          # NVIDIA's network installer splits runtime and link-time import
-          # libraries into separate packages. Qwen/Candle and whisper.cpp need
-          # the *_dev packages to produce a redistributable CUDA binary.
+          # Qwen/Candle needs the CUDA compiler plus link-time import libraries.
+          # Whisper is deliberately built CPU-only in this bundle: Qwen remains
+          # the GPU primary engine and Whisper is a low-confidence fallback.
           sub-packages: '["nvcc","cudart","cublas","cublas_dev","curand","curand_dev","cusparse","cusparse_dev","cusolver","cusolver_dev","nvrtc","nvrtc_dev","nvjitlink"]'
 
       - name: Verify CUDA development libraries
@@ -149,37 +149,28 @@ jobs:
           Set-Location whisper-src
           git checkout $env:WHISPER_REV
 
-      - name: Verify Ninja and CUDA compiler
+      - name: Verify Ninja and MSVC compiler
         shell: pwsh
         run: |
           where.exe ninja.exe
           where.exe cl.exe
-          $nvcc = Join-Path $env:CUDA_PATH "bin\nvcc.exe"
-          if (-not (Test-Path $nvcc)) {
-            throw "nvcc.exe not found: $nvcc"
-          }
-          & $nvcc --version
 
-      - name: Build whisper.cpp CUDA runtime for RTX 5080
+      - name: Build whisper.cpp CPU fallback
         shell: pwsh
         run: |
-          $nvcc = Join-Path $env:CUDA_PATH "bin\nvcc.exe"
           cmake -G Ninja `
             -S whisper-src `
             -B whisper-src/build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER=cl `
             -DCMAKE_CXX_COMPILER=cl `
-            "-DCMAKE_CUDA_COMPILER=$nvcc" `
-            "-DCUDAToolkit_ROOT=$env:CUDA_PATH" `
-            -DGGML_CUDA=ON `
-            -DCMAKE_CUDA_ARCHITECTURES=120 `
+            -DGGML_CUDA=OFF `
             -DGGML_NATIVE=OFF `
             -DBUILD_SHARED_LIBS=OFF `
             -DWHISPER_BUILD_TESTS=OFF `
             -DWHISPER_BUILD_EXAMPLES=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build whisper-src/build --target whisper-cli --parallel 2
+          cmake --build whisper-src/build --target whisper-cli --parallel 4
 
       - name: Assemble Windows runtime bundle
         shell: pwsh
@@ -206,6 +197,8 @@ jobs:
             schemaVersion = 1
             platform = "windows-x64"
             accelerator = "cuda"
+            qwenAccelerator = "cuda"
+            whisperAccelerator = "cpu"
             cuda = "12.8.0"
             hostCompiler = "MSVC 14.29 / v142"
             generator = "Ninja"
