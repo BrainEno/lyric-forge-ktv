@@ -44,4 +44,49 @@ void main() {
       const Duration(milliseconds: 250),
     );
   });
+
+  group('KtvMicrophoneState input devices', () {
+    const usbMic = KtvAudioInputDevice(
+      id: 'usb-mic',
+      label: 'USB Microphone',
+      sampleRates: <int>[44100, 48000],
+    );
+    const builtInMic = KtvAudioInputDevice(
+      id: 'built-in',
+      label: 'Built-in Microphone',
+      sampleRates: <int>[48000],
+    );
+
+    test('resolves the selected input device by stable id', () {
+      const state = KtvMicrophoneState(
+        inputDevices: <KtvAudioInputDevice>[usbMic, builtInMic],
+        selectedInputDeviceId: 'usb-mic',
+      );
+
+      expect(state.selectedInputDevice?.id, 'usb-mic');
+      expect(state.selectedInputDevice?.label, 'USB Microphone');
+    });
+
+    test('returns null when the selected device disappeared', () {
+      const state = KtvMicrophoneState(
+        inputDevices: <KtvAudioInputDevice>[builtInMic],
+        selectedInputDeviceId: 'usb-mic',
+      );
+
+      expect(state.selectedInputDevice, isNull);
+    });
+
+    test('can return to the operating-system default input', () {
+      const state = KtvMicrophoneState(
+        inputDevices: <KtvAudioInputDevice>[usbMic],
+        selectedInputDeviceId: 'usb-mic',
+      );
+
+      final defaultState = state.copyWith(clearSelectedInputDevice: true);
+
+      expect(defaultState.selectedInputDeviceId, isNull);
+      expect(defaultState.selectedInputDevice, isNull);
+      expect(defaultState.inputDevices, hasLength(1));
+    });
+  });
 }
