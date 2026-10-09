@@ -22,6 +22,9 @@ void main() {
     expect(cmake, contains('/IGNORE:4075'));
 
     // Project-owned runner code must still use the strict warning policy.
-    expect(cmake, contains('target_compile_options(${TARGET} PRIVATE /W4 /WX'));
+    expect(
+      cmake,
+      contains(r'target_compile_options(${TARGET} PRIVATE /W4 /WX)'),
+    );
   });
 }
