@@ -18,6 +18,8 @@ class KtvTakeHistoryScanResult {
 
 /// Discovers completed takes and safely recovers interrupted local recordings.
 class KtvTakeHistoryStore {
+  static const int maxDisplayNameLength = 80;
+
   const KtvTakeHistoryStore();
 
   Future<KtvTakeHistoryScanResult> scanProject(ProjectManifest project) async {
@@ -105,7 +107,10 @@ class KtvTakeHistoryStore {
         // One corrupt take must never hide or mutate the remaining history.
       }
     }
-    takes.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    takes.sort((a, b) {
+      if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
+      return b.startedAt.compareTo(a.startedAt);
+    });
     return KtvTakeHistoryScanResult(
       takes: List.unmodifiable(takes),
       recoveredCount: recoveredCount,
@@ -118,6 +123,52 @@ class KtvTakeHistoryStore {
   ) async =>
       (await scanFromDirectory(projectDirectory, projectId)).takes;
 
+  Future<KtvRecordingSession> updateProjectTakeMetadata(
+    ProjectManifest project,
+    KtvRecordingSession take, {
+    String? displayName,
+    bool clearDisplayName = false,
+    bool? isFavorite,
+  }) async {
+    final directory = await KtvProjectStorage.resolveProjectDirectory(project);
+    return updateTakeMetadata(
+      directory,
+      project.id,
+      take,
+      displayName: displayName,
+      clearDisplayName: clearDisplayName,
+      isFavorite: isFavorite,
+    );
+  }
+
+  Future<KtvRecordingSession> updateTakeMetadata(
+    Directory projectDirectory,
+    String projectId,
+    KtvRecordingSession take, {
+    String? displayName,
+    bool clearDisplayName = false,
+    bool? isFavorite,
+  }) async {
+    final normalizedName = displayName?.trim();
+    if (normalizedName != null &&
+        normalizedName.length > maxDisplayNameLength) {
+      throw const FormatException('录音名称不能超过 80 个字符');
+    }
+    final indexed = await _findIndexedTake(projectDirectory, projectId, take);
+    final updated = indexed.copyWith(
+      displayName: normalizedName,
+      clearDisplayName:
+          clearDisplayName || (normalizedName != null && normalizedName.isEmpty),
+      isFavorite: isFavorite,
+    );
+    final manifest = File(indexed.manifestPath);
+    await manifest.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(updated.toJson()),
+      flush: true,
+    );
+    return updated;
+  }
+
   Future<void> deleteProjectTake(
     ProjectManifest project,
     KtvRecordingSession take,
@@ -129,6 +180,37 @@ class KtvTakeHistoryStore {
   /// Deletes only a complete take folder beneath the given project's recordings.
   /// The user interface must obtain explicit confirmation before calling this.
   Future<void> deleteTake(
+    Directory projectDirectory,
+    String projectId,
+    KtvRecordingSession take,
+  ) async {
+    final folder = await _validatedTakeFolder(projectDirectory, projectId, take);
+    await _findIndexedTake(projectDirectory, projectId, take);
+    await for (final child in folder.list(recursive: true, followLinks: false)) {
+      if (child is Link) {
+        throw const FileSystemException('录音包含符号链接，已取消删除');
+      }
+    }
+    await folder.delete(recursive: true);
+  }
+
+  Future<KtvRecordingSession> _findIndexedTake(
+    Directory projectDirectory,
+    String projectId,
+    KtvRecordingSession take,
+  ) async {
+    await _validatedTakeFolder(projectDirectory, projectId, take);
+    final indexed = await listFromDirectory(projectDirectory, projectId);
+    for (final entry in indexed) {
+      if (entry.id == take.id &&
+          _samePath(entry.manifestPath, take.manifestPath)) {
+        return entry;
+      }
+    }
+    throw const FileSystemException('录音不存在或已发生变化');
+  }
+
+  Future<Directory> _validatedTakeFolder(
     Directory projectDirectory,
     String projectId,
     KtvRecordingSession take,
@@ -151,24 +233,18 @@ class KtvTakeHistoryStore {
             FileSystemEntityType.directory ||
         !_inside(folder, File(take.manifestPath)) ||
         !_inside(folder, File(take.micStemPath))) {
-      throw const FileSystemException('录音路径不安全，已取消删除');
+      throw const FileSystemException('录音路径不安全，已取消操作');
     }
-    // Re-read the index so a stale UI entry cannot delete an unrelated folder.
-    final indexed = await listFromDirectory(projectDirectory, projectId);
-    if (!indexed.any((entry) =>
-        entry.id == take.id && entry.manifestPath == take.manifestPath)) {
-      throw const FileSystemException('录音不存在或已发生变化');
-    }
-    await for (final child in folder.list(recursive: true, followLinks: false)) {
-      if (child is Link) {
-        throw const FileSystemException('录音包含符号链接，已取消删除');
-      }
-    }
-    await folder.delete(recursive: true);
+    return folder;
   }
 
-  bool _samePath(String left, String right) =>
-      Platform.isWindows ? left.toLowerCase() == right.toLowerCase() : left == right;
+  bool _samePath(String left, String right) {
+    final leftPath = File(left).absolute.path;
+    final rightPath = File(right).absolute.path;
+    return Platform.isWindows
+        ? leftPath.toLowerCase() == rightPath.toLowerCase()
+        : leftPath == rightPath;
+  }
 
   bool _inside(Directory directory, File file) {
     final root = directory.absolute.path;
