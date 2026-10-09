@@ -22,9 +22,11 @@ void main() {
     expect(cmake, contains('/IGNORE:4075'));
 
     // Project-owned runner code must still use the strict warning policy.
+    // Match the required prefix because the target may also carry additional
+    // warning exceptions (for example /wd"4100") after /W4 /WX.
     expect(
       cmake,
-      contains(r'target_compile_options(${TARGET} PRIVATE /W4 /WX)'),
+      contains(r'target_compile_options(${TARGET} PRIVATE /W4 /WX'),
     );
   });
 }
