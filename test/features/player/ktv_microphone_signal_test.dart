@@ -6,8 +6,11 @@ void main() {
   group('PcmDelayLine', () {
     test('applies microphone gain without delay', () {
       final line = PcmDelayLine(sampleRate: 1000, gain: 1.5);
+      final output = line.process(<double>[0.2, -0.4, 0.9]);
 
-      expect(line.process(<double>[0.2, -0.4, 0.9]), <double>[0.3, -0.6, 1.0]);
+      expect(output[0], closeTo(0.3, 1e-12));
+      expect(output[1], closeTo(-0.6, 1e-12));
+      expect(output[2], closeTo(1.0, 1e-12));
     });
 
     test('delays monitoring by the configured sample count', () {
