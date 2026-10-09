@@ -52,6 +52,32 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+# Native FFI plugins are third-party source trees. flutter_soloud 4.1.7 in
+# particular compiles a large bundled SoLoud tree on the first Windows build.
+# Keep the app runner on /W4 /WX above, but make plugin compilation parallel,
+# force UTF-8 source handling, and silence known upstream conversion/shadowing
+# warnings so `flutter run -d windows` does not look stalled behind hundreds of
+# vendor warnings on CP936 terminals.
+if(MSVC)
+  add_compile_options(
+    /MP
+    /utf-8
+    /wd4018
+    /wd4022
+    /wd4047
+    /wd4189
+    /wd4244
+    /wd4245
+    /wd4267
+    /wd4456
+    /wd4458
+    /wd4459
+    /wd4702
+    /wd4819
+    /wd4996
+  )
+  add_link_options(/IGNORE:4075)
+endif()
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
