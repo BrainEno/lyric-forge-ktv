@@ -81,7 +81,6 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
               label: device.label.trim().isEmpty
                   ? '未命名输入设备'
                   : device.label.trim(),
-              sampleRates: List<int>.unmodifiable(device.sampleRates),
             ),
           )
           .toList(growable: false)
