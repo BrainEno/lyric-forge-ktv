@@ -29,9 +29,33 @@ void main() {
       final bad = Directory('${recordings.path}${Platform.pathSeparator}take_bad');
       await bad.create();
       await File('${bad.path}${Platform.pathSeparator}session.json').writeAsString('{');
+      final external = File('${root.path}${Platform.pathSeparator}important.wav');
+      await external.writeAsBytes([7, 8, 9]);
+      final forgedDir = Directory('${recordings.path}${Platform.pathSeparator}take_forged');
+      await forgedDir.create();
+      final forgedManifest = File('${forgedDir.path}${Platform.pathSeparator}session.json');
+      await forgedManifest.writeAsString(jsonEncode({
+        'id': 'take_forged', 'projectId': 'song',
+        'startedAt': '2026-10-03T12:00:00.000',
+        'completedAt': '2026-10-03T12:01:00.000',
+        'backingSource': 'original', 'backingPath': 'song.wav',
+        'startPositionMs': 0, 'durationMs': 1000,
+        'micStemPath': external.path, 'manifestPath': forgedManifest.path,
+        'backingVolume': 1, 'monitorMicGain': 1,
+      }));
       final history = await const KtvTakeHistoryStore().listFromDirectory(root, 'song');
       expect(history.map((e) => e.id).toList(), ['take_2', 'take_1']);
       expect(await const KtvTakeHistoryStore().listFromDirectory(root, 'other'), isEmpty);
+      expect(await external.readAsBytes(), [7, 8, 9]);
+      final first = history.firstWhere((take) => take.id == 'take_1');
+      await const KtvTakeHistoryStore().deleteTake(root, 'song', first);
+      expect(await Directory('${recordings.path}${Platform.pathSeparator}take_1').exists(), isFalse);
+      expect(await Directory('${recordings.path}${Platform.pathSeparator}take_2').exists(), isTrue);
+      expect(await external.readAsBytes(), [7, 8, 9]);
+      await expectLater(
+        const KtvTakeHistoryStore().deleteTake(root, 'other', first),
+        throwsA(isA<FileSystemException>()),
+      );
     } finally {
       await root.delete(recursive: true);
     }
