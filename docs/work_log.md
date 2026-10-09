@@ -25,7 +25,7 @@
 - Validation:
   - `flutter analyze` => No issues found
   - `flutter pub get` => Got dependencies
-- Notes: Import 支持 MP3/FLAC/WAV/M4A 格式选择，创建工程后自动跳转到详情页。ProjectDetail 显示工程详情、处理进度条、工程状态标签、可播放/编辑入口。暂未接入真实音频处理，仅做占位流程。
+- Notes: Import 支持 MP3/FLAC/WAV/M4A 格式选择，创建工程后自动跳转到详情页。ProjectDetail 显示工程详情、处理进度、工程状态标签、可播放/编辑入口。暂未接入真实音频处理，仅做占位流程。
 - Commit: `feat: add import flow and project detail screen`
 
 ### [2025-04-22 20:00] 实现 LyricEditor 歌词编辑器与 Player 播放器
@@ -95,3 +95,13 @@
   - `flutter test` => success
 - Notes: 修复了播放器长期持有进入编辑器前 `ProjectManifest` 快照的问题；刷新仅重新读取工程数据，不重新创建或重启当前播放会话。
 - Commit: `Refresh player lyrics after timeline editing`
+
+### [2026-10-09 12:03] 固定 LRC 导出的有效播放时间语义
+
+- Scope: 导出 LRC 时把工程 `globalOffset` 烘焙到每行时间戳，避免不同播放器对 `[offset]` 正负方向解释不一致；工程内仍保留独立 offset 供编辑。
+- Files: `lib/features/lyrics/data/services/local_lyric_file_export_service.dart`, `test/local_lyric_file_export_service_test.dart`, `docs/lyric-export-format.md`, `lib/features/transcription/data/services/local_project_transcription_workflow.dart`
+- Validation:
+  - `flutter analyze --no-fatal-infos --no-fatal-warnings` => success
+  - `flutter test` => success
+- Notes: 用户导出的 LRC 是最终播放时间轴；重新导入后播放对齐保持一致，但 offset 分解会被压平。LyricForge project manifest 继续作为无损编辑主文件；负的最终时间戳会钳制到 `00:00.000`。
+- Commit: `Export LRC with effective playback timestamps`
