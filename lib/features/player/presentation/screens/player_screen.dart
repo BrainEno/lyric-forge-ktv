@@ -13,6 +13,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../data/services/ktv_take_history_store.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/ktv_microphone_state.dart';
 import '../../domain/models/ktv_recording_session.dart';
@@ -1316,6 +1317,53 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
+  Future<void> _openTakeHistory() async {
+    if (_recordingService.currentState.isRecording) return;
+    final projectDirectory = _project.projectDirectory;
+    if (projectDirectory == null || projectDirectory.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前工程没有可用的本地录音目录')),
+      );
+      return;
+    }
+    final takes = await const KtvTakeHistoryStore().listFromDirectory(
+      Directory(projectDirectory),
+      _project.id,
+    );
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('演唱历史（${takes.length}）',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
+          for (final take in takes)
+            ListTile(
+              leading: const Icon(Icons.library_music_outlined),
+              title: Text(take.startedAt.toLocal().toString().split('.').first),
+              subtitle: Text(
+                '${_formatRecordingTime(take.duration)} · '
+                '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
+              ),
+              trailing: const Icon(Icons.tune_rounded),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _showTakeResult(take);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _shutdownKtvAudio() async {
     if (_recordingService.currentState.isRecording) {
       await _recordingService.stopRecording();
@@ -1489,6 +1537,16 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 ),
                               const SizedBox(width: AppSpacing.sm),
                             ],
+                            SizedBox(
+                              width: spec.minimumInteractiveExtent,
+                              height: spec.minimumInteractiveExtent,
+                              child: IconButton.filledTonal(
+                                tooltip: '演唱历史',
+                                onPressed: recordingLocked ? null : _openTakeHistory,
+                                icon: const Icon(Icons.history_rounded),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
                             StreamBuilder<KtvRecordingState>(
                               stream: _recordingService.stateStream,
                               initialData: _recordingService.currentState,
