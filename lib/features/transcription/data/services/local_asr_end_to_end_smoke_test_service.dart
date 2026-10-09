@@ -207,7 +207,7 @@ class LocalAsrEndToEndSmokeTestService
         status: 'passed',
         details: {
           'finishedAt': DateTime.now().toUtc().toIso8601String(),
-          'lyricLineCount': lyrics!.lines.length,
+          'lyricLineCount': lyrics.lines.length,
         },
       );
 
