@@ -40,6 +40,7 @@ KtvBackingMode? ktvBackingModeForSource(AudioSourceType? source) {
   return switch (source) {
     AudioSourceType.original => KtvBackingMode.guideVocal,
     AudioSourceType.instrumental => KtvBackingMode.instrumental,
-    AudioSourceType.vocals || null => null,
+    AudioSourceType.vocals => null,
+    null => null,
   };
 }
