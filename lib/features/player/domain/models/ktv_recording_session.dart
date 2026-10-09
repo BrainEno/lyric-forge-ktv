@@ -16,6 +16,8 @@ class KtvRecordingSession {
   final double monitorMicGain;
   final bool alignmentReliable;
   final String? alignmentIssue;
+  final String? displayName;
+  final bool isFavorite;
 
   const KtvRecordingSession({
     required this.id,
@@ -33,6 +35,8 @@ class KtvRecordingSession {
     required this.monitorMicGain,
     this.alignmentReliable = true,
     this.alignmentIssue,
+    this.displayName,
+    this.isFavorite = false,
   });
 
   KtvRecordingSession copyWith({
@@ -41,6 +45,9 @@ class KtvRecordingSession {
     String? mixedOutputPath,
     bool? alignmentReliable,
     String? alignmentIssue,
+    String? displayName,
+    bool clearDisplayName = false,
+    bool? isFavorite,
   }) {
     return KtvRecordingSession(
       id: id,
@@ -58,6 +65,8 @@ class KtvRecordingSession {
       monitorMicGain: monitorMicGain,
       alignmentReliable: alignmentReliable ?? this.alignmentReliable,
       alignmentIssue: alignmentIssue ?? this.alignmentIssue,
+      displayName: clearDisplayName ? null : (displayName ?? this.displayName),
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 
@@ -78,6 +87,8 @@ class KtvRecordingSession {
         'monitorMicGain': monitorMicGain,
         'alignmentReliable': alignmentReliable,
         'alignmentIssue': alignmentIssue,
+        'displayName': displayName,
+        'isFavorite': isFavorite,
       };
 
   factory KtvRecordingSession.fromJson(Map<String, dynamic> json) {
@@ -99,6 +110,8 @@ class KtvRecordingSession {
       monitorMicGain: (json['monitorMicGain'] as num).toDouble(),
       alignmentReliable: json['alignmentReliable'] as bool? ?? true,
       alignmentIssue: json['alignmentIssue'] as String?,
+      displayName: json['displayName'] as String?,
+      isFavorite: json['isFavorite'] as bool? ?? false,
     );
   }
 }
