@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge/features/transcription/data/services/runtime_release_asset_metadata.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/runtime_release_asset_metadata.dart';
 
 void main() {
   group('RuntimeReleaseAssetMetadata', () {
