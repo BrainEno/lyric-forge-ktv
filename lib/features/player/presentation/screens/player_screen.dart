@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart' as preview_audio;
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_chrome_controller.dart';
@@ -13,6 +14,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../data/services/ktv_take_history_store.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/ktv_microphone_state.dart';
 import '../../domain/models/ktv_recording_session.dart';
@@ -1316,6 +1318,98 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
+  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
+    final projectDirectory = _project.projectDirectory;
+    if (projectDirectory == null || projectDirectory.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('永久删除这次演唱录音？'),
+        content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认永久删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await const KtvTakeHistoryStore().deleteTake(
+        Directory(projectDirectory), _project.id, take,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('演唱录音已删除')),
+      );
+      await _openTakeHistory();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('删除失败：$error')),
+      );
+    }
+  }
+
+  Future<void> _openTakeHistory() async {
+    if (_recordingService.currentState.isRecording) return;
+    final projectDirectory = _project.projectDirectory;
+    if (projectDirectory == null || projectDirectory.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('当前工程没有可用的本地录音目录')),
+      );
+      return;
+    }
+    final takes = await const KtvTakeHistoryStore().listFromDirectory(
+      Directory(projectDirectory),
+      _project.id,
+    );
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('演唱历史（${takes.length}）',
+              style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
+          for (final take in takes)
+            ListTile(
+              leading: const Icon(Icons.library_music_outlined),
+              title: Text(take.startedAt.toLocal().toString().split('.').first),
+              subtitle: Text(
+                '${_formatRecordingTime(take.duration)} · '
+                '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
+              ),
+              trailing: IconButton(
+                tooltip: '删除这次录音',
+                icon: const Icon(Icons.delete_outline_rounded),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  unawaited(_confirmDeleteTake(take));
+                },
+              ),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _showTakeResult(take);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _shutdownKtvAudio() async {
     if (_recordingService.currentState.isRecording) {
       await _recordingService.stopRecording();
@@ -1489,6 +1583,16 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 ),
                               const SizedBox(width: AppSpacing.sm),
                             ],
+                            SizedBox(
+                              width: spec.minimumInteractiveExtent,
+                              height: spec.minimumInteractiveExtent,
+                              child: IconButton.filledTonal(
+                                tooltip: '演唱历史',
+                                onPressed: recordingLocked ? null : _openTakeHistory,
+                                icon: const Icon(Icons.history_rounded),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
                             StreamBuilder<KtvRecordingState>(
                               stream: _recordingService.stateStream,
                               initialData: _recordingService.currentState,
@@ -1693,14 +1797,43 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
   late double _voiceVolume;
   late double _backingVolume;
   bool _exporting = false;
+  bool _previewing = false;
+  late final preview_audio.AudioPlayer _previewPlayer;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _previewPlayer = preview_audio.AudioPlayer();
     _session = widget.initialSession;
     _voiceVolume = 1.0;
     _backingVolume = _session.backingVolume;
+  }
+
+  Future<void> _togglePreview() async {
+    try {
+      if (_previewing) {
+        await _previewPlayer.stop();
+        if (mounted) setState(() => _previewing = false);
+        return;
+      }
+      await _previewPlayer.setFilePath(_session.micStemPath);
+      if (!mounted) return;
+      setState(() => _previewing = true);
+      await _previewPlayer.play();
+      if (mounted) setState(() => _previewing = false);
+    } catch (error) {
+      if (mounted) setState(() {
+        _previewing = false;
+        _error = '试听失败：$error';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_previewPlayer.dispose());
+    super.dispose();
   }
 
   Future<void> _exportMix() async {
@@ -1803,6 +1936,12 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
                       ),
                 ),
               ],
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: _exporting ? null : _togglePreview,
+                icon: Icon(_previewing ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                label: Text(_previewing ? '停止试听人声' : '试听原始人声'),
+              ),
               const SizedBox(height: AppSpacing.lg),
               _KtvControlLabel(
                 title: '导出人声音量',
