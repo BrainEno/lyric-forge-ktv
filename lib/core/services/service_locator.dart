@@ -34,6 +34,7 @@ import '../../features/transcription/data/services/managed_asr_runtime_manager.d
 import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/native_transcription_profile_resolver.dart';
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
+import '../../features/transcription/data/services/resilient_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
@@ -189,9 +190,12 @@ class ServiceLocator {
     final runtimeInstaller = ManagedAsrRuntimeManager(
       profileResolver: transcriptionProfileResolver,
     );
-    asrRuntimeManager = ManagedModelAsrRuntimeManager(
+    final managedRuntime = ManagedModelAsrRuntimeManager(
       delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
+    );
+    asrRuntimeManager = ResilientAsrRuntimeManager(
+      delegate: managedRuntime,
     );
     transcriptionService = ResumableChunkedTranscriptionService(
       delegate: HighQualityTranscriptionService(
