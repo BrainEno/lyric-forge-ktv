@@ -61,7 +61,7 @@ class LocalLyricFileExportService implements LyricFileExportService {
       );
       return FilePicker.platform.saveFile(
         dialogTitle: '导出同步歌词',
-        fileName: _ensureLrcExtension(suggestedFileName),
+        fileName: _normalizedFileName(suggestedFileName),
         type: FileType.custom,
         allowedExtensions: const ['lrc'],
         bytes: Uint8List.fromList(utf8.encode(content)),
@@ -71,8 +71,14 @@ class LocalLyricFileExportService implements LyricFileExportService {
     }
   }
 
-  String _ensureLrcExtension(String fileName) {
-    final normalized = fileName.trim().isEmpty ? 'lyrics' : fileName.trim();
+  String _normalizedFileName(String fileName) {
+    var normalized = fileName.trim();
+    if (normalized.isEmpty) normalized = 'lyrics';
+    normalized = normalized
+        .replaceAll(RegExp(r'[\\/:*?"<>|]+'), '_')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.isEmpty) normalized = 'lyrics';
     return normalized.toLowerCase().endsWith('.lrc')
         ? normalized
         : '$normalized.lrc';
