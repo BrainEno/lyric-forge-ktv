@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/ktv_take_history_store.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/pcm16_wav_writer.dart';
 
 void main() {
   test('ignores corrupt takes and keeps valid take order', () async {
@@ -56,6 +58,75 @@ void main() {
         const KtvTakeHistoryStore().deleteTake(root, 'other', first),
         throwsA(isA<FileSystemException>()),
       );
+    } finally {
+      await root.delete(recursive: true);
+    }
+  });
+
+  test('recovers an interrupted take once and disables automatic mixing', () async {
+    final root = await Directory.systemTemp.createTemp('ktv-recovery-');
+    try {
+      final takeDir = Directory(
+        '${root.path}${Platform.pathSeparator}recordings'
+        '${Platform.pathSeparator}take_interrupted',
+      );
+      await takeDir.create(recursive: true);
+      final voice = File('${takeDir.path}${Platform.pathSeparator}voice.wav');
+      final writer = Pcm16WavWriter();
+      await writer.open(voice.path);
+      writer.addPcm16(Uint8List(9600));
+      await writer.close();
+
+      final interruptedBytes = await voice.readAsBytes();
+      for (final offset in [4, 5, 6, 7, 40, 41, 42, 43]) {
+        interruptedBytes[offset] = 0;
+      }
+      await voice.writeAsBytes(interruptedBytes, flush: true);
+      final originalPcm = interruptedBytes.sublist(44);
+
+      final manifest = File(
+        '${takeDir.path}${Platform.pathSeparator}session.json',
+      );
+      await manifest.writeAsString(jsonEncode({
+        'version': 1,
+        'id': 'take_interrupted',
+        'projectId': 'song',
+        'startedAt': '2026-10-09T12:00:00.000',
+        'completedAt': null,
+        'backingSource': 'original',
+        'backingPath': 'song.wav',
+        'startPositionMs': 0,
+        'durationMs': 0,
+        'micStemPath': voice.path,
+        'manifestPath': manifest.path,
+        'mixedOutputPath': null,
+        'backingVolume': 1,
+        'monitorMicGain': 1,
+        'alignmentReliable': true,
+        'alignmentIssue': null,
+      }));
+
+      const store = KtvTakeHistoryStore();
+      final firstScan = await store.scanFromDirectory(root, 'song');
+      expect(firstScan.recoveredCount, 1);
+      expect(firstScan.takes, hasLength(1));
+      final recovered = firstScan.takes.single;
+      expect(recovered.duration, const Duration(milliseconds: 100));
+      expect(recovered.completedAt, isNotNull);
+      expect(recovered.alignmentReliable, isFalse);
+      expect(recovered.alignmentIssue, contains('已恢复原始人声'));
+      expect((await voice.readAsBytes()).sublist(44), originalPcm);
+
+      final persisted = jsonDecode(await manifest.readAsString())
+          as Map<String, dynamic>;
+      expect(persisted['durationMs'], 100);
+      expect(persisted['completedAt'], isNotNull);
+      expect(persisted['alignmentReliable'], isFalse);
+
+      final secondScan = await store.scanFromDirectory(root, 'song');
+      expect(secondScan.recoveredCount, 0);
+      expect(secondScan.takes.single.duration,
+          const Duration(milliseconds: 100));
     } finally {
       await root.delete(recursive: true);
     }
