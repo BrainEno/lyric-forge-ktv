@@ -6,7 +6,7 @@ import '../../features/player/presentation/screens/local_music_library_shell.dar
 import '../../features/player/presentation/screens/now_playing_screen.dart';
 import '../../features/player/presentation/screens/quick_play_screen.dart';
 import '../../features/project/presentation/screens/project_detail_screen.dart';
-import '../../features/import/presentation/screens/import_audio_screen.dart';
+import '../../features/import/presentation/screens/transcription_ready_import_screen.dart';
 import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import '../../features/player/presentation/screens/player_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
@@ -52,7 +52,7 @@ class AppRouter {
         return _fadeRoute(const DashboardScreen(), settings);
 
       case Routes.import:
-        return _fadeRoute(const ImportAudioScreen(), settings);
+        return _fadeRoute(const TranscriptionReadyImportScreen(), settings);
 
       case Routes.library:
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
