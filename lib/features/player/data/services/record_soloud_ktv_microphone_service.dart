@@ -241,14 +241,15 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
         onError: _handleInputError,
       );
 
-      final outputLatency = _soloud.getOutputLatency();
+      // flutter_soloud 4.1.7 does not expose a reliable output-latency query.
+      // Keep this unknown rather than reporting a guessed value; the UI already
+      // falls back to showing only the user-configured software monitor delay.
       _emit(
         _state.copyWith(
           isStarting: false,
           isMonitoring: true,
           permissionDenied: false,
-          engineLatency: outputLatency > Duration.zero ? outputLatency : null,
-          clearEngineLatency: outputLatency <= Duration.zero,
+          clearEngineLatency: true,
           clearError: true,
         ),
       );
