@@ -13,6 +13,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -250,6 +251,40 @@ class _PlayerContentState extends State<_PlayerContent> {
     widget.onSeek(_effectiveLyricStart(widget.project.lyricDocument, line));
   }
 
+  Future<void> _enterKtv() async {
+    final document = widget.project.lyricDocument;
+    final audioAsset = widget.project.audioAsset;
+    if (document == null || document.lines.isEmpty || audioAsset == null) return;
+
+    final selectedMode = await showModalBottomSheet<KtvBackingMode>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (context) => _KtvEntrySheet(
+        audioAsset: audioAsset,
+        currentSource: widget.audioService.currentState.currentSource,
+      ),
+    );
+    if (!mounted || selectedMode == null) return;
+
+    try {
+      if (widget.audioService.currentState.currentSource != selectedMode.source) {
+        await widget.audioService.switchSource(selectedMode.source);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法进入 KTV：$error')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _ktvMode = true);
+    await _openFullScreenKtv();
+  }
+
   Future<void> _openFullScreenKtv() async {
     final document = widget.project.lyricDocument;
     if (document == null || document.lines.isEmpty) return;
@@ -324,6 +359,16 @@ class _PlayerContentState extends State<_PlayerContent> {
               icon: const Icon(Icons.info_outline_rounded),
             ),
           ),
+          if (lyrics.isNotEmpty)
+            SizedBox(
+              width: spec.minimumInteractiveExtent,
+              height: spec.minimumInteractiveExtent,
+              child: IconButton.filledTonal(
+                tooltip: '进入 KTV',
+                onPressed: _enterKtv,
+                icon: const Icon(Icons.mic_rounded),
+              ),
+            ),
           SizedBox(
             width: spec.minimumInteractiveExtent,
             height: spec.minimumInteractiveExtent,
@@ -1053,6 +1098,115 @@ class _FocusLyricLine extends StatelessWidget {
   }
 }
 
+class _KtvEntrySheet extends StatelessWidget {
+  final AudioAsset audioAsset;
+  final AudioSourceType? currentSource;
+
+  const _KtvEntrySheet({
+    required this.audioAsset,
+    required this.currentSource,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final instrumentalAvailable =
+        audioAsset.hasSource(AudioSourceType.instrumental);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.mic_rounded, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '进入 KTV',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '选择演唱时保留原唱伴唱，或只播放纯伴奏。切换音轨会保留当前播放位置。',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _KtvModeTile(
+            mode: KtvBackingMode.guideVocal,
+            selected: currentSource == KtvBackingMode.guideVocal.source,
+            enabled: true,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _KtvModeTile(
+            mode: KtvBackingMode.instrumental,
+            selected: currentSource == KtvBackingMode.instrumental.source,
+            enabled: instrumentalAvailable,
+          ),
+          if (!instrumentalAvailable) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '纯伴奏暂不可用：需要先为该歌曲生成伴奏轨。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _KtvModeTile extends StatelessWidget {
+  final KtvBackingMode mode;
+  final bool selected;
+  final bool enabled;
+
+  const _KtvModeTile({
+    required this.mode,
+    required this.selected,
+    required this.enabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.accent.withAlpha(18) : AppColors.bgSurface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+      child: ListTile(
+        enabled: enabled,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        ),
+        leading: Icon(
+          mode == KtvBackingMode.guideVocal
+              ? Icons.record_voice_over_rounded
+              : Icons.music_note_rounded,
+          color: enabled ? AppColors.accent : AppColors.textTertiary,
+        ),
+        title: Text(
+          mode.label,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(mode.description),
+        trailing: selected ? const Icon(Icons.check_circle_rounded) : null,
+        onTap: enabled ? () => Navigator.pop(context, mode) : null,
+      ),
+    );
+  }
+}
+
 class _FullScreenKtvView extends StatefulWidget {
   final ProjectManifest initialProject;
   final ProjectRepository repository;
@@ -1117,8 +1271,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   Widget build(BuildContext context) {
     final document = _project.lyricDocument;
     final lyrics = document?.lines ?? const <LyricLine>[];
-    final availableSources =
-        _project.audioAsset?.availableSources ?? const <AudioSourceType>[];
+    final ktvSources = availableKtvBackingModes(_project.audioAsset)
+        .map((mode) => mode.source)
+        .toList(growable: false);
 
     return Material(
       color: AppColors.pureBlack,
@@ -1237,20 +1392,22 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 ],
                               ),
                             ),
-                            if (availableSources.length > 1) ...[
+                            if (ktvSources.length > 1) ...[
                               if (spec.isCompact || spec.isShort)
                                 _CompactSourceMenu(
-                                  availableSources: availableSources,
+                                  availableSources: ktvSources,
                                   currentSource: playback.currentSource,
                                   onSourceChanged: widget.onSwitchSource,
+                                  ktvLabels: true,
                                 )
                               else
                                 Flexible(
                                   child: _AudioSourceSelector(
-                                    availableSources: availableSources,
+                                    availableSources: ktvSources,
                                     currentSource: playback.currentSource,
                                     onSourceChanged: widget.onSwitchSource,
                                     compact: true,
+                                    ktvLabels: true,
                                   ),
                                 ),
                               const SizedBox(width: AppSpacing.sm),
@@ -1354,11 +1511,13 @@ class _CompactSourceMenu extends StatelessWidget {
   final List<AudioSourceType> availableSources;
   final AudioSourceType? currentSource;
   final ValueChanged<AudioSourceType> onSourceChanged;
+  final bool ktvLabels;
 
   const _CompactSourceMenu({
     required this.availableSources,
     required this.currentSource,
     required this.onSourceChanged,
+    this.ktvLabels = false,
   });
 
   @override
@@ -1368,7 +1527,7 @@ class _CompactSourceMenu extends StatelessWidget {
       width: spec.minimumInteractiveExtent,
       height: spec.minimumInteractiveExtent,
       child: PopupMenuButton<AudioSourceType>(
-        tooltip: '切换音源',
+        tooltip: ktvLabels ? '切换 KTV 音轨' : '切换音源',
         icon: const Icon(Icons.tune_rounded),
         onSelected: onSourceChanged,
         itemBuilder: (context) => availableSources
@@ -1376,7 +1535,9 @@ class _CompactSourceMenu extends StatelessWidget {
               (source) => CheckedPopupMenuItem<AudioSourceType>(
                 value: source,
                 checked: source == currentSource,
-                child: Text(_sourceLabel(source)),
+                child: Text(
+                  ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
+                ),
               ),
             )
             .toList(growable: false),
@@ -1680,12 +1841,14 @@ class _AudioSourceSelector extends StatelessWidget {
   final AudioSourceType? currentSource;
   final ValueChanged<AudioSourceType> onSourceChanged;
   final bool compact;
+  final bool ktvLabels;
 
   const _AudioSourceSelector({
     required this.availableSources,
     required this.currentSource,
     required this.onSourceChanged,
     this.compact = false,
+    this.ktvLabels = false,
   });
 
   @override
@@ -1699,7 +1862,9 @@ class _AudioSourceSelector extends StatelessWidget {
           selected: source == currentSource,
           onSelected: (_) => onSourceChanged(source),
           visualDensity: compact ? VisualDensity.compact : null,
-          label: Text(_sourceLabel(source)),
+          label: Text(
+            ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
+          ),
         );
       }).toList(growable: false),
     );
@@ -1843,6 +2008,14 @@ String _sourceLabel(AudioSourceType source) {
     AudioSourceType.original => '原声',
     AudioSourceType.instrumental => '伴奏',
     AudioSourceType.vocals => '人声',
+  };
+}
+
+String _ktvSourceLabel(AudioSourceType source) {
+  return switch (source) {
+    AudioSourceType.original => KtvBackingMode.guideVocal.label,
+    AudioSourceType.instrumental => KtvBackingMode.instrumental.label,
+    AudioSourceType.vocals => '人声试听',
   };
 }
 
