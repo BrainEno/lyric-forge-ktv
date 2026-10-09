@@ -1458,26 +1458,35 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               ),
                             ),
                             if (ktvSources.length > 1) ...[
-                              IgnorePointer(
-                                ignoring: recordingLocked,
-                                child: Opacity(
-                                  opacity: recordingLocked ? 0.45 : 1,
-                                  child: spec.isCompact || spec.isShort
-                                      ? _CompactSourceMenu(
-                                          availableSources: ktvSources,
-                                          currentSource: playback.currentSource,
-                                          onSourceChanged: widget.onSwitchSource,
-                                          ktvLabels: true,
-                                        )
-                                      : _AudioSourceSelector(
-                                          availableSources: ktvSources,
-                                          currentSource: playback.currentSource,
-                                          onSourceChanged: widget.onSwitchSource,
-                                          compact: true,
-                                          ktvLabels: true,
-                                        ),
+                              if (spec.isCompact || spec.isShort)
+                                IgnorePointer(
+                                  ignoring: recordingLocked,
+                                  child: Opacity(
+                                    opacity: recordingLocked ? 0.45 : 1,
+                                    child: _CompactSourceMenu(
+                                      availableSources: ktvSources,
+                                      currentSource: playback.currentSource,
+                                      onSourceChanged: widget.onSwitchSource,
+                                      ktvLabels: true,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Flexible(
+                                  child: IgnorePointer(
+                                    ignoring: recordingLocked,
+                                    child: Opacity(
+                                      opacity: recordingLocked ? 0.45 : 1,
+                                      child: _AudioSourceSelector(
+                                        availableSources: ktvSources,
+                                        currentSource: playback.currentSource,
+                                        onSourceChanged: widget.onSwitchSource,
+                                        compact: true,
+                                        ktvLabels: true,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
                               const SizedBox(width: AppSpacing.sm),
                             ],
                             StreamBuilder<KtvRecordingState>(
@@ -1681,6 +1690,8 @@ class _KtvTakeResultSheet extends StatefulWidget {
 
 class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
   late KtvRecordingSession _session;
+  late double _voiceVolume;
+  late double _backingVolume;
   bool _exporting = false;
   String? _error;
 
@@ -1688,6 +1699,8 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
   void initState() {
     super.initState();
     _session = widget.initialSession;
+    _voiceVolume = 1.0;
+    _backingVolume = _session.backingVolume;
   }
 
   Future<void> _exportMix() async {
@@ -1697,7 +1710,11 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
       _error = null;
     });
     try {
-      final exported = await widget.recordingService.exportMix(_session);
+      final exported = await widget.recordingService.exportMix(
+        _session,
+        voiceVolume: _voiceVolume,
+        backingVolume: _backingVolume,
+      );
       if (!mounted) return;
       setState(() {
         _session = exported;
@@ -1786,6 +1803,33 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
                       ),
                 ),
               ],
+              const SizedBox(height: AppSpacing.lg),
+              _KtvControlLabel(
+                title: '导出人声音量',
+                value: '${(_voiceVolume * 100).round()}%',
+              ),
+              Slider(
+                value: _voiceVolume,
+                min: 0,
+                max: 2,
+                divisions: 20,
+                onChanged: _exporting
+                    ? null
+                    : (value) => setState(() => _voiceVolume = value),
+              ),
+              _KtvControlLabel(
+                title: '导出伴奏音量',
+                value: '${(_backingVolume * 100).round()}%',
+              ),
+              Slider(
+                value: _backingVolume,
+                min: 0,
+                max: 1,
+                divisions: 20,
+                onChanged: _exporting
+                    ? null
+                    : (value) => setState(() => _backingVolume = value),
+              ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 _PlaybackError(message: _error!),
