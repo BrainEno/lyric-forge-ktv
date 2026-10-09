@@ -43,6 +43,7 @@ class KtvRecordingSession {
     DateTime? completedAt,
     Duration? duration,
     String? mixedOutputPath,
+    bool clearMixedOutputPath = false,
     bool? alignmentReliable,
     String? alignmentIssue,
     String? displayName,
@@ -60,7 +61,9 @@ class KtvRecordingSession {
       duration: duration ?? this.duration,
       micStemPath: micStemPath,
       manifestPath: manifestPath,
-      mixedOutputPath: mixedOutputPath ?? this.mixedOutputPath,
+      mixedOutputPath: clearMixedOutputPath
+          ? null
+          : (mixedOutputPath ?? this.mixedOutputPath),
       backingVolume: backingVolume,
       monitorMicGain: monitorMicGain,
       alignmentReliable: alignmentReliable ?? this.alignmentReliable,
