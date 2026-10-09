@@ -30,15 +30,18 @@ class LocalLyricFileExportService implements LyricFileExportService {
     metadata('lang', document.language);
     buffer.writeln('[re:LyricForge]');
     buffer.writeln('[ve:1]');
-    final offset = document.globalOffset?.inMilliseconds ?? 0;
-    if (offset != 0) buffer.writeln('[offset:$offset]');
 
+    // LRC offset direction is interpreted inconsistently across players.
+    // Export effective timestamps instead so the same file stays aligned even
+    // when a target player ignores or reverses the optional [offset] tag.
+    final globalOffset = document.globalOffset ?? Duration.zero;
     final sorted = List<LyricLine>.from(document.lines)
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
     for (final line in sorted) {
       final text = line.text.replaceAll(RegExp(r'[\r\n]+'), ' ').trim();
       if (text.isEmpty) continue;
-      buffer.writeln('[${_timestamp(line.startTime)}]$text');
+      final effectiveStart = line.startTime + globalOffset;
+      buffer.writeln('[${_timestamp(effectiveStart)}]$text');
     }
 
     return buffer.toString();
