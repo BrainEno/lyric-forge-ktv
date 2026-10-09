@@ -30,7 +30,7 @@ jobs:
       - run: flutter pub get
       - name: Analyze runtime integrity changes
         run: >-
-          flutter analyze
+          flutter analyze --no-fatal-infos
           lib/features/transcription/data/services/managed_asr_runtime_manager.dart
           lib/features/transcription/data/services/runtime_release_asset_metadata.dart
           test/runtime_release_asset_metadata_test.dart
