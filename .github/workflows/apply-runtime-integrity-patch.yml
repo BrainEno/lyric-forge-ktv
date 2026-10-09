@@ -1,0 +1,212 @@
+name: Apply runtime integrity patch
+
+on:
+  push:
+    branches:
+      - feat/runtime-integrity-validation
+    paths:
+      - ".github/workflows/apply-runtime-integrity-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/runtime-integrity-validation
+          fetch-depth: 0
+
+      - name: Apply focused source patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('lib/features/transcription/data/services/managed_asr_runtime_manager.dart')
+          text = path.read_text(encoding='utf-8')
+
+          old = """import '../../domain/services/transcription_profile_resolver.dart';\n"""
+          new = """import '../../domain/services/transcription_profile_resolver.dart';\nimport 'runtime_release_asset_metadata.dart';\n"""
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = """    final downloads = Directory(_join(root.path, ['downloads']));
+    final archive = File(_join(downloads.path, ['asr-runtime.zip']));
+    final uri = _runtimeBundleUri(profile);
+
+    try {
+      await _download(
+        uri,
+        archive,
+        component: AsrRuntimeComponent.qwenRuntime,
+        startProgress: 0.05,
+        endProgress: 0.22,
+      );
+    } on HttpException catch (error) {
+      throw TranscriptionException(
+        '无法下载 LyricForge Qwen runtime。'
+        '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
+        details: error.message,
+      );
+    }
+
+    final bundle = Directory(_join(root.path, ['bundle']));
+"""
+          new = """    final downloads = Directory(_join(root.path, ['downloads']));
+    final archive = File(_join(downloads.path, ['asr-runtime.zip']));
+    final metadata = await _fetchRuntimeReleaseAssetMetadata(profile);
+
+    try {
+      await _download(
+        metadata.downloadUri,
+        archive,
+        component: AsrRuntimeComponent.qwenRuntime,
+        startProgress: 0.05,
+        endProgress: 0.22,
+        resumable: true,
+      );
+    } on HttpException catch (error) {
+      throw TranscriptionException(
+        '无法下载 LyricForge Qwen runtime。'
+        '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
+        details: error.message,
+      );
+    }
+
+    _throwIfCancelled();
+    _emit(
+      AsrRuntimeComponent.qwenRuntime,
+      0.225,
+      '正在校验 LyricForge 识别引擎完整性',
+    );
+
+    final actualSize = await archive.length();
+    if (actualSize != metadata.sizeBytes) {
+      await archive.delete();
+      throw TranscriptionException(
+        '识别引擎安装包大小校验失败，已删除损坏文件，请重新安装',
+        details: 'expected=${metadata.sizeBytes}, actual=$actualSize',
+      );
+    }
+
+    final checksumValid = await _verifySha256(
+      archive.path,
+      metadata.sha256,
+    );
+    if (!checksumValid) {
+      await archive.delete();
+      throw const TranscriptionException(
+        '识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装',
+      );
+    }
+
+    final bundle = Directory(_join(root.path, ['bundle']));
+"""
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          old = """  Uri _runtimeBundleUri(
+    TranscriptionProfilePreference profile,
+  ) {
+    final asset = switch (profile) {
+      TranscriptionProfilePreference.rtx5080HighQuality =>
+        'lyricforge-asr-runtime-windows-x64-cuda.zip',
+      TranscriptionProfilePreference.intelMacHighQuality =>
+        'lyricforge-asr-runtime-macos-x64.zip',
+      _ => throw const TranscriptionException(
+          '当前 Profile 没有自动安装包',
+        ),
+    };
+
+    return Uri.parse(
+      'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
+      '$_runtimeReleaseTag/$asset',
+    );
+  }
+"""
+          new = """  String _runtimeAssetName(
+    TranscriptionProfilePreference profile,
+  ) {
+    return switch (profile) {
+      TranscriptionProfilePreference.rtx5080HighQuality =>
+        'lyricforge-asr-runtime-windows-x64-cuda.zip',
+      TranscriptionProfilePreference.intelMacHighQuality =>
+        'lyricforge-asr-runtime-macos-x64.zip',
+      _ => throw const TranscriptionException(
+          '当前 Profile 没有自动安装包',
+        ),
+    };
+  }
+
+  Future<RuntimeReleaseAssetMetadata> _fetchRuntimeReleaseAssetMetadata(
+    TranscriptionProfilePreference profile,
+  ) async {
+    final assetName = _runtimeAssetName(profile);
+    final uri = Uri.parse(
+      'https://api.github.com/repos/BrainEno/lyric-forge-ktv/releases/tags/'
+      '$_runtimeReleaseTag',
+    );
+    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+
+    try {
+      final request = await client.getUrl(uri);
+      _activeRequest = request;
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
+      final response = await request.close();
+      _activeRequest = null;
+
+      if (response.statusCode != HttpStatus.ok) {
+        await response.drain<void>();
+        throw TranscriptionException(
+          '无法读取识别引擎发布信息，请检查网络后重试',
+          details: 'GitHub release API HTTP ${response.statusCode}',
+        );
+      }
+
+      final body = await utf8.decoder.bind(response).join();
+      try {
+        return RuntimeReleaseAssetMetadata.fromReleaseJson(
+          body,
+          assetName: assetName,
+        );
+      } on FormatException catch (error) {
+        throw TranscriptionException(
+          '识别引擎发布信息缺少完整性校验数据，已停止安装',
+          details: error.message,
+        );
+      }
+    } on TranscriptionException {
+      rethrow;
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const TranscriptionException('识别环境安装已取消');
+      }
+      throw TranscriptionException(
+        '无法读取识别引擎发布信息，请检查网络后重试',
+        details: error.toString(),
+      );
+    } finally {
+      _activeRequest = null;
+      client.close(force: true);
+    }
+  }
+"""
+          assert text.count(old) == 1
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Remove one-shot workflow and commit patch
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-runtime-integrity-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/transcription/data/services/managed_asr_runtime_manager.dart
+          git commit -m "Verify managed runtime downloads before install"
+          git push origin HEAD:feat/runtime-integrity-validation
