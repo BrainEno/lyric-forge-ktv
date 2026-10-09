@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart' as preview_audio;
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_chrome_controller.dart';
@@ -1751,14 +1752,43 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
   late double _voiceVolume;
   late double _backingVolume;
   bool _exporting = false;
+  bool _previewing = false;
+  late final preview_audio.AudioPlayer _previewPlayer;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _previewPlayer = preview_audio.AudioPlayer();
     _session = widget.initialSession;
     _voiceVolume = 1.0;
     _backingVolume = _session.backingVolume;
+  }
+
+  Future<void> _togglePreview() async {
+    try {
+      if (_previewing) {
+        await _previewPlayer.stop();
+        if (mounted) setState(() => _previewing = false);
+        return;
+      }
+      await _previewPlayer.setFilePath(_session.micStemPath);
+      if (!mounted) return;
+      setState(() => _previewing = true);
+      await _previewPlayer.play();
+      if (mounted) setState(() => _previewing = false);
+    } catch (error) {
+      if (mounted) setState(() {
+        _previewing = false;
+        _error = '试听失败：$error';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_previewPlayer.dispose());
+    super.dispose();
   }
 
   Future<void> _exportMix() async {
@@ -1861,6 +1891,12 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
                       ),
                 ),
               ],
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: _exporting ? null : _togglePreview,
+                icon: Icon(_previewing ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                label: Text(_previewing ? '停止试听人声' : '试听原始人声'),
+              ),
               const SizedBox(height: AppSpacing.lg),
               _KtvControlLabel(
                 title: '导出人声音量',
