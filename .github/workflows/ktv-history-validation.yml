@@ -22,4 +22,5 @@ jobs:
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter test test/features/player/ktv_project_storage_test.dart
       - run: flutter test test/features/player/ktv_take_history_store_test.dart
+      - run: flutter test test/features/player/ktv_take_mix_path_test.dart
       - run: flutter test
