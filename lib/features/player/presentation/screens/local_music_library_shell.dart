@@ -45,6 +45,14 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     );
   }
 
+  void _selectDesktopDestination(BuildContext context, int value) {
+    if (value == 5) {
+      Navigator.pushNamed(context, Routes.settings);
+      return;
+    }
+    setState(() => _index = value);
+  }
+
   List<Widget> get _pages => const [
         LocalLibraryExplorerScreen(),
         LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
@@ -78,6 +86,11 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
       icon: Icon(Icons.queue_music_outlined),
       selectedIcon: Icon(Icons.queue_music_rounded),
       label: Text('播放列表'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.settings_outlined),
+      selectedIcon: Icon(Icons.settings_rounded),
+      label: Text('设置'),
     ),
   ];
 
@@ -126,7 +139,8 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
                   labelType: NavigationRailLabelType.all,
                   minWidth: 76,
                   groupAlignment: -0.72,
-                  onDestinationSelected: (value) => setState(() => _index = value),
+                  onDestinationSelected: (value) =>
+                      _selectDesktopDestination(context, value),
                   leading: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(
