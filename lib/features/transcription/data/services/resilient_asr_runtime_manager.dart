@@ -97,7 +97,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
 
       if (!wantsHighestQuality) {
         _emit(null, 1.0, 'Whisper 本地歌词识别环境已准备完成');
-        return repair(baseline);
+        return await repair(baseline);
       }
 
       _emit(
@@ -118,7 +118,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         final upgraded = await delegate.installRecommended(upgradeConfig);
         _throwIfCancelled();
         _emit(null, 1.0, '最高质量本地歌词识别环境已准备完成');
-        return repair(upgraded);
+        return await repair(upgraded);
       } on TranscriptionException catch (error) {
         if (_cancelRequested || _isCancellation(error)) rethrow;
 
@@ -127,7 +127,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
           1.0,
           'Qwen 高质量组件暂不可用；已自动保留 Whisper 基线，可立即开始识别',
         );
-        return repair(baseline);
+        return await repair(baseline);
       }
     } finally {
       _activeRequest = null;
