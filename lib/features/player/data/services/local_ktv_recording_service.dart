@@ -315,7 +315,55 @@ class LocalKtvRecordingService implements KtvRecordingService {
     }
   }
 
-  Future<Directory> _createSessionDirectory(ProjectManifest project) async {
+  @override
+  Future<List<KtvRecordingSession>> listRecordings(ProjectManifest project) async {
+    final root = await _recordingsDirectory(project, create: false);
+    if (!await root.exists()) return <KtvRecordingSession>[];
+    final sessions = <KtvRecordingSession>[];
+    await for (final entity in root.list(followLinks: false)) {
+      if (entity is! Directory || !entity.path.split(Platform.pathSeparator).last.startsWith('take_')) continue;
+      final manifest = File(_join(entity.path, 'session.json'));
+      try {
+        if (!await manifest.exists()) continue;
+        final decoded = jsonDecode(await manifest.readAsString());
+        if (decoded is! Map<String, dynamic>) continue;
+        final session = KtvRecordingSession.fromJson(decoded);
+        if (session.projectId != project.id || session.manifestPath != manifest.path) continue;
+        if (!await File(session.micStemPath).exists()) continue;
+        sessions.add(session);
+      } catch (_) {
+        // A broken take must not hide other recordings.
+      }
+    }
+    sessions.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return sessions;
+  }
+
+  @override
+  Future<void> deleteRecording(KtvRecordingSession session) async {
+    if (_state.isRecording || _state.isExporting) {
+      throw const KtvRecordingException('录音或导出进行中，无法删除');
+    }
+    final manifest = File(session.manifestPath);
+    final directory = manifest.parent;
+    final parent = directory.parent;
+    if (!directory.path.split(Platform.pathSeparator).last.startsWith('take_') ||
+        parent.path.split(Platform.pathSeparator).last != 'recordings' ||
+        manifest.path != _join(directory.path, 'session.json')) {
+      throw const KtvRecordingException('无效的录音目录，拒绝删除');
+    }
+    if (!await manifest.exists()) throw const KtvRecordingException('录音记录不存在');
+    final decoded = jsonDecode(await manifest.readAsString());
+    if (decoded is! Map<String, dynamic>) throw const KtvRecordingException('录音记录损坏');
+    final saved = KtvRecordingSession.fromJson(decoded);
+    if (saved.id != session.id || saved.projectId != session.projectId ||
+        saved.manifestPath != session.manifestPath) {
+      throw const KtvRecordingException('录音记录不匹配，拒绝删除');
+    }
+    await directory.delete(recursive: true);
+  }
+
+  Future<Directory> _recordingsDirectory(ProjectManifest project, {required bool create}) async {
     Directory projectDirectory;
     if (project.projectDirectory?.trim().isNotEmpty == true) {
       projectDirectory = Directory(project.projectDirectory!);
@@ -325,9 +373,13 @@ class LocalKtvRecordingService implements KtvRecordingService {
         _join(_join(_join(support.path, 'LyricForge'), 'Projects'), project.id),
       );
     }
-
     final recordings = Directory(_join(projectDirectory.path, 'recordings'));
-    await recordings.create(recursive: true);
+    if (create) await recordings.create(recursive: true);
+    return recordings;
+  }
+
+  Future<Directory> _createSessionDirectory(ProjectManifest project) async {
+    final recordings = await _recordingsDirectory(project, create: true);
     final stamp = DateTime.now()
         .toUtc()
         .toIso8601String()
