@@ -14,5 +14,9 @@ abstract class KtvRecordingService {
     double? backingVolume,
   });
 
+  Future<List<KtvRecordingSession>> listRecordings(ProjectManifest project);
+
+  Future<void> deleteRecording(KtvRecordingSession session);
+
   Future<void> dispose();
 }
