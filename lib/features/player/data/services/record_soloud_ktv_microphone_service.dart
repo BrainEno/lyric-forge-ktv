@@ -25,6 +25,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   final StreamController<Uint8List> _rawPcmController =
       StreamController<Uint8List>.broadcast(sync: true);
   final Stopwatch _levelClock = Stopwatch()..start();
+  final Map<String, InputDevice> _recordInputDevices = <String, InputDevice>{};
   late final PcmDelayLine _delayLine;
 
   StreamSubscription<Uint8List>? _inputSubscription;
@@ -56,6 +57,102 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   Stream<Uint8List> get rawPcm16Stream => _rawPcmController.stream;
 
   @override
+  Future<void> refreshInputDevices() =>
+      _refreshInputDevices(surfaceErrors: true);
+
+  Future<void> _refreshInputDevices({required bool surfaceErrors}) async {
+    if (_state.isRefreshingInputDevices) return;
+    _emit(_state.copyWith(isRefreshingInputDevices: true));
+
+    try {
+      final devices = await _recorder.listInputDevices();
+      _recordInputDevices
+        ..clear()
+        ..addEntries(
+          devices
+              .where((device) => device.id.trim().isNotEmpty)
+              .map((device) => MapEntry(device.id, device)),
+        );
+
+      final mapped = _recordInputDevices.values
+          .map(
+            (device) => KtvAudioInputDevice(
+              id: device.id,
+              label: device.label.trim().isEmpty
+                  ? '未命名输入设备'
+                  : device.label.trim(),
+              sampleRates: List<int>.unmodifiable(device.sampleRates),
+            ),
+          )
+          .toList(growable: false)
+        ..sort((left, right) => left.label.compareTo(right.label));
+      final selectedId = _state.selectedInputDeviceId;
+      final selectedStillAvailable = selectedId == null ||
+          _recordInputDevices.containsKey(selectedId);
+
+      _emit(
+        _state.copyWith(
+          isRefreshingInputDevices: false,
+          inputDevices: List<KtvAudioInputDevice>.unmodifiable(mapped),
+          clearSelectedInputDevice: !selectedStillAvailable,
+          clearError: true,
+        ),
+      );
+    } catch (error) {
+      _emit(
+        _state.copyWith(
+          isRefreshingInputDevices: false,
+          error: surfaceErrors ? '无法读取麦克风设备列表：$error' : null,
+          clearError: !surfaceErrors,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<void> selectInputDevice(String? deviceId) async {
+    final normalizedId = deviceId?.trim();
+    if (normalizedId != null && normalizedId.isNotEmpty) {
+      if (!_recordInputDevices.containsKey(normalizedId)) {
+        await _refreshInputDevices(surfaceErrors: false);
+      }
+      if (!_recordInputDevices.containsKey(normalizedId)) {
+        _emit(_state.copyWith(error: '所选麦克风已不可用，请刷新设备列表后重试'));
+        return;
+      }
+    }
+
+    final nextId = normalizedId == null || normalizedId.isEmpty
+        ? null
+        : normalizedId;
+    if (_state.selectedInputDeviceId == nextId) return;
+
+    final restartMonitoring = _state.isMonitoring;
+    if (restartMonitoring) {
+      await _stopSessionSilently();
+      _emit(
+        _state.copyWith(
+          isMonitoring: false,
+          inputLevel: 0,
+          clearEngineLatency: true,
+        ),
+      );
+    }
+
+    _emit(
+      _state.copyWith(
+        selectedInputDeviceId: nextId,
+        clearSelectedInputDevice: nextId == null,
+        clearError: true,
+      ),
+    );
+
+    if (restartMonitoring) {
+      await startMonitoring();
+    }
+  }
+
+  @override
   Future<void> startMonitoring() async {
     if (_state.isMonitoring || _state.isStarting) return;
 
@@ -80,6 +177,8 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
         );
         return;
       }
+
+      await _refreshInputDevices(surfaceErrors: false);
 
       final pcmSupported =
           await _recorder.isEncoderSupported(AudioEncoder.pcm16bits);
@@ -106,9 +205,12 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
         format: BufferType.s16le,
       );
       final monitorHandle = _soloud.play(monitorSource);
+      final selectedDevice = _state.selectedInputDeviceId == null
+          ? null
+          : _recordInputDevices[_state.selectedInputDeviceId!];
 
       final input = await _recorder.startStream(
-        const RecordConfig(
+        RecordConfig(
           encoder: AudioEncoder.pcm16bits,
           sampleRate: _sampleRate,
           numChannels: 1,
@@ -116,6 +218,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
           echoCancel: false,
           noiseSuppress: false,
           streamBufferSize: 2048,
+          device: selectedDevice,
         ),
       );
 
