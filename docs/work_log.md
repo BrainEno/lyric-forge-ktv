@@ -25,7 +25,7 @@
 - Validation:
   - `flutter analyze` => No issues found
   - `flutter pub get` => Got dependencies
-- Notes: Import 支持 MP3/FLAC/WAV/M4A 格式选择，创建工程后自动跳转到详情页。ProjectDetail 显示处理进度条、工程状态标签、可播放/编辑入口。暂未接入真实音频处理，仅做占位流程。
+- Notes: Import 支持 MP3/FLAC/WAV/M4A 格式选择，创建工程后自动跳转到详情页。ProjectDetail 显示工程详情、处理进度条、工程状态标签、可播放/编辑入口。暂未接入真实音频处理，仅做占位流程。
 - Commit: `feat: add import flow and project detail screen`
 
 ### [2025-04-22 20:00] 实现 LyricEditor 歌词编辑器与 Player 播放器
@@ -65,3 +65,13 @@
   - `flutter pub get` => Got dependencies
 - Notes: QuickPlayScreen 支持直接选择音频文件播放，无需创建工程。播放完成后自动保存到历史记录。Dashboard 显示最近 5 条播放历史，点击可快速重新播放。PlayHistory 模型包含文件名、路径、播放时间、最后播放位置等信息。UI 保持 Spotify 风格，播放历史使用播放图标区分于工程项目。
 - Commit: `feat: add quick play mode with play history`
+
+### [2026-10-09 11:46] 打通歌词时间轴校对与 LRC 导出切片
+
+- Scope: 将 ASR 识别结果明确标记为可编辑的 `lyricforge-timeline-v1` 草稿；在歌词校对页增加跟随播放滚动、使用当前播放位置校准选中行起止时间、保留逐行文本纠错与微调，并新增 UTF-8 LRC 导出能力。
+- Files: `lib/features/transcription/data/services/local_project_transcription_workflow.dart`, `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`, `lib/features/lyrics/domain/services/lyric_file_export_service.dart`, `lib/features/lyrics/data/services/local_lyric_file_export_service.dart`, `lib/core/services/service_locator.dart`, `test/local_lyric_file_export_service_test.dart`, `docs/lyric-export-format.md`
+- Validation:
+  - `flutter analyze --no-fatal-infos --no-fatal-warnings` => success
+  - `flutter test` => success
+- Notes: 用户导出格式固定为 UTF-8 LRC，使用 `[mm:ss.SSS]` 行起点与独立 `[offset:<ms>]`；工程 manifest 继续保存精确结束时间、置信度、副歌和复核元数据。导出测试覆盖毫秒时间戳、offset、空行过滤以及 LRC 导出后重新导入的 round-trip。
+- Commit: `Add synced lyric timeline editing and LRC export`
