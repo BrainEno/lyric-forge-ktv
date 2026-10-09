@@ -1,0 +1,43 @@
+name: Runtime integrity validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/runtime_release_asset_metadata.dart"
+      - "test/runtime_release_asset_metadata_test.dart"
+      - "test/runtime_integrity_install_contract_test.dart"
+      - ".github/workflows/runtime-integrity-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/runtime_release_asset_metadata.dart"
+      - "test/runtime_release_asset_metadata_test.dart"
+      - "test/runtime_integrity_install_contract_test.dart"
+      - ".github/workflows/runtime-integrity-validation.yml"
+
+jobs:
+  runtime-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze runtime integrity changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/features/transcription/data/services/managed_asr_runtime_manager.dart
+          lib/features/transcription/data/services/runtime_release_asset_metadata.dart
+          test/runtime_release_asset_metadata_test.dart
+          test/runtime_integrity_install_contract_test.dart
+      - name: Test release metadata parser
+        run: flutter test test/runtime_release_asset_metadata_test.dart
+      - name: Test install integrity contract
+        run: flutter test test/runtime_integrity_install_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

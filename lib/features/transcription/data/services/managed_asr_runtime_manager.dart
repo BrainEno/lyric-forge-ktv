@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
+import 'runtime_release_asset_metadata.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const String _runtimeReleaseTag = 'asr-runtime-v1';
@@ -78,8 +79,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         await _validWhisperModel(whisperModel);
 
     final qwenMarker = _qwenReadyMarker(root, profile.profile);
-    final markerReady =
-        await _qwenMarkerMatches(qwenMarker, repaired);
+    final markerReady = await _qwenMarkerMatches(qwenMarker, repaired);
     final qwenModelLocal = await _modelReferenceExists(
       repaired.qwenModelPath,
     );
@@ -242,8 +242,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         commandName: _whisperName,
       );
 
-      final needsQwen =
-          repaired.mode == TranscriptionMode.highestQuality;
+      final needsQwen = repaired.mode == TranscriptionMode.highestQuality;
       if (whisperPath == null || (needsQwen && qwenPath == null)) {
         final installed = await _installManagedRuntimeBundle(
           root,
@@ -331,21 +330,49 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['asr-runtime.zip']));
-    final uri = _runtimeBundleUri(profile);
+    final metadata = await _fetchRuntimeReleaseAssetMetadata(profile);
 
     try {
       await _download(
-        uri,
+        metadata.downloadUri,
         archive,
         component: AsrRuntimeComponent.qwenRuntime,
         startProgress: 0.05,
         endProgress: 0.22,
+        resumable: true,
       );
     } on HttpException catch (error) {
       throw TranscriptionException(
         '无法下载 LyricForge Qwen runtime。'
         '可能是当前版本的 runtime release 尚未发布，请稍后重试。',
         details: error.message,
+      );
+    }
+
+    _throwIfCancelled();
+    _emit(
+      AsrRuntimeComponent.qwenRuntime,
+      0.225,
+      '正在校验 LyricForge 识别引擎完整性',
+    );
+
+    final actualSize = await archive.length();
+    if (actualSize != metadata.sizeBytes) {
+      await archive.delete();
+      throw TranscriptionException(
+        '识别引擎安装包大小校验失败，已删除损坏文件，请重新安装',
+        details: 'expected=${metadata.sizeBytes}, actual=$actualSize',
+      );
+    }
+
+    final checksumValid = await _verifySha256(
+      archive.path,
+      metadata.sha256,
+    );
+    if (!checksumValid) {
+      await archive.delete();
+      throw const TranscriptionException(
+        '识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装',
       );
     }
 
@@ -662,8 +689,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         );
       }
 
-      final append = existing > 0 &&
-          response.statusCode == HttpStatus.partialContent;
+      final append =
+          existing > 0 && response.statusCode == HttpStatus.partialContent;
       if (!append) existing = 0;
 
       final sink = part.openWrite(
@@ -683,14 +710,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           final fraction = total > 0
               ? (received / total).clamp(0.0, 1.0).toDouble()
               : 0.0;
-          final mapped = startProgress +
-              (endProgress - startProgress) * fraction;
+          final mapped =
+              startProgress + (endProgress - startProgress) * fraction;
           _emit(
             component,
             mapped,
-            total > 0
-                ? '正在下载 ${_percent(fraction)}'
-                : '正在下载…',
+            total > 0 ? '正在下载 ${_percent(fraction)}' : '正在下载…',
           );
         }
       } finally {
@@ -975,10 +1000,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         profile == TranscriptionProfilePreference.intelMacHighQuality;
   }
 
-  Uri _runtimeBundleUri(
+  String _runtimeAssetName(
     TranscriptionProfilePreference profile,
   ) {
-    final asset = switch (profile) {
+    return switch (profile) {
       TranscriptionProfilePreference.rtx5080HighQuality =>
         'lyricforge-asr-runtime-windows-x64-cuda.zip',
       TranscriptionProfilePreference.intelMacHighQuality =>
@@ -987,11 +1012,62 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           '当前 Profile 没有自动安装包',
         ),
     };
+  }
 
-    return Uri.parse(
-      'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
-      '$_runtimeReleaseTag/$asset',
+  Future<RuntimeReleaseAssetMetadata> _fetchRuntimeReleaseAssetMetadata(
+    TranscriptionProfilePreference profile,
+  ) async {
+    final assetName = _runtimeAssetName(profile);
+    final uri = Uri.parse(
+      'https://api.github.com/repos/BrainEno/lyric-forge-ktv/releases/tags/'
+      '$_runtimeReleaseTag',
     );
+    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+
+    try {
+      final request = await client.getUrl(uri);
+      _activeRequest = request;
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github+json',
+      );
+      final response = await request.close();
+      _activeRequest = null;
+
+      if (response.statusCode != HttpStatus.ok) {
+        await response.drain<void>();
+        throw TranscriptionException(
+          '无法读取识别引擎发布信息，请检查网络后重试',
+          details: 'GitHub release API HTTP ${response.statusCode}',
+        );
+      }
+
+      final body = await utf8.decoder.bind(response).join();
+      try {
+        return RuntimeReleaseAssetMetadata.fromReleaseJson(
+          body,
+          assetName: assetName,
+        );
+      } on FormatException catch (error) {
+        throw TranscriptionException(
+          '识别引擎发布信息缺少完整性校验数据，已停止安装',
+          details: error.message,
+        );
+      }
+    } on TranscriptionException {
+      rethrow;
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const TranscriptionException('识别环境安装已取消');
+      }
+      throw TranscriptionException(
+        '无法读取识别引擎发布信息，请检查网络后重试',
+        details: error.toString(),
+      );
+    } finally {
+      _activeRequest = null;
+      client.close(force: true);
+    }
   }
 
   String _qwenModelLabel(String modelReference) {
