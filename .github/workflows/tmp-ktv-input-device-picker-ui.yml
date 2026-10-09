@@ -1,0 +1,89 @@
+name: Temporary KTV input device picker validation
+
+on:
+  push:
+    branches:
+      - feat/ktv-input-device-picker-ui
+    paths:
+      - .github/workflows/tmp-ktv-input-device-picker-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/ktv-input-device-picker-ui
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Apply microphone device picker UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('lib/features/player/presentation/screens/player_screen.dart')
+          text = path.read_text(encoding='utf-8')
+          class_start = text.index('class _KtvAudioControlsSheet extends StatelessWidget')
+
+          state_anchor = '''            final totalMs = engineMs == null ? null : engineMs + extraMs;\n\n            return SingleChildScrollView('''
+          state_replacement = '''            final totalMs = engineMs == null ? null : engineMs + extraMs;\n            const systemDefaultDeviceId = '__system_default__';\n            final selectedDeviceId = microphone.selectedInputDeviceId;\n            final selectedDeviceValue = selectedDeviceId != null &&\n                    microphone.inputDevices\n                        .any((device) => device.id == selectedDeviceId)\n                ? selectedDeviceId\n                : systemDefaultDeviceId;\n            final selectedDevice = microphone.selectedInputDevice;\n            final deviceControlsLocked = recordingLocked ||\n                microphone.isStarting ||\n                microphone.isRefreshingInputDevices;\n\n            return SingleChildScrollView('''
+          state_pos = text.index(state_anchor, class_start)
+          text = text[:state_pos] + state_replacement + text[state_pos + len(state_anchor):]
+
+          control_anchor = '''                      const SizedBox(height: AppSpacing.md),\n                      SwitchListTile.adaptive('''
+          control_replacement = '''                      const SizedBox(height: AppSpacing.md),\n                      Row(\n                        children: [\n                          Expanded(\n                            child: Text(\n                              '麦克风输入设备',\n                              style: Theme.of(context).textTheme.labelLarge,\n                            ),\n                          ),\n                          SizedBox(\n                            width: spec.minimumInteractiveExtent,\n                            height: spec.minimumInteractiveExtent,\n                            child: IconButton(\n                              tooltip: recordingLocked\n                                  ? '录音期间不能刷新麦克风设备'\n                                  : '刷新麦克风设备',\n                              onPressed: deviceControlsLocked\n                                  ? null\n                                  : () => unawaited(\n                                        microphoneService.refreshInputDevices(),\n                                      ),\n                              icon: microphone.isRefreshingInputDevices\n                                  ? const SizedBox(\n                                      width: 18,\n                                      height: 18,\n                                      child: CircularProgressIndicator(\n                                        strokeWidth: 2,\n                                      ),\n                                    )\n                                  : const Icon(Icons.refresh_rounded),\n                            ),\n                          ),\n                        ],\n                      ),\n                      const SizedBox(height: AppSpacing.xs),\n                      InputDecorator(\n                        decoration: InputDecoration(\n                          prefixIcon: const Icon(Icons.mic_external_on_rounded),\n                          border: OutlineInputBorder(\n                            borderRadius: BorderRadius.circular(\n                              AppSpacing.radiusMedium,\n                            ),\n                          ),\n                          contentPadding: const EdgeInsets.symmetric(\n                            horizontal: AppSpacing.sm,\n                            vertical: AppSpacing.xs,\n                          ),\n                        ),\n                        child: DropdownButtonHideUnderline(\n                          child: DropdownButton<String>(\n                            value: selectedDeviceValue,\n                            isExpanded: true,\n                            items: [\n                              const DropdownMenuItem<String>(\n                                value: systemDefaultDeviceId,\n                                child: Text('系统默认'),\n                              ),\n                              ...microphone.inputDevices.map(\n                                (device) => DropdownMenuItem<String>(\n                                  value: device.id,\n                                  child: Text(\n                                    device.label,\n                                    maxLines: 1,\n                                    overflow: TextOverflow.ellipsis,\n                                  ),\n                                ),\n                              ),\n                            ],\n                            onChanged: deviceControlsLocked\n                                ? null\n                                : (value) => unawaited(\n                                      microphoneService.selectInputDevice(\n                                        value == systemDefaultDeviceId\n                                            ? null\n                                            : value,\n                                      ),\n                                    ),\n                          ),\n                        ),\n                      ),\n                      const SizedBox(height: AppSpacing.xs),\n                      Text(\n                        recordingLocked\n                            ? '正在录制 take，输入设备已锁定；停止录音后可切换。'\n                            : selectedDevice == null\n                                ? microphone.inputDevices.isEmpty\n                                    ? '未发现可选麦克风，将继续使用系统默认输入；可点击刷新重新扫描。'\n                                    : '当前跟随系统默认输入设备；也可以固定选择某个麦克风。'\n                                : selectedDevice.sampleRates.isEmpty\n                                    ? '当前：${selectedDevice.label}'\n                                    : '当前：${selectedDevice.label} · ${selectedDevice.sampleRates.take(3).map((rate) => '$rate Hz').join(' / ')}',\n                        style: Theme.of(context).textTheme.bodySmall?.copyWith(\n                              color: recordingLocked\n                                  ? AppColors.warning\n                                  : AppColors.textTertiary,\n                            ),\n                      ),\n                      const SizedBox(height: AppSpacing.md),\n                      SwitchListTile.adaptive('''
+          control_pos = text.index(control_anchor, class_start)
+          text = text[:control_pos] + control_replacement + text[control_pos + len(control_anchor):]
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          dart format lib/features/player/presentation/screens/player_screen.dart
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Test microphone slice
+        run: flutter test test/features/player/ktv_microphone_signal_test.dart
+
+      - name: Test full Flutter suite
+        run: flutter test
+
+      - name: Commit validated slice and work log
+        shell: bash
+        run: |
+          git checkout -- analysis_options.yaml 2>/dev/null || true
+          cat >> docs/work_log.md <<'EOF'
+
+          ### [2026-10-09 15:08] KTV 麦克风设备选择接入控制面板
+
+          - Scope: 将已完成的麦克风输入设备发现/热切换能力接入全屏 KTV 的“麦克风与演唱音量”面板；用户可在“系统默认”和检测到的具体麦克风之间选择并手动刷新。录音 take、麦克风启动或设备刷新期间会锁定设备操作，避免中途换输入源破坏录音一致性。
+          - Files: `lib/features/player/presentation/screens/player_screen.dart`, `docs/work_log.md`
+          - Validation:
+            - `flutter analyze --no-fatal-infos --no-fatal-warnings` => success
+            - `flutter test test/features/player/ktv_microphone_signal_test.dart` => success
+            - `flutter test` => success
+          - Notes: 设备选择仍只保存于当前应用会话，持久化到下次启动留给后续独立切片；真实 Windows/macOS 多麦克风拔插、蓝牙/USB 设备切换的声学表现仍需物理设备 E2E 验证。
+          - Commit: `Expose KTV microphone device picker`
+          EOF
+
+          git rm --ignore-unmatch .github/workflows/tmp-ktv-input-device-picker-ui.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Expose KTV microphone device picker"
+          git push origin HEAD:feat/ktv-input-device-picker-ui
