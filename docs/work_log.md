@@ -129,3 +129,16 @@
   - `flutter build macos --debug` => success
 - Notes: 早期评估的 `audio_io >=0.3` 与现有 `mobile_scanner 7.4.x` 在 `web` 依赖上不可共存，因此改用 `record 6.2.1 + flutter_soloud 5.1.2`，不降级扫码功能。当前“延迟补偿”只允许增加监听延迟，不伪装成能消除硬件已有延迟；UI 会展示 SoLoud 报告的输出延迟（可用时）。本切片不把仅麦克风录制冒充完整 KTV 成品录音，混合录音留给后续共享混音/离线合成链路。
 - Commit: `Add low-latency KTV microphone monitoring`
+
+### [2026-10-09 12:58] 打通 KTV 人声录音、对齐保护与离线混音导出
+
+- Scope: 全屏 KTV 增加 take 录音按钮；保存 48kHz/16-bit mono 原始人声 WAV stem 与 session manifest，记录伴唱音源、起始播放位置和音量。录音期间锁定 seek、暂停、切歌和切换音源，并监控外部播放跳变；对齐失效时保留 stem 但阻止错误自动混音。停止后允许重新调节人声/伴奏导出音量，并通过 FFmpeg 生成 WAV 成品。
+- Files: `lib/core/services/service_locator.dart`, `lib/features/player/domain/models/ktv_recording_session.dart`, `lib/features/player/domain/services/ktv_recording_service.dart`, `lib/features/player/domain/services/ktv_microphone_service.dart`, `lib/features/player/data/services/local_ktv_recording_service.dart`, `lib/features/player/data/services/pcm16_wav_writer.dart`, `lib/features/player/data/services/record_soloud_ktv_microphone_service.dart`, `lib/features/player/presentation/screens/player_screen.dart`, `test/features/player/ktv_recording_export_test.dart`
+- Validation:
+  - `flutter analyze --no-fatal-infos --no-fatal-warnings` on the repository's original analyzer config => success
+  - focused KTV recording + microphone tests => success
+  - full `flutter test` => success
+  - `flutter build windows --debug` => success
+  - `flutter build macos --debug` => success
+- Notes: 人声 stem 在监听增益和监听延迟处理之前保存，因此演唱时的监听设置不会破坏性写入录音。若录音中时间轴被暂停、seek、切歌或切换音源破坏，session 会标记对齐不可靠并禁止自动混音，但原始人声仍保留。尚未在真实 Windows/macOS 麦克风设备上完成实际歌曲的听感、声学延迟和啸叫 E2E 验证。
+- Commit: `Add aligned KTV take recording and mix export`

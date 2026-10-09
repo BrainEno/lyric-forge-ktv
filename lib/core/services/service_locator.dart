@@ -12,6 +12,7 @@ import '../../features/player/data/repositories/file_playback_session_store.dart
 import '../../features/player/data/services/default_playback_session_service.dart';
 import '../../features/player/data/services/file_local_media_relink_service.dart';
 import '../../features/player/data/services/record_soloud_ktv_microphone_service.dart';
+import '../../features/player/data/services/local_ktv_recording_service.dart';
 import '../../features/player/data/services/just_audio_player_service.dart';
 import '../../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../../features/player/data/services/local_audio_library_import_service.dart';
@@ -25,6 +26,7 @@ import '../../features/player/domain/repositories/playback_session_store.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/ktv_microphone_service.dart';
+import '../../features/player/domain/services/ktv_recording_service.dart';
 import '../../features/player/domain/services/embedded_audio_metadata_reader.dart';
 import '../../features/player/domain/services/local_media_relink_service.dart';
 import '../../features/player/domain/services/playback_session_service.dart';
@@ -73,6 +75,7 @@ class ServiceLocator {
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
   late final KtvMicrophoneService ktvMicrophoneService;
+  late final KtvRecordingService ktvRecordingService;
   late final AudioLibraryImportService audioLibraryImportService;
   late final EmbeddedAudioMetadataReader embeddedAudioMetadataReader;
   late final LocalMediaLibraryRepository localMediaLibraryRepository;
@@ -212,6 +215,11 @@ class ServiceLocator {
       ),
     );
     transcriptionSettingsStore = FileTranscriptionSettingsStore();
+    ktvRecordingService = LocalKtvRecordingService(
+      audioService: audioPlayerService,
+      microphoneService: ktvMicrophoneService,
+      settingsStore: transcriptionSettingsStore,
+    );
     projectTranscriptionWorkflow = LocalProjectTranscriptionWorkflow(
       projectRepository: projectRepository,
       transcriptionService: transcriptionService,

@@ -22,6 +22,8 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   final SoLoud _soloud;
   final StreamController<KtvMicrophoneState> _stateController =
       StreamController<KtvMicrophoneState>.broadcast();
+  final StreamController<Uint8List> _rawPcmController =
+      StreamController<Uint8List>.broadcast(sync: true);
   final Stopwatch _levelClock = Stopwatch()..start();
   late final PcmDelayLine _delayLine;
 
@@ -49,6 +51,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
   @override
   KtvMicrophoneState get currentState => _state;
+
+  @override
+  Stream<Uint8List> get rawPcm16Stream => _rawPcmController.stream;
 
   @override
   Future<void> startMonitoring() async {
@@ -176,6 +181,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
   void _handleInputFrame(Uint8List bytes) {
     if (!_state.isMonitoring || bytes.length < 2) return;
+    if (!_rawPcmController.isClosed) {
+      _rawPcmController.add(Uint8List.fromList(bytes));
+    }
 
     final sampleCount = bytes.length ~/ 2;
     final data = ByteData.sublistView(bytes);
@@ -215,6 +223,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
   void _handleInputError(Object error, StackTrace stackTrace) {
     if (!_state.isMonitoring && !_state.isStarting) return;
+    if (!_rawPcmController.isClosed) {
+      _rawPcmController.addError(error, stackTrace);
+    }
     unawaited(_recoverFromStreamError(error));
   }
 
@@ -280,6 +291,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     if (_initializedSoloud && _soloud.isInitialized) {
       await _soloud.deinitAsync();
     }
+    await _rawPcmController.close();
     await _stateController.close();
   }
 }
