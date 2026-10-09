@@ -35,9 +35,11 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   int _lastLevelUpdateMs = 0;
   bool _initializedSoloud = false;
 
-  RecordSoloudKtvMicrophoneService({AudioRecorder? recorder, SoLoud? soloud})
-    : _recorder = recorder ?? AudioRecorder(),
-      _soloud = soloud ?? SoLoud.instance {
+  RecordSoloudKtvMicrophoneService({
+    AudioRecorder? recorder,
+    SoLoud? soloud,
+  })  : _recorder = recorder ?? AudioRecorder(),
+        _soloud = soloud ?? SoLoud.instance {
     _delayLine = PcmDelayLine(
       sampleRate: _sampleRate,
       gain: _state.micGain,
@@ -72,21 +74,20 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
               .map((device) => MapEntry(device.id, device)),
         );
 
-      final mapped =
-          _recordInputDevices.values
-              .map(
-                (device) => KtvAudioInputDevice(
-                  id: device.id,
-                  label: device.label.trim().isEmpty
-                      ? '未命名输入设备'
-                      : device.label.trim(),
-                ),
-              )
-              .toList(growable: false)
-            ..sort((left, right) => left.label.compareTo(right.label));
+      final mapped = _recordInputDevices.values
+          .map(
+            (device) => KtvAudioInputDevice(
+              id: device.id,
+              label: device.label.trim().isEmpty
+                  ? '未命名输入设备'
+                  : device.label.trim(),
+            ),
+          )
+          .toList(growable: false)
+        ..sort((left, right) => left.label.compareTo(right.label));
       final selectedId = _state.selectedInputDeviceId;
-      final selectedStillAvailable =
-          selectedId == null || _recordInputDevices.containsKey(selectedId);
+      final selectedStillAvailable = selectedId == null ||
+          _recordInputDevices.containsKey(selectedId);
 
       _emit(
         _state.copyWith(
@@ -178,9 +179,8 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
       await _refreshInputDevices(surfaceErrors: false);
 
-      final pcmSupported = await _recorder.isEncoderSupported(
-        AudioEncoder.pcm16bits,
-      );
+      final pcmSupported =
+          await _recorder.isEncoderSupported(AudioEncoder.pcm16bits);
       if (!pcmSupported) {
         throw StateError('当前设备不支持 PCM16 麦克风流');
       }
