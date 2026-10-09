@@ -117,17 +117,6 @@ class LocalKtvRecordingService implements KtvRecordingService {
       monitorMicGain: _microphoneService.currentState.micGain,
     );
 
-    // Persist the recoverable session descriptor before the service reports that
-    // recording has started. If persistence fails, close and remove the take so
-    // callers never see an exception while a hidden recording keeps running.
-    try {
-      await _writeManifest(session);
-    } catch (error) {
-      await writer.close();
-      await _deleteFailedTake(directory);
-      throw KtvRecordingException('无法创建录音记录：$error');
-    }
-
     _writer = writer;
     _alignmentReliable = true;
     _alignmentIssue = null;
@@ -150,6 +139,15 @@ class LocalKtvRecordingService implements KtvRecordingService {
         clearError: true,
       ),
     );
+
+    // Start capture immediately for alignment accuracy, but roll the entire
+    // start back if the recoverable session descriptor cannot be persisted.
+    try {
+      await _writeManifest(session);
+    } catch (error) {
+      await _rollbackFailedStart(writer, directory);
+      throw KtvRecordingException('无法创建录音记录：$error');
+    }
   }
 
   void _handlePcmFrame(Uint8List bytes) {
@@ -344,6 +342,40 @@ class LocalKtvRecordingService implements KtvRecordingService {
     final directory = Directory(_join(recordings.path, 'take_$stamp'));
     await directory.create(recursive: true);
     return directory;
+  }
+
+  Future<void> _rollbackFailedStart(
+    Pcm16WavWriter writer,
+    Directory directory,
+  ) async {
+    final pcmSubscription = _pcmSubscription;
+    _pcmSubscription = null;
+    try {
+      await pcmSubscription?.cancel();
+    } catch (_) {}
+
+    final playbackSubscription = _playbackSubscription;
+    _playbackSubscription = null;
+    try {
+      await playbackSubscription?.cancel();
+    } catch (_) {}
+
+    _writer = null;
+    _recordingClock?.stop();
+    _recordingClock = null;
+    try {
+      await writer.close();
+    } catch (_) {}
+
+    _emit(
+      _state.copyWith(
+        isRecording: false,
+        recordedDuration: Duration.zero,
+        clearCurrentSession: true,
+        clearError: true,
+      ),
+    );
+    await _deleteFailedTake(directory);
   }
 
   Future<void> _deleteFailedTake(Directory directory) async {
