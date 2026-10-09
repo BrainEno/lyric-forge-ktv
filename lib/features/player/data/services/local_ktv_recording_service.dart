@@ -55,17 +55,11 @@ class LocalKtvRecordingService implements KtvRecordingService {
       throw const KtvRecordingException('当前工程没有可录制的歌曲音频');
     }
 
-    final playback = _audioService.currentState;
-    if (!playback.isPlaying || playback.isBuffering || playback.isLoading) {
+    final initialPlayback = _audioService.currentState;
+    if (!initialPlayback.isPlaying ||
+        initialPlayback.isBuffering ||
+        initialPlayback.isLoading) {
       throw const KtvRecordingException('请先播放歌曲，确认伴唱音轨后再开始录音');
-    }
-    final backingSource = playback.currentSource;
-    if (backingSource == null || backingSource == AudioSourceType.vocals) {
-      throw const KtvRecordingException('KTV 录音只支持原唱伴唱或纯伴奏音轨');
-    }
-    final backingPath = audioAsset.getPathForSource(backingSource);
-    if (backingPath == null || backingPath.trim().isEmpty) {
-      throw const KtvRecordingException('当前伴唱音轨文件不可用');
     }
 
     if (!_microphoneService.currentState.isMonitoring) {
@@ -82,6 +76,22 @@ class LocalKtvRecordingService implements KtvRecordingService {
     final manifestPath = _join(directory.path, 'session.json');
     final writer = Pcm16WavWriter();
     await writer.open(micStemPath);
+
+    final playback = _audioService.currentState;
+    if (!playback.isPlaying || playback.isBuffering || playback.isLoading) {
+      await writer.close();
+      throw const KtvRecordingException('麦克风准备期间歌曲停止了播放，请重新开始录音');
+    }
+    final backingSource = playback.currentSource;
+    if (backingSource == null || backingSource == AudioSourceType.vocals) {
+      await writer.close();
+      throw const KtvRecordingException('KTV 录音只支持原唱伴唱或纯伴奏音轨');
+    }
+    final backingPath = audioAsset.getPathForSource(backingSource);
+    if (backingPath == null || backingPath.trim().isEmpty) {
+      await writer.close();
+      throw const KtvRecordingException('当前伴唱音轨文件不可用');
+    }
 
     final now = DateTime.now();
     final session = KtvRecordingSession(

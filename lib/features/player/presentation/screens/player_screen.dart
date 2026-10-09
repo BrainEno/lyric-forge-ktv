@@ -15,9 +15,11 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/ktv_microphone_state.dart';
+import '../../domain/models/ktv_recording_session.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/ktv_microphone_service.dart';
+import '../../domain/services/ktv_recording_service.dart';
 import '../../domain/services/playback_session_service.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -1239,6 +1241,7 @@ class _FullScreenKtvView extends StatefulWidget {
 class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   late ProjectManifest _project;
   late final KtvMicrophoneService _microphoneService;
+  late final KtvRecordingService _recordingService;
   StreamSubscription<PlaybackSessionState>? _sessionSubscription;
   int _projectLoadGeneration = 0;
 
@@ -1247,6 +1250,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     super.initState();
     _project = widget.initialProject;
     _microphoneService = ServiceLocatorGlobal.I.ktvMicrophoneService;
+    _recordingService = ServiceLocatorGlobal.I.ktvRecordingService;
     AppChromeController.enterImmersive();
     _sessionSubscription =
         widget.playbackSession.stateStream.listen(_handleSessionChange);
@@ -1274,14 +1278,55 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       builder: (context) => _KtvAudioControlsSheet(
         microphoneService: _microphoneService,
         audioService: widget.audioService,
+        recordingLocked: _recordingService.currentState.isRecording,
       ),
     );
+  }
+
+  Future<void> _toggleRecording() async {
+    try {
+      if (_recordingService.currentState.isRecording) {
+        final completed = await _recordingService.stopRecording();
+        if (!mounted) return;
+        setState(() {});
+        if (completed != null) await _showTakeResult(completed);
+        return;
+      }
+      await _recordingService.startRecording(_project);
+      if (mounted) setState(() {});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('KTV 录音失败：$error')),
+      );
+    }
+  }
+
+  Future<void> _showTakeResult(KtvRecordingSession session) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (context) => _KtvTakeResultSheet(
+        initialSession: session,
+        recordingService: _recordingService,
+      ),
+    );
+  }
+
+  Future<void> _shutdownKtvAudio() async {
+    if (_recordingService.currentState.isRecording) {
+      await _recordingService.stopRecording();
+    }
+    await _microphoneService.stopMonitoring();
   }
 
   @override
   void dispose() {
     _sessionSubscription?.cancel();
-    unawaited(_microphoneService.stopMonitoring());
+    unawaited(_shutdownKtvAudio());
     AppChromeController.exitImmersive();
     super.dispose();
   }
@@ -1293,6 +1338,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     final ktvSources = availableKtvBackingModes(_project.audioAsset)
         .map((mode) => mode.source)
         .toList(growable: false);
+    final recordingLocked = _recordingService.currentState.isRecording;
 
     return Material(
       color: AppColors.pureBlack,
@@ -1412,25 +1458,83 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               ),
                             ),
                             if (ktvSources.length > 1) ...[
-                              if (spec.isCompact || spec.isShort)
-                                _CompactSourceMenu(
-                                  availableSources: ktvSources,
-                                  currentSource: playback.currentSource,
-                                  onSourceChanged: widget.onSwitchSource,
-                                  ktvLabels: true,
-                                )
-                              else
-                                Flexible(
-                                  child: _AudioSourceSelector(
-                                    availableSources: ktvSources,
-                                    currentSource: playback.currentSource,
-                                    onSourceChanged: widget.onSwitchSource,
-                                    compact: true,
-                                    ktvLabels: true,
-                                  ),
+                              IgnorePointer(
+                                ignoring: recordingLocked,
+                                child: Opacity(
+                                  opacity: recordingLocked ? 0.45 : 1,
+                                  child: spec.isCompact || spec.isShort
+                                      ? _CompactSourceMenu(
+                                          availableSources: ktvSources,
+                                          currentSource: playback.currentSource,
+                                          onSourceChanged: widget.onSwitchSource,
+                                          ktvLabels: true,
+                                        )
+                                      : _AudioSourceSelector(
+                                          availableSources: ktvSources,
+                                          currentSource: playback.currentSource,
+                                          onSourceChanged: widget.onSwitchSource,
+                                          compact: true,
+                                          ktvLabels: true,
+                                        ),
                                 ),
+                              ),
                               const SizedBox(width: AppSpacing.sm),
                             ],
+                            StreamBuilder<KtvRecordingState>(
+                              stream: _recordingService.stateStream,
+                              initialData: _recordingService.currentState,
+                              builder: (context, recordingSnapshot) {
+                                final recording = recordingSnapshot.data ??
+                                    _recordingService.currentState;
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (recording.isRecording && !spec.isShort)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: AppSpacing.xs,
+                                        ),
+                                        child: Text(
+                                          _formatRecordingTime(
+                                            recording.recordedDuration,
+                                          ),
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                color: AppColors.error,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    SizedBox(
+                                      width: spec.minimumInteractiveExtent,
+                                      height: spec.minimumInteractiveExtent,
+                                      child: IconButton.filled(
+                                        tooltip: recording.isRecording
+                                            ? '停止录音'
+                                            : '开始 KTV 录音',
+                                        onPressed: recording.isExporting
+                                            ? null
+                                            : _toggleRecording,
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: recording.isRecording
+                                              ? AppColors.error
+                                              : AppColors.bgSurface,
+                                          foregroundColor: AppColors.pureWhite,
+                                        ),
+                                        icon: Icon(
+                                          recording.isRecording
+                                              ? Icons.stop_rounded
+                                              : Icons.fiber_manual_record_rounded,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
                             StreamBuilder<KtvMicrophoneState>(
                               stream: _microphoneService.stateStream,
                               initialData: _microphoneService.currentState,
@@ -1517,23 +1621,35 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 height: spec.isShort ? 4 : AppSpacing.sm,
                               ),
                             ],
-                            _ProgressBar(
-                              state: playback,
-                              onSeek: widget.onSeek,
-                              compact: true,
+                            IgnorePointer(
+                              ignoring: recordingLocked,
+                              child: Opacity(
+                                opacity: recordingLocked ? 0.55 : 1,
+                                child: _ProgressBar(
+                                  state: playback,
+                                  onSeek: widget.onSeek,
+                                  compact: true,
+                                ),
+                              ),
                             ),
                             SizedBox(
                               height: spec.isShort ? 2 : AppSpacing.sm,
                             ),
-                            _PlaybackControls(
-                              isPlaying: playback.isPlaying,
-                              isBuffering: playback.isBuffering,
-                              canPrevious: session.currentItem != null,
-                              canNext: session.canSkipNext,
-                              onPrevious: widget.onSkipPrevious,
-                              onPlayPause: widget.onPlayPause,
-                              onNext: widget.onSkipNext,
-                              compact: spec.isShort || spec.isCompact,
+                            IgnorePointer(
+                              ignoring: recordingLocked,
+                              child: Opacity(
+                                opacity: recordingLocked ? 0.55 : 1,
+                                child: _PlaybackControls(
+                                  isPlaying: playback.isPlaying,
+                                  isBuffering: playback.isBuffering,
+                                  canPrevious: session.currentItem != null,
+                                  canNext: session.canSkipNext,
+                                  onPrevious: widget.onSkipPrevious,
+                                  onPlayPause: widget.onPlayPause,
+                                  onNext: widget.onSkipNext,
+                                  compact: spec.isShort || spec.isCompact,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -1550,13 +1666,163 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 }
 
+class _KtvTakeResultSheet extends StatefulWidget {
+  final KtvRecordingSession initialSession;
+  final KtvRecordingService recordingService;
+
+  const _KtvTakeResultSheet({
+    required this.initialSession,
+    required this.recordingService,
+  });
+
+  @override
+  State<_KtvTakeResultSheet> createState() => _KtvTakeResultSheetState();
+}
+
+class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
+  late KtvRecordingSession _session;
+  bool _exporting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = widget.initialSession;
+  }
+
+  Future<void> _exportMix() async {
+    if (_exporting || !_session.alignmentReliable) return;
+    setState(() {
+      _exporting = true;
+      _error = null;
+    });
+    try {
+      final exported = await widget.recordingService.exportMix(_session);
+      if (!mounted) return;
+      setState(() {
+        _session = exported;
+        _exporting = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _exporting = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        spec.pageGutter,
+        AppSpacing.sm,
+        spec.pageGutter,
+        AppSpacing.xxl,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    _session.alignmentReliable
+                        ? Icons.check_circle_rounded
+                        : Icons.warning_amber_rounded,
+                    color: _session.alignmentReliable
+                        ? AppColors.accent
+                        : AppColors.warning,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'KTV 录音已保存',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                '人声 stem（${_formatRecordingTime(_session.duration)}）',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              SelectableText(
+                _session.micStemPath,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              if (!_session.alignmentReliable) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  _session.alignmentIssue ??
+                      '播放时间轴在录音中发生变化，已保留人声 stem，但自动混音已禁用。',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.warning,
+                      ),
+                ),
+              ],
+              if (_session.mixedOutputPath != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  '混音成品',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SelectableText(
+                  _session.mixedOutputPath!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _PlaybackError(message: _error!),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton.icon(
+                onPressed: !_session.alignmentReliable || _exporting
+                    ? null
+                    : _exportMix,
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.graphic_eq_rounded),
+                label: Text(
+                  _session.mixedOutputPath == null ? '导出 WAV 混音' : '重新导出混音',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _KtvAudioControlsSheet extends StatelessWidget {
   final KtvMicrophoneService microphoneService;
   final AudioPlayerService audioService;
+  final bool recordingLocked;
 
   const _KtvAudioControlsSheet({
     required this.microphoneService,
     required this.audioService,
+    required this.recordingLocked,
   });
 
   @override
@@ -1617,7 +1883,7 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                       SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         value: microphone.isMonitoring,
-                        onChanged: microphone.isStarting
+                        onChanged: microphone.isStarting || recordingLocked
                             ? null
                             : (enabled) {
                                 unawaited(
@@ -1681,8 +1947,10 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                         min: 0,
                         max: 1,
                         divisions: 20,
-                        onChanged: (value) =>
-                            unawaited(audioService.setVolume(value)),
+                        onChanged: recordingLocked
+                            ? null
+                            : (value) =>
+                                unawaited(audioService.setVolume(value)),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       _KtvControlLabel(
@@ -2238,6 +2506,14 @@ int? _currentLyricIndex(LyricDocument? document, Duration position) {
     }
   }
   return 0;
+}
+
+String _formatRecordingTime(Duration value) {
+  final hours = value.inHours;
+  final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
+  if (hours > 0) return '$hours:$minutes:$seconds';
+  return '$minutes:$seconds';
 }
 
 String _sourceLabel(AudioSourceType source) {
