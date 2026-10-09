@@ -1316,6 +1316,21 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
+  Future<void> _openTakeHistory() async {
+    if (_recordingService.currentState.isRecording) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: AppColors.bgElevated,
+      builder: (context) => _KtvTakeHistorySheet(
+        project: _project,
+        recordingService: _recordingService,
+      ),
+    );
+  }
+
   Future<void> _shutdownKtvAudio() async {
     if (_recordingService.currentState.isRecording) {
       await _recordingService.stopRecording();
@@ -1572,6 +1587,16 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               width: spec.minimumInteractiveExtent,
                               height: spec.minimumInteractiveExtent,
                               child: IconButton.filledTonal(
+                                tooltip: '演唱录音历史',
+                                onPressed: recordingLocked ? null : _openTakeHistory,
+                                icon: const Icon(Icons.history_rounded),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(
+                              width: spec.minimumInteractiveExtent,
+                              height: spec.minimumInteractiveExtent,
+                              child: IconButton.filledTonal(
                                 tooltip: '退出全屏 KTV',
                                 onPressed: () => Navigator.pop(context),
                                 icon: const Icon(Icons.fullscreen_exit_rounded),
@@ -1669,6 +1694,120 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _KtvTakeHistorySheet extends StatefulWidget {
+  const _KtvTakeHistorySheet({
+    required this.project,
+    required this.recordingService,
+  });
+
+  final ProjectManifest project;
+  final KtvRecordingService recordingService;
+
+  @override
+  State<_KtvTakeHistorySheet> createState() => _KtvTakeHistorySheetState();
+}
+
+class _KtvTakeHistorySheetState extends State<_KtvTakeHistorySheet> {
+  late Future<List<KtvRecordingSession>> _takes;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  void _refresh() {
+    setState(() {
+      _takes = widget.recordingService.listRecordings(widget.project);
+    });
+  }
+
+  Future<void> _delete(KtvRecordingSession session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除这次演唱？'),
+        content: const Text('这会永久删除本次录音的人声、混音和记录文件，无法撤销。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('删除')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.recordingService.deleteRecording(session);
+      if (mounted) _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('删除失败：$error')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.72,
+        child: Column(
+          children: [
+            ListTile(
+              title: const Text('演唱录音历史'),
+              subtitle: const Text('选择录音可调整音量并重新导出混音'),
+              trailing: IconButton(
+                tooltip: '刷新录音历史',
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder<List<KtvRecordingSession>>(
+                future: _takes,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) return Center(child: Text('读取失败：${snapshot.error}'));
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  final takes = snapshot.data!;
+                  if (takes.isEmpty) return const Center(child: Text('还没有演唱录音'));
+                  return ListView.builder(
+                    itemCount: takes.length,
+                    itemBuilder: (context, index) {
+                      final take = takes[index];
+                      return ListTile(
+                        leading: const Icon(Icons.graphic_eq_rounded),
+                        title: Text(take.startedAt.toLocal().toString().split('.').first),
+                        subtitle: Text('时长 ${take.duration.inSeconds} 秒 · ${take.alignmentReliable ? '可重新混音' : '时间轴异常，仅保留原始录音'}'),
+                        onTap: () async {
+                          await showModalBottomSheet<void>(
+                            context: context,
+                            useSafeArea: true,
+                            isScrollControlled: true,
+                            showDragHandle: true,
+                            backgroundColor: AppColors.bgElevated,
+                            builder: (context) => _KtvTakeResultSheet(
+                              initialSession: take,
+                              recordingService: widget.recordingService,
+                            ),
+                          );
+                          if (mounted) _refresh();
+                        },
+                        trailing: IconButton(
+                          tooltip: '删除录音',
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          onPressed: () => _delete(take),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
