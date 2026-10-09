@@ -1318,7 +1318,6 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
-\
   Future<void> _renameTake(KtvRecordingSession take) async {
     final controller = TextEditingController(text: take.displayName ?? '');
     final value = await showDialog<String>(
@@ -1462,7 +1461,6 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
-\
           for (final take in takes)
             Builder(
               builder: (sheetContext) {
