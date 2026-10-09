@@ -36,6 +36,38 @@ class KtvTakeHistoryStore {
     return List.unmodifiable(takes);
   }
 
+  /// Deletes only a complete take folder beneath the given project's recordings.
+  /// The user interface must obtain explicit confirmation before calling this.
+  Future<void> deleteTake(
+    Directory projectDirectory,
+    String projectId,
+    KtvRecordingSession take,
+  ) async {
+    if (take.projectId != projectId) {
+      throw const FileSystemException('录音不属于当前工程');
+    }
+    final recordings = Directory(
+      '${projectDirectory.path}${Platform.pathSeparator}recordings',
+    );
+    final folder = Directory(
+      '${recordings.path}${Platform.pathSeparator}${take.id}',
+    );
+    if (!take.id.startsWith('take_') ||
+        take.id.contains('/') ||
+        take.id.contains('\\\\') ||
+        !_inside(folder, File(take.manifestPath)) ||
+        !_inside(folder, File(take.micStemPath))) {
+      throw const FileSystemException('录音路径不安全，已取消删除');
+    }
+    // Re-read the index so a stale UI entry cannot delete an unrelated folder.
+    final indexed = await listFromDirectory(projectDirectory, projectId);
+    if (!indexed.any((entry) =>
+        entry.id == take.id && entry.manifestPath == take.manifestPath)) {
+      throw const FileSystemException('录音不存在或已发生变化');
+    }
+    await folder.delete(recursive: true);
+  }
+
   bool _inside(Directory directory, File file) {
     final root = directory.absolute.path;
     final path = file.absolute.path;
