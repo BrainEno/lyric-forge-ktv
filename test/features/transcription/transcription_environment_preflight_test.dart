@@ -164,6 +164,11 @@ class _FakeSettingsStore implements TranscriptionSettingsStore {
     saveCalls++;
     value = config;
   }
+
+  @override
+  Future<void> clear() async {
+    value = null;
+  }
 }
 
 class _FakeRuntimeManager implements AsrRuntimeManager {
