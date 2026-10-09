@@ -12,6 +12,8 @@ import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 
+/// Persists ASR output as the editable timeline consumed by lyric editing and
+/// synchronized playback surfaces.
 class LocalProjectTranscriptionWorkflow
     implements ProjectTranscriptionWorkflow {
   final ProjectRepository _projectRepository;
