@@ -1318,6 +1318,75 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
+  Future<void> _renameTake(KtvRecordingSession take) async {
+    final controller = TextEditingController(text: take.displayName ?? '');
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('给这次演唱命名'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: KtvTakeHistoryStore.maxDisplayNameLength,
+          decoration: const InputDecoration(
+            labelText: '录音名称',
+            hintText: '例如：第二遍 / 高音最好的一次',
+          ),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || !mounted) return;
+    try {
+      await const KtvTakeHistoryStore().updateProjectTakeMetadata(
+        _project,
+        take,
+        displayName: value,
+        clearDisplayName: value.trim().isEmpty,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value.trim().isEmpty ? '录音名称已清除' : '录音名称已保存'),
+        ),
+      );
+      await _openTakeHistory();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存录音名称失败：$error')),
+      );
+    }
+  }
+
+  Future<void> _toggleFavoriteTake(KtvRecordingSession take) async {
+    try {
+      await const KtvTakeHistoryStore().updateProjectTakeMetadata(
+        _project,
+        take,
+        isFavorite: !take.isFavorite,
+      );
+      if (!mounted) return;
+      await _openTakeHistory();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('更新收藏状态失败：$error')),
+      );
+    }
+  }
+
   Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1393,24 +1462,68 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
           const SizedBox(height: 12),
           if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
           for (final take in takes)
-            ListTile(
-              leading: const Icon(Icons.library_music_outlined),
-              title: Text(take.startedAt.toLocal().toString().split('.').first),
-              subtitle: Text(
-                '${_formatRecordingTime(take.duration)} · '
-                '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
-              ),
-              trailing: IconButton(
-                tooltip: '删除这次录音',
-                icon: const Icon(Icons.delete_outline_rounded),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  unawaited(_confirmDeleteTake(take));
-                },
-              ),
-              onTap: () async {
-                Navigator.of(context).pop();
-                await _showTakeResult(take);
+            Builder(
+              builder: (sheetContext) {
+                final timestamp =
+                    take.startedAt.toLocal().toString().split('.').first;
+                final customName = take.displayName?.trim();
+                final hasCustomName = customName?.isNotEmpty == true;
+                return ListTile(
+                  leading: Icon(
+                    take.isFavorite
+                        ? Icons.star_rounded
+                        : Icons.library_music_outlined,
+                    color: take.isFavorite ? AppColors.accent : null,
+                  ),
+                  title: Text(hasCustomName ? customName! : timestamp),
+                  subtitle: Text(
+                    '${hasCustomName ? "$timestamp · " : ""}'
+                    '${_formatRecordingTime(take.duration)} · '
+                    '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: take.isFavorite ? '取消收藏' : '收藏并置顶',
+                        icon: Icon(
+                          take.isFavorite
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                        ),
+                        onPressed: () {
+                          Navigator.of(sheetContext).pop();
+                          unawaited(_toggleFavoriteTake(take));
+                        },
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: '更多操作',
+                        onSelected: (action) {
+                          Navigator.of(sheetContext).pop();
+                          if (action == 'rename') {
+                            unawaited(_renameTake(take));
+                          } else if (action == 'delete') {
+                            unawaited(_confirmDeleteTake(take));
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'rename',
+                            child: Text('重命名'),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('永久删除'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await _showTakeResult(take);
+                  },
+                );
               },
             ),
         ],

@@ -64,6 +64,93 @@ void main() {
     }
   });
 
+  test('take names and favorites persist and favorites sort first', () async {
+    final root = await Directory.systemTemp.createTemp('ktv-metadata-');
+    try {
+      final recordings = Directory('${root.path}${Platform.pathSeparator}recordings');
+      await recordings.create();
+      for (final entry in [
+        ('take_old', '2026-10-01T12:00:00.000'),
+        ('take_new', '2026-10-02T12:00:00.000'),
+      ]) {
+        final dir = Directory(
+          '${recordings.path}${Platform.pathSeparator}${entry.$1}',
+        );
+        await dir.create();
+        final voice = File('${dir.path}${Platform.pathSeparator}voice.wav');
+        await voice.writeAsBytes([0, 1]);
+        final manifest = File('${dir.path}${Platform.pathSeparator}session.json');
+        await manifest.writeAsString(jsonEncode({
+          'version': 1,
+          'id': entry.$1,
+          'projectId': 'song',
+          'startedAt': entry.$2,
+          'completedAt': '2026-10-02T12:01:00.000',
+          'backingSource': 'original',
+          'backingPath': 'song.wav',
+          'startPositionMs': 0,
+          'durationMs': 1000,
+          'micStemPath': voice.path,
+          'manifestPath': manifest.path,
+          'mixedOutputPath': null,
+          'backingVolume': 1,
+          'monitorMicGain': 1,
+          'alignmentReliable': true,
+          'alignmentIssue': null,
+        }));
+      }
+
+      const store = KtvTakeHistoryStore();
+      final initial = await store.listFromDirectory(root, 'song');
+      expect(initial.map((take) => take.id), ['take_new', 'take_old']);
+      expect(initial.every((take) => take.displayName == null), isTrue);
+      expect(initial.every((take) => !take.isFavorite), isTrue);
+
+      final older = initial.firstWhere((take) => take.id == 'take_old');
+      final updated = await store.updateTakeMetadata(
+        root,
+        'song',
+        older,
+        displayName: '  Best chorus  ',
+        isFavorite: true,
+      );
+      expect(updated.displayName, 'Best chorus');
+      expect(updated.isFavorite, isTrue);
+
+      final rescanned = await store.listFromDirectory(root, 'song');
+      expect(rescanned.map((take) => take.id), ['take_old', 'take_new']);
+      expect(rescanned.first.displayName, 'Best chorus');
+      expect(rescanned.first.isFavorite, isTrue);
+      final persisted = jsonDecode(
+        await File(rescanned.first.manifestPath).readAsString(),
+      ) as Map<String, dynamic>;
+      expect(persisted['displayName'], 'Best chorus');
+      expect(persisted['isFavorite'], isTrue);
+
+      final cleared = await store.updateTakeMetadata(
+        root,
+        'song',
+        rescanned.first,
+        displayName: '   ',
+        isFavorite: false,
+      );
+      expect(cleared.displayName, isNull);
+      expect(cleared.isFavorite, isFalse);
+
+      await expectLater(
+        store.updateTakeMetadata(
+          root,
+          'song',
+          cleared,
+          displayName: List.filled(KtvTakeHistoryStore.maxDisplayNameLength + 1, 'x').join(),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    } finally {
+      await root.delete(recursive: true);
+    }
+  });
+
   test('project-level scan recovers once and project-level delete uses same root', () async {
     final root = await Directory.systemTemp.createTemp('ktv-recovery-');
     try {
