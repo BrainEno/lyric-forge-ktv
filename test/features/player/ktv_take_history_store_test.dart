@@ -47,6 +47,15 @@ void main() {
       expect(history.map((e) => e.id).toList(), ['take_2', 'take_1']);
       expect(await const KtvTakeHistoryStore().listFromDirectory(root, 'other'), isEmpty);
       expect(await external.readAsBytes(), [7, 8, 9]);
+      final first = history.firstWhere((take) => take.id == 'take_1');
+      await const KtvTakeHistoryStore().deleteTake(root, 'song', first);
+      expect(await Directory('${recordings.path}${Platform.pathSeparator}take_1').exists(), isFalse);
+      expect(await Directory('${recordings.path}${Platform.pathSeparator}take_2').exists(), isTrue);
+      expect(await external.readAsBytes(), [7, 8, 9]);
+      await expectLater(
+        const KtvTakeHistoryStore().deleteTake(root, 'other', first),
+        throwsA(isA<FileSystemException>()),
+      );
     } finally {
       await root.delete(recursive: true);
     }
