@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply exact player history patch
+      - name: Apply bounded player history patch
         shell: bash
         run: |
           python3 - <<'PY'
@@ -23,209 +23,88 @@ jobs:
           path = Path('lib/features/player/presentation/screens/player_screen.dart')
           text = path.read_text()
 
-          old_delete = r'''  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
-            final projectDirectory = _project.projectDirectory;
-            if (projectDirectory == null || projectDirectory.isEmpty) return;
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('永久删除这次演唱录音？'),
-                content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('取消'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('确认永久删除'),
-                  ),
-                ],
-              ),
-            );
-            if (confirmed != true || !mounted) return;
-            try {
-              await const KtvTakeHistoryStore().deleteTake(
-                Directory(projectDirectory), _project.id, take,
-              );
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('演唱录音已删除')),
-              );
-              await _openTakeHistory();
-            } catch (error) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('删除失败：$error')),
-              );
-            }
-          }
-          '''
-          new_delete = r'''  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('永久删除这次演唱录音？'),
-                content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const Text('取消'),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const Text('确认永久删除'),
-                  ),
-                ],
-              ),
-            );
-            if (confirmed != true || !mounted) return;
-            try {
-              await const KtvTakeHistoryStore().deleteProjectTake(_project, take);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('演唱录音已删除')),
-              );
-              await _openTakeHistory();
-            } catch (error) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('删除失败：$error')),
-              );
-            }
-          }
-          '''
+          delete_start = text.index('  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {')
+          history_start = text.index('  Future<void> _openTakeHistory() async {', delete_start)
+          delete_block = text[delete_start:history_start]
+          if 'Directory(projectDirectory), _project.id, take' not in delete_block:
+              raise SystemExit('delete method no longer has expected legacy directory call')
 
-          old_open = r'''  Future<void> _openTakeHistory() async {
-            if (_recordingService.currentState.isRecording) return;
-            final projectDirectory = _project.projectDirectory;
-            if (projectDirectory == null || projectDirectory.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('当前工程没有可用的本地录音目录')),
-              );
-              return;
-            }
-            final takes = await const KtvTakeHistoryStore().listFromDirectory(
-              Directory(projectDirectory),
-              _project.id,
-            );
-            if (!mounted) return;
-            await showModalBottomSheet<void>(
-              context: context,
-              useSafeArea: true,
-              isScrollControlled: true,
-              showDragHandle: true,
-              backgroundColor: AppColors.bgElevated,
-              builder: (context) => ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text('演唱历史（${takes.length}）',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 12),
-                  if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
-                  for (final take in takes)
-                    ListTile(
-                      leading: const Icon(Icons.library_music_outlined),
-                      title: Text(take.startedAt.toLocal().toString().split('.').first),
-                      subtitle: Text(
-                        '${_formatRecordingTime(take.duration)} · '
-                        '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
-                      ),
-                      trailing: IconButton(
-                        tooltip: '删除这次录音',
-                        icon: const Icon(Icons.delete_outline_rounded),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          unawaited(_confirmDeleteTake(take));
-                        },
-                      ),
-                      onTap: () async {
-                        Navigator.of(context).pop();
-                        await _showTakeResult(take);
-                      },
-                    ),
-                ],
-              ),
-            );
-          }
-          '''
-          new_open = r'''  Future<void> _openTakeHistory() async {
-            if (_recordingService.currentState.isRecording) return;
+          new_delete = '\n'.join([
+              '  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {',
+              '    final confirmed = await showDialog<bool>(',
+              '      context: context,',
+              '      builder: (context) => AlertDialog(',
+              "        title: const Text('永久删除这次演唱录音？'),",
+              "        content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),",
+              '        actions: [',
+              '          TextButton(',
+              '            onPressed: () => Navigator.pop(context, false),',
+              "            child: const Text('取消'),",
+              '          ),',
+              '          FilledButton(',
+              '            onPressed: () => Navigator.pop(context, true),',
+              "            child: const Text('确认永久删除'),",
+              '          ),',
+              '        ],',
+              '      ),',
+              '    );',
+              '    if (confirmed != true || !mounted) return;',
+              '    try {',
+              '      await const KtvTakeHistoryStore().deleteProjectTake(_project, take);',
+              '      if (!mounted) return;',
+              '      ScaffoldMessenger.of(context).showSnackBar(',
+              "        const SnackBar(content: Text('演唱录音已删除')),",
+              '      );',
+              '      await _openTakeHistory();',
+              '    } catch (error) {',
+              '      if (!mounted) return;',
+              '      ScaffoldMessenger.of(context).showSnackBar(',
+              "        SnackBar(content: Text('删除失败：$error')),",
+              '      );',
+              '    }',
+              '  }',
+              '',
+          ])
 
-            KtvTakeHistoryScanResult scan;
-            try {
-              scan = await const KtvTakeHistoryStore().scanProject(_project);
-            } catch (error) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('读取演唱历史失败：$error')),
-              );
-              return;
-            }
-            if (!mounted) return;
+          sheet_start = text.index('    await showModalBottomSheet<void>(', history_start)
+          legacy_history_prefix = text[history_start:sheet_start]
+          if 'final projectDirectory = _project.projectDirectory;' not in legacy_history_prefix:
+              raise SystemExit('history method no longer has expected legacy directory gate')
 
-            if (scan.recoveredCount > 0) {
-              final count = scan.recoveredCount;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '已恢复 $count 次中断录音，原始人声已保留；自动混音已停用',
-                  ),
-                ),
-              );
-            }
+          new_history_prefix = '\n'.join([
+              '  Future<void> _openTakeHistory() async {',
+              '    if (_recordingService.currentState.isRecording) return;',
+              '',
+              '    KtvTakeHistoryScanResult scan;',
+              '    try {',
+              '      scan = await const KtvTakeHistoryStore().scanProject(_project);',
+              '    } catch (error) {',
+              '      if (!mounted) return;',
+              '      ScaffoldMessenger.of(context).showSnackBar(',
+              "        SnackBar(content: Text('读取演唱历史失败：$error')),",
+              '      );',
+              '      return;',
+              '    }',
+              '    if (!mounted) return;',
+              '',
+              '    if (scan.recoveredCount > 0) {',
+              '      final count = scan.recoveredCount;',
+              '      ScaffoldMessenger.of(context).showSnackBar(',
+              '        SnackBar(',
+              '          content: Text(',
+              "            '已恢复 $count 次中断录音，原始人声已保留；自动混音已停用',",
+              '          ),',
+              '        ),',
+              '      );',
+              '    }',
+              '',
+              '    final takes = scan.takes;',
+          ]) + '\n'
 
-            final takes = scan.takes;
-            await showModalBottomSheet<void>(
-              context: context,
-              useSafeArea: true,
-              isScrollControlled: true,
-              showDragHandle: true,
-              backgroundColor: AppColors.bgElevated,
-              builder: (context) => ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Text('演唱历史（${takes.length}）',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 12),
-                  if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
-                  for (final take in takes)
-                    ListTile(
-                      leading: const Icon(Icons.library_music_outlined),
-                      title: Text(take.startedAt.toLocal().toString().split('.').first),
-                      subtitle: Text(
-                        '${_formatRecordingTime(take.duration)} · '
-                        '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
-                      ),
-                      trailing: IconButton(
-                        tooltip: '删除这次录音',
-                        icon: const Icon(Icons.delete_outline_rounded),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          unawaited(_confirmDeleteTake(take));
-                        },
-                      ),
-                      onTap: () async {
-                        Navigator.of(context).pop();
-                        await _showTakeResult(take);
-                      },
-                    ),
-                ],
-              ),
-            );
-          }
-          '''
-
-          if text.count(old_delete) != 1:
-              raise SystemExit('expected exactly one old delete block')
-          if text.count(old_open) != 1:
-              raise SystemExit('expected exactly one old history block')
-          text = text.replace(old_delete, new_delete).replace(old_open, new_open)
+          text = text[:delete_start] + new_delete + new_history_prefix + text[sheet_start:]
           path.write_text(text)
           PY
-      - name: Commit exact patch
+      - name: Commit bounded patch
         shell: bash
         run: |
           if git diff --quiet; then
