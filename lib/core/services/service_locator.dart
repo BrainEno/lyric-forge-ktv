@@ -124,6 +124,7 @@ class ServiceLocator {
     );
     final rawAudioPlayer = JustAudioPlayerService();
     ktvMicrophoneService = RecordSoloudKtvMicrophoneService();
+    unawaited(ktvMicrophoneService.refreshInputDevices());
     audioPlayerService = MediaHubRebindingAudioPlayerService(
       delegate: rawAudioPlayer,
       client: mediaHubClientService,
