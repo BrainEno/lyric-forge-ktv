@@ -36,6 +36,7 @@ import '../../features/project/domain/repositories/project_repository.dart';
 import '../../features/transcription/data/services/file_batch_transcription_queue.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
+import '../../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
@@ -44,6 +45,7 @@ import '../../features/transcription/data/services/qwen3_asr_native_transcriptio
 import '../../features/transcription/data/services/resilient_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
+import '../../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
 import '../../features/transcription/domain/services/batch_transcription_queue.dart';
 import '../../features/transcription/domain/services/project_transcription_workflow.dart';
@@ -94,6 +96,7 @@ class ServiceLocator {
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
   late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
+  late final AsrEndToEndSmokeTestService asrEndToEndSmokeTestService;
   late final BatchTranscriptionQueue transcriptionQueue;
   late final MediaHubClientService mediaHubClientService;
   late final MediaHubConnectionStore mediaHubConnectionStore;
@@ -229,6 +232,12 @@ class ServiceLocator {
       transcriptionService: transcriptionService,
       settingsStore: transcriptionSettingsStore,
       profileResolver: transcriptionProfileResolver,
+      runtimeManager: asrRuntimeManager,
+    );
+    asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(
+      projectRepository: projectRepository,
+      workflow: projectTranscriptionWorkflow,
+      settingsStore: transcriptionSettingsStore,
       runtimeManager: asrRuntimeManager,
     );
     transcriptionQueue = FileBatchTranscriptionQueue(

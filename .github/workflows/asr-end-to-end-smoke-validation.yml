@@ -1,0 +1,40 @@
+name: ASR end-to-end smoke validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/core/services/service_locator.dart'
+      - 'lib/features/settings/presentation/screens/settings_screen.dart'
+      - 'lib/features/settings/presentation/widgets/asr_end_to_end_smoke_test_card.dart'
+      - 'lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart'
+      - 'lib/features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart'
+      - 'test/features/transcription/asr_end_to_end_smoke_test_service_test.dart'
+      - '.github/workflows/asr-end-to-end-smoke-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze smoke path
+        run: >-
+          flutter analyze
+          lib/core/services/service_locator.dart
+          lib/features/settings/presentation/screens/settings_screen.dart
+          lib/features/settings/presentation/widgets/asr_end_to_end_smoke_test_card.dart
+          lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart
+          lib/features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart
+          test/features/transcription/asr_end_to_end_smoke_test_service_test.dart
+      - name: Test smoke orchestration
+        run: flutter test test/features/transcription/asr_end_to_end_smoke_test_service_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test
