@@ -1,0 +1,45 @@
+name: ASR client checks
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/transcription/**'
+      - 'lib/core/services/service_locator.dart'
+      - 'test/features/transcription/**'
+      - '.github/workflows/asr-client-checks.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/features/transcription/**'
+      - 'lib/core/services/service_locator.dart'
+      - 'test/features/transcription/**'
+      - '.github/workflows/asr-client-checks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-asr-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter packages
+        run: flutter pub get
+
+      - name: Analyze ASR client changes
+        run: >-
+          flutter analyze
+          lib/core/services/service_locator.dart
+          lib/features/transcription/data/services/resilient_asr_runtime_manager.dart
+          test/features/transcription/resilient_asr_runtime_manager_test.dart
+
+      - name: Test resilient ASR runtime manager
+        run: flutter test test/features/transcription/resilient_asr_runtime_manager_test.dart
