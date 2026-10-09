@@ -805,7 +805,7 @@ class _LyricsPane extends StatelessWidget {
   }
 }
 
-class _ScrollableLyrics extends StatelessWidget {
+class _ScrollableLyrics extends StatefulWidget {
   final List<LyricLine> lyrics;
   final int? currentIndex;
   final ValueChanged<LyricLine> onLyricTap;
@@ -817,25 +817,77 @@ class _ScrollableLyrics extends StatelessWidget {
   });
 
   @override
+  State<_ScrollableLyrics> createState() => _ScrollableLyricsState();
+}
+
+class _ScrollableLyricsState extends State<_ScrollableLyrics> {
+  static const double _estimatedRowExtent = 68;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleFollow();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ScrollableLyrics oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIndex != widget.currentIndex ||
+        oldWidget.lyrics.length != widget.lyrics.length) {
+      _scheduleFollow();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleFollow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final index = widget.currentIndex;
+      if (index == null || index < 0 || index >= widget.lyrics.length) return;
+
+      final position = _scrollController.position;
+      final rawTarget =
+          index * _estimatedRowExtent - position.viewportDimension * 0.4;
+      final target = rawTarget
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      if ((_scrollController.offset - target).abs() < 18) return;
+
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final gutter = spec.pageGutter.clamp(10, 28).toDouble();
     return ListView.builder(
+      controller: _scrollController,
       padding: EdgeInsets.fromLTRB(
         gutter,
         spec.isShort ? 4 : AppSpacing.sm,
         gutter,
         spec.isShort ? AppSpacing.md : AppSpacing.xxl,
       ),
-      itemCount: lyrics.length,
+      itemCount: widget.lyrics.length,
       itemBuilder: (context, index) {
-        final line = lyrics[index];
-        final current = currentIndex == index;
+        final line = widget.lyrics[index];
+        final current = widget.currentIndex == index;
         return Material(
           color: current ? AppColors.accent.withAlpha(18) : Colors.transparent,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           child: InkWell(
-            onTap: () => onLyricTap(line),
+            onTap: () => widget.onLyricTap(line),
             borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             child: Container(
               constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
@@ -1080,8 +1132,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                 final safeIndex = lyrics.isEmpty
                     ? 0
                     : currentIndex.clamp(0, lyrics.length - 1).toInt();
-                final previous =
-                    lyrics.isNotEmpty && safeIndex > 0 ? lyrics[safeIndex - 1] : null;
+                final previous = lyrics.isNotEmpty && safeIndex > 0
+                    ? lyrics[safeIndex - 1]
+                    : null;
                 final current = lyrics.isEmpty ? null : lyrics[safeIndex];
                 final next = lyrics.isNotEmpty && safeIndex + 1 < lyrics.length
                     ? lyrics[safeIndex + 1]
