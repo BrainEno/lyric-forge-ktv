@@ -10,6 +10,7 @@ import '../../features/player/data/repositories/file_local_media_metadata_reposi
 import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/repositories/file_playback_session_store.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
+import '../../features/player/data/services/file_ktv_microphone_preference_store.dart';
 import '../../features/player/data/services/file_local_media_relink_service.dart';
 import '../../features/player/data/services/record_soloud_ktv_microphone_service.dart';
 import '../../features/player/data/services/local_ktv_recording_service.dart';
@@ -123,7 +124,9 @@ class ServiceLocator {
       },
     );
     final rawAudioPlayer = JustAudioPlayerService();
-    ktvMicrophoneService = RecordSoloudKtvMicrophoneService();
+    ktvMicrophoneService = RecordSoloudKtvMicrophoneService(
+      preferenceStore: const FileKtvMicrophonePreferenceStore(),
+    );
     unawaited(ktvMicrophoneService.refreshInputDevices());
     audioPlayerService = MediaHubRebindingAudioPlayerService(
       delegate: rawAudioPlayer,
