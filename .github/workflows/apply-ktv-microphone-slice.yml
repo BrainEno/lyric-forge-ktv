@@ -20,7 +20,7 @@ jobs:
           ref: feat/ktv-microphone-monitoring
           fetch-depth: 0
       - name: Apply product wiring
-        run: python3 tool/apply_ktv_microphone_slice.py
+        run: python3 tool/apply_ktv_microphone_slice_v2.py
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -32,10 +32,12 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Test microphone signal slice
         run: flutter test test/features/player/ktv_microphone_signal_test.dart
+      - name: Test full Flutter suite
+        run: flutter test
       - name: Commit validated wiring
         shell: bash
         run: |
-          git rm .github/workflows/apply-ktv-microphone-slice.yml tool/apply_ktv_microphone_slice.py
+          git rm .github/workflows/apply-ktv-microphone-slice.yml tool/apply_ktv_microphone_slice.py tool/apply_ktv_microphone_slice_v2.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
