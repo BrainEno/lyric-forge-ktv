@@ -207,7 +207,10 @@ class JustAudioPlayerService implements AudioPlayerService {
   Future<void> setSpeed(double speed) => _player.setSpeed(speed);
 
   @override
-  Future<void> setVolume(double volume) => _player.setVolume(volume);
+  Future<void> setVolume(double volume) async {
+    await _player.setVolume(volume.clamp(0.0, 1.0).toDouble());
+    _updateState();
+  }
 
   @override
   Stream<PlaybackState> get stateStream => _stateController.stream;
