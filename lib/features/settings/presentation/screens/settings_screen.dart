@@ -4,6 +4,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../widgets/ai_transcription_settings_section.dart';
+import '../widgets/asr_end_to_end_smoke_test_card.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -58,6 +59,8 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     child: const AiTranscriptionSettingsSection(),
                   ),
+                  const SizedBox(height: AppSpacing.lg),
+                  const AsrEndToEndSmokeTestCard(),
                 ],
               ),
             ),
