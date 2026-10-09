@@ -7,6 +7,8 @@ abstract class KtvMicrophoneService {
   KtvMicrophoneState get currentState;
   Stream<Uint8List> get rawPcm16Stream;
 
+  Future<void> refreshInputDevices();
+  Future<void> selectInputDevice(String? deviceId);
   Future<void> startMonitoring();
   Future<void> stopMonitoring();
   Future<void> setMicGain(double gain);
