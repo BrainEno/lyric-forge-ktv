@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:path_provider/path_provider.dart';
-
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
@@ -13,12 +11,14 @@ import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/ktv_microphone_service.dart';
 import '../../domain/services/ktv_recording_service.dart';
+import 'ktv_project_storage.dart';
 import 'pcm16_wav_writer.dart';
 
 class LocalKtvRecordingService implements KtvRecordingService {
   final AudioPlayerService _audioService;
   final KtvMicrophoneService _microphoneService;
   final TranscriptionSettingsStore _settingsStore;
+  final Future<Directory> Function(ProjectManifest) _projectDirectoryResolver;
   final StreamController<KtvRecordingState> _stateController =
       StreamController<KtvRecordingState>.broadcast();
 
@@ -35,9 +35,12 @@ class LocalKtvRecordingService implements KtvRecordingService {
     required AudioPlayerService audioService,
     required KtvMicrophoneService microphoneService,
     required TranscriptionSettingsStore settingsStore,
+    Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
   })  : _audioService = audioService,
         _microphoneService = microphoneService,
-        _settingsStore = settingsStore;
+        _settingsStore = settingsStore,
+        _projectDirectoryResolver = projectDirectoryResolver ??
+            ((project) => KtvProjectStorage.resolveProjectDirectory(project));
 
   @override
   Stream<KtvRecordingState> get stateStream => _stateController.stream;
@@ -71,26 +74,30 @@ class LocalKtvRecordingService implements KtvRecordingService {
       }
     }
 
-    final directory = await _createSessionDirectory(project);
-    final micStemPath = _join(directory.path, 'voice.wav');
-    final manifestPath = _join(directory.path, 'session.json');
-    final writer = Pcm16WavWriter();
-    await writer.open(micStemPath);
-
+    // Re-check playback after microphone setup before creating any take files.
+    // This keeps a failed start from leaving empty take_* directories behind.
     final playback = _audioService.currentState;
     if (!playback.isPlaying || playback.isBuffering || playback.isLoading) {
-      await writer.close();
       throw const KtvRecordingException('麦克风准备期间歌曲停止了播放，请重新开始录音');
     }
     final backingSource = playback.currentSource;
     if (backingSource == null || backingSource == AudioSourceType.vocals) {
-      await writer.close();
       throw const KtvRecordingException('KTV 录音只支持原唱伴唱或纯伴奏音轨');
     }
     final backingPath = audioAsset.getPathForSource(backingSource);
     if (backingPath == null || backingPath.trim().isEmpty) {
-      await writer.close();
       throw const KtvRecordingException('当前伴唱音轨文件不可用');
+    }
+
+    final directory = await _createSessionDirectory(project);
+    final micStemPath = _join(directory.path, 'voice.wav');
+    final manifestPath = _join(directory.path, 'session.json');
+    final writer = Pcm16WavWriter();
+    try {
+      await writer.open(micStemPath);
+    } catch (error) {
+      await _deleteFailedTake(directory);
+      throw KtvRecordingException('无法创建人声录音文件：$error');
     }
 
     final now = DateTime.now();
@@ -132,7 +139,15 @@ class LocalKtvRecordingService implements KtvRecordingService {
         clearError: true,
       ),
     );
-    await _writeManifest(session);
+
+    // Start capture immediately for alignment accuracy, but roll the entire
+    // start back if the recoverable session descriptor cannot be persisted.
+    try {
+      await _writeManifest(session);
+    } catch (error) {
+      await _rollbackFailedStart(writer, directory);
+      throw KtvRecordingException('无法创建录音记录：$error');
+    }
   }
 
   void _handlePcmFrame(Uint8List bytes) {
@@ -316,16 +331,7 @@ class LocalKtvRecordingService implements KtvRecordingService {
   }
 
   Future<Directory> _createSessionDirectory(ProjectManifest project) async {
-    Directory projectDirectory;
-    if (project.projectDirectory?.trim().isNotEmpty == true) {
-      projectDirectory = Directory(project.projectDirectory!);
-    } else {
-      final support = await getApplicationSupportDirectory();
-      projectDirectory = Directory(
-        _join(_join(_join(support.path, 'LyricForge'), 'Projects'), project.id),
-      );
-    }
-
+    final projectDirectory = await _projectDirectoryResolver(project);
     final recordings = Directory(_join(projectDirectory.path, 'recordings'));
     await recordings.create(recursive: true);
     final stamp = DateTime.now()
@@ -336,6 +342,51 @@ class LocalKtvRecordingService implements KtvRecordingService {
     final directory = Directory(_join(recordings.path, 'take_$stamp'));
     await directory.create(recursive: true);
     return directory;
+  }
+
+  Future<void> _rollbackFailedStart(
+    Pcm16WavWriter writer,
+    Directory directory,
+  ) async {
+    final pcmSubscription = _pcmSubscription;
+    _pcmSubscription = null;
+    try {
+      await pcmSubscription?.cancel();
+    } catch (_) {}
+
+    final playbackSubscription = _playbackSubscription;
+    _playbackSubscription = null;
+    try {
+      await playbackSubscription?.cancel();
+    } catch (_) {}
+
+    _writer = null;
+    _recordingClock?.stop();
+    _recordingClock = null;
+    try {
+      await writer.close();
+    } catch (_) {}
+
+    _emit(
+      _state.copyWith(
+        isRecording: false,
+        recordedDuration: Duration.zero,
+        clearCurrentSession: true,
+        clearError: true,
+      ),
+    );
+    await _deleteFailedTake(directory);
+  }
+
+  Future<void> _deleteFailedTake(Directory directory) async {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    } catch (_) {
+      // The start failure remains primary. History scanning ignores incomplete
+      // directories, and a later cleanup can safely remove any residual files.
+    }
   }
 
   Future<void> _writeManifest(KtvRecordingSession session) async {
