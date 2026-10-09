@@ -1,0 +1,31 @@
+name: Root widget validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/main.dart'
+      - 'lib/core/layout/app_responsive.dart'
+      - 'lib/core/navigation/app_chrome_controller.dart'
+      - 'test/widget_test.dart'
+      - '.github/workflows/widget-root-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  widget-root:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze lib/main.dart test/widget_test.dart
+      - run: flutter test test/widget_test.dart
+      - run: >-
+          flutter test test/widget_test.dart
+          --plain-name 'mobile root renders Navigator child without desktop overlay'
+      - run: flutter test

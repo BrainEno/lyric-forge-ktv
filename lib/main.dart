@@ -48,11 +48,17 @@ Future<void> _initializeMobileMediaSessionAfterLaunch() async {
 }
 
 class ElysiumPlayerApp extends StatelessWidget {
-  const ElysiumPlayerApp({super.key});
+  final bool? desktopChromeOverride;
+
+  const ElysiumPlayerApp({
+    super.key,
+    this.desktopChromeOverride,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final desktopChrome = AppResponsive.isDesktopTarget();
+    final desktopChrome =
+        desktopChromeOverride ?? AppResponsive.isDesktopTarget();
 
     return MaterialApp(
       title: 'Elysium Player',

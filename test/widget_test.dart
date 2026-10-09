@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
@@ -35,7 +34,6 @@ void main() {
   testWidgets('mobile root renders Navigator child without desktop overlay', (
     WidgetTester tester,
   ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     AppChromeController.enterImmersive();
 
     try {
@@ -44,7 +42,9 @@ void main() {
         MaterialApp(
           home: Builder(
             builder: (context) {
-              builtApp = const ElysiumPlayerApp().build(context) as MaterialApp;
+              builtApp = const ElysiumPlayerApp(
+                desktopChromeOverride: false,
+              ).build(context) as MaterialApp;
               return const SizedBox.shrink();
             },
           ),
@@ -77,9 +77,9 @@ void main() {
         reason: 'mobile chrome must not add the desktop-only Overlay',
       );
     } finally {
-      // Flutter verifies foundation debug globals before addTearDown callbacks
-      // run, so restore this override before the test body returns.
-      debugDefaultTargetPlatformOverride = null;
+      // Unmount listeners before restoring the shared chrome controller. This
+      // keeps the test isolated when it runs as part of the full suite.
+      await tester.pumpWidget(const SizedBox.shrink());
       AppChromeController.exitImmersive();
     }
   });
