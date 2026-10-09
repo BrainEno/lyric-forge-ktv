@@ -1318,6 +1318,44 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
   }
 
+  Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
+    final projectDirectory = _project.projectDirectory;
+    if (projectDirectory == null || projectDirectory.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('永久删除这次演唱录音？'),
+        content: const Text('将删除本次录音的人声、混音和记录文件，无法撤销。其他录音不受影响。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('确认永久删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await const KtvTakeHistoryStore().deleteTake(
+        Directory(projectDirectory), _project.id, take,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('演唱录音已删除')),
+      );
+      await _openTakeHistory();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('删除失败：$error')),
+      );
+    }
+  }
+
   Future<void> _openTakeHistory() async {
     if (_recordingService.currentState.isRecording) return;
     final projectDirectory = _project.projectDirectory;
@@ -1354,7 +1392,14 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                 '${_formatRecordingTime(take.duration)} · '
                 '${take.alignmentReliable ? "可重新混音" : "时间轴异常，仅保留原始人声"}',
               ),
-              trailing: const Icon(Icons.tune_rounded),
+              trailing: IconButton(
+                tooltip: '删除这次录音',
+                icon: const Icon(Icons.delete_outline_rounded),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  unawaited(_confirmDeleteTake(take));
+                },
+              ),
               onTap: () async {
                 Navigator.of(context).pop();
                 await _showTakeResult(take);
