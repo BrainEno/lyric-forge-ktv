@@ -15,7 +15,10 @@ class KtvTakeHistoryStore {
     if (!await root.exists()) return const [];
     final takes = <KtvRecordingSession>[];
     await for (final entity in root.list(followLinks: false)) {
-      if (entity is! Directory || entity.path.split(Platform.pathSeparator).last.startsWith('take_') == false) continue;
+      if (entity is! Directory ||
+          !entity.path.split(Platform.pathSeparator).last.startsWith('take_')) {
+        continue;
+      }
       final manifest = File('${entity.path}${Platform.pathSeparator}session.json');
       if (!await manifest.exists()) continue;
       try {
@@ -24,9 +27,11 @@ class KtvTakeHistoryStore {
         final take = KtvRecordingSession.fromJson(decoded);
         if (take.projectId != projectId || take.completedAt == null) continue;
         // Never trust paths in a manifest when listing a project's recordings.
-        if (!_inside(entity, File(take.micStemPath)) ||
-            !_inside(entity, File(take.manifestPath)) ||
-            !await File(take.micStemPath).exists()) continue;
+        if (!_samePath(File(take.manifestPath).absolute.path, manifest.absolute.path) ||
+            !_samePath(File(take.micStemPath).absolute.path,
+                File('${entity.path}${Platform.pathSeparator}voice.wav').absolute.path) ||
+            await File(take.micStemPath).stat().then((stat) => stat.type != FileSystemEntityType.file) ||
+            await File(take.micStemPath).exists() == false) continue;
         takes.add(take);
       } catch (_) {
         // One corrupt or interrupted take must not hide the remaining history.
@@ -54,7 +59,9 @@ class KtvTakeHistoryStore {
     );
     if (!take.id.startsWith('take_') ||
         take.id.contains('/') ||
-        take.id.contains('\\\\') ||
+        take.id.contains(Platform.pathSeparator) ||
+        take.id == 'take_..' ||
+        await FileSystemEntity.type(folder.path, followLinks: false) != FileSystemEntityType.directory ||
         !_inside(folder, File(take.manifestPath)) ||
         !_inside(folder, File(take.micStemPath))) {
       throw const FileSystemException('录音路径不安全，已取消删除');
@@ -65,8 +72,18 @@ class KtvTakeHistoryStore {
         entry.id == take.id && entry.manifestPath == take.manifestPath)) {
       throw const FileSystemException('录音不存在或已发生变化');
     }
+    // Refuse symlinked files and nested directories: recursive deletion must
+    // never follow untrusted take contents or remove unrelated user files.
+    await for (final child in folder.list(recursive: true, followLinks: false)) {
+      if (child is Link) {
+        throw const FileSystemException('录音包含符号链接，已取消删除');
+      }
+    }
     await folder.delete(recursive: true);
   }
+
+  bool _samePath(String left, String right) =>
+      Platform.isWindows ? left.toLowerCase() == right.toLowerCase() : left == right;
 
   bool _inside(Directory directory, File file) {
     final root = directory.absolute.path;
