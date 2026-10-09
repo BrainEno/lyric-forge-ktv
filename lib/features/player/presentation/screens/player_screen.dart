@@ -63,6 +63,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  Future<void> _openLyricEditor(ProjectManifest project) async {
+    await Navigator.pushNamed(
+      context,
+      Routes.lyricEditorPath(project.id),
+    );
+    if (!mounted || _activeProjectId != project.id) return;
+    setState(() => _loadProject(project.id));
+  }
+
   Future<void> _initializeAudio(ProjectManifest project) async {
     final audioAsset = project.audioAsset;
     if (audioAsset == null) return;
@@ -137,6 +146,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           audioService: _audioService,
           playbackSession: _playbackSession,
           onInitialize: () => _initializeAudio(project),
+          onOpenLyricEditor: () => _openLyricEditor(project),
           onPlayPause: _playPause,
           onSeek: _seek,
           onSwitchSource: _switchSource,
@@ -201,6 +211,7 @@ class _PlayerContent extends StatefulWidget {
   final AudioPlayerService audioService;
   final PlaybackSessionService playbackSession;
   final VoidCallback onInitialize;
+  final Future<void> Function() onOpenLyricEditor;
   final VoidCallback onPlayPause;
   final ValueChanged<Duration> onSeek;
   final ValueChanged<AudioSourceType> onSwitchSource;
@@ -214,6 +225,7 @@ class _PlayerContent extends StatefulWidget {
     required this.audioService,
     required this.playbackSession,
     required this.onInitialize,
+    required this.onOpenLyricEditor,
     required this.onPlayPause,
     required this.onSeek,
     required this.onSwitchSource,
@@ -317,10 +329,7 @@ class _PlayerContentState extends State<_PlayerContent> {
             height: spec.minimumInteractiveExtent,
             child: IconButton(
               tooltip: '校对歌词',
-              onPressed: () => Navigator.pushNamed(
-                context,
-                Routes.lyricEditorPath(widget.project.id),
-              ),
+              onPressed: widget.onOpenLyricEditor,
               icon: const Icon(Icons.edit_rounded),
             ),
           ),
