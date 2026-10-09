@@ -142,7 +142,7 @@ void main() {
           root,
           'song',
           cleared,
-          displayName: 'x' * (KtvTakeHistoryStore.maxDisplayNameLength + 1),
+          displayName: List.filled(KtvTakeHistoryStore.maxDisplayNameLength + 1, 'x').join(),
         ),
         throwsA(isA<FormatException>()),
       );
