@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/ktv_take_history_store.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/pcm16_wav_writer.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
   test('ignores corrupt takes and keeps valid take order', () async {
@@ -63,7 +64,7 @@ void main() {
     }
   });
 
-  test('recovers an interrupted take once and disables automatic mixing', () async {
+  test('project-level scan recovers once and project-level delete uses same root', () async {
     final root = await Directory.systemTemp.createTemp('ktv-recovery-');
     try {
       final takeDir = Directory(
@@ -106,8 +107,15 @@ void main() {
         'alignmentIssue': null,
       }));
 
+      final project = ProjectManifest(
+        id: 'song',
+        name: 'Song',
+        createdAt: DateTime(2026, 10, 9),
+        updatedAt: DateTime(2026, 10, 9),
+        projectDirectory: root.path,
+      );
       const store = KtvTakeHistoryStore();
-      final firstScan = await store.scanFromDirectory(root, 'song');
+      final firstScan = await store.scanProject(project);
       expect(firstScan.recoveredCount, 1);
       expect(firstScan.takes, hasLength(1));
       final recovered = firstScan.takes.single;
@@ -123,10 +131,13 @@ void main() {
       expect(persisted['completedAt'], isNotNull);
       expect(persisted['alignmentReliable'], isFalse);
 
-      final secondScan = await store.scanFromDirectory(root, 'song');
+      final secondScan = await store.scanProject(project);
       expect(secondScan.recoveredCount, 0);
       expect(secondScan.takes.single.duration,
           const Duration(milliseconds: 100));
+
+      await store.deleteProjectTake(project, secondScan.takes.single);
+      expect(await takeDir.exists(), isFalse);
     } finally {
       await root.delete(recursive: true);
     }

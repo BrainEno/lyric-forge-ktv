@@ -8,18 +8,22 @@ class KtvProjectStorage {
   const KtvProjectStorage._();
 
   static Future<Directory> resolveProjectDirectory(
-    ProjectManifest project,
-  ) async {
+    ProjectManifest project, {
+    Directory? applicationSupportDirectory,
+  }) async {
     final explicit = project.projectDirectory?.trim();
     if (explicit != null && explicit.isNotEmpty) {
       return Directory(explicit);
     }
-    final support = await getApplicationSupportDirectory();
+    final support =
+        applicationSupportDirectory ?? await getApplicationSupportDirectory();
     return Directory(
       join(join(join(support.path, 'LyricForge'), 'Projects'), project.id),
     );
   }
 
   static String join(String left, String right) =>
-      '$left${Platform.pathSeparator}$right';
+      left.endsWith(Platform.pathSeparator)
+          ? '$left$right'
+          : '$left${Platform.pathSeparator}$right';
 }

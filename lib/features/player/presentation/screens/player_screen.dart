@@ -1319,8 +1319,6 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 
   Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
-    final projectDirectory = _project.projectDirectory;
-    if (projectDirectory == null || projectDirectory.isEmpty) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1340,9 +1338,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await const KtvTakeHistoryStore().deleteTake(
-        Directory(projectDirectory), _project.id, take,
-      );
+      await const KtvTakeHistoryStore().deleteProjectTake(_project, take);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('演唱录音已删除')),
@@ -1355,21 +1351,33 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       );
     }
   }
-
   Future<void> _openTakeHistory() async {
     if (_recordingService.currentState.isRecording) return;
-    final projectDirectory = _project.projectDirectory;
-    if (projectDirectory == null || projectDirectory.trim().isEmpty) {
+
+    KtvTakeHistoryScanResult scan;
+    try {
+      scan = await const KtvTakeHistoryStore().scanProject(_project);
+    } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('当前工程没有可用的本地录音目录')),
+        SnackBar(content: Text('读取演唱历史失败：$error')),
       );
       return;
     }
-    final takes = await const KtvTakeHistoryStore().listFromDirectory(
-      Directory(projectDirectory),
-      _project.id,
-    );
     if (!mounted) return;
+
+    if (scan.recoveredCount > 0) {
+      final count = scan.recoveredCount;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '已恢复 $count 次中断录音，原始人声已保留；自动混音已停用',
+          ),
+        ),
+      );
+    }
+
+    final takes = scan.takes;
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
