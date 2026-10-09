@@ -81,6 +81,19 @@ class KtvTakeHistoryStore {
           continue;
         }
 
+        final mixedPath = take.mixedOutputPath;
+        if (mixedPath != null) {
+          final expectedMix = File(
+            '${entity.path}${Platform.pathSeparator}mix.wav',
+          );
+          final safeMix = _samePath(mixedPath, expectedMix.path) &&
+              await FileSystemEntity.type(mixedPath, followLinks: false) ==
+                  FileSystemEntityType.file;
+          if (!safeMix) {
+            take = take.copyWith(clearMixedOutputPath: true);
+          }
+        }
+
         if (take.completedAt == null) {
           final recoveredDuration =
               await Pcm16WavWriter.recoverInterruptedFile(take.micStemPath);
