@@ -14,6 +14,7 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/services/lyric_file_export_service.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
@@ -33,10 +34,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final ProjectRepository _repository;
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioService;
+  late final LyricFileExportService _exportService;
   late Future<ProjectManifest?> _projectFuture;
 
   LyricDocument? _editingDocument;
   bool _hasChanges = false;
+  bool _followPlayback = true;
   int? _selectedLineIndex;
   _ReviewFilter _filter = _ReviewFilter.all;
 
@@ -46,6 +49,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _repository = ServiceLocatorGlobal.I.projectRepository;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
     _loadProject();
   }
 
@@ -72,6 +76,35 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _exportLyrics(ProjectManifest project) async {
+    final document = _editingDocument;
+    if (document == null || document.lines.isEmpty) return;
+
+    try {
+      final path = await _exportService.exportLrc(
+        document,
+        suggestedFileName: project.name,
+        title: project.name,
+        artist: project.artist,
+        album: project.album,
+      );
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('LRC 歌词已导出：$path')),
+      );
+    } on LyricExportException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出歌词失败：$error')),
+      );
+    }
   }
 
   void _addNewLine() {
@@ -112,6 +145,33 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _editingDocument = _editingDocument!.copyWith(lines: lines);
       _hasChanges = true;
     });
+  }
+
+  void _setLineStartFromPlayback(int index) {
+    final document = _editingDocument;
+    if (document == null || index < 0 || index >= document.lines.length) return;
+    final line = document.lines[index];
+    var next = _timelinePositionFromPlayback();
+    final latest = line.endTime - const Duration(milliseconds: 10);
+    if (next > latest) next = latest;
+    if (next.isNegative) next = Duration.zero;
+    _updateLine(index, line.copyWith(startTime: next));
+  }
+
+  void _setLineEndFromPlayback(int index) {
+    final document = _editingDocument;
+    if (document == null || index < 0 || index >= document.lines.length) return;
+    final line = document.lines[index];
+    var next = _timelinePositionFromPlayback();
+    final earliest = line.startTime + const Duration(milliseconds: 10);
+    if (next < earliest) next = earliest;
+    _updateLine(index, line.copyWith(endTime: next));
+  }
+
+  Duration _timelinePositionFromPlayback() {
+    final offset = _editingDocument?.globalOffset ?? Duration.zero;
+    final shifted = _audioService.currentState.position - offset;
+    return shifted.isNegative ? Duration.zero : shifted;
   }
 
   void _deleteLine(int index) {
@@ -258,17 +318,23 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               playback: playback,
               playbackBelongsToProject: activeProject,
               hasChanges: _hasChanges,
+              followPlayback: _followPlayback,
               selectedLineIndex: _selectedLineIndex,
               filter: _filter,
               onFilterChanged: (value) => setState(() => _filter = value),
+              onFollowPlaybackChanged: (value) =>
+                  setState(() => _followPlayback = value),
               onSelectLine: (index) =>
                   setState(() => _selectedLineIndex = index),
               onSave: () => _saveChanges(project),
+              onExport: () => _exportLyrics(project),
               onAddLine: _addNewLine,
               onUpdateLine: _updateLine,
               onDeleteLine: _deleteLine,
               onUpdateOffset: _updateGlobalOffset,
               onPreviewLine: (index) => _previewLine(project, index),
+              onSetStartFromPlayback: _setLineStartFromPlayback,
+              onSetEndFromPlayback: _setLineEndFromPlayback,
               onTogglePlayback: () => _togglePlayback(project),
             );
           },
@@ -323,16 +389,21 @@ class _LyricEditorContent extends StatelessWidget {
   final PlaybackState playback;
   final bool playbackBelongsToProject;
   final bool hasChanges;
+  final bool followPlayback;
   final int? selectedLineIndex;
   final _ReviewFilter filter;
   final ValueChanged<_ReviewFilter> onFilterChanged;
+  final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
   final VoidCallback onSave;
+  final VoidCallback onExport;
   final VoidCallback onAddLine;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
   final ValueChanged<Duration> onUpdateOffset;
   final ValueChanged<int> onPreviewLine;
+  final ValueChanged<int> onSetStartFromPlayback;
+  final ValueChanged<int> onSetEndFromPlayback;
   final VoidCallback onTogglePlayback;
 
   const _LyricEditorContent({
@@ -341,16 +412,21 @@ class _LyricEditorContent extends StatelessWidget {
     required this.playback,
     required this.playbackBelongsToProject,
     required this.hasChanges,
+    required this.followPlayback,
     required this.selectedLineIndex,
     required this.filter,
     required this.onFilterChanged,
+    required this.onFollowPlaybackChanged,
     required this.onSelectLine,
     required this.onSave,
+    required this.onExport,
     required this.onAddLine,
     required this.onUpdateLine,
     required this.onDeleteLine,
     required this.onUpdateOffset,
     required this.onPreviewLine,
+    required this.onSetStartFromPlayback,
+    required this.onSetEndFromPlayback,
     required this.onTogglePlayback,
   });
 
@@ -430,6 +506,12 @@ class _LyricEditorContent extends StatelessWidget {
                   Navigator.of(sheetContext).pop();
                 },
                 onPreview: () => onPreviewLine(index),
+                onUsePlaybackAsStart: playbackBelongsToProject
+                    ? () => onSetStartFromPlayback(index)
+                    : null,
+                onUsePlaybackAsEnd: playbackBelongsToProject
+                    ? () => onSetEndFromPlayback(index)
+                    : null,
               ),
             ),
           ),
@@ -474,6 +556,12 @@ class _LyricEditorContent extends StatelessWidget {
           ],
         ),
         actions: [
+          if (document.lines.isNotEmpty)
+            IconButton(
+              tooltip: '导出 LRC',
+              onPressed: onExport,
+              icon: const Icon(Icons.download_rounded),
+            ),
           if (hasChanges)
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -501,7 +589,9 @@ class _LyricEditorContent extends StatelessWidget {
               lowConfidenceCount: lowConfidenceCount,
               reviewCount: reviewCount,
               filter: filter,
+              followPlayback: followPlayback,
               onFilterChanged: onFilterChanged,
+              onFollowPlaybackChanged: onFollowPlaybackChanged,
               onUpdateOffset: onUpdateOffset,
               onTogglePlayback: onTogglePlayback,
               onOpenPlayer: project.canPlay
@@ -523,6 +613,7 @@ class _LyricEditorContent extends StatelessWidget {
                           visibleIndices: visibleIndices,
                           selectedIndex: selectedIndex,
                           currentPlaybackLine: currentPlaybackLine,
+                          followPlayback: followPlayback,
                           fallbackCandidateFor: _fallbackCandidateFor,
                           onSelectLine: twoPane
                               ? onSelectLine
@@ -550,6 +641,8 @@ class _LyricEditorContent extends StatelessWidget {
                                 onUpdateLine: onUpdateLine,
                                 onDeleteLine: onDeleteLine,
                                 onPreviewLine: onPreviewLine,
+                                onSetStartFromPlayback: onSetStartFromPlayback,
+                                onSetEndFromPlayback: onSetEndFromPlayback,
                               ),
                             ),
                           ],
@@ -577,7 +670,9 @@ class _EditorToolbar extends StatelessWidget {
   final int lowConfidenceCount;
   final int reviewCount;
   final _ReviewFilter filter;
+  final bool followPlayback;
   final ValueChanged<_ReviewFilter> onFilterChanged;
+  final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<Duration> onUpdateOffset;
   final VoidCallback onTogglePlayback;
   final VoidCallback? onOpenPlayer;
@@ -589,7 +684,9 @@ class _EditorToolbar extends StatelessWidget {
     required this.lowConfidenceCount,
     required this.reviewCount,
     required this.filter,
+    required this.followPlayback,
     required this.onFilterChanged,
+    required this.onFollowPlaybackChanged,
     required this.onUpdateOffset,
     required this.onTogglePlayback,
     required this.onOpenPlayer,
@@ -699,6 +796,17 @@ class _EditorToolbar extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
             ),
+            FilterChip(
+              selected: followPlayback,
+              onSelected: onFollowPlaybackChanged,
+              avatar: Icon(
+                followPlayback
+                    ? Icons.my_location_rounded
+                    : Icons.location_disabled_rounded,
+                size: 16,
+              ),
+              label: const Text('跟随播放'),
+            ),
             if (onOpenPlayer != null)
               TextButton.icon(
                 onPressed: onOpenPlayer,
@@ -751,11 +859,12 @@ class _EditorToolbar extends StatelessWidget {
   }
 }
 
-class _LyricListPane extends StatelessWidget {
+class _LyricListPane extends StatefulWidget {
   final LyricDocument document;
   final List<int> visibleIndices;
   final int? selectedIndex;
   final int? currentPlaybackLine;
+  final bool followPlayback;
   final Map<String, dynamic>? Function(int) fallbackCandidateFor;
   final ValueChanged<int> onSelectLine;
 
@@ -764,13 +873,69 @@ class _LyricListPane extends StatelessWidget {
     required this.visibleIndices,
     required this.selectedIndex,
     required this.currentPlaybackLine,
+    required this.followPlayback,
     required this.fallbackCandidateFor,
     required this.onSelectLine,
   });
 
   @override
+  State<_LyricListPane> createState() => _LyricListPaneState();
+}
+
+class _LyricListPaneState extends State<_LyricListPane> {
+  static const double _estimatedRowExtent = 68;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleFollow();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LyricListPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.followPlayback &&
+        (!oldWidget.followPlayback ||
+            oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
+            oldWidget.visibleIndices != widget.visibleIndices)) {
+      _scheduleFollow();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleFollow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.followPlayback || !_scrollController.hasClients) {
+        return;
+      }
+      final current = widget.currentPlaybackLine;
+      if (current == null) return;
+      final visiblePosition = widget.visibleIndices.indexOf(current);
+      if (visiblePosition < 0) return;
+      final position = _scrollController.position;
+      final rawTarget = visiblePosition * _estimatedRowExtent -
+          position.viewportDimension * 0.42;
+      final target = rawTarget
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      if ((_scrollController.offset - target).abs() < 20) return;
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (visibleIndices.isEmpty) {
+    if (widget.visibleIndices.isEmpty) {
       return const _FilteredEmptyState();
     }
 
@@ -780,19 +945,20 @@ class _LyricListPane extends StatelessWidget {
         : spec.pageGutter.clamp(12, 24).toDouble();
 
     return ListView.builder(
+      controller: _scrollController,
       padding: EdgeInsets.all(padding),
-      itemCount: visibleIndices.length,
+      itemCount: widget.visibleIndices.length,
       itemBuilder: (context, visibleIndex) {
-        final index = visibleIndices[visibleIndex];
-        final line = document.lines[index];
-        final candidate = fallbackCandidateFor(index);
+        final index = widget.visibleIndices[visibleIndex];
+        final line = widget.document.lines[index];
+        final candidate = widget.fallbackCandidateFor(index);
         return _LyricReviewRow(
           index: index,
           line: line,
           fallbackCandidate: candidate,
-          selected: selectedIndex == index,
-          playing: currentPlaybackLine == index,
-          onTap: () => onSelectLine(index),
+          selected: widget.selectedIndex == index,
+          playing: widget.currentPlaybackLine == index,
+          onTap: () => widget.onSelectLine(index),
         );
       },
     );
@@ -932,6 +1098,8 @@ class _InspectorPane extends StatelessWidget {
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
   final ValueChanged<int> onPreviewLine;
+  final ValueChanged<int> onSetStartFromPlayback;
+  final ValueChanged<int> onSetEndFromPlayback;
 
   const _InspectorPane({
     required this.document,
@@ -943,6 +1111,8 @@ class _InspectorPane extends StatelessWidget {
     required this.onUpdateLine,
     required this.onDeleteLine,
     required this.onPreviewLine,
+    required this.onSetStartFromPlayback,
+    required this.onSetEndFromPlayback,
   });
 
   @override
@@ -964,6 +1134,10 @@ class _InspectorPane extends StatelessWidget {
       onUpdate: (updated) => onUpdateLine(index, updated),
       onDelete: () => onDeleteLine(index),
       onPreview: () => onPreviewLine(index),
+      onUsePlaybackAsStart:
+          playbackBelongsToProject ? () => onSetStartFromPlayback(index) : null,
+      onUsePlaybackAsEnd:
+          playbackBelongsToProject ? () => onSetEndFromPlayback(index) : null,
     );
   }
 }
@@ -977,6 +1151,8 @@ class _LineInspector extends StatefulWidget {
   final ValueChanged<LyricLine> onUpdate;
   final VoidCallback onDelete;
   final VoidCallback onPreview;
+  final VoidCallback? onUsePlaybackAsStart;
+  final VoidCallback? onUsePlaybackAsEnd;
 
   const _LineInspector({
     super.key,
@@ -988,6 +1164,8 @@ class _LineInspector extends StatefulWidget {
     required this.onUpdate,
     required this.onDelete,
     required this.onPreview,
+    this.onUsePlaybackAsStart,
+    this.onUsePlaybackAsEnd,
   });
 
   @override
@@ -1175,12 +1353,14 @@ class _LineInspectorState extends State<_LineInspector> {
             title: '开始时间',
             value: _workingLine.startTime,
             onNudge: _nudgeStart,
+            onUsePlaybackPosition: widget.onUsePlaybackAsStart,
           ),
           const SizedBox(height: AppSpacing.sm),
           _TimingEditor(
             title: '结束时间',
             value: _workingLine.endTime,
             onNudge: _nudgeEnd,
+            onUsePlaybackPosition: widget.onUsePlaybackAsEnd,
           ),
           const SizedBox(height: AppSpacing.lg),
           SwitchListTile.adaptive(
@@ -1211,11 +1391,13 @@ class _TimingEditor extends StatelessWidget {
   final String title;
   final Duration value;
   final ValueChanged<Duration> onNudge;
+  final VoidCallback? onUsePlaybackPosition;
 
   const _TimingEditor({
     required this.title,
     required this.value,
     required this.onNudge,
+    this.onUsePlaybackPosition,
   });
 
   @override
@@ -1252,6 +1434,7 @@ class _TimingEditor extends StatelessWidget {
           Wrap(
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _NudgeButton(
                 label: '-1s',
@@ -1275,6 +1458,12 @@ class _TimingEditor extends StatelessWidget {
                 minHeight: spec.minimumInteractiveExtent,
                 onPressed: () => onNudge(const Duration(seconds: 1)),
               ),
+              if (onUsePlaybackPosition != null)
+                TextButton.icon(
+                  onPressed: onUsePlaybackPosition,
+                  icon: const Icon(Icons.my_location_rounded, size: 16),
+                  label: const Text('设为当前播放位置'),
+                ),
             ],
           ),
         ],
