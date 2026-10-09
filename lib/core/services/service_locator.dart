@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import '../../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../../features/lyrics/data/services/local_lyric_file_import_service.dart';
+import '../../features/lyrics/domain/services/lyric_file_export_service.dart';
 import '../../features/lyrics/domain/services/lyric_file_import_service.dart';
 import '../../features/player/data/repositories/file_local_media_collection_repository.dart';
 import '../../features/player/data/repositories/file_local_media_library_repository.dart';
@@ -75,6 +77,7 @@ class ServiceLocator {
   late final LocalMediaMetadataRepository localMediaMetadataRepository;
   late final LocalMediaRelinkService localMediaRelinkService;
   late final LyricFileImportService lyricFileImportService;
+  late final LyricFileExportService lyricFileExportService;
   late final PlayHistoryRepository playHistoryRepository;
   late final PlaybackSessionStore playbackSessionStore;
   late final PlaybackSessionService playbackSessionService;
@@ -136,6 +139,7 @@ class ServiceLocator {
     );
     localMediaMetadataRepository = FileLocalMediaMetadataRepository();
     lyricFileImportService = LocalLyricFileImportService();
+    lyricFileExportService = const LocalLyricFileExportService();
     final filePlayHistoryRepository = FilePlayHistoryRepository();
     playHistoryRepository = filePlayHistoryRepository;
     localMediaRelinkService = FileLocalMediaRelinkService(

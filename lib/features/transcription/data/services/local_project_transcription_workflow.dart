@@ -93,6 +93,13 @@ class LocalProjectTranscriptionWorkflow
         ),
       );
 
+      final editableLyrics = result.lyrics.copyWith(
+        metadata: {
+          ...result.lyrics.metadata,
+          'timelineFormat': 'lyricforge-timeline-v1',
+          'editableDraft': true,
+        },
+      );
       final latest = await _projectRepository.getProjectById(projectId);
       if (latest == null) {
         throw const TranscriptionException('识别完成，但工程已经不存在');
@@ -102,7 +109,7 @@ class LocalProjectTranscriptionWorkflow
         latest.copyWith(
           status: ProjectStatus.editing,
           currentStage: ProcessingStage.transcriptionComplete,
-          lyricDocument: result.lyrics,
+          lyricDocument: editableLyrics,
           metadata: {
             ...latest.metadata,
             'transcription': {
@@ -111,8 +118,8 @@ class LocalProjectTranscriptionWorkflow
               'hardwareProfileLabel': resolvedProfile.label,
               'hardwareOs': resolvedProfile.hardware.operatingSystem,
               'hardwareArchitecture': resolvedProfile.hardware.architecture,
-              'backend': result.lyrics.metadata['primaryEngine'] ??
-                  result.lyrics.metadata['generatedBy'] ??
+              'backend': editableLyrics.metadata['primaryEngine'] ??
+                  editableLyrics.metadata['generatedBy'] ??
                   'local-asr',
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
