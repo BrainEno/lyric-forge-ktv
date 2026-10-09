@@ -6,6 +6,7 @@ import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:record/record.dart';
 
 import '../../domain/models/ktv_microphone_state.dart';
+import '../../domain/services/ktv_microphone_preference_store.dart';
 import '../../domain/services/ktv_microphone_service.dart';
 import 'pcm_delay_line.dart';
 
@@ -20,6 +21,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
 
   final AudioRecorder _recorder;
   final SoLoud _soloud;
+  final KtvMicrophonePreferenceStore? _preferenceStore;
   final StreamController<KtvMicrophoneState> _stateController =
       StreamController<KtvMicrophoneState>.broadcast();
   final StreamController<Uint8List> _rawPcmController =
@@ -34,12 +36,15 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
   KtvMicrophoneState _state = const KtvMicrophoneState();
   int _lastLevelUpdateMs = 0;
   bool _initializedSoloud = false;
+  Future<void>? _preferenceLoadFuture;
 
   RecordSoloudKtvMicrophoneService({
     AudioRecorder? recorder,
     SoLoud? soloud,
+    KtvMicrophonePreferenceStore? preferenceStore,
   })  : _recorder = recorder ?? AudioRecorder(),
-        _soloud = soloud ?? SoLoud.instance {
+        _soloud = soloud ?? SoLoud.instance,
+        _preferenceStore = preferenceStore {
     _delayLine = PcmDelayLine(
       sampleRate: _sampleRate,
       gain: _state.micGain,
@@ -65,6 +70,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     _emit(_state.copyWith(isRefreshingInputDevices: true));
 
     try {
+      await _ensurePreferredInputDeviceLoaded();
       final devices = await _recorder.listInputDevices();
       _recordInputDevices
         ..clear()
@@ -88,6 +94,9 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
       final selectedId = _state.selectedInputDeviceId;
       final selectedStillAvailable = selectedId == null ||
           _recordInputDevices.containsKey(selectedId);
+      if (!selectedStillAvailable) {
+        await _persistPreferredInputDevice(null);
+      }
 
       _emit(
         _state.copyWith(
@@ -124,7 +133,10 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
     final nextId = normalizedId == null || normalizedId.isEmpty
         ? null
         : normalizedId;
-    if (_state.selectedInputDeviceId == nextId) return;
+    if (_state.selectedInputDeviceId == nextId) {
+      await _persistPreferredInputDevice(nextId);
+      return;
+    }
 
     final restartMonitoring = _state.isMonitoring;
     if (restartMonitoring) {
@@ -145,6 +157,7 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
         clearError: true,
       ),
     );
+    await _persistPreferredInputDevice(nextId);
 
     if (restartMonitoring) {
       await startMonitoring();
@@ -342,6 +355,43 @@ class RecordSoloudKtvMicrophoneService implements KtvMicrophoneService {
         error: '麦克风输入已中断：$error',
       ),
     );
+  }
+
+  Future<void> _ensurePreferredInputDeviceLoaded() {
+    final existing = _preferenceLoadFuture;
+    if (existing != null) return existing;
+
+    final loading = _restorePreferredInputDevice();
+    _preferenceLoadFuture = loading;
+    return loading;
+  }
+
+  Future<void> _restorePreferredInputDevice() async {
+    final store = _preferenceStore;
+    if (store == null) return;
+
+    try {
+      final preferredId = (await store.loadPreferredInputDeviceId())?.trim();
+      if (preferredId == null || preferredId.isEmpty) return;
+      _emit(
+        _state.copyWith(
+          selectedInputDeviceId: preferredId,
+          clearError: true,
+        ),
+      );
+    } catch (_) {
+      // Preference persistence must never block microphone availability.
+    }
+  }
+
+  Future<void> _persistPreferredInputDevice(String? deviceId) async {
+    final store = _preferenceStore;
+    if (store == null) return;
+    try {
+      await store.savePreferredInputDeviceId(deviceId);
+    } catch (_) {
+      // A settings write failure should not interrupt monitoring or recording.
+    }
   }
 
   Future<void> _stopSessionSilently() async {
