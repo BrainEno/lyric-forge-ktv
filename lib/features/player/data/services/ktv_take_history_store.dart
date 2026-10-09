@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/ktv_recording_session.dart';
 
 /// Discovers existing takes without mutating their original audio or manifests.
