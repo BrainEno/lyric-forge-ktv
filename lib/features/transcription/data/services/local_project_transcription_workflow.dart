@@ -15,7 +15,8 @@ import '../../domain/services/transcription_settings_store.dart';
 /// Persists ASR output as the editable timeline consumed by lyric editing and
 /// synchronized playback surfaces. Playback consumers reload the persisted
 /// project after editing so the corrected timeline becomes the new source of
-/// truth immediately.
+/// truth immediately. Interoperable exports flatten the global correction into
+/// effective playback timestamps while this project timeline stays lossless.
 class LocalProjectTranscriptionWorkflow
     implements ProjectTranscriptionWorkflow {
   final ProjectRepository _projectRepository;
