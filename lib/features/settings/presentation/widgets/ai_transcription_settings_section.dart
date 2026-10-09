@@ -201,7 +201,7 @@ class _AiTranscriptionSettingsSectionState
 
     try {
       final models = Directory(
-        status.managedRoot + Platform.pathSeparator + 'models',
+        '${status.managedRoot}${Platform.pathSeparator}models',
       );
       if (await models.exists()) {
         await models.delete(recursive: true);
