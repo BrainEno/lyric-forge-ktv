@@ -73,3 +73,5 @@ jobs:
       - run: flutter pub get
       - name: Build macOS debug app
         run: flutter build macos --debug
+
+# Rerun after replacing exact floating-point equality with tolerance.
