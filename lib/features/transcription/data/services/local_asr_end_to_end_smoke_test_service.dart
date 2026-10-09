@@ -99,9 +99,10 @@ class LocalAsrEndToEndSmokeTestService
         );
         _runtimeProgressSubscription = runtimeManager.progressStream.listen(
           (progress) {
+            final phaseProgress = progress.progress.clamp(0.0, 1.0).toDouble();
             _emit(
               AsrEndToEndSmokeStage.preparingEnvironment,
-              0.06 + progress.progress.clamp(0.0, 1.0) * 0.44,
+              0.06 + phaseProgress * 0.44,
               progress.message,
             );
           },
@@ -163,9 +164,10 @@ class LocalAsrEndToEndSmokeTestService
       );
       _transcriptionProgressSubscription = workflow.progressStream.listen(
         (progress) {
+          final phaseProgress = progress.progress.clamp(0.0, 1.0).toDouble();
           _emit(
             AsrEndToEndSmokeStage.transcribing,
-            0.56 + progress.progress.clamp(0.0, 1.0) * 0.36,
+            0.56 + phaseProgress * 0.36,
             progress.message,
           );
         },
