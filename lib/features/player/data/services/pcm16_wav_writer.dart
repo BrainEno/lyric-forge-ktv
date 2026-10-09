@@ -32,7 +32,7 @@ class Pcm16WavWriter {
     final file = File(path);
     if (await FileSystemEntity.type(path, followLinks: false) !=
         FileSystemEntityType.file) return null;
-    final handle = await file.open(mode: FileMode.append);
+    final handle = await file.open(mode: FileMode.writeOnly);
     try {
       final size = await handle.length();
       if (size < 44 || size > 0xffffffff) return null;
