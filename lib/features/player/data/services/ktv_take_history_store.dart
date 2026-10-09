@@ -30,8 +30,8 @@ class KtvTakeHistoryStore {
         if (!_samePath(File(take.manifestPath).absolute.path, manifest.absolute.path) ||
             !_samePath(File(take.micStemPath).absolute.path,
                 File('${entity.path}${Platform.pathSeparator}voice.wav').absolute.path) ||
-            await File(take.micStemPath).stat().then((stat) => stat.type != FileSystemEntityType.file) ||
-            await File(take.micStemPath).exists() == false) continue;
+            await FileSystemEntity.type(take.micStemPath, followLinks: false) !=
+                FileSystemEntityType.file) continue;
         takes.add(take);
       } catch (_) {
         // One corrupt or interrupted take must not hide the remaining history.
@@ -59,7 +59,9 @@ class KtvTakeHistoryStore {
     );
     if (!take.id.startsWith('take_') ||
         take.id.contains('/') ||
+        take.id.contains('\\\\') ||
         take.id.contains(Platform.pathSeparator) ||
+        take.id.contains('..') ||
         take.id == 'take_..' ||
         await FileSystemEntity.type(folder.path, followLinks: false) != FileSystemEntityType.directory ||
         !_inside(folder, File(take.manifestPath)) ||
