@@ -43,13 +43,13 @@ void main() {
     );
     expect(
       workflow,
-      contains('gh release upload "$RUNTIME_TAG" dist/*.zip --clobber'),
+      contains('gh release upload "\$RUNTIME_TAG" dist/*.zip --clobber'),
       reason: 'release upload must accept whichever platform artifacts exist',
     );
     expect(
       workflow,
       isNot(contains(
-        'gh release upload "$RUNTIME_TAG" '
+        'gh release upload "\$RUNTIME_TAG" '
         'dist/lyricforge-asr-runtime-windows-x64-cuda.zip '
         'dist/lyricforge-asr-runtime-macos-x64.zip --clobber',
       )),
