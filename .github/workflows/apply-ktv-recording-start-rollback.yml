@@ -19,117 +19,120 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           path = Path('lib/features/player/data/services/local_ktv_recording_service.dart')
           text = path.read_text()
 
-          old = '''    // Persist the recoverable session descriptor before the service reports that
-    // recording has started. If persistence fails, close and remove the take so
-    // callers never see an exception while a hidden recording keeps running.
-    try {
-      await _writeManifest(session);
-    } catch (error) {
-      await writer.close();
-      await _deleteFailedTake(directory);
-      throw KtvRecordingException('无法创建录音记录：$error');
-    }
+          old = dedent('''\
+              // Persist the recoverable session descriptor before the service reports that
+              // recording has started. If persistence fails, close and remove the take so
+              // callers never see an exception while a hidden recording keeps running.
+              try {
+                await _writeManifest(session);
+              } catch (error) {
+                await writer.close();
+                await _deleteFailedTake(directory);
+                throw KtvRecordingException('无法创建录音记录：$error');
+              }
 
-    _writer = writer;
-    _alignmentReliable = true;
-    _alignmentIssue = null;
-    _recordingClock = Stopwatch()..start();
-    _lastDurationEmitMs = 0;
+              _writer = writer;
+              _alignmentReliable = true;
+              _alignmentIssue = null;
+              _recordingClock = Stopwatch()..start();
+              _lastDurationEmitMs = 0;
 
-    _pcmSubscription = _microphoneService.rawPcm16Stream.listen(
-      _handlePcmFrame,
-      onError: (Object error, StackTrace stackTrace) {
-        _markAlignmentIssue('麦克风输入在录音中断开：$error');
-      },
-    );
-    _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
+              _pcmSubscription = _microphoneService.rawPcm16Stream.listen(
+                _handlePcmFrame,
+                onError: (Object error, StackTrace stackTrace) {
+                  _markAlignmentIssue('麦克风输入在录音中断开：$error');
+                },
+              );
+              _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
 
-    _emit(
-      _state.copyWith(
-        isRecording: true,
-        recordedDuration: Duration.zero,
-        currentSession: session,
-        clearError: true,
-      ),
-    );
-  }
-'''
+              _emit(
+                _state.copyWith(
+                  isRecording: true,
+                  recordedDuration: Duration.zero,
+                  currentSession: session,
+                  clearError: true,
+                ),
+              );
+            }
+          ''')
 
-          new = '''    _writer = writer;
-    _alignmentReliable = true;
-    _alignmentIssue = null;
-    _recordingClock = Stopwatch()..start();
-    _lastDurationEmitMs = 0;
+          new = dedent('''\
+              _writer = writer;
+              _alignmentReliable = true;
+              _alignmentIssue = null;
+              _recordingClock = Stopwatch()..start();
+              _lastDurationEmitMs = 0;
 
-    _pcmSubscription = _microphoneService.rawPcm16Stream.listen(
-      _handlePcmFrame,
-      onError: (Object error, StackTrace stackTrace) {
-        _markAlignmentIssue('麦克风输入在录音中断开：$error');
-      },
-    );
-    _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
+              _pcmSubscription = _microphoneService.rawPcm16Stream.listen(
+                _handlePcmFrame,
+                onError: (Object error, StackTrace stackTrace) {
+                  _markAlignmentIssue('麦克风输入在录音中断开：$error');
+                },
+              );
+              _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
 
-    _emit(
-      _state.copyWith(
-        isRecording: true,
-        recordedDuration: Duration.zero,
-        currentSession: session,
-        clearError: true,
-      ),
-    );
+              _emit(
+                _state.copyWith(
+                  isRecording: true,
+                  recordedDuration: Duration.zero,
+                  currentSession: session,
+                  clearError: true,
+                ),
+              );
 
-    // Start capture immediately for alignment accuracy, but roll the entire
-    // start back if the recoverable session descriptor cannot be persisted.
-    try {
-      await _writeManifest(session);
-    } catch (error) {
-      await _rollbackFailedStart(writer, directory);
-      throw KtvRecordingException('无法创建录音记录：$error');
-    }
-  }
-'''
+              // Start capture immediately for alignment accuracy, but roll the entire
+              // start back if the recoverable session descriptor cannot be persisted.
+              try {
+                await _writeManifest(session);
+              } catch (error) {
+                await _rollbackFailedStart(writer, directory);
+                throw KtvRecordingException('无法创建录音记录：$error');
+              }
+            }
+          ''')
 
-          anchor = '''  Future<void> _deleteFailedTake(Directory directory) async {
-'''
-          helper = '''  Future<void> _rollbackFailedStart(
-    Pcm16WavWriter writer,
-    Directory directory,
-  ) async {
-    final pcmSubscription = _pcmSubscription;
-    _pcmSubscription = null;
-    try {
-      await pcmSubscription?.cancel();
-    } catch (_) {}
+          anchor = '  Future<void> _deleteFailedTake(Directory directory) async {\n'
+          helper = dedent('''\
+            Future<void> _rollbackFailedStart(
+              Pcm16WavWriter writer,
+              Directory directory,
+            ) async {
+              final pcmSubscription = _pcmSubscription;
+              _pcmSubscription = null;
+              try {
+                await pcmSubscription?.cancel();
+              } catch (_) {}
 
-    final playbackSubscription = _playbackSubscription;
-    _playbackSubscription = null;
-    try {
-      await playbackSubscription?.cancel();
-    } catch (_) {}
+              final playbackSubscription = _playbackSubscription;
+              _playbackSubscription = null;
+              try {
+                await playbackSubscription?.cancel();
+              } catch (_) {}
 
-    _writer = null;
-    _recordingClock?.stop();
-    _recordingClock = null;
-    try {
-      await writer.close();
-    } catch (_) {}
+              _writer = null;
+              _recordingClock?.stop();
+              _recordingClock = null;
+              try {
+                await writer.close();
+              } catch (_) {}
 
-    _emit(
-      _state.copyWith(
-        isRecording: false,
-        recordedDuration: Duration.zero,
-        clearCurrentSession: true,
-        clearError: true,
-      ),
-    );
-    await _deleteFailedTake(directory);
-  }
+              _emit(
+                _state.copyWith(
+                  isRecording: false,
+                  recordedDuration: Duration.zero,
+                  clearCurrentSession: true,
+                  clearError: true,
+                ),
+              );
+              await _deleteFailedTake(directory);
+            }
 
-'''
+          ''')
 
           if text.count(old) != 1:
               raise SystemExit('expected exactly one recording-start block')
