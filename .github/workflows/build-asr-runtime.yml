@@ -307,22 +307,34 @@ jobs:
 
   publish:
     name: Publish managed runtime release
-    if: github.event_name != 'pull_request'
+    if: >-
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.flutter-validation.result == 'success' &&
+      (needs.windows-cuda.result == 'success' ||
+       needs.macos-intel.result == 'success')
     needs: [flutter-validation, windows-cuda, macos-intel]
     runs-on: ubuntu-latest
 
     steps:
       - name: Download Windows runtime
+        if: needs.windows-cuda.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: lyricforge-asr-runtime-windows-x64-cuda
           path: dist
 
       - name: Download macOS Intel runtime
+        if: needs.macos-intel.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: lyricforge-asr-runtime-macos-x64
           path: dist
+
+      - name: Verify at least one publishable runtime exists
+        run: |
+          find dist -maxdepth 1 -type f -name '*.zip' -print
+          test -n "$(find dist -maxdepth 1 -type f -name '*.zip' -print -quit)"
 
       - name: Create or update rolling runtime release
         env:
@@ -330,6 +342,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           if ! gh release view "$RUNTIME_TAG" >/dev/null 2>&1; then
-            gh release create "$RUNTIME_TAG" --title "LyricForge ASR Runtime v1" --prerelease --notes "Managed local ASR runtime bundles for LyricForge. Install them from the in-app setup wizard."
+            gh release create "$RUNTIME_TAG" --title "LyricForge ASR Runtime v1" --prerelease --notes "Managed local ASR runtime bundles for LyricForge. Each platform bundle is published as soon as that platform build is healthy, so one platform cannot block another. Install the available bundle from the in-app setup wizard."
           fi
-          gh release upload "$RUNTIME_TAG" dist/lyricforge-asr-runtime-windows-x64-cuda.zip dist/lyricforge-asr-runtime-macos-x64.zip --clobber
+          gh release upload "$RUNTIME_TAG" dist/*.zip --clobber
