@@ -1,0 +1,38 @@
+name: ASR runtime health validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/features/transcription/data/services/local_asr_runtime_health_checker.dart"
+      - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
+      - "test/features/transcription/asr_runtime_health_test.dart"
+      - ".github/workflows/asr-runtime-health-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/features/transcription/data/services/local_asr_runtime_health_checker.dart"
+      - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
+      - "test/features/transcription/asr_runtime_health_test.dart"
+      - ".github/workflows/asr-runtime-health-validation.yml"
+
+jobs:
+  runtime-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze runtime health changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/features/transcription/data/services/local_asr_runtime_health_checker.dart
+          lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
+          test/features/transcription/asr_runtime_health_test.dart
+      - name: Test runtime health recovery
+        run: flutter test test/features/transcription/asr_runtime_health_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test
