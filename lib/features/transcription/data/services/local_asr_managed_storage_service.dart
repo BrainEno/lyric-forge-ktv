@@ -1,7 +1,68 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+
+class AsrSecurityScopedBookmarkAccess {
+  final String path;
+  final String bookmark;
+
+  const AsrSecurityScopedBookmarkAccess({
+    required this.path,
+    required this.bookmark,
+  });
+}
+
+abstract interface class AsrSecurityScopedBookmarkBridge {
+  Future<AsrSecurityScopedBookmarkAccess> createAndStart(String path);
+
+  Future<AsrSecurityScopedBookmarkAccess> restoreAndStart(String bookmark);
+}
+
+class MethodChannelAsrSecurityScopedBookmarkBridge
+    implements AsrSecurityScopedBookmarkBridge {
+  static const MethodChannel _channel = MethodChannel(
+    'lyric_forge/asr_security_scoped_storage',
+  );
+
+  const MethodChannelAsrSecurityScopedBookmarkBridge();
+
+  @override
+  Future<AsrSecurityScopedBookmarkAccess> createAndStart(String path) async {
+    final result = await _channel.invokeMapMethod<String, dynamic>(
+      'createAndStartBookmark',
+      {'path': path},
+    );
+    return _decode(result);
+  }
+
+  @override
+  Future<AsrSecurityScopedBookmarkAccess> restoreAndStart(
+    String bookmark,
+  ) async {
+    final result = await _channel.invokeMapMethod<String, dynamic>(
+      'restoreAndStartBookmark',
+      {'bookmark': bookmark},
+    );
+    return _decode(result);
+  }
+
+  AsrSecurityScopedBookmarkAccess _decode(Map<String, dynamic>? result) {
+    final path = result?['path'];
+    final bookmark = result?['bookmark'];
+    if (path is! String || path.trim().isEmpty ||
+        bookmark is! String || bookmark.trim().isEmpty) {
+      throw const FileSystemException(
+        'macOS 无法恢复模型目录访问授权，请重新选择模型存储位置',
+      );
+    }
+    return AsrSecurityScopedBookmarkAccess(
+      path: path.trim(),
+      bookmark: bookmark.trim(),
+    );
+  }
+}
 
 class AsrManagedStorageLocation {
   final String activeRoot;
@@ -54,22 +115,69 @@ class AsrManagedStorageMoveResult {
 ///
 /// The pointer file deliberately lives beside the default ASRRuntime directory,
 /// never inside it, so changing drives cannot orphan the location preference.
+/// On sandboxed macOS builds a custom location also stores an app-scoped
+/// security-scoped bookmark. This is required because a raw path selected by
+/// NSOpenPanel is not a persistent permission across application launches.
 /// Migration is copy-first: the old environment remains untouched until a
 /// staging copy has the same file count and byte total and the new location
 /// pointer has been persisted successfully.
 class LocalAsrManagedStorageService {
   final Future<Directory> Function()? supportDirectoryResolver;
+  final AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge;
+  final bool Function()? isMacOSResolver;
   bool _moving = false;
 
-  LocalAsrManagedStorageService({this.supportDirectoryResolver});
+  LocalAsrManagedStorageService({
+    this.supportDirectoryResolver,
+    AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge,
+    this.isMacOSResolver,
+  }) : securityScopedBookmarkBridge = securityScopedBookmarkBridge ??
+            (Platform.isMacOS
+                ? const MethodChannelAsrSecurityScopedBookmarkBridge()
+                : null);
 
   bool get isMoving => _moving;
 
+  bool get _isMacOS => isMacOSResolver?.call() ?? Platform.isMacOS;
+
+  Future<bool> needsSecurityScopedAuthorization() async {
+    if (!_isMacOS) return false;
+    final configured = await _readConfiguredRoot();
+    if (configured == null) return false;
+    final fallback = await defaultRoot();
+    if (_samePath(configured.managedRoot, fallback.path)) return false;
+    return configured.securityScopedBookmark == null ||
+        configured.securityScopedBookmark!.trim().isEmpty;
+  }
+
   Future<Directory> resolveRoot() async {
     final configured = await _readConfiguredRoot();
-    final root = configured == null
-        ? await defaultRoot()
-        : Directory(configured).absolute;
+    if (configured == null) {
+      final root = await defaultRoot();
+      await root.create(recursive: true);
+      return root;
+    }
+
+    var root = Directory(configured.managedRoot).absolute;
+    final bookmark = configured.securityScopedBookmark;
+    final bridge = securityScopedBookmarkBridge;
+    if (_isMacOS && bookmark != null && bookmark.trim().isNotEmpty && bridge != null) {
+      final restored = await bridge.restoreAndStart(bookmark);
+      final restoredParent = Directory(restored.path).absolute;
+      root = Directory(
+        _join(restoredParent.path, ['LyricForge', 'ASRRuntime']),
+      ).absolute;
+      if (!_samePath(root.path, configured.managedRoot) ||
+          restored.bookmark != bookmark ||
+          configured.securityScopedParent != restoredParent.path) {
+        await _writeConfiguredRoot(
+          root.path,
+          securityScopedParent: restoredParent.path,
+          securityScopedBookmark: restored.bookmark,
+        );
+      }
+    }
+
     await root.create(recursive: true);
     return root;
   }
@@ -94,14 +202,31 @@ class LocalAsrManagedStorageService {
     String selectedParent, {
     void Function(int copiedBytes, int totalBytes)? onProgress,
   }) async {
-    final parent = selectedParent.trim();
+    var parent = selectedParent.trim();
     if (parent.isEmpty) {
       throw const FileSystemException('没有选择新的模型存储目录');
     }
+
+    String? bookmark;
+    if (_isMacOS) {
+      final bridge = securityScopedBookmarkBridge;
+      if (bridge == null) {
+        throw const FileSystemException('macOS 模型目录授权服务不可用');
+      }
+      final access = await bridge.createAndStart(parent);
+      parent = access.path;
+      bookmark = access.bookmark;
+    }
+
     final target = Directory(
       _join(Directory(parent).absolute.path, ['LyricForge', 'ASRRuntime']),
     );
-    return _moveToRoot(target, onProgress: onProgress);
+    return _moveToRoot(
+      target,
+      securityScopedParent: _isMacOS ? Directory(parent).absolute.path : null,
+      securityScopedBookmark: bookmark,
+      onProgress: onProgress,
+    );
   }
 
   Future<AsrManagedStorageMoveResult> moveToDefault({
@@ -112,6 +237,8 @@ class LocalAsrManagedStorageService {
 
   Future<AsrManagedStorageMoveResult> _moveToRoot(
     Directory requestedTarget, {
+    String? securityScopedParent,
+    String? securityScopedBookmark,
     void Function(int copiedBytes, int totalBytes)? onProgress,
   }) async {
     if (_moving) {
@@ -119,22 +246,30 @@ class LocalAsrManagedStorageService {
     }
     _moving = true;
 
-    final source = await resolveRoot();
-    final target = requestedTarget.absolute;
-    final sourceStats = await _treeStats(source);
-
-    if (_samePath(source.path, target.path)) {
-      _moving = false;
-      return AsrManagedStorageMoveResult(
-        sourceRoot: source.path,
-        targetRoot: target.path,
-        copiedBytes: sourceStats.bytes,
-        copiedFiles: sourceStats.files,
-        moved: false,
-      );
-    }
-
     try {
+      // moveToParent creates/starts the macOS bookmark before this call. That is
+      // intentional: it lets a legacy schema-v1 path be re-authorized by
+      // selecting the same parent, after which resolveRoot can access existing
+      // .part files again without moving or redownloading them.
+      final source = await resolveRoot();
+      final target = requestedTarget.absolute;
+      final sourceStats = await _treeStats(source);
+
+      if (_samePath(source.path, target.path)) {
+        await _writeConfiguredRoot(
+          target.path,
+          securityScopedParent: securityScopedParent,
+          securityScopedBookmark: securityScopedBookmark,
+        );
+        return AsrManagedStorageMoveResult(
+          sourceRoot: source.path,
+          targetRoot: target.path,
+          copiedBytes: sourceStats.bytes,
+          copiedFiles: sourceStats.files,
+          moved: false,
+        );
+      }
+
       if (_pathsOverlap(source.path, target.path)) {
         throw FileSystemException(
           '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
@@ -192,7 +327,11 @@ class LocalAsrManagedStorageService {
         await staging.rename(target.path);
 
         try {
-          await _writeConfiguredRoot(target.path);
+          await _writeConfiguredRoot(
+            target.path,
+            securityScopedParent: securityScopedParent,
+            securityScopedBookmark: securityScopedBookmark,
+          );
         } catch (_) {
           if (await target.exists()) {
             await target.delete(recursive: true);
@@ -206,9 +345,6 @@ class LocalAsrManagedStorageService {
             await source.delete(recursive: true);
           }
         } catch (_) {
-          // The new pointer already references a fully verified copy. Keeping the
-          // old tree is safe and preferable to failing the migration after the
-          // switch. Settings surfaces this so users can clean it manually.
           oldRootRetained = true;
         }
 
@@ -258,10 +394,7 @@ class LocalAsrManagedStorageService {
         try {
           final modified = await entity.lastModified();
           await copied.setLastModified(modified);
-        } catch (_) {
-          // Modification times improve health-cache reuse but are not required
-          // for a byte-identical managed environment.
-        }
+        } catch (_) {}
         onFileCopied(await copied.length());
       } else if (entity is Link) {
         await Link(destination).create(await entity.target());
@@ -301,29 +434,47 @@ class LocalAsrManagedStorageService {
     }
   }
 
-  Future<String?> _readConfiguredRoot() async {
+  Future<_ConfiguredManagedRoot?> _readConfiguredRoot() async {
     final file = await _configFile();
     if (!await file.exists()) return null;
     try {
       final decoded = jsonDecode(await file.readAsString());
       if (decoded is! Map<String, dynamic>) return null;
-      if (decoded['schemaVersion'] != 1) return null;
+      final schemaVersion = decoded['schemaVersion'];
+      if (schemaVersion != 1 && schemaVersion != 2) return null;
       final value = decoded['managedRoot'];
       if (value is! String || value.trim().isEmpty) return null;
-      return value.trim();
+      final parent = decoded['securityScopedParent'];
+      final bookmark = decoded['securityScopedBookmark'];
+      return _ConfiguredManagedRoot(
+        managedRoot: value.trim(),
+        securityScopedParent:
+            parent is String && parent.trim().isNotEmpty ? parent.trim() : null,
+        securityScopedBookmark: bookmark is String && bookmark.trim().isNotEmpty
+            ? bookmark.trim()
+            : null,
+      );
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> _writeConfiguredRoot(String root) async {
+  Future<void> _writeConfiguredRoot(
+    String root, {
+    String? securityScopedParent,
+    String? securityScopedBookmark,
+  }) async {
     final file = await _configFile();
     await file.parent.create(recursive: true);
     final temp = File('${file.path}.tmp');
     await temp.writeAsString(
       jsonEncode({
-        'schemaVersion': 1,
+        'schemaVersion': 2,
         'managedRoot': Directory(root).absolute.path,
+        if (securityScopedParent != null)
+          'securityScopedParent': Directory(securityScopedParent).absolute.path,
+        if (securityScopedBookmark != null)
+          'securityScopedBookmark': securityScopedBookmark,
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       }),
       flush: true,
@@ -375,6 +526,18 @@ class LocalAsrManagedStorageService {
     }
     return current;
   }
+}
+
+class _ConfiguredManagedRoot {
+  final String managedRoot;
+  final String? securityScopedParent;
+  final String? securityScopedBookmark;
+
+  const _ConfiguredManagedRoot({
+    required this.managedRoot,
+    this.securityScopedParent,
+    this.securityScopedBookmark,
+  });
 }
 
 class _TreeStats {
