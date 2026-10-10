@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge/features/transcription/data/services/hugging_face_file_metadata.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/hugging_face_file_metadata.dart';
 
 void main() {
   group('HuggingFaceFileMetadata', () {
