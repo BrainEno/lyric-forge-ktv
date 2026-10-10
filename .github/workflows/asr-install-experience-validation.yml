@@ -1,0 +1,50 @@
+name: ASR install experience validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/features/transcription/domain/services/asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_install_progress_card.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "test/features/transcription/asr_install_experience_contract_test.dart"
+      - ".github/workflows/asr-install-experience-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/features/transcription/domain/services/asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_install_progress_card.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "test/features/transcription/asr_install_experience_contract_test.dart"
+      - ".github/workflows/asr-install-experience-validation.yml"
+
+jobs:
+  asr-install-experience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze install experience changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/features/transcription/domain/services/asr_runtime_manager.dart
+          lib/features/transcription/data/services/managed_asr_runtime_manager.dart
+          lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart
+          lib/features/transcription/presentation/widgets/asr_install_progress_card.dart
+          lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+          lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          test/features/transcription/asr_install_experience_contract_test.dart
+      - name: Test install experience contract
+        run: flutter test test/features/transcription/asr_install_experience_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test
