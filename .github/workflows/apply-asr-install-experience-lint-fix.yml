@@ -1,0 +1,29 @@
+name: Apply ASR install lint fix
+
+on:
+  push:
+    branches:
+      - feat/asr-install-experience
+    paths:
+      - ".github/workflows/apply-asr-install-experience-lint-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/asr-install-experience
+          fetch-depth: 0
+      - run: python3 tool/fix_asr_install_experience_lints.py
+      - run: |
+          git rm .github/workflows/apply-asr-install-experience-lint-fix.yml tool/fix_asr_install_experience_lints.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart
+          git add lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          git commit -m "Tighten paused install UX"
+          git push origin HEAD:feat/asr-install-experience
