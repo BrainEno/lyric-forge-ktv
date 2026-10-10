@@ -44,6 +44,7 @@ void main() {
     }
     expect(qwen, contains('progress.downloadedBytes'));
     expect(qwen, contains('progress.estimatedRemaining'));
+    expect(qwen, contains(r'${_percent(modelFraction)}'));
   });
 
   test('setup and settings use resumable pause, continue and failed-component retry', () {
@@ -67,6 +68,10 @@ void main() {
     expect(setup, contains('继续下载'));
     expect(settings, contains('暂停下载'));
     expect(settings, contains('继续下载'));
+    expect(
+      settings,
+      contains('_loading || _installing || _paused || _deleting'),
+    );
   });
 
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
@@ -75,7 +80,8 @@ void main() {
     ).readAsStringSync();
 
     expect(card, contains('_componentLabel(progress.component)'));
-    expect(card, contains('_formatBytes(downloaded)'));
+    expect(card, contains('_formatBytes(downloaded!)'));
+    expect(card, contains('_formatBytes(total!)'));
     expect(card, contains('_formatSpeed(progress.bytesPerSecond!)'));
     expect(card, contains('_formatDuration(progress.estimatedRemaining!)'));
     expect(card, contains('断点已保留'));
