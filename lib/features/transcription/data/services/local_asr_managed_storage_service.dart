@@ -19,16 +19,16 @@ class AsrManagedStorageLocation {
   bool get isDefault => _samePath(activeRoot, defaultRoot);
 
   static bool _samePath(String left, String right) {
-    String normalize(String value) {
-      var normalized = Directory(value).absolute.path;
-      while (normalized.length > 1 &&
-          normalized.endsWith(Platform.pathSeparator)) {
-        normalized = normalized.substring(0, normalized.length - 1);
-      }
-      return Platform.isWindows ? normalized.toLowerCase() : normalized;
-    }
+    return _normalizedPath(left) == _normalizedPath(right);
+  }
 
-    return normalize(left) == normalize(right);
+  static String _normalizedPath(String value) {
+    var normalized = Directory(value).absolute.path;
+    while (normalized.length > 1 &&
+        normalized.endsWith(Platform.pathSeparator)) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
   }
 }
 
@@ -134,15 +134,22 @@ class LocalAsrManagedStorageService {
       );
     }
 
-    final targetParent = target.parent;
-    final staging = Directory(
-      _join(
-        targetParent.path,
-        ['.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}'],
-      ),
-    );
-
     try {
+      if (_pathsOverlap(source.path, target.path)) {
+        throw FileSystemException(
+          '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
+          target.path,
+        );
+      }
+
+      final targetParent = target.parent;
+      final staging = Directory(
+        _join(
+          targetParent.path,
+          ['.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}'],
+        ),
+      );
+
       await targetParent.create(recursive: true);
       await _assertWritable(targetParent);
 
@@ -162,63 +169,65 @@ class LocalAsrManagedStorageService {
       }
       await staging.create(recursive: true);
 
-      var copiedBytes = 0;
-      await _copyTree(
-        source: source,
-        target: staging,
-        onFileCopied: (bytes) {
-          copiedBytes += bytes;
-          onProgress?.call(copiedBytes, sourceStats.bytes);
-        },
-      );
-
-      final copiedStats = await _treeStats(staging);
-      if (copiedStats.files != sourceStats.files ||
-          copiedStats.bytes != sourceStats.bytes) {
-        throw FileSystemException(
-          '迁移校验失败：复制后的文件数量或总大小与原目录不一致',
-          staging.path,
-        );
-      }
-
-      await staging.rename(target.path);
-
       try {
-        await _writeConfiguredRoot(target.path);
+        var copiedBytes = 0;
+        await _copyTree(
+          source: source,
+          target: staging,
+          onFileCopied: (bytes) {
+            copiedBytes += bytes;
+            onProgress?.call(copiedBytes, sourceStats.bytes);
+          },
+        );
+
+        final copiedStats = await _treeStats(staging);
+        if (copiedStats.files != sourceStats.files ||
+            copiedStats.bytes != sourceStats.bytes) {
+          throw FileSystemException(
+            '迁移校验失败：复制后的文件数量或总大小与原目录不一致',
+            staging.path,
+          );
+        }
+
+        await staging.rename(target.path);
+
+        try {
+          await _writeConfiguredRoot(target.path);
+        } catch (_) {
+          if (await target.exists()) {
+            await target.delete(recursive: true);
+          }
+          rethrow;
+        }
+
+        var oldRootRetained = false;
+        try {
+          if (await source.exists()) {
+            await source.delete(recursive: true);
+          }
+        } catch (_) {
+          // The new pointer already references a fully verified copy. Keeping the
+          // old tree is safe and preferable to failing the migration after the
+          // switch. Settings surfaces this so users can clean it manually.
+          oldRootRetained = true;
+        }
+
+        return AsrManagedStorageMoveResult(
+          sourceRoot: source.path,
+          targetRoot: target.path,
+          copiedBytes: copiedStats.bytes,
+          copiedFiles: copiedStats.files,
+          moved: true,
+          oldRootRetained: oldRootRetained,
+        );
       } catch (_) {
-        if (await target.exists()) {
-          await target.delete(recursive: true);
+        if (await staging.exists()) {
+          try {
+            await staging.delete(recursive: true);
+          } catch (_) {}
         }
         rethrow;
       }
-
-      var oldRootRetained = false;
-      try {
-        if (await source.exists()) {
-          await source.delete(recursive: true);
-        }
-      } catch (_) {
-        // The new pointer already references a fully verified copy. Keeping the
-        // old tree is safe and preferable to failing the migration after the
-        // switch. Settings surfaces this so users can clean it manually.
-        oldRootRetained = true;
-      }
-
-      return AsrManagedStorageMoveResult(
-        sourceRoot: source.path,
-        targetRoot: target.path,
-        copiedBytes: copiedStats.bytes,
-        copiedFiles: copiedStats.files,
-        moved: true,
-        oldRootRetained: oldRootRetained,
-      );
-    } catch (_) {
-      if (await staging.exists()) {
-        try {
-          await staging.delete(recursive: true);
-        } catch (_) {}
-      }
-      rethrow;
     } finally {
       _moving = false;
     }
@@ -337,16 +346,24 @@ class LocalAsrManagedStorageService {
   }
 
   bool _samePath(String left, String right) {
-    String normalize(String value) {
-      var normalized = Directory(value).absolute.path;
-      while (normalized.length > 1 &&
-          normalized.endsWith(Platform.pathSeparator)) {
-        normalized = normalized.substring(0, normalized.length - 1);
-      }
-      return Platform.isWindows ? normalized.toLowerCase() : normalized;
-    }
+    return _normalizedPath(left) == _normalizedPath(right);
+  }
 
-    return normalize(left) == normalize(right);
+  bool _pathsOverlap(String left, String right) {
+    final leftNormalized = _normalizedPath(left);
+    final rightNormalized = _normalizedPath(right);
+    final separator = Platform.pathSeparator;
+    return rightNormalized.startsWith('$leftNormalized$separator') ||
+        leftNormalized.startsWith('$rightNormalized$separator');
+  }
+
+  String _normalizedPath(String value) {
+    var normalized = Directory(value).absolute.path;
+    while (normalized.length > 1 &&
+        normalized.endsWith(Platform.pathSeparator)) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
   }
 
   String _join(String base, List<String> parts) {
