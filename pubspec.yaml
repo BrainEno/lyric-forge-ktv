@@ -9,7 +9,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # followed by an optional build number separated by a +.
 # Both the version and the builder number may be overridden in flutter
 # build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
+# In Android, build-name is used as versionName while versionCode is used as build-number.
 # Read more about Android versioning at https://developer.android.com/studio/publish/versioning.
 # In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
 # Read more about iOS versioning at
@@ -61,10 +61,10 @@ dependencies:
   audio_service: ^0.18.19
   audio_session: ^0.2.4
   record: 6.2.1
-  # flutter_soloud 5.x pulls native_toolchain_c, whose meta constraint does not
-  # resolve with Flutter 3.41.9. 4.1.7 keeps the buffer-stream APIs used by KTV
-  # monitoring; output-latency reporting is treated as unavailable rather than guessed.
-  flutter_soloud: 4.1.7
+  # flutter_soloud 5.x uses Dart native build hooks and bundled prebuilt Xiph
+  # libraries, so normal macOS builds no longer require a system CMake install.
+  # Keep this pinned while we validate the low-latency KTV buffer-stream API.
+  flutter_soloud: 5.1.6
 
   # UUID generation
   uuid: ^4.5.1
@@ -79,7 +79,7 @@ dev_dependencies:
 
   # The "flutter_lints" package below contains the set of recommended lints to
   # encourage good coding practices. The lint set is activated in the
-  # analysis_options.yaml file located at the root of your package. See that file
+  # analysis_options.yaml file located at the root of the package. See that file
   # for information about deactivating specific lint rules and activating
   # additional ones.
   flutter_lints: ^6.0.0
@@ -107,8 +107,8 @@ flutter:
 
   # To add custom fonts to your application, add a fonts section here,
   # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For example:
+  # "family" key with the family name, and a "fonts" key with a list giving the
+  # asset and other descriptors for the font. For example:
   # fonts:
   #   - family: Schyler
   #     fonts:
