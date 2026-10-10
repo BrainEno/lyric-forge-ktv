@@ -3,6 +3,8 @@ platform :osx, '10.15'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+require 'shellwords'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -44,7 +46,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  escaped_cmake_bin = lyric_forge_cmake_bin.gsub('\\', '\\\\').gsub('"'.delete('\\'), '\\"')
+  cmake_path_prefix = Shellwords.escape(lyric_forge_cmake_bin)
 
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
@@ -59,7 +61,7 @@ post_install do |installer|
 
       phase.shell_script = <<~SCRIPT
         #{marker}
-        export PATH="#{escaped_cmake_bin}:$PATH"
+        export PATH=#{cmake_path_prefix}:"$PATH"
         #{phase.shell_script}
       SCRIPT
     end
