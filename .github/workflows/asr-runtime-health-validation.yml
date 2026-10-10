@@ -6,6 +6,7 @@ on:
       - "lib/features/transcription/data/services/local_asr_runtime_health_checker.dart"
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
       - "test/features/transcription/asr_runtime_health_test.dart"
+      - "test/features/transcription/asr_runtime_health_cache_reset_test.dart"
       - ".github/workflows/asr-runtime-health-validation.yml"
   push:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - "lib/features/transcription/data/services/local_asr_runtime_health_checker.dart"
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
       - "test/features/transcription/asr_runtime_health_test.dart"
+      - "test/features/transcription/asr_runtime_health_cache_reset_test.dart"
       - ".github/workflows/asr-runtime-health-validation.yml"
 
 jobs:
@@ -32,7 +34,11 @@ jobs:
           lib/features/transcription/data/services/local_asr_runtime_health_checker.dart
           lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
           test/features/transcription/asr_runtime_health_test.dart
+          test/features/transcription/asr_runtime_health_cache_reset_test.dart
       - name: Test runtime health recovery
-        run: flutter test test/features/transcription/asr_runtime_health_test.dart
+        run: >-
+          flutter test
+          test/features/transcription/asr_runtime_health_test.dart
+          test/features/transcription/asr_runtime_health_cache_reset_test.dart
       - name: Full Flutter regression suite
         run: flutter test
