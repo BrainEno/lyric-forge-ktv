@@ -3,20 +3,23 @@ import 'dart:async';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
+import 'local_asr_managed_storage_service.dart';
 import 'local_asr_runtime_health_checker.dart';
 
 class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   final AsrRuntimeManager delegate;
   final AsrStoragePreflightService storagePreflightService;
   final AsrRuntimeHealthChecker healthChecker;
-  final Future<bool> Function()? storageAuthorizationRequired;
+  final Future<bool> Function() storageAuthorizationRequired;
 
   StoragePreflightAsrRuntimeManager({
     required this.delegate,
     required this.storagePreflightService,
     AsrRuntimeHealthChecker? healthChecker,
-    this.storageAuthorizationRequired,
-  }) : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker();
+    Future<bool> Function()? storageAuthorizationRequired,
+  })  : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker(),
+        storageAuthorizationRequired = storageAuthorizationRequired ??
+            LocalAsrManagedStorageService().needsSecurityScopedAuthorization;
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => delegate.progressStream;
@@ -40,7 +43,7 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   Future<TranscriptionConfig> installRecommended(
     TranscriptionConfig config,
   ) async {
-    if (await storageAuthorizationRequired?.call() == true) {
+    if (await storageAuthorizationRequired()) {
       throw TranscriptionException.environment(
         'macOS 需要重新授权当前模型存储目录。请点击“更改模型存储位置”，'
         '重新选择当前 ASRRuntime 所在位置的父文件夹；已有 .part 断点文件会继续保留。',
