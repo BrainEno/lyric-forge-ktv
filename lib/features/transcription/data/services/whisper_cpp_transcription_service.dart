@@ -24,7 +24,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     if (_running) {
-      throw const TranscriptionException('已有歌词识别任务正在运行');
+      throw const TranscriptionException.busy('已有歌词识别任务正在运行');
     }
 
     _running = true;
@@ -71,7 +71,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       return result;
     } on _CancelledException {
       _emit(TranscriptionStage.cancelled, 0.0, '歌词识别已取消');
-      throw const TranscriptionException('歌词识别已取消');
+      throw const TranscriptionException.cancelled('歌词识别已取消');
     } on TranscriptionException {
       rethrow;
     } catch (error) {
@@ -87,12 +87,12 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<void> _validateRequest(TranscriptionRequest request) async {
     final input = File(request.inputAudioPath);
     if (!await input.exists()) {
-      throw const TranscriptionException('待识别音频文件不存在');
+      throw const TranscriptionException.input('待识别音频文件不存在');
     }
 
     final model = File(request.config.modelPath);
     if (!await model.exists()) {
-      throw const TranscriptionException('Whisper 模型文件不存在');
+      throw const TranscriptionException.environment('Whisper 模型文件不存在');
     }
 
     await _validateExecutable(
@@ -108,12 +108,12 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<void> _validateExecutable(String executable, String label) async {
     final value = executable.trim();
     if (value.isEmpty) {
-      throw TranscriptionException(label + ' 路径未配置');
+      throw TranscriptionException.environment(label + ' 路径未配置');
     }
 
     final hasExplicitPath = value.contains('/') || value.contains('\\');
     if (hasExplicitPath && !await File(value).exists()) {
-      throw TranscriptionException(label + ' 可执行文件不存在');
+      throw TranscriptionException.environment(label + ' 可执行文件不存在');
     }
 
     if (!hasExplicitPath) {
@@ -122,10 +122,13 @@ class WhisperCppTranscriptionService implements TranscriptionService {
             label == 'FFmpeg' ? const ['-version'] : const ['-h'];
         final result = await Process.run(value, arguments);
         if (result.exitCode != 0) {
-          throw TranscriptionException(label + ' 无法执行');
+          throw TranscriptionException.environment(label + ' 无法执行');
         }
       } on ProcessException catch (error) {
-        throw TranscriptionException(label + ' 无法执行', details: error.message);
+        throw TranscriptionException.environment(
+          label + ' 无法执行',
+          details: error.message,
+        );
       }
     }
   }
@@ -156,13 +159,13 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     );
 
     if (result.exitCode != 0) {
-      throw TranscriptionException(
+      throw TranscriptionException.input(
         'FFmpeg 音频预处理失败',
         details: result.stderrTail,
       );
     }
     if (!await file.exists()) {
-      throw const TranscriptionException('FFmpeg 未生成识别输入文件');
+      throw const TranscriptionException.input('FFmpeg 未生成识别输入文件');
     }
 
     _emit(TranscriptionStage.preprocessing, 0.18, '音频预处理完成');
@@ -207,13 +210,15 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     );
 
     if (result.exitCode != 0) {
-      throw TranscriptionException(
-        'whisper.cpp 识别失败',
+      throw TranscriptionException.environment(
+        'whisper.cpp 识别进程失败',
         details: result.stderrTail,
       );
     }
     if (!await jsonFile.exists()) {
-      throw const TranscriptionException('whisper.cpp 未生成 JSON 结果');
+      throw const TranscriptionException.environment(
+        'whisper.cpp 未生成 JSON 结果',
+      );
     }
   }
 
@@ -223,7 +228,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   }) async {
     final decoded = jsonDecode(await File(rawJsonPath).readAsString());
     if (decoded is! Map<String, dynamic>) {
-      throw const TranscriptionException('Whisper JSON 格式无效');
+      throw const TranscriptionException.environment('Whisper JSON 格式无效');
     }
 
     final result = decoded['result'];
@@ -233,7 +238,9 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     final rawSegments = decoded['transcription'];
     if (rawSegments is! List) {
-      throw const TranscriptionException('Whisper JSON 缺少 transcription');
+      throw const TranscriptionException.environment(
+        'Whisper JSON 缺少 transcription',
+      );
     }
 
     final lines = <LyricLine>[];
@@ -278,7 +285,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
 
     if (lines.isEmpty) {
-      throw const TranscriptionException('Whisper 没有识别到可用歌词片段');
+      throw const TranscriptionException.input('Whisper 没有识别到可用歌词片段');
     }
 
     final document = LyricDocument(
@@ -339,7 +346,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         arguments,
       );
     } on ProcessException catch (error) {
-      throw TranscriptionException(
+      throw TranscriptionException.environment(
         '无法启动本地处理程序',
         details: error.message,
       );

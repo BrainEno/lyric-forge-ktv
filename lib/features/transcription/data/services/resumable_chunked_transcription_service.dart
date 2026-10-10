@@ -37,7 +37,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
-    if (_running) throw const TranscriptionException('已有分片识别任务正在运行');
+    if (_running) {
+      throw const TranscriptionException.busy('已有分片识别任务正在运行');
+    }
     _running = true;
     _cancelRequested = false;
 
@@ -151,7 +153,16 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             );
             break;
           } on TranscriptionException catch (error) {
-            if (error.message == '歌词识别已取消') rethrow;
+            if (error.kind == TranscriptionFailureKind.cancelled ||
+                error.message == '歌词识别已取消') {
+              rethrow;
+            }
+            if (error.blocksQueue) {
+              // Retrying the same chunk cannot repair a missing executable,
+              // crashed runtime, driver problem or model environment. Preserve
+              // the structured kind so the outer queue can pause immediately.
+              rethrow;
+            }
             lastError = error;
             if (attempt == maxAttempts) break;
             await Future<void>.delayed(Duration(seconds: attempt));
@@ -159,9 +170,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         }
 
         if (result == null) {
+          final failureKind = lastError is TranscriptionException
+              ? lastError.kind
+              : TranscriptionFailureKind.unknown;
           throw TranscriptionException(
             '分片 ${index + 1} / ${plan.length} 连续失败',
             details: lastError.toString(),
+            kind: failureKind,
           );
         }
 
@@ -228,7 +243,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       );
     } on _ChunkCancelled {
       _emit(TranscriptionStage.cancelled, 0.0, '分片识别已取消，已完成进度已保存');
-      throw const TranscriptionException('歌词识别已取消');
+      throw const TranscriptionException.cancelled('歌词识别已取消');
     } finally {
       _running = false;
       _cancelRequested = false;
@@ -251,12 +266,26 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   }
 
   Future<Duration> _probeDuration(String executable, String input) async {
-    final result = await Process.run(executable, [
-      '-i', input, '-f', 'null', Platform.isWindows ? 'NUL' : '/dev/null',
-    ]);
+    ProcessResult result;
+    try {
+      result = await Process.run(executable, [
+        '-i',
+        input,
+        '-f',
+        'null',
+        Platform.isWindows ? 'NUL' : '/dev/null',
+      ]);
+    } on ProcessException catch (error) {
+      throw TranscriptionException.environment(
+        '无法启动 FFmpeg 读取音频时长',
+        details: error.message,
+      );
+    }
     final text = result.stderr.toString();
     final match = RegExp(r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)').firstMatch(text);
-    if (match == null) throw const TranscriptionException('无法读取音频时长');
+    if (match == null) {
+      throw const TranscriptionException.input('无法读取音频时长');
+    }
     final hours = int.parse(match.group(1)!);
     final minutes = int.parse(match.group(2)!);
     final seconds = double.parse(match.group(3)!);
@@ -272,14 +301,27 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   }) async {
     final file = File(outputPath);
     if (await file.exists()) await file.delete();
-    final process = await Process.start(executable, [
-      '-y',
-      '-ss', (start.inMilliseconds / 1000).toStringAsFixed(3),
-      '-i', inputPath,
-      '-t', (duration.inMilliseconds / 1000).toStringAsFixed(3),
-      '-vn', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le',
-      outputPath,
-    ]);
+
+    Process process;
+    try {
+      process = await Process.start(executable, [
+        '-y',
+        '-ss', (start.inMilliseconds / 1000).toStringAsFixed(3),
+        '-i', inputPath,
+        '-t', (duration.inMilliseconds / 1000).toStringAsFixed(3),
+        '-vn',
+        '-ar', '16000',
+        '-ac', '1',
+        '-c:a', 'pcm_s16le',
+        outputPath,
+      ]);
+    } on ProcessException catch (error) {
+      throw TranscriptionException.environment(
+        '无法启动 FFmpeg 进行音频分片',
+        details: error.message,
+      );
+    }
+
     _activeFfmpeg = process;
     if (_cancelRequested) process.kill();
     final stderr = utf8.decoder.bind(process.stderr).join();
@@ -290,7 +332,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     if (identical(_activeFfmpeg, process)) _activeFfmpeg = null;
     _throwIfCancelled();
     if (code != 0 || !await file.exists()) {
-      throw TranscriptionException('音频分片失败', details: error);
+      throw TranscriptionException.input('音频分片失败', details: error);
     }
   }
 
