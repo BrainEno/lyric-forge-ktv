@@ -6,6 +6,11 @@ enum TranscriptionQueueItemStatus {
   failed,
 }
 
+enum TranscriptionQueuePauseReason {
+  manual,
+  environment,
+}
+
 class TranscriptionQueueItem {
   final String id;
   final String sourcePath;
@@ -89,12 +94,19 @@ class TranscriptionQueueSnapshot {
   final List<TranscriptionQueueItem> items;
   final bool isPaused;
   final bool isProcessing;
+  final TranscriptionQueuePauseReason? pauseReason;
+  final String? pauseMessage;
 
   const TranscriptionQueueSnapshot({
     required this.items,
     required this.isPaused,
     required this.isProcessing,
+    this.pauseReason,
+    this.pauseMessage,
   });
+
+  bool get isEnvironmentBlocked =>
+      isPaused && pauseReason == TranscriptionQueuePauseReason.environment;
 
   int get queuedCount => items
       .where((item) => item.status == TranscriptionQueueItemStatus.queued)

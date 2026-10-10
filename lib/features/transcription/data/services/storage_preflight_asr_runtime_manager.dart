@@ -57,7 +57,7 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
       runtimeStatus: status,
     );
     if (!storage.canInstall) {
-      throw TranscriptionException(
+      throw TranscriptionException.environment(
         '磁盘空间不足：安装建议至少可用 '
         '${_formatBytes(storage.requiredAdditionalBytes)}，'
         '当前可用 ${_formatBytes(storage.availableBytes ?? 0)}，'
@@ -99,7 +99,7 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
         .where((component) => component.state != AsrRuntimeComponentState.ready)
         .map((component) => '${component.label}: ${component.detail}')
         .join('; ');
-    throw TranscriptionException(
+    throw TranscriptionException.environment(
       '识别环境文件已经安装，但运行健康检查失败',
       details: failed,
     );

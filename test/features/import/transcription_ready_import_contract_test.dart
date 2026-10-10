@@ -41,11 +41,21 @@ void main() {
 
     expect(queue, contains('else if (_isEnvironmentBlocked(error))'));
     expect(queue, contains('_paused = true;'));
-    expect(queue, contains("message: '等待本地识别环境准备完成'"));
+    expect(
+      queue,
+      contains('_pauseReason = TranscriptionQueuePauseReason.environment;'),
+    );
+    expect(queue, contains('_pauseMessage = error.toString();'));
+    expect(queue, contains('error.blocksQueue'));
     expect(
       gate,
-      contains("item.message.contains('等待本地识别环境')"),
-      reason: 'only environment-paused work may be auto-resumed after setup',
+      contains('if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;'),
+      reason: 'only structured environment pauses may auto-resume after setup',
+    );
+    expect(
+      gate,
+      isNot(contains("item.message.contains('等待本地识别环境')")),
+      reason: 'queue recovery must not depend on user-facing Chinese copy',
     );
     expect(gate, contains('await queue.resume();'));
   });

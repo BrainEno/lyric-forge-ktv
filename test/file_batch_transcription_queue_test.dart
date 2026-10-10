@@ -48,10 +48,11 @@ void main() {
       queue.current.items[1].status,
       TranscriptionQueueItemStatus.completed,
     );
+    expect(queue.current.pauseReason, isNull);
     await queue.dispose();
   });
 
-  test('environment setup errors pause the queue without failing later songs',
+  test('typed environment errors protectively pause without relying on copy',
       () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-blocked-');
     addTearDown(() async {
@@ -79,8 +80,53 @@ void main() {
     expect(queue.current.completedCount, 0);
     expect(queue.current.items[0].status, TranscriptionQueueItemStatus.queued);
     expect(queue.current.items[1].status, TranscriptionQueueItemStatus.queued);
-    expect(queue.current.items[0].message, contains('识别环境'));
+    expect(
+      queue.current.pauseReason,
+      TranscriptionQueuePauseReason.environment,
+    );
+    expect(queue.current.isEnvironmentBlocked, isTrue);
+    expect(queue.current.pauseMessage, contains('GPU driver unavailable'));
+    expect(queue.current.items[0].message, contains('保护性暂停'));
     await queue.dispose();
+  });
+
+  test('environment pause reason survives restart and clears only on resume',
+      () async {
+    final root = await Directory.systemTemp.createTemp('lyricforge-env-restart-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final audio = File('${root.path}${Platform.pathSeparator}blocked.mp3');
+    await audio.writeAsBytes(<int>[1]);
+    final projectRoot = Directory('${root.path}${Platform.pathSeparator}projects');
+    final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
+    final repository = FileProjectRepository(rootDirectory: projectRoot);
+
+    final first = FileBatchTranscriptionQueue(
+      projectRepository: repository,
+      workflow: _FakeWorkflow(repository),
+      rootDirectory: queueRoot,
+    );
+    await first.initialize();
+    await first.enqueuePaths([audio.path]);
+    await _waitUntil(() => first.current.isEnvironmentBlocked);
+    final savedMessage = first.current.pauseMessage;
+    await first.dispose();
+
+    final second = FileBatchTranscriptionQueue(
+      projectRepository: repository,
+      workflow: _FakeWorkflow(repository, blockEnvironment: false),
+      rootDirectory: queueRoot,
+    );
+    await second.initialize();
+    expect(second.current.isEnvironmentBlocked, isTrue);
+    expect(second.current.pauseMessage, savedMessage);
+
+    await second.resume();
+    expect(second.current.pauseReason, isNull);
+    expect(second.current.pauseMessage, isNull);
+    await _waitUntil(() => second.current.completedCount == 1);
+    await second.dispose();
   });
 
   test('running item is restored as queued after restart', () async {
@@ -121,6 +167,7 @@ void main() {
     await queue.initialize();
 
     expect(queue.current.isPaused, isTrue);
+    expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
     expect(
       queue.current.items.single.status,
       TranscriptionQueueItemStatus.queued,
@@ -198,11 +245,12 @@ Future<void> _waitUntil(bool Function() predicate) async {
 
 class _FakeWorkflow implements ProjectTranscriptionWorkflow {
   final ProjectRepository repository;
+  final bool blockEnvironment;
   final StreamController<TranscriptionProgress> _controller =
       StreamController<TranscriptionProgress>.broadcast();
   bool _running = false;
 
-  _FakeWorkflow(this.repository);
+  _FakeWorkflow(this.repository, {this.blockEnvironment = true});
 
   @override
   Stream<TranscriptionProgress> get progressStream => _controller.stream;
@@ -215,18 +263,22 @@ class _FakeWorkflow implements ProjectTranscriptionWorkflow {
     _running = true;
     try {
       final project = await repository.getProjectById(projectId);
-      if (project == null) throw const TranscriptionException('missing project');
+      if (project == null) {
+        throw const TranscriptionException.input('missing project');
+      }
       _controller.add(const TranscriptionProgress(
         stage: TranscriptionStage.transcribing,
         progress: 0.5,
         message: 'fake progress',
       ));
       if (project.name == 'fail') {
-        throw const TranscriptionException('mock song failure');
+        throw const TranscriptionException.input('mock song failure');
       }
-      if (project.name == 'blocked') {
-        throw const TranscriptionException(
-          '本机识别环境尚未准备完成，请先运行自动安装向导',
+      if (project.name == 'blocked' && blockEnvironment) {
+        // Deliberately avoid every legacy Chinese keyword. This proves queue
+        // protection follows the structured failure kind, not display copy.
+        throw const TranscriptionException.environment(
+          'GPU driver unavailable',
         );
       }
       await repository.updateProject(

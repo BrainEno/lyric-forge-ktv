@@ -34,6 +34,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   bool _paused = false;
   bool _processing = false;
   bool _pauseRequested = false;
+  TranscriptionQueuePauseReason? _pauseReason;
+  String? _pauseMessage;
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
   Future<void> _writeChain = Future<void>.value();
 
@@ -51,6 +53,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         items: List<TranscriptionQueueItem>.unmodifiable(_items),
         isPaused: _paused,
         isProcessing: _processing,
+        pauseReason: _pauseReason,
+        pauseMessage: _pauseMessage,
       );
 
   Future<Directory> _dataDirectory() async {
@@ -89,6 +93,20 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         final decoded = jsonDecode(await file.readAsString());
         if (decoded is Map) {
           _paused = decoded['paused'] as bool? ?? false;
+          final pauseReasonName = decoded['pauseReason'] as String?;
+          _pauseReason = TranscriptionQueuePauseReason.values
+              .asNameMap()[pauseReasonName];
+          _pauseMessage = decoded['pauseMessage'] as String?;
+          if (_paused && _pauseReason == null) {
+            // Queue files written before pause reasons existed represent user
+            // pauses. Never reinterpret an old pause as an environment fault.
+            _pauseReason = TranscriptionQueuePauseReason.manual;
+          }
+          if (!_paused) {
+            _pauseReason = null;
+            _pauseMessage = null;
+          }
+
           final values = decoded['items'];
           if (values is List) {
             for (final value in values) {
@@ -164,6 +182,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
     await initialize();
     _paused = true;
     _pauseRequested = true;
+    _pauseReason = TranscriptionQueuePauseReason.manual;
+    _pauseMessage = null;
     await _persist();
     _emit();
     if (workflow.isRunning) await workflow.cancel();
@@ -178,6 +198,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
     _paused = false;
     _pauseRequested = false;
+    _pauseReason = null;
+    _pauseMessage = null;
     final now = DateTime.now();
     for (var index = 0; index < _items.length; index++) {
       final item = _items[index];
@@ -273,7 +295,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
     try {
       final source = File(item.sourcePath);
       if (!await source.exists()) {
-        throw const TranscriptionException('源音频文件已经不存在');
+        throw const TranscriptionException.input('源音频文件已经不存在');
       }
 
       var project = await _resolveProject(item);
@@ -345,7 +367,8 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         updatedAt: DateTime.now(),
       );
     } on TranscriptionException catch (error) {
-      if (_pauseRequested || _paused) {
+      if (_pauseRequested ||
+          (_paused && _pauseReason == TranscriptionQueuePauseReason.manual)) {
         _items[index] = _items[index].copyWith(
           status: TranscriptionQueueItemStatus.paused,
           message: '已暂停，当前歌曲进度已保留',
@@ -353,9 +376,11 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         );
       } else if (_isEnvironmentBlocked(error)) {
         _paused = true;
+        _pauseReason = TranscriptionQueuePauseReason.environment;
+        _pauseMessage = error.toString();
         _items[index] = _items[index].copyWith(
           status: TranscriptionQueueItemStatus.queued,
-          message: '等待本地识别环境准备完成',
+          message: '识别环境需要修复，队列已保护性暂停',
           error: error.toString(),
           updatedAt: DateTime.now(),
         );
@@ -402,12 +427,19 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   }
 
   bool _isEnvironmentBlocked(TranscriptionException error) {
+    if (error.blocksQueue) return true;
+
+    // Backward compatibility for older services and persisted/test errors.
+    // New production environment failures should set kind=environment so UI
+    // copy can evolve without changing queue behavior.
     final value = error.toString();
     return value.contains('运行时配置') ||
         value.contains('识别环境尚未准备') ||
         value.contains('缺少必要组件') ||
         value.contains('自动安装') ||
-        value.contains('模型');
+        value.contains('模型') ||
+        value.contains('磁盘空间不足') ||
+        value.contains('运行健康检查失败');
   }
 
   bool _isQueued(TranscriptionQueueItem item) =>
@@ -437,8 +469,10 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': 2,
       'paused': _paused,
+      'pauseReason': _pauseReason?.name,
+      'pauseMessage': _pauseMessage,
       'items': _items.map((item) => item.toJson()).toList(growable: false),
     });
     final previous = _writeChain;

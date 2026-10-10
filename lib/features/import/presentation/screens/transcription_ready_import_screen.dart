@@ -8,7 +8,6 @@ import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
-import '../../../transcription/domain/models/transcription_queue_models.dart';
 import '../../../transcription/domain/services/transcription_environment_preflight.dart';
 import '../../../transcription/presentation/widgets/asr_runtime_setup_dialog.dart';
 import 'import_audio_screen.dart';
@@ -142,16 +141,8 @@ class _TranscriptionReadyImportScreenState
   Future<void> _resumeEnvironmentBlockedQueueIfNeeded() async {
     final queue = ServiceLocatorGlobal.I.transcriptionQueue;
     final snapshot = queue.current;
-    if (!snapshot.isPaused || snapshot.isProcessing) return;
-
-    final blockedByEnvironment = snapshot.items.any(
-      (item) =>
-          item.status == TranscriptionQueueItemStatus.queued &&
-          item.message.contains('等待本地识别环境'),
-    );
-    if (blockedByEnvironment) {
-      await queue.resume();
-    }
+    if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;
+    await queue.resume();
   }
 
   @override
@@ -207,8 +198,7 @@ class _ReadinessOnboarding extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final state = readiness?.state;
-    final missing = readiness?.blockingComponents ??
-        const <dynamic>[];
+    final missing = readiness?.blockingComponents ?? const <dynamic>[];
     final status = readiness?.status;
     final config = readiness?.config;
 

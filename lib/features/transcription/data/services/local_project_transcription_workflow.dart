@@ -48,32 +48,53 @@ class LocalProjectTranscriptionWorkflow
   Future<void> transcribeProject(String projectId) async {
     final project = await _projectRepository.getProjectById(projectId);
     if (project == null) {
-      throw const TranscriptionException('工程不存在');
+      throw const TranscriptionException.input('工程不存在');
     }
 
     final audio = project.audioAsset;
     if (audio == null) {
-      throw const TranscriptionException('工程还没有可识别的音频');
+      throw const TranscriptionException.input('工程还没有可识别的音频');
     }
 
     final config = await _settingsStore.load();
     if (config == null || !config.isConfigured) {
-      throw const TranscriptionException('请先完成本地歌词识别运行时配置');
-    }
-
-    final resolvedProfile = await _profileResolver.resolve(config);
-    final runtimeConfig =
-        await _runtimeManager.repair(resolvedProfile.config);
-    if (!runtimeConfig.isConfigured) {
-      throw const TranscriptionException(
-        '本机识别环境尚未准备完成，请先运行自动安装向导',
+      throw const TranscriptionException.environment(
+        '请先完成本地歌词识别运行时配置',
       );
     }
 
-    final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
-    if (!runtimeStatus.isReady) {
-      throw const TranscriptionException(
-        '本机识别环境缺少必要组件，请先运行自动安装或修复',
+    late final ResolvedTranscriptionProfile resolvedProfile;
+    late final TranscriptionConfig runtimeConfig;
+    try {
+      resolvedProfile = await _profileResolver.resolve(config);
+      runtimeConfig = await _runtimeManager.repair(resolvedProfile.config);
+      if (!runtimeConfig.isConfigured) {
+        throw const TranscriptionException.environment(
+          '本机识别环境尚未准备完成，请先运行自动安装向导',
+        );
+      }
+
+      final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
+      if (!runtimeStatus.isReady) {
+        final failed = runtimeStatus.components
+            .where(
+              (component) =>
+                  component.state != AsrRuntimeComponentState.ready,
+            )
+            .map((component) => '${component.label}: ${component.detail}')
+            .join('; ');
+        throw TranscriptionException.environment(
+          '本机识别环境缺少必要组件，请先运行自动安装或修复',
+          details: failed.isEmpty ? null : failed,
+        );
+      }
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+      throw error.withKind(TranscriptionFailureKind.environment);
+    } catch (error) {
+      throw TranscriptionException.environment(
+        '无法检查本机歌词识别环境',
+        details: error.toString(),
       );
     }
 
@@ -107,7 +128,7 @@ class LocalProjectTranscriptionWorkflow
       );
       final latest = await _projectRepository.getProjectById(projectId);
       if (latest == null) {
-        throw const TranscriptionException('识别完成，但工程已经不存在');
+        throw const TranscriptionException.input('识别完成，但工程已经不存在');
       }
 
       await _projectRepository.updateProject(
@@ -154,7 +175,8 @@ class LocalProjectTranscriptionWorkflow
     } on TranscriptionException catch (error) {
       final latest = await _projectRepository.getProjectById(projectId);
       if (latest != null) {
-        if (error.message == '歌词识别已取消') {
+        if (error.kind == TranscriptionFailureKind.cancelled ||
+            error.message == '歌词识别已取消') {
           await _projectRepository.updateProject(
             latest.copyWith(
               status: latest.hasLyrics
@@ -170,6 +192,7 @@ class LocalProjectTranscriptionWorkflow
                 ...latest.metadata,
                 'transcriptionError': {
                   'at': DateTime.now().toIso8601String(),
+                  'kind': error.kind.name,
                   'message': error.toString(),
                 },
               },
@@ -205,7 +228,7 @@ class LocalProjectTranscriptionWorkflow
       if (await File(path).exists()) return path;
     }
 
-    throw const TranscriptionException(
+    throw const TranscriptionException.input(
       '工程音频文件不可用：人声、标准化音频和原声都不存在',
     );
   }
