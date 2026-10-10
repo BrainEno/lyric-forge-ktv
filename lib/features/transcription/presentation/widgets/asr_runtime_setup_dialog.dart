@@ -7,7 +7,9 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
+import '../../domain/services/asr_storage_preflight_service.dart';
 import 'asr_install_progress_card.dart';
+import 'asr_storage_preflight_card.dart';
 import 'transcription_config_dialog.dart';
 
 class AsrRuntimeSetupDialog extends StatefulWidget {
@@ -25,10 +27,12 @@ class AsrRuntimeSetupDialog extends StatefulWidget {
 
 class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   late final AsrRuntimeManager _runtimeManager;
+  late final AsrStoragePreflightService _storagePreflightService;
   late TranscriptionConfig _config;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
   AsrRuntimeStatus? _status;
+  AsrStoragePreflightResult? _storage;
   AsrRuntimeInstallProgress? _installProgress;
   bool _loading = true;
   bool _installing = false;
@@ -40,7 +44,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   @override
   void initState() {
     super.initState();
-    _runtimeManager = ServiceLocatorGlobal.I.asrRuntimeManager;
+    final services = ServiceLocatorGlobal.I;
+    _runtimeManager = services.asrRuntimeManager;
+    _storagePreflightService = services.asrStoragePreflightService;
     _config = widget.initialConfig ??
         const TranscriptionConfig(
           mode: TranscriptionMode.highestQuality,
@@ -75,10 +81,15 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     try {
       final repaired = await _runtimeManager.repair(_config);
       final status = await _runtimeManager.inspect(repaired);
+      final storage = await _storagePreflightService.inspect(
+        repaired,
+        runtimeStatus: status,
+      );
       if (!mounted) return;
       setState(() {
         _config = repaired;
         _status = status;
+        _storage = storage;
       });
     } on TranscriptionException catch (error) {
       if (!mounted) return;
@@ -91,7 +102,29 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     }
   }
 
+  Future<bool> _ensureStorageBeforeInstall() async {
+    final storage = await _storagePreflightService.inspect(
+      _config,
+      runtimeStatus: _status,
+    );
+    if (!mounted) return false;
+    setState(() => _storage = storage);
+    if (storage.canInstall) return true;
+
+    final available = storage.availableBytes;
+    setState(() {
+      _error = '磁盘空间不足：本次安装建议至少可用 '
+          '${_formatBytes(storage.requiredAdditionalBytes)}，'
+          '当前可用 ${available == null ? '无法读取' : _formatBytes(available)}，'
+          '还差 ${_formatBytes(storage.shortfallBytes)}。'
+          '请释放空间后点击“重新检测”。';
+    });
+    return false;
+  }
+
   Future<void> _install({bool resume = false}) async {
+    if (!await _ensureStorageBeforeInstall()) return;
+
     var completed = false;
     setState(() {
       _installing = true;
@@ -171,7 +204,6 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     await _refresh();
   }
 
-
   String _failedComponentLabel(AsrRuntimeComponent component) {
     return switch (component) {
       AsrRuntimeComponent.ffmpeg => 'FFmpeg',
@@ -198,10 +230,18 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     return parts.join(' · ');
   }
 
+  String _formatBytes(int bytes) {
+    final gib = bytes / (1024 * 1024 * 1024);
+    if (gib >= 1) return '${gib.toStringAsFixed(gib >= 10 ? 1 : 2)} GB';
+    final mib = bytes / (1024 * 1024);
+    return '${mib.toStringAsFixed(mib >= 100 ? 0 : 1)} MB';
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _status;
     final ready = status?.isReady == true;
+    final storageBlocked = _storage?.canInstall == false;
 
     return PopScope(
       canPop: !_installing,
@@ -270,7 +310,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                     title: '检查这台电脑',
                     subtitle: ready
                         ? '硬件与本地识别组件已经匹配完成。'
-                        : '自动检查硬件，并选择最适合这台电脑的模型组合。',
+                        : '自动检查硬件、模型组合和安装磁盘空间。',
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   if (status != null)
@@ -289,6 +329,11 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                       ready: ready,
                     ),
                   ],
+                  const SizedBox(height: AppSpacing.md),
+                  AsrStoragePreflightCard(
+                    result: _storage,
+                    loading: _loading,
+                  ),
                   if (_installProgress != null &&
                       (_installing || _paused || _error != null)) ...[
                     const SizedBox(height: AppSpacing.lg),
@@ -375,9 +420,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
             ),
             if (!ready)
               FilledButton.icon(
-                onPressed: _loading ? null : _install,
+                onPressed: _loading || storageBlocked ? null : _install,
                 icon: const Icon(Icons.download_for_offline_outlined),
-                label: const Text('一键准备识别环境'),
+                label: Text(storageBlocked ? '空间不足' : '一键准备识别环境'),
               )
             else
               FilledButton.icon(
@@ -434,9 +479,7 @@ class _SetupHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
             ),
             child: Icon(
-              ready
-                  ? Icons.check_rounded
-                  : Icons.graphic_eq_rounded,
+              ready ? Icons.check_rounded : Icons.graphic_eq_rounded,
               color: color,
             ),
           ),

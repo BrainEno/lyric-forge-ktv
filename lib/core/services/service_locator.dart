@@ -37,6 +37,7 @@ import '../../features/transcription/data/services/file_batch_transcription_queu
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
+import '../../features/transcription/data/services/local_asr_storage_preflight_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
@@ -44,9 +45,11 @@ import '../../features/transcription/data/services/native_transcription_profile_
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
 import '../../features/transcription/data/services/resilient_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
+import '../../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
+import '../../features/transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../features/transcription/domain/services/batch_transcription_queue.dart';
 import '../../features/transcription/domain/services/project_transcription_workflow.dart';
 import '../../features/transcription/domain/services/transcription_profile_resolver.dart';
@@ -93,6 +96,7 @@ class ServiceLocator {
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
   late final AsrRuntimeManager asrRuntimeManager;
+  late final AsrStoragePreflightService asrStoragePreflightService;
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
   late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
@@ -205,6 +209,9 @@ class ServiceLocator {
     );
     unawaited(mediaTransferQueueService.initialize());
     transcriptionProfileResolver = NativeTranscriptionProfileResolver();
+    asrStoragePreflightService = LocalAsrStoragePreflightService(
+      profileResolver: transcriptionProfileResolver,
+    );
     final runtimeInstaller = ManagedAsrRuntimeManager(
       profileResolver: transcriptionProfileResolver,
     );
@@ -212,8 +219,12 @@ class ServiceLocator {
       delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
     );
-    asrRuntimeManager = ResilientAsrRuntimeManager(
+    final resilientRuntime = ResilientAsrRuntimeManager(
       delegate: managedRuntime,
+    );
+    asrRuntimeManager = StoragePreflightAsrRuntimeManager(
+      delegate: resilientRuntime,
+      storagePreflightService: asrStoragePreflightService,
     );
     transcriptionService = ResumableChunkedTranscriptionService(
       delegate: HighQualityTranscriptionService(

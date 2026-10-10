@@ -1,0 +1,59 @@
+name: ASR storage preflight validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/core/services/service_locator.dart"
+      - "lib/features/transcription/domain/services/asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "test/features/transcription/asr_storage_preflight_test.dart"
+      - "test/features/transcription/asr_storage_preflight_contract_test.dart"
+      - ".github/workflows/asr-storage-preflight-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/core/services/service_locator.dart"
+      - "lib/features/transcription/domain/services/asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "test/features/transcription/asr_storage_preflight_test.dart"
+      - "test/features/transcription/asr_storage_preflight_contract_test.dart"
+      - ".github/workflows/asr-storage-preflight-validation.yml"
+
+jobs:
+  storage-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze storage preflight changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/core/services/service_locator.dart
+          lib/features/transcription/domain/services/asr_storage_preflight_service.dart
+          lib/features/transcription/data/services/local_asr_storage_preflight_service.dart
+          lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
+          lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart
+          lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+          lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          test/features/transcription/asr_storage_preflight_test.dart
+          test/features/transcription/asr_storage_preflight_contract_test.dart
+      - name: Test storage preflight behavior
+        run: >-
+          flutter test
+          test/features/transcription/asr_storage_preflight_test.dart
+          test/features/transcription/asr_storage_preflight_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

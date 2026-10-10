@@ -8,8 +8,10 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
+import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
+import '../../../transcription/presentation/widgets/asr_storage_preflight_card.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class AiTranscriptionSettingsSection extends StatefulWidget {
@@ -24,10 +26,12 @@ class _AiTranscriptionSettingsSectionState
     extends State<AiTranscriptionSettingsSection> {
   late final TranscriptionSettingsStore _settingsStore;
   late final AsrRuntimeManager _runtimeManager;
+  late final AsrStoragePreflightService _storagePreflightService;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
   TranscriptionConfig? _config;
   AsrRuntimeStatus? _status;
+  AsrStoragePreflightResult? _storage;
   AsrRuntimeInstallProgress? _progress;
   int? _managedBytes;
   bool _loading = true;
@@ -54,6 +58,7 @@ class _AiTranscriptionSettingsSectionState
     final services = ServiceLocatorGlobal.I;
     _settingsStore = services.transcriptionSettingsStore;
     _runtimeManager = services.asrRuntimeManager;
+    _storagePreflightService = services.asrStoragePreflightService;
     _progressSubscription = _runtimeManager.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _progress = progress);
@@ -79,11 +84,16 @@ class _AiTranscriptionSettingsSectionState
       final base = stored ?? _defaultConfig;
       final repaired = await _runtimeManager.repair(base);
       final status = await _runtimeManager.inspect(repaired);
+      final storage = await _storagePreflightService.inspect(
+        repaired,
+        runtimeStatus: status,
+      );
       final bytes = await _directorySize(status.managedRoot);
       if (!mounted) return;
       setState(() {
         _config = repaired;
         _status = status;
+        _storage = storage;
         _managedBytes = bytes;
       });
     } on TranscriptionException catch (error) {
@@ -134,8 +144,29 @@ class _AiTranscriptionSettingsSectionState
     await _saveAndRefresh(updated);
   }
 
+  Future<bool> _ensureStorageBeforeInstall(TranscriptionConfig config) async {
+    final storage = await _storagePreflightService.inspect(
+      config,
+      runtimeStatus: _status,
+    );
+    if (!mounted) return false;
+    setState(() => _storage = storage);
+    if (storage.canInstall) return true;
+
+    setState(() {
+      _error = '磁盘空间不足：本次安装建议至少可用 '
+          '${_formatBytes(storage.requiredAdditionalBytes)}，'
+          '当前可用 ${_formatBytes(storage.availableBytes)}，'
+          '还差 ${_formatBytes(storage.shortfallBytes)}。'
+          '请释放空间后重新检测。';
+    });
+    return false;
+  }
+
   Future<void> _install({bool resume = false}) async {
     final current = _config ?? _defaultConfig;
+    if (!await _ensureStorageBeforeInstall(current)) return;
+
     var completed = false;
     setState(() {
       _installing = true;
@@ -332,6 +363,7 @@ class _AiTranscriptionSettingsSectionState
     final config = _config ?? _defaultConfig;
     final status = _status;
     final ready = status?.isReady == true;
+    final storageBlocked = _storage?.canInstall == false;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -439,6 +471,11 @@ class _AiTranscriptionSettingsSectionState
           const SizedBox(height: AppSpacing.md),
           _ComponentList(components: status.components),
         ],
+        const SizedBox(height: AppSpacing.md),
+        AsrStoragePreflightCard(
+          result: _storage,
+          loading: _loading,
+        ),
         if (_progress != null &&
             (_installing || _paused || _error != null)) ...[
           const SizedBox(height: AppSpacing.md),
@@ -492,20 +529,24 @@ class _AiTranscriptionSettingsSectionState
               )
             else
               FilledButton.icon(
-                onPressed: _loading ? null : _install,
+                onPressed: _loading || storageBlocked ? null : _install,
                 icon: Icon(
-                  _error != null
-                      ? Icons.refresh_rounded
-                      : Icons.download_for_offline_outlined,
+                  storageBlocked
+                      ? Icons.sd_storage_rounded
+                      : _error != null
+                          ? Icons.refresh_rounded
+                          : Icons.download_for_offline_outlined,
                 ),
                 label: Text(
-                  _error != null
-                      ? (_failedComponent == null
-                          ? '重试未完成组件'
-                          : '重试 ${_componentLabel(_failedComponent!)}')
-                      : ready
-                          ? '重新安装 / 修复'
-                          : '一键下载安装',
+                  storageBlocked
+                      ? '空间不足'
+                      : _error != null
+                          ? (_failedComponent == null
+                              ? '重试未完成组件'
+                              : '重试 ${_componentLabel(_failedComponent!)}')
+                          : ready
+                              ? '重新安装 / 修复'
+                              : '一键下载安装',
                 ),
               ),
             OutlinedButton.icon(
