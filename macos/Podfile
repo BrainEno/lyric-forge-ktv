@@ -47,6 +47,9 @@ end
 
 post_install do |installer|
   cmake_path_prefix = Shellwords.escape(lyric_forge_cmake_bin)
+  upstream_path_line = 'export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"'
+  resolved_path_line =
+    "export PATH=#{cmake_path_prefix}:/opt/homebrew/bin:/usr/local/bin:\"$PATH\""
 
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
@@ -57,13 +60,19 @@ post_install do |installer|
       next unless phase.name.to_s.include?('Build flutter_soloud with CMake')
 
       marker = '# LyricForge managed CMake PATH'
-      next if phase.shell_script.to_s.include?(marker)
+      script = phase.shell_script.to_s
+      next if script.include?(marker)
 
-      phase.shell_script = <<~SCRIPT
-        #{marker}
-        export PATH=#{cmake_path_prefix}:"$PATH"
-        #{phase.shell_script}
-      SCRIPT
+      # flutter_soloud 4.1.7 prepends Homebrew paths inside its own phase. Replace
+      # that line so our resolved CMake directory remains first; otherwise a CI
+      # runner with CMake preinstalled could make the managed-fallback test pass
+      # without actually exercising the downloaded tool.
+      script = if script.include?(upstream_path_line)
+                 script.sub(upstream_path_line, resolved_path_line)
+               else
+                 "#{resolved_path_line}\n#{script}"
+               end
+      phase.shell_script = "#{marker}\n#{script}"
     end
   end
 end
