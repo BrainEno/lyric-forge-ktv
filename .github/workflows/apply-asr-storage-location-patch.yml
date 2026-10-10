@@ -1,0 +1,33 @@
+name: Apply ASR storage location patch
+
+on:
+  push:
+    branches:
+      - feat/asr-managed-storage-location
+    paths:
+      - ".github/workflows/apply-asr-storage-location-patch.yml"
+      - "tools/apply_asr_storage_location_patch.py"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/asr-managed-storage-location
+      - name: Apply source patch
+        run: python tools/apply_asr_storage_location_patch.py
+      - name: Remove one-shot patch files
+        run: |
+          rm tools/apply_asr_storage_location_patch.py
+          rm .github/workflows/apply-asr-storage-location-patch.yml
+      - name: Commit patched sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Route ASR managed storage through one configurable root"
+          git push
