@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
 import '../../domain/services/batch_transcription_queue.dart';
+import '../../domain/services/transcription_queue_environment_recovery.dart';
+import 'asr_runtime_setup_dialog.dart';
 
 class TranscriptionQueuePanel extends StatelessWidget {
   final BatchTranscriptionQueue? queue;
@@ -112,7 +114,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 _EnvironmentBlockedCard(
                   message: state.pauseMessage,
-                  onRepair: () => Navigator.pushNamed(context, Routes.settings),
+                  onRepair: () => _repairEnvironment(context, service),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -218,6 +220,67 @@ class TranscriptionQueuePanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _repairEnvironment(
+    BuildContext context,
+    BatchTranscriptionQueue queue,
+  ) async {
+    final services = ServiceLocatorGlobal.I;
+    final store = services.transcriptionSettingsStore;
+
+    try {
+      final current = await store.load();
+      if (!context.mounted) return;
+
+      final updated = await showDialog<TranscriptionConfig>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
+      );
+      if (updated == null) return;
+
+      final recovery = TranscriptionQueueEnvironmentRecovery(
+        settingsStore: store,
+        runtimeManager: services.asrRuntimeManager,
+        queue: queue,
+      );
+      final result = await recovery.recover(updated);
+      if (!context.mounted) return;
+
+      if (!result.ready) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('识别环境仍未完全就绪，队列继续保持暂停。'),
+          ),
+        );
+        return;
+      }
+      if (!result.resumed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('识别环境已恢复；队列状态已被其他操作改变，因此没有自动继续。'),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('识别环境已恢复，后台队列已继续。'),
+        ),
+      );
+    } on TranscriptionException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('识别环境仍需处理：$error')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('检查识别环境失败：$error')),
+      );
+    }
   }
 
   TranscriptionQueueItem? _firstWithStatus(
