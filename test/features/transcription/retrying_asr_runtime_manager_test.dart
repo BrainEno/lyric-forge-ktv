@@ -11,13 +11,14 @@ void main() {
     modelPath: 'ggml-model.bin',
   );
 
-  test('retries transient download failure and preserves visible byte progress',
-      () async {
-    final delegate = _FakeRuntimeManager(
+  test(
+      'retries transient download failure, keeps byte resume visible, and '
+      'does not move progress backwards', () async {
+    late final _FakeRuntimeManager delegate;
+    delegate = _FakeRuntimeManager(
       onInstall: (attempt, config) async {
         if (attempt == 1) {
-          delegateProgress(
-            delegate,
+          delegate.emit(
             const AsrRuntimeInstallProgress(
               component: AsrRuntimeComponent.qwenModel,
               progress: 0.31,
@@ -31,6 +32,14 @@ void main() {
             details: 'SocketException: Connection reset by peer',
           );
         }
+
+        delegate.emit(
+          const AsrRuntimeInstallProgress(
+            component: AsrRuntimeComponent.qwenModel,
+            progress: 0.02,
+            message: '重新检查模型目录',
+          ),
+        );
         return config;
       },
     );
@@ -39,20 +48,25 @@ void main() {
       maxAttempts: 3,
       retryDelay: Duration.zero,
     );
-    final messages = <String>[];
-    final subscription = manager.progressStream.listen(
-      (progress) => messages.add(progress.message),
-    );
+    final progressEvents = <AsrRuntimeInstallProgress>[];
+    final subscription = manager.progressStream.listen(progressEvents.add);
 
     final installed = await manager.installRecommended(config);
 
     expect(installed, same(config));
     expect(delegate.installCalls, 2);
     expect(
-      messages,
+      progressEvents.map((event) => event.message),
       contains(
         '网络连接中断，将从 2.00 GB / 4.00 GB 继续（第 2/3 次）',
       ),
+    );
+    expect(
+      progressEvents
+          .where((event) => event.message == '重新检查模型目录')
+          .single
+          .progress,
+      0.31,
     );
 
     await subscription.cancel();
@@ -106,13 +120,6 @@ void main() {
   });
 }
 
-void delegateProgress(
-  _FakeRuntimeManager delegate,
-  AsrRuntimeInstallProgress progress,
-) {
-  delegate.emit(progress);
-}
-
 class _FakeRuntimeManager implements AsrRuntimeManager {
   final Future<TranscriptionConfig> Function(
     int attempt,
@@ -123,7 +130,6 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
       StreamController<AsrRuntimeInstallProgress>.broadcast(sync: true);
 
   int installCalls = 0;
-  bool cancelled = false;
 
   _FakeRuntimeManager({required this.onInstall});
 
@@ -155,7 +161,5 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   Future<TranscriptionConfig> repair(TranscriptionConfig config) async => config;
 
   @override
-  Future<void> cancel() async {
-    cancelled = true;
-  }
+  Future<void> cancel() async {}
 }
