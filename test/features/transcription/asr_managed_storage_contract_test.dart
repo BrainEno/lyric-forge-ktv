@@ -60,10 +60,10 @@ void main() {
     ).readAsString();
 
     final copy = source.indexOf('await _copyTree(');
-    final verify = source.indexOf('copiedStats.files != sourceStats.files');
-    final promote = source.indexOf('await staging.rename(target.path)');
-    final persist = source.indexOf('await _writeConfiguredRoot(target.path)');
-    final deleteOld = source.indexOf('await source.delete(recursive: true)');
+    final verify = source.indexOf('copiedStats.files != sourceStats.files', copy);
+    final promote = source.indexOf('await staging.rename(target.path)', verify);
+    final persist = source.indexOf('await _writeConfiguredRoot(', promote);
+    final deleteOld = source.indexOf('await source.delete(recursive: true)', persist);
 
     expect(copy, greaterThanOrEqualTo(0));
     expect(verify, greaterThan(copy));

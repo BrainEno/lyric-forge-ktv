@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -157,4 +158,138 @@ void main() {
     expect(await sourceFile.readAsString(), 'keep-me');
     expect(service.isMoving, isFalse);
   });
+
+  test('persists and restores a macOS security-scoped storage bookmark',
+      () async {
+    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-bookmark-');
+    addTearDown(() => sandbox.delete(recursive: true));
+    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
+    final destination = Directory('${sandbox.path}${Platform.pathSeparator}external');
+    await support.create(recursive: true);
+    await destination.create(recursive: true);
+
+    final bridge = _FakeBookmarkBridge(
+      createdBookmark: 'bookmark-v2',
+    );
+    final service = LocalAsrManagedStorageService(
+      supportDirectoryResolver: () async => support,
+      securityScopedBookmarkBridge: bridge,
+      isMacOSResolver: () => true,
+    );
+    final source = await service.resolveRoot();
+    await File('${source.path}${Platform.pathSeparator}keep.bin')
+        .writeAsString('keep');
+
+    await service.moveToParent(destination.path);
+    final expected = Directory(
+      '${destination.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime',
+    ).absolute.path;
+
+    final configFile = File(
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}asr-managed-storage.json',
+    );
+    final config = jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+    expect(config['schemaVersion'], 2);
+    expect(config['securityScopedBookmark'], 'bookmark-v2');
+    expect(config['securityScopedParent'], destination.absolute.path);
+
+    final restoreBridge = _FakeBookmarkBridge(
+      createdBookmark: 'unused',
+      restoredPath: destination.absolute.path,
+      restoredBookmark: 'bookmark-v2',
+    );
+    final restoredService = LocalAsrManagedStorageService(
+      supportDirectoryResolver: () async => support,
+      securityScopedBookmarkBridge: restoreBridge,
+      isMacOSResolver: () => true,
+    );
+    expect((await restoredService.resolveRoot()).path, expected);
+    expect(restoreBridge.restoredBookmarks, ['bookmark-v2']);
+    expect(
+      await File('$expected${Platform.pathSeparator}keep.bin').readAsString(),
+      'keep',
+    );
+  });
+
+  test('reauthorizes a legacy macOS root in place without losing part files',
+      () async {
+    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-legacy-');
+    addTearDown(() => sandbox.delete(recursive: true));
+    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
+    final selectedParent = Directory('${sandbox.path}${Platform.pathSeparator}external');
+    final legacyRoot = Directory(
+      '${selectedParent.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime',
+    );
+    await support.create(recursive: true);
+    await legacyRoot.create(recursive: true);
+    final part = File(
+      '${legacyRoot.path}${Platform.pathSeparator}downloads${Platform.pathSeparator}asr-runtime.zip.part',
+    );
+    await part.parent.create(recursive: true);
+    await part.writeAsBytes(List<int>.filled(333, 9));
+
+    final configFile = File(
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}asr-managed-storage.json',
+    );
+    await configFile.parent.create(recursive: true);
+    await configFile.writeAsString(jsonEncode({
+      'schemaVersion': 1,
+      'managedRoot': legacyRoot.absolute.path,
+    }));
+
+    final bridge = _FakeBookmarkBridge(createdBookmark: 'legacy-upgraded');
+    final service = LocalAsrManagedStorageService(
+      supportDirectoryResolver: () async => support,
+      securityScopedBookmarkBridge: bridge,
+      isMacOSResolver: () => true,
+    );
+
+    expect(await service.needsSecurityScopedAuthorization(), isTrue);
+    final result = await service.moveToParent(selectedParent.path);
+    expect(result.moved, isFalse);
+    expect(await part.length(), 333);
+    expect(await service.needsSecurityScopedAuthorization(), isFalse);
+
+    final config = jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+    expect(config['schemaVersion'], 2);
+    expect(config['securityScopedBookmark'], 'legacy-upgraded');
+    expect(bridge.createdPaths, [selectedParent.absolute.path]);
+  });
+}
+
+class _FakeBookmarkBridge implements AsrSecurityScopedBookmarkBridge {
+  final String createdBookmark;
+  final String? restoredPath;
+  final String? restoredBookmark;
+  final List<String> createdPaths = [];
+  final List<String> restoredBookmarks = [];
+
+  _FakeBookmarkBridge({
+    required this.createdBookmark,
+    this.restoredPath,
+    this.restoredBookmark,
+  });
+
+  @override
+  Future<AsrSecurityScopedBookmarkAccess> createAndStart(String path) async {
+    final absolute = Directory(path).absolute.path;
+    createdPaths.add(absolute);
+    return AsrSecurityScopedBookmarkAccess(
+      path: absolute,
+      bookmark: createdBookmark,
+    );
+  }
+
+  @override
+  Future<AsrSecurityScopedBookmarkAccess> restoreAndStart(String bookmark) async {
+    restoredBookmarks.add(bookmark);
+    final path = restoredPath;
+    if (path == null) {
+      throw StateError('No restored path configured');
+    }
+    return AsrSecurityScopedBookmarkAccess(
+      path: path,
+      bookmark: restoredBookmark ?? bookmark,
+    );
+  }
 }
