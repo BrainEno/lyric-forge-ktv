@@ -2760,7 +2760,7 @@ class _ProjectArtwork extends StatelessWidget {
         child: Container(
           decoration: const BoxDecoration(gradient: AppColors.playerGradient),
           child: hasArtwork
-              ? Image.file(file!, fit: BoxFit.cover)
+              ? Image.file(file, fit: BoxFit.cover)
               : Center(
                   child: Icon(
                     Icons.album_rounded,
