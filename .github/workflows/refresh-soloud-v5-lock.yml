@@ -1,0 +1,39 @@
+name: Refresh flutter_soloud v5 lockfile
+
+on:
+  push:
+    branches: [fix/macos-soloud-no-cmake]
+    paths:
+      - pubspec.yaml
+      - .github/workflows/refresh-soloud-v5-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/macos-soloud-no-cmake
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Commit refreshed lockfile and remove one-shot workflow
+        shell: bash
+        run: |
+          rm .github/workflows/refresh-soloud-v5-lock.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.lock .github/workflows/refresh-soloud-v5-lock.yml
+          if git diff --cached --quiet; then
+            echo "No lockfile changes"
+            exit 0
+          fi
+          git commit -m "Refresh dependencies for flutter_soloud 5.1.6"
+          git push origin HEAD:fix/macos-soloud-no-cmake
