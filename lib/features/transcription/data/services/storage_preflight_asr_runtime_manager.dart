@@ -3,15 +3,18 @@ import 'dart:async';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
+import 'local_asr_runtime_health_checker.dart';
 
 class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   final AsrRuntimeManager delegate;
   final AsrStoragePreflightService storagePreflightService;
+  final AsrRuntimeHealthChecker healthChecker;
 
-  const StoragePreflightAsrRuntimeManager({
+  StoragePreflightAsrRuntimeManager({
     required this.delegate,
     required this.storagePreflightService,
-  });
+    AsrRuntimeHealthChecker? healthChecker,
+  }) : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker();
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => delegate.progressStream;
@@ -20,8 +23,10 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   bool get isInstalling => delegate.isInstalling;
 
   @override
-  Future<AsrRuntimeStatus> inspect(TranscriptionConfig config) {
-    return delegate.inspect(config);
+  Future<AsrRuntimeStatus> inspect(TranscriptionConfig config) async {
+    final status = await delegate.inspect(config);
+    if (delegate.isInstalling) return status;
+    return healthChecker.verify(status);
   }
 
   @override
@@ -35,7 +40,13 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   ) async {
     AsrRuntimeStatus? status;
     try {
-      status = await delegate.inspect(config);
+      final raw = await delegate.inspect(config);
+      status = await healthChecker.verify(raw);
+      final invalidated = await healthChecker.invalidateManagedFailures(status);
+      if (invalidated) {
+        healthChecker.clearCache();
+        status = await delegate.inspect(config);
+      }
     } catch (_) {
       // Storage preflight must still run when environment inspection itself is
       // incomplete. The preflight service will use its conservative budget.
@@ -55,7 +66,64 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
       );
     }
 
-    return delegate.installRecommended(config);
+    final installed = await delegate.installRecommended(config);
+    healthChecker.clearCache();
+
+    AsrRuntimeStatus finalStatus;
+    try {
+      finalStatus = await healthChecker.verify(
+        await delegate.inspect(installed),
+      );
+    } catch (_) {
+      // The managed installer already performs its own completion checks. Some
+      // specialized/test delegates intentionally do not expose inspect after an
+      // install, so lack of a secondary health report must not fabricate a
+      // failure. Production delegates do expose it and are checked below.
+      return installed;
+    }
+
+    if (finalStatus.isReady) {
+      await healthChecker.cleanupInstallerCache(finalStatus.managedRoot);
+      return installed;
+    }
+
+    if (installed.mode == TranscriptionMode.highestQuality &&
+        _whisperBaselineReady(finalStatus)) {
+      await healthChecker.cleanupInstallerCache(finalStatus.managedRoot);
+      return delegate.repair(
+        installed.copyWith(mode: TranscriptionMode.whisperOnly),
+      );
+    }
+
+    final failed = finalStatus.components
+        .where((component) => component.state != AsrRuntimeComponentState.ready)
+        .map((component) => '${component.label}: ${component.detail}')
+        .join('; ');
+    throw TranscriptionException(
+      '识别环境文件已经安装，但运行健康检查失败',
+      details: failed,
+    );
+  }
+
+  bool _whisperBaselineReady(AsrRuntimeStatus status) {
+    const required = {
+      AsrRuntimeComponent.ffmpeg,
+      AsrRuntimeComponent.whisperRuntime,
+      AsrRuntimeComponent.whisperModel,
+    };
+    for (final component in status.components) {
+      if (required.contains(component.component) &&
+          component.state != AsrRuntimeComponentState.ready) {
+        return false;
+      }
+    }
+    return required.every(
+      (requiredComponent) => status.components.any(
+        (component) =>
+            component.component == requiredComponent &&
+            component.state == AsrRuntimeComponentState.ready,
+      ),
+    );
   }
 
   String _details(AsrStoragePreflightResult storage) {
