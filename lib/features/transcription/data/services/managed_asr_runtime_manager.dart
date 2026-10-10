@@ -700,6 +700,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       final contentLength = response.contentLength;
       final total = contentLength > 0 ? existing + contentLength : -1;
       var received = existing;
+      final transferStartBytes = existing;
+      final transferWatch = Stopwatch()..start();
 
       try {
         await for (final chunk in response) {
@@ -712,10 +714,25 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
               : 0.0;
           final mapped =
               startProgress + (endProgress - startProgress) * fraction;
+          final elapsedSeconds =
+              transferWatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
+          final transferred = received - transferStartBytes;
+          final speed = elapsedSeconds >= 0.5 && transferred > 0
+              ? transferred / elapsedSeconds
+              : null;
+          final remainingSeconds = total > 0 && speed != null && speed > 0
+              ? ((total - received) / speed).ceil()
+              : null;
           _emit(
             component,
             mapped,
             total > 0 ? '正在下载 ${_percent(fraction)}' : '正在下载…',
+            downloadedBytes: received,
+            totalBytes: total > 0 ? total : null,
+            bytesPerSecond: speed,
+            estimatedRemaining: remainingSeconds == null
+                ? null
+                : Duration(seconds: remainingSeconds),
           );
         }
       } finally {
@@ -1120,14 +1137,22 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   void _emit(
     AsrRuntimeComponent? component,
     double progress,
-    String message,
-  ) {
+    String message, {
+    int? downloadedBytes,
+    int? totalBytes,
+    double? bytesPerSecond,
+    Duration? estimatedRemaining,
+  }) {
     if (_progressController.isClosed) return;
     _progressController.add(
       AsrRuntimeInstallProgress(
         component: component,
         progress: progress.clamp(0.0, 1.0).toDouble(),
         message: message,
+        downloadedBytes: downloadedBytes,
+        totalBytes: totalBytes,
+        bytesPerSecond: bytesPerSecond,
+        estimatedRemaining: estimatedRemaining,
       ),
     );
   }

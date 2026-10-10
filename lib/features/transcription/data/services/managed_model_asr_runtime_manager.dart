@@ -374,13 +374,23 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           fileName: fileName,
           target: target,
           metadata: metadata,
-          onProgress: (fraction) {
+          onProgress: (
+            fraction,
+            downloadedBytes,
+            totalBytes,
+            bytesPerSecond,
+            estimatedRemaining,
+          ) {
             final modelFraction =
                 fileStart + (fileEnd - fileStart) * fraction;
             _emit(
               component,
               _mapProgress(modelFraction, startProgress, endProgress),
-              '正在下载 ${_modelLabel(modelId)} · ${_percent(modelFraction)}',
+              '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length}',
+              downloadedBytes: downloadedBytes,
+              totalBytes: totalBytes,
+              bytesPerSecond: bytesPerSecond,
+              estimatedRemaining: estimatedRemaining,
             );
           },
         );
@@ -424,7 +434,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String fileName,
     required File target,
     required HuggingFaceFileMetadata metadata,
-    required void Function(double fraction) onProgress,
+    required void Function(
+      double fraction,
+      int downloadedBytes,
+      int totalBytes,
+      double? bytesPerSecond,
+      Duration? estimatedRemaining,
+    ) onProgress,
   }) async {
     await target.parent.create(recursive: true);
     final part = File('${target.path}.part');
@@ -437,7 +453,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       if (await _verifyLocalModelFile(part, metadata)) {
         if (await target.exists()) await target.delete();
         await part.rename(target.path);
-        onProgress(1.0);
+        onProgress(1.0, metadata.sizeBytes, metadata.sizeBytes, null, Duration.zero);
         return;
       }
       await part.delete();
@@ -488,6 +504,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       }
 
       var received = existing;
+      final transferStartBytes = existing;
+      final transferWatch = Stopwatch()..start();
       final sink = part.openWrite(
         mode: append ? FileMode.append : FileMode.write,
       );
@@ -497,8 +515,23 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           _throwIfCancelled();
           sink.add(chunk);
           received += chunk.length;
+          final elapsedSeconds =
+              transferWatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
+          final transferred = received - transferStartBytes;
+          final speed = elapsedSeconds >= 0.5 && transferred > 0
+              ? transferred / elapsedSeconds
+              : null;
+          final remainingSeconds = speed != null && speed > 0
+              ? ((metadata.sizeBytes - received) / speed).ceil()
+              : null;
           onProgress(
             (received / metadata.sizeBytes).clamp(0.0, 1.0).toDouble(),
+            received,
+            metadata.sizeBytes,
+            speed,
+            remainingSeconds == null
+                ? null
+                : Duration(seconds: remainingSeconds),
           );
         }
       } finally {
@@ -532,7 +565,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
       if (await target.exists()) await target.delete();
       await part.rename(target.path);
-      onProgress(1.0);
+      onProgress(1.0, metadata.sizeBytes, metadata.sizeBytes, null, Duration.zero);
     } on TranscriptionException {
       rethrow;
     } catch (error) {
@@ -748,20 +781,36 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final mapped = base <= 0
         ? progress.progress
         : base + (1 - base) * progress.progress;
-    _emit(progress.component, mapped, progress.message);
+    _emit(
+      progress.component,
+      mapped,
+      progress.message,
+      downloadedBytes: progress.downloadedBytes,
+      totalBytes: progress.totalBytes,
+      bytesPerSecond: progress.bytesPerSecond,
+      estimatedRemaining: progress.estimatedRemaining,
+    );
   }
 
   void _emit(
     AsrRuntimeComponent? component,
     double progress,
-    String message,
-  ) {
+    String message, {
+    int? downloadedBytes,
+    int? totalBytes,
+    double? bytesPerSecond,
+    Duration? estimatedRemaining,
+  }) {
     if (_progressController.isClosed) return;
     _progressController.add(
       AsrRuntimeInstallProgress(
         component: component,
         progress: progress.clamp(0.0, 1.0).toDouble(),
         message: message,
+        downloadedBytes: downloadedBytes,
+        totalBytes: totalBytes,
+        bytesPerSecond: bytesPerSecond,
+        estimatedRemaining: estimatedRemaining,
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
+import 'asr_install_progress_card.dart';
 import 'transcription_config_dialog.dart';
 
 class AsrRuntimeSetupDialog extends StatefulWidget {
@@ -31,6 +32,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   AsrRuntimeInstallProgress? _installProgress;
   bool _loading = true;
   bool _installing = false;
+  bool _paused = false;
+  bool _pauseRequested = false;
+  AsrRuntimeComponent? _failedComponent;
   String? _error;
 
   @override
@@ -87,40 +91,72 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     }
   }
 
-  Future<void> _install() async {
+  Future<void> _install({bool resume = false}) async {
+    var completed = false;
     setState(() {
       _installing = true;
+      _paused = false;
+      _pauseRequested = false;
+      _failedComponent = null;
       _error = null;
-      _installProgress = const AsrRuntimeInstallProgress(
-        progress: 0,
-        message: '准备自动安装本地识别环境',
-      );
+      if (!resume || _installProgress == null) {
+        _installProgress = const AsrRuntimeInstallProgress(
+          progress: 0,
+          message: '准备自动安装本地识别环境',
+        );
+      }
     });
 
     try {
       final installed = await _runtimeManager.installRecommended(_config);
+      completed = true;
       if (!mounted) return;
       setState(() => _config = installed);
       await _refresh();
     } on TranscriptionException catch (error) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      if (_pauseRequested) {
+        setState(() {
+          _paused = true;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _failedComponent = _installProgress?.component;
+          _error = error.toString();
+        });
+      }
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = '安装识别环境失败：$error');
+      if (_pauseRequested) {
+        setState(() {
+          _paused = true;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _failedComponent = _installProgress?.component;
+          _error = '安装识别环境失败：$error';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
           _installing = false;
-          _installProgress = null;
+          _pauseRequested = false;
+          if (completed) _installProgress = null;
         });
       }
     }
   }
 
-  Future<void> _cancelInstall() async {
+  Future<void> _pauseInstall() async {
+    if (!_installing) return;
+    setState(() => _pauseRequested = true);
     await _runtimeManager.cancel();
   }
+
+  Future<void> _resumeInstall() => _install(resume: true);
 
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
@@ -133,6 +169,18 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
 
     setState(() => _config = updated);
     await _refresh();
+  }
+
+
+  String _failedComponentLabel(AsrRuntimeComponent component) {
+    return switch (component) {
+      AsrRuntimeComponent.ffmpeg => 'FFmpeg',
+      AsrRuntimeComponent.whisperRuntime => 'Whisper runtime',
+      AsrRuntimeComponent.whisperModel => 'Whisper 模型',
+      AsrRuntimeComponent.qwenRuntime => 'Qwen runtime',
+      AsrRuntimeComponent.qwenModel => 'Qwen 模型',
+      AsrRuntimeComponent.qwenAligner => 'ForcedAligner',
+    };
   }
 
   String _hardwareSummary(TranscriptionHardwareInfo hardware) {
@@ -154,7 +202,6 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   Widget build(BuildContext context) {
     final status = _status;
     final ready = status?.isReady == true;
-    final progress = _installProgress?.progress.clamp(0.0, 1.0).toDouble();
 
     return PopScope(
       canPop: !_installing,
@@ -242,11 +289,21 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                       ready: ready,
                     ),
                   ],
-                  if (_installing && _installProgress != null) ...[
+                  if (_installProgress != null &&
+                      (_installing || _paused || _error != null)) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    _InstallProgressCard(
-                      progress: progress ?? 0,
-                      message: _installProgress!.message,
+                    AsrInstallProgressCard(
+                      progress: _installProgress!,
+                      paused: _paused,
+                      failed: _error != null && !_paused,
+                      onPause: _installing ? _pauseInstall : null,
+                      onResume: _paused ? _resumeInstall : null,
+                      onRetry: _error != null && !_paused
+                          ? () => _install(resume: true)
+                          : null,
+                      retryLabel: _failedComponent == null
+                          ? '重试未完成组件'
+                          : '重试 ${_failedComponentLabel(_failedComponent!)}',
                     ),
                   ],
                   if (_error != null) ...[
@@ -291,10 +348,21 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
         actions: [
           if (_installing)
             TextButton.icon(
-              onPressed: _cancelInstall,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              label: const Text('取消安装'),
+              onPressed: _pauseInstall,
+              icon: const Icon(Icons.pause_rounded, size: 18),
+              label: const Text('暂停下载'),
             )
+          else if (_paused) ...[
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('以后继续'),
+            ),
+            FilledButton.icon(
+              onPressed: _resumeInstall,
+              icon: const Icon(Icons.play_arrow_rounded, size: 18),
+              label: const Text('继续下载'),
+            ),
+          ]
           else ...[
             TextButton(
               onPressed: _openAdvanced,
@@ -609,70 +677,6 @@ class _ComponentsCard extends StatelessWidget {
                 color: AppColors.borderMuted,
               ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _InstallProgressCard extends StatelessWidget {
-  final double progress;
-  final String message;
-
-  const _InstallProgressCard({
-    required this.progress,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withAlpha(12),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        border: Border.all(color: AppColors.accent.withAlpha(48)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                '正在自动准备',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const Spacer(),
-              Text(
-                '${(progress * 100).round()}%',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          LinearProgressIndicator(
-            value: progress,
-            minHeight: 5,
-            backgroundColor: AppColors.bgHighlight,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            message,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '模型文件较大，可以让电脑继续运行；下载、存放路径和配置都会自动完成。',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-          ),
         ],
       ),
     );
