@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:path_provider/path_provider.dart';
 
@@ -44,19 +43,16 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
   }) async {
     final root = await _managedRoot();
     if (runtimeStatus?.isReady == true) {
+      final current = await _estimateCurrentRelevantBytes(
+        root,
+        config,
+        runtimeStatus?.profile.profile,
+      );
       return AsrStoragePreflightResult(
         state: AsrStoragePreflightState.ready,
         managedRoot: root.path,
-        estimatedInstalledBytes: await _estimateCurrentRelevantBytes(
-          root,
-          config,
-          runtimeStatus?.profile.profile,
-        ),
-        existingRelevantBytes: await _estimateCurrentRelevantBytes(
-          root,
-          config,
-          runtimeStatus?.profile.profile,
-        ),
+        estimatedInstalledBytes: current,
+        existingRelevantBytes: current,
         temporaryHeadroomBytes: 0,
         safetyMarginBytes: 0,
         requiredAdditionalBytes: 0,
@@ -101,10 +97,10 @@ class LocalAsrStoragePreflightService implements AsrStoragePreflightService {
       resolved.config,
       profile,
     );
-    final missingPersistent = math.max(
-      0,
-      budget.installedBytes - math.min(existing, budget.installedBytes),
-    );
+    final reusable = existing > budget.installedBytes
+        ? budget.installedBytes
+        : existing;
+    final missingPersistent = budget.installedBytes - reusable;
     final required =
         missingPersistent + budget.temporaryBytes + _safetyMarginBytes;
     final available = await _readFreeSpace(root.path);
