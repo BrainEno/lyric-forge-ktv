@@ -1,0 +1,29 @@
+name: Apply KTV take operation lock patch
+
+on:
+  push:
+    branches:
+      - fix/ktv-take-operation-locks
+    paths:
+      - ".github/workflows/apply-ktv-take-operation-lock-patch.yml"
+      - "tools/apply_ktv_take_operation_lock_patch.py"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ktv-take-operation-locks
+      - run: python tools/apply_ktv_take_operation_lock_patch.py
+      - run: |
+          rm tools/apply_ktv_take_operation_lock_patch.py
+          rm .github/workflows/apply-ktv-take-operation-lock-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Protect KTV take operations during export"
+          git push
