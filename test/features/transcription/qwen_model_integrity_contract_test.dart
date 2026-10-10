@@ -63,4 +63,8 @@ void main() {
     expect(source, contains("decoded['schemaVersion'] != 2"));
     expect(source, contains('metadata.sizeBytes'));
   });
+
+  test('awaits post-install repair before finally cleanup', () {
+    expect(source, contains('return await repair(installed);'));
+  });
 }
