@@ -176,7 +176,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       }
 
       final installed = await delegate.installRecommended(prepared);
-      return repair(installed);
+      return await repair(installed);
     } finally {
       _activeRequest = null;
       _activeClient = null;
