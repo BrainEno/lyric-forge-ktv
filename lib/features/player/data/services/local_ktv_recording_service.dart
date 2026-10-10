@@ -19,6 +19,7 @@ class LocalKtvRecordingService implements KtvRecordingService {
   final KtvMicrophoneService _microphoneService;
   final TranscriptionSettingsStore _settingsStore;
   final Future<Directory> Function(ProjectManifest) _projectDirectoryResolver;
+  final Future<ProcessResult> Function(String, List<String>) _processRunner;
   final StreamController<KtvRecordingState> _stateController =
       StreamController<KtvRecordingState>.broadcast();
 
@@ -36,11 +37,15 @@ class LocalKtvRecordingService implements KtvRecordingService {
     required KtvMicrophoneService microphoneService,
     required TranscriptionSettingsStore settingsStore,
     Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
+    Future<ProcessResult> Function(String, List<String>)? processRunner,
   })  : _audioService = audioService,
         _microphoneService = microphoneService,
         _settingsStore = settingsStore,
         _projectDirectoryResolver = projectDirectoryResolver ??
-            ((project) => KtvProjectStorage.resolveProjectDirectory(project));
+            ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
+        _processRunner = processRunner ??
+            ((executable, arguments) =>
+                Process.run(executable, arguments, runInShell: false));
 
   @override
   Stream<KtvRecordingState> get stateStream => _stateController.stream;
@@ -52,6 +57,9 @@ class LocalKtvRecordingService implements KtvRecordingService {
   Future<void> startRecording(ProjectManifest project) async {
     if (_state.isRecording) {
       throw const KtvRecordingException('已经在录音中');
+    }
+    if (_state.isExporting) {
+      throw const KtvRecordingException('混音正在导出，请等待导出完成后再开始录音');
     }
     final audioAsset = project.audioAsset;
     if (audioAsset == null) {
@@ -267,6 +275,9 @@ class LocalKtvRecordingService implements KtvRecordingService {
     if (_state.isRecording) {
       throw const KtvRecordingException('请先停止录音再导出混音');
     }
+    if (_state.isExporting) {
+      throw const KtvRecordingException('已有混音正在导出，请等待完成后再试');
+    }
     if (!session.alignmentReliable) {
       throw KtvRecordingException(
         session.alignmentIssue ?? '本次录音的播放时间轴发生变化，无法安全生成自动混音',
@@ -301,7 +312,7 @@ class LocalKtvRecordingService implements KtvRecordingService {
 
       ProcessResult result;
       try {
-        result = await Process.run(ffmpeg, args, runInShell: false);
+        result = await _processRunner(ffmpeg, args);
       } on ProcessException catch (error) {
         throw KtvRecordingException(
           '无法启动 FFmpeg。人声录音已安全保存，可在配置本地 FFmpeg 后重新导出。\n$error',
@@ -314,7 +325,8 @@ class LocalKtvRecordingService implements KtvRecordingService {
         );
       }
 
-      final exported = session.copyWith(mixedOutputPath: outputPath);
+      final latest = await _readLatestSessionForExport(session);
+      final exported = latest.copyWith(mixedOutputPath: outputPath);
       await _writeManifest(exported);
       _emit(
         _state.copyWith(
@@ -328,6 +340,43 @@ class LocalKtvRecordingService implements KtvRecordingService {
       _emit(_state.copyWith(isExporting: false, error: error.toString()));
       rethrow;
     }
+  }
+
+  Future<KtvRecordingSession> _readLatestSessionForExport(
+    KtvRecordingSession expected,
+  ) async {
+    final manifest = File(expected.manifestPath);
+    if (await FileSystemEntity.type(manifest.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const KtvRecordingException('录音记录已被移动或删除，无法完成混音导出');
+    }
+    try {
+      final decoded = jsonDecode(await manifest.readAsString());
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('session manifest is not an object');
+      }
+      final latest = KtvRecordingSession.fromJson(decoded);
+      if (latest.id != expected.id ||
+          latest.projectId != expected.projectId ||
+          !_samePath(latest.manifestPath, expected.manifestPath) ||
+          !_samePath(latest.micStemPath, expected.micStemPath) ||
+          !_samePath(latest.backingPath, expected.backingPath)) {
+        throw const KtvRecordingException('录音记录在导出期间发生了身份变化，已取消写入');
+      }
+      return latest;
+    } on KtvRecordingException {
+      rethrow;
+    } catch (error) {
+      throw KtvRecordingException('读取最新录音记录失败，已取消写入：$error');
+    }
+  }
+
+  bool _samePath(String left, String right) {
+    final leftPath = File(left).absolute.path;
+    final rightPath = File(right).absolute.path;
+    return Platform.isWindows
+        ? leftPath.toLowerCase() == rightPath.toLowerCase()
+        : leftPath == rightPath;
   }
 
   Future<Directory> _createSessionDirectory(ProjectManifest project) async {
