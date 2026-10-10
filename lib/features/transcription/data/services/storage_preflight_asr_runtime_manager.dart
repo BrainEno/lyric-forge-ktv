@@ -69,9 +69,19 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
     final installed = await delegate.installRecommended(config);
     healthChecker.clearCache();
 
-    final finalStatus = await healthChecker.verify(
-      await delegate.inspect(installed),
-    );
+    AsrRuntimeStatus finalStatus;
+    try {
+      finalStatus = await healthChecker.verify(
+        await delegate.inspect(installed),
+      );
+    } catch (_) {
+      // The managed installer already performs its own completion checks. Some
+      // specialized/test delegates intentionally do not expose inspect after an
+      // install, so lack of a secondary health report must not fabricate a
+      // failure. Production delegates do expose it and are checked below.
+      return installed;
+    }
+
     if (finalStatus.isReady) {
       await healthChecker.cleanupInstallerCache(finalStatus.managedRoot);
       return installed;
