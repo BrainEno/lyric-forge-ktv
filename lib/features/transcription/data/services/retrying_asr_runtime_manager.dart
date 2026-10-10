@@ -23,6 +23,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
   bool _installing = false;
   bool _cancelRequested = false;
   AsrRuntimeInstallProgress? _lastProgress;
+  double _progressHighWatermark = 0;
 
   RetryingAsrRuntimeManager({
     required this.delegate,
@@ -30,9 +31,22 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
     this.retryDelay = const Duration(seconds: 2),
   }) : assert(maxAttempts >= 1) {
     _delegateSubscription = delegate.progressStream.listen((progress) {
-      _lastProgress = progress;
+      _progressHighWatermark =
+          progress.progress > _progressHighWatermark
+              ? progress.progress
+              : _progressHighWatermark;
+      final forwarded = AsrRuntimeInstallProgress(
+        component: progress.component,
+        progress: _progressHighWatermark,
+        message: progress.message,
+        downloadedBytes: progress.downloadedBytes,
+        totalBytes: progress.totalBytes,
+        bytesPerSecond: progress.bytesPerSecond,
+        estimatedRemaining: progress.estimatedRemaining,
+      );
+      _lastProgress = forwarded;
       if (!_progressController.isClosed) {
-        _progressController.add(progress);
+        _progressController.add(forwarded);
       }
     });
   }
@@ -65,6 +79,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
     _installing = true;
     _cancelRequested = false;
     _lastProgress = null;
+    _progressHighWatermark = 0;
 
     try {
       for (var attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -85,6 +100,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
       _installing = false;
       _cancelRequested = false;
       _lastProgress = null;
+      _progressHighWatermark = 0;
     }
   }
 
@@ -135,7 +151,6 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
     final previous = _lastProgress;
     final downloaded = previous?.downloadedBytes;
     final total = previous?.totalBytes;
-    final progress = previous?.progress ?? 0;
 
     var message = '网络连接中断，正在自动重连（第 $nextAttempt/$maxAttempts 次）';
     if (downloaded != null && total != null && total > 0) {
@@ -147,7 +162,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
       _progressController.add(
         AsrRuntimeInstallProgress(
           component: previous?.component,
-          progress: progress,
+          progress: _progressHighWatermark,
           message: message,
           downloadedBytes: downloaded,
           totalBytes: total,
