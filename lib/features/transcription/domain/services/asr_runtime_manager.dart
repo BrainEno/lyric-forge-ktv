@@ -57,12 +57,23 @@ class AsrRuntimeInstallProgress {
   final AsrRuntimeComponent? component;
   final double progress;
   final String message;
+  final int? downloadedBytes;
+  final int? totalBytes;
+  final double? bytesPerSecond;
+  final Duration? estimatedRemaining;
 
   const AsrRuntimeInstallProgress({
     this.component,
     required this.progress,
     required this.message,
+    this.downloadedBytes,
+    this.totalBytes,
+    this.bytesPerSecond,
+    this.estimatedRemaining,
   });
+
+  bool get hasTransferMetrics =>
+      downloadedBytes != null && totalBytes != null && totalBytes! > 0;
 }
 
 abstract class AsrRuntimeManager {

@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
+import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class AiTranscriptionSettingsSection extends StatefulWidget {
@@ -31,7 +32,10 @@ class _AiTranscriptionSettingsSectionState
   int? _managedBytes;
   bool _loading = true;
   bool _installing = false;
+  bool _paused = false;
+  bool _pauseRequested = false;
   bool _deleting = false;
+  AsrRuntimeComponent? _failedComponent;
   String? _error;
 
   static const _defaultConfig = TranscriptionConfig(
@@ -42,7 +46,7 @@ class _AiTranscriptionSettingsSectionState
     modelPath: '',
   );
 
-  bool get _busy => _loading || _installing || _deleting;
+  bool get _busy => _loading || _installing || _paused || _deleting;
 
   @override
   void initState() {
@@ -130,42 +134,74 @@ class _AiTranscriptionSettingsSectionState
     await _saveAndRefresh(updated);
   }
 
-  Future<void> _install() async {
+  Future<void> _install({bool resume = false}) async {
     final current = _config ?? _defaultConfig;
+    var completed = false;
     setState(() {
       _installing = true;
+      _paused = false;
+      _pauseRequested = false;
+      _failedComponent = null;
       _error = null;
-      _progress = const AsrRuntimeInstallProgress(
-        progress: 0,
-        message: '准备下载并安装本地歌词识别环境',
-      );
+      if (!resume || _progress == null) {
+        _progress = const AsrRuntimeInstallProgress(
+          progress: 0,
+          message: '准备下载并安装本地歌词识别环境',
+        );
+      }
     });
 
     try {
       final installed = await _runtimeManager.installRecommended(current);
       await _settingsStore.save(installed);
+      completed = true;
       if (!mounted) return;
       setState(() => _config = installed);
       await _refresh();
     } on TranscriptionException catch (error) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      if (_pauseRequested) {
+        setState(() {
+          _paused = true;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _failedComponent = _progress?.component;
+          _error = error.toString();
+        });
+      }
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = '安装识别环境失败：$error');
+      if (_pauseRequested) {
+        setState(() {
+          _paused = true;
+          _error = null;
+        });
+      } else {
+        setState(() {
+          _failedComponent = _progress?.component;
+          _error = '安装识别环境失败：$error';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
           _installing = false;
-          _progress = null;
+          _pauseRequested = false;
+          if (completed) _progress = null;
         });
       }
     }
   }
 
-  Future<void> _cancelInstall() async {
+  Future<void> _pauseInstall() async {
+    if (!_installing) return;
+    setState(() => _pauseRequested = true);
     await _runtimeManager.cancel();
   }
+
+  Future<void> _resumeInstall() => _install(resume: true);
 
   Future<void> _deleteModels({required bool reinstall}) async {
     final status = _status;
@@ -230,6 +266,17 @@ class _AiTranscriptionSettingsSectionState
     await _saveAndRefresh(updated);
   }
 
+  String _componentLabel(AsrRuntimeComponent component) {
+    return switch (component) {
+      AsrRuntimeComponent.ffmpeg => 'FFmpeg',
+      AsrRuntimeComponent.whisperRuntime => 'Whisper runtime',
+      AsrRuntimeComponent.whisperModel => 'Whisper 模型',
+      AsrRuntimeComponent.qwenRuntime => 'Qwen runtime',
+      AsrRuntimeComponent.qwenModel => 'Qwen 模型',
+      AsrRuntimeComponent.qwenAligner => 'ForcedAligner',
+    };
+  }
+
   String _modeLabel(TranscriptionMode mode) {
     return switch (mode) {
       TranscriptionMode.highestQuality => '最高质量 · Qwen + 对齐 + Whisper fallback',
@@ -285,7 +332,6 @@ class _AiTranscriptionSettingsSectionState
     final config = _config ?? _defaultConfig;
     final status = _status;
     final ready = status?.isReady == true;
-    final progress = _progress?.progress.clamp(0.0, 1.0).toDouble() ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -393,15 +439,21 @@ class _AiTranscriptionSettingsSectionState
           const SizedBox(height: AppSpacing.md),
           _ComponentList(components: status.components),
         ],
-        if (_installing && _progress != null) ...[
+        if (_progress != null &&
+            (_installing || _paused || _error != null)) ...[
           const SizedBox(height: AppSpacing.md),
-          LinearProgressIndicator(value: progress),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _progress!.message,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          AsrInstallProgressCard(
+            progress: _progress!,
+            paused: _paused,
+            failed: _error != null && !_paused,
+            onPause: _installing ? _pauseInstall : null,
+            onResume: _paused ? _resumeInstall : null,
+            onRetry: _error != null && !_paused
+                ? () => _install(resume: true)
+                : null,
+            retryLabel: _failedComponent == null
+                ? '重试未完成组件'
+                : '重试 ${_componentLabel(_failedComponent!)}',
           ),
         ],
         if (_error != null) ...[
@@ -428,15 +480,33 @@ class _AiTranscriptionSettingsSectionState
             ),
             if (_installing)
               OutlinedButton.icon(
-                onPressed: _cancelInstall,
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('取消安装'),
+                onPressed: _pauseInstall,
+                icon: const Icon(Icons.pause_rounded),
+                label: const Text('暂停下载'),
+              )
+            else if (_paused)
+              FilledButton.icon(
+                onPressed: _resumeInstall,
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('继续下载'),
               )
             else
               FilledButton.icon(
                 onPressed: _loading ? null : _install,
-                icon: const Icon(Icons.download_for_offline_outlined),
-                label: Text(ready ? '重新安装 / 修复' : '一键下载安装'),
+                icon: Icon(
+                  _error != null
+                      ? Icons.refresh_rounded
+                      : Icons.download_for_offline_outlined,
+                ),
+                label: Text(
+                  _error != null
+                      ? (_failedComponent == null
+                          ? '重试未完成组件'
+                          : '重试 ${_componentLabel(_failedComponent!)}')
+                      : ready
+                          ? '重新安装 / 修复'
+                          : '一键下载安装',
+                ),
               ),
             OutlinedButton.icon(
               onPressed: _busy ? null : () => _deleteModels(reinstall: false),
