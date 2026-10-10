@@ -45,9 +45,12 @@ void main() {
     expect(settings, contains('_managedStorageService.moveToDefault('));
     expect(settings, contains('正在迁移'));
     expect(settings, contains('_settingsStore.save(repaired)'));
+    expect(settings, contains('Icons.folder_open_rounded'));
 
     expect(card, contains('VoidCallback? onChangeLocation'));
     expect(card, contains('换一个磁盘 / 文件夹'));
+    expect(card, contains('Icons.folder_open_rounded'));
+    expect(card, isNot(contains('drive_file_move_outline_rounded')));
   });
 
   test('migration is copy-first and validates before switching the root',
@@ -69,5 +72,7 @@ void main() {
     expect(deleteOld, greaterThan(persist));
     expect(source, contains(".ASRRuntime.migrating-"));
     expect(source, contains('目标位置已经存在 LyricForge ASRRuntime 数据'));
+    expect(source, contains('_pathsOverlap(source.path, target.path)'));
+    expect(source, contains('目标位置不能位于当前 ASRRuntime 目录内部'));
   });
 }
