@@ -1319,6 +1319,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 
   Future<void> _renameTake(KtvRecordingSession take) async {
+    if (_takeMutationLocked()) {
+      _showTakeMutationLockedMessage();
+      return;
+    }
     final controller = TextEditingController(text: take.displayName ?? '');
     final value = await showDialog<String>(
       context: context,
@@ -1371,6 +1375,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 
   Future<void> _toggleFavoriteTake(KtvRecordingSession take) async {
+    if (_takeMutationLocked()) {
+      _showTakeMutationLockedMessage();
+      return;
+    }
     try {
       await const KtvTakeHistoryStore().updateProjectTakeMetadata(
         _project,
@@ -1388,6 +1396,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   }
 
   Future<void> _confirmDeleteTake(KtvRecordingSession take) async {
+    if (_takeMutationLocked()) {
+      _showTakeMutationLockedMessage();
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1406,6 +1418,10 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       ),
     );
     if (confirmed != true || !mounted) return;
+    if (_takeMutationLocked()) {
+      _showTakeMutationLockedMessage();
+      return;
+    }
     try {
       await const KtvTakeHistoryStore().deleteProjectTake(_project, take);
       if (!mounted) return;
@@ -1420,8 +1436,30 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       );
     }
   }
+  bool _takeMutationLocked() {
+    final state = _recordingService.currentState;
+    return state.isRecording || state.isExporting;
+  }
+
+  void _showTakeMutationLockedMessage() {
+    if (!mounted) return;
+    final state = _recordingService.currentState;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          state.isExporting
+              ? '混音正在导出，完成前不能删除、重命名或收藏录音'
+              : '录音进行中，停止录音后再管理演唱历史',
+        ),
+      ),
+    );
+  }
+
   Future<void> _openTakeHistory() async {
-    if (_recordingService.currentState.isRecording) return;
+    if (_takeMutationLocked()) {
+      _showTakeMutationLockedMessage();
+      return;
+    }
 
     KtvTakeHistoryScanResult scan;
     try {
@@ -2722,7 +2760,7 @@ class _ProjectArtwork extends StatelessWidget {
         child: Container(
           decoration: const BoxDecoration(gradient: AppColors.playerGradient),
           child: hasArtwork
-              ? Image.file(file!, fit: BoxFit.cover)
+              ? Image.file(file, fit: BoxFit.cover)
               : Center(
                   child: Icon(
                     Icons.album_rounded,
