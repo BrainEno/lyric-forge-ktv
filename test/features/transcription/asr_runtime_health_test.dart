@@ -20,10 +20,10 @@ void main() {
     await executable.writeAsString('runtime');
     await dependency.writeAsString('dependency-v1');
 
-    var probes = 0;
+    var qwenProbes = 0;
     final checker = LocalAsrRuntimeHealthChecker(
-      probe: (path, component) async {
-        probes += 1;
+      probe: (_, component) async {
+        if (component == AsrRuntimeComponent.qwenRuntime) qwenProbes += 1;
         return const RuntimeExecutableHealth(
           healthy: true,
           detail: 'ok',
@@ -37,11 +37,11 @@ void main() {
 
     expect((await checker.verify(status)).isReady, isTrue);
     expect((await checker.verify(status)).isReady, isTrue);
-    expect(probes, 1);
+    expect(qwenProbes, 1);
 
     await dependency.writeAsString('dependency-v2-with-a-different-size');
     expect((await checker.verify(status)).isReady, isTrue);
-    expect(probes, 2);
+    expect(qwenProbes, 2);
   });
 
   test('failed managed runtime is marked failed and invalidation removes bundle',
@@ -234,7 +234,10 @@ AsrRuntimeStatus _status({
 }
 
 AsrRuntimeStatus _readyStatus() {
-  return _status(root: r'C:\LyricForge\ASRRuntime', qwenPath: r'C:\LyricForge\ASRRuntime\bundle\bin\qwen3-asr.exe');
+  return _status(
+    root: r'C:\LyricForge\ASRRuntime',
+    qwenPath: r'C:\LyricForge\ASRRuntime\bundle\bin\qwen3-asr.exe',
+  );
 }
 
 AsrRuntimeStatus _withQwenFailure(AsrRuntimeStatus status) {
