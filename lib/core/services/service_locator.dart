@@ -46,6 +46,7 @@ import '../../features/transcription/data/services/native_transcription_profile_
 import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
 import '../../features/transcription/data/services/resilient_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
+import '../../features/transcription/data/services/retrying_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
@@ -225,8 +226,9 @@ class ServiceLocator {
       profileResolver: transcriptionProfileResolver,
       managedRootResolver: asrManagedStorageService.resolveRoot,
     );
+    final retryingRuntime = RetryingAsrRuntimeManager(delegate: managedRuntime);
     final resilientRuntime = ResilientAsrRuntimeManager(
-      delegate: managedRuntime,
+      delegate: retryingRuntime,
       managedRootResolver: asrManagedStorageService.resolveRoot,
     );
     asrRuntimeManager = StoragePreflightAsrRuntimeManager(
