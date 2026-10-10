@@ -46,7 +46,7 @@ class _AiTranscriptionSettingsSectionState
     modelPath: '',
   );
 
-  bool get _busy => _loading || _installing || _deleting;
+  bool get _busy => _loading || _installing || _paused || _deleting;
 
   @override
   void initState() {

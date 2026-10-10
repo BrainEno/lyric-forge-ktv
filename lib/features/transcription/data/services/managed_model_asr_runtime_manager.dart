@@ -386,7 +386,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
             _emit(
               component,
               _mapProgress(modelFraction, startProgress, endProgress),
-              '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length}',
+              '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
               downloadedBytes: downloadedBytes,
               totalBytes: totalBytes,
               bytesPerSecond: bytesPerSecond,
