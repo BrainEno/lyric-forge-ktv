@@ -44,7 +44,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  escaped_cmake_bin = lyric_forge_cmake_bin.gsub('\\', '\\\\').gsub('"', '\\"')
+  escaped_cmake_bin = lyric_forge_cmake_bin.gsub('\\', '\\\\').gsub('"'.delete('\\'), '\\"')
 
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
