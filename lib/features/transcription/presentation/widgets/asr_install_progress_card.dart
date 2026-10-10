@@ -32,7 +32,7 @@ class AsrInstallProgressCard extends StatelessWidget {
     final total = progress.totalBytes;
     final hasTransfer = downloaded != null && total != null && total > 0;
     final transferFraction = hasTransfer
-        ? (downloaded / total).clamp(0.0, 1.0).toDouble()
+        ? (downloaded! / total!).clamp(0.0, 1.0).toDouble()
         : null;
     final accent = failed
         ? AppColors.error
@@ -98,7 +98,7 @@ class AsrInstallProgressCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${_formatBytes(downloaded)} / ${_formatBytes(total)}',
+                    '${_formatBytes(downloaded!)} / ${_formatBytes(total!)}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
