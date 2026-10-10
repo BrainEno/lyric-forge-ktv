@@ -80,8 +80,8 @@ void main() {
     ).readAsStringSync();
 
     expect(card, contains('_componentLabel(progress.component)'));
-    expect(card, contains('_formatBytes(downloaded!)'));
-    expect(card, contains('_formatBytes(total!)'));
+    expect(card, contains('_formatBytes(downloaded)'));
+    expect(card, contains('_formatBytes(total)'));
     expect(card, contains('_formatSpeed(progress.bytesPerSecond!)'));
     expect(card, contains('_formatDuration(progress.estimatedRemaining!)'));
     expect(card, contains('断点已保留'));
