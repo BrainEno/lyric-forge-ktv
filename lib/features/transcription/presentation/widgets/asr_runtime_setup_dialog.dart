@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../../data/services/local_asr_managed_storage_service.dart';
 
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -28,6 +31,7 @@ class AsrRuntimeSetupDialog extends StatefulWidget {
 class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   late final AsrRuntimeManager _runtimeManager;
   late final AsrStoragePreflightService _storagePreflightService;
+  late final LocalAsrManagedStorageService _managedStorageService;
   late TranscriptionConfig _config;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
@@ -47,6 +51,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     final services = ServiceLocatorGlobal.I;
     _runtimeManager = services.asrRuntimeManager;
     _storagePreflightService = services.asrStoragePreflightService;
+    _managedStorageService = services.asrManagedStorageService;
     _config = widget.initialConfig ??
         const TranscriptionConfig(
           mode: TranscriptionMode.highestQuality,
@@ -191,6 +196,41 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
 
   Future<void> _resumeInstall() => _install(resume: true);
 
+  Future<void> _changeManagedStorageLocation() async {
+    if (_installing || _runtimeManager.isInstalling) return;
+    final parent = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择 ASR 模型和 runtime 所在磁盘 / 文件夹',
+    );
+    if (parent == null || parent.trim().isEmpty || !mounted) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await _managedStorageService.moveToParent(parent);
+      final repaired = await _runtimeManager.repair(_config);
+      if (!mounted) return;
+      setState(() => _config = repaired);
+      await _refresh();
+      if (!mounted || !result.moved) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.oldRootRetained
+                ? '识别环境已切换到新位置；旧目录未能自动删除，请稍后手工清理。'
+                : '识别环境已安全迁移到新位置。',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = '更改模型存储位置失败：$error');
+    } finally {
+      if (mounted && _loading) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
       context: context,
@@ -333,6 +373,8 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   AsrStoragePreflightCard(
                     result: _storage,
                     loading: _loading,
+                    onChangeLocation:
+                        _installing ? null : _changeManagedStorageLocation,
                   ),
                   if (_installProgress != null &&
                       (_installing || _paused || _error != null)) ...[
