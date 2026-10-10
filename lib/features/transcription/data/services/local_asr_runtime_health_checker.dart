@@ -151,9 +151,19 @@ class LocalAsrRuntimeHealthChecker implements AsrRuntimeHealthChecker {
 
   @override
   void clearCache() {
+    final root = _loadedRoot;
     _cache.clear();
-    _loadedRoot = null;
     _cacheDirty = false;
+    if (root != null && root.trim().isNotEmpty) {
+      try {
+        final file = File(_join(root, ['.runtime-health-v1.json']));
+        if (file.existsSync()) file.deleteSync();
+      } catch (_) {
+        // An undeletable cache cannot make the next in-memory probe disappear;
+        // file/dependency fingerprints and TTL still guard future sessions.
+      }
+    }
+    _loadedRoot = null;
   }
 
   Future<RuntimeExecutableHealth> _healthFor(
