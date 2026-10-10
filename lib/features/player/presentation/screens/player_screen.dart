@@ -23,6 +23,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/ktv_microphone_service.dart';
 import '../../domain/services/ktv_recording_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
   final String projectId;
@@ -296,26 +297,13 @@ class _PlayerContentState extends State<_PlayerContent> {
     if (document == null || document.lines.isEmpty) return;
 
     await Navigator.of(context).push<void>(
-      PageRouteBuilder<void>(
-        opaque: true,
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 150),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return FadeTransition(
-            opacity: animation,
-            child: _FullScreenKtvView(
-              initialProject: widget.project,
-              repository: widget.repository,
-              audioService: widget.audioService,
-              playbackSession: widget.playbackSession,
-              onPlayPause: widget.onPlayPause,
-              onSeek: widget.onSeek,
-              onSwitchSource: widget.onSwitchSource,
-              onSkipPrevious: widget.onSkipPrevious,
-              onSkipNext: widget.onSkipNext,
-            ),
-          );
-        },
+      MaterialPageRoute<void>(
+        builder: (_) => ImmersiveKtvScreen(
+          initialProjectId: widget.project.id,
+          projectRepository: widget.repository,
+          audioService: widget.audioService,
+          playbackSession: widget.playbackSession,
+        ),
       ),
     );
   }
