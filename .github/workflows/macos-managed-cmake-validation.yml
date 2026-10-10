@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 30
     env:
       LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"
-      LYRIC_FORGE_CMAKE_CACHE_ROOT: ${{ runner.temp }}/lyric-forge-cmake
+      LYRIC_FORGE_CMAKE_CACHE_ROOT: /tmp/lyric-forge-cmake-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
