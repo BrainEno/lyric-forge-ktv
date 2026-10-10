@@ -42,8 +42,18 @@ void main() {
     expect(result.copiedFiles, 2);
     expect(progress, isNotEmpty);
     expect(progress.last, 1357);
-    expect(await File('$expected${Platform.pathSeparator}models${Platform.pathSeparator}qwen${Platform.pathSeparator}model.bin').length(), 1024);
-    expect(await File('$expected${Platform.pathSeparator}downloads${Platform.pathSeparator}runtime.zip.part').length(), 333);
+    expect(
+      await File(
+        '$expected${Platform.pathSeparator}models${Platform.pathSeparator}qwen${Platform.pathSeparator}model.bin',
+      ).length(),
+      1024,
+    );
+    expect(
+      await File(
+        '$expected${Platform.pathSeparator}downloads${Platform.pathSeparator}runtime.zip.part',
+      ).length(),
+      333,
+    );
     expect((await service.resolveRoot()).path, expected);
     expect(await source.exists(), isFalse);
   });
@@ -61,7 +71,9 @@ void main() {
       supportDirectoryResolver: () async => support,
     );
     final source = await service.resolveRoot();
-    final file = File('${source.path}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr');
+    final file = File(
+      '${source.path}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
+    );
     await file.parent.create(recursive: true);
     await file.writeAsString('runtime');
 
@@ -75,7 +87,9 @@ void main() {
     expect(back.moved, isTrue);
     expect(current.isDefault, isTrue);
     expect(
-      await File('${current.activeRoot}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr').readAsString(),
+      await File(
+        '${current.activeRoot}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
+      ).readAsString(),
       'runtime',
     );
   });
@@ -90,7 +104,8 @@ void main() {
       supportDirectoryResolver: () async => support,
     );
     final source = await service.resolveRoot();
-    await File('${source.path}${Platform.pathSeparator}source.bin').writeAsString('source');
+    await File('${source.path}${Platform.pathSeparator}source.bin')
+        .writeAsString('source');
 
     final conflicting = File(
       '${destination.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime${Platform.pathSeparator}foreign.bin',
@@ -104,7 +119,42 @@ void main() {
     );
 
     expect((await service.resolveRoot()).path, source.path);
-    expect(await File('${source.path}${Platform.pathSeparator}source.bin').exists(), isTrue);
+    expect(
+      await File('${source.path}${Platform.pathSeparator}source.bin').exists(),
+      isTrue,
+    );
     expect(await conflicting.readAsString(), 'do not overwrite');
+  });
+
+  test('refuses a migration target nested inside the current ASR root',
+      () async {
+    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-overlap-');
+    addTearDown(() => sandbox.delete(recursive: true));
+    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
+    await support.create(recursive: true);
+    final service = LocalAsrManagedStorageService(
+      supportDirectoryResolver: () async => support,
+    );
+    final source = await service.resolveRoot();
+    final sourceFile = File('${source.path}${Platform.pathSeparator}keep.bin');
+    await sourceFile.writeAsString('keep-me');
+
+    final nestedParent = Directory(
+      '${source.path}${Platform.pathSeparator}nested-destination',
+    );
+    await expectLater(
+      service.moveToParent(nestedParent.path),
+      throwsA(
+        isA<FileSystemException>().having(
+          (error) => error.message,
+          'message',
+          contains('不能位于当前 ASRRuntime 目录内部'),
+        ),
+      ),
+    );
+
+    expect((await service.resolveRoot()).path, source.path);
+    expect(await sourceFile.readAsString(), 'keep-me');
+    expect(service.isMoving, isFalse);
   });
 }
