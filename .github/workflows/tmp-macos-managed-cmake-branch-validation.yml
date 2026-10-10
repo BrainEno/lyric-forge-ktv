@@ -33,3 +33,6 @@ jobs:
           test -x "$LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake"
           "$LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" --version
           grep -q "LyricForge managed CMake PATH" macos/Pods/Pods.xcodeproj/project.pbxproj
+
+# This file is intentionally temporary and is removed after the branch-only
+# macOS build proves the managed fallback on Flutter 3.41.9.
