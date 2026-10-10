@@ -3,6 +3,7 @@ name: Transcription queue protective pause validation
 on:
   pull_request:
     paths:
+      - "lib/features/import/presentation/screens/transcription_ready_import_screen.dart"
       - "lib/features/transcription/domain/models/transcription_models.dart"
       - "lib/features/transcription/domain/models/transcription_queue_models.dart"
       - "lib/features/transcription/data/services/file_batch_transcription_queue.dart"
@@ -10,11 +11,13 @@ on:
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
       - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
       - "test/file_batch_transcription_queue_test.dart"
+      - "test/features/import/transcription_ready_import_contract_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
       - ".github/workflows/transcription-queue-protective-pause-validation.yml"
   push:
     branches: [main]
     paths:
+      - "lib/features/import/presentation/screens/transcription_ready_import_screen.dart"
       - "lib/features/transcription/domain/models/transcription_models.dart"
       - "lib/features/transcription/domain/models/transcription_queue_models.dart"
       - "lib/features/transcription/data/services/file_batch_transcription_queue.dart"
@@ -22,6 +25,7 @@ on:
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
       - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
       - "test/file_batch_transcription_queue_test.dart"
+      - "test/features/import/transcription_ready_import_contract_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
       - ".github/workflows/transcription-queue-protective-pause-validation.yml"
 
@@ -39,6 +43,7 @@ jobs:
       - name: Analyze protective pause changes
         run: >-
           flutter analyze --no-fatal-infos
+          lib/features/import/presentation/screens/transcription_ready_import_screen.dart
           lib/features/transcription/domain/models/transcription_models.dart
           lib/features/transcription/domain/models/transcription_queue_models.dart
           lib/features/transcription/data/services/file_batch_transcription_queue.dart
@@ -46,11 +51,13 @@ jobs:
           lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
           lib/features/transcription/presentation/widgets/transcription_queue_panel.dart
           test/file_batch_transcription_queue_test.dart
+          test/features/import/transcription_ready_import_contract_test.dart
           test/features/transcription/transcription_queue_protective_pause_contract_test.dart
       - name: Test protective queue behavior
         run: >-
           flutter test
           test/file_batch_transcription_queue_test.dart
+          test/features/import/transcription_ready_import_contract_test.dart
           test/features/transcription/transcription_queue_protective_pause_contract_test.dart
       - name: Full Flutter regression suite
         run: flutter test
