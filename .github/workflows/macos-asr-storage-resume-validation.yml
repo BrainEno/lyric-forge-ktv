@@ -8,6 +8,7 @@ on:
       - 'macos/Runner/MainFlutterWindow.swift'
       - 'macos/Runner/*.entitlements'
       - 'test/features/transcription/asr_managed_storage_service_test.dart'
+      - 'test/features/transcription/asr_managed_storage_contract_test.dart'
       - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
       - '.github/workflows/macos-asr-storage-resume-validation.yml'
   push:
@@ -18,6 +19,7 @@ on:
       - 'macos/Runner/MainFlutterWindow.swift'
       - 'macos/Runner/*.entitlements'
       - 'test/features/transcription/asr_managed_storage_service_test.dart'
+      - 'test/features/transcription/asr_managed_storage_contract_test.dart'
       - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
       - '.github/workflows/macos-asr-storage-resume-validation.yml'
 
@@ -38,11 +40,13 @@ jobs:
           lib/features/transcription/data/services/local_asr_managed_storage_service.dart
           lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
           test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_managed_storage_contract_test.dart
           test/features/transcription/asr_runtime_resume_contract_test.dart
-      - name: Test bookmark persistence and byte-range resume contracts
+      - name: Test bookmark persistence, migration and byte-range resume contracts
         run: >-
           flutter test
           test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_managed_storage_contract_test.dart
           test/features/transcription/asr_runtime_resume_contract_test.dart
       - name: Full Flutter regression suite
         run: flutter test
