@@ -13,6 +13,10 @@
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
     
+    <!-- 持久保存用户选择的外部模型目录访问权限 -->
+    <key>com.apple.security.files.bookmarks.app-scope</key>
+    <true/>
+    
     <!-- 允许访问 Downloads 文件夹 -->
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
