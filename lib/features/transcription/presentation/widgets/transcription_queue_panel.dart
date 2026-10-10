@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
+import 'asr_runtime_setup_dialog.dart';
 import '../../domain/services/batch_transcription_queue.dart';
 
 class TranscriptionQueuePanel extends StatelessWidget {
@@ -112,7 +113,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 _EnvironmentBlockedCard(
                   message: state.pauseMessage,
-                  onRepair: () => Navigator.pushNamed(context, Routes.settings),
+                  onRepair: () => _repairEnvironment(context, service),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -218,6 +219,64 @@ class TranscriptionQueuePanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _repairEnvironment(
+    BuildContext context,
+    BatchTranscriptionQueue queue,
+  ) async {
+    final services = ServiceLocatorGlobal.I;
+    final store = services.transcriptionSettingsStore;
+    final runtime = services.asrRuntimeManager;
+
+    try {
+      final current = await store.load();
+      if (!context.mounted) return;
+
+      final updated = await showDialog<TranscriptionConfig>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
+      );
+      if (updated == null) return;
+
+      await store.save(updated);
+      final repaired = await runtime.repair(updated);
+      final status = await runtime.inspect(repaired);
+      await store.save(repaired);
+      if (!context.mounted) return;
+
+      if (!status.isReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('识别环境仍未完全就绪，队列继续保持暂停。'),
+          ),
+        );
+        return;
+      }
+
+      // Resume only an environment-protective pause. If the queue state changed
+      // while the repair dialog was open (for example the user manually paused
+      // it elsewhere), never override that newer intent.
+      if (!queue.current.isEnvironmentBlocked) return;
+      await queue.resume();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('识别环境已恢复，后台队列已继续。'),
+        ),
+      );
+    } on TranscriptionException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('识别环境仍需处理：$error')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('检查识别环境失败：$error')),
+      );
+    }
   }
 
   TranscriptionQueueItem? _firstWithStatus(

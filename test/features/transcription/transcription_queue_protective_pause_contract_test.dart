@@ -27,7 +27,13 @@ void main() {
     ).readAsString();
 
     expect(panel, contains('state.isEnvironmentBlocked'));
-    expect(panel, contains("Navigator.pushNamed(context, Routes.settings)"));
+    expect(panel, contains('AsrRuntimeSetupDialog(initialConfig: current)'));
+    expect(panel, contains('await store.save(updated)'));
+    expect(panel, contains('final repaired = await runtime.repair(updated)'));
+    expect(panel, contains('final status = await runtime.inspect(repaired)'));
+    expect(panel, contains('if (!status.isReady)'));
+    expect(panel, contains('if (!queue.current.isEnvironmentBlocked) return;'));
+    expect(panel, contains('await queue.resume()'));
     expect(panel, contains('修复识别环境'));
     expect(panel, contains('后续歌曲已保护性暂停'));
 
