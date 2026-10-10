@@ -9,11 +9,13 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   final AsrRuntimeManager delegate;
   final AsrStoragePreflightService storagePreflightService;
   final AsrRuntimeHealthChecker healthChecker;
+  final Future<bool> Function()? storageAuthorizationRequired;
 
   StoragePreflightAsrRuntimeManager({
     required this.delegate,
     required this.storagePreflightService,
     AsrRuntimeHealthChecker? healthChecker,
+    this.storageAuthorizationRequired,
   }) : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker();
 
   @override
@@ -38,6 +40,14 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
   Future<TranscriptionConfig> installRecommended(
     TranscriptionConfig config,
   ) async {
+    if (await storageAuthorizationRequired?.call() == true) {
+      throw TranscriptionException.environment(
+        'macOS 需要重新授权当前模型存储目录。请点击“更改模型存储位置”，'
+        '重新选择当前 ASRRuntime 所在位置的父文件夹；已有 .part 断点文件会继续保留。',
+        details: 'security-scoped bookmark missing for custom managed ASR root',
+      );
+    }
+
     AsrRuntimeStatus? status;
     try {
       final raw = await delegate.inspect(config);
@@ -75,10 +85,6 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
         await delegate.inspect(installed),
       );
     } catch (_) {
-      // The managed installer already performs its own completion checks. Some
-      // specialized/test delegates intentionally do not expose inspect after an
-      // install, so lack of a secondary health report must not fabricate a
-      // failure. Production delegates do expose it and are checked below.
       return installed;
     }
 
