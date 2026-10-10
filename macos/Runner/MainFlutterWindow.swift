@@ -2,8 +2,7 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
-  private var activeSecurityScopedURL: URL?
-  private var activeSecurityScopeStarted = false
+  private var activeSecurityScopedURLs: [String: (url: URL, started: Bool)] = [:]
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -137,22 +136,18 @@ class MainFlutterWindow: NSWindow {
   }
 
   private func activateSecurityScopedURL(_ url: URL) {
-    if let current = activeSecurityScopedURL,
-       current.standardizedFileURL == url.standardizedFileURL {
+    let key = url.standardizedFileURL.path
+    if activeSecurityScopedURLs[key] != nil {
       return
     }
 
-    if activeSecurityScopeStarted, let current = activeSecurityScopedURL {
-      current.stopAccessingSecurityScopedResource()
-    }
-
-    activeSecurityScopedURL = url
-    activeSecurityScopeStarted = url.startAccessingSecurityScopedResource()
+    let started = url.startAccessingSecurityScopedResource()
+    activeSecurityScopedURLs[key] = (url: url, started: started)
   }
 
   deinit {
-    if activeSecurityScopeStarted, let current = activeSecurityScopedURL {
-      current.stopAccessingSecurityScopedResource()
+    for entry in activeSecurityScopedURLs.values where entry.started {
+      entry.url.stopAccessingSecurityScopedResource()
     }
   }
 }
