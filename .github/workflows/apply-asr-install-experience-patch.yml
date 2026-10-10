@@ -1,0 +1,33 @@
+name: Apply ASR install experience patch
+
+on:
+  push:
+    branches:
+      - feat/asr-install-experience
+    paths:
+      - ".github/workflows/apply-asr-install-experience-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/asr-install-experience
+          fetch-depth: 0
+      - name: Apply source patch
+        run: python3 tool/apply_asr_install_experience_patch.py
+      - name: Commit source patch and remove one-shot files
+        run: |
+          git rm .github/workflows/apply-asr-install-experience-patch.yml tool/apply_asr_install_experience_patch.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/transcription/data/services/managed_asr_runtime_manager.dart
+          git add lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart
+          git add lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+          git add lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          git commit -m "Add resumable ASR install experience"
+          git push origin HEAD:feat/asr-install-experience
