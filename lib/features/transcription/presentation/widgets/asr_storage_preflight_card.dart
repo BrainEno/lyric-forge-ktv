@@ -41,6 +41,7 @@ class AsrStoragePreflightCard extends StatelessWidget {
     final value = result;
     if (value == null) return const SizedBox.shrink();
 
+    final availableBytes = value.availableBytes;
     final insufficient = value.state == AsrStoragePreflightState.insufficient;
     final unknown = value.state == AsrStoragePreflightState.unknown;
     final ready = value.state == AsrStoragePreflightState.ready;
@@ -131,9 +132,9 @@ class AsrStoragePreflightCard extends StatelessWidget {
                 ),
                 _Metric(
                   label: '当前可用',
-                  value: value.availableBytes == null
+                  value: availableBytes == null
                       ? '无法读取'
-                      : _formatBytes(value.availableBytes!),
+                      : _formatBytes(availableBytes),
                   emphasis: insufficient,
                 ),
                 if (insufficient)
