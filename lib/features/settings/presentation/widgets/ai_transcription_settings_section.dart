@@ -593,7 +593,7 @@ class _AiTranscriptionSettingsSectionState
           children: [
             OutlinedButton.icon(
               onPressed: _busy ? null : _changeManagedStorageLocation,
-              icon: const Icon(Icons.drive_file_move_outline_rounded),
+              icon: const Icon(Icons.folder_open_rounded),
               label: const Text('更改模型存储位置'),
             ),
             if (_managedStorageLocation?.isDefault == false)

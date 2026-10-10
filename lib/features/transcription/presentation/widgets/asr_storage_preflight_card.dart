@@ -171,7 +171,7 @@ class AsrStoragePreflightCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: onChangeLocation,
-                icon: const Icon(Icons.drive_file_move_outline_rounded),
+                icon: const Icon(Icons.folder_open_rounded),
                 label: Text(insufficient ? '换一个磁盘 / 文件夹' : '更改模型存储位置'),
               ),
             ),
