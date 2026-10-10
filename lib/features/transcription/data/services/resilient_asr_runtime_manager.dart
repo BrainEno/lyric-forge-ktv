@@ -18,6 +18,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   static const String _whisperWindowsX64Asset = 'whisper-bin-x64.zip';
 
   final AsrRuntimeManager delegate;
+  final Future<Directory> Function()? managedRootResolver;
   final Future<String?> Function(TranscriptionConfig config)?
       whisperRuntimeBootstrap;
 
@@ -34,6 +35,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
 
   ResilientAsrRuntimeManager({
     required this.delegate,
+    this.managedRootResolver,
     this.whisperRuntimeBootstrap,
   }) {
     _delegateSubscription =
@@ -369,6 +371,12 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<Directory> _managedRoot() async {
+    final injected = managedRootResolver;
+    if (injected != null) {
+      final root = await injected();
+      await root.create(recursive: true);
+      return root;
+    }
     final support = await getApplicationSupportDirectory();
     final root = Directory(
       _join(support.path, ['LyricForge', 'ASRRuntime']),

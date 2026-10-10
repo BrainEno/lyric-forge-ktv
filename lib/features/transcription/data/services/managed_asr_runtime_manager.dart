@@ -21,6 +21,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   );
 
   final TranscriptionProfileResolver profileResolver;
+  final Future<Directory> Function()? managedRootResolver;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -32,6 +33,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   ManagedAsrRuntimeManager({
     required this.profileResolver,
+    this.managedRootResolver,
   });
 
   @override
@@ -863,6 +865,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<Directory> _managedRoot() async {
+    final injected = managedRootResolver;
+    if (injected != null) {
+      final root = await injected();
+      await root.create(recursive: true);
+      return root;
+    }
     final support = await getApplicationSupportDirectory();
     final root = Directory(
       _join(support.path, ['LyricForge', 'ASRRuntime']),

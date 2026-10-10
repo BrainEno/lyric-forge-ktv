@@ -1,0 +1,65 @@
+name: ASR managed storage location validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/core/services/service_locator.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "lib/features/transcription/data/services/local_asr_managed_storage_service.dart"
+      - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/resilient_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart"
+      - "test/features/transcription/asr_managed_storage_service_test.dart"
+      - "test/features/transcription/asr_managed_storage_contract_test.dart"
+      - ".github/workflows/asr-managed-storage-location-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/core/services/service_locator.dart"
+      - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
+      - "lib/features/transcription/data/services/local_asr_managed_storage_service.dart"
+      - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
+      - "lib/features/transcription/data/services/managed_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart"
+      - "lib/features/transcription/data/services/resilient_asr_runtime_manager.dart"
+      - "lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart"
+      - "lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart"
+      - "test/features/transcription/asr_managed_storage_service_test.dart"
+      - "test/features/transcription/asr_managed_storage_contract_test.dart"
+      - ".github/workflows/asr-managed-storage-location-validation.yml"
+
+jobs:
+  managed-storage-location:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze managed storage changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/core/services/service_locator.dart
+          lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          lib/features/transcription/data/services/local_asr_managed_storage_service.dart
+          lib/features/transcription/data/services/local_asr_storage_preflight_service.dart
+          lib/features/transcription/data/services/managed_asr_runtime_manager.dart
+          lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart
+          lib/features/transcription/data/services/resilient_asr_runtime_manager.dart
+          lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+          lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart
+          test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_managed_storage_contract_test.dart
+      - name: Test managed storage migration
+        run: >-
+          flutter test
+          test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_managed_storage_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

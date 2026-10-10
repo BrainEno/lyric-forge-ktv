@@ -37,6 +37,7 @@ import '../../features/transcription/data/services/file_batch_transcription_queu
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
+import '../../features/transcription/data/services/local_asr_managed_storage_service.dart';
 import '../../features/transcription/data/services/local_asr_storage_preflight_service.dart';
 import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
 import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
@@ -96,6 +97,7 @@ class ServiceLocator {
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
   late final AsrRuntimeManager asrRuntimeManager;
+  late final LocalAsrManagedStorageService asrManagedStorageService;
   late final AsrStoragePreflightService asrStoragePreflightService;
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
@@ -209,18 +211,23 @@ class ServiceLocator {
     );
     unawaited(mediaTransferQueueService.initialize());
     transcriptionProfileResolver = NativeTranscriptionProfileResolver();
+    asrManagedStorageService = LocalAsrManagedStorageService();
     asrStoragePreflightService = LocalAsrStoragePreflightService(
       profileResolver: transcriptionProfileResolver,
+      managedRootResolver: asrManagedStorageService.resolveRoot,
     );
     final runtimeInstaller = ManagedAsrRuntimeManager(
       profileResolver: transcriptionProfileResolver,
+      managedRootResolver: asrManagedStorageService.resolveRoot,
     );
     final managedRuntime = ManagedModelAsrRuntimeManager(
       delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
+      managedRootResolver: asrManagedStorageService.resolveRoot,
     );
     final resilientRuntime = ResilientAsrRuntimeManager(
       delegate: managedRuntime,
+      managedRootResolver: asrManagedStorageService.resolveRoot,
     );
     asrRuntimeManager = StoragePreflightAsrRuntimeManager(
       delegate: resilientRuntime,

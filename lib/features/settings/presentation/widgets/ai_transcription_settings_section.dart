@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../transcription/data/services/local_asr_managed_storage_service.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
@@ -27,11 +29,13 @@ class _AiTranscriptionSettingsSectionState
   late final TranscriptionSettingsStore _settingsStore;
   late final AsrRuntimeManager _runtimeManager;
   late final AsrStoragePreflightService _storagePreflightService;
+  late final LocalAsrManagedStorageService _managedStorageService;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
   TranscriptionConfig? _config;
   AsrRuntimeStatus? _status;
   AsrStoragePreflightResult? _storage;
+  AsrManagedStorageLocation? _managedStorageLocation;
   AsrRuntimeInstallProgress? _progress;
   int? _managedBytes;
   bool _loading = true;
@@ -39,6 +43,9 @@ class _AiTranscriptionSettingsSectionState
   bool _paused = false;
   bool _pauseRequested = false;
   bool _deleting = false;
+  bool _movingStorage = false;
+  int _movingCopiedBytes = 0;
+  int _movingTotalBytes = 0;
   AsrRuntimeComponent? _failedComponent;
   String? _error;
 
@@ -50,7 +57,8 @@ class _AiTranscriptionSettingsSectionState
     modelPath: '',
   );
 
-  bool get _busy => _loading || _installing || _paused || _deleting;
+  bool get _busy =>
+      _loading || _installing || _paused || _deleting || _movingStorage;
 
   @override
   void initState() {
@@ -59,6 +67,7 @@ class _AiTranscriptionSettingsSectionState
     _settingsStore = services.transcriptionSettingsStore;
     _runtimeManager = services.asrRuntimeManager;
     _storagePreflightService = services.asrStoragePreflightService;
+    _managedStorageService = services.asrManagedStorageService;
     _progressSubscription = _runtimeManager.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _progress = progress);
@@ -88,12 +97,14 @@ class _AiTranscriptionSettingsSectionState
         repaired,
         runtimeStatus: status,
       );
+      final location = await _managedStorageService.inspect();
       final bytes = await _directorySize(status.managedRoot);
       if (!mounted) return;
       setState(() {
         _config = repaired;
         _status = status;
         _storage = storage;
+        _managedStorageLocation = location;
         _managedBytes = bytes;
       });
     } on TranscriptionException catch (error) {
@@ -233,6 +244,103 @@ class _AiTranscriptionSettingsSectionState
   }
 
   Future<void> _resumeInstall() => _install(resume: true);
+
+  Future<void> _changeManagedStorageLocation() async {
+    final parent = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择 ASR 模型和 runtime 所在磁盘 / 文件夹',
+    );
+    if (parent == null || parent.trim().isEmpty || !mounted) return;
+    await _moveManagedStorage(parent: parent);
+  }
+
+  Future<void> _restoreDefaultStorageLocation() async {
+    await _moveManagedStorage(useDefault: true);
+  }
+
+  Future<void> _moveManagedStorage({
+    String? parent,
+    bool useDefault = false,
+  }) async {
+    if (_busy || _runtimeManager.isInstalling) return;
+    if (!useDefault && (parent == null || parent.trim().isEmpty)) return;
+
+    final bytes = _managedBytes ?? 0;
+    if (bytes > 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(useDefault ? '迁回默认位置？' : '迁移识别环境？'),
+          content: Text(
+            '当前托管环境约 ${_formatBytes(bytes)}。LyricForge 会先完整复制并核对文件数量与总大小，'
+            '确认新目录完整后才切换路径并清理旧目录；迁移期间不会启动识别任务。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('开始迁移'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    setState(() {
+      _movingStorage = true;
+      _movingCopiedBytes = 0;
+      _movingTotalBytes = bytes;
+      _error = null;
+    });
+    try {
+      final result = useDefault
+          ? await _managedStorageService.moveToDefault(
+              onProgress: _onStorageMoveProgress,
+            )
+          : await _managedStorageService.moveToParent(
+              parent!,
+              onProgress: _onStorageMoveProgress,
+            );
+      final current = _config ?? _defaultConfig;
+      final repaired = await _runtimeManager.repair(current);
+      await _settingsStore.save(repaired);
+      if (!mounted) return;
+      setState(() => _config = repaired);
+      await _refresh();
+      if (!mounted || !result.moved) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.oldRootRetained
+                ? '识别环境已切换；旧目录 ${result.sourceRoot} 未能自动删除，请手工清理。'
+                : '识别环境已迁移到 ${result.targetRoot}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = '迁移识别环境失败：$error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _movingStorage = false;
+          _movingCopiedBytes = 0;
+          _movingTotalBytes = 0;
+        });
+      }
+    }
+  }
+
+  void _onStorageMoveProgress(int copiedBytes, int totalBytes) {
+    if (!mounted) return;
+    setState(() {
+      _movingCopiedBytes = copiedBytes;
+      _movingTotalBytes = totalBytes;
+    });
+  }
 
   Future<void> _deleteModels({required bool reinstall}) async {
     final status = _status;
@@ -475,6 +583,35 @@ class _AiTranscriptionSettingsSectionState
         AsrStoragePreflightCard(
           result: _storage,
           loading: _loading,
+          onChangeLocation: _busy ? null : _changeManagedStorageLocation,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _changeManagedStorageLocation,
+              icon: const Icon(Icons.folder_open_rounded),
+              label: const Text('更改模型存储位置'),
+            ),
+            if (_managedStorageLocation?.isDefault == false)
+              TextButton.icon(
+                onPressed: _busy ? null : _restoreDefaultStorageLocation,
+                icon: const Icon(Icons.settings_backup_restore_rounded),
+                label: const Text('迁回默认位置'),
+              ),
+            if (_movingStorage)
+              Text(
+                _movingTotalBytes > 0
+                    ? '正在迁移 ${_formatBytes(_movingCopiedBytes)} / ${_formatBytes(_movingTotalBytes)}'
+                    : '正在迁移识别环境…',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+          ],
         ),
         if (_progress != null &&
             (_installing || _paused || _error != null)) ...[
