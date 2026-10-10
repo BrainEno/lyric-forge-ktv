@@ -1,0 +1,72 @@
+name: macOS ASR storage resume validation
+
+on:
+  pull_request:
+    paths:
+      - 'lib/features/transcription/data/services/local_asr_managed_storage_service.dart'
+      - 'lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart'
+      - 'macos/Runner/MainFlutterWindow.swift'
+      - 'macos/Runner/*.entitlements'
+      - 'test/features/transcription/asr_managed_storage_service_test.dart'
+      - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
+      - '.github/workflows/macos-asr-storage-resume-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/features/transcription/data/services/local_asr_managed_storage_service.dart'
+      - 'lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart'
+      - 'macos/Runner/MainFlutterWindow.swift'
+      - 'macos/Runner/*.entitlements'
+      - 'test/features/transcription/asr_managed_storage_service_test.dart'
+      - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
+      - '.github/workflows/macos-asr-storage-resume-validation.yml'
+
+jobs:
+  targeted-flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze storage authorization changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/features/transcription/data/services/local_asr_managed_storage_service.dart
+          lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart
+          test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_runtime_resume_contract_test.dart
+      - name: Test bookmark persistence and byte-range resume contracts
+        run: >-
+          flutter test
+          test/features/transcription/asr_managed_storage_service_test.dart
+          test/features/transcription/asr_runtime_resume_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test
+
+  macos-native-bookmark:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Validate bookmark entitlements
+        run: |
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.files.bookmarks.app-scope' macos/Runner/DebugProfile.entitlements | grep -q true
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.files.bookmarks.app-scope' macos/Runner/Release.entitlements | grep -q true
+      - name: Build macOS debug app with security-scoped bookmark bridge
+        run: flutter build macos --debug
+      - name: Verify signed debug app keeps sandbox permissions
+        run: |
+          APP="build/macos/Build/Products/Debug/Elysium Player.app"
+          test -d "$APP"
+          codesign -d --entitlements :- "$APP" > /tmp/entitlements.plist 2>/dev/null
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.network.client' /tmp/entitlements.plist | grep -q true
+          /usr/libexec/PlistBuddy -c 'Print :com.apple.security.files.bookmarks.app-scope' /tmp/entitlements.plist | grep -q true
