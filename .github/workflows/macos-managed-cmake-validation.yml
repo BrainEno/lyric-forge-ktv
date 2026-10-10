@@ -63,6 +63,7 @@ jobs:
           fi
 
           rm -rf "$LYRIC_FORGE_CMAKE_CACHE_ROOT"
+          rm -rf "$PUB_CACHE/hosted/pub.dev/flutter_soloud-4.1.7/macos/cmake_build"
           rm -f "$LYRIC_FORGE_BUILD_LOG"
           flutter build macos --debug 2>&1 | tee "$LYRIC_FORGE_BUILD_LOG"
       - name: Verify managed CMake was actually used
@@ -71,6 +72,7 @@ jobs:
           "$LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" --version
           grep -q "LyricForge managed CMake PATH" macos/Pods/Pods.xcodeproj/project.pbxproj
           grep -Fq "Using cmake: $LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" "$LYRIC_FORGE_BUILD_LOG"
+          grep -Fq "Built target flutter_soloud_plugin" "$LYRIC_FORGE_BUILD_LOG"
           grep -Fq "Built build/macos/Build/Products/Debug/" "$LYRIC_FORGE_BUILD_LOG"
 
   flutter-regression:
