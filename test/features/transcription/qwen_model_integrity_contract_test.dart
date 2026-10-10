@@ -32,7 +32,7 @@ void main() {
   test('validates resumed ranges and final size before accepting the part file', () {
     final downloadStart = source.indexOf('Future<void> _downloadModelFile');
     final rangeCheck = source.indexOf(
-      "contentRange.startsWith('bytes 4existing-')",
+      r"contentRange.startsWith('bytes $existing-')",
       downloadStart,
     );
     final sizeCheck = source.indexOf(
@@ -52,14 +52,8 @@ void main() {
   });
 
   test('keeps short partial files for resume but deletes corrupt full files', () {
-    expect(
-      source,
-      contains('下载未完成，下次将从断点继续'),
-    );
-    expect(
-      source,
-      contains('完整性校验失败，已删除损坏文件'),
-    );
+    expect(source, contains('下载未完成，下次将从断点继续'));
+    expect(source, contains('完整性校验失败，已删除损坏文件'));
     expect(source, contains('await part.delete();'));
   });
 
