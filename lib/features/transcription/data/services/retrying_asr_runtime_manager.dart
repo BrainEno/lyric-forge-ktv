@@ -159,7 +159,8 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<void> _waitBeforeRetry(int completedAttempt) async {
-    final multiplier = 1 << (completedAttempt - 1).clamp(0, 3);
+    final exponent = (completedAttempt - 1).clamp(0, 3).toInt();
+    final multiplier = 1 << exponent;
     final delay = Duration(
       milliseconds: retryDelay.inMilliseconds * multiplier,
     );
