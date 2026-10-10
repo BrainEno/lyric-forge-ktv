@@ -276,11 +276,55 @@ class TranscriptionResult {
   });
 }
 
+enum TranscriptionFailureKind {
+  unknown,
+  environment,
+  input,
+  cancelled,
+  busy,
+}
+
 class TranscriptionException implements Exception {
   final String message;
   final String? details;
+  final TranscriptionFailureKind kind;
 
-  const TranscriptionException(this.message, {this.details});
+  const TranscriptionException(
+    this.message, {
+    this.details,
+    this.kind = TranscriptionFailureKind.unknown,
+  });
+
+  const TranscriptionException.environment(
+    this.message, {
+    this.details,
+  }) : kind = TranscriptionFailureKind.environment;
+
+  const TranscriptionException.input(
+    this.message, {
+    this.details,
+  }) : kind = TranscriptionFailureKind.input;
+
+  const TranscriptionException.cancelled(
+    this.message, {
+    this.details,
+  }) : kind = TranscriptionFailureKind.cancelled;
+
+  const TranscriptionException.busy(
+    this.message, {
+    this.details,
+  }) : kind = TranscriptionFailureKind.busy;
+
+  bool get blocksQueue => kind == TranscriptionFailureKind.environment;
+
+  TranscriptionException withKind(TranscriptionFailureKind nextKind) {
+    if (kind == nextKind) return this;
+    return TranscriptionException(
+      message,
+      details: details,
+      kind: nextKind,
+    );
+  }
 
   @override
   String toString() {
