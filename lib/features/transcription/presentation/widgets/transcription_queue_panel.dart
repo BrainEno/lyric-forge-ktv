@@ -5,8 +5,9 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
-import 'asr_runtime_setup_dialog.dart';
 import '../../domain/services/batch_transcription_queue.dart';
+import '../../domain/services/transcription_queue_environment_recovery.dart';
+import 'asr_runtime_setup_dialog.dart';
 
 class TranscriptionQueuePanel extends StatelessWidget {
   final BatchTranscriptionQueue? queue;
@@ -227,7 +228,6 @@ class TranscriptionQueuePanel extends StatelessWidget {
   ) async {
     final services = ServiceLocatorGlobal.I;
     final store = services.transcriptionSettingsStore;
-    final runtime = services.asrRuntimeManager;
 
     try {
       final current = await store.load();
@@ -240,13 +240,15 @@ class TranscriptionQueuePanel extends StatelessWidget {
       );
       if (updated == null) return;
 
-      await store.save(updated);
-      final repaired = await runtime.repair(updated);
-      final status = await runtime.inspect(repaired);
-      await store.save(repaired);
+      final recovery = TranscriptionQueueEnvironmentRecovery(
+        settingsStore: store,
+        runtimeManager: services.asrRuntimeManager,
+        queue: queue,
+      );
+      final result = await recovery.recover(updated);
       if (!context.mounted) return;
 
-      if (!status.isReady) {
+      if (!result.ready) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('识别环境仍未完全就绪，队列继续保持暂停。'),
@@ -254,13 +256,15 @@ class TranscriptionQueuePanel extends StatelessWidget {
         );
         return;
       }
+      if (!result.resumed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('识别环境已恢复；队列状态已被其他操作改变，因此没有自动继续。'),
+          ),
+        );
+        return;
+      }
 
-      // Resume only an environment-protective pause. If the queue state changed
-      // while the repair dialog was open (for example the user manually paused
-      // it elsewhere), never override that newer intent.
-      if (!queue.current.isEnvironmentBlocked) return;
-      await queue.resume();
-      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('识别环境已恢复，后台队列已继续。'),
