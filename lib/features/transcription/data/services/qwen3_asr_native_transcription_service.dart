@@ -36,7 +36,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     if (_running) {
-      throw const TranscriptionException('Qwen3-ASR 已有识别任务正在运行');
+      throw const TranscriptionException.busy(
+        'Qwen3-ASR 已有识别任务正在运行',
+      );
     }
 
     _running = true;
@@ -120,14 +122,20 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       return result;
     } on _QwenCancelledException {
       _emit(TranscriptionStage.cancelled, 0.0, 'Qwen3-ASR 识别已取消');
-      throw const TranscriptionException('歌词识别已取消');
+      throw const TranscriptionException.cancelled('歌词识别已取消');
     } on TranscriptionException {
       rethrow;
     } catch (error) {
       _emit(TranscriptionStage.failed, 0.0, 'Qwen3-ASR 识别失败');
+      final environmentFailure = error is ProcessException ||
+          error is SocketException ||
+          error is HttpException;
       throw TranscriptionException(
         'Qwen3-ASR 识别失败',
         details: error.toString(),
+        kind: environmentFailure
+            ? TranscriptionFailureKind.environment
+            : TranscriptionFailureKind.unknown,
       );
     } finally {
       _activeRequest = null;
@@ -142,12 +150,12 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
   Future<void> _validateRequest(TranscriptionRequest request) async {
     if (!await File(request.inputAudioPath).exists()) {
-      throw const TranscriptionException('待识别音频文件不存在');
+      throw const TranscriptionException.input('待识别音频文件不存在');
     }
 
     final config = request.config;
     if (!config.isQwenConfigured) {
-      throw const TranscriptionException(
+      throw const TranscriptionException.environment(
         '最高质量模式需要配置 Qwen3-ASR、1.7B 模型和 ForcedAligner',
       );
     }
@@ -159,12 +167,12 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     await _validateExecutable(config.ffmpegExecutable, 'FFmpeg');
 
     if (!await _modelReferenceAvailable(config.qwenModelPath)) {
-      throw const TranscriptionException(
+      throw const TranscriptionException.environment(
         'Qwen3-ASR 1.7B 模型 ID / 路径无效',
       );
     }
     if (!await _modelReferenceAvailable(config.qwenAlignerModelPath)) {
-      throw const TranscriptionException(
+      throw const TranscriptionException.environment(
         'Qwen3 ForcedAligner 模型 ID / 路径无效',
       );
     }
@@ -183,13 +191,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> _validateExecutable(String executable, String label) async {
     final value = executable.trim();
     if (value.isEmpty) {
-      throw TranscriptionException(label + ' 路径未配置');
+      throw TranscriptionException.environment(label + ' 路径未配置');
     }
 
     final hasExplicitPath = value.contains('/') || value.contains('\\');
     if (hasExplicitPath) {
       if (!await File(value).exists()) {
-        throw TranscriptionException(label + ' 可执行文件不存在');
+        throw TranscriptionException.environment(label + ' 可执行文件不存在');
       }
       return;
     }
@@ -197,10 +205,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     try {
       final result = await Process.run(value, const ['--help']);
       if (result.exitCode != 0) {
-        throw TranscriptionException(label + ' 无法执行');
+        throw TranscriptionException.environment(label + ' 无法执行');
       }
     } on ProcessException catch (error) {
-      throw TranscriptionException(
+      throw TranscriptionException.environment(
         label + ' 无法执行',
         details: error.message,
       );
@@ -234,7 +242,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         ],
       );
     } on ProcessException catch (error) {
-      throw TranscriptionException(
+      throw TranscriptionException.environment(
         '无法启动 FFmpeg',
         details: error.message,
       );
@@ -256,13 +264,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _throwIfCancelled();
 
     if (exitCode != 0) {
-      throw TranscriptionException(
+      throw TranscriptionException.input(
         'FFmpeg 音频预处理失败',
         details: stderrText,
       );
     }
     if (!await output.exists()) {
-      throw const TranscriptionException(
+      throw const TranscriptionException.input(
         'FFmpeg 未生成 Qwen3-ASR 输入文件',
       );
     }
@@ -308,7 +316,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         ],
       );
     } on ProcessException catch (error) {
-      throw TranscriptionException(
+      throw TranscriptionException.environment(
         '无法启动 Qwen3-ASR native runtime',
         details: error.message,
       );
@@ -344,7 +352,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       if (_serverExited) {
         final details = _serverLogTail.join('\n');
         await _stopServer();
-        throw TranscriptionException(
+        throw TranscriptionException.environment(
           'Qwen3-ASR native runtime 启动失败',
           details: details,
         );
@@ -356,7 +364,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     final details = _serverLogTail.join('\n');
     await _stopServer();
-    throw TranscriptionException(
+    throw TranscriptionException.environment(
       'Qwen3-ASR 模型加载超时',
       details: details,
     );
@@ -403,7 +411,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }) async {
     final port = _serverPort;
     if (port == null) {
-      throw const TranscriptionException('Qwen3-ASR 服务尚未启动');
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 服务尚未启动',
+      );
     }
 
     final request = await _httpClient.postUrl(
@@ -429,22 +439,31 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       response = await request.close();
     } catch (error) {
       _throwIfCancelled();
-      rethrow;
+      throw TranscriptionException.environment(
+        'Qwen3-ASR 本地服务连接中断',
+        details: error.toString(),
+      );
     } finally {
       _activeRequest = null;
     }
 
     final text = await utf8.decoder.bind(response).join();
     if (response.statusCode != HttpStatus.ok) {
+      final environmentFailure = response.statusCode >= 500;
       throw TranscriptionException(
         'Qwen3-ASR 返回 HTTP ${response.statusCode}',
         details: text,
+        kind: environmentFailure
+            ? TranscriptionFailureKind.environment
+            : TranscriptionFailureKind.input,
       );
     }
 
     final decoded = jsonDecode(text);
     if (decoded is! Map) {
-      throw const TranscriptionException('Qwen3-ASR 返回了无效 JSON');
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 返回了无效 JSON',
+      );
     }
 
     final envelope = Map<String, dynamic>.from(decoded);
@@ -457,7 +476,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       return envelope;
     }
 
-    throw const TranscriptionException(
+    throw const TranscriptionException.environment(
       'Qwen3-ASR 响应缺少 results[0]',
     );
   }
@@ -486,7 +505,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     }
 
     if (lines.isEmpty) {
-      throw const TranscriptionException(
+      throw const TranscriptionException.input(
         'Qwen3 ForcedAligner 没有返回可用时间戳；最高质量模式拒绝生成无时间轴歌词',
       );
     }
