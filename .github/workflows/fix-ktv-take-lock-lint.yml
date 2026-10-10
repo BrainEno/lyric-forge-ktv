@@ -1,0 +1,29 @@
+name: Fix KTV take lock lint
+
+on:
+  push:
+    branches:
+      - fix/ktv-take-operation-locks
+    paths:
+      - ".github/workflows/fix-ktv-take-lock-lint.yml"
+      - "tools/fix_ktv_take_lock_lint.py"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/ktv-take-operation-locks
+      - run: python tools/fix_ktv_take_lock_lint.py
+      - run: |
+          rm tools/fix_ktv_take_lock_lint.py
+          rm .github/workflows/fix-ktv-take-lock-lint.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove redundant artwork null assertion"
+          git push
