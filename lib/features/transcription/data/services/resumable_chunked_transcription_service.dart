@@ -90,7 +90,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         await _writeManifest(manifestFile, manifest);
       }
 
-      final completed = ((manifest!['completed'] as List?) ?? const [])
+      final completed = ((manifest['completed'] as List?) ?? const [])
           .map((e) => e.toString())
           .toSet();
       final restored = completed.where(
