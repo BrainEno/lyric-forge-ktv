@@ -1,0 +1,90 @@
+name: macOS managed CMake validation
+
+on:
+  pull_request:
+    paths:
+      - "macos/Podfile"
+      - "macos/tool/managed_cmake.rb"
+      - ".github/workflows/macos-managed-cmake-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "macos/Podfile"
+      - "macos/tool/managed_cmake.rb"
+      - ".github/workflows/macos-managed-cmake-validation.yml"
+
+jobs:
+  macos-debug-build-without-system-cmake:
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"
+      LYRIC_FORGE_CMAKE_CACHE_ROOT: /tmp/lyric-forge-cmake-${{ github.run_id }}
+      LYRIC_FORGE_BUILD_LOG: /tmp/lyric-forge-macos-build-${{ github.run_id }}.log
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
+      - name: Show Flutter version
+        run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Validate Ruby syntax
+        run: |
+          ruby -c macos/tool/managed_cmake.rb
+          ruby -c macos/Podfile
+      - name: Build macOS debug with system CMake hidden
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          restore_system_cmake() {
+            for cmake_path in /opt/homebrew/bin/cmake /usr/local/bin/cmake; do
+              hidden_path="${cmake_path}.lyricforge-ci-hidden"
+              if [ -e "$hidden_path" ]; then
+                sudo mv "$hidden_path" "$cmake_path"
+              fi
+            done
+          }
+          trap restore_system_cmake EXIT
+
+          for cmake_path in /opt/homebrew/bin/cmake /usr/local/bin/cmake; do
+            if [ -e "$cmake_path" ]; then
+              sudo mv "$cmake_path" "${cmake_path}.lyricforge-ci-hidden"
+            fi
+          done
+
+          if command -v cmake >/dev/null 2>&1; then
+            echo "A system CMake is still visible at $(command -v cmake); refusing a false-positive validation."
+            exit 1
+          fi
+
+          rm -rf "$LYRIC_FORGE_CMAKE_CACHE_ROOT"
+          rm -rf "$PUB_CACHE/hosted/pub.dev/flutter_soloud-4.1.7/macos/cmake_build"
+          rm -f "$LYRIC_FORGE_BUILD_LOG"
+          flutter build macos --debug 2>&1 | tee "$LYRIC_FORGE_BUILD_LOG"
+      - name: Verify managed CMake was actually used
+        run: |
+          test -x "$LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake"
+          "$LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" --version
+          grep -q "LyricForge managed CMake PATH" macos/Pods/Pods.xcodeproj/project.pbxproj
+          grep -Fq "Using cmake: $LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" "$LYRIC_FORGE_BUILD_LOG"
+          grep -Fq "Built target flutter_soloud_plugin" "$LYRIC_FORGE_BUILD_LOG"
+          grep -Fq "Built build/macos/Build/Products/Debug/" "$LYRIC_FORGE_BUILD_LOG"
+
+  flutter-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test

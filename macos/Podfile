@@ -3,6 +3,8 @@ platform :osx, '10.15'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+require 'shellwords'
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -23,6 +25,14 @@ def flutter_root
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+require_relative 'tool/managed_cmake'
+
+# flutter_soloud 4.1.7 still compiles its macOS native library through CMake.
+# Flutter 3.41.9 cannot resolve flutter_soloud 5.x, so keep the compatible
+# plugin version and make the CMake prerequisite self-healing instead of
+# requiring every developer to install Homebrew/CMake manually.
+lyric_forge_cmake_bin = LyricForgeManagedCMake.ensure!
+ENV['PATH'] = "#{lyric_forge_cmake_bin}:#{ENV.fetch('PATH', '')}"
 
 flutter_macos_podfile_setup
 
@@ -36,7 +46,33 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  cmake_path_prefix = Shellwords.escape(lyric_forge_cmake_bin)
+  upstream_path_line = 'export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"'
+  resolved_path_line =
+    "export PATH=#{cmake_path_prefix}:/opt/homebrew/bin:/usr/local/bin:\"$PATH\""
+
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    next unless target.name == 'flutter_soloud'
+
+    target.shell_script_build_phases.each do |phase|
+      next unless phase.name.to_s.include?('Build flutter_soloud with CMake')
+
+      marker = '# LyricForge managed CMake PATH'
+      script = phase.shell_script.to_s
+      next if script.include?(marker)
+
+      # flutter_soloud 4.1.7 prepends Homebrew paths inside its own phase. Replace
+      # that line so our resolved CMake directory remains first; otherwise a CI
+      # runner with CMake preinstalled could make the managed-fallback test pass
+      # without actually exercising the downloaded tool.
+      script = if script.include?(upstream_path_line)
+                 script.sub(upstream_path_line, resolved_path_line)
+               else
+                 "#{resolved_path_line}\n#{script}"
+               end
+      phase.shell_script = "#{marker}\n#{script}"
+    end
   end
 end
