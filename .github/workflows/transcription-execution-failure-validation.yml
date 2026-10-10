@@ -41,3 +41,6 @@ jobs:
         run: flutter test test/high_quality_transcription_service_test.dart
       - name: Full Flutter regression suite
         run: flutter test
+
+# This workflow intentionally runs both focused semantics and the full suite:
+# queue recovery decisions depend on preserving failure kinds end to end.
