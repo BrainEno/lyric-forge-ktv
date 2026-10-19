@@ -116,8 +116,6 @@ class ServiceLocator {
   late final MediaTransferQueueService mediaTransferQueueService;
 
   void initialize() {
-    projectRepository = FileProjectRepository();
-
     // Connection state and discovery exist before the player is built so a
     // restored remote session can recover a moved/restarted desktop from its
     // stable paired device identity at the lowest audio-load layer.
@@ -193,6 +191,11 @@ class ServiceLocator {
     playbackSessionService = RemoteRebindingPlaybackSessionService(
       delegate: metadataPlaybackSession,
       resolver: remoteResolver,
+    );
+
+    projectRepository = FileProjectRepository(
+      mediaMetadataRepository: localMediaMetadataRepository,
+      playbackSession: playbackSessionService,
     );
 
     final rawMediaHub = HttpMediaHubService(

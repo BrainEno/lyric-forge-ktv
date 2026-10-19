@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../player/domain/repositories/local_media_metadata_repository.dart';
+import '../../../player/domain/services/playback_lyrics_project_linker.dart';
+import '../../../player/domain/services/playback_session_service.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 
@@ -13,12 +17,19 @@ import '../../domain/repositories/project_repository.dart';
 /// existing repository contract while making projects survive app restarts.
 class FileProjectRepository implements ProjectRepository {
   final Directory? rootDirectory;
+  final LocalMediaMetadataRepository? _mediaMetadataRepository;
+  final PlaybackSessionService? _playbackSession;
 
   final Map<String, ProjectManifest> _projects = <String, ProjectManifest>{};
   Future<void>? _loadFuture;
   Future<void> _writeChain = Future<void>.value();
 
-  FileProjectRepository({this.rootDirectory});
+  FileProjectRepository({
+    this.rootDirectory,
+    LocalMediaMetadataRepository? mediaMetadataRepository,
+    PlaybackSessionService? playbackSession,
+  }) : _mediaMetadataRepository = mediaMetadataRepository,
+       _playbackSession = playbackSession;
 
   Future<void> _ensureLoaded() => _loadFuture ??= _load();
 
@@ -139,9 +150,32 @@ class FileProjectRepository implements ProjectRepository {
     if (!_projects.containsKey(project.id)) {
       throw ProjectRepositoryException('Project not found: ${project.id}');
     }
+    final oldProject = _projects[project.id]!;
     final updated = project.copyWith(updatedAt: DateTime.now());
     _projects[project.id] = updated;
     await _persist();
+
+    // Auto-link to local song metadata and the playback queue the very first
+    // time lyrics appear, so editor/import saves benefit from the same
+    // association the transcription workflow gets.
+    final mediaMetadataRepository = _mediaMetadataRepository;
+    final playbackSession = _playbackSession;
+    final audioAsset = updated.audioAsset;
+    if (oldProject.lyricDocument == null &&
+        updated.lyricDocument != null &&
+        audioAsset != null &&
+        mediaMetadataRepository != null &&
+        playbackSession != null) {
+      unawaited(
+        linkPlaybackLyricsProject(
+          audioPath: audioAsset.originalPath,
+          projectId: updated.id,
+          metadataRepository: mediaMetadataRepository,
+          playbackSession: playbackSession,
+        ),
+      );
+    }
+
     return updated;
   }
 

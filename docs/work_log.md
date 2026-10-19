@@ -259,3 +259,15 @@
 - Notes: 解析顺序为 item.projectId → persisted linkedProjectId → 同路径工程扫描；路径兜底只接受 `hasLyrics` 的工程，草稿工程不会被误当成可播放歌词。同 id 在兜底扫描中再次命中时不重写（避免无意义刷新时间戳）。自愈写失败仅静默跳过，元数据存储被摘除时解析仍可只读完成。远程流与未带歌词标记的条目维持原语义。播放条目队列里的 `hasLyrics` 标记在清除死链后不会立即回撤，需经 linker 重链或重新入队刷新，统一各播放面状态留给下一切片：届时将盘点各播放入口是否统一走 resolver。另外工作区存在上次会话遗留的未提交改动（`updateProject` 首次写入歌词时自动关联 + service_locator 配线），2 处多余 `!` warning；归属用户既有工作，未合并进本切片提交。
 - Commit: `Add fallback resolution and self-healing for lyric links`
 
+### [2026-10-19 20:58] 收尾歌词首次写入工程的自动关联切片
+
+- Scope: 完成上一会话遗留的未提交改动：歌词编辑器保存首次写入歌词时（`updateProject` 中 `lyricDocument` 由无变有），自动把工程关联到对应音频的本地歌曲元数据并刷新播放队列，令编辑/导入歌词的保存路径与识别工作流共享同一关联语义。同时修掉 2 处多余 `!` 告警、格式化 `service_locator.dart` 的非标准缩进，并补齐自动关联的定向测试。
+- Files: `lib/features/project/data/repositories/file_project_repository.dart`, `lib/core/services/service_locator.dart`, `test/file_project_repository_test.dart`
+- Validation:
+  - `flutter analyze --no-fatal-infos lib/features/project/data/repositories/file_project_repository.dart test/file_project_repository_test.dart lib/core/services/service_locator.dart` => 无错误；仅剩该文件 4 条既存 info
+  - `flutter test test/file_project_repository_test.dart test/features/player/playback_lyrics_project_resolver_test.dart test/features/player/playback_lyrics_project_linker_test.dart test/features/player/now_playing_lyrics_project_action_test.dart` => All 18 tests passed
+  - `dart format lib/features/project/data/repositories/file_project_repository.dart test/file_project_repository_test.dart lib/core/services/service_locator.dart` => formatted clean
+  - `git diff --check` => success（仅 LF→CRLF 提示）
+- Notes: 关联为 fire-and-forget（`unawaited`），仅在歌词从无到有时触发，重复编辑不会反复重链；测试用 `pumpEventQueue` 保证异步关联可断言。同一音频若已有指向其他工程的关联，再次新工程挂歌词会静默覆盖为最新工程——冲突确认提示留给后续 A3 切片。播放条目状态刷新复用 linker 既有行为。
+- Commit: `Auto-link lyrics on first project save`
+
