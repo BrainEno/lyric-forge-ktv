@@ -3,6 +3,7 @@ set -euo pipefail
 
 mode="all"
 skip_pub_get=false
+skip_docs=false
 test_paths=()
 
 usage() {
@@ -13,6 +14,7 @@ Options:
   --analyze-only         Run analyzer only.
   --test-only            Run tests only.
   --skip-pub-get         Reuse an already restored pub cache/dependency set.
+  --skip-docs            Skip the work-log harness lint.
   --test-path <path>     Limit test execution to one path. Repeat as needed.
   -h, --help             Show this help.
 
@@ -40,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-pub-get)
       skip_pub_get=true
+      shift
+      ;;
+    --skip-docs)
+      skip_docs=true
       shift
       ;;
     --test-path)
@@ -115,6 +121,13 @@ if [[ "$mode" == "all" || "$mode" == "test" ]]; then
   else
     run_step "flutter test" flutter test --no-pub --reporter expanded
   fi
+fi
+
+# Lint the work-log harness (entry files, generated summary, index snapshot,
+# decisions and handoff). It is documentation-only, so it runs in the default
+# mode and can be skipped with --skip-docs.
+if [[ "$mode" == "all" && "$skip_docs" != true ]]; then
+  run_step "work log lint" dart tool/work_log.dart check
 fi
 
 printf '\nRepository quality gate (%s) passed.\n' "$mode"

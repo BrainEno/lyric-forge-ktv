@@ -34,7 +34,7 @@
 
 - 日期：2026-10-19
 - 背景：`docs/work_log.md` 是多人/多分支共改的同一文件，"轮转即删行"这种破坏性编辑在合并时被整体覆盖过一次（`536a13d` 抹掉了三条已提交记录），索引也因此指向了不存在的条目。
-- 决定：每条任务写一个独立条目文件 `docs/log/entries/<date>-<time>-<slug>.md`，写完永不移动、永不删除；`docs/work_log.md` 改为由 `scripts/build_work_log.ps1 -Write` 生成的活动摘要（最近 8 条一行式），`-Check` 负责校验摘要是否过期、归档条目是否被引用。
-- 影响：条目正文不再参与合并冲突，轮转只影响几行摘要；代价是新增一个生成步骤，AGENTS.md 需标注该文件"勿手改"。
+- 决定：每条任务写一个独立条目文件 `docs/log/entries/<date>-<time>-<slug>.md`，写完永不移动、永不删除；`docs/work_log.md` 改为由 `dart tool/work_log.dart write` 生成的活动摘要（最近 8 条一行式），`dart tool/work_log.dart check` 负责校验摘要是否过期、归档条目是否被引用、索引快照日期与日志最新条目是否一致。
+- 影响：条目正文不再参与合并冲突，轮转只影响几行摘要；代价是新增一个生成步骤，AGENTS.md 需标注该文件"勿手改"。校验实现选用 Dart 工具而非 PowerShell，以便在 Windows/macOS/Linux 复用并纳入 `flutter test`。
 - 状态：生效
 - 来源：本条目对应的任务条目

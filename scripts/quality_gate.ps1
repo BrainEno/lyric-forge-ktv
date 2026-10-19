@@ -2,6 +2,7 @@ param(
     [switch]$SkipPubGet,
     [switch]$AnalyzeOnly,
     [switch]$TestOnly,
+    [switch]$SkipDocs,
     [string[]]$TestPath = @()
 )
 
@@ -99,6 +100,15 @@ if ($mode -eq 'all' -or $mode -eq 'test') {
         Invoke-CheckedStep -Name 'flutter test' -Command {
             flutter test --no-pub --reporter expanded
         }
+    }
+}
+
+# Lint the work-log harness (entry files, generated summary, index snapshot,
+# decisions and handoff). It is documentation-only, so it runs in the default
+# mode and can be skipped with -SkipDocs.
+if ($mode -eq 'all' -and -not $SkipDocs) {
+    Invoke-CheckedStep -Name 'work log lint' -Command {
+        dart tool/work_log.dart check
     }
 }
 

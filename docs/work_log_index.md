@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-19 21:41. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-19 21:58. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -13,7 +13,7 @@
 ## Log layout
 
 - `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` — one immutable file per completed task; bodies live here, never moved or deleted.
-- `docs/work_log.md` — **generated** active summary (newest 8 entries). Regenerate with `powershell -File scripts/build_work_log.ps1 -Write`; verify with `-Check`. Do not hand-edit.
+- `docs/work_log.md` — **generated** active summary (newest 8 entries). Regenerate with `dart tool/work_log.dart write`; verify with `dart tool/work_log.dart check`. Do not hand-edit.
 - `docs/work_log_archive.md` — stage-grouped navigation for older entries.
 - `docs/decisions.md` — durable decisions that still bind future work.
 - `docs/handoff.md` — single-slot interruption handoff; overwrite before ending a session.
@@ -32,7 +32,7 @@
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
 - The full analyzer is still blocked by `WidgetTester.doubleTap` in `test/features/player/fullscreen_ktv_interaction_surface_test.dart`; three warnings are also open.
-- The work-log harness only ships the summary generator; a full lint (`scripts/check_work_log.ps1`) and `quality_gate` integration are still pending.
+- The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
 
 ## Archive map
 
@@ -45,5 +45,5 @@
 ## Maintenance
 
 - Keep this index compact (target <80 lines); update only for changed focus, stable decisions, material risks, or navigation.
-- New task → write one entry file, run `build_work_log.ps1 -Write`, add the aged-out line to the archive stage section, update this index only if focus/decisions/risks changed.
+- New task → write one entry file, run `dart tool/work_log.dart write`, add the aged-out line to the archive stage section, update this index only if focus/decisions/risks changed.
 - Never delete entry files; superseded decisions are marked `已取代` in `docs/decisions.md`.
