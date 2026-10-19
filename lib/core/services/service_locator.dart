@@ -267,6 +267,8 @@ class ServiceLocator {
       settingsStore: transcriptionSettingsStore,
       profileResolver: transcriptionProfileResolver,
       runtimeManager: asrRuntimeManager,
+      mediaMetadataRepository: localMediaMetadataRepository,
+      playbackSession: playbackSessionService,
     );
     asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(
       projectRepository: projectRepository,

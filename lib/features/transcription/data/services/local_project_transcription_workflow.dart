@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../player/domain/repositories/local_media_metadata_repository.dart';
+import '../../../player/domain/services/playback_lyrics_project_linker.dart';
+import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
@@ -24,6 +27,8 @@ class LocalProjectTranscriptionWorkflow
   final TranscriptionSettingsStore _settingsStore;
   final TranscriptionProfileResolver _profileResolver;
   final AsrRuntimeManager _runtimeManager;
+  final LocalMediaMetadataRepository _mediaMetadataRepository;
+  final PlaybackSessionService _playbackSession;
 
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
@@ -31,11 +36,15 @@ class LocalProjectTranscriptionWorkflow
     required TranscriptionSettingsStore settingsStore,
     required TranscriptionProfileResolver profileResolver,
     required AsrRuntimeManager runtimeManager,
+    required LocalMediaMetadataRepository mediaMetadataRepository,
+    required PlaybackSessionService playbackSession,
   })  : _projectRepository = projectRepository,
         _transcriptionService = transcriptionService,
         _settingsStore = settingsStore,
         _profileResolver = profileResolver,
-        _runtimeManager = runtimeManager;
+        _runtimeManager = runtimeManager,
+        _mediaMetadataRepository = mediaMetadataRepository,
+        _playbackSession = playbackSession;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -131,7 +140,7 @@ class LocalProjectTranscriptionWorkflow
         throw const TranscriptionException.input('识别完成，但工程已经不存在');
       }
 
-      await _projectRepository.updateProject(
+      final savedProject = await _projectRepository.updateProject(
         latest.copyWith(
           status: ProjectStatus.editing,
           currentStage: ProcessingStage.transcriptionComplete,
@@ -171,6 +180,12 @@ class LocalProjectTranscriptionWorkflow
             },
           },
         ),
+      );
+      await linkPlaybackLyricsProject(
+        audioPath: savedProject.audioAsset!.originalPath,
+        projectId: savedProject.id,
+        metadataRepository: _mediaMetadataRepository,
+        playbackSession: _playbackSession,
       );
     } on TranscriptionException catch (error) {
       final latest = await _projectRepository.getProjectById(projectId);

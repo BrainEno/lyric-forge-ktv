@@ -11,8 +11,8 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
-import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
 
 Future<void> importLyricsForLocalPlaybackItem(
@@ -118,12 +118,12 @@ Future<void> importLyricsForLocalPlaybackItem(
   );
   final savedProject = await projectRepository.updateProject(updated);
 
-  await _linkProjectToLocalMedia(
-    mediaMetadataRepository,
-    item,
-    savedProject.id,
+  await linkPlaybackLyricsProject(
+    audioPath: item.audioAsset.originalPath,
+    projectId: savedProject.id,
+    metadataRepository: mediaMetadataRepository,
+    playbackSession: playbackSession,
   );
-  await playbackSession.updateItem(item.copyWith(hasLyrics: true));
 
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
@@ -532,27 +532,4 @@ List<Map<String, dynamic>> _nextLyricBackups(ProjectManifest project) {
     'document': project.lyricDocument!.toJson(),
   });
   return existing.take(3).toList(growable: false);
-}
-
-Future<void> _linkProjectToLocalMedia(
-  LocalMediaMetadataRepository repository,
-  PlaybackItem item,
-  String projectId,
-) async {
-  final stored = await repository.getForAudio(item.audioAsset.originalPath);
-  final metadata = stored ??
-      LocalMediaMetadata(
-        sourcePath: item.audioAsset.originalPath,
-        updatedAt: DateTime.now(),
-      );
-  await repository.save(
-    metadata.copyWith(
-      updatedAt: DateTime.now(),
-      metadata: {
-        ...metadata.metadata,
-        'linkedProjectId': projectId,
-        'hasLyrics': true,
-      },
-    ),
-  );
 }
