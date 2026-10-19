@@ -40,3 +40,8 @@
 - [2026-10-19 20:58] 收尾歌词首次写入工程的自动关联切片 `Auto-link lyrics on first project save` ([entry](log/entries/2026-10-19-2058-auto-link-lyrics-on-first-project-save.md))
 - [2026-10-19 20:33] 歌词关联三级解析与死链自愈 `Add fallback resolution and self-healing for lyric links` ([entry](log/entries/2026-10-19-2033-lyric-link-fallback-resolution-and-self-healing.md))
 - [2026-10-19 16:48] 修复识别歌词未关联到本地歌曲 `Link transcribed lyrics to local songs` ([entry](log/entries/2026-10-19-1648-link-transcribed-lyrics-to-local-songs.md))
+
+## 2026-10-19 | Work log harness
+
+- [2026-10-19 21:41] 工作日志改为条目单文件化并补回丢失记录 `Move work log entries to per-task files` ([entry](log/entries/2026-10-19-2141-work-log-entry-per-file-model.md))
+

@@ -60,7 +60,7 @@
 
 ## 阶段 C：参考歌词对齐纠正（核心，C1→C2→C3 分三次提交）
 
-### C1 对齐算法（domain 层，纯 Dart，无 Flutter 依赖）
+### C1 对齐算法（domain 层，纯 Dart，无 Flutter 依赖，已完成）
 
 - 新建 `lib/features/lyrics/domain/services/lyric_alignment_service.dart`：
   - 输入：ASR 草稿 `LyricDocument` + 参考歌词行列表（可带/不带时间戳）；
