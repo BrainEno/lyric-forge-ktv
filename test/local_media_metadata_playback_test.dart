@@ -19,7 +19,9 @@ void main() {
     late DefaultPlaybackSessionService session;
 
     setUp(() async {
-      directory = await Directory.systemTemp.createTemp('lyricforge-play-meta-');
+      directory = await Directory.systemTemp.createTemp(
+        'lyricforge-play-meta-',
+      );
       audio = _FakeAudioPlayer();
       metadata = FileLocalMediaMetadataRepository(rootDirectory: directory);
       session = DefaultPlaybackSessionService(
@@ -37,8 +39,12 @@ void main() {
     });
 
     test('resolves Unicode title artist and artwork for local songs', () async {
-      final audioFile = File('${directory.path}${Platform.pathSeparator}raw.mp3');
-      final artwork = File('${directory.path}${Platform.pathSeparator}cover.png');
+      final audioFile = File(
+        '${directory.path}${Platform.pathSeparator}raw.mp3',
+      );
+      final artwork = File(
+        '${directory.path}${Platform.pathSeparator}cover.png',
+      );
       await audioFile.writeAsBytes([1]);
       await artwork.writeAsBytes([1]);
       await metadata.save(
@@ -51,54 +57,101 @@ void main() {
         ),
       );
 
-      await session.setQueue([
-        _localItem(audioFile.path, title: 'raw'),
-      ]);
+      await session.setQueue([_localItem(audioFile.path, title: 'raw')]);
 
       final current = session.currentState.currentItem!;
       expect(current.title, '夜に駆ける / 夜曲 🎵');
       expect(current.artist, 'YOASOBI · 周杰伦');
       expect(current.artworkPath, artwork.path);
+      expect(current.hasLyrics, isFalse);
     });
 
-    test('project-backed playback ignores local file display overrides', () async {
-      final audioFile = File('${directory.path}${Platform.pathSeparator}project.mp3');
+    test(
+      'flags recognized lyrics for local songs without user overrides',
+      () async {
+        final audioFile = File(
+          '${directory.path}${Platform.pathSeparator}raw.mp3',
+        );
+        await audioFile.writeAsBytes([1]);
+        await metadata.save(
+          LocalMediaMetadata(
+            sourcePath: audioFile.path,
+            updatedAt: DateTime.now(),
+            metadata: const {
+              'linkedProjectId': 'lyrics-project',
+              'hasLyrics': true,
+            },
+          ),
+        );
+
+        await session.setQueue([_localItem(audioFile.path, title: 'raw')]);
+
+        final current = session.currentState.currentItem!;
+        expect(current.hasLyrics, isTrue);
+        expect(current.title, 'raw');
+      },
+    );
+
+    test('unlinked local songs keep their hasLyrics flag unchanged', () async {
+      final audioFile = File(
+        '${directory.path}${Platform.pathSeparator}raw.mp3',
+      );
       await audioFile.writeAsBytes([1]);
       await metadata.save(
         LocalMediaMetadata(
           sourcePath: audioFile.path,
-          title: 'Local override',
+          title: 'User title',
           updatedAt: DateTime.now(),
+          metadata: const {'custom': 'not-a-lyric-link'},
         ),
       );
 
-      await session.setQueue([
-        PlaybackItem(
-          id: 'project:1',
-          title: 'Project title',
-          projectId: '1',
-          audioAsset: AudioAsset(
-            originalPath: audioFile.path,
-            format: 'mp3',
-          ),
-        ),
-      ]);
+      await session.setQueue([_localItem(audioFile.path, title: 'raw')]);
 
-      expect(session.currentState.currentItem?.title, 'Project title');
+      final current = session.currentState.currentItem!;
+      expect(current.hasLyrics, isFalse);
+      expect(current.title, 'User title');
     });
 
+    test(
+      'project-backed playback ignores local file display overrides',
+      () async {
+        final audioFile = File(
+          '${directory.path}${Platform.pathSeparator}project.mp3',
+        );
+        await audioFile.writeAsBytes([1]);
+        await metadata.save(
+          LocalMediaMetadata(
+            sourcePath: audioFile.path,
+            title: 'Local override',
+            updatedAt: DateTime.now(),
+          ),
+        );
+
+        await session.setQueue([
+          PlaybackItem(
+            id: 'project:1',
+            title: 'Project title',
+            projectId: '1',
+            audioAsset: AudioAsset(originalPath: audioFile.path, format: 'mp3'),
+          ),
+        ]);
+
+        expect(session.currentState.currentItem?.title, 'Project title');
+      },
+    );
+
     test('updateItem refreshes metadata without reloading audio', () async {
-      final audioFile = File('${directory.path}${Platform.pathSeparator}song.mp3');
+      final audioFile = File(
+        '${directory.path}${Platform.pathSeparator}song.mp3',
+      );
       await audioFile.writeAsBytes([1]);
       await session.setQueue([_localItem(audioFile.path)]);
       final loadCount = audio.loadCount;
       final current = session.currentState.currentItem!;
 
       await session.updateItem(
-        current.copyWith(
-          title: '新しい表示名',
-          artist: 'アーティスト',
-        ),
+        current.copyWith(title: '新しい表示名', artist: 'アーティスト'),
       );
 
       expect(session.currentState.currentItem?.title, '新しい表示名');
@@ -127,10 +180,7 @@ PlaybackItem _localItem(String path, {String title = 'Song'}) {
   return PlaybackItem(
     id: 'local:$path',
     title: title,
-    audioAsset: AudioAsset(
-      originalPath: path,
-      format: 'mp3',
-    ),
+    audioAsset: AudioAsset(originalPath: path, format: 'mp3'),
   );
 }
 

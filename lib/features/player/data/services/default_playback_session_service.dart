@@ -41,13 +41,14 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     LocalMediaMetadataRepository? localMediaMetadataRepository,
     PlaybackSessionStore? sessionStore,
     Random? random,
-  })  : _playHistoryRepository = playHistoryRepository,
-        _localMediaMetadataRepository = localMediaMetadataRepository,
-        _sessionStore = sessionStore,
-        _random = random ?? Random() {
+  }) : _playHistoryRepository = playHistoryRepository,
+       _localMediaMetadataRepository = localMediaMetadataRepository,
+       _sessionStore = sessionStore,
+       _random = random ?? Random() {
     _playbackSubscription = _audioPlayer.stateStream.listen((playback) {
       if (_restoring || _disposed) return;
-      final paused = _wasPlaying && !playback.isPlaying && !playback.isCompleted;
+      final paused =
+          _wasPlaying && !playback.isPlaying && !playback.isCompleted;
       _wasPlaying = playback.isPlaying;
       if (paused) {
         unawaited(_persistCurrentHistory());
@@ -155,8 +156,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
           .toList(growable: true);
       _unshuffledOrder = snapshot.state.shuffleEnabled
           ? (savedUnshuffled == null || savedUnshuffled.isEmpty
-              ? restored.map((item) => item.id).toList(growable: true)
-              : savedUnshuffled)
+                ? restored.map((item) => item.id).toList(growable: true)
+                : savedUnshuffled)
           : null;
       _state = PlaybackSessionState(
         queue: List<PlaybackItem>.unmodifiable(restored),
@@ -258,12 +259,23 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     } catch (_) {
       return item;
     }
-    if (metadata == null || !metadata.hasOverrides) return item;
+    if (metadata == null) return item;
+
+    // Lyrics resolved by the transcription workflow (or attached by the
+    // editor/import flows) flag the queue item here so every playback surface
+    // agrees with the library without re-running the resolver per row.
+    final linkedProjectId = metadata.metadata['linkedProjectId'];
+    final hasLinkedLyrics =
+        linkedProjectId is String && linkedProjectId.trim().isNotEmpty;
+    if (!metadata.hasOverrides && !hasLinkedLyrics) {
+      return item;
+    }
 
     return item.copyWith(
       title: metadata.resolvedTitle(item.title),
       artist: metadata.resolvedArtist(item.artist),
       artworkPath: metadata.resolvedArtwork(item.artworkPath),
+      hasLyrics: hasLinkedLyrics || item.hasLyrics,
     );
   }
 
@@ -374,7 +386,9 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     final order = _unshuffledOrder;
     if (order == null || order.isEmpty || queue.isEmpty) return queue;
 
-    final byId = <String, PlaybackItem>{for (final item in queue) item.id: item};
+    final byId = <String, PlaybackItem>{
+      for (final item in queue) item.id: item,
+    };
     final restored = <PlaybackItem>[];
     final seen = <String>{};
     for (final id in order) {
@@ -443,7 +457,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
-    if (_state.repeatMode == PlaybackRepeatMode.all && _state.queue.isNotEmpty) {
+    if (_state.repeatMode == PlaybackRepeatMode.all &&
+        _state.queue.isNotEmpty) {
       if (_state.shuffleEnabled && _state.queue.length > 1) {
         await _startNextShuffleCycle();
       } else {
@@ -453,10 +468,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   }
 
   @override
-  Future<void> playItem(
-    PlaybackItem item, {
-    Duration? resumeFrom,
-  }) async {
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async {
     await _awaitRestore();
     if (_state.currentItem?.id != item.id) {
       await _persistCurrentHistory();
@@ -490,10 +502,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   }
 
   @override
-  Future<void> setQueue(
-    List<PlaybackItem> items, {
-    int startIndex = 0,
-  }) async {
+  Future<void> setQueue(List<PlaybackItem> items, {int startIndex = 0}) async {
     await _awaitRestore();
     await _persistCurrentHistory();
     if (items.isEmpty) {
@@ -552,9 +561,7 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
         );
         return;
       }
-      _emit(
-        _state.copyWith(queue: List<PlaybackItem>.unmodifiable(queue)),
-      );
+      _emit(_state.copyWith(queue: List<PlaybackItem>.unmodifiable(queue)));
     }
   }
 
@@ -624,8 +631,9 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
-    final nextCurrentIndex =
-        removingBeforeCurrent ? _state.currentIndex - 1 : _state.currentIndex;
+    final nextCurrentIndex = removingBeforeCurrent
+        ? _state.currentIndex - 1
+        : _state.currentIndex;
     _emit(
       _state.copyWith(
         queue: List<PlaybackItem>.unmodifiable(queue),
@@ -638,7 +646,10 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
   Future<void> moveItem(int oldIndex, int newIndex) async {
     await _awaitRestore();
     final length = _state.queue.length;
-    if (oldIndex < 0 || oldIndex >= length || newIndex < 0 || newIndex >= length) {
+    if (oldIndex < 0 ||
+        oldIndex >= length ||
+        newIndex < 0 ||
+        newIndex >= length) {
       return;
     }
     if (oldIndex == newIndex) return;
@@ -740,7 +751,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     }
 
     if (_state.currentIndex <= 0) {
-      if (_state.repeatMode == PlaybackRepeatMode.all && _state.queue.isNotEmpty) {
+      if (_state.repeatMode == PlaybackRepeatMode.all &&
+          _state.queue.isNotEmpty) {
         await _playIndex(_state.queue.length - 1);
       } else if (_loadedItemId == _state.currentItem?.id) {
         await _audioPlayer.seek(Duration.zero);
@@ -765,7 +777,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       return;
     }
 
-    if (_state.repeatMode == PlaybackRepeatMode.all && _state.queue.isNotEmpty) {
+    if (_state.repeatMode == PlaybackRepeatMode.all &&
+        _state.queue.isNotEmpty) {
       if (_state.shuffleEnabled && _state.queue.length > 1) {
         await _startNextShuffleCycle();
       } else {
