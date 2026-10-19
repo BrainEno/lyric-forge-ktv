@@ -43,19 +43,20 @@
 
 规模：约 4 个文件、新增 200 行以内；配 1 个 widget 测试（拖动跟随、单次 seek、时间文本、禁用态）。
 
-## 阶段 B：编辑器内进度条 + 暂停定点插入歌词行
+## 阶段 B：编辑器内进度条 + 暂停定点插入歌词行（已完成）
 
-1. 编辑器试听条接入阶段 A 的 `SeekableProgressBar`（播放/暂停已有；拖到目标时间后暂停）。
-2. 新增"在当前时间插入行"：
-   - `_insertLineAtPlayback()`：取 `_timelinePositionFromPlayback()`（含 offset）；
-   - 按时间序插入到正确 index（不再只追加）；`start` = 当前播放位置，`end` = 下一行 `start`（钳制间隔 ≥10ms）或 `start + 5s`；
-   - 插入后选中新行并聚焦文本框。
-3. 紧凑布局下按钮进现有底部条，Expanded 及以上进工具栏；触控目标 ≥48dp。
-4. 保存协议不变（整文档覆盖已有）。
+1. 编辑器工具栏接入阶段 A 的 `SeekableProgressBar`（悬停/点击/拖动 + 时间标签）；跳转前自动暂停，拖到目标时间后保持暂停。
+2. "在播放位置插入"：`_insertLineAtPlayback()` 读取 `_timelinePositionFromPlayback()`（含 globalOffset），纯规则抽到 domain 层 `LyricTimelineInsertionService`：
+   - 插入到第一行 `startTime > position` 之前（否则追加），保持时间序；
+   - `end` 取下一行 `startTime`，无下一行时为 `start + 5s`；间隔不足 10ms 强制 10ms；
+   - 新行文本为空、confidence 100；插入后清理按索引保存的复核元数据；
+   - 插入后选中新行：双栏聚焦右侧文本框；紧凑布局自动打开行检查器并聚焦输入框；SnackBar 提示插入时间。
+3. 按钮位置：Compact/Medium 进底部栏（图标 + 禁用态提示）；Expanded 及以上进工具栏（带文字按钮）。
+4. 既有"添加歌词行"（末尾追加）保留；保存协议不变（整文档覆盖）。
 
-验收：任意时间点暂停 → 插入 → 列表顺序、时间正确、保存重开仍在；与现有"末尾追加"按钮共存。
+验收：任意时间点暂停 → 插入 → 行序、时间正确、自动聚焦编辑、保存重开仍在；未开始试听时按钮禁用并提示先试听本工程。
 
-规模：`lyric_editor_screen.dart` 内约 +120 行，顺手把工具栏子控件抽成独立文件（该文件已过大，新增 UI 不再往里堆）。
+规模：新增 domain service + 单测；`lyric_editor_screen.dart` 约 +150 行。
 
 ## 阶段 C：参考歌词对齐纠正（核心，C1→C2→C3 分三次提交）
 

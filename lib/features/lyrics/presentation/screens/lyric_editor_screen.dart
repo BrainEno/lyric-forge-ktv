@@ -10,11 +10,13 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
+import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/services/lyric_file_export_service.dart';
+import '../../domain/services/lyric_timeline_insertion_service.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
@@ -42,6 +44,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   bool _followPlayback = true;
   int? _selectedLineIndex;
   _ReviewFilter _filter = _ReviewFilter.all;
+
+  /// 插入新行后递增，用于让列表/检查器知道"该聚焦这个新行"。
+  int _focusRequestId = 0;
+  int? _focusLineIndex;
 
   @override
   void initState() {
@@ -130,6 +136,53 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _filter = _ReviewFilter.all;
       _hasChanges = true;
     });
+  }
+
+  /// 在当前试听位置插入一行，按开始时间落到正确索引。
+  void _insertLineAtPlayback() {
+    final current =
+        _editingDocument ?? const LyricDocument(language: 'zh', lines: []);
+    final position = _timelinePositionFromPlayback();
+    final insertion = const LyricTimelineInsertionService().insertAtPlayback(
+      lines: current.lines,
+      position: position,
+    );
+    final lines = List<LyricLine>.from(current.lines)
+      ..insert(insertion.index, insertion.line);
+
+    setState(() {
+      _editingDocument = current.copyWith(
+        lines: lines,
+        metadata: _clearIndexedReviewMetadata(current.metadata),
+      );
+      _selectedLineIndex = insertion.index;
+      _filter = _ReviewFilter.all;
+      _hasChanges = true;
+      _focusRequestId++;
+      _focusLineIndex = insertion.index;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已在 ${_formatDuration(position)} 插入歌词行'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// 编辑器内跳转：先暂停，避免拖动后仍在播放而错过目标位置。
+  Future<void> _seekPlayback(Duration position) async {
+    try {
+      if (_audioService.currentState.isPlaying) {
+        await _audioService.pause();
+      }
+      await _playbackSession.seek(position);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法跳转试听：$error')),
+      );
+    }
   }
 
   void _updateLine(int index, LyricLine updatedLine) {
@@ -329,6 +382,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onSave: () => _saveChanges(project),
               onExport: () => _exportLyrics(project),
               onAddLine: _addNewLine,
+              onInsertAtPlayback: _insertLineAtPlayback,
+              onSeekPlayback: _seekPlayback,
+              focusRequestId: _focusRequestId,
+              focusLineIndex: _focusLineIndex,
               onUpdateLine: _updateLine,
               onDeleteLine: _deleteLine,
               onUpdateOffset: _updateGlobalOffset,
@@ -398,6 +455,10 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onExport;
   final VoidCallback onAddLine;
+  final VoidCallback onInsertAtPlayback;
+  final ValueChanged<Duration> onSeekPlayback;
+  final int focusRequestId;
+  final int? focusLineIndex;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
   final ValueChanged<Duration> onUpdateOffset;
@@ -421,6 +482,10 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSave,
     required this.onExport,
     required this.onAddLine,
+    required this.onInsertAtPlayback,
+    required this.onSeekPlayback,
+    required this.focusRequestId,
+    required this.focusLineIndex,
     required this.onUpdateLine,
     required this.onDeleteLine,
     required this.onUpdateOffset,
@@ -472,7 +537,11 @@ class _LyricEditorContent extends StatelessWidget {
     return indices;
   }
 
-  Future<void> _showInspectorSheet(BuildContext context, int index) async {
+  Future<void> _showInspectorSheet(
+    BuildContext context,
+    int index, {
+    bool autofocusText = false,
+  }) async {
     if (index < 0 || index >= document.lines.length) return;
     onSelectLine(index);
     final spec = AppResponsive.of(context);
@@ -500,6 +569,7 @@ class _LyricEditorContent extends StatelessWidget {
                     playbackBelongsToProject &&
                         _currentPlaybackLineIndex() == index,
                 isPlaying: playbackBelongsToProject && playback.isPlaying,
+                autofocusText: autofocusText,
                 onUpdate: (updated) => onUpdateLine(index, updated),
                 onDelete: () {
                   onDeleteLine(index);
@@ -594,6 +664,9 @@ class _LyricEditorContent extends StatelessWidget {
               onFollowPlaybackChanged: onFollowPlaybackChanged,
               onUpdateOffset: onUpdateOffset,
               onTogglePlayback: onTogglePlayback,
+              onInsertAtPlayback:
+                  playbackBelongsToProject ? onInsertAtPlayback : null,
+              onSeekPlayback: onSeekPlayback,
               onOpenPlayer: project.canPlay
                   ? () => Navigator.pushNamed(
                         context,
@@ -614,7 +687,16 @@ class _LyricEditorContent extends StatelessWidget {
                           selectedIndex: selectedIndex,
                           currentPlaybackLine: currentPlaybackLine,
                           followPlayback: followPlayback,
+                          focusRequestId: focusRequestId,
+                          focusLineIndex: focusLineIndex,
                           fallbackCandidateFor: _fallbackCandidateFor,
+                          onInsertedLineFocus: twoPane
+                              ? onSelectLine
+                              : (index) => _showInspectorSheet(
+                                    context,
+                                    index,
+                                    autofocusText: true,
+                                  ),
                           onSelectLine: twoPane
                               ? onSelectLine
                               : (index) => _showInspectorSheet(context, index),
@@ -643,6 +725,9 @@ class _LyricEditorContent extends StatelessWidget {
                                 onPreviewLine: onPreviewLine,
                                 onSetStartFromPlayback: onSetStartFromPlayback,
                                 onSetEndFromPlayback: onSetEndFromPlayback,
+                                autofocusText: selectedIndex != null &&
+                                    selectedIndex == focusLineIndex,
+                                focusRequestId: focusRequestId,
                               ),
                             ),
                           ],
@@ -655,6 +740,8 @@ class _LyricEditorContent extends StatelessWidget {
               visibleLines: visibleIndices.length,
               hasChanges: hasChanges,
               onAddLine: onAddLine,
+              onInsertAtPlayback:
+                  playbackBelongsToProject ? onInsertAtPlayback : null,
             ),
           ],
         ),
@@ -675,6 +762,8 @@ class _EditorToolbar extends StatelessWidget {
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<Duration> onUpdateOffset;
   final VoidCallback onTogglePlayback;
+  final VoidCallback? onInsertAtPlayback;
+  final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onOpenPlayer;
 
   const _EditorToolbar({
@@ -689,6 +778,8 @@ class _EditorToolbar extends StatelessWidget {
     required this.onFollowPlaybackChanged,
     required this.onUpdateOffset,
     required this.onTogglePlayback,
+    required this.onInsertAtPlayback,
+    required this.onSeekPlayback,
     required this.onOpenPlayer,
   });
 
@@ -788,14 +879,24 @@ class _EditorToolbar extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              playbackBelongsToProject
-                  ? '${_formatDuration(playback.position)} / ${playback.duration == null ? '--:--' : _formatDuration(playback.duration!)}'
-                  : '尚未开始试听',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
+            if (!playbackBelongsToProject)
+              Text(
+                '尚未开始试听',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            if (!spec.isCompactOrMedium)
+              Tooltip(
+                message: onInsertAtPlayback == null
+                    ? '先试听本工程后可在当前时间插入'
+                    : '在当前试听时间插入一行',
+                child: FilledButton.tonalIcon(
+                  onPressed: onInsertAtPlayback,
+                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                  label: const Text('在播放位置插入'),
+                ),
+              ),
             FilterChip(
               selected: followPlayback,
               onSelected: onFollowPlaybackChanged,
@@ -853,6 +954,14 @@ class _EditorToolbar extends StatelessWidget {
                 child: const Text('归零'),
               ),
           ]),
+          if (playbackBelongsToProject) ...[
+            const SizedBox(height: AppSpacing.xs),
+            SeekableProgressBar(
+              state: playback,
+              onSeek: onSeekPlayback,
+              compact: true,
+            ),
+          ],
         ],
       ),
     );
@@ -865,7 +974,10 @@ class _LyricListPane extends StatefulWidget {
   final int? selectedIndex;
   final int? currentPlaybackLine;
   final bool followPlayback;
+  final int focusRequestId;
+  final int? focusLineIndex;
   final Map<String, dynamic>? Function(int) fallbackCandidateFor;
+  final ValueChanged<int> onInsertedLineFocus;
   final ValueChanged<int> onSelectLine;
 
   const _LyricListPane({
@@ -874,7 +986,10 @@ class _LyricListPane extends StatefulWidget {
     required this.selectedIndex,
     required this.currentPlaybackLine,
     required this.followPlayback,
+    required this.focusRequestId,
+    required this.focusLineIndex,
     required this.fallbackCandidateFor,
+    required this.onInsertedLineFocus,
     required this.onSelectLine,
   });
 
@@ -890,17 +1005,31 @@ class _LyricListPaneState extends State<_LyricListPane> {
   void initState() {
     super.initState();
     _scheduleFollow();
+    if (widget.focusRequestId > 0) {
+      _scheduleInsertedLineFocus();
+    }
   }
 
   @override
   void didUpdateWidget(covariant _LyricListPane oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusRequestId != widget.focusRequestId) {
+      _scheduleInsertedLineFocus();
+    }
     if (widget.followPlayback &&
         (!oldWidget.followPlayback ||
             oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
             oldWidget.visibleIndices != widget.visibleIndices)) {
       _scheduleFollow();
     }
+  }
+
+  void _scheduleInsertedLineFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final index = widget.focusLineIndex;
+      if (index != null) widget.onInsertedLineFocus(index);
+    });
   }
 
   @override
@@ -1100,6 +1229,8 @@ class _InspectorPane extends StatelessWidget {
   final ValueChanged<int> onPreviewLine;
   final ValueChanged<int> onSetStartFromPlayback;
   final ValueChanged<int> onSetEndFromPlayback;
+  final bool autofocusText;
+  final int focusRequestId;
 
   const _InspectorPane({
     required this.document,
@@ -1113,6 +1244,8 @@ class _InspectorPane extends StatelessWidget {
     required this.onPreviewLine,
     required this.onSetStartFromPlayback,
     required this.onSetEndFromPlayback,
+    required this.autofocusText,
+    required this.focusRequestId,
   });
 
   @override
@@ -1124,13 +1257,14 @@ class _InspectorPane extends StatelessWidget {
 
     final line = document.lines[index];
     return _LineInspector(
-      key: ValueKey('inspector_$index'),
+      key: ValueKey('inspector_${index}_$focusRequestId'),
       index: index,
       line: line,
       fallbackCandidate: fallbackCandidate,
       isCurrentPlaybackLine:
           playbackBelongsToProject && currentPlaybackLine == index,
       isPlaying: playbackBelongsToProject && playback.isPlaying,
+      autofocusText: autofocusText,
       onUpdate: (updated) => onUpdateLine(index, updated),
       onDelete: () => onDeleteLine(index),
       onPreview: () => onPreviewLine(index),
@@ -1148,6 +1282,7 @@ class _LineInspector extends StatefulWidget {
   final Map<String, dynamic>? fallbackCandidate;
   final bool isCurrentPlaybackLine;
   final bool isPlaying;
+  final bool autofocusText;
   final ValueChanged<LyricLine> onUpdate;
   final VoidCallback onDelete;
   final VoidCallback onPreview;
@@ -1161,6 +1296,7 @@ class _LineInspector extends StatefulWidget {
     required this.fallbackCandidate,
     required this.isCurrentPlaybackLine,
     required this.isPlaying,
+    this.autofocusText = false,
     required this.onUpdate,
     required this.onDelete,
     required this.onPreview,
@@ -1174,6 +1310,7 @@ class _LineInspector extends StatefulWidget {
 
 class _LineInspectorState extends State<_LineInspector> {
   late final TextEditingController _textController;
+  late final FocusNode _textFocusNode;
   late LyricLine _workingLine;
 
   @override
@@ -1181,6 +1318,12 @@ class _LineInspectorState extends State<_LineInspector> {
     super.initState();
     _workingLine = widget.line;
     _textController = TextEditingController(text: widget.line.text);
+    _textFocusNode = FocusNode();
+    if (widget.autofocusText) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _textFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
@@ -1198,6 +1341,7 @@ class _LineInspectorState extends State<_LineInspector> {
   @override
   void dispose() {
     _textController.dispose();
+    _textFocusNode.dispose();
     super.dispose();
   }
 
@@ -1318,6 +1462,7 @@ class _LineInspectorState extends State<_LineInspector> {
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: _textController,
+            focusNode: _textFocusNode,
             onChanged: _updateText,
             minLines: 2,
             maxLines: spec.isShort ? 3 : 4,
@@ -1566,12 +1711,14 @@ class _BottomBar extends StatelessWidget {
   final int visibleLines;
   final bool hasChanges;
   final VoidCallback onAddLine;
+  final VoidCallback? onInsertAtPlayback;
 
   const _BottomBar({
     required this.totalLines,
     required this.visibleLines,
     required this.hasChanges,
     required this.onAddLine,
+    required this.onInsertAtPlayback,
   });
 
   @override
@@ -1606,6 +1753,14 @@ class _BottomBar extends StatelessWidget {
             const _TinyBadge(label: '有未保存修改', warning: true),
           ],
           const Spacer(),
+          if (spec.isCompactOrMedium)
+            IconButton(
+              tooltip: onInsertAtPlayback == null
+                  ? '先试听本工程后可在当前时间插入'
+                  : '在播放位置插入歌词行',
+              onPressed: onInsertAtPlayback,
+              icon: const Icon(Icons.playlist_add_rounded),
+            ),
           if (spec.isCompact)
             IconButton.filledTonal(
               tooltip: '添加歌词行',
