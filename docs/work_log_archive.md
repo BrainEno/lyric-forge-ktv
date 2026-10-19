@@ -28,6 +28,7 @@
 
 ## 2026-10-19 | ASR model download, proxy and setup
 
+- [2026-10-19 16:11] 允许代理独立保存并在对话框内提示缺项 `Allow saving ASR proxy independently` ([entry](log/entries/2026-10-19-1611-save-asr-proxy-independently.md))
 - [2026-10-19 15:55] 立即持久化安装流程中的高级识别设置 `Persist ASR advanced settings immediately` ([entry](log/entries/2026-10-19-1555-persist-asr-advanced-settings-immediately.md))
 - [2026-10-19 15:44] 为 ASR 模型下载接入代理与连通性检查 `Add proxy support for ASR downloads` ([entry](log/entries/2026-10-19-1544-asr-download-proxy-and-connectivity-check.md))
 - [2026-10-19 15:30] 区分 ASR 环境准备与文件下载进度 `Clarify ASR setup and download progress` ([entry](log/entries/2026-10-19-1530-asr-setup-vs-download-progress.md))

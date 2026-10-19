@@ -5,7 +5,7 @@
 
 ## 目标
 
-把工作日志流程迁移为"条目单文件化 + 工具生成摘要 + 机器校验"（S1、S2），并让全项目分析器与测试套件恢复可用（S3）——三片均已提交。
+P1（统一各播放面的歌词可用性）已完成并提交：解析结果结构化、自愈后回撤/补写队列 `hasLyrics`、应用壳层随当前条目自动同步，歌词入口点击时同样走共享解析。工作日志条目化与新门禁（S1–S3）早已落地。
 
 ## Git 现场
 
@@ -14,37 +14,39 @@ $ git status --short
 (clean after this task's commit)
 
 $ git log --oneline -4
-<new>  Unblock analyzer and full test suite
+44c8404 Unify playback lyrics availability across surfaces
+22b651f Unblock analyzer and full test suite
 976148a Add work log lint tool and quality gate hook
 010bf9a Move work log entries to per-task files
-536a13d Merge pull request #124 from BrainEno/chore/worklog-index-local-context-20261019
 ```
 
 ## 已改文件
 
-- S3（本片）：`test/features/player/fullscreen_ktv_interaction_surface_test.dart`（双击改为两次 `tap` + 等待双击超时、结束前释放闲置定时器）、`test/features/player/fullscreen_ktv_lyric_stage_test.dart`（`setSurfaceSize` → `tester.view.physicalSize`）、`test/runtime_integrity_install_contract_test.dart`（契约断言改为正则）、`test/features/player/system_media_remote_artwork_test.dart`（删未用 import）、10 个 UI 文件（删除无效 `!`）、`scripts/quality_gate.ps1` / `.sh`（分析器加 `--no-fatal-infos`，与 CI 对齐）。
-- S2：`tool/work_log.dart`、`test/work_log_tool_test.dart`、两套 quality gate 的文档校验步骤。
-- S1：`docs/log/entries/*`（29 条）、`docs/work_log.md`、`docs/work_log_archive.md`、`docs/decisions.md`、`docs/handoff.md`、`docs/work_log_index.md`、`AGENTS.md`。
+- 本片：`lib/features/player/domain/services/playback_lyrics_project_resolver.dart`（`PlaybackLyricsResolution` + 结构化解析 + 修复/清除标记）、`lib/features/player/domain/services/playback_lyrics_availability.dart`（新增，解析并回写队列标记）、`lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart`（新增，壳层同步器）、`lib/main.dart`（挂在 `MaterialApp.builder` 内、手机与桌面两个分支共用）、`now_playing_lyrics_project_action.dart`、`local_song_lyrics_import_action.dart`、两个测试文件、`docs/decisions.md`（D-005）。
+- 更早：`tool/work_log.dart`、`test/work_log_tool_test.dart`、两套 quality gate 的文档校验、29 条历史条目文件。
 
 ## 检查结果
 
-- `flutter analyze --no-fatal-infos` => 0 error / 0 warning（149 条 style info 保留）
-- `flutter test --no-pub --reporter expanded` => All tests passed（310 通过 / 2 跳过）
+- `flutter analyze --no-pub --no-fatal-infos` => 0 error / 0 warning（149 条样式 info，未增长）
+- `flutter test --no-pub --reporter expanded` => All tests passed（319 通过 / 2 跳过）
 - `powershell -File scripts/quality_gate.ps1 -SkipPubGet` => Repository quality gate (all) passed
-- `dart tool/work_log.dart check` => success（0 errors，1 条 commit-subject 告警）
+- `dart tool/work_log.dart check` => success
 
 ## 下一步
 
-回到产品线：统一各播放面的歌词可用性判定（resolver 三级解析已就绪，但死链清除后长驻队列条目的 `hasLyrics` 不会回撤，且 `global_player_bar` / `quick_play_screen` 仍直接读 `item.hasLyrics`）。建议切片：让解析结果结构化并在自愈后经 `playbackSession.updateItem` 回撤队列标志，UI 统一消费该判定。完成标准：`playback_lyrics_project_resolver_test.dart` 覆盖"死链回撤 + 各播放面一致"，`flutter analyze` 与 `flutter test` 保持全绿。
+硬化解析器的破坏性自愈：`_projectFor` / `_scannedProjectIdForAudio` 现在把"读取异常"与"没有工程"都当作 null，`_healLink` 随后会清除 `linkedProjectId`。建议让扫描返回三态（命中 / 未命中 / 失败），失败时不写元数据、也不回撤队列标记（`PlaybackLyricsResolution` 增加权威性标记，`resolveAndSyncPlaybackLyrics` 据此跳过同步）。完成标准：`playback_lyrics_project_resolver_test.dart` / `playback_lyrics_availability_test.dart` 覆盖"仓库抛错时不清链接、不回撤标记"，全套测试保持全绿。
+
+备选（产品向）：歌词关联冲突确认——在另一个工程里首次生成歌词会静默改写音频→工程链接，需要确认或提示。
 
 ## 已知风险
 
-- 149 条样式 info 仍是技术债，需按文件分片清理；`prefer_interpolation_to_compose_strings` 占 116 条，改动面大但机械。
+- 工程仓库读取异常仍会被当作"没有工程"，可能清除用户歌词链接（下一步要修）。
+- 149 条样式 info 仍是技术债，`prefer_interpolation_to_compose_strings` 占 116 条，需按文件分片清理。
+- 当前 SDK 的 `dart format` 会启用 tall style，对既有文件是整篇重排；不要对既有文件整体格式化，否则 diff 会被格式噪音淹没。
 - 文档校验只在本地 quality gate 中执行，尚未接入 GitHub workflow。
-- `commit-subject` 规则只校验活动窗口内的条目：2026-10-19 15:55 那条记录登记的提交主题在当前 git 历史中不存在（当时以 PR 合入，主题不同），属如实告警。
-- 归档导航 `docs/work_log_archive.md` 需手工补行：条目退出一条活动窗口时必须补，否则 lint 报 `entry-unreferenced`。
-- 全屏 KTV 单击控件显示会有约 300ms 的双击超时延迟（`onTap` 与 `onDoubleTap` 共存的标准代价），如需即时显示要另设交互策略。
+- 归档导航 `docs/work_log_archive.md` 需手工补行：条目退出活动窗口时必须补，否则 lint 报 `entry-unreferenced`。
+- 全屏 KTV 单击控件显示仍有约 300ms 的双击超时延迟（`onTap` 与 `onDoubleTap` 共存的标准代价）。
 
 ---
 
-最后更新：2026-10-19 22:09
+最后更新：2026-10-19 22:28

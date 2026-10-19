@@ -4,7 +4,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
-import '../../domain/services/playback_lyrics_project_resolver.dart';
+import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../screens/immersive_ktv_screen.dart';
 
@@ -12,12 +12,14 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
   final PlaybackItem item;
   final ProjectRepository? projectRepository;
   final LocalMediaMetadataRepository? metadataRepository;
+  final PlaybackSessionService? playbackSession;
 
   const NowPlayingLyricsProjectAction({
     super.key,
     required this.item,
     this.projectRepository,
     this.metadataRepository,
+    this.playbackSession,
   });
 
   @override
@@ -34,6 +36,9 @@ class _NowPlayingLyricsProjectActionState
 
   LocalMediaMetadataRepository get _metadata => widget.metadataRepository ??
       ServiceLocatorGlobal.I.localMediaMetadataRepository;
+
+  PlaybackSessionService get _session =>
+      widget.playbackSession ?? ServiceLocatorGlobal.I.playbackSessionService;
 
   @override
   void initState() {
@@ -56,11 +61,17 @@ class _NowPlayingLyricsProjectActionState
     }
   }
 
-  Future<String?> _resolve() => resolvePlaybackLyricsProjectId(
-        item: widget.item,
-        projectRepository: _projects,
-        metadataRepository: _metadata,
-      );
+  Future<String?> _resolve() async {
+    // Resolution also retracts a stale `hasLyrics` flag on the queue item, so
+    // opening Now Playing fixes the player bar and quick-play labels too.
+    final resolution = await resolveAndSyncPlaybackLyrics(
+      item: widget.item,
+      projectRepository: _projects,
+      metadataRepository: _metadata,
+      playbackSession: _session,
+    );
+    return resolution.projectId;
+  }
 
   @override
   Widget build(BuildContext context) {

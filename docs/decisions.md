@@ -38,3 +38,12 @@
 - 影响：条目正文不再参与合并冲突，轮转只影响几行摘要；代价是新增一个生成步骤，AGENTS.md 需标注该文件"勿手改"。校验实现选用 Dart 工具而非 PowerShell，以便在 Windows/macOS/Linux 复用并纳入 `flutter test`。
 - 状态：生效
 - 来源：本条目对应的任务条目
+
+## D-005 歌词可用性以解析结果为准，队列标记只是缓存
+
+- 日期：2026-10-19
+- 背景：播放条目上的 `hasLyrics` 在入队时写入，歌词工程被删除或稍后生成时都不会自动更新，播放器底栏、快速播放与 Now Playing 会给出互相矛盾的"打开歌词 / 导入歌词"判断。
+- 决定：`resolvePlaybackLyrics` 返回结构化的 `PlaybackLyricsResolution`（工程 id、是否真的带歌词、是否修复或清除死链），由 `resolveAndSyncPlaybackLyrics` 把权威结果经 `PlaybackSessionService.updateItem` 回写队列；应用壳层挂载 `PlaybackLyricsAvailabilitySync` 监听当前条目变化，各播放面继续同步读取回写后的标记，不各自重跑解析。远程流的标记由远端目录维护，不参与回写。
+- 影响：死链清理与"入队后才生成歌词"两种情况都会收敛到同一判断；代价是每次切歌多一次内存内的解析（媒体元数据与工程列表均已缓存）。工程仓库读取异常仍被当作"没有工程"，属于既有硬化缺口。
+- 状态：生效
+- 来源：[2026-10-19 22:28 条目](log/entries/2026-10-19-2228-unify-playback-lyrics-availability.md)

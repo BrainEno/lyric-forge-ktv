@@ -219,6 +219,69 @@ void main() {
     expect(resolved, isNull);
     expect(metadataRepository.saved, isNull);
   });
+
+  test('reports repaired and cleared links in the structured result', () async {
+    const audioPath = '/music/song.mp3';
+
+    final repaired = await resolvePlaybackLyrics(
+      item: item(audioPath),
+      projectRepository: _FakeProjectRepository([
+        project('project-repaired', audioPath),
+      ]),
+      metadataRepository: _FakeMetadataRepository(
+        LocalMediaMetadata(
+          sourcePath: audioPath,
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'project-deleted'},
+        ),
+      ),
+    );
+
+    expect(repaired.projectId, 'project-repaired');
+    expect(repaired.hasLyrics, isTrue);
+    expect(repaired.repairedLink, isTrue);
+    expect(repaired.clearedLink, isFalse);
+
+    final cleared = await resolvePlaybackLyrics(
+      item: item(audioPath),
+      projectRepository: _FakeProjectRepository(const []),
+      metadataRepository: _FakeMetadataRepository(
+        LocalMediaMetadata(
+          sourcePath: audioPath,
+          updatedAt: DateTime(2026),
+          metadata: const {
+            'linkedProjectId': 'project-deleted',
+            'hasLyrics': true,
+          },
+        ),
+      ),
+    );
+
+    expect(cleared.projectId, isNull);
+    expect(cleared.hasLyrics, isFalse);
+    expect(cleared.clearedLink, isTrue);
+    expect(cleared.repairedLink, isFalse);
+  });
+
+  test('discovers lyrics for an item enqueued before the project existed',
+      () async {
+    const audioPath = '/music/song.mp3';
+
+    final resolution = await resolvePlaybackLyrics(
+      item: PlaybackItem(
+        id: 'item-1',
+        title: 'song',
+        audioAsset: const AudioAsset(originalPath: audioPath, format: 'mp3'),
+      ),
+      projectRepository: _FakeProjectRepository([
+        project('project-late', audioPath),
+      ]),
+      metadataRepository: _FakeMetadataRepository(),
+    );
+
+    expect(resolution.projectId, 'project-late');
+    expect(resolution.hasLyrics, isTrue);
+  });
 }
 
 class _FakeMetadataRepository implements LocalMediaMetadataRepository {

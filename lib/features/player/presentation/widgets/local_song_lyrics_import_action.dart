@@ -12,6 +12,7 @@ import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
 
@@ -27,20 +28,31 @@ Future<void> importLyricsForLocalPlaybackItem(
       ServiceLocatorGlobal.I.localMediaMetadataRepository;
   final playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
 
+  // Resolve through the shared resolver so a dead link is repaired or cleared
+  // and the queue's lyric flag is retracted, matching every playback surface.
+  final resolution = await resolveAndSyncPlaybackLyrics(
+    item: item,
+    projectRepository: projectRepository,
+    metadataRepository: mediaMetadataRepository,
+    playbackSession: playbackSession,
+  );
+  if (!context.mounted) return;
+
+  if (resolution.projectId != null) {
+    await Navigator.pushNamed(
+      context,
+      Routes.lyricEditorPath(resolution.projectId!),
+    );
+    return;
+  }
+
+  // No lyric project yet: reuse an existing draft project that owns this audio
+  // so imported lyrics land in it instead of creating a duplicate.
   ProjectManifest? project = await _linkedOrMatchingProject(
     projectRepository: projectRepository,
     mediaMetadataRepository: mediaMetadataRepository,
     item: item,
   );
-  if (!context.mounted) return;
-
-  if (project?.hasLyrics == true) {
-    await Navigator.pushNamed(
-      context,
-      Routes.lyricEditorPath(project!.id),
-    );
-    return;
-  }
 
   final picked = await FilePicker.platform.pickFiles(
     dialogTitle: '导入歌词文件',

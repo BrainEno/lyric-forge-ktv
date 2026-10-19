@@ -10,6 +10,7 @@ import 'core/theme/app_theme.dart';
 import 'features/player/data/services/mobile_system_media_session.dart';
 import 'features/player/presentation/widgets/global_player_bar.dart';
 import 'features/player/presentation/widgets/mobile_global_player_bar.dart';
+import 'features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
 final _appRouteObserver = _CurrentRouteObserver();
@@ -68,6 +69,11 @@ class ElysiumPlayerApp extends StatelessWidget {
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
       builder: (context, child) {
+        // Keep the queue's lyric flag aligned with the resolved lyric project
+        // for the current song, whichever route is visible.
+        final syncedShell = PlaybackLyricsAvailabilitySync(
+          child: child ?? const SizedBox.shrink(),
+        );
         return ValueListenableBuilder<String?>(
           valueListenable: _appRouteObserver.routeName,
           builder: (context, routeName, _) {
@@ -81,7 +87,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                       MediaQuery.viewInsetsOf(context).bottom > 0;
                   return Column(
                     children: [
-                      Expanded(child: child ?? const SizedBox.shrink()),
+                      Expanded(child: syncedShell),
                       if (!immersive &&
                           !keyboardVisible &&
                           !suppressPlayerBar)
@@ -102,7 +108,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                       builder: (context, immersive, _) {
                         return Column(
                           children: [
-                            Expanded(child: child ?? const SizedBox.shrink()),
+                            Expanded(child: syncedShell),
                             if (!immersive) ...[
                               const GlobalTranscriptionQueueBar(),
                               if (!suppressPlayerBar)
