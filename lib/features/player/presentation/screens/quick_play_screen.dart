@@ -17,6 +17,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 import '../widgets/playback_queue_panel.dart';
+import '../widgets/seekable_progress_bar.dart';
 
 /// Primary local-music player.
 ///
@@ -829,7 +830,12 @@ class _PlayerDetails extends StatelessWidget {
           ),
         ],
         SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
-        _ProgressBar(state: state, onSeek: session.seek),
+        SeekableProgressBar(
+          state: state,
+          onSeek: session.seek,
+          activeColor: AppColors.pureWhite,
+          thumbColor: AppColors.pureWhite,
+        ),
         const SizedBox(height: AppSpacing.md),
         _Transport(
           layout: layout,
@@ -1063,89 +1069,5 @@ class _Transport extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _ProgressBar extends StatefulWidget {
-  final PlaybackState state;
-  final ValueChanged<Duration> onSeek;
-
-  const _ProgressBar({required this.state, required this.onSeek});
-
-  @override
-  State<_ProgressBar> createState() => _ProgressBarState();
-}
-
-class _ProgressBarState extends State<_ProgressBar> {
-  double? _dragValue;
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = widget.state.duration;
-    final rawMax = duration?.inMilliseconds.toDouble() ?? 1.0;
-    final max = rawMax <= 0 ? 1.0 : rawMax;
-    final playbackValue = widget.state.position.inMilliseconds
-        .toDouble()
-        .clamp(0.0, max)
-        .toDouble();
-    final value = (_dragValue ?? playbackValue).clamp(0.0, max).toDouble();
-    final displayPosition = _dragValue == null
-        ? widget.state.formattedPosition
-        : _formatDuration(Duration(milliseconds: value.round()));
-
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 4,
-            activeTrackColor: AppColors.pureWhite,
-            inactiveTrackColor: AppColors.bgHighlight,
-            thumbColor: AppColors.pureWhite,
-            overlayColor: AppColors.hoverOverlay,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-          ),
-          child: Slider(
-            value: value,
-            min: 0,
-            max: max,
-            onChangeStart: duration == null
-                ? null
-                : (next) => setState(() => _dragValue = next),
-            onChanged: duration == null
-                ? null
-                : (next) => setState(() => _dragValue = next),
-            onChangeEnd: duration == null
-                ? null
-                : (next) {
-                    setState(() => _dragValue = null);
-                    widget.onSeek(Duration(milliseconds: next.round()));
-                  },
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              displayPosition,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-            ),
-            Text(
-              widget.state.formattedDuration,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.toString().padLeft(2, '0');
-    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
   }
 }

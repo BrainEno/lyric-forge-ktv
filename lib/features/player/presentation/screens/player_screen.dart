@@ -23,6 +23,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/ktv_microphone_service.dart';
 import '../../domain/services/ktv_recording_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../widgets/seekable_progress_bar.dart';
 import 'immersive_ktv_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -583,7 +584,7 @@ class _TransportPane extends StatelessWidget {
           _PlaybackError(message: playback.error!),
         ],
         SizedBox(height: spec.sectionGap),
-        _ProgressBar(state: playback, onSeek: onSeek),
+        SeekableProgressBar(state: playback, onSeek: onSeek),
         const SizedBox(height: AppSpacing.md),
         _PlaybackControls(
           isPlaying: playback.isPlaying,
@@ -683,7 +684,7 @@ class _CompactTransportHeader extends StatelessWidget {
               const SizedBox(height: 6),
               _PlaybackError(message: playback.error!),
             ],
-            _ProgressBar(state: playback, onSeek: onSeek, compact: true),
+            SeekableProgressBar(state: playback, onSeek: onSeek, compact: true),
             const SizedBox(height: 2),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -738,7 +739,7 @@ class _CompactTransportHeader extends StatelessWidget {
             _PlaybackError(message: playback.error!),
           ],
           const SizedBox(height: AppSpacing.sm),
-          _ProgressBar(state: playback, onSeek: onSeek, compact: true),
+          SeekableProgressBar(state: playback, onSeek: onSeek, compact: true),
           const SizedBox(height: AppSpacing.xs),
           _PlaybackControls(
             isPlaying: playback.isPlaying,
@@ -1881,15 +1882,13 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 height: spec.isShort ? 4 : AppSpacing.sm,
                               ),
                             ],
-                            IgnorePointer(
-                              ignoring: recordingLocked,
-                              child: Opacity(
-                                opacity: recordingLocked ? 0.55 : 1,
-                                child: _ProgressBar(
-                                  state: playback,
-                                  onSeek: widget.onSeek,
-                                  compact: true,
-                                ),
+                            Opacity(
+                              opacity: recordingLocked ? 0.55 : 1,
+                              child: SeekableProgressBar(
+                                state: playback,
+                                onSeek: widget.onSeek,
+                                compact: true,
+                                enabled: !recordingLocked,
                               ),
                             ),
                             SizedBox(
@@ -2813,71 +2812,6 @@ class _SongIdentity extends StatelessWidget {
                 ),
           ),
         ],
-      ],
-    );
-  }
-}
-
-class _ProgressBar extends StatelessWidget {
-  final PlaybackState state;
-  final ValueChanged<Duration> onSeek;
-  final bool compact;
-
-  const _ProgressBar({
-    required this.state,
-    required this.onSeek,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = state.duration;
-    final durationMs = duration?.inMilliseconds ?? 0;
-    final max = durationMs > 0 ? durationMs.toDouble() : 1.0;
-    final value = state.position.inMilliseconds
-        .toDouble()
-        .clamp(0.0, max)
-        .toDouble();
-
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: compact ? 3 : 4,
-            overlayShape: SliderComponentShape.noOverlay,
-            thumbShape: RoundSliderThumbShape(
-              enabledThumbRadius: compact ? 5 : 7,
-            ),
-          ),
-          child: Slider(
-            value: value,
-            min: 0,
-            max: max,
-            onChanged: durationMs <= 0
-                ? null
-                : (next) => onSeek(Duration(milliseconds: next.round())),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: Row(
-            children: [
-              Text(
-                state.formattedPosition,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-              ),
-              const Spacer(),
-              Text(
-                state.formattedDuration,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

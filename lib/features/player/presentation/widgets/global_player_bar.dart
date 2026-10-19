@@ -16,6 +16,7 @@ import 'local_song_lyrics_import_action.dart';
 import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
+import 'seekable_progress_bar.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
   const GlobalPlayerBar({super.key});
@@ -143,13 +144,10 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                           ),
                         ),
                       ),
-                      LinearProgressIndicator(
-                        value: playback.duration == null
-                            ? 0.0
-                            : playback.progressPercent.clamp(0.0, 1.0).toDouble(),
-                        minHeight: 2,
-                        backgroundColor: AppColors.bgHighlight,
-                        valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                      SeekableProgressBar.mini(
+                        state: playback,
+                        onSeek: _session.seek,
+                        hitHeight: 14,
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(

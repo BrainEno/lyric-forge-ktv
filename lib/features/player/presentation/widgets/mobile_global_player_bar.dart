@@ -10,6 +10,7 @@ import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
+import 'seekable_progress_bar.dart';
 
 /// Compact Spotify-style player chrome for mobile.
 ///
@@ -49,9 +50,6 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           initialData: _audio.currentState,
           builder: (context, playbackSnapshot) {
             final playback = playbackSnapshot.data ?? const PlaybackState.idle();
-            final progress = playback.duration == null
-                ? 0.0
-                : playback.progressPercent.clamp(0.0, 1.0).toDouble();
             final rawRemoteArtwork = item.audioAsset.metadata['remoteArtworkUri'];
             final remoteArtwork = rawRemoteArtwork is String
                 ? Uri.tryParse(rawRemoteArtwork)
@@ -65,11 +63,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 2,
-                      backgroundColor: AppColors.bgHighlight,
-                      valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                    SeekableProgressBar.mini(
+                      state: playback,
+                      onSeek: _session.seek,
+                      hitHeight: 28,
                     ),
                     SizedBox(
                       height: 66,

@@ -33,3 +33,9 @@
 - [2026-10-19 15:44] 为 ASR 模型下载接入代理与连通性检查 `Add proxy support for ASR downloads` ([entry](log/entries/2026-10-19-1544-asr-download-proxy-and-connectivity-check.md))
 - [2026-10-19 15:30] 区分 ASR 环境准备与文件下载进度 `Clarify ASR setup and download progress` ([entry](log/entries/2026-10-19-1530-asr-setup-vs-download-progress.md))
 - [2026-10-19 15:17] 修复 ASR 模型下载超时与自动续传 `Retry stalled ASR model downloads` ([entry](log/entries/2026-10-19-1517-retry-stalled-asr-model-downloads.md))
+
+## 2026-10-19 | Lyric association and playback queue
+
+- [2026-10-19 20:58] 收尾歌词首次写入工程的自动关联切片 `Auto-link lyrics on first project save` ([entry](log/entries/2026-10-19-2058-auto-link-lyrics-on-first-project-save.md))
+- [2026-10-19 20:33] 歌词关联三级解析与死链自愈 `Add fallback resolution and self-healing for lyric links` ([entry](log/entries/2026-10-19-2033-lyric-link-fallback-resolution-and-self-healing.md))
+- [2026-10-19 16:48] 修复识别歌词未关联到本地歌曲 `Link transcribed lyrics to local songs` ([entry](log/entries/2026-10-19-1648-link-transcribed-lyrics-to-local-songs.md))

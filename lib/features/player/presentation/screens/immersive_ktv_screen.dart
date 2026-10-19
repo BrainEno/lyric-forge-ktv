@@ -15,6 +15,7 @@ import '../../domain/services/playback_lyrics_project_resolver.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../widgets/fullscreen_ktv_interaction_surface.dart';
 import '../widgets/fullscreen_ktv_lyric_stage.dart';
+import '../widgets/seekable_progress_bar.dart';
 
 /// Immersive lyrics view backed by the app-scoped playback session.
 class ImmersiveKtvScreen extends StatefulWidget {
@@ -198,12 +199,6 @@ class _ControlLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final durationMs = playback.duration?.inMilliseconds ?? 0;
-    final max = durationMs > 0 ? durationMs.toDouble() : 1.0;
-    final value = playback.position.inMilliseconds
-        .toDouble()
-        .clamp(0.0, max)
-        .toDouble();
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedOpacity(
@@ -240,15 +235,9 @@ class _ControlLayer extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Slider(
-                    value: value,
-                    min: 0,
-                    max: max,
-                    onChanged: durationMs <= 0
-                        ? null
-                        : (next) => onSeek(
-                              Duration(milliseconds: next.round()),
-                            ),
+                  SeekableProgressBar(
+                    state: playback,
+                    onSeek: onSeek,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

@@ -13,6 +13,7 @@ import '../../domain/services/playback_session_service.dart';
 import '../widgets/now_playing_lyrics_project_action.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
+import '../widgets/seekable_progress_bar.dart';
 
 /// Full-screen view of the app-scoped playback session.
 ///
@@ -423,7 +424,7 @@ class _NowPlayingDetails extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        _NowPlayingProgress(playback: playback, onSeek: session.seek),
+        SeekableProgressBar(state: playback, onSeek: session.seek),
         const SizedBox(height: AppSpacing.sm),
         _TransportControls(
           sessionState: sessionState,
@@ -506,79 +507,6 @@ class _PlaybackArtwork extends StatelessWidget {
                   : fallback,
         ),
       ),
-    );
-  }
-}
-
-class _NowPlayingProgress extends StatefulWidget {
-  final PlaybackState playback;
-  final ValueChanged<Duration> onSeek;
-
-  const _NowPlayingProgress({
-    required this.playback,
-    required this.onSeek,
-  });
-
-  @override
-  State<_NowPlayingProgress> createState() => _NowPlayingProgressState();
-}
-
-class _NowPlayingProgressState extends State<_NowPlayingProgress> {
-  double? _dragValue;
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = widget.playback.duration;
-    final rawMax = duration?.inMilliseconds.toDouble() ?? 1.0;
-    final max = rawMax <= 0 ? 1.0 : rawMax;
-    final current = widget.playback.position.inMilliseconds
-        .toDouble()
-        .clamp(0.0, max)
-        .toDouble();
-    final value = (_dragValue ?? current).clamp(0.0, max).toDouble();
-    final position = _dragValue == null
-        ? widget.playback.position
-        : Duration(milliseconds: value.round());
-
-    return Column(
-      children: [
-        Slider(
-          value: value,
-          min: 0,
-          max: max,
-          onChangeStart: duration == null
-              ? null
-              : (next) => setState(() => _dragValue = next),
-          onChanged: duration == null
-              ? null
-              : (next) => setState(() => _dragValue = next),
-          onChangeEnd: duration == null
-              ? null
-              : (next) {
-                  setState(() => _dragValue = null);
-                  widget.onSeek(Duration(milliseconds: next.round()));
-                },
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _formatDuration(position),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-            Text(
-              _formatDuration(duration ?? Duration.zero),
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
@@ -704,12 +632,4 @@ Uri? _remoteArtworkUri(PlaybackItem item) {
     return null;
   }
   return uri;
-}
-
-String _formatDuration(Duration duration) {
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-  if (hours > 0) return '$hours:$minutes:$seconds';
-  return '${duration.inMinutes}:$seconds';
 }

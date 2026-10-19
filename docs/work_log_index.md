@@ -24,6 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
+- **Lyric review plan (pending):** `docs/lyric_review_alignment_plan.md` — phase A seekable progress bar **done** (`Fix draggable playback progress bar with time labels`), phase B editor pause-at-position line insert, phase C reference-lyric alignment with per-line confirm, phase D optional online search.
 
 ## Follow-up leads — re-check before acting
 
