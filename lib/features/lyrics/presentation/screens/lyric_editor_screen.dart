@@ -15,8 +15,14 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../data/services/reference_lyric_text_parser.dart';
+import '../../domain/models/reference_lyric_input.dart';
+import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
+import '../../domain/services/reference_alignment_applier.dart';
+import '../widgets/reference_alignment_dialog.dart';
+import '../widgets/reference_alignment_summary_dialog.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
@@ -37,6 +43,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioService;
   late final LyricFileExportService _exportService;
+  late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
 
   LyricDocument? _editingDocument;
@@ -49,6 +56,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   int _focusRequestId = 0;
   int? _focusLineIndex;
 
+  /// 本次编辑器会话中手动改过文字的行；参考对齐默认跳过，避免静默覆盖。
+  final Set<int> _manuallyEditedLineIndices = {};
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +66,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
     _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
+    _referenceParser = ReferenceLyricTextParser(
+      ServiceLocatorGlobal.I.lyricFileImportService,
+    );
     _loadProject();
   }
 
@@ -113,6 +126,183 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
   }
 
+  Future<void> _openReferenceAlignment(ProjectManifest project) async {
+    final document = _editingDocument;
+    if (document == null || document.lines.isEmpty) return;
+
+    final input = await showReferenceAlignmentDialog(
+      context,
+      parser: _referenceParser,
+      initialTitle: project.name,
+      initialArtist: project.artist,
+    );
+    if (input == null || !mounted) return;
+
+    const alignmentService = LyricAlignmentService();
+    const applier = ReferenceAlignmentApplier();
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+    if (alignment.entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')),
+      );
+      return;
+    }
+
+    final preview = applier.apply(
+      document: document,
+      alignment: alignment,
+      protectedLineIndices: _manuallyEditedLineIndices,
+    );
+
+    final timedLineCount = alignment.entries
+        .where(
+          (entry) =>
+              entry.asrLineIndex != null &&
+              entry.referenceHasTimestamp &&
+              entry.startTime != null,
+        )
+        .length;
+    final allReferenceLinesTimed = alignment.entries
+        .every((entry) => entry.referenceHasTimestamp);
+    final timingUnavailableReason = _referenceTimingUnavailableReason(
+      input: input,
+      alignment: alignment,
+      allReferenceLinesTimed: allReferenceLinesTimed,
+      documentLineCount: document.lines.length,
+    );
+
+    final decision = await showReferenceAlignmentSummaryDialog(
+      context,
+      preview: preview,
+      isTimedReference: input.timed,
+      canApplyReferenceTiming:
+          input.timed && timingUnavailableReason == null,
+      timingUnavailableReason: timingUnavailableReason,
+      timedLineCount: timedLineCount,
+      referenceLineCount: input.lines.length,
+      minimumSimilarity: applier.minimumSimilarity,
+      documentLineCount: document.lines.length,
+    );
+    if (decision == null || !mounted) return;
+
+    final result = decision.applyReferenceTiming
+        ? applier.apply(
+            document: document,
+            alignment: alignment,
+            applyReferenceTiming: true,
+            protectedLineIndices: _manuallyEditedLineIndices,
+          )
+        : preview;
+    if (!result.hasChanges) return;
+
+    final appliedDocument = decision.applyReferenceTiming
+        ? result.document.copyWith(globalOffset: Duration.zero)
+        : result.document;
+
+    final now = DateTime.now();
+    final backupMetadata = Map<String, dynamic>.from(document.metadata)
+      ..remove('referenceAlignmentBackup');
+    final backupDocument = LyricDocument(
+      language: document.language,
+      lines: document.lines,
+      globalOffset: document.globalOffset,
+      metadata: backupMetadata,
+    );
+
+    final metadata = Map<String, dynamic>.from(document.metadata)
+      ..['referenceAlignmentBackup'] = <String, dynamic>{
+        'createdAt': now.toIso8601String(),
+        'reason': 'reference-alignment',
+        'source': input.sourcePath == null ? 'paste' : 'file',
+        if (input.sourcePath != null) 'sourcePath': input.sourcePath,
+        'format': input.format,
+        'timed': input.timed,
+        'referenceOffsetMs': input.offset.inMilliseconds,
+        'lineCount': document.lines.length,
+        'document': backupDocument.toJson(),
+      }
+      ..['referenceAlignment'] = <String, dynamic>{
+        'source': 'reference-alignment',
+        'appliedAt': now.toIso8601String(),
+        if (input.sourcePath != null) 'sourcePath': input.sourcePath,
+        'format': input.format,
+        if (input.title != null) 'referenceTitle': input.title,
+        if (input.artist != null) 'referenceArtist': input.artist,
+        'referenceTimed': input.timed,
+        'referenceOffsetMs': input.offset.inMilliseconds,
+        'minimumSimilarity': applier.minimumSimilarity,
+        'applyReferenceTiming': decision.applyReferenceTiming,
+        'appliedCorrectionCount': result.corrections.length,
+        'timingUpdatedCount': result.timingUpdatedCount,
+        'skippedManuallyEditedCount':
+            result.skippedManuallyEditedIndices.length,
+        'skippedLowConfidenceCount':
+            result.skippedLowConfidenceIndices.length,
+        'missingReferenceCount': result.missingReferenceCount,
+        'unmatchedAsrCount': result.unmatchedAsrCount,
+        'corrections': [
+          for (final correction in result.corrections)
+            <String, dynamic>{
+              'asrLineIndex': correction.asrLineIndex,
+              'referenceIndex': correction.referenceIndex,
+              'similarity': correction.similarity,
+            },
+        ],
+      };
+
+    setState(() {
+      _editingDocument = appliedDocument.copyWith(metadata: metadata);
+      _hasChanges = true;
+      _filter = _ReviewFilter.all;
+      if (result.corrections.isNotEmpty) {
+        _selectedLineIndex = result.corrections.first.asrLineIndex;
+      }
+    });
+
+    final parts = <String>[
+      if (result.corrections.isNotEmpty)
+        '纠正 ${result.corrections.length} 行',
+      if (result.timingUpdatedCount > 0)
+        '更新 ${result.timingUpdatedCount} 行时间',
+      if (result.skippedManuallyEditedIndices.isNotEmpty)
+        '跳过 ${result.skippedManuallyEditedIndices.length} 行手动编辑',
+    ];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}。请检查后保存。',
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  String? _referenceTimingUnavailableReason({
+    required ReferenceLyricInput input,
+    required LyricAlignmentResult alignment,
+    required bool allReferenceLinesTimed,
+    required int documentLineCount,
+  }) {
+    if (!input.timed) return null;
+    if (!allReferenceLinesTimed) {
+      return '参考歌词只有部分行带时间戳，无法整体替换时间轴；本次只纠正文字。';
+    }
+    if (alignment.missingReferenceIndices.isNotEmpty ||
+        alignment.unmatchedAsrIndices.isNotEmpty ||
+        alignment.asrLines.length != documentLineCount) {
+      return '参考歌词与当前草稿不是一一对应（存在漏行、多余行或空行），'
+          '本次只纠正文字并保留原时间轴。';
+    }
+    if (_manuallyEditedLineIndices.isNotEmpty) {
+      return '本次有手动编辑过的行，先只纠正文字以避免打乱时间轴；'
+          '需要替换时间轴时请先保存并重新打开工程。';
+    }
+    return null;
+  }
+
   void _addNewLine() {
     setState(() {
       final lines = List<LyricLine>.from(_editingDocument?.lines ?? []);
@@ -155,6 +345,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         lines: lines,
         metadata: _clearIndexedReviewMetadata(current.metadata),
       );
+      _shiftEditedIndices(insertion.index, 1);
       _selectedLineIndex = insertion.index;
       _filter = _ReviewFilter.all;
       _hasChanges = true;
@@ -192,12 +383,28 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       return;
     }
 
+    if (_editingDocument!.lines[index].text != updatedLine.text) {
+      _manuallyEditedLineIndices.add(index);
+    }
+
     setState(() {
       final lines = List<LyricLine>.from(_editingDocument!.lines);
       lines[index] = updatedLine;
       _editingDocument = _editingDocument!.copyWith(lines: lines);
       _hasChanges = true;
     });
+  }
+
+  /// 插入/删除行后同步"手动编辑过"的行索引。
+  void _shiftEditedIndices(int from, int delta) {
+    if (_manuallyEditedLineIndices.isEmpty) return;
+    final shifted = <int>{
+      for (final index in _manuallyEditedLineIndices)
+        if (index < from) index else index + delta,
+    }..removeWhere((index) => index < 0);
+    _manuallyEditedLineIndices
+      ..clear()
+      ..addAll(shifted);
   }
 
   void _setLineStartFromPlayback(int index) {
@@ -241,6 +448,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         lines: lines,
         metadata: _clearIndexedReviewMetadata(_editingDocument!.metadata),
       );
+
+      _manuallyEditedLineIndices.remove(index);
+      _shiftEditedIndices(index + 1, -1);
 
       if (lines.isEmpty) {
         _selectedLineIndex = null;
@@ -381,6 +591,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   setState(() => _selectedLineIndex = index),
               onSave: () => _saveChanges(project),
               onExport: () => _exportLyrics(project),
+              onReferenceAlignment: _editingDocument!.lines.isEmpty
+                  ? null
+                  : () => _openReferenceAlignment(project),
               onAddLine: _addNewLine,
               onInsertAtPlayback: _insertLineAtPlayback,
               onSeekPlayback: _seekPlayback,
@@ -454,6 +667,7 @@ class _LyricEditorContent extends StatelessWidget {
   final ValueChanged<int> onSelectLine;
   final VoidCallback onSave;
   final VoidCallback onExport;
+  final VoidCallback? onReferenceAlignment;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
@@ -481,6 +695,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSelectLine,
     required this.onSave,
     required this.onExport,
+    required this.onReferenceAlignment,
     required this.onAddLine,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
@@ -626,6 +841,13 @@ class _LyricEditorContent extends StatelessWidget {
           ],
         ),
         actions: [
+          if ((spec.isCompactOrMedium || spec.isShort) &&
+              onReferenceAlignment != null)
+            IconButton(
+              tooltip: '参考歌词纠正',
+              onPressed: onReferenceAlignment,
+              icon: const Icon(Icons.auto_fix_high_rounded),
+            ),
           if (document.lines.isNotEmpty)
             IconButton(
               tooltip: '导出 LRC',
@@ -667,6 +889,7 @@ class _LyricEditorContent extends StatelessWidget {
               onInsertAtPlayback:
                   playbackBelongsToProject ? onInsertAtPlayback : null,
               onSeekPlayback: onSeekPlayback,
+              onReferenceAlignment: onReferenceAlignment,
               onOpenPlayer: project.canPlay
                   ? () => Navigator.pushNamed(
                         context,
@@ -764,6 +987,7 @@ class _EditorToolbar extends StatelessWidget {
   final VoidCallback onTogglePlayback;
   final VoidCallback? onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
+  final VoidCallback? onReferenceAlignment;
   final VoidCallback? onOpenPlayer;
 
   const _EditorToolbar({
@@ -780,6 +1004,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onTogglePlayback,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
+    required this.onReferenceAlignment,
     required this.onOpenPlayer,
   });
 
@@ -895,6 +1120,17 @@ class _EditorToolbar extends StatelessWidget {
                   onPressed: onInsertAtPlayback,
                   icon: const Icon(Icons.playlist_add_rounded, size: 18),
                   label: const Text('在播放位置插入'),
+                ),
+              ),
+            if (!compactControls)
+              Tooltip(
+                message: onReferenceAlignment == null
+                    ? '先导入或生成歌词草稿'
+                    : '用参考歌词纠正 ASR 草稿',
+                child: FilledButton.tonalIcon(
+                  onPressed: onReferenceAlignment,
+                  icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
+                  label: const Text('参考歌词纠正'),
                 ),
               ),
             FilterChip(

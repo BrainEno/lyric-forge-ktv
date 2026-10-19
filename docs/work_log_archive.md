@@ -43,5 +43,6 @@
 
 ## 2026-10-19 | Work log harness
 
+- [2026-10-19 21:58] 为工作日志流程增加跨平台校验工具 `Add work log lint tool and quality gate hook` ([entry](log/entries/2026-10-19-2158-work-log-lint-tool.md))
 - [2026-10-19 21:41] 工作日志改为条目单文件化并补回丢失记录 `Move work log entries to per-task files` ([entry](log/entries/2026-10-19-2141-work-log-entry-per-file-model.md))
 
