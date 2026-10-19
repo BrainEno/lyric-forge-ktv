@@ -496,7 +496,7 @@ class _PlaybackArtwork extends StatelessWidget {
         child: DecoratedBox(
           decoration: const BoxDecoration(gradient: AppColors.playerGradient),
           child: hasLocal
-              ? Image.file(local!, fit: BoxFit.cover)
+              ? Image.file(local, fit: BoxFit.cover)
               : remote != null
                   ? Image.network(
                       remote.toString(),

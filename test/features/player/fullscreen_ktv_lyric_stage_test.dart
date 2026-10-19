@@ -72,8 +72,9 @@ void main() {
   });
 
   testWidgets('extra-large view keeps lyric measure bounded', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1920, 1080));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       const MaterialApp(

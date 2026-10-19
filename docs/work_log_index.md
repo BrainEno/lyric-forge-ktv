@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-19 21:58. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-19 22:09. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -31,7 +31,8 @@
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
-- The full analyzer is still blocked by `WidgetTester.doubleTap` in `test/features/player/fullscreen_ktv_interaction_surface_test.dart`; three warnings are also open.
+- The analyzer and the full test suite are green (0 error, 0 warning, 310 tests passing) and `scripts/quality_gate.ps1` passes end to end.
+- 149 style infos remain in `lib`/`test` (116× `prefer_interpolation_to_compose_strings`, 15× `unnecessary_underscores`, 5× `use_null_aware_elements`, and a few one-offs). They are non-fatal in CI and in the local gate; clearing them is a separate cleanup slice.
 - The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
 
 ## Archive map

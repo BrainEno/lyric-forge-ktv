@@ -400,7 +400,7 @@ class _Artwork extends StatelessWidget {
         height: extent,
         color: AppColors.bgSurface,
         child: hasArtwork
-            ? Image.file(file!, fit: BoxFit.cover)
+            ? Image.file(file, fit: BoxFit.cover)
             : hasRemote
                 ? Image.network(
                     remote.toString(),

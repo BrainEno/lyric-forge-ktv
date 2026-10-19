@@ -18,8 +18,13 @@ void main() {
     expect(find.text('controls-hidden'), findsOneWidget);
 
     await tester.tapAt(const Offset(20, 20));
-    await tester.pump();
+    // The surface also handles `onDoubleTap`, so a single tap only resolves
+    // after the double-tap timeout.
+    await tester.pump(const Duration(milliseconds: 350));
     expect(find.text('controls-visible'), findsOneWidget);
+
+    // Dispose the surface so its idle-hide timer does not outlive the test.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('escape exits fullscreen KTV', (tester) async {
@@ -48,10 +53,18 @@ void main() {
       ),
     );
 
-    await tester.doubleTap(find.text('lyrics'));
+    // Two taps inside the double-tap timeout trigger `onDoubleTap`.
+    await tester.tap(find.text('lyrics'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text('lyrics'));
     await tester.pump();
 
     expect(exits, 1);
+
+    // Let the double-tap recognizer's minimum-interval timer expire, then
+    // dispose the surface so its idle-hide timer does not outlive the test.
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpWidget(const SizedBox());
   });
 }
 

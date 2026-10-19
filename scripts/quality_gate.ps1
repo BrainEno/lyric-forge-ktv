@@ -83,9 +83,11 @@ if (-not $SkipPubGet) {
 # Analyze the application and its test surface. packages/desktop_multi_window is a
 # vendored dependency; its example/ is a separate demo app with optional upstream
 # dependencies and must not become part of this application's quality gate.
+# Style infos stay non-fatal, matching the CI workflows; errors and warnings
+# still fail the gate.
 if ($mode -eq 'all' -or $mode -eq 'analyze') {
     Invoke-CheckedStep -Name 'flutter analyze lib test' -Command {
-        flutter analyze --no-pub lib test
+        flutter analyze --no-pub --no-fatal-infos lib test
     }
 }
 

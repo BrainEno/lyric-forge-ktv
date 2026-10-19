@@ -1292,7 +1292,7 @@ class _Artwork extends StatelessWidget {
         width: size,
         height: size,
         child: exists
-            ? Image.file(file!, fit: BoxFit.cover)
+            ? Image.file(file, fit: BoxFit.cover)
             : Container(
                 decoration:
                     const BoxDecoration(gradient: AppColors.cardGradient),

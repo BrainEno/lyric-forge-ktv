@@ -927,7 +927,7 @@ class _Artwork extends StatelessWidget {
           child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : hasArtwork
-                  ? Image.file(file!, fit: BoxFit.cover)
+                  ? Image.file(file, fit: BoxFit.cover)
                   : Container(
                       color: AppColors.bgSurface,
                       child: const Icon(

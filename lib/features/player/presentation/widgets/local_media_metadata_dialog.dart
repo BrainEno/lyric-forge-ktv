@@ -455,7 +455,7 @@ class _ArtworkPreview extends StatelessWidget {
         height: extent,
         color: AppColors.bgSurface,
         child: exists
-            ? Image.file(file!, fit: BoxFit.cover)
+            ? Image.file(file, fit: BoxFit.cover)
             : Icon(
                 Icons.album_rounded,
                 size: extent * 0.4,

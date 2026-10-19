@@ -8,7 +8,12 @@ void main() {
       'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
     ).readAsString();
 
-    expect(source, contains('_fetchRuntimeReleaseAssetMetadata(profile)'));
+    // The call may be wrapped across lines, so match the profile argument
+    // instead of an exact single-line spelling.
+    expect(
+      source,
+      matches(RegExp(r'_fetchRuntimeReleaseAssetMetadata\(\s*profile')),
+    );
     expect(source, contains('metadata.downloadUri'));
     expect(source, contains('resumable: true'));
     expect(source, contains('actualSize != metadata.sizeBytes'));

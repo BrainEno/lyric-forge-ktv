@@ -342,7 +342,7 @@ class _QueueArtwork extends StatelessWidget {
         height: 38,
         color: AppColors.bgSurface,
         child: hasArtwork
-            ? Image.file(file!, fit: BoxFit.cover)
+            ? Image.file(file, fit: BoxFit.cover)
             : validRemote
                 ? Image.network(
                     remote.toString(),

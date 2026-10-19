@@ -510,7 +510,7 @@ class _DownloadedTrackTile extends StatelessWidget {
             height: 50,
             color: AppColors.bgSurface,
             child: hasArtwork
-                ? Image.file(artwork!, fit: BoxFit.cover)
+                ? Image.file(artwork, fit: BoxFit.cover)
                 : const Icon(
                     Icons.music_note_rounded,
                     color: AppColors.textSecondary,

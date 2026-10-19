@@ -214,7 +214,7 @@ class _MobileArtwork extends StatelessWidget {
         height: 48,
         color: AppColors.bgSurface,
         child: hasArtwork
-            ? Image.file(file!, fit: BoxFit.cover)
+            ? Image.file(file, fit: BoxFit.cover)
             : remoteUri == null
                 ? fallback
                 : Image.network(

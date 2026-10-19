@@ -40,7 +40,7 @@ class RemoteMediaArtwork extends StatelessWidget {
         height: extent,
         color: AppColors.bgSurface,
         child: localExists
-            ? Image.file(local!, fit: BoxFit.cover)
+            ? Image.file(local, fit: BoxFit.cover)
             : remoteUri == null
                 ? _Fallback(icon: fallbackIcon)
                 : Image.network(
