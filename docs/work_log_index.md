@@ -1,20 +1,29 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-19 21:22. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-19 21:41. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
 1. Read `AGENTS.md` and this index.
-2. Read only the 1–3 relevant newest entries in `docs/work_log.md`.
-3. Search `docs/work_log_archive.md` by topic/date only if needed; never load it whole by default.
-4. Check `git status --short` and diffs before editing.
+2. Read only the 1–3 relevant entry files in `docs/log/entries/` (`Get-ChildItem docs/log/entries | Sort-Object Name`).
+3. Search `docs/log/entries/` or `docs/work_log_archive.md` by topic/date only when older history matters; never load the whole directory.
+4. Resuming an interrupted session? Read `docs/handoff.md` first, then this index.
+5. Check `git status --short` and diffs before editing.
+
+## Log layout
+
+- `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` — one immutable file per completed task; bodies live here, never moved or deleted.
+- `docs/work_log.md` — **generated** active summary (newest 8 entries). Regenerate with `powershell -File scripts/build_work_log.ps1 -Write`; verify with `-Check`. Do not hand-edit.
+- `docs/work_log_archive.md` — stage-grouped navigation for older entries.
+- `docs/decisions.md` — durable decisions that still bind future work.
+- `docs/handoff.md` — single-slot interruption handoff; overwrite before ending a session.
 
 ## Recent work areas
 
 - **Lyrics ↔ local songs:** linking from transcription/import, self-healing resolver (item project ID → persisted `linkedProjectId` → same-audio-path fallback), auto-link on first lyric save, and queue `hasLyrics` enrichment. Key tests: `playback_lyrics_project_linker_test.dart`, `playback_lyrics_project_resolver_test.dart`, `file_project_repository_test.dart`, `local_media_metadata_playback_test.dart`, `now_playing_lyrics_project_action_test.dart`.
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
-- **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search archive for `LRC`, `auto-scroll`, `backing`, or `KTV`.
+- **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 
 ## Follow-up leads — re-check before acting
 
@@ -22,7 +31,8 @@
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
-- The full analyzer was previously blocked by `WidgetTester.doubleTap` in `test/features/player/fullscreen_ktv_interaction_surface_test.dart`; verify whether this still applies.
+- The full analyzer is still blocked by `WidgetTester.doubleTap` in `test/features/player/fullscreen_ktv_interaction_surface_test.dart`; three warnings are also open.
+- The work-log harness only ships the summary generator; a full lint (`scripts/check_work_log.ps1`) and `quality_gate` integration are still pending.
 
 ## Archive map
 
@@ -34,6 +44,6 @@
 
 ## Maintenance
 
-- Keep this index compact (target <80 lines, about 1,500 tokens); update only for changed focus, stable decisions, material risks, or navigation.
-- Keep `docs/work_log.md` to 5–8 newest complete entries, preferably <120 lines.
-- Move older complete entries verbatim to `docs/work_log_archive.md`; never delete history. Label uncertain follow-ups as leads and verify them.
+- Keep this index compact (target <80 lines); update only for changed focus, stable decisions, material risks, or navigation.
+- New task → write one entry file, run `build_work_log.ps1 -Write`, add the aged-out line to the archive stage section, update this index only if focus/decisions/risks changed.
+- Never delete entry files; superseded decisions are marked `已取代` in `docs/decisions.md`.

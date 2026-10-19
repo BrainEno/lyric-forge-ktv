@@ -58,15 +58,18 @@ Before finishing, state the plan and intended files; implement; run validation; 
 ### Canonical files
 
 - `docs/work_log_index.md`: compact navigation, recent focus, important follow-up leads, and pointers.
-- `docs/work_log.md`: active log containing only the latest 5–8 complete entries.
-- `docs/work_log_archive.md`: older detailed history. Preserve original entries; do not delete history.
-- The repository's canonical log path is `docs/work_log.md`. Do not create a competing root-level `work_log.md`.
+- `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md`: one immutable file per completed task. Full text of the entry lives here. Never moved, never deleted, never rewritten.
+- `docs/work_log.md`: **generated** active summary (newest 8 entries, one line each). Do not edit by hand; regenerate with `scripts/build_work_log.ps1 -Write`.
+- `docs/work_log_archive.md`: navigation for older entries, grouped by stage. Bodies stay in `docs/log/entries/`.
+- `docs/decisions.md`: durable decisions that still bind future work.
+- `docs/handoff.md`: single-slot interruption handoff; overwrite it before ending a session.
+- The repository's canonical log root is `docs/`. Do not create a competing root-level `work_log.md`.
 
 ### At task start
 
 1. Read this `AGENTS.md` and `docs/work_log_index.md`.
-2. Read only the latest 1–3 entries in `docs/work_log.md` relevant to the task; use `Get-Content -Tail` or targeted search instead of dumping the whole file.
-3. Search the archive by exact topic/date only if older history is relevant. Never read the entire archive by default.
+2. Read only the 1–3 entry files relevant to the task (`docs/log/entries/`), not the whole directory.
+3. Search `docs/log/entries/` or `docs/work_log_archive.md` by exact topic/date only if older history is relevant.
 4. Check `git status --short`, `git diff --stat`, and recent commits before modifying files. Preserve existing user changes.
 5. Inspect only relevant source, tests, and docs. Prefer narrow `rg`/`Select-String` output over full-file dumps.
 
@@ -82,16 +85,17 @@ Before finishing, state the plan and intended files; implement; run validation; 
 
 - A long log can contribute to context pressure, but it is not by itself proof of context overflow.
 - If OpenCode reports a Jinja/chat-template role-alternation error during compaction, treat it first as provider/template compatibility—not as a code error or a GPU-utilization problem. Do not enter an endless retry loop.
-- On interruption: stop edits, inspect `git status --short`, `git diff --stat`, `git diff --cached --stat`, recent commits, and the latest work-log entries. Do not run destructive reset/clean commands.
-- Start a fresh session with a compact handoff: objective, current Git state, changed files, checks/results, exact remaining step, and known risks. Read the index and relevant active entries; do not reload the full archive.
+- On interruption: stop edits, inspect `git status --short`, `git diff --stat`, `git diff --cached --stat`, recent commits, and the latest entry files. Do not run destructive reset/clean commands.
+- Write the handoff into `docs/handoff.md` (overwrite, single slot) using its fixed sections: goal, Git snapshot (`git status --short`, `git diff --stat`, `git log --oneline -5` output), changed files, check results, the single next step, known risks.
+- Start a fresh session by reading `docs/handoff.md`, then `AGENTS.md` and `docs/work_log_index.md`; do not reload the full archive.
 - Test local provider/tool-call and compaction behavior on a small task before trusting a long autonomous run.
 
 ### When a task is complete
 
 1. Run relevant checks and confirm no new blocking errors.
-2. Only after implementation and validation are complete and committable, append one entry to `docs/work_log.md` using this exact format:
+2. Only after implementation and validation are complete and committable, write one entry file `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` (ASCII slug, timestamp = completion time) with this exact structure:
 
-   `### [YYYY-MM-DD HH:MM] Task Title`
+   `# [YYYY-MM-DD HH:MM] Task Title`
 
    - `Scope`: one short paragraph describing the user-visible purpose.
    - `Files`: changed files, including the log/index if modified.
@@ -99,9 +103,12 @@ Before finishing, state the plan and intended files; implement; run validation; 
    - `Notes`: trade-offs, unverified behavior, and deferred work.
    - `Commit`: exactly one concise English imperative commit subject.
 
-3. Update `docs/work_log_index.md` only if the stable current focus, a key decision, an important deferred risk, or navigation pointers materially change. Keep it under ~120 lines / 1,500 tokens; do not mirror every task.
-4. Keep `docs/work_log.md` to the latest 5–8 entries and preferably under 120 lines. If it grows beyond the budget, move oldest complete entries verbatim to the archive, preserving every historical entry.
-5. Do not log exploratory/incomplete work or claim tests passed when they were not run.
+3. Regenerate the active summary: `powershell -File scripts/build_work_log.ps1 -Write` (never hand-edit `docs/work_log.md`).
+4. When an entry ages out of the active window, add its one-line reference to the matching stage section in `docs/work_log_archive.md`; never delete the entry file.
+5. Update `docs/work_log_index.md` only if the stable current focus, a key decision, an important deferred risk, or navigation pointers materially change. Keep it under ~80 lines; do not mirror every task.
+6. Record durable, still-binding decisions in `docs/decisions.md`; superseded ones are marked `已取代` instead of being deleted.
+7. Verify the log state: `powershell -File scripts/build_work_log.ps1 -Check` must pass.
+8. Do not log exploratory/incomplete work or claim tests passed when they were not run.
 
 ## Required commit-message style
 
