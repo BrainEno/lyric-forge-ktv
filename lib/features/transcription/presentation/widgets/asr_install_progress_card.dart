@@ -37,8 +37,8 @@ class AsrInstallProgressCard extends StatelessWidget {
     final accent = failed
         ? AppColors.error
         : paused
-            ? AppColors.warning
-            : AppColors.accent;
+        ? AppColors.warning
+        : AppColors.accent;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -56,8 +56,8 @@ class AsrInstallProgressCard extends StatelessWidget {
                 failed
                     ? Icons.error_outline_rounded
                     : paused
-                        ? Icons.pause_circle_outline_rounded
-                        : Icons.downloading_rounded,
+                    ? Icons.pause_circle_outline_rounded
+                    : Icons.downloading_rounded,
                 size: 20,
                 color: accent,
               ),
@@ -67,23 +67,38 @@ class AsrInstallProgressCard extends StatelessWidget {
                   failed
                       ? '当前组件需要重试'
                       : paused
-                          ? '下载已暂停，断点已保留'
-                          : '正在准备 · $component',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      ? '下载已暂停，断点已保留'
+                      : hasTransfer
+                      ? '正在下载 · $component'
+                      : '正在准备 · $component',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '整体环境准备进度（估算）',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               Text(
                 '${(overall * 100).round()}%',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: accent,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           LinearProgressIndicator(
             value: overall,
             minHeight: 6,
@@ -98,10 +113,30 @@ class AsrInstallProgressCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
+                    '当前文件下载',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${(transferFraction! * 100).round()}%',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
                     '${_formatBytes(downloaded)} / ${_formatBytes(total)}',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 if (progress.bytesPerSecond != null &&
@@ -109,16 +144,16 @@ class AsrInstallProgressCard extends StatelessWidget {
                   Text(
                     _formatSpeed(progress.bytesPerSecond!),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 if (progress.estimatedRemaining != null) ...[
                   const SizedBox(width: AppSpacing.md),
                   Text(
                     '约 ${_formatDuration(progress.estimatedRemaining!)}',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ],
@@ -135,10 +170,12 @@ class AsrInstallProgressCard extends StatelessWidget {
           Text(
             paused
                 ? '继续后会从现有 .part 文件断点续传，不会重新下载已经完成的内容。'
-                : '模型文件较大；已完成组件会自动复用，失败重试只会继续未完成部分。',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+                : hasTransfer
+                ? '上方是整个识别环境的估算进度；这里是当前文件下载进度。下载中断会自动重试，已完成部分会保留。'
+                : '环境准备包含下载、校验和安装；已完成组件会自动复用，失败重试只会继续未完成部分。',
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
           ),
           if (onPause != null || onResume != null || onRetry != null) ...[
             const SizedBox(height: AppSpacing.md),

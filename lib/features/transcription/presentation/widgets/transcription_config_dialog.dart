@@ -6,23 +6,21 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/asr_download_connection_checker.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
+import '../../domain/services/transcription_settings_store.dart';
 
 class TranscriptionConfigDialog extends StatefulWidget {
   final TranscriptionConfig? initialConfig;
 
-  const TranscriptionConfigDialog({
-    super.key,
-    this.initialConfig,
-  });
+  const TranscriptionConfigDialog({super.key, this.initialConfig});
 
   @override
   State<TranscriptionConfigDialog> createState() =>
       _TranscriptionConfigDialogState();
 }
 
-class _TranscriptionConfigDialogState
-    extends State<TranscriptionConfigDialog> {
+class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   late final TranscriptionProfileResolver _profileResolver;
 
   late final TextEditingController _qwenExecutableController;
@@ -31,6 +29,9 @@ class _TranscriptionConfigDialogState
   late final TextEditingController _whisperController;
   late final TextEditingController _whisperModelController;
   late final TextEditingController _ffmpegController;
+  late final TextEditingController _downloadProxyController;
+  late final AsrDownloadConnectionChecker _downloadConnectionChecker;
+  late final TranscriptionDownloadProxyStore _downloadProxyStore;
 
   late TranscriptionMode _mode;
   late TranscriptionProfilePreference _profilePreference;
@@ -39,6 +40,13 @@ class _TranscriptionConfigDialogState
   late String _qwenDtype;
   late int _fallbackThreshold;
   late int _maxFallbackSegments;
+  bool _testingDownloadConnection = false;
+  String? _downloadConnectionMessage;
+  bool _downloadConnectionSucceeded = false;
+  bool _saving = false;
+  String? _validationMessage;
+  bool _loadingSavedProxy = false;
+  bool _downloadProxyEdited = false;
 
   ResolvedTranscriptionProfile? _resolvedProfile;
   bool _resolvingProfile = false;
@@ -46,7 +54,10 @@ class _TranscriptionConfigDialogState
   @override
   void initState() {
     super.initState();
-    _profileResolver = ServiceLocatorGlobal.I.transcriptionProfileResolver;
+    final services = ServiceLocatorGlobal.I;
+    _profileResolver = services.transcriptionProfileResolver;
+    _downloadConnectionChecker = services.asrDownloadConnectionChecker;
+    _downloadProxyStore = services.transcriptionDownloadProxyStore;
 
     final config = widget.initialConfig;
     _mode = config?.mode ?? TranscriptionMode.highestQuality;
@@ -60,8 +71,7 @@ class _TranscriptionConfigDialogState
       text: config?.qwenModelPath ?? 'Qwen/Qwen3-ASR-1.7B',
     );
     _qwenAlignerController = TextEditingController(
-      text: config?.qwenAlignerModelPath ??
-          'Qwen/Qwen3-ForcedAligner-0.6B',
+      text: config?.qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
     );
     _whisperController = TextEditingController(
       text: config?.whisperExecutable ?? 'whisper-cli',
@@ -72,6 +82,13 @@ class _TranscriptionConfigDialogState
     _ffmpegController = TextEditingController(
       text: config?.ffmpegExecutable ?? 'ffmpeg',
     );
+    _downloadProxyController = TextEditingController(
+      text: config?.downloadProxy ?? '',
+    );
+    if (_downloadProxyController.text.isEmpty) {
+      _loadingSavedProxy = true;
+      unawaited(_loadSavedDownloadProxy());
+    }
 
     _language = config?.language ?? 'auto';
     _qwenDevice = config?.qwenDevice ?? 'cuda';
@@ -79,17 +96,41 @@ class _TranscriptionConfigDialogState
     _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
     _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
 
+    for (final controller in [
+      _qwenExecutableController,
+      _qwenModelController,
+      _qwenAlignerController,
+      _whisperController,
+      _whisperModelController,
+      _ffmpegController,
+      _downloadProxyController,
+    ]) {
+      controller.addListener(_onDraftChanged);
+    }
+
     unawaited(_resolveProfile(applyRecommendation: true));
+  }
+
+  void _onDraftChanged() {
+    if (!mounted) return;
+    setState(() => _validationMessage = null);
   }
 
   @override
   void dispose() {
-    _qwenExecutableController.dispose();
-    _qwenModelController.dispose();
-    _qwenAlignerController.dispose();
-    _whisperController.dispose();
-    _whisperModelController.dispose();
-    _ffmpegController.dispose();
+    for (final controller in [
+      _qwenExecutableController,
+      _qwenModelController,
+      _qwenAlignerController,
+      _whisperController,
+      _whisperModelController,
+      _ffmpegController,
+      _downloadProxyController,
+    ]) {
+      controller
+        ..removeListener(_onDraftChanged)
+        ..dispose();
+    }
     super.dispose();
   }
 
@@ -106,14 +147,31 @@ class _TranscriptionConfigDialogState
       modelPath: _whisperModelController.text.trim(),
       ffmpegExecutable: _ffmpegController.text.trim(),
       language: _language,
+      downloadProxy: _downloadProxyController.text.trim(),
       fallbackConfidenceThreshold: _fallbackThreshold,
       maxFallbackSegments: _maxFallbackSegments,
     );
   }
 
-  Future<void> _resolveProfile({
-    required bool applyRecommendation,
-  }) async {
+  Future<void> _loadSavedDownloadProxy() async {
+    try {
+      final savedProxy = await _downloadProxyStore.loadDownloadProxy();
+      if (!mounted) return;
+      if (savedProxy != null &&
+          !_downloadProxyEdited &&
+          _downloadProxyController.text.isEmpty) {
+        _downloadProxyController.text = savedProxy;
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _validationMessage = '读取已保存代理失败：$error');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingSavedProxy = false);
+    }
+  }
+
+  Future<void> _resolveProfile({required bool applyRecommendation}) async {
     if (_resolvingProfile) return;
 
     setState(() => _resolvingProfile = true);
@@ -155,39 +213,89 @@ class _TranscriptionConfigDialogState
     }
   }
 
-  Future<void> _selectProfile(
-    TranscriptionProfilePreference preference,
-  ) async {
+  Future<void> _selectProfile(TranscriptionProfilePreference preference) async {
     setState(() => _profilePreference = preference);
     await _resolveProfile(applyRecommendation: true);
   }
 
-  void _submit() {
+  Future<void> _testDownloadConnection() async {
+    setState(() {
+      _testingDownloadConnection = true;
+      _downloadConnectionMessage = null;
+    });
+    try {
+      await _downloadConnectionChecker.testConnection(
+        proxyOverride: _downloadProxyController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _downloadConnectionSucceeded = true;
+        _downloadConnectionMessage = '已连通 Hugging Face 模型源，可以开始下载。';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _downloadConnectionSucceeded = false;
+        _downloadConnectionMessage = '连接测试失败：$error';
+      });
+    } finally {
+      if (mounted) setState(() => _testingDownloadConnection = false);
+    }
+  }
+
+  Future<void> _submit() async {
     final config = _draftConfig();
 
-    if (!config.isConfigured) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _mode == TranscriptionMode.highestQuality
-                ? '最高质量模式需要完整配置 Qwen3-ASR、ForcedAligner、Whisper 和 FFmpeg'
-                : '请完整填写 Whisper、模型和 FFmpeg 配置',
-          ),
-        ),
-      );
-      return;
-    }
+    setState(() => _saving = true);
 
-    Navigator.pop(context, config);
+    try {
+      await _downloadProxyStore.saveDownloadProxy(config.downloadProxy);
+      if (!mounted) return;
+      Navigator.pop(context, config);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _validationMessage = '保存下载代理失败：$error';
+      });
+    }
+  }
+
+  String _missingConfigurationSummary() {
+    final missing = <String>[];
+    if (_mode == TranscriptionMode.whisperOnly) {
+      if (_whisperController.text.trim().isEmpty) {
+        missing.add('Whisper runtime');
+      }
+      if (_whisperModelController.text.trim().isEmpty) {
+        missing.add('Whisper 模型');
+      }
+    } else {
+      if (_qwenExecutableController.text.trim().isEmpty) {
+        missing.add('Qwen runtime');
+      }
+      if (_qwenModelController.text.trim().isEmpty) {
+        missing.add('Qwen 模型');
+      }
+      if (_qwenAlignerController.text.trim().isEmpty) {
+        missing.add('ForcedAligner');
+      }
+      if (_whisperController.text.trim().isEmpty) {
+        missing.add('Whisper runtime');
+      }
+      if (_whisperModelController.text.trim().isEmpty) {
+        missing.add('Whisper 模型');
+      }
+    }
+    if (_ffmpegController.text.trim().isEmpty) missing.add('FFmpeg');
+    return missing.isEmpty ? '' : missing.join('、');
   }
 
   String _profileName(TranscriptionProfilePreference profile) {
     return switch (profile) {
       TranscriptionProfilePreference.automatic => '自动 · 根据本机硬件',
-      TranscriptionProfilePreference.rtx5080HighQuality =>
-        'RTX 5080 · 最高质量',
-      TranscriptionProfilePreference.intelMacHighQuality =>
-        'Intel Mac · 高质量',
+      TranscriptionProfilePreference.rtx5080HighQuality => 'RTX 5080 · 最高质量',
+      TranscriptionProfilePreference.intelMacHighQuality => 'Intel Mac · 高质量',
       TranscriptionProfilePreference.custom => '自定义',
     };
   }
@@ -211,8 +319,8 @@ class _TranscriptionConfigDialogState
   Widget build(BuildContext context) {
     final highQuality = _mode == TranscriptionMode.highestQuality;
     final resolved = _resolvedProfile;
-    final whisperPrimary = resolved?.config.engineOrder ==
-        TranscriptionEngineOrder.whisperPrimary;
+    final whisperPrimary =
+        resolved?.config.engineOrder == TranscriptionEngineOrder.whisperPrimary;
 
     return AlertDialog(
       title: const Text('本地歌词识别设置'),
@@ -263,13 +371,14 @@ class _TranscriptionConfigDialogState
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _InfoCard(
-                  title: resolved?.label ??
+                  title:
+                      resolved?.label ??
                       (_resolvingProfile ? '正在检测本机硬件…' : '硬件检测'),
                   body: resolved == null
                       ? '正在根据操作系统、CPU 架构和 GPU 选择本机识别链路。'
                       : resolved.description +
-                          '\n' +
-                          _hardwareSummary(resolved.hardware),
+                            '\n' +
+                            _hardwareSummary(resolved.hardware),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
@@ -310,8 +419,8 @@ class _TranscriptionConfigDialogState
                 controller: _whisperController,
                 label: highQuality
                     ? whisperPrimary
-                        ? 'Whisper 主识别 runtime'
-                        : 'Whisper 第二意见 runtime'
+                          ? 'Whisper 主识别 runtime'
+                          : 'Whisper 第二意见 runtime'
                     : 'whisper-cli',
                 hint: 'whisper-cli / whisper-cli.exe',
                 onBrowse: () => _pickFileInto(_whisperController),
@@ -321,8 +430,8 @@ class _TranscriptionConfigDialogState
                 controller: _whisperModelController,
                 label: highQuality
                     ? whisperPrimary
-                        ? 'Whisper large-v3 主模型'
-                        : 'Whisper large-v3 第二意见模型'
+                          ? 'Whisper large-v3 主模型'
+                          : 'Whisper large-v3 第二意见模型'
                     : 'Whisper 模型',
                 hint: highQuality
                     ? '建议 ggml-large-v3.bin'
@@ -336,6 +445,52 @@ class _TranscriptionConfigDialogState
                 hint: 'ffmpeg / ffmpeg.exe',
                 onBrowse: () => _pickFileInto(_ffmpegController),
               ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                controller: _downloadProxyController,
+                autocorrect: false,
+                keyboardType: TextInputType.url,
+                onChanged: (_) {
+                  _downloadProxyEdited = true;
+                  if (_downloadConnectionMessage != null) {
+                    setState(() => _downloadConnectionMessage = null);
+                  }
+                },
+                decoration: const InputDecoration(
+                  labelText: '模型下载代理（可选）',
+                  hintText: 'http://127.0.0.1:7890',
+                  helperText:
+                      '留空读取代理环境变量；Windows/macOS 还会读取静态系统代理。PAC/WPAD 请手动填写。支持 HTTP 代理，不支持 SOCKS 和代理账号密码。',
+                  helperMaxLines: 3,
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _testingDownloadConnection
+                      ? null
+                      : _testDownloadConnection,
+                  icon: _testingDownloadConnection
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.network_check_rounded, size: 18),
+                  label: Text(
+                    _testingDownloadConnection ? '正在测试模型源连接…' : '测试下载连接',
+                  ),
+                ),
+              ),
+              if (_downloadConnectionMessage != null)
+                Text(
+                  _downloadConnectionMessage!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: _downloadConnectionSucceeded
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.error,
+                  ),
+                ),
               const SizedBox(height: AppSpacing.md),
               DropdownButtonFormField<String>(
                 initialValue: _language,
@@ -390,6 +545,31 @@ class _TranscriptionConfigDialogState
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
+              if (!_draftConfig().isConfigured)
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.errorContainer.withAlpha(70),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                  ),
+                  child: Text(
+                    '识别配置尚不完整（缺少：${_missingConfigurationSummary()}）。'
+                    '下载代理可以单独保存；完整识别配置稍后再补齐即可。',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              if (_validationMessage != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _validationMessage!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Profile 只决定本机 runtime/model/device。工程本身只保存识别模式和结果，不绑定某台电脑的绝对路径。',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -400,12 +580,18 @@ class _TranscriptionConfigDialogState
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _saving ? null : () => Navigator.pop(context),
           child: const Text('取消'),
         ),
         FilledButton(
-          onPressed: _submit,
-          child: const Text('保存'),
+          onPressed: _saving || _loadingSavedProxy ? null : _submit,
+          child: Text(
+            _saving
+                ? '正在保存…'
+                : _loadingSavedProxy
+                ? '正在读取代理…'
+                : (_draftConfig().isConfigured ? '保存并退出' : '保存代理并退出'),
+          ),
         ),
       ],
     );
@@ -416,10 +602,7 @@ class _InfoCard extends StatelessWidget {
   final String title;
   final String body;
 
-  const _InfoCard({
-    required this.title,
-    required this.body,
-  });
+  const _InfoCard({required this.title, required this.body});
 
   @override
   Widget build(BuildContext context) {

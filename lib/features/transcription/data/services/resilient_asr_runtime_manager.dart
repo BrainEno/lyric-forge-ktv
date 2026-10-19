@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
+import 'asr_download_http_client_factory.dart';
 
 /// Keeps local transcription usable even when the optional Qwen runtime is
 /// temporarily unavailable.
@@ -14,11 +15,13 @@ import '../../domain/services/asr_runtime_manager.dart';
 /// prepares a complete Whisper-only baseline before attempting the optional
 /// highest-quality upgrade.
 class ResilientAsrRuntimeManager implements AsrRuntimeManager {
+  static const Duration _downloadTimeout = Duration(seconds: 60);
   static const String _whisperCppReleaseTag = 'b5130';
   static const String _whisperWindowsX64Asset = 'whisper-bin-x64.zip';
 
   final AsrRuntimeManager delegate;
   final Future<Directory> Function()? managedRootResolver;
+  final AsrDownloadHttpClientFactory httpClientFactory;
   final Future<String?> Function(TranscriptionConfig config)?
       whisperRuntimeBootstrap;
 
@@ -37,7 +40,8 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     required this.delegate,
     this.managedRootResolver,
     this.whisperRuntimeBootstrap,
-  }) {
+    AsrDownloadHttpClientFactory? httpClientFactory,
+  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory() {
     _delegateSubscription =
         delegate.progressStream.listen(_forwardDelegateProgress);
   }
@@ -206,6 +210,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       archive,
       startProgress: 0.02,
       endProgress: 0.06,
+      proxyOverride: config.downloadProxy,
     );
     _throwIfCancelled();
 
@@ -248,12 +253,16 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     File target, {
     required double startProgress,
     required double endProgress,
+    required String proxyOverride,
   }) async {
     await target.parent.create(recursive: true);
     final part = File('${target.path}.part');
     var existing = await part.exists() ? await part.length() : 0;
 
-    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
+    client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
     try {
@@ -264,11 +273,11 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
       }
 
-      final response = await request.close();
+      final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
       if (response.statusCode != HttpStatus.ok &&
           response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>();
+        await response.drain<void>().timeout(_downloadTimeout);
         throw TranscriptionException(
           '无法下载 Whisper runtime',
           details: 'HTTP ${response.statusCode}: $uri',
@@ -288,7 +297,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       );
 
       try {
-        await for (final chunk in response) {
+        await for (final chunk in response.timeout(_downloadTimeout)) {
           _throwIfCancelled();
           sink.add(chunk);
           received += chunk.length;
@@ -318,7 +327,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         throw const TranscriptionException('识别环境安装已取消');
       }
       throw TranscriptionException(
-        '下载 Whisper runtime 失败',
+        '下载 Whisper runtime 失败，已保留断点文件',
         details: error.toString(),
       );
     } finally {

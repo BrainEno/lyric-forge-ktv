@@ -56,10 +56,7 @@ void main() {
       );
 
       expect(complete.qwenModelPath, 'Qwen/Qwen3-ASR-1.7B');
-      expect(
-        complete.qwenAlignerModelPath,
-        'Qwen/Qwen3-ForcedAligner-0.6B',
-      );
+      expect(complete.qwenAlignerModelPath, 'Qwen/Qwen3-ForcedAligner-0.6B');
       expect(complete.isHighQualityConfigured, isTrue);
       expect(complete.isConfigured, isTrue);
     });
@@ -88,7 +85,20 @@ void main() {
       expect(restored.language, 'ja');
       expect(restored.fallbackConfidenceThreshold, 80);
       expect(restored.maxFallbackSegments, 20);
+      expect(restored.downloadProxy, '');
       expect(restored.isConfigured, isTrue);
+    });
+
+    test('persists an optional model download proxy', () {
+      const original = TranscriptionConfig(
+        whisperExecutable: 'whisper-cli',
+        modelPath: 'ggml-large-v3.bin',
+        downloadProxy: 'http://127.0.0.1:7890',
+      );
+
+      final restored = TranscriptionConfig.fromJson(original.toJson());
+
+      expect(restored.downloadProxy, 'http://127.0.0.1:7890');
     });
   });
 }

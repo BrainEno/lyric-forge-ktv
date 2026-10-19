@@ -125,7 +125,10 @@ class _AiTranscriptionSettingsSectionState
 
     var total = 0;
     try {
-      await for (final entity in root.list(recursive: true, followLinks: false)) {
+      await for (final entity in root.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (entity is File) {
           total += await entity.length();
         }
@@ -137,7 +140,7 @@ class _AiTranscriptionSettingsSectionState
   }
 
   Future<void> _saveAndRefresh(TranscriptionConfig config) async {
-    await _settingsStore.save(config);
+    if (config.isConfigured) await _settingsStore.save(config);
     if (!mounted) return;
     setState(() => _config = config);
     await _refresh();
@@ -147,8 +150,8 @@ class _AiTranscriptionSettingsSectionState
     final current = _config ?? _defaultConfig;
     final updated = current.copyWith(
       mode: mode,
-      profilePreference: current.profilePreference ==
-              TranscriptionProfilePreference.custom
+      profilePreference:
+          current.profilePreference == TranscriptionProfilePreference.custom
           ? TranscriptionProfilePreference.custom
           : TranscriptionProfilePreference.automatic,
     );
@@ -165,7 +168,8 @@ class _AiTranscriptionSettingsSectionState
     if (storage.canInstall) return true;
 
     setState(() {
-      _error = '磁盘空间不足：本次安装建议至少可用 '
+      _error =
+          '磁盘空间不足：本次安装建议至少可用 '
           '${_formatBytes(storage.requiredAdditionalBytes)}，'
           '当前可用 ${_formatBytes(storage.availableBytes)}，'
           '还差 ${_formatBytes(storage.shortfallBytes)}。'
@@ -397,9 +401,8 @@ class _AiTranscriptionSettingsSectionState
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
       context: context,
-      builder: (context) => TranscriptionConfigDialog(
-        initialConfig: _config ?? _defaultConfig,
-      ),
+      builder: (context) =>
+          TranscriptionConfigDialog(initialConfig: _config ?? _defaultConfig),
     );
     if (updated == null || !mounted) return;
     await _saveAndRefresh(updated);
@@ -453,7 +456,10 @@ class _AiTranscriptionSettingsSectionState
 
   String _basename(String path) {
     final normalized = path.replaceAll('\\', '/');
-    final parts = normalized.split('/').where((part) => part.isNotEmpty).toList();
+    final parts = normalized
+        .split('/')
+        .where((part) => part.isNotEmpty)
+        .toList();
     return parts.isEmpty ? path : parts.last;
   }
 
@@ -496,15 +502,15 @@ class _AiTranscriptionSettingsSectionState
                   Text(
                     'AI / 歌词识别',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     '这里是桌面端统一的模型与 runtime 管理入口。保存后，工程详情和下一次歌词识别会读取同一份配置。',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -519,19 +525,16 @@ class _AiTranscriptionSettingsSectionState
               value: status?.profile.label ?? (_loading ? '正在检测…' : '尚未检测'),
               detail: status?.profile.description,
             ),
-            _InfoTile(
-              label: '当前实际模型',
-              value: _modelSummary(config),
-            ),
+            _InfoTile(label: '当前实际模型', value: _modelSummary(config)),
             _InfoTile(
               label: '安装状态',
               value: ready
                   ? '已就绪'
                   : _installing
-                      ? '正在安装'
-                      : status == null
-                          ? '未检测'
-                          : '${status.readyCount}/${status.components.length} 个组件已就绪',
+                  ? '正在安装'
+                  : status == null
+                  ? '未检测'
+                  : '${status.readyCount}/${status.components.length} 个组件已就绪',
               valueColor: ready ? AppColors.success : null,
             ),
             _InfoTile(
@@ -544,10 +547,7 @@ class _AiTranscriptionSettingsSectionState
               value: status?.managedRoot ?? '检测后显示',
               selectable: true,
             ),
-            _InfoTile(
-              label: '当前质量方案',
-              value: _modeLabel(config.mode),
-            ),
+            _InfoTile(label: '当前质量方案', value: _modeLabel(config.mode)),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -607,9 +607,9 @@ class _AiTranscriptionSettingsSectionState
                 _movingTotalBytes > 0
                     ? '正在迁移 ${_formatBytes(_movingCopiedBytes)} / ${_formatBytes(_movingTotalBytes)}'
                     : '正在迁移识别环境…',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
           ],
         ),
@@ -671,19 +671,19 @@ class _AiTranscriptionSettingsSectionState
                   storageBlocked
                       ? Icons.sd_storage_rounded
                       : _error != null
-                          ? Icons.refresh_rounded
-                          : Icons.download_for_offline_outlined,
+                      ? Icons.refresh_rounded
+                      : Icons.download_for_offline_outlined,
                 ),
                 label: Text(
                   storageBlocked
                       ? '空间不足'
                       : _error != null
-                          ? (_failedComponent == null
-                              ? '重试未完成组件'
-                              : '重试 ${_componentLabel(_failedComponent!)}')
-                          : ready
-                              ? '重新安装 / 修复'
-                              : '一键下载安装',
+                      ? (_failedComponent == null
+                            ? '重试未完成组件'
+                            : '重试 ${_componentLabel(_failedComponent!)}')
+                      : ready
+                      ? '重新安装 / 修复'
+                      : '一键下载安装',
                 ),
               ),
             OutlinedButton.icon(
@@ -715,9 +715,9 @@ class _AiTranscriptionSettingsSectionState
                 'Whisper 模型：${config.modelPath.isEmpty ? '未指定' : config.modelPath}\n'
                 'FFmpeg：${config.ffmpegExecutable}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      height: 1.6,
-                    ),
+                  color: AppColors.textSecondary,
+                  height: 1.6,
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -749,8 +749,8 @@ class _InfoGrid extends StatelessWidget {
         final columns = width >= 980
             ? 3
             : width >= 640
-                ? 2
-                : 1;
+            ? 2
+            : 1;
         final gap = AppSpacing.sm;
         final tileWidth = columns == 1
             ? width
@@ -790,9 +790,9 @@ class _InfoTile extends StatelessWidget {
       maxLines: selectable ? null : 3,
       overflow: selectable ? null : TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: valueColor,
-            fontWeight: FontWeight.w700,
-          ),
+        color: valueColor,
+        fontWeight: FontWeight.w700,
+      ),
     );
     return Container(
       constraints: const BoxConstraints(minHeight: 112),
@@ -807,9 +807,9 @@ class _InfoTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
           ),
           const SizedBox(height: AppSpacing.sm),
           if (selectable) SelectionArea(child: valueWidget) else valueWidget,
@@ -819,9 +819,9 @@ class _InfoTile extends StatelessWidget {
               detail!,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ],
@@ -847,8 +847,7 @@ class _ComponentList extends StatelessWidget {
         children: [
           for (var index = 0; index < components.length; index++) ...[
             _ComponentRow(component: components[index]),
-            if (index != components.length - 1)
-              const Divider(height: 1),
+            if (index != components.length - 1) const Divider(height: 1),
           ],
         ],
       ),
@@ -867,7 +866,9 @@ class _ComponentRow extends StatelessWidget {
     return ListTile(
       dense: true,
       leading: Icon(
-        ready ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+        ready
+            ? Icons.check_circle_rounded
+            : Icons.radio_button_unchecked_rounded,
         color: ready ? AppColors.success : AppColors.textTertiary,
       ),
       title: Text(component.label),
@@ -875,8 +876,8 @@ class _ComponentRow extends StatelessWidget {
       trailing: Text(
         ready ? '已安装' : component.state.name,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: ready ? AppColors.success : AppColors.textTertiary,
-            ),
+          color: ready ? AppColors.success : AppColors.textTertiary,
+        ),
       ),
     );
   }

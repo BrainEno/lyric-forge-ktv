@@ -11,6 +11,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
+import '../../domain/services/transcription_settings_store.dart';
 import 'asr_install_progress_card.dart';
 import 'asr_storage_preflight_card.dart';
 import 'transcription_config_dialog.dart';
@@ -18,20 +19,17 @@ import 'transcription_config_dialog.dart';
 class AsrRuntimeSetupDialog extends StatefulWidget {
   final TranscriptionConfig? initialConfig;
 
-  const AsrRuntimeSetupDialog({
-    super.key,
-    this.initialConfig,
-  });
+  const AsrRuntimeSetupDialog({super.key, this.initialConfig});
 
   @override
-  State<AsrRuntimeSetupDialog> createState() =>
-      _AsrRuntimeSetupDialogState();
+  State<AsrRuntimeSetupDialog> createState() => _AsrRuntimeSetupDialogState();
 }
 
 class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   late final AsrRuntimeManager _runtimeManager;
   late final AsrStoragePreflightService _storagePreflightService;
   late final LocalAsrManagedStorageService _managedStorageService;
+  late final TranscriptionSettingsStore _settingsStore;
   late TranscriptionConfig _config;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
@@ -52,7 +50,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
     _runtimeManager = services.asrRuntimeManager;
     _storagePreflightService = services.asrStoragePreflightService;
     _managedStorageService = services.asrManagedStorageService;
-    _config = widget.initialConfig ??
+    _settingsStore = services.transcriptionSettingsStore;
+    _config =
+        widget.initialConfig ??
         const TranscriptionConfig(
           mode: TranscriptionMode.highestQuality,
           profilePreference: TranscriptionProfilePreference.automatic,
@@ -61,8 +61,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           modelPath: '',
         );
 
-    _progressSubscription =
-        _runtimeManager.progressStream.listen((progress) {
+    _progressSubscription = _runtimeManager.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _installProgress = progress);
     });
@@ -118,7 +117,8 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
 
     final available = storage.availableBytes;
     setState(() {
-      _error = '磁盘空间不足：本次安装建议至少可用 '
+      _error =
+          '磁盘空间不足：本次安装建议至少可用 '
           '${_formatBytes(storage.requiredAdditionalBytes)}，'
           '当前可用 ${available == null ? '无法读取' : _formatBytes(available)}，'
           '还差 ${_formatBytes(storage.shortfallBytes)}。'
@@ -234,12 +234,21 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
       context: context,
-      builder: (context) => TranscriptionConfigDialog(
-        initialConfig: _config,
-      ),
+      builder: (context) => TranscriptionConfigDialog(initialConfig: _config),
     );
     if (updated == null || !mounted) return;
 
+    if (updated.isConfigured) {
+      try {
+        await _settingsStore.save(updated);
+      } catch (error) {
+        if (!mounted) return;
+        setState(() => _error = '保存本地识别设置失败：$error');
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() => _config = updated);
     await _refresh();
   }
@@ -294,10 +303,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           AppSpacing.md,
           AppSpacing.md,
         ),
-        title: _SetupHeader(
-          ready: ready,
-          installing: _installing,
-        ),
+        title: _SetupHeader(ready: ready, installing: _installing),
         content: SizedBox(
           width: 720,
           child: ConstrainedBox(
@@ -321,9 +327,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<TranscriptionMode>(
                     initialValue: _config.mode,
-                    decoration: const InputDecoration(
-                      labelText: '质量模式',
-                    ),
+                    decoration: const InputDecoration(labelText: '质量模式'),
                     items: const [
                       DropdownMenuItem(
                         value: TranscriptionMode.highestQuality,
@@ -373,8 +377,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   AsrStoragePreflightCard(
                     result: _storage,
                     loading: _loading,
-                    onChangeLocation:
-                        _installing ? null : _changeManagedStorageLocation,
+                    onChangeLocation: _installing
+                        ? null
+                        : _changeManagedStorageLocation,
                   ),
                   if (_installProgress != null &&
                       (_installing || _paused || _error != null)) ...[
@@ -402,8 +407,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusMedium,
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,11 +423,11 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                         Expanded(
                           child: Text(
                             '普通使用不需要自己寻找模型、填写路径或设置运行参数。所有文件都会保存在 Elysium Player 自己的应用目录中。',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      height: 1.4,
-                                    ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
                           ),
                         ),
                       ],
@@ -449,12 +455,8 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
               icon: const Icon(Icons.play_arrow_rounded, size: 18),
               label: const Text('继续下载'),
             ),
-          ]
-          else ...[
-            TextButton(
-              onPressed: _openAdvanced,
-              child: const Text('高级设置'),
-            ),
+          ] else ...[
+            TextButton(onPressed: _openAdvanced, child: const Text('高级设置')),
             TextButton.icon(
               onPressed: _loading ? null : _refresh,
               icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -491,8 +493,8 @@ class _SetupHeader extends StatelessWidget {
     final title = ready
         ? '本地歌词识别已准备好'
         : installing
-            ? '正在准备本地歌词识别'
-            : '首次使用，只需完成一次准备';
+        ? '正在准备本地歌词识别'
+        : '首次使用，只需完成一次准备';
     final subtitle = ready
         ? '之后可以直接导入歌曲并在后台生成歌词。'
         : 'Elysium Player 会自动检测电脑、下载所需组件并完成配置。';
@@ -532,16 +534,16 @@ class _SetupHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -578,9 +580,9 @@ class _SectionLabel extends StatelessWidget {
           ),
           child: Text(
             number,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -590,16 +592,16 @@ class _SectionLabel extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ),
@@ -663,16 +665,16 @@ class _ProfileSummary extends StatelessWidget {
                       child: Text(
                         title,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     Text(
                       ready ? '已就绪' : '自动推荐',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -680,15 +682,15 @@ class _ProfileSummary extends StatelessWidget {
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   hardware,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -729,10 +731,7 @@ class _ComponentsCard extends StatelessWidget {
   final List<AsrRuntimeComponentStatus> components;
   final bool ready;
 
-  const _ComponentsCard({
-    required this.components,
-    required this.ready,
-  });
+  const _ComponentsCard({required this.components, required this.ready});
 
   @override
   Widget build(BuildContext context) {
@@ -749,9 +748,9 @@ class _ComponentsCard extends StatelessWidget {
           Text(
             ready ? '本地组件' : '首次使用需要准备',
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           for (var index = 0; index < components.length; index++) ...[
@@ -798,16 +797,16 @@ class _ErrorCard extends StatelessWidget {
                 Text(
                   '暂时无法完成准备',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -831,13 +830,13 @@ class _ComponentRow extends StatelessWidget {
     final icon = ready
         ? Icons.check_circle_rounded
         : unavailable
-            ? Icons.tune_rounded
-            : Icons.radio_button_unchecked_rounded;
+        ? Icons.tune_rounded
+        : Icons.radio_button_unchecked_rounded;
     final color = ready
         ? AppColors.success
         : unavailable
-            ? AppColors.warning
-            : AppColors.textTertiary;
+        ? AppColors.warning
+        : AppColors.textTertiary;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -858,9 +857,9 @@ class _ComponentRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 component.detail,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ),
@@ -870,12 +869,12 @@ class _ComponentRow extends StatelessWidget {
           ready
               ? '已准备'
               : unavailable
-                  ? '需手动配置'
-                  : '待准备',
+              ? '需手动配置'
+              : '待准备',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );

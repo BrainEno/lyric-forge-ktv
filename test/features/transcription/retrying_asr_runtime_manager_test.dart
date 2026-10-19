@@ -96,6 +96,51 @@ void main() {
     await manager.dispose();
   });
 
+  test(
+    'retries Whisper socket timeouts while preserving byte progress',
+    () async {
+      late final _FakeRuntimeManager delegate;
+      delegate = _FakeRuntimeManager(
+        onInstall: (attempt, config) async {
+          if (attempt == 1) {
+            delegate.emit(
+              const AsrRuntimeInstallProgress(
+                component: AsrRuntimeComponent.whisperModel,
+                progress: 0.25,
+                message: '正在下载 Whisper large-v3',
+                downloadedBytes: 800 * 1024 * 1024,
+                totalBytes: 3 * 1024 * 1024 * 1024,
+              ),
+            );
+            throw const TranscriptionException(
+              '下载 Whisper large-v3 失败，已保留断点文件',
+              details: 'SocketException: 信号灯超时已到',
+            );
+          }
+          return config;
+        },
+      );
+      final manager = RetryingAsrRuntimeManager(
+        delegate: delegate,
+        retryDelay: Duration.zero,
+      );
+      final progressEvents = <AsrRuntimeInstallProgress>[];
+      final subscription = manager.progressStream.listen(progressEvents.add);
+
+      await manager.installRecommended(config);
+
+      expect(delegate.installCalls, 2);
+      final retry = progressEvents.singleWhere(
+        (event) => event.message.contains('网络连接中断'),
+      );
+      expect(retry.message, contains('800.0 MB / 3.00 GB'));
+      expect(retry.component, AsrRuntimeComponent.whisperModel);
+
+      await subscription.cancel();
+      await manager.dispose();
+    },
+  );
+
   test('does not retry permission or integrity failures', () async {
     final delegate = _FakeRuntimeManager(
       onInstall: (attempt, config) async {

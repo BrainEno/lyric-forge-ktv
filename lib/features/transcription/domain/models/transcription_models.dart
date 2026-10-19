@@ -95,6 +95,7 @@ class TranscriptionConfig {
   // Shared processing
   final String ffmpegExecutable;
   final String language;
+  final String downloadProxy;
 
   // Highest-quality review policy
   final int fallbackConfidenceThreshold;
@@ -113,6 +114,7 @@ class TranscriptionConfig {
     required this.modelPath,
     this.ffmpegExecutable = 'ffmpeg',
     this.language = 'auto',
+    this.downloadProxy = '',
     this.fallbackConfidenceThreshold = 70,
     this.maxFallbackSegments = 20,
   });
@@ -148,6 +150,7 @@ class TranscriptionConfig {
     String? modelPath,
     String? ffmpegExecutable,
     String? language,
+    String? downloadProxy,
     int? fallbackConfidenceThreshold,
     int? maxFallbackSegments,
   }) {
@@ -165,6 +168,7 @@ class TranscriptionConfig {
       modelPath: modelPath ?? this.modelPath,
       ffmpegExecutable: ffmpegExecutable ?? this.ffmpegExecutable,
       language: language ?? this.language,
+      downloadProxy: downloadProxy ?? this.downloadProxy,
       fallbackConfidenceThreshold:
           fallbackConfidenceThreshold ?? this.fallbackConfidenceThreshold,
       maxFallbackSegments:
@@ -186,6 +190,7 @@ class TranscriptionConfig {
       'modelPath': modelPath,
       'ffmpegExecutable': ffmpegExecutable,
       'language': language,
+      'downloadProxy': downloadProxy,
       'fallbackConfidenceThreshold': fallbackConfidenceThreshold,
       'maxFallbackSegments': maxFallbackSegments,
     };
@@ -228,6 +233,7 @@ class TranscriptionConfig {
       modelPath: json['modelPath'] as String? ?? '',
       ffmpegExecutable: json['ffmpegExecutable'] as String? ?? 'ffmpeg',
       language: json['language'] as String? ?? 'auto',
+      downloadProxy: json['downloadProxy'] as String? ?? '',
       fallbackConfidenceThreshold:
           (json['fallbackConfidenceThreshold'] as num?)?.toInt() ?? 70,
       maxFallbackSegments:

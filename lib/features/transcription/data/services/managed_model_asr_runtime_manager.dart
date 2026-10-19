@@ -7,11 +7,13 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
+import 'asr_download_http_client_factory.dart';
 import 'hugging_face_file_metadata.dart';
 
 /// Adds LyricForge-managed Qwen model downloads in front of the existing
 /// runtime installer so normal users never need to locate a Hugging Face cache.
 class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
+  static const Duration _downloadTimeout = Duration(seconds: 60);
   static const String _qwen17 = 'Qwen/Qwen3-ASR-1.7B';
   static const String _qwen06 = 'Qwen/Qwen3-ASR-0.6B';
   static const String _aligner06 = 'Qwen/Qwen3-ForcedAligner-0.6B';
@@ -55,6 +57,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   final AsrRuntimeManager delegate;
   final TranscriptionProfileResolver profileResolver;
   final Future<Directory> Function()? managedRootResolver;
+  final AsrDownloadHttpClientFactory httpClientFactory;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -69,7 +72,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required this.delegate,
     required this.profileResolver,
     this.managedRootResolver,
-  }) {
+    AsrDownloadHttpClientFactory? httpClientFactory,
+  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory() {
     delegate.progressStream.listen(_forwardDelegateProgress);
   }
 
@@ -157,6 +161,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           component: AsrRuntimeComponent.qwenModel,
           startProgress: 0.02,
           endProgress: 0.43,
+          proxyOverride: prepared.downloadProxy,
         );
         _throwIfCancelled();
 
@@ -167,6 +172,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           component: AsrRuntimeComponent.qwenAligner,
           startProgress: 0.43,
           endProgress: 0.61,
+          proxyOverride: prepared.downloadProxy,
         );
         _throwIfCancelled();
 
@@ -197,7 +203,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       status,
       AsrRuntimeComponent.whisperRuntime,
     );
-    final qwenReady = config.mode != TranscriptionMode.highestQuality ||
+    final qwenReady =
+        config.mode != TranscriptionMode.highestQuality ||
         _componentReady(status, AsrRuntimeComponent.qwenRuntime);
     if (whisperReady && qwenReady) return;
 
@@ -214,20 +221,19 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
       '$_runtimeReleaseTag/$asset',
     );
-    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    final client = await httpClientFactory.create(
+      manualProxy: config.downloadProxy,
+    );
+    client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
     try {
-      _emit(
-        AsrRuntimeComponent.qwenRuntime,
-        0.005,
-        '正在检查识别引擎安装包是否可用',
-      );
+      _emit(AsrRuntimeComponent.qwenRuntime, 0.005, '正在检查识别引擎安装包是否可用');
       final request = await client.headUrl(uri);
       _activeRequest = request;
-      final response = await request.close();
+      final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
-      await response.drain<void>();
+      await response.drain<void>().timeout(_downloadTimeout);
 
       if (response.statusCode < 200 || response.statusCode >= 400) {
         throw TranscriptionException(
@@ -271,6 +277,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required AsrRuntimeComponent component,
     required double startProgress,
     required double endProgress,
+    required String proxyOverride,
   }) async {
     final configuredPath = configured.trim();
     if (configuredPath.isNotEmpty &&
@@ -303,6 +310,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       component: component,
       startProgress: startProgress,
       endProgress: endProgress,
+      proxyOverride: proxyOverride,
     );
   }
 
@@ -334,6 +342,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required AsrRuntimeComponent component,
     required double startProgress,
     required double endProgress,
+    required String proxyOverride,
   }) async {
     final files = _modelFiles[modelId];
     if (files == null) {
@@ -353,6 +362,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final metadata = await _fetchModelFileMetadata(
         modelId: modelId,
         fileName: fileName,
+        proxyOverride: proxyOverride,
       );
 
       var reusable = false;
@@ -376,6 +386,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           fileName: fileName,
           target: target,
           metadata: metadata,
+          proxyOverride: proxyOverride,
           onProgress: (
             fraction,
             downloadedBytes,
@@ -436,13 +447,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String fileName,
     required File target,
     required HuggingFaceFileMetadata metadata,
+    required String proxyOverride,
     required void Function(
       double fraction,
       int downloadedBytes,
       int totalBytes,
       double? bytesPerSecond,
       Duration? estimatedRemaining,
-    ) onProgress,
+    )
+    onProgress,
   }) async {
     await target.parent.create(recursive: true);
     final part = File('${target.path}.part');
@@ -455,7 +468,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       if (await _verifyLocalModelFile(part, metadata)) {
         if (await target.exists()) await target.delete();
         await part.rename(target.path);
-        onProgress(1.0, metadata.sizeBytes, metadata.sizeBytes, null, Duration.zero);
+        onProgress(
+          1.0,
+          metadata.sizeBytes,
+          metadata.sizeBytes,
+          null,
+          Duration.zero,
+        );
         return;
       }
       await part.delete();
@@ -465,7 +484,10 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final uri = Uri.parse(
       'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
     );
-    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
+    client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
     try {
@@ -476,11 +498,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
       }
 
-      final response = await request.close();
+      final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
       if (response.statusCode != HttpStatus.ok &&
           response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>();
+        await response.drain<void>().timeout(_downloadTimeout);
         throw TranscriptionException(
           '无法下载 ${_modelLabel(modelId)}',
           details: '$fileName: HTTP ${response.statusCode}',
@@ -490,11 +512,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final append =
           existing > 0 && response.statusCode == HttpStatus.partialContent;
       if (append) {
-        final contentRange =
-            response.headers.value(HttpHeaders.contentRangeHeader)?.toLowerCase();
+        final contentRange = response.headers
+            .value(HttpHeaders.contentRangeHeader)
+            ?.toLowerCase();
         if (contentRange == null ||
             !contentRange.startsWith('bytes $existing-')) {
-          await response.drain<void>();
+          await response.drain<void>().timeout(_downloadTimeout);
           if (await part.exists()) await part.delete();
           throw TranscriptionException(
             '${_modelLabel(modelId)} 断点续传响应不一致，已清理临时文件',
@@ -513,12 +536,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       );
 
       try {
-        await for (final chunk in response) {
+        await for (final chunk in response.timeout(_downloadTimeout)) {
           _throwIfCancelled();
           sink.add(chunk);
           received += chunk.length;
           final elapsedSeconds =
-              transferWatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
+              transferWatch.elapsedMicroseconds /
+              Duration.microsecondsPerSecond;
           final transferred = received - transferStartBytes;
           final speed = elapsedSeconds >= 0.5 && transferred > 0
               ? transferred / elapsedSeconds
@@ -545,14 +569,16 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       if (actualSize < metadata.sizeBytes) {
         throw TranscriptionException(
           '${_modelLabel(modelId)} 下载未完成，下次将从断点继续',
-          details: '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
+          details:
+              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
         );
       }
       if (actualSize > metadata.sizeBytes) {
         await part.delete();
         throw TranscriptionException(
           '${_modelLabel(modelId)} 文件大小异常，已清理损坏的临时文件',
-          details: '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
+          details:
+              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
         );
       }
 
@@ -567,7 +593,13 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
       if (await target.exists()) await target.delete();
       await part.rename(target.path);
-      onProgress(1.0, metadata.sizeBytes, metadata.sizeBytes, null, Duration.zero);
+      onProgress(
+        1.0,
+        metadata.sizeBytes,
+        metadata.sizeBytes,
+        null,
+        Duration.zero,
+      );
     } on TranscriptionException {
       rethrow;
     } catch (error) {
@@ -588,11 +620,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   Future<HuggingFaceFileMetadata> _fetchModelFileMetadata({
     required String modelId,
     required String fileName,
+    required String proxyOverride,
   }) async {
     final uri = Uri.parse(
       'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
     );
-    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
+    client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
     try {
@@ -600,11 +636,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       _activeRequest = request;
       request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
-      final response = await request.close();
+      final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
 
       if (response.statusCode < 200 || response.statusCode >= 400) {
-        await response.drain<void>();
+        await response.drain<void>().timeout(_downloadTimeout);
         throw TranscriptionException(
           '无法读取 ${_modelLabel(modelId)} 文件元数据',
           details: '$fileName: HTTP ${response.statusCode}',
@@ -615,7 +651,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       response.headers.forEach((name, values) {
         headers[name.toLowerCase()] = values.join(',');
       });
-      await response.drain<void>();
+      await response.drain<void>().timeout(_downloadTimeout);
 
       try {
         return HuggingFaceFileMetadata.fromHeaders(headers);

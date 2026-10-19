@@ -35,6 +35,8 @@ import '../../features/project/data/repositories/file_project_repository.dart';
 import '../../features/project/domain/repositories/project_repository.dart';
 import '../../features/transcription/data/services/file_batch_transcription_queue.dart';
 import '../../features/transcription/data/services/file_transcription_settings_store.dart';
+import '../../features/transcription/data/services/asr_download_connection_checker.dart';
+import '../../features/transcription/data/services/asr_download_http_client_factory.dart';
 import '../../features/transcription/data/services/high_quality_transcription_service.dart';
 import '../../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
 import '../../features/transcription/data/services/local_asr_managed_storage_service.dart';
@@ -50,6 +52,7 @@ import '../../features/transcription/data/services/retrying_asr_runtime_manager.
 import '../../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
 import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
+import '../../features/transcription/domain/services/asr_download_connection_checker.dart';
 import '../../features/transcription/domain/services/asr_runtime_manager.dart';
 import '../../features/transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../features/transcription/domain/services/batch_transcription_queue.dart';
@@ -102,6 +105,8 @@ class ServiceLocator {
   late final AsrStoragePreflightService asrStoragePreflightService;
   late final TranscriptionProfileResolver transcriptionProfileResolver;
   late final TranscriptionSettingsStore transcriptionSettingsStore;
+  late final TranscriptionDownloadProxyStore transcriptionDownloadProxyStore;
+  late final AsrDownloadConnectionChecker asrDownloadConnectionChecker;
   late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
   late final AsrEndToEndSmokeTestService asrEndToEndSmokeTestService;
   late final BatchTranscriptionQueue transcriptionQueue;
@@ -217,19 +222,26 @@ class ServiceLocator {
       profileResolver: transcriptionProfileResolver,
       managedRootResolver: asrManagedStorageService.resolveRoot,
     );
+    final downloadHttpClientFactory = AsrDownloadHttpClientFactory();
+    asrDownloadConnectionChecker = HttpAsrDownloadConnectionChecker(
+      clientFactory: downloadHttpClientFactory,
+    );
     final runtimeInstaller = ManagedAsrRuntimeManager(
       profileResolver: transcriptionProfileResolver,
       managedRootResolver: asrManagedStorageService.resolveRoot,
+      httpClientFactory: downloadHttpClientFactory,
     );
     final managedRuntime = ManagedModelAsrRuntimeManager(
       delegate: runtimeInstaller,
       profileResolver: transcriptionProfileResolver,
       managedRootResolver: asrManagedStorageService.resolveRoot,
+      httpClientFactory: downloadHttpClientFactory,
     );
     final retryingRuntime = RetryingAsrRuntimeManager(delegate: managedRuntime);
     final resilientRuntime = ResilientAsrRuntimeManager(
       delegate: retryingRuntime,
       managedRootResolver: asrManagedStorageService.resolveRoot,
+      httpClientFactory: downloadHttpClientFactory,
     );
     asrRuntimeManager = StoragePreflightAsrRuntimeManager(
       delegate: resilientRuntime,
@@ -241,7 +253,9 @@ class ServiceLocator {
         fallback: WhisperCppTranscriptionService(),
       ),
     );
-    transcriptionSettingsStore = FileTranscriptionSettingsStore();
+    final transcriptionSettings = FileTranscriptionSettingsStore();
+    transcriptionSettingsStore = transcriptionSettings;
+    transcriptionDownloadProxyStore = transcriptionSettings;
     ktvRecordingService = LocalKtvRecordingService(
       audioService: audioPlayerService,
       microphoneService: ktvMicrophoneService,
@@ -272,8 +286,15 @@ bool _isSupportedIncomingAudio(String path) {
   final dot = path.lastIndexOf('.');
   if (dot < 0 || dot == path.length - 1) return false;
   final extension = path.substring(dot + 1).toLowerCase();
-  return const {'mp3', 'flac', 'wav', 'm4a', 'mp4', 'ogg', 'aac'}
-      .contains(extension);
+  return const {
+    'mp3',
+    'flac',
+    'wav',
+    'm4a',
+    'mp4',
+    'ogg',
+    'aac',
+  }.contains(extension);
 }
 
 /// Global accessor for services.

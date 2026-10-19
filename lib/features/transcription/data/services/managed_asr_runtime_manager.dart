@@ -7,9 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
+import 'asr_download_http_client_factory.dart';
 import 'runtime_release_asset_metadata.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
+  static const Duration _downloadTimeout = Duration(seconds: 60);
   static const String _runtimeReleaseTag = 'asr-runtime-v1';
   static const String _whisperModelName = 'ggml-large-v3.bin';
   static const String _whisperModelSha256 =
@@ -22,6 +24,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   final TranscriptionProfileResolver profileResolver;
   final Future<Directory> Function()? managedRootResolver;
+  final AsrDownloadHttpClientFactory httpClientFactory;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -34,7 +37,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   ManagedAsrRuntimeManager({
     required this.profileResolver,
     this.managedRootResolver,
-  });
+    AsrDownloadHttpClientFactory? httpClientFactory,
+  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory();
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream =>
@@ -249,6 +253,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         final installed = await _installManagedRuntimeBundle(
           root,
           profile.profile,
+          proxyOverride: config.downloadProxy,
         );
         qwenPath = installed.$1;
         whisperPath = installed.$2;
@@ -264,7 +269,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         commandName: _ffmpegName,
       );
       if (ffmpegPath == null) {
-        ffmpegPath = await _installFfmpeg(root);
+        ffmpegPath = await _installFfmpeg(
+          root,
+          proxyOverride: config.downloadProxy,
+        );
       }
 
       _throwIfCancelled();
@@ -272,7 +280,11 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       final whisperModelPath =
           _join(root.path, ['models', 'whisper', _whisperModelName]);
       if (!await _validWhisperModel(whisperModelPath)) {
-        await _installWhisperModel(root, whisperModelPath);
+        await _installWhisperModel(
+          root,
+          whisperModelPath,
+          proxyOverride: config.downloadProxy,
+        );
       }
 
       _throwIfCancelled();
@@ -322,8 +334,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   Future<(String, String)> _installManagedRuntimeBundle(
     Directory root,
-    TranscriptionProfilePreference profile,
-  ) async {
+    TranscriptionProfilePreference profile, {
+    required String proxyOverride,
+  }) async {
     _emit(
       AsrRuntimeComponent.qwenRuntime,
       0.05,
@@ -332,7 +345,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['asr-runtime.zip']));
-    final metadata = await _fetchRuntimeReleaseAssetMetadata(profile);
+    final metadata = await _fetchRuntimeReleaseAssetMetadata(
+      profile,
+      proxyOverride: proxyOverride,
+    );
 
     try {
       await _download(
@@ -342,6 +358,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         startProgress: 0.05,
         endProgress: 0.22,
         resumable: true,
+        proxyOverride: proxyOverride,
       );
     } on HttpException catch (error) {
       throw TranscriptionException(
@@ -433,7 +450,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     return (qwenTarget.path, whisperTarget.path);
   }
 
-  Future<String> _installFfmpeg(Directory root) async {
+  Future<String> _installFfmpeg(
+    Directory root, {
+    required String proxyOverride,
+  }) async {
     _emit(
       AsrRuntimeComponent.ffmpeg,
       0.25,
@@ -455,6 +475,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       component: AsrRuntimeComponent.ffmpeg,
       startProgress: 0.25,
       endProgress: 0.34,
+      proxyOverride: proxyOverride,
     );
 
     final ffmpegRoot = Directory(_join(root.path, ['ffmpeg']));
@@ -492,8 +513,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   Future<void> _installWhisperModel(
     Directory root,
-    String targetPath,
-  ) async {
+    String targetPath, {
+    required String proxyOverride,
+  }) async {
     _emit(
       AsrRuntimeComponent.whisperModel,
       0.36,
@@ -510,6 +532,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       startProgress: 0.36,
       endProgress: 0.68,
       resumable: true,
+      proxyOverride: proxyOverride,
     );
 
     _emit(
@@ -658,6 +681,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required double startProgress,
     required double endProgress,
     bool resumable = false,
+    String proxyOverride = '',
   }) async {
     await target.parent.create(recursive: true);
     final part = File(target.path + '.part');
@@ -669,44 +693,68 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       await part.delete();
     }
 
-    final client = HttpClient();
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
     client.userAgent = 'LyricForge/1.0';
 
     try {
       final request = await client.getUrl(uri);
       _activeRequest = request;
+      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
       if (existing > 0) {
         request.headers.set(HttpHeaders.rangeHeader, 'bytes=$existing-');
       }
 
-      final response = await request.close();
-      _activeRequest = null;
+      final response = await request.close().timeout(_downloadTimeout);
 
       if (response.statusCode != HttpStatus.ok &&
           response.statusCode != HttpStatus.partialContent) {
-        await response.drain<void>();
-        throw HttpException(
-          'HTTP ${response.statusCode}',
-          uri: uri,
-        );
+        await response.drain<void>().timeout(_downloadTimeout);
+        throw HttpException('HTTP ${response.statusCode}', uri: uri);
       }
 
       final append =
           existing > 0 && response.statusCode == HttpStatus.partialContent;
       if (!append) existing = 0;
 
+      final contentRange = response.headers.value(
+        HttpHeaders.contentRangeHeader,
+      );
+      final rangeMatch = contentRange == null
+          ? null
+          : RegExp(
+              r'^bytes (\d+)-(\d+)/(\d+|\*)$',
+            ).firstMatch(contentRange.toLowerCase());
+      if (response.statusCode == HttpStatus.partialContent &&
+          (rangeMatch == null ||
+              int.tryParse(rangeMatch.group(1)!) != existing ||
+              (rangeMatch.group(3) != '*' &&
+                  int.tryParse(rangeMatch.group(3)!) == null))) {
+        await response.drain<void>().timeout(_downloadTimeout);
+        if (await part.exists()) await part.delete();
+        throw TranscriptionException(
+          'Whisper 模型断点续传响应无效，已清理临时文件',
+          details: 'Content-Range: $contentRange',
+        );
+      }
+
       final sink = part.openWrite(
         mode: append ? FileMode.append : FileMode.write,
       );
 
       final contentLength = response.contentLength;
-      final total = contentLength > 0 ? existing + contentLength : -1;
+      final rangeTotal = rangeMatch == null || rangeMatch.group(3) == '*'
+          ? null
+          : int.tryParse(rangeMatch.group(3)!);
+      final total =
+          rangeTotal ?? (contentLength > 0 ? existing + contentLength : -1);
       var received = existing;
       final transferStartBytes = existing;
       final transferWatch = Stopwatch()..start();
 
       try {
-        await for (final chunk in response) {
+        await for (final chunk in response.timeout(_downloadTimeout)) {
           _throwIfCancelled();
           sink.add(chunk);
           received += chunk.length;
@@ -717,7 +765,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           final mapped =
               startProgress + (endProgress - startProgress) * fraction;
           final elapsedSeconds =
-              transferWatch.elapsedMicroseconds / Duration.microsecondsPerSecond;
+              transferWatch.elapsedMicroseconds /
+              Duration.microsecondsPerSecond;
           final transferred = received - transferStartBytes;
           final speed = elapsedSeconds >= 0.5 && transferred > 0
               ? transferred / elapsedSeconds
@@ -741,8 +790,45 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         await sink.close();
       }
 
+      if (total > 0 && received < total) {
+        throw TranscriptionException(
+          'Whisper large-v3 下载未完成，已保留断点并将自动续传',
+          details: 'expected=$total, actual=$received',
+        );
+      }
+      if (total > 0 && received > total) {
+        await part.delete();
+        throw TranscriptionException(
+          'Whisper large-v3 下载大小异常，已清理损坏的临时文件',
+          details: 'expected=$total, actual=$received',
+        );
+      }
+
       if (await target.exists()) await target.delete();
       await part.rename(target.path);
+    } on TranscriptionException {
+      rethrow;
+    } on HttpException catch (error) {
+      if (component != AsrRuntimeComponent.whisperModel) rethrow;
+      throw TranscriptionException(
+        '下载 Whisper large-v3 失败，已保留断点文件',
+        details: error.toString(),
+      );
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const TranscriptionException('识别环境安装已取消');
+      }
+      if (component != AsrRuntimeComponent.whisperModel &&
+          !(component == AsrRuntimeComponent.qwenRuntime && resumable)) {
+        rethrow;
+      }
+      final label = component == AsrRuntimeComponent.whisperModel
+          ? 'Whisper large-v3'
+          : 'LyricForge 识别引擎';
+      throw TranscriptionException(
+        '下载 $label 失败，已保留断点文件',
+        details: error.toString(),
+      );
     } finally {
       _activeRequest = null;
       client.close(force: true);
@@ -845,7 +931,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           .timeout(const Duration(seconds: 2));
       final response =
           await request.close().timeout(const Duration(seconds: 2));
-      await response.drain<void>();
+      await response.drain<void>().timeout(const Duration(seconds: 2));
       return response.statusCode == HttpStatus.ok;
     } catch (_) {
       return false;
@@ -1041,13 +1127,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   Future<RuntimeReleaseAssetMetadata> _fetchRuntimeReleaseAssetMetadata(
     TranscriptionProfilePreference profile,
+    {
+      required String proxyOverride,
+    }
   ) async {
     final assetName = _runtimeAssetName(profile);
     final uri = Uri.parse(
       'https://api.github.com/repos/BrainEno/lyric-forge-ktv/releases/tags/'
       '$_runtimeReleaseTag',
     );
-    final client = HttpClient()..userAgent = 'LyricForge/1.0';
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
+    client.userAgent = 'LyricForge/1.0';
 
     try {
       final request = await client.getUrl(uri);
@@ -1056,18 +1148,20 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         HttpHeaders.acceptHeader,
         'application/vnd.github+json',
       );
-      final response = await request.close();
+      final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
 
       if (response.statusCode != HttpStatus.ok) {
-        await response.drain<void>();
+        await response.drain<void>().timeout(_downloadTimeout);
         throw TranscriptionException(
           '无法读取识别引擎发布信息，请检查网络后重试',
           details: 'GitHub release API HTTP ${response.statusCode}',
         );
       }
 
-      final body = await utf8.decoder.bind(response).join();
+      final body = await utf8.decoder
+          .bind(response.timeout(_downloadTimeout))
+          .join();
       try {
         return RuntimeReleaseAssetMetadata.fromReleaseJson(
           body,

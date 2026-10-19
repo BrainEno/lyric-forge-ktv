@@ -91,7 +91,13 @@ ASRRuntime/models/whisper/ggml-large-v3.bin
 
 The model is downloaded from the whisper.cpp Hugging Face repository. Downloads
 use a `.part` file and HTTP Range when supported so interrupted downloads can
-resume.
+resume. Connection setup is bounded to 30 seconds and a download with no
+response data for 60 seconds is retried automatically from the retained
+partial file. If Hugging Face remains unreachable, installation reports the
+network error and can be resumed later without discarding downloaded bytes.
+The setup screen separates the estimated overall environment preparation
+progress (download, verification and installation) from the active file's
+download percentage, transferred bytes, speed and remaining-time estimate.
 
 Expected SHA-256:
 
@@ -101,6 +107,28 @@ Expected SHA-256:
 
 A failed checksum deletes the final model instead of silently accepting a
 corrupt file.
+
+### Download proxy
+
+Model and managed runtime downloads use the same proxy selection:
+
+1. An optional HTTP proxy entered in Advanced Settings.
+2. Proxy environment variables recognized by Dart (`https_proxy`, `HTTPS_PROXY`,
+   and related variables).
+3. The Windows static system proxy or macOS HTTP/HTTPS system proxy. Linux
+   currently relies on proxy environment variables rather than desktop proxy
+   settings.
+4. Direct connection when no proxy is configured.
+
+Use a URL such as `http://127.0.0.1:7890`. Credentials in proxy URLs, SOCKS
+proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
+PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
+may otherwise fall back to direct access if no static proxy is available. The “Test download
+connection” action checks access to the Hugging Face Whisper model source before
+starting a large download. No third-party model mirror is selected automatically.
+The proxy can be saved independently from model/runtime paths; an incomplete
+recognition profile is reported inside Advanced Settings and does not block
+saving the proxy.
 
 ### Qwen3-ASR runtime
 

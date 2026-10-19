@@ -7,3 +7,9 @@ abstract class TranscriptionSettingsStore {
 
   Future<void> clear();
 }
+
+abstract class TranscriptionDownloadProxyStore {
+  Future<String?> loadDownloadProxy();
+
+  Future<void> saveDownloadProxy(String proxy);
+}

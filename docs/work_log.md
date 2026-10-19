@@ -175,3 +175,62 @@
   - `flutter test` => success
 - Notes: 只持久化输入设备选择，不自动恢复监听开关、麦克风增益或监听延迟；偏好文件读写失败不会阻断麦克风监听/录音。真实 Windows/macOS USB、蓝牙设备跨重启 ID 稳定性仍需物理设备 E2E 验证。
 - Commit: `Persist KTV microphone input choice`
+
+### [2026-10-19 15:17] 修复 ASR 模型下载超时与自动续传
+
+- Scope: 为 Whisper 与 Qwen 模型下载增加连接/无数据超时；将 Whisper 网络中断转换为可自动重试的错误，保留 `.part` 断点并验证 Range 响应，避免下载失败后长期等待或丢失已下载内容。
+- Files: `lib/features/transcription/data/services/managed_asr_runtime_manager.dart`, `lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart`, `test/features/transcription/retrying_asr_runtime_manager_test.dart`, `test/features/transcription/asr_runtime_resume_contract_test.dart`, `docs/asr_runtime_installation.md`, `docs/work_log.md`
+- Validation:
+  - `flutter analyze --no-fatal-infos lib/features/transcription/data/services/managed_asr_runtime_manager.dart lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart test/features/transcription/retrying_asr_runtime_manager_test.dart test/features/transcription/asr_runtime_resume_contract_test.dart` => success；仅有 6 条既存 info，无错误/警告
+  - ASR 下载、重试、续传、完整性相关 6 组定向测试 => success
+  - `git diff --check` => success
+  - `flutter analyze --no-fatal-infos` => 未通过；存在未修改文件 `test/features/player/fullscreen_ktv_interaction_surface_test.dart` 对 `WidgetTester.doubleTap` 的既有错误
+- Notes: 网络可用但短暂中断时最多自动重试 4 次；若 Hugging Face 持续不可达，错误会显示且稍后可从保留的断点继续。当前未对真实 Hugging Face 网络做端到端下载验证。
+- Commit: `Retry stalled ASR model downloads`
+
+### [2026-10-19 15:30] 区分 ASR 环境准备与文件下载进度
+
+- Scope: 首次准备和识别设置共用的进度卡现在分别标注整体环境准备估算进度与当前文件下载百分比，避免把分阶段的准备百分比误认为模型下载百分比；保留文件大小、速度、剩余时间和断点恢复提示。
+- Files: `lib/features/transcription/presentation/widgets/asr_install_progress_card.dart`, `test/features/transcription/asr_install_experience_contract_test.dart`, `docs/asr_runtime_installation.md`, `docs/work_log.md`
+- Validation:
+  - `flutter analyze --no-fatal-infos lib/features/transcription/presentation/widgets/asr_install_progress_card.dart test/features/transcription/asr_install_experience_contract_test.dart` => No issues found
+  - `flutter test test/features/transcription/asr_install_experience_contract_test.dart` => All tests passed
+  - `git diff --check` => success
+- Notes: 本阶段只改善进度表达，没有修改下载网络路由。用户已确认下一阶段采用系统代理优先、支持识别设置中手动指定的下载代理；不会默认使用未经验证的第三方镜像。
+- Commit: `Clarify ASR setup and download progress`
+
+### [2026-10-19 15:44] 为 ASR 模型下载接入代理与连通性检查
+
+- Scope: ASR 下载统一使用代理客户端工厂，依次检查手动 HTTP 代理、环境代理、Windows/macOS 静态系统代理并在无配置时直连；增加 Hugging Face 模型源测试按钮，将代理随识别配置保存，并为请求、响应体和下载流设置超时。进度 UI 仍分别呈现整体环境准备与单文件下载状态。
+- Files: `lib/features/transcription/data/services/asr_download_http_client_factory.dart`, `lib/features/transcription/data/services/asr_download_connection_checker.dart`, `lib/features/transcription/domain/services/asr_download_connection_checker.dart`, `lib/features/transcription/data/services/managed_asr_runtime_manager.dart`, `lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart`, `lib/features/transcription/data/services/resilient_asr_runtime_manager.dart`, `lib/features/transcription/domain/models/transcription_models.dart`, `lib/features/transcription/presentation/widgets/transcription_config_dialog.dart`, `lib/core/services/service_locator.dart`, `test/features/transcription/asr_download_http_client_factory_test.dart`, `test/transcription_config_test.dart`, `test/features/transcription/asr_runtime_resume_contract_test.dart`, `docs/asr_runtime_installation.md`, `docs/work_log.md`
+- Validation:
+  - ASR 代理、配置、续传、进度、模型完整性及重试定向测试（6 个测试文件）=> All tests passed
+  - `flutter analyze --no-fatal-infos`（本次变更涉及文件）=> success；13 条 info，无错误/警告
+  - `dart format --output=none --set-exit-if-changed`（代理工厂、连通性实现及配置/代理测试）=> success
+  - `git diff --check` => success
+  - `flutter analyze --no-fatal-infos`（全项目）=> 被既有错误阻断：`fullscreen_ktv_interaction_surface_test.dart` 调用了不存在的 `WidgetTester.doubleTap`
+- Notes: 代理仅支持无认证 HTTP 地址；不支持 SOCKS 与 PAC/WPAD 自动配置，检测到可识别的 PAC 设置时会提示手动填写。Linux 目前读取代理环境变量，不解析桌面系统代理。未使用第三方镜像；尚未对真实 Hugging Face 网络及系统代理进行端到端下载验证。
+- Commit: `Add proxy support for ASR downloads`
+
+### [2026-10-19 15:55] 立即持久化安装流程中的高级识别设置
+
+- Scope: 在首次环境准备/批量导入的安装弹窗中，用户从高级设置确认代理或其他识别配置后立即保存到共享本地设置存储，不再等到外层弹窗完成；持久化失败时在弹窗内明确提示，避免用户重试时误以为配置已保存。
+- Files: `lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart`, `test/features/transcription/asr_install_experience_contract_test.dart`, `docs/work_log.md`
+- Validation:
+  - `flutter test test/features/transcription/asr_install_experience_contract_test.dart test/features/settings/transcription_settings_contract_test.dart test/transcription_config_test.dart` => All tests passed
+  - `flutter analyze --no-fatal-infos lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart test/features/transcription/asr_install_experience_contract_test.dart` => No issues found
+  - `git diff --check` => success
+- Notes: 配置在高级设置对话框确认后先写入持久化存储，再应用到当前安装流程；下载中断后的重试和之后重新打开环境准备都会读取该代理。未改变取消高级设置时的行为。
+- Commit: `Persist ASR advanced settings immediately`
+
+### [2026-10-19 16:11] 允许代理独立保存并在对话框内提示缺项
+
+- Scope: 将下载代理持久化拆成独立操作；高级设置中的识别模型/路径不完整时仍可保存代理并退出，重新打开时恢复代理。缺少的识别项在高级设置窗口内实时提示，不再用主界面提示或配置完整性校验阻断代理保存。
+- Files: `lib/features/transcription/domain/services/transcription_settings_store.dart`, `lib/features/transcription/data/services/file_transcription_settings_store.dart`, `lib/core/services/service_locator.dart`, `lib/features/transcription/presentation/widgets/transcription_config_dialog.dart`, `lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart`, `lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart`, `test/features/transcription/file_transcription_settings_store_test.dart`, `test/features/transcription/asr_install_experience_contract_test.dart`, `docs/asr_runtime_installation.md`, `docs/work_log.md`
+- Validation:
+  - 设置存储、代理保存、配置合同、环境预检及队列恢复定向测试（6 个测试文件）=> All tests passed
+  - `flutter analyze --no-fatal-infos`（本次涉及的 8 个 Dart 文件）=> success；6 条既存 info，无错误/警告
+  - `dart format --output=none --set-exit-if-changed`（本次涉及的 Dart 文件）=> success
+  - `git diff --check` => success
+- Notes: 代理写入现有 transcription settings JSON 的独立字段；部分配置不会被常规 `load()` 当作可运行识别配置返回，因此不影响环境预检或实际转录。成功保存完整配置时仍沿用原有完整配置保存流程。
+- Commit: `Allow saving ASR proxy independently`
