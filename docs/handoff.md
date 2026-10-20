@@ -1,47 +1,55 @@
 # Handoff
 
-- Goal: 本次会话完成"清零全项目 analyzer lint"清理切片：把 `flutter analyze` 的 149 条 info（116× `prefer_interpolation_to_compose_strings`、15× `unnecessary_underscores`、5× `use_null_aware_elements`、4× vendored library 名、4× deprecated 用法及 6 条单发规则）全部清零，项目现在 **No issues found**。vendored `packages/just_audio_media_kit` 按用户选择用 `analysis_options.yaml` 排除，未改其代码；补上了 `crypto: ^3.0.7` 直接依赖（此前仅靠传递解析）；更新了 `asr_runtime_resume_contract_test.dart` 中因插值改写而过期的两处源码文本断言。
+> 单槽位交接文件：每个会话在中断或结束前覆盖写一次，新会话先读它，再读 `AGENTS.md` 与 `docs/work_log_index.md`。
 
-## Git snapshot
+## 目标
 
-- Base commit: `de91642 Add reference alignment backup restore flow`（上一切片已由用户提交）。
-- `git log --oneline -5`:
+歌词校正链路阶段 A/B/C1/C2/C3/C3.1 已完成并提交：进度条、编辑器定点插入、参考歌词对齐、逐行确认、对齐备份恢复都已落地。本轮复核确认 C3.1 已在 `de91642` 实现，歌词模块 80/80 测试通过、scoped analyzer 无问题；本轮只修正了被写成英文小节的交接文件，没有重复实现备份恢复。下一步是人工复核多视口与完整恢复流程，然后清理纠正行上残留的 `fallbackCandidates` 徽标。
 
-```
+## Git 现场
+
+```text
+$ git status --short
+(clean)
+
+$ git diff --stat
+(empty)
+
+$ git log --oneline -5
+7bf6efd Fix all analyzer lint infos
 de91642 Add reference alignment backup restore flow
 8be798e Update handoff after per-line review
 e433303 Add per-line reference lyric review
 9701155 Add reference lyric correction entry and apply flow
-241f6a8 Add reference lyric alignment service
 ```
 
-- `git status --short`: 46 modified + 1 untracked（本切片全部未提交；上一切片已提交，工作树在本切片开始时是干净的）。
-- `git diff --stat`: 46 files changed（+ dart fix 自动修复 37 个 lib/test 文件、5 个手工修复文件、`analysis_options.yaml`、`pubspec.yaml`/`pubspec.lock`、3 个日志文档、归档 1 行），约 +141/−222。
+## 已改文件
 
-## Changed files（要点）
+- 仅修改 `docs/handoff.md`：恢复工作日志 lint 要求的固定小节，并把下一步从“提交 lint 清理”更新为真实剩余工作。
+- 本轮未改业务代码；备份恢复实现仍为 `de91642`。
 
-- `analysis_options.yaml`: 排除 `packages/just_audio_media_kit/**`。
-- `pubspec.yaml` / `pubspec.lock`: 新增直接依赖 `crypto: ^3.0.7`。
-- `dart fix --apply` 修复：player / lyrics / transcription / transfer / home / project 各 feature 共 37 个文件（插值、通配 `_`、null-aware 元素、`value`→`initialValue`、`prefer_final_fields` 等）。
-- 手工修复：`file_local_media_relink_service.dart`、`local_audio_library_import_service.dart`、`desktop_media_sharing_screen.dart`（删 `allowCompression: false`）；`system_media_audio_handler.dart`（override 参数名 `item`→`mediaItem`）；`lyric_editor_screen.dart`（删多余 `dart:ui` import 及遗留空行，未整文件格式化）。
-- 测试：`test/features/transcription/asr_runtime_resume_contract_test.dart`（源码文本断言更新为插值写法 `r"final part = File('${target.path}.part');"`）。
-- 日志：新条目 `docs/log/entries/2026-10-20-1325-clear-analyzer-lint-infos.md`、重新生成的 `docs/work_log.md`、`docs/work_log_index.md`（analyzer-clean 状态行）、`docs/work_log_archive.md`（补入挤出窗口的 2026-10-19 23:05 计划条目）、本 handoff。
+## 检查结果
 
-## Check results
+- `flutter test test/features/lyrics/` => 80/80 通过。
+- `flutter analyze lib/features/lyrics test/features/lyrics` => No issues found。
+- `dart tool/work_log.dart check` => 修正后运行确认（预期仅剩阶段 A 历史 commit-subject 告警）。
+- 未运行全量 `flutter analyze` / 全量测试套件。
+- 未做真实桌面/移动端人工复核。
 
-- `dart fix --dry-run` 129 提议 → `dart fix --apply` 125 修复。
-- `flutter analyze` → **No issues found**（全项目 0 error / 0 warning / 0 info）。
-- `scripts/quality_gate.ps1 -SkipPubGet` → 全量通过（analyze lib test、407 测试全过 2 skip、work log lint 通过）。
-- `dart tool/work_log.dart check` → 0 errors、2 warnings（均为提交主题未入库：历史 phase-A 一条为永久例外不得改旧日志；本切片一条在提交后自动消失）。
-- 未运行：对既有非 format-clean 文件的整文件 `dart format`（6 个手改文件在 HEAD 上本就不干净，项目无 format 门禁）。
+## 下一步
 
-## Next step（单一步骤）
+1. 人工复核 C3/C3.1：390×844、844×390、768×1024、1024×768、1366×768、1600×900、1920×1080、2560×1440，含连续缩放；重点看逐行卡片、长行 diff、底栏按钮、手动编辑解锁、漏行清单、恢复入口与确认对话框。
+2. 端到端流程：应用参考歌词 → 改几行 → 恢复并覆盖 → 取消一次/确认一次 → 保存 → 重开工程，确认歌词、时间、`globalOffset`、`metadata['referenceAlignmentRestore']` 正确，且备份键已被消耗。
+3. 可选清理：被参考纠正的行上旧 `fallbackCandidates` 徽标仍在，应用时可按行索引清除。
 
-1. 用提交信息 `Fix all analyzer lint infos` 提交当前工作树（提交后 `dart tool/work_log.dart check` 只剩历史 phase-A 那 1 条永久警告）。
+## 已知风险
 
-## Known risks
+- C3/C3.1 的 widget 测试只覆盖 390×844，其他视口和真实工程保存重开仍需人工确认。
+- 备份为单槽，恢复成功即消耗；二次对齐会覆盖上一份快照，没有多级撤销。
+- 恢复后清空会话级 `_manuallyEditedLineIndices`，这是有意的索引安全处理；重开工程后仍无持久化的手动编辑基线。
+- 时间轴整体替换后 `globalOffset` 归零；仅在参考与草稿 1:1、全部带时间戳、本次无手动编辑时开放。
+- 阶段 A 的日志 commit-subject 告警是历史差异，预期存在，不要用改日志的方式消除。
 
-- 本次提交约 47 个文件，超出 AGENTS 8 文件软上限；属单一机械目标且用户明确选择单提交。
-- `asr_runtime_resume_contract_test.dart` 对源码字面量做契约断言，后续机械重构（如再次字符串改写）会以同样方式打破它，重构时需同步更新断言。
-- `allowCompression` 删除在桌面端无行为变化（file_picker 10.3.10 确认该参数无效果），但文件选择弹窗未做人工点选冒烟。
-- 遗留人工复核（与本切片无关，仍未做）：C3/C3.1 多视口矩阵与端到端"应用参考歌词→改行→恢复→保存→重开"流程；后续可选工作：清理纠正行上残留的 `fallbackCandidates` 徽标、phase D 在线歌词搜索 provider。
+---
+
+最后更新：2026-10-20 13:40
