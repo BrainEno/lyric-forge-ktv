@@ -83,4 +83,57 @@ void main() {
     expect(insertion.line.startTime, const Duration(seconds: 10));
     expect(insertion.line.endTime, const Duration(seconds: 20));
   });
+
+  group('音频时长边界（尾部插入）', () {
+    const audioDuration = Duration(seconds: 30);
+
+    test('尾部插入结束时间不超过音频总时长', () {
+      final insertion = service.insertAtPlayback(
+        lines: [line(0, 4000, '第一行'), line(20000, 24000, '第二行')],
+        position: const Duration(seconds: 28),
+        audioDuration: audioDuration,
+      );
+
+      expect(insertion.index, 2);
+      expect(insertion.line.startTime, const Duration(seconds: 28));
+      expect(insertion.line.endTime, audioDuration);
+    });
+
+    test('播放位置已超出音频时结束时间被限制到音频末尾，供校验器标记需校准', () {
+      final insertion = service.insertAtPlayback(
+        lines: [line(0, 4000, '第一行')],
+        position: const Duration(seconds: 32),
+        audioDuration: audioDuration,
+      );
+
+      expect(insertion.index, 1);
+      expect(insertion.line.startTime, const Duration(seconds: 32));
+      expect(insertion.line.endTime, audioDuration);
+    });
+
+    test('非尾部插入不受音频时长边界限制', () {
+      final insertion = service.insertAtPlayback(
+        lines: [
+          line(0, 4000, '第一行'),
+          line(20000, 24000, '第二行'),
+          line(40000, 44000, '第三行'),
+        ],
+        position: const Duration(seconds: 10),
+        audioDuration: audioDuration,
+      );
+
+      expect(insertion.index, 1);
+      expect(insertion.line.startTime, const Duration(seconds: 10));
+      expect(insertion.line.endTime, const Duration(seconds: 20));
+    });
+
+    test('未提供音频时长时不做边界检查', () {
+      final insertion = service.insertAtPlayback(
+        lines: [line(0, 4000, '第一行')],
+        position: const Duration(seconds: 40),
+      );
+
+      expect(insertion.line.endTime, const Duration(seconds: 45));
+    });
+  });
 }
