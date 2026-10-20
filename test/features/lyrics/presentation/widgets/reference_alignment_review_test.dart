@@ -154,4 +154,122 @@ void main() {
     expect(decision!.acceptedReferenceIndices, {0});
     expect(decision!.overriddenAsrLineIndices, {0});
   });
+
+  testWidgets('非歧义漏行默认勾选并随确认返回', (tester) async {
+    const document = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          text: '第一句歌词',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          text: '第三句歌词',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 12),
+        ),
+      ],
+    );
+    const input = ReferenceLyricInput(
+      lines: [
+        ReferenceLyricLine(text: '第一句歌词'),
+        ReferenceLyricLine(text: '第二句歌词'),
+        ReferenceLyricLine(text: '第三句歌词'),
+      ],
+      timed: false,
+      format: 'txt',
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+    ReferenceAlignmentReviewDecision? decision;
+
+    await pumpReview(
+      tester,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: const {},
+      onResult: (value) => decision = value,
+    );
+
+    expect(find.text('补全漏行：参考有、草稿无（1）'), findsOneWidget);
+    expect(find.text('插入到第 2 行前'), findsOneWidget);
+    final checkboxes = tester
+        .widgetList<Checkbox>(find.byType(Checkbox))
+        .toList();
+    expect(checkboxes, hasLength(1));
+    expect(checkboxes.single.value, isTrue);
+
+    await tester.tap(find.widgetWithText(FilledButton, '补全 1 行'));
+    await tester.pumpAndSettle();
+
+    expect(decision, isNotNull);
+    expect(decision!.acceptedMissingReferenceIndices, {1});
+    expect(decision!.acceptedReferenceIndices, isEmpty);
+  });
+
+  testWidgets('可能被合并的漏行默认不勾选，手动确认后才返回', (tester) async {
+    const document = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          text: '第一句歌词',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          text: '完全无关的幻觉行',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 8),
+        ),
+        LyricLine(
+          text: '第三句歌词',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 12),
+        ),
+      ],
+    );
+    const input = ReferenceLyricInput(
+      lines: [
+        ReferenceLyricLine(text: '第一句歌词'),
+        ReferenceLyricLine(text: '第二句歌词'),
+        ReferenceLyricLine(text: '第三句歌词'),
+      ],
+      timed: false,
+      format: 'txt',
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+    ReferenceAlignmentReviewDecision? decision;
+
+    await pumpReview(
+      tester,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: const {},
+      onResult: (value) => decision = value,
+    );
+
+    expect(find.text('需确认'), findsWidgets);
+    final checkboxes = tester
+        .widgetList<Checkbox>(find.byType(Checkbox))
+        .toList();
+    expect(checkboxes, hasLength(1));
+    expect(checkboxes.single.value, isFalse);
+    expect(find.text('没有可应用的修改'), findsOneWidget);
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '补全 1 行'));
+    await tester.pumpAndSettle();
+
+    expect(decision, isNotNull);
+    expect(decision!.acceptedMissingReferenceIndices, {1});
+  });
 }

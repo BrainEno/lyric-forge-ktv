@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'lyric_alignment_service.dart';
+import 'reference_timeline_completion_service.dart';
 
 /// 一行被参考歌词纠正的记录，用于摘要展示和 metadata 溯源。
 class AppliedReferenceCorrection {
@@ -20,9 +21,33 @@ class AppliedReferenceCorrection {
   });
 }
 
+/// 一行从参考歌词补入的新歌词，用于摘要展示和 metadata 溯源。
+class AppliedReferenceInsertion {
+  /// 参考行在原始参考列表中的索引。
+  final int referenceIndex;
+
+  /// 插入后在文档中的最终行索引。
+  final int asrLineIndex;
+
+  final String text;
+  final Duration startTime;
+  final Duration endTime;
+  final bool requiresConfirmation;
+
+  const AppliedReferenceInsertion({
+    required this.referenceIndex,
+    required this.asrLineIndex,
+    required this.text,
+    required this.startTime,
+    required this.endTime,
+    required this.requiresConfirmation,
+  });
+}
+
 class ReferenceAlignmentApplyResult {
   final LyricDocument document;
   final List<AppliedReferenceCorrection> corrections;
+  final List<AppliedReferenceInsertion> insertions;
   final List<int> skippedManuallyEditedIndices;
   final List<int> skippedLowConfidenceIndices;
 
@@ -37,6 +62,7 @@ class ReferenceAlignmentApplyResult {
   const ReferenceAlignmentApplyResult({
     required this.document,
     required this.corrections,
+    required this.insertions,
     required this.skippedManuallyEditedIndices,
     required this.skippedLowConfidenceIndices,
     required this.skippedBySelectionIndices,
@@ -46,32 +72,45 @@ class ReferenceAlignmentApplyResult {
     required this.unmatchedAsrCount,
   });
 
-  bool get hasChanges => corrections.isNotEmpty || timingUpdatedCount > 0;
+  bool get hasChanges =>
+      corrections.isNotEmpty || insertions.isNotEmpty || timingUpdatedCount > 0;
 
   int get correctableCount => corrections.length;
+
+  int get insertedCount => insertions.length;
 }
 
 /// 把对齐结果安全地写回歌词文档。
 ///
-/// 只修改被采纳行的文本（或时间），不插入漏行、不删除多余行；未匹配的
-/// ASR 行保持原样。默认只改文本并保留原时间戳，避免定时参考在断句不一致时
-/// 打乱时间轴；调用方可在确认后显式开启 [applyReferenceTiming]。
+/// 默认只修改被采纳行的文本（或时间），不删除多余行，未匹配的 ASR 行保持
+/// 原样；默认只改文本并保留原时间戳，避免定时参考在断句不一致时打乱时间轴，
+/// 调用方可在确认后显式开启 [applyReferenceTiming]。
 ///
 /// [acceptedReferenceIndices] 为 null 时按 [minimumSimilarity] 自动采纳；
 /// 非 null 时只采纳集合中的参考行（逐行确认界面使用），此时低于阈值的行也
 /// 可以被显式采纳。时间轴是整体开关，与逐行文字选择无关。
+///
+/// [acceptedMissingReferenceIndices] 非空时，把对应漏行按
+/// [ReferenceTimelineCompletionService] 推断的位置与时间插入；null 或空集合
+/// 保持旧行为（不插入漏行）。
 class ReferenceAlignmentApplier {
   /// 低于该相似度不自动采纳。默认 0.8，界面显示为 80%。
   final double minimumSimilarity;
 
-  const ReferenceAlignmentApplier({this.minimumSimilarity = 0.8})
-    : assert(minimumSimilarity >= 0 && minimumSimilarity <= 1);
+  /// 漏行插入计划的计算服务；测试或调用方可替换。
+  final ReferenceTimelineCompletionService completionService;
+
+  const ReferenceAlignmentApplier({
+    this.minimumSimilarity = 0.8,
+    this.completionService = const ReferenceTimelineCompletionService(),
+  }) : assert(minimumSimilarity >= 0 && minimumSimilarity <= 1);
 
   ReferenceAlignmentApplyResult apply({
     required LyricDocument document,
     required LyricAlignmentResult alignment,
     bool applyReferenceTiming = false,
     Set<int>? acceptedReferenceIndices,
+    Set<int>? acceptedMissingReferenceIndices,
     Set<int> protectedLineIndices = const {},
   }) {
     final lines = List<LyricLine>.from(document.lines);
@@ -167,9 +206,62 @@ class ReferenceAlignmentApplier {
     final sortedLowConfidence = skippedLowConfidence.toList()..sort();
     final sortedBySelection = skippedBySelection.toList()..sort();
 
+    final insertions = <AppliedReferenceInsertion>[];
+    final finalLines = <LyricLine>[];
+    final selectedMissing = acceptedMissingReferenceIndices;
+    if (selectedMissing != null && selectedMissing.isNotEmpty) {
+      final plan = completionService.buildPlan(
+        document: document,
+        alignment: alignment,
+      );
+      final byPosition = <int, List<ReferenceLineCompletionInsertion>>{};
+      for (final insertion in plan.insertions) {
+        if (!selectedMissing.contains(insertion.referenceIndex)) continue;
+        final position = insertion.insertBeforeAsrLineIndex.clamp(
+          0,
+          lines.length,
+        );
+        byPosition.putIfAbsent(position, () => []).add(insertion);
+      }
+
+      var finalIndex = 0;
+      for (var index = 0; index <= lines.length; index++) {
+        final pending = byPosition[index];
+        if (pending != null) {
+          for (final insertion in pending) {
+            finalLines.add(
+              LyricLine(
+                text: insertion.text,
+                startTime: insertion.startTime,
+                endTime: insertion.endTime,
+              ),
+            );
+            insertions.add(
+              AppliedReferenceInsertion(
+                referenceIndex: insertion.referenceIndex,
+                asrLineIndex: finalIndex,
+                text: insertion.text,
+                startTime: insertion.startTime,
+                endTime: insertion.endTime,
+                requiresConfirmation: insertion.requiresConfirmation,
+              ),
+            );
+            finalIndex++;
+          }
+        }
+        if (index < lines.length) {
+          finalLines.add(lines[index]);
+          finalIndex++;
+        }
+      }
+    } else {
+      finalLines.addAll(lines);
+    }
+
     return ReferenceAlignmentApplyResult(
-      document: document.copyWith(lines: lines),
+      document: document.copyWith(lines: finalLines),
       corrections: corrections,
+      insertions: insertions,
       skippedManuallyEditedIndices: sortedProtected,
       skippedLowConfidenceIndices: sortedLowConfidence,
       skippedBySelectionIndices: sortedBySelection,

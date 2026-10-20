@@ -7,10 +7,14 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/character_diff_service.dart';
 import '../../domain/services/lyric_alignment_service.dart';
+import '../../domain/services/reference_timeline_completion_service.dart';
 
 /// 逐行确认的结果；调用方只应写入用户明确采纳的行（或时间轴）。
 class ReferenceAlignmentReviewDecision {
   final Set<int> acceptedReferenceIndices;
+
+  /// 用户勾选要补入的漏行参考索引。
+  final Set<int> acceptedMissingReferenceIndices;
 
   /// 用户对手动编辑行显式确认"仍要替换"的 ASR 行索引。
   final Set<int> overriddenAsrLineIndices;
@@ -19,12 +23,15 @@ class ReferenceAlignmentReviewDecision {
 
   const ReferenceAlignmentReviewDecision({
     required this.acceptedReferenceIndices,
+    required this.acceptedMissingReferenceIndices,
     required this.overriddenAsrLineIndices,
     required this.applyReferenceTiming,
   });
 
   bool get hasChanges =>
-      acceptedReferenceIndices.isNotEmpty || applyReferenceTiming;
+      acceptedReferenceIndices.isNotEmpty ||
+      acceptedMissingReferenceIndices.isNotEmpty ||
+      applyReferenceTiming;
 }
 
 /// 打开逐行确认面板。返回 null 表示取消。
@@ -111,10 +118,13 @@ class _ReferenceAlignmentReviewSheetState
   static const _diffService = CharacterDiffService();
 
   final Set<int> _acceptedReferenceIndices = {};
+  final Set<int> _acceptedMissingReferenceIndices = {};
   final Set<int> _overriddenAsrLineIndices = {};
 
   late final List<LyricAlignmentEntry> _replaceEntries;
   late final List<LyricAlignmentEntry> _missingEntries;
+  late final Map<int, ReferenceLineCompletionInsertion> _missingInsertions;
+  late final ReferenceLineCompletionPlan _completionPlan;
   late final Map<int, List<CharacterDiffSegment>> _diffs;
   late final int _identicalCount;
   late final int _unmatchedCount;
@@ -125,6 +135,13 @@ class _ReferenceAlignmentReviewSheetState
       widget.input.timed && widget.timingUnavailableReason == null;
 
   int get _thresholdPercent => (widget.minimumSimilarity * 100).round();
+
+  int get _completableCount => _completionPlan.insertions
+      .where((insertion) => !insertion.requiresConfirmation)
+      .length;
+
+  int get _confirmationRequiredCount =>
+      _completionPlan.insertions.length - _completableCount;
 
   @override
   void initState() {
@@ -139,6 +156,14 @@ class _ReferenceAlignmentReviewSheetState
       for (final entry in widget.alignment.entries)
         if (entry.status == ReferenceLineAlignmentStatus.missing) entry,
     ];
+    _completionPlan = const ReferenceTimelineCompletionService().buildPlan(
+      document: widget.document,
+      alignment: widget.alignment,
+    );
+    _missingInsertions = {
+      for (final insertion in _completionPlan.insertions)
+        insertion.referenceIndex: insertion,
+    };
     _diffs = {
       for (final entry in _replaceEntries)
         entry.referenceIndex: _diffService.diff(
@@ -168,6 +193,11 @@ class _ReferenceAlignmentReviewSheetState
       }
     }
     _applyTiming = _canApplyTiming && widget.timedLineCount > 0;
+    for (final insertion in _completionPlan.insertions) {
+      if (!insertion.requiresConfirmation) {
+        _acceptedMissingReferenceIndices.add(insertion.referenceIndex);
+      }
+    }
   }
 
   String _asrText(LyricAlignmentEntry entry) {
@@ -192,6 +222,24 @@ class _ReferenceAlignmentReviewSheetState
                 : entry.similarity >= widget.minimumSimilarity)
               entry.referenceIndex,
         ]);
+    });
+  }
+
+  void _selectCompletableMissing() {
+    setState(() {
+      _acceptedMissingReferenceIndices
+        ..clear()
+        ..addAll([
+          for (final insertion in _completionPlan.insertions)
+            if (!insertion.requiresConfirmation) insertion.referenceIndex,
+        ]);
+    });
+  }
+
+  void _skipAll() {
+    setState(() {
+      _acceptedReferenceIndices.clear();
+      _acceptedMissingReferenceIndices.clear();
     });
   }
 
@@ -228,7 +276,10 @@ class _ReferenceAlignmentReviewSheetState
     final spec = AppResponsive.of(context);
     final gutter = spec.pageGutter.clamp(12.0, 24.0).toDouble();
     final timingEnabled = _applyTiming && _canApplyTiming;
-    final canApply = _acceptedReferenceIndices.isNotEmpty || timingEnabled;
+    final canApply =
+        _acceptedReferenceIndices.isNotEmpty ||
+        _acceptedMissingReferenceIndices.isNotEmpty ||
+        timingEnabled;
 
     return Column(
       mainAxisSize: MainAxisSize.max,
@@ -277,15 +328,35 @@ class _ReferenceAlignmentReviewSheetState
               ],
               if (_missingEntries.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
-                _SectionTitle('待处理：参考有、草稿无（${_missingEntries.length}）'),
+                _SectionTitle('补全漏行：参考有、草稿无（${_missingEntries.length}）'),
                 const SizedBox(height: AppSpacing.xs),
                 const _NoteBox(
                   icon: Icons.playlist_add_rounded,
                   text:
-                      '漏行不会自动插入。暂停在对应时间附近，用编辑器里的'
-                      '“在播放位置插入”补齐后再保存。',
+                      '漏行会按前后已匹配草稿行推断时间并插入。标记“需确认”的行'
+                      '可能已被 ASR 合并或拆分，默认不勾选；勾选后仍可保存前检查。',
                 ),
-                for (final entry in _missingEntries) _MissingRow(entry: entry),
+                for (final entry in _missingEntries)
+                  _MissingRow(
+                    entry: entry,
+                    insertion: _missingInsertions[entry.referenceIndex],
+                    accepted: _acceptedMissingReferenceIndices.contains(
+                      entry.referenceIndex,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        if (value) {
+                          _acceptedMissingReferenceIndices.add(
+                            entry.referenceIndex,
+                          );
+                        } else {
+                          _acceptedMissingReferenceIndices.remove(
+                            entry.referenceIndex,
+                          );
+                        }
+                      });
+                    },
+                  ),
               ],
               if (_unmatchedCount > 0) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -373,6 +444,12 @@ class _ReferenceAlignmentReviewSheetState
           color: AppColors.accent,
         ),
         _ReviewMetric(label: '已选', count: _acceptedReferenceIndices.length),
+        if (_acceptedMissingReferenceIndices.isNotEmpty)
+          _ReviewMetric(
+            label: '已选补全',
+            count: _acceptedMissingReferenceIndices.length,
+            color: AppColors.accent,
+          ),
         _ReviewMetric(label: '完全一致', count: _identicalCount),
         if (_lockedCount > 0)
           _ReviewMetric(
@@ -380,10 +457,12 @@ class _ReferenceAlignmentReviewSheetState
             count: _lockedCount,
             color: AppColors.warning,
           ),
-        if (_missingEntries.isNotEmpty)
+        if (_completableCount > 0)
+          _ReviewMetric(label: '可补全', count: _completableCount),
+        if (_confirmationRequiredCount > 0)
           _ReviewMetric(
-            label: '参考漏行',
-            count: _missingEntries.length,
+            label: '需确认漏行',
+            count: _confirmationRequiredCount,
             color: AppColors.warning,
           ),
         if (_unmatchedCount > 0)
@@ -405,10 +484,21 @@ class _ReferenceAlignmentReviewSheetState
           icon: const Icon(Icons.done_all_rounded, size: 18),
           label: Text('全选高置信 ≥$_thresholdPercent%'),
         ),
+        if (_completableCount > 0)
+          OutlinedButton.icon(
+            onPressed: _selectCompletableMissing,
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, spec.minimumInteractiveExtent),
+            ),
+            icon: const Icon(Icons.playlist_add_check_rounded, size: 18),
+            label: Text('补全全部漏行（$_completableCount）'),
+          ),
         TextButton(
-          onPressed: _acceptedReferenceIndices.isEmpty
+          onPressed:
+              _acceptedReferenceIndices.isEmpty &&
+                  _acceptedMissingReferenceIndices.isEmpty
               ? null
-              : () => setState(_acceptedReferenceIndices.clear),
+              : _skipAll,
           style: TextButton.styleFrom(
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
@@ -424,7 +514,7 @@ class _ReferenceAlignmentReviewSheetState
         padding: EdgeInsets.only(top: AppSpacing.sm),
         child: _NoteBox(
           icon: Icons.schedule_rounded,
-          text: '纯文本参考：只纠正文字，保留 ASR 时间轴。',
+          text: '纯文本参考：已有行保留 ASR 时间轴；漏行按相邻行空隙推断时间。',
         ),
       );
     }
@@ -457,11 +547,16 @@ class _ReferenceAlignmentReviewSheetState
     bool canApply,
   ) {
     final timingEnabled = _applyTiming && _canApplyTiming;
+    final missingCount = _acceptedMissingReferenceIndices.length;
     final summary = <String>[
       if (_acceptedReferenceIndices.isNotEmpty)
         '已选 ${_acceptedReferenceIndices.length} 行',
+      if (missingCount > 0) '补全 $missingCount 行',
       if (timingEnabled) '同时更新时间轴',
-      if (_acceptedReferenceIndices.isEmpty && !timingEnabled) '勾选要采纳的行',
+      if (_acceptedReferenceIndices.isEmpty &&
+          missingCount == 0 &&
+          !timingEnabled)
+        '勾选要采纳的行',
     ];
 
     return Container(
@@ -504,6 +599,9 @@ class _ReferenceAlignmentReviewSheetState
                         acceptedReferenceIndices: Set.unmodifiable(
                           _acceptedReferenceIndices,
                         ),
+                        acceptedMissingReferenceIndices: Set.unmodifiable(
+                          _acceptedMissingReferenceIndices,
+                        ),
                         overriddenAsrLineIndices: Set.unmodifiable(
                           _overriddenAsrLineIndices,
                         ),
@@ -524,10 +622,23 @@ class _ReferenceAlignmentReviewSheetState
 
   String _applyLabel(bool timingEnabled) {
     final count = _acceptedReferenceIndices.length;
-    if (count > 0 && timingEnabled) return '应用 $count 行 + 时间轴';
-    if (count > 0) return '应用 $count 行修正';
-    if (timingEnabled) return '采用参考时间轴';
-    return '没有可应用的修改';
+    final missingCount = _acceptedMissingReferenceIndices.length;
+    final parts = <String>[
+      if (count > 0) '$count 行',
+      if (missingCount > 0) '补全 $missingCount 行',
+      if (timingEnabled) '时间轴',
+    ];
+    if (parts.isEmpty) return '没有可应用的修改';
+    if (count > 0 && missingCount == 0 && !timingEnabled) {
+      return '应用 $count 行修正';
+    }
+    if (count == 0 && missingCount == 0 && timingEnabled) {
+      return '采用参考时间轴';
+    }
+    if (count == 0 && missingCount > 0) {
+      return timingEnabled ? '补全 $missingCount 行 + 时间轴' : '补全 $missingCount 行';
+    }
+    return '应用 ${parts.join(' + ')}';
   }
 }
 
@@ -745,43 +856,101 @@ class _DiffLine extends StatelessWidget {
 
 class _MissingRow extends StatelessWidget {
   final LyricAlignmentEntry entry;
+  final ReferenceLineCompletionInsertion? insertion;
+  final bool accepted;
+  final ValueChanged<bool> onChanged;
 
-  const _MissingRow({required this.entry});
+  const _MissingRow({
+    required this.entry,
+    required this.insertion,
+    required this.accepted,
+    required this.onChanged,
+  });
+
+  String _positionLabel() {
+    final nextIndex = insertion?.nextAsrLineIndex;
+    if (nextIndex == null) return '追加到末尾';
+    return '插入到第 ${nextIndex + 1} 行前';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final hasTime = entry.referenceHasTimestamp && entry.startTime != null;
+    final insertion = this.insertion;
+    final canInsert = insertion != null;
+    final warning = insertion?.requiresConfirmation ?? false;
     return Container(
       margin: const EdgeInsets.only(top: AppSpacing.xs),
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.bgSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: Border.all(
+          color: accepted
+              ? AppColors.accent.withAlpha(90)
+              : AppColors.borderSubtle,
+        ),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(entry.referenceText),
-          if (hasTime) ...[
-            const SizedBox(height: 2),
-            Text(
-              '参考时间 ${_formatReviewTime(entry.startTime!)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(entry.referenceText),
+                if (insertion != null) ...[
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        _positionLabel(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      Text(
+                        '${_formatReviewTime(insertion.startTime)} – '
+                        '${_formatReviewTime(insertion.endTime)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      if (warning)
+                        const _Badge(label: '需确认', color: AppColors.warning),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    warning
+                        ? '前后锚点之间夹着未匹配行，可能已被 ASR 合并/拆分；'
+                              '勾选会按上面的时间插入。'
+                        : '按前后已匹配行的空隙推断时间。',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: warning
+                          ? AppColors.warning
+                          : AppColors.textTertiary,
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '无法生成插入计划，请手动在播放位置插入。',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.warning),
+                  ),
+                ],
+              ],
             ),
-          ],
-          const SizedBox(height: 2),
-          Text(
-            hasTime
-                ? '暂停在 ${_formatReviewTime(entry.startTime!)} 附近，'
-                      '用“在播放位置插入”补上这一行。'
-                : '参考歌词没有时间戳，先定位到大致位置，'
-                      '再用“在播放位置插入”补上这一行。',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Checkbox(
+            value: accepted,
+            onChanged: canInsert ? (value) => onChanged(value ?? false) : null,
           ),
         ],
       ),

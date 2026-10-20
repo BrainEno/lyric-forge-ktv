@@ -87,11 +87,11 @@
 - 新增纯 Dart `CharacterDiffService`（按 Unicode 码点做 LCS，合并相邻片段；超长行退化为整行替换），配 10 个单测。
 - `ReferenceAlignmentApplier` 增加 `acceptedReferenceIndices`：非 null 时按逐行选择应用，允许显式采纳低于阈值的行；`protectedLineIndices` 仍生效；新增 `skippedBySelectionIndices` 区分"用户跳过"与"低置信"。
 - 时间轴是整体开关，与逐行文字选择独立；仍要求参考与草稿一一对应、全部行带时间戳且本次无手动编辑。
-- 应用规则不变：只改 `text`、`confidence = 100`、保留原时间戳、漏行不插入、多余行不动；应用前写单槽备份 `metadata['referenceAlignmentBackup']`，应用后写 `metadata['referenceAlignment']`（新增 `acceptedReferenceCount`、`overriddenManuallyEditedCount`、`skippedBySelectionCount`）。
+- 应用规则：只改 `text`、`confidence = 100`、保留原时间戳、多余行不动；应用前写单槽备份 `metadata['referenceAlignmentBackup']`，应用后写 `metadata['referenceAlignment']`（新增 `acceptedReferenceCount`、`overriddenManuallyEditedCount`、`skippedBySelectionCount`）。C3 时漏行只列入待处理清单、不自动插入；C4 起由用户在逐行确认里显式勾选补入。
 - 确认完成后仍走既有 `_saveChanges` 整文档保存；用户取消则不写入。
 - widget 测试覆盖 390×844 下的默认勾选、低置信跳过、手动编辑行解锁确认与返回结果。
 
-验收：粘贴正确歌词 → 逐行确认 → 错字被纠正且时间轴不变；漏行进入待处理清单；用户已改过的行不被静默覆盖；保存重开后溯源信息仍在。
+验收：粘贴正确歌词 → 逐行确认 → 错字被纠正且时间轴不变；C3 时漏行进入待处理清单，C4 起可勾选补全；用户已改过的行不被静默覆盖；保存重开后溯源信息仍在。
 
 规模：C1 约 250 行 + 测试；C2 实际约 900 行（对话框、应用规则与测试，已拆成独立文件避免继续膨胀编辑器）；C3 实际约 800 行（独立 UI、字符 diff、应用扩展与测试），仍作为一次 C3 提交。
 
@@ -102,6 +102,24 @@
 - 编辑器入口与"参考歌词纠正"同区：仅当备份存在且可解析时显示（紧凑/短屏放 AppBar 图标，宽屏进工具栏）；确认后替换 `_editingDocument`、`_hasChanges = true`、清空会话级手动编辑索引集合、过滤器重置为"全部"、选中行夹取到合法范围；探测或解析失败用 SnackBar 说明"备份不可用/已损坏"，不修改文档。
 - 恢复语义：写入 `metadata['referenceAlignmentRestore']` 溯源（restoredAt/backupCreatedAt/backupReason/backupLineCount/restoredLineCount）并删除备份键——单槽，恢复即消耗，不允许重复恢复旧快照；备份文档自带的旧 `referenceAlignment` 溯源保留；恢复后不自动保存，由用户显式保存落盘。
 - 测试：服务单测 9 例（正常恢复、缺失、类型错误、JSON 损坏、行数不一致、备份键消耗、溯源字段、入参不可变、旧溯源保留）；widget 测试 5 例（390×844：无备份无入口、损坏备份无入口、摘要展示、取消不改文档、确认后替换并消耗备份）。
+
+### C4 纯文本参考补全漏行与建立时间轴（已完成）
+
+- 复用 C2 的"参考歌词纠正"入口和纯文本粘贴/文件解析：用户粘贴整段无时间戳歌词后，先走 C1 对齐，再对 `missing` 参考行生成插入计划。
+- 新增纯 Dart `ReferenceTimelineCompletionService`：
+  - 漏行插到后一个已匹配 ASR 行之前；没有后锚点时追加到末尾；连续漏行保持参考顺序；
+  - 纯文本漏行在"前一个已匹配行的结束时间"和"后一个已匹配行的开始时间"之间平均分配，至少 10ms；末尾漏行从上一行结束时间起每行 5 秒；
+  - 带时间戳的参考漏行优先使用参考时间；
+  - 前后锚点之间夹着未匹配 ASR 行、或空隙不足时标记 `requiresConfirmation`，提示可能已被 ASR 合并/拆分。
+- `ReferenceAlignmentApplier` 增加 `acceptedMissingReferenceIndices`：显式选中时按计划插入 `LyricLine(text, startTime, endTime)`，`confidence = 100`；不传或空集合保持旧行为（不插入）；文字纠正、时间轴替换和插入在同一份文档上一次完成，原有行不删除、不重排。
+- 逐行确认 UI：漏行卡片展示插入位置、推断时间区间和"需确认"徽标；非歧义漏行默认勾选，歧义漏行默认不勾选；新增"补全全部漏行"快捷按钮，底部文案区分"补全"与"修正"。
+- 编辑器应用后仍写单槽备份 `metadata['referenceAlignmentBackup']`，`metadata['referenceAlignment']` 增加 `acceptedMissingReferenceCount`、`insertedReferenceCount`、`skippedMissingReferenceCount` 和逐行 `insertions`（最终行索引、参考索引、起止时间、是否需确认）；新增/纠正后仍由用户显式保存。
+- 测试：插入计划 9 例、应用器补行 4 例、逐行确认 widget 2 例（默认勾选非歧义漏行、歧义漏行需手动确认）。
+- 限制：不做跨行重组；断句/合并差异会表现为"需确认"的漏行，默认不插入；插入不裁剪相邻行已有的结束时间，极端重叠需人工调整。
+
+验收：粘贴整段无时间戳歌词 → 逐行确认中看到漏行及推断时间 → 应用后漏行按顺序插入且有可播放时间 → 保存重开后文字、顺序、时间与 `insertions` 溯源仍在。
+
+规模：C4 约 600 行（服务、应用器扩展、UI、测试），作为一次提交。
 
 ## 阶段 D（后续可选）：在线歌词搜索
 

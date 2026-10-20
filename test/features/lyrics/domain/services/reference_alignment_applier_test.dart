@@ -586,4 +586,127 @@ void main() {
       expect(result.document.lines[1].endTime, const Duration(seconds: 39));
     });
   });
+
+  group('漏行补全', () {
+    LyricDocument buildCompletionDocument() {
+      return buildDocument([
+        const LyricLine(
+          text: '第一句歌词',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        const LyricLine(
+          text: '第三句歌词',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 12),
+        ),
+      ]);
+    }
+
+    const referenceLines = [
+      ReferenceLyricLine(text: '第一句歌词'),
+      ReferenceLyricLine(text: '第二句歌词'),
+      ReferenceLyricLine(text: '第三句歌词'),
+    ];
+
+    test('显式采纳漏行时按推断位置和时间插入', () {
+      final document = buildCompletionDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedMissingReferenceIndices: const {1},
+      );
+
+      expect(result.insertions, hasLength(1));
+      final insertion = result.insertions.single;
+      expect(insertion.referenceIndex, 1);
+      expect(insertion.asrLineIndex, 1);
+      expect(insertion.text, '第二句歌词');
+      expect(insertion.startTime, const Duration(seconds: 4));
+      expect(insertion.endTime, const Duration(seconds: 8));
+      expect(result.insertedCount, 1);
+      expect(result.hasChanges, isTrue);
+
+      expect(result.document.lines, hasLength(3));
+      expect(result.document.lines[0].text, '第一句歌词');
+      expect(result.document.lines[1].text, '第二句歌词');
+      expect(result.document.lines[1].confidence, 100);
+      expect(result.document.lines[1].startTime, const Duration(seconds: 4));
+      expect(result.document.lines[1].endTime, const Duration(seconds: 8));
+      expect(result.document.lines[2].text, '第三句歌词');
+      expect(result.document.lines[2].startTime, const Duration(seconds: 8));
+    });
+
+    test('不传漏行选择时保持旧行为，不插入', () {
+      final document = buildCompletionDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(document: document, alignment: alignment);
+
+      expect(result.insertions, isEmpty);
+      expect(result.document.lines, hasLength(2));
+      expect(result.hasChanges, isFalse);
+      expect(result.missingReferenceCount, 1);
+    });
+
+    test('文字纠正与漏行补全同时生效且索引保持正确', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句错字',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        const LyricLine(
+          text: '第三句歌词',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 12),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: const {0},
+        acceptedMissingReferenceIndices: const {1},
+      );
+
+      expect(result.corrections, hasLength(1));
+      expect(result.corrections.single.asrLineIndex, 0);
+      expect(result.insertions, hasLength(1));
+      expect(result.document.lines[0].text, '第一句歌词');
+      expect(result.document.lines[1].text, '第二句歌词');
+      expect(result.document.lines[2].text, '第三句歌词');
+    });
+
+    test('只补漏行不选文字时也标记为有变化', () {
+      final document = buildCompletionDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: const {},
+        acceptedMissingReferenceIndices: const {1},
+      );
+
+      expect(result.corrections, isEmpty);
+      expect(result.insertions, hasLength(1));
+      expect(result.hasChanges, isTrue);
+    });
+  });
 }

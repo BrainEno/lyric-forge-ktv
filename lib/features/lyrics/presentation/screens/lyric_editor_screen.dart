@@ -178,6 +178,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       alignment: alignment,
       applyReferenceTiming: decision.applyReferenceTiming,
       acceptedReferenceIndices: decision.acceptedReferenceIndices,
+      acceptedMissingReferenceIndices:
+          decision.acceptedMissingReferenceIndices,
       protectedLineIndices: _manuallyEditedLineIndices.difference(
         decision.overriddenAsrLineIndices,
       ),
@@ -222,9 +224,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         'minimumSimilarity': applier.minimumSimilarity,
         'applyReferenceTiming': decision.applyReferenceTiming,
         'acceptedReferenceCount': decision.acceptedReferenceIndices.length,
+        'acceptedMissingReferenceCount':
+            decision.acceptedMissingReferenceIndices.length,
         'overriddenManuallyEditedCount':
             decision.overriddenAsrLineIndices.length,
         'appliedCorrectionCount': result.corrections.length,
+        'insertedReferenceCount': result.insertions.length,
+        'skippedMissingReferenceCount':
+            result.missingReferenceCount - result.insertions.length,
         'timingUpdatedCount': result.timingUpdatedCount,
         'skippedManuallyEditedCount':
             result.skippedManuallyEditedIndices.length,
@@ -241,6 +248,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               'similarity': correction.similarity,
             },
         ],
+        'insertions': [
+          for (final insertion in result.insertions)
+            <String, dynamic>{
+              'asrLineIndex': insertion.asrLineIndex,
+              'referenceIndex': insertion.referenceIndex,
+              'startTime': insertion.startTime.inMilliseconds,
+              'endTime': insertion.endTime.inMilliseconds,
+              'requiresConfirmation': insertion.requiresConfirmation,
+            },
+        ],
       };
 
     setState(() {
@@ -249,12 +266,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _filter = _ReviewFilter.all;
       if (result.corrections.isNotEmpty) {
         _selectedLineIndex = result.corrections.first.asrLineIndex;
+      } else if (result.insertions.isNotEmpty) {
+        _selectedLineIndex = result.insertions.first.asrLineIndex;
       }
     });
 
     final parts = <String>[
       if (result.corrections.isNotEmpty)
         '纠正 ${result.corrections.length} 行',
+      if (result.insertions.isNotEmpty) '补全 ${result.insertions.length} 行',
       if (result.timingUpdatedCount > 0)
         '更新 ${result.timingUpdatedCount} 行时间',
       if (result.skippedManuallyEditedIndices.isNotEmpty)
