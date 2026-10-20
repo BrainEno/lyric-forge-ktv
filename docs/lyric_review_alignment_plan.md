@@ -79,20 +79,21 @@
 - 纯文本走 C1 对齐并保留 ASR 时间轴；带时间戳的参考行在"与草稿一一对应"时可在摘要里勾选"同时采用参考时间轴"（默认勾选，应用后全局偏移归零），不满足一一对应则只纠正文字并说明原因。
 - 对齐前把当前文档快照进 `metadata['referenceAlignmentBackup']`（单槽、快照里剔除该键防嵌套）；应用结果写 `metadata['referenceAlignment']`（来源、格式、相似度阈值、逐行相似度清单）。
 - 新增 domain `ReferenceAlignmentApplier`：只改 `text`（`confidence = 100`）、保留原时间戳、漏行不插入、多余行不动、本次会话手动编辑过的行跳过（编辑器按会话维护行索引集，插入/删除时同步位移）。
-- 结果摘要对话框：可纠正/完全一致/低相似/手动跳过/参考漏行/多余识别计数 + 前 5 行"旧→新"预览 + 漏行引导（用阶段 B 定点插入补齐）。
+- 结果摘要对话框：可纠正/完全一致/低相似/手动跳过/参考漏行/多余识别计数 + 前 5 行"旧→新"预览 + 漏行引导（用阶段 B 定点插入补齐）。（C3 起由逐行确认界面取代，摘要对话框已移除）
 
-### C3 逐行确认 UI
+### C3 逐行确认 UI（已完成）
 
-- 新建独立文件 `reference_alignment_review.dart`（不继续膨胀 `lyric_editor_screen.dart`）：
-  - 逐行 diff 卡片（字符级高亮差异）、单行采纳/跳过、顶部"应用全部高置信（相似度阈值默认 80）"；
-  - 应用规则：只改 `text`、保留原时间戳、`confidence = 100`、写 metadata 溯源（`source=reference-alignment`、相似度）；
-  - 与 ASR 行对不上的参考行（漏行）**不自动插入**，列入"待处理"清单，引导用阶段 B 的定点插入补齐；
-  - 自草稿生成后被用户手动改过的行显示"已手动编辑"锁，需显式确认才替换；
-  - 确认完成后走既有 `_saveChanges` 整文档保存。
+- 独立文件 `reference_alignment_review.dart`：逐行字符级 diff 卡片、单行采纳/跳过、顶部"全选高置信（阈值默认 80%）"、已选手动编辑行锁、参考漏行"待处理"清单、时间轴整体开关；底部"应用 N 行 / 采用参考时间轴"。
+- 新增纯 Dart `CharacterDiffService`（按 Unicode 码点做 LCS，合并相邻片段；超长行退化为整行替换），配 10 个单测。
+- `ReferenceAlignmentApplier` 增加 `acceptedReferenceIndices`：非 null 时按逐行选择应用，允许显式采纳低于阈值的行；`protectedLineIndices` 仍生效；新增 `skippedBySelectionIndices` 区分"用户跳过"与"低置信"。
+- 时间轴是整体开关，与逐行文字选择独立；仍要求参考与草稿一一对应、全部行带时间戳且本次无手动编辑。
+- 应用规则不变：只改 `text`、`confidence = 100`、保留原时间戳、漏行不插入、多余行不动；应用前写单槽备份 `metadata['referenceAlignmentBackup']`，应用后写 `metadata['referenceAlignment']`（新增 `acceptedReferenceCount`、`overriddenManuallyEditedCount`、`skippedBySelectionCount`）。
+- 确认完成后仍走既有 `_saveChanges` 整文档保存；用户取消则不写入。
+- widget 测试覆盖 390×844 下的默认勾选、低置信跳过、手动编辑行解锁确认与返回结果。
 
 验收：粘贴正确歌词 → 逐行确认 → 错字被纠正且时间轴不变；漏行进入待处理清单；用户已改过的行不被静默覆盖；保存重开后溯源信息仍在。
 
-规模：C1 约 250 行 + 测试；C2 实际约 900 行（对话框、应用规则与测试，已拆成独立文件避免继续膨胀编辑器）；C3 约 300 行（UI 独立文件）。超过单任务上限，必须分三次提交。
+规模：C1 约 250 行 + 测试；C2 实际约 900 行（对话框、应用规则与测试，已拆成独立文件避免继续膨胀编辑器）；C3 实际约 800 行（独立 UI、字符 diff、应用扩展与测试），仍作为一次 C3 提交。
 
 ## 阶段 D（后续可选）：在线歌词搜索
 

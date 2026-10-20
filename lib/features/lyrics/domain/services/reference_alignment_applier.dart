@@ -25,6 +25,10 @@ class ReferenceAlignmentApplyResult {
   final List<AppliedReferenceCorrection> corrections;
   final List<int> skippedManuallyEditedIndices;
   final List<int> skippedLowConfidenceIndices;
+
+  /// 逐行确认时用户主动跳过、但相似度其实达到阈值的行。
+  final List<int> skippedBySelectionIndices;
+
   final int timingUpdatedCount;
   final int identicalCount;
   final int missingReferenceCount;
@@ -35,6 +39,7 @@ class ReferenceAlignmentApplyResult {
     required this.corrections,
     required this.skippedManuallyEditedIndices,
     required this.skippedLowConfidenceIndices,
+    required this.skippedBySelectionIndices,
     required this.timingUpdatedCount,
     required this.identicalCount,
     required this.missingReferenceCount,
@@ -51,6 +56,10 @@ class ReferenceAlignmentApplyResult {
 /// 只修改被采纳行的文本（或时间），不插入漏行、不删除多余行；未匹配的
 /// ASR 行保持原样。默认只改文本并保留原时间戳，避免定时参考在断句不一致时
 /// 打乱时间轴；调用方可在确认后显式开启 [applyReferenceTiming]。
+///
+/// [acceptedReferenceIndices] 为 null 时按 [minimumSimilarity] 自动采纳；
+/// 非 null 时只采纳集合中的参考行（逐行确认界面使用），此时低于阈值的行也
+/// 可以被显式采纳。时间轴是整体开关，与逐行文字选择无关。
 class ReferenceAlignmentApplier {
   /// 低于该相似度不自动采纳。默认 0.8，界面显示为 80%。
   final double minimumSimilarity;
@@ -62,12 +71,14 @@ class ReferenceAlignmentApplier {
     required LyricDocument document,
     required LyricAlignmentResult alignment,
     bool applyReferenceTiming = false,
+    Set<int>? acceptedReferenceIndices,
     Set<int> protectedLineIndices = const {},
   }) {
     final lines = List<LyricLine>.from(document.lines);
     final corrections = <AppliedReferenceCorrection>[];
     final skippedManuallyEdited = <int>{};
     final skippedLowConfidence = <int>{};
+    final skippedBySelection = <int>{};
     var timingUpdatedCount = 0;
     var identicalCount = 0;
 
@@ -91,21 +102,29 @@ class ReferenceAlignmentApplier {
           entry.status == ReferenceLineAlignmentStatus.identical;
       if (!isReplace && !isIdentical) continue;
 
-      final accepted = isIdentical || entry.similarity >= minimumSimilarity;
-      if (!accepted) {
-        if (isReplace) skippedLowConfidence.add(asrIndex);
-        continue;
+      final acceptedForText =
+          isIdentical ||
+          (acceptedReferenceIndices != null
+              ? acceptedReferenceIndices.contains(entry.referenceIndex)
+              : entry.similarity >= minimumSimilarity);
+
+      if (isReplace && !acceptedForText) {
+        if (entry.similarity < minimumSimilarity) {
+          skippedLowConfidence.add(asrIndex);
+        } else if (acceptedReferenceIndices != null) {
+          skippedBySelection.add(asrIndex);
+        }
       }
 
       if (protectedLineIndices.contains(asrIndex)) {
-        if (isReplace) skippedManuallyEdited.add(asrIndex);
+        if (isReplace && acceptedForText) skippedManuallyEdited.add(asrIndex);
         continue;
       }
 
       final previousLine = lines[asrIndex];
       var updated = previousLine;
       var textChanged = false;
-      if (isReplace) {
+      if (isReplace && acceptedForText) {
         updated = updated.copyWith(text: entry.referenceText, confidence: 100);
         textChanged = true;
       }
@@ -146,12 +165,14 @@ class ReferenceAlignmentApplier {
 
     final sortedProtected = skippedManuallyEdited.toList()..sort();
     final sortedLowConfidence = skippedLowConfidence.toList()..sort();
+    final sortedBySelection = skippedBySelection.toList()..sort();
 
     return ReferenceAlignmentApplyResult(
       document: document.copyWith(lines: lines),
       corrections: corrections,
       skippedManuallyEditedIndices: sortedProtected,
       skippedLowConfidenceIndices: sortedLowConfidence,
+      skippedBySelectionIndices: sortedBySelection,
       timingUpdatedCount: timingUpdatedCount,
       identicalCount: identicalCount,
       missingReferenceCount: alignment.missingReferenceIndices.length,

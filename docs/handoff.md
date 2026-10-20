@@ -5,7 +5,7 @@
 
 ## 目标
 
-P1（统一各播放面的歌词可用性）已完成并提交：解析结果结构化、自愈后回撤/补写队列 `hasLyrics`、应用壳层随当前条目自动同步，歌词入口点击时同样走共享解析。工作日志条目化与新门禁（S1–S3）早已落地。
+参考歌词逐行确认（阶段 C3）已完成并准备提交：新增字符级 diff、逐行采纳/跳过、全选高置信、手动编辑行二次确认、漏行待处理清单、时间轴整体开关；C2 的批量摘要对话框已移除，应用仍走显式保存并保留备份/溯源 metadata。下一步优先做对齐备份恢复 UI，之后才是阶段 D 在线歌词搜索。
 
 ## Git 现场
 
@@ -13,40 +13,49 @@ P1（统一各播放面的歌词可用性）已完成并提交：解析结果结
 $ git status --short
 (clean after this task's commit)
 
-$ git log --oneline -4
-44c8404 Unify playback lyrics availability across surfaces
-22b651f Unblock analyzer and full test suite
-976148a Add work log lint tool and quality gate hook
-010bf9a Move work log entries to per-task files
+$ git diff --stat
+(clean after this task's commit)
+
+$ git log --oneline -5
+9701155 Add reference lyric correction entry and apply flow
+241f6a8 Add reference lyric alignment service
+b186d81 Add lyric editor progress bar and insert-at-playback
+b575f1a Make playback progress bars seekable with hover time hints
 ```
 
 ## 已改文件
 
-- 本片：`lib/features/player/domain/services/playback_lyrics_project_resolver.dart`（`PlaybackLyricsResolution` + 结构化解析 + 修复/清除标记）、`lib/features/player/domain/services/playback_lyrics_availability.dart`（新增，解析并回写队列标记）、`lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart`（新增，壳层同步器）、`lib/main.dart`（挂在 `MaterialApp.builder` 内、手机与桌面两个分支共用）、`now_playing_lyrics_project_action.dart`、`local_song_lyrics_import_action.dart`、两个测试文件、`docs/decisions.md`（D-005）。
-- 更早：`tool/work_log.dart`、`test/work_log_tool_test.dart`、两套 quality gate 的文档校验、29 条历史条目文件。
+- 新增 `lib/features/lyrics/domain/services/character_diff_service.dart`：按 Unicode 码点的 LCS diff，合并相邻片段，超长行退化。
+- 新增 `lib/features/lyrics/presentation/widgets/reference_alignment_review.dart`：逐行确认面板（diff 卡片、采纳/跳过、高置信全选、手动编辑锁、漏行待办、时间轴开关）。
+- 修改 `lib/features/lyrics/domain/services/reference_alignment_applier.dart`：`acceptedReferenceIndices` 显式选择、`skippedBySelectionIndices`、时间轴与文字选择独立。
+- 修改 `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：接入逐行确认、有效保护集合、溯源字段。
+- 删除 `lib/features/lyrics/presentation/widgets/reference_alignment_summary_dialog.dart`。
+- 测试：`character_diff_service_test.dart`（10）、`reference_alignment_applier_test.dart`（+6）、`reference_alignment_review_test.dart`（2 个 widget）。
+- 文档：`docs/lyric_review_alignment_plan.md`、`docs/decisions.md`（D-006）、本条目、`docs/work_log.md`、`docs/work_log_index.md`、`docs/work_log_archive.md`。
 
 ## 检查结果
 
-- `flutter analyze --no-pub --no-fatal-infos` => 0 error / 0 warning（149 条样式 info，未增长）
-- `flutter test --no-pub --reporter expanded` => All tests passed（319 通过 / 2 跳过）
-- `powershell -File scripts/quality_gate.ps1 -SkipPubGet` => Repository quality gate (all) passed
-- `dart tool/work_log.dart check` => success
+- `dart format` 新增/改动文件 => 0 changed。
+- `flutter analyze lib/features/lyrics test/features/lyrics` => 0 error / 0 warning；仅 4 条既有 info（3× `use_null_aware_elements`、1× `unnecessary_import`）。
+- `flutter test test/features/lyrics/` => 66/66 通过。
+- `dart tool/work_log.dart check` => 0 error；提交前剩 2 条 commit-subject 告警（阶段 A 既有 + 本次待提交）。
+- 未运行全量 `flutter analyze` / 全量测试套件。
 
 ## 下一步
 
-硬化解析器的破坏性自愈：`_projectFor` / `_scannedProjectIdForAudio` 现在把"读取异常"与"没有工程"都当作 null，`_healLink` 随后会清除 `linkedProjectId`。建议让扫描返回三态（命中 / 未命中 / 失败），失败时不写元数据、也不回撤队列标记（`PlaybackLyricsResolution` 增加权威性标记，`resolveAndSyncPlaybackLyrics` 据此跳过同步）。完成标准：`playback_lyrics_project_resolver_test.dart` / `playback_lyrics_availability_test.dart` 覆盖"仓库抛错时不清链接、不回撤标记"，全套测试保持全绿。
-
-备选（产品向）：歌词关联冲突确认——在另一个工程里首次生成歌词会静默改写音频→工程链接，需要确认或提示。
+1. 人工复核 C3：390×844、844×390、1024×768、1366×768、1600×900，重点看逐行卡片、长行 diff、底栏按钮、手动编辑解锁、漏行清单和时间轴开关。
+2. 实现对齐备份恢复 UI：当前 `metadata['referenceAlignmentBackup']` 是单槽快照，尚无入口；恢复前要确认覆盖当前文档，并保留溯源。
+3. 可选清理：被参考纠正的行上旧 `fallbackCandidates` 徽标仍在，应用时可按行索引清除。
 
 ## 已知风险
 
-- 工程仓库读取异常仍会被当作"没有工程"，可能清除用户歌词链接（下一步要修）。
-- 149 条样式 info 仍是技术债，`prefer_interpolation_to_compose_strings` 占 116 条，需按文件分片清理。
-- 当前 SDK 的 `dart format` 会启用 tall style，对既有文件是整篇重排；不要对既有文件整体格式化，否则 diff 会被格式噪音淹没。
-- 文档校验只在本地 quality gate 中执行，尚未接入 GitHub workflow。
-- 归档导航 `docs/work_log_archive.md` 需手工补行：条目退出活动窗口时必须补，否则 lint 报 `entry-unreferenced`。
-- 全屏 KTV 单击控件显示仍有约 300ms 的双击超时延迟（`onTap` 与 `onDoubleTap` 共存的标准代价）。
+- 手动编辑基线是编辑器会话级，重开工程后无法判断"已改过"，只能靠单槽备份兜底。
+- 备份为单槽，二次对齐会覆盖上次快照；目前没有恢复入口。
+- C1 断句/合并差异表现为"漏行 + 多余识别"，不做跨行重组。
+- 时间轴整体替换后 `globalOffset` 归零；仅在参考与草稿 1:1、全部带时间戳、本次无手动编辑时开放。
+- widget 测试只覆盖 390×844，真实工程保存重开与其余视口需人工确认。
+- 阶段 A 的日志 commit-subject 告警是历史差异，预期存在，不要用改日志的方式消除。
 
 ---
 
-最后更新：2026-10-19 22:28
+最后更新：2026-10-20 11:53

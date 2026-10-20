@@ -22,7 +22,7 @@ import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/reference_alignment_applier.dart';
 import '../widgets/reference_alignment_dialog.dart';
-import '../widgets/reference_alignment_summary_dialog.dart';
+import '../widgets/reference_alignment_review.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
@@ -151,22 +151,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       return;
     }
 
-    final preview = applier.apply(
-      document: document,
-      alignment: alignment,
-      protectedLineIndices: _manuallyEditedLineIndices,
+    final allReferenceLinesTimed = alignment.entries.every(
+      (entry) => entry.referenceHasTimestamp,
     );
-
-    final timedLineCount = alignment.entries
-        .where(
-          (entry) =>
-              entry.asrLineIndex != null &&
-              entry.referenceHasTimestamp &&
-              entry.startTime != null,
-        )
-        .length;
-    final allReferenceLinesTimed = alignment.entries
-        .every((entry) => entry.referenceHasTimestamp);
     final timingUnavailableReason = _referenceTimingUnavailableReason(
       input: input,
       alignment: alignment,
@@ -174,28 +161,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       documentLineCount: document.lines.length,
     );
 
-    final decision = await showReferenceAlignmentSummaryDialog(
+    final decision = await showReferenceAlignmentReview(
       context,
-      preview: preview,
-      isTimedReference: input.timed,
-      canApplyReferenceTiming:
-          input.timed && timingUnavailableReason == null,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: _manuallyEditedLineIndices,
       timingUnavailableReason: timingUnavailableReason,
-      timedLineCount: timedLineCount,
-      referenceLineCount: input.lines.length,
       minimumSimilarity: applier.minimumSimilarity,
-      documentLineCount: document.lines.length,
     );
     if (decision == null || !mounted) return;
+    if (!decision.hasChanges) return;
 
-    final result = decision.applyReferenceTiming
-        ? applier.apply(
-            document: document,
-            alignment: alignment,
-            applyReferenceTiming: true,
-            protectedLineIndices: _manuallyEditedLineIndices,
-          )
-        : preview;
+    final result = applier.apply(
+      document: document,
+      alignment: alignment,
+      applyReferenceTiming: decision.applyReferenceTiming,
+      acceptedReferenceIndices: decision.acceptedReferenceIndices,
+      protectedLineIndices: _manuallyEditedLineIndices.difference(
+        decision.overriddenAsrLineIndices,
+      ),
+    );
     if (!result.hasChanges) return;
 
     final appliedDocument = decision.applyReferenceTiming
@@ -235,12 +221,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         'referenceOffsetMs': input.offset.inMilliseconds,
         'minimumSimilarity': applier.minimumSimilarity,
         'applyReferenceTiming': decision.applyReferenceTiming,
+        'acceptedReferenceCount': decision.acceptedReferenceIndices.length,
+        'overriddenManuallyEditedCount':
+            decision.overriddenAsrLineIndices.length,
         'appliedCorrectionCount': result.corrections.length,
         'timingUpdatedCount': result.timingUpdatedCount,
         'skippedManuallyEditedCount':
             result.skippedManuallyEditedIndices.length,
         'skippedLowConfidenceCount':
             result.skippedLowConfidenceIndices.length,
+        'skippedBySelectionCount': result.skippedBySelectionIndices.length,
         'missingReferenceCount': result.missingReferenceCount,
         'unmatchedAsrCount': result.unmatchedAsrCount,
         'corrections': [
@@ -269,6 +259,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         '更新 ${result.timingUpdatedCount} 行时间',
       if (result.skippedManuallyEditedIndices.isNotEmpty)
         '跳过 ${result.skippedManuallyEditedIndices.length} 行手动编辑',
+      if (decision.overriddenAsrLineIndices.isNotEmpty)
+        '覆盖 ${decision.overriddenAsrLineIndices.length} 行手动编辑',
     ];
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

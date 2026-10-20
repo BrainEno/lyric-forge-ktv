@@ -406,4 +406,184 @@ void main() {
       expect(result.document.lines[1].startTime, const Duration(seconds: 5));
     });
   });
+
+  group('逐行显式采纳', () {
+    LyricDocument twoLineDocument() {
+      return buildDocument([
+        const LyricLine(
+          text: '月亮代表我的星',
+          startTime: Duration(seconds: 1),
+          endTime: Duration(seconds: 5),
+        ),
+        const LyricLine(
+          text: '第二句错',
+          startTime: Duration(seconds: 5),
+          endTime: Duration(seconds: 9),
+        ),
+      ]);
+    }
+
+    LyricAlignmentResult twoLineAlignment(LyricDocument document) {
+      return alignmentService.align(
+        document: document,
+        referenceLines: const [
+          ReferenceLyricLine(text: '月亮代表我的心'),
+          ReferenceLyricLine(text: '第二句对'),
+        ],
+      );
+    }
+
+    test('只应用显式选中的行', () {
+      final document = twoLineDocument();
+      final alignment = twoLineAlignment(document);
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {1},
+      );
+
+      expect(result.corrections, hasLength(1));
+      expect(result.corrections.single.referenceIndex, 1);
+      expect(result.document.lines[0].text, '月亮代表我的星');
+      expect(result.document.lines[1].text, '第二句对');
+      expect(result.skippedBySelectionIndices, [0]);
+      expect(result.skippedLowConfidenceIndices, isEmpty);
+    });
+
+    test('显式选中可以采纳低于阈值的行', () {
+      final document = twoLineDocument();
+      final alignment = twoLineAlignment(document);
+      final lowConfidenceEntry = alignment.entries[1];
+      expect(lowConfidenceEntry.similarity, lessThan(0.8));
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {lowConfidenceEntry.referenceIndex},
+      );
+
+      expect(result.document.lines[1].text, '第二句对');
+      expect(result.skippedLowConfidenceIndices, isEmpty);
+      expect(result.skippedBySelectionIndices, [0]);
+    });
+
+    test('显式选中仍受手动编辑保护', () {
+      final document = twoLineDocument();
+      final alignment = twoLineAlignment(document);
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {0},
+        protectedLineIndices: {0},
+      );
+
+      expect(result.corrections, isEmpty);
+      expect(result.skippedManuallyEditedIndices, [0]);
+      expect(result.skippedLowConfidenceIndices, [1]);
+      expect(result.skippedBySelectionIndices, isEmpty);
+      expect(result.document.lines[0].text, '月亮代表我的星');
+    });
+
+    test('未选中的低相似行记录为低置信', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '今天天气真好',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 3),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: const {},
+      );
+
+      expect(result.corrections, isEmpty);
+      expect(result.skippedLowConfidenceIndices, [0]);
+      expect(result.skippedBySelectionIndices, isEmpty);
+    });
+
+    test('采用时间轴时，未选中的文字行也更新时间', () {
+      final document = twoLineDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [
+          ReferenceLyricLine(
+            text: '月亮代表我的心',
+            startTime: Duration(seconds: 30),
+            endTime: Duration(seconds: 34),
+          ),
+          ReferenceLyricLine(
+            text: '第二句对',
+            startTime: Duration(seconds: 34),
+            endTime: Duration(seconds: 39),
+          ),
+        ],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {0},
+        applyReferenceTiming: true,
+      );
+
+      expect(result.corrections, hasLength(1));
+      expect(result.document.lines[0].text, '月亮代表我的心');
+      expect(result.document.lines[0].startTime, const Duration(seconds: 30));
+      expect(result.document.lines[1].text, '第二句错');
+      expect(result.document.lines[1].startTime, const Duration(seconds: 34));
+      expect(result.document.lines[1].endTime, const Duration(seconds: 39));
+      expect(result.timingUpdatedCount, 2);
+    });
+
+    test('空显式集合只更新时间轴', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句',
+          startTime: Duration(seconds: 1),
+          endTime: Duration(seconds: 5),
+        ),
+        const LyricLine(
+          text: '第二句',
+          startTime: Duration(seconds: 5),
+          endTime: Duration(seconds: 9),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [
+          ReferenceLyricLine(
+            text: '第一句',
+            startTime: Duration(seconds: 30),
+            endTime: Duration(seconds: 34),
+          ),
+          ReferenceLyricLine(
+            text: '第二句',
+            startTime: Duration(seconds: 34),
+            endTime: Duration(seconds: 39),
+          ),
+        ],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: const {},
+        applyReferenceTiming: true,
+      );
+
+      expect(result.corrections, isEmpty);
+      expect(result.hasChanges, isTrue);
+      expect(result.document.lines[0].startTime, const Duration(seconds: 30));
+      expect(result.document.lines[1].endTime, const Duration(seconds: 39));
+    });
+  });
 }
