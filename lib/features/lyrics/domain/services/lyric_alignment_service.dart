@@ -8,8 +8,16 @@ enum ReferenceLineAlignmentStatus {
   /// 归一化后与 ASR 行完全一致，不需要改文本。
   identical,
 
-  /// 匹配到 ASR 行，但归一化文本不同，建议用参考文本纠正。
+  /// 匹配到 ASR 行，相似度达到[autoReplaceThreshold]，建议用参考文本纠正，可自动采纳。
   replace,
+
+  /// 匹配到 ASR 行，但相似度低于[autoReplaceThreshold]，属于低置信度匹配。
+  /// 不应自动替换，需要用户在审核界面确认是否替换，还是作为漏行另行插入。
+  lowConfidence,
+
+  /// 匹配到 ASR 行，但存在另一条 ASR 行的相似度接近（在[ambiguityMargin]之内），
+  /// 可能是 ASR 将两行合并或把一行拆成多行，需要用户定点确认是替换还是插入漏行。
+  ambiguous,
 
   /// ASR 中没有对应行（漏识别），不要自动插入。
   missing,
@@ -20,8 +28,14 @@ enum AsrLineAlignmentStatus {
   /// 有参考行对应且归一化文本一致。
   matched,
 
-  /// 有参考行对应但文本不同，可被纠正。
+  /// 有参考行对应且相似度达标，可被纠正。
   toBeCorrected,
+
+  /// 有参考行对应但相似度低于自动替换阈值，属于低置信度匹配。
+  lowConfidence,
+
+  /// 有参考行对应但存在歧义候选，可能是 ASR 合并/拆分。
+  ambiguous,
 
   /// 参考歌词中没有对应行（多余识别/幻觉）。
   unmatched,
@@ -50,6 +64,10 @@ class LyricAlignmentEntry {
   /// 这条参考行本身是否带时间戳。
   final bool referenceHasTimestamp;
 
+  /// 是否为歧义匹配：存在另一条 ASR 行与本参考行的相似度接近（在
+  /// [ambiguityMargin] 之内），可能是 ASR 合并/拆分。
+  final bool ambiguous;
+
   final ReferenceLineAlignmentStatus status;
 
   const LyricAlignmentEntry({
@@ -60,6 +78,7 @@ class LyricAlignmentEntry {
     required this.startTime,
     required this.endTime,
     required this.referenceHasTimestamp,
+    required this.ambiguous,
     required this.status,
   });
 }
@@ -75,12 +94,16 @@ class AsrLineAlignment {
   /// 与参考行的相似度；未匹配时为 0。
   final double similarity;
 
+  /// 是否为歧义匹配：存在另一条参考行与本 ASR 行的相似度接近。
+  final bool ambiguous;
+
   final AsrLineAlignmentStatus status;
 
   const AsrLineAlignment({
     required this.asrLineIndex,
     required this.referenceIndex,
     required this.similarity,
+    required this.ambiguous,
     required this.status,
   });
 }
@@ -143,7 +166,11 @@ class LyricAlignmentService {
   LyricAlignmentResult align({
     required LyricDocument document,
     required List<ReferenceLyricLine> referenceLines,
+    double autoReplaceThreshold = 0.8,
+    double ambiguityMargin = 0.15,
   }) {
+    assert(autoReplaceThreshold >= 0 && autoReplaceThreshold <= 1);
+    assert(ambiguityMargin >= 0 && ambiguityMargin <= 1);
     final references = <_PreparedLine>[];
     for (var index = 0; index < referenceLines.length; index++) {
       final normalized = normalizeLine(referenceLines[index].text);
@@ -199,6 +226,7 @@ class LyricAlignmentService {
                 ? _nonNegative(reference.endTime)
                 : null,
             referenceHasTimestamp: referenceHasTimestamp,
+            ambiguous: false,
             status: ReferenceLineAlignmentStatus.missing,
           ),
         );
@@ -208,12 +236,34 @@ class LyricAlignmentService {
       final asr = asrLines[matchedAsr];
       final asrLine = document.lines[asr.originalIndex];
       final identical = preparedReference.normalized == asr.normalized;
+      final similarity = similarities[r][matchedAsr];
+
+      // 歧义匹配：另一条 ASR 行与本参考行的相似度接近（在 ambiguityMargin 之内），
+      // 且本身也达到了匹配阈值，可能是 ASR 合并/拆分。
+      var ambiguous = false;
+      for (var a2 = 0; a2 < asrCount; a2++) {
+        if (a2 == matchedAsr) continue;
+        final otherSimilarity = similarities[r][a2];
+        if (otherSimilarity >= minimumPairSimilarity &&
+            otherSimilarity >= similarity - ambiguityMargin) {
+          ambiguous = true;
+          break;
+        }
+      }
+
+      final status = identical
+          ? ReferenceLineAlignmentStatus.identical
+          : ambiguous
+          ? ReferenceLineAlignmentStatus.ambiguous
+          : similarity < autoReplaceThreshold
+          ? ReferenceLineAlignmentStatus.lowConfidence
+          : ReferenceLineAlignmentStatus.replace;
       entries.add(
         LyricAlignmentEntry(
           referenceIndex: preparedReference.originalIndex,
           referenceText: reference.text.trim(),
           asrLineIndex: asr.originalIndex,
-          similarity: similarities[r][matchedAsr],
+          similarity: similarity,
           startTime: referenceHasTimestamp
               ? _nonNegative(reference.startTime)
               : asrLine.startTime,
@@ -221,9 +271,8 @@ class LyricAlignmentService {
               ? _nonNegative(reference.endTime)
               : asrLine.endTime,
           referenceHasTimestamp: referenceHasTimestamp,
-          status: identical
-              ? ReferenceLineAlignmentStatus.identical
-              : ReferenceLineAlignmentStatus.replace,
+          ambiguous: ambiguous,
+          status: status,
         ),
       );
     }
@@ -238,6 +287,7 @@ class LyricAlignmentService {
             asrLineIndex: preparedAsr.originalIndex,
             referenceIndex: null,
             similarity: 0,
+            ambiguous: false,
             status: AsrLineAlignmentStatus.unmatched,
           ),
         );
@@ -246,14 +296,33 @@ class LyricAlignmentService {
 
       final reference = references[matchedReference];
       final identical = reference.normalized == preparedAsr.normalized;
+      final similarity = similarities[matchedReference][a];
+
+      var asrAmbiguous = false;
+      for (var r2 = 0; r2 < referenceCount; r2++) {
+        if (r2 == matchedReference) continue;
+        final otherSimilarity = similarities[r2][a];
+        if (otherSimilarity >= minimumPairSimilarity &&
+            otherSimilarity >= similarity - ambiguityMargin) {
+          asrAmbiguous = true;
+          break;
+        }
+      }
+
+      final asrStatus = identical
+          ? AsrLineAlignmentStatus.matched
+          : asrAmbiguous
+          ? AsrLineAlignmentStatus.ambiguous
+          : similarity < autoReplaceThreshold
+          ? AsrLineAlignmentStatus.lowConfidence
+          : AsrLineAlignmentStatus.toBeCorrected;
       asrResults.add(
         AsrLineAlignment(
           asrLineIndex: preparedAsr.originalIndex,
           referenceIndex: reference.originalIndex,
-          similarity: similarities[matchedReference][a],
-          status: identical
-              ? AsrLineAlignmentStatus.matched
-              : AsrLineAlignmentStatus.toBeCorrected,
+          similarity: similarity,
+          ambiguous: asrAmbiguous,
+          status: asrStatus,
         ),
       );
     }

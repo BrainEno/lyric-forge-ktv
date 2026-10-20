@@ -143,22 +143,34 @@ class ReferenceAlignmentApplier {
         identicalCount++;
       }
 
+      // 漏行由插入计划处理；低置信度与歧义匹配不自动采纳，需显式确认。
+      if (entry.status == ReferenceLineAlignmentStatus.missing) continue;
+
       final isReplace = entry.status == ReferenceLineAlignmentStatus.replace;
       final isIdentical =
           entry.status == ReferenceLineAlignmentStatus.identical;
-      if (!isReplace && !isIdentical) continue;
 
-      final acceptedForText =
-          isIdentical ||
-          (acceptedReferenceIndices != null
-              ? acceptedReferenceIndices.contains(entry.referenceIndex)
-              : entry.similarity >= minimumSimilarity);
+      // 逐行确认模式（acceptedReferenceIndices != null）：仅采纳显式选中的行。
+      // 自动模式：replace 高置信匹配自动采纳；lowConfidence/ambiguous 不自动采纳。
+      bool acceptedForText;
+      if (isIdentical) {
+        acceptedForText = true;
+      } else if (acceptedReferenceIndices != null) {
+        acceptedForText = acceptedReferenceIndices.contains(
+          entry.referenceIndex,
+        );
+      } else {
+        acceptedForText = isReplace && entry.similarity >= minimumSimilarity;
+      }
 
-      if (isReplace && !acceptedForText) {
-        if (entry.similarity < minimumSimilarity) {
+      if (!acceptedForText) {
+        if (entry.status == ReferenceLineAlignmentStatus.lowConfidence) {
           skippedLowConfidence.add(asrIndex);
         } else if (acceptedReferenceIndices != null) {
           skippedBySelection.add(asrIndex);
+        } else if (isReplace && entry.similarity < minimumSimilarity) {
+          // 自动模式下因阈值收紧未采纳的 replace 行，记为低置信度跳过。
+          skippedLowConfidence.add(asrIndex);
         }
       }
 
@@ -170,7 +182,7 @@ class ReferenceAlignmentApplier {
       final previousLine = lines[asrIndex];
       var updated = previousLine;
       var textChanged = false;
-      if (isReplace && acceptedForText) {
+      if (acceptedForText && !isIdentical) {
         updated = updated.copyWith(text: entry.referenceText, confidence: 100);
         textChanged = true;
       }

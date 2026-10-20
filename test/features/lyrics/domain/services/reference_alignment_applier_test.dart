@@ -587,6 +587,106 @@ void main() {
     });
   });
 
+  group('低置信度与歧义匹配', () {
+    test('低置信度行不自动采纳，记为低置信度跳过', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '今天天气真好',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 3),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+      );
+
+      expect(
+        alignment.entries.single.status,
+        ReferenceLineAlignmentStatus.lowConfidence,
+      );
+
+      final result = applier.apply(document: document, alignment: alignment);
+
+      expect(result.corrections, isEmpty);
+      expect(result.skippedLowConfidenceIndices, [0]);
+      expect(result.document.lines.single.text, '今天天气真好');
+      expect(result.hasChanges, isFalse);
+    });
+
+    test('低置信度行可被显式采纳', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '今天天气真好',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 3),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+      );
+      final entry = alignment.entries.single;
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {entry.referenceIndex},
+      );
+
+      expect(result.document.lines.single.text, '明天天气不错');
+      expect(result.document.lines.single.confidence, 100);
+      expect(result.skippedLowConfidenceIndices, isEmpty);
+      expect(result.hasChanges, isTrue);
+    });
+
+    test('歧义匹配行不自动采纳，需显式确认后才替换', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句歌词a',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        const LyricLine(
+          text: '第一句歌词b',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 8),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [ReferenceLyricLine(text: '第一句歌词')],
+      );
+
+      final entry = alignment.entries.single;
+      expect(entry.status, ReferenceLineAlignmentStatus.ambiguous);
+      expect(entry.ambiguous, isTrue);
+      final matchedIndex = entry.asrLineIndex!;
+
+      // 自动模式下不自动替换。
+      final autoResult = applier.apply(
+        document: document,
+        alignment: alignment,
+      );
+      expect(autoResult.corrections, isEmpty);
+      expect(autoResult.hasChanges, isFalse);
+      expect(
+        autoResult.document.lines[matchedIndex].text,
+        document.lines[matchedIndex].text,
+      );
+
+      // 显式采纳后替换。
+      final explicitResult = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedReferenceIndices: {entry.referenceIndex},
+      );
+      expect(explicitResult.document.lines[matchedIndex].text, '第一句歌词');
+      expect(explicitResult.corrections, hasLength(1));
+      expect(explicitResult.hasChanges, isTrue);
+    });
+  });
+
   group('漏行补全', () {
     LyricDocument buildCompletionDocument() {
       return buildDocument([
