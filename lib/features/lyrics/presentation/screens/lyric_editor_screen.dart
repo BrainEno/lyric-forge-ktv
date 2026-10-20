@@ -21,6 +21,8 @@ import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/reference_alignment_applier.dart';
+import '../../domain/services/reference_alignment_restore_service.dart';
+import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 
@@ -190,7 +192,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     final now = DateTime.now();
     final backupMetadata = Map<String, dynamic>.from(document.metadata)
-      ..remove('referenceAlignmentBackup');
+      ..remove(kReferenceAlignmentBackupKey);
     final backupDocument = LyricDocument(
       language: document.language,
       lines: document.lines,
@@ -199,7 +201,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
 
     final metadata = Map<String, dynamic>.from(document.metadata)
-      ..['referenceAlignmentBackup'] = <String, dynamic>{
+      ..[kReferenceAlignmentBackupKey] = <String, dynamic>{
         'createdAt': now.toIso8601String(),
         'reason': 'reference-alignment',
         'source': input.sourcePath == null ? 'paste' : 'file',
@@ -293,6 +295,42 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           '需要替换时间轴时请先保存并重新打开工程。';
     }
     return null;
+  }
+
+  /// 恢复对齐前的单槽备份：二次确认后替换编辑中的文档，不自动保存。
+  Future<void> _restoreAlignmentBackup() async {
+    final document = _editingDocument;
+    if (document == null) return;
+
+    final restored = await confirmReferenceAlignmentRestore(
+      context,
+      document: document,
+    );
+    if (restored == null || !mounted) return;
+
+    setState(() {
+      _editingDocument = restored;
+      _hasChanges = true;
+      // 备份文档的行集与本次会话的编辑记录不再对应，旧索引一律作废。
+      _manuallyEditedLineIndices.clear();
+      _filter = _ReviewFilter.all;
+      final lastIndex = restored.lines.length - 1;
+      if (lastIndex < 0) {
+        _selectedLineIndex = null;
+      } else if (_selectedLineIndex != null) {
+        _selectedLineIndex = _selectedLineIndex!.clamp(0, lastIndex).toInt();
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '已恢复对齐前版本（${restored.lines.length} 行），'
+          '未自动保存，请检查后手动保存。',
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   void _addNewLine() {
@@ -557,6 +595,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           _selectedLineIndex = 0;
         }
 
+        final restoreProbe = const ReferenceAlignmentRestoreService()
+            .probeBackup(_editingDocument!);
+        final canRestore = restoreProbe is ReferenceAlignmentBackupAvailable;
+
         return StreamBuilder<PlaybackState>(
           stream: _audioService.stateStream,
           initialData: _audioService.currentState,
@@ -586,6 +628,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onReferenceAlignment: _editingDocument!.lines.isEmpty
                   ? null
                   : () => _openReferenceAlignment(project),
+              onRestoreAlignment: canRestore ? _restoreAlignmentBackup : null,
               onAddLine: _addNewLine,
               onInsertAtPlayback: _insertLineAtPlayback,
               onSeekPlayback: _seekPlayback,
@@ -660,6 +703,7 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onRestoreAlignment;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
@@ -688,6 +732,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSave,
     required this.onExport,
     required this.onReferenceAlignment,
+    required this.onRestoreAlignment,
     required this.onAddLine,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
@@ -840,6 +885,13 @@ class _LyricEditorContent extends StatelessWidget {
               onPressed: onReferenceAlignment,
               icon: const Icon(Icons.auto_fix_high_rounded),
             ),
+          if ((spec.isCompactOrMedium || spec.isShort) &&
+              onRestoreAlignment != null)
+            IconButton(
+              tooltip: '恢复对齐前版本',
+              onPressed: onRestoreAlignment,
+              icon: const Icon(Icons.history_rounded),
+            ),
           if (document.lines.isNotEmpty)
             IconButton(
               tooltip: '导出 LRC',
@@ -882,6 +934,7 @@ class _LyricEditorContent extends StatelessWidget {
                   playbackBelongsToProject ? onInsertAtPlayback : null,
               onSeekPlayback: onSeekPlayback,
               onReferenceAlignment: onReferenceAlignment,
+              onRestoreAlignment: onRestoreAlignment,
               onOpenPlayer: project.canPlay
                   ? () => Navigator.pushNamed(
                         context,
@@ -980,6 +1033,7 @@ class _EditorToolbar extends StatelessWidget {
   final VoidCallback? onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onRestoreAlignment;
   final VoidCallback? onOpenPlayer;
 
   const _EditorToolbar({
@@ -997,6 +1051,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
     required this.onReferenceAlignment,
+    required this.onRestoreAlignment,
     required this.onOpenPlayer,
   });
 
@@ -1123,6 +1178,15 @@ class _EditorToolbar extends StatelessWidget {
                   onPressed: onReferenceAlignment,
                   icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
                   label: const Text('参考歌词纠正'),
+                ),
+              ),
+            if (!compactControls && onRestoreAlignment != null)
+              Tooltip(
+                message: '恢复参考歌词对齐前的歌词快照，需二次确认',
+                child: FilledButton.tonalIcon(
+                  onPressed: onRestoreAlignment,
+                  icon: const Icon(Icons.history_rounded, size: 18),
+                  label: const Text('恢复对齐前版本'),
                 ),
               ),
             FilterChip(

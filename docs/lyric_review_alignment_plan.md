@@ -95,6 +95,14 @@
 
 规模：C1 约 250 行 + 测试；C2 实际约 900 行（对话框、应用规则与测试，已拆成独立文件避免继续膨胀编辑器）；C3 实际约 800 行（独立 UI、字符 diff、应用扩展与测试），仍作为一次 C3 提交。
 
+### C3.1 对齐备份恢复 UI（已完成）
+
+- 新增纯 Dart `ReferenceAlignmentRestoreService`：`probeBackup` 校验单槽备份 `metadata['referenceAlignmentBackup']`，按四类可区分原因返回失败（missing / invalidShape / corruptDocument / lineCountMismatch）；`restore` 用快照生成新 `LyricDocument`，不修改入参、不落盘。
+- 恢复确认对话框 `reference_alignment_backup_dialog.dart`：展示备份时间、来源（paste/file，含来源文件路径）、格式、行数，并明确"将覆盖当前编辑中的歌词"警告；破坏性按钮文案"恢复并覆盖"（≥48dp）；紧凑宽度下内容可滚动。
+- 编辑器入口与"参考歌词纠正"同区：仅当备份存在且可解析时显示（紧凑/短屏放 AppBar 图标，宽屏进工具栏）；确认后替换 `_editingDocument`、`_hasChanges = true`、清空会话级手动编辑索引集合、过滤器重置为"全部"、选中行夹取到合法范围；探测或解析失败用 SnackBar 说明"备份不可用/已损坏"，不修改文档。
+- 恢复语义：写入 `metadata['referenceAlignmentRestore']` 溯源（restoredAt/backupCreatedAt/backupReason/backupLineCount/restoredLineCount）并删除备份键——单槽，恢复即消耗，不允许重复恢复旧快照；备份文档自带的旧 `referenceAlignment` 溯源保留；恢复后不自动保存，由用户显式保存落盘。
+- 测试：服务单测 9 例（正常恢复、缺失、类型错误、JSON 损坏、行数不一致、备份键消耗、溯源字段、入参不可变、旧溯源保留）；widget 测试 5 例（390×844：无备份无入口、损坏备份无入口、摘要展示、取消不改文档、确认后替换并消耗备份）。
+
 ## 阶段 D（后续可选）：在线歌词搜索
 
 - domain 定义 `LyricSearchProvider` 接口（`search(title, artist)` → 候选文本 + 来源）；data 层实现首个 provider（来源届时再定；注意非官方接口随时失效、版权风险，须遵守本地优先定位：搜索失败不影响离线流程；代理复用 ASR 下载的手动/环境/系统代理策略）。

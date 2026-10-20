@@ -36,6 +36,7 @@
 
 ## 2026-10-19 | Lyric association and playback queue
 
+- [2026-10-19 22:28] 统一各播放面的歌词可用性判定 `Unify playback lyrics availability across surfaces` ([entry](log/entries/2026-10-19-2228-unify-playback-lyrics-availability.md))
 - [2026-10-19 21:22] 入队时同步歌词状态，统一各播放面判定 `Sync lyrics flag into playback queue enrichment` ([entry](log/entries/2026-10-19-2122-sync-lyrics-flag-into-playback-queue.md))
 - [2026-10-19 20:58] 收尾歌词首次写入工程的自动关联切片 `Auto-link lyrics on first project save` ([entry](log/entries/2026-10-19-2058-auto-link-lyrics-on-first-project-save.md))
 - [2026-10-19 20:33] 歌词关联三级解析与死链自愈 `Add fallback resolution and self-healing for lyric links` ([entry](log/entries/2026-10-19-2033-lyric-link-fallback-resolution-and-self-healing.md))
