@@ -302,15 +302,15 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
 
   String _hardwareSummary(TranscriptionHardwareInfo hardware) {
     final parts = <String>[
-      hardware.operatingSystem + ' / ' + hardware.architecture,
+      '${hardware.operatingSystem} / ${hardware.architecture}',
       if (hardware.cpuName != null && hardware.cpuName!.isNotEmpty)
         hardware.cpuName!,
       if (hardware.gpuName != null && hardware.gpuName!.isNotEmpty)
         hardware.gpuName!,
       if (hardware.gpuMemoryMb != null)
-        (hardware.gpuMemoryMb! / 1024).toStringAsFixed(0) + ' GB VRAM',
+        '${(hardware.gpuMemoryMb! / 1024).toStringAsFixed(0)} GB VRAM',
       if (hardware.systemMemoryMb != null)
-        (hardware.systemMemoryMb! / 1024).toStringAsFixed(0) + ' GB RAM',
+        '${(hardware.systemMemoryMb! / 1024).toStringAsFixed(0)} GB RAM',
     ];
     return parts.join(' · ');
   }
@@ -376,9 +376,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                       (_resolvingProfile ? '正在检测本机硬件…' : '硬件检测'),
                   body: resolved == null
                       ? '正在根据操作系统、CPU 架构和 GPU 选择本机识别链路。'
-                      : resolved.description +
-                            '\n' +
-                            _hardwareSummary(resolved.hardware),
+                      : '${resolved.description}\n${_hardwareSummary(resolved.hardware)}',
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _PathField(
@@ -407,10 +405,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Qwen backend：' +
-                      _qwenDevice.toUpperCase() +
-                      ' / ' +
-                      _qwenDtype.toUpperCase(),
+                  'Qwen backend：${_qwenDevice.toUpperCase()} / ${_qwenDtype.toUpperCase()}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

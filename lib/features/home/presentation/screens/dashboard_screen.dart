@@ -1068,7 +1068,7 @@ class _RecentShelf extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: histories.length,
-        separatorBuilder: (_, __) => SizedBox(width: layout.sectionGap / 2),
+        separatorBuilder: (_, _) => SizedBox(width: layout.sectionGap / 2),
         itemBuilder: (context, index) => _ListeningCard(
           history: histories[index],
           width: layout.isCompact ? 146 : 160,

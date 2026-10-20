@@ -459,11 +459,7 @@ class HttpMediaHubService implements MediaHubService {
     if (configured != null) return configured;
     final documents = await getApplicationDocumentsDirectory();
     return Directory(
-      documents.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Incoming',
+      '${documents.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Incoming',
     );
   }
 

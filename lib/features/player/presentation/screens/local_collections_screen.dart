@@ -393,7 +393,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
               spec.sectionGap,
             ),
             itemCount: songs.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final song = songs[index];
               return _CollectionSongTile(

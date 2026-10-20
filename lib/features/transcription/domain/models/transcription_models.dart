@@ -335,6 +335,6 @@ class TranscriptionException implements Exception {
   @override
   String toString() {
     if (details == null || details!.trim().isEmpty) return message;
-    return message + ': ' + details!;
+    return '$message: ${details!}';
   }
 }

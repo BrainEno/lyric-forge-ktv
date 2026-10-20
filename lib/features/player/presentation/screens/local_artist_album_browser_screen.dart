@@ -335,7 +335,7 @@ class _LocalArtistAlbumBrowserScreenState
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: albums.length,
-                    separatorBuilder: (_, __) =>
+                    separatorBuilder: (_, _) =>
                         const SizedBox(width: AppSpacing.md),
                     itemBuilder: (context, index) {
                       final album = albums[index];

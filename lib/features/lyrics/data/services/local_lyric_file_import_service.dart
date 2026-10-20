@@ -514,9 +514,9 @@ class LocalLyricFileImportService implements LyricFileImportService {
       'sourceFormat': format,
       'sourcePath': sourcePath,
       'timed': timed,
-      if (title != null) 'title': title,
-      if (artist != null) 'artist': artist,
-      if (album != null) 'album': album,
+      'title': ?title,
+      'artist': ?artist,
+      'album': ?album,
     };
   }
 

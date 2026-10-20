@@ -768,7 +768,7 @@ class _ExplorerList extends StatelessWidget {
     return ListView.separated(
       padding: EdgeInsets.all(layout.pageGutter),
       itemCount: songs.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final song = songs[index];
         return ListTile(

@@ -33,11 +33,7 @@ class FileLocalMediaCollectionRepository
     }
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -46,7 +42,7 @@ class FileLocalMediaCollectionRepository
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
     return File(
-      directory.path + Platform.pathSeparator + 'library_collections.json',
+      '${directory.path}${Platform.pathSeparator}library_collections.json',
     );
   }
 

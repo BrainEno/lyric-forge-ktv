@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-20 12:28. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-20 13:25. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -32,8 +32,7 @@
 - A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
-- The analyzer and the full test suite are green (0 error, 0 warning, 310 tests passing) and `scripts/quality_gate.ps1` passes end to end.
-- 149 style infos remain in `lib`/`test` (116× `prefer_interpolation_to_compose_strings`, 15× `unnecessary_underscores`, 5× `use_null_aware_elements`, and a few one-offs). They are non-fatal in CI and in the local gate; clearing them is a separate cleanup slice.
+- The analyzer is fully clean (0 issues project-wide) and the full quality gate passes end to end (407 tests); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
 - The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
 
 ## Archive map

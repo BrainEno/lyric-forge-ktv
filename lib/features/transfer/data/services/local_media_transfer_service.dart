@@ -259,11 +259,7 @@ class LocalMediaTransferService implements MediaTransferService {
     if (configured != null) return configured;
     final documents = await getApplicationDocumentsDirectory();
     return Directory(
-      documents.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Downloads',
+      '${documents.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Downloads',
     );
   }
 

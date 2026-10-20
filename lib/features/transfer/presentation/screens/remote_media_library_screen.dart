@@ -153,7 +153,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
       await _loadTracks(keepBusy: true);
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '无法连接桌面端：' + error.toString());
+        setState(() => _error = '无法连接桌面端：$error');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -175,7 +175,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '读取桌面音乐库失败：' + error.toString());
+        setState(() => _error = '读取桌面音乐库失败：$error');
       }
     } finally {
       if (!keepBusy && mounted) setState(() => _busy = false);
@@ -201,12 +201,12 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
             setState(() => _currentLyrics = lyrics);
           }
         } catch (error) {
-          _showMessage('音频已播放，但歌词加载失败：' + error.toString());
+          _showMessage('音频已播放，但歌词加载失败：$error');
         }
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '播放失败：' + error.toString());
+        setState(() => _error = '播放失败：$error');
       }
     }
   }
@@ -229,18 +229,14 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
     try {
       final documents = await getApplicationDocumentsDirectory();
       final directory = Directory(
-        documents.path +
-            Platform.pathSeparator +
-            'LyricForge' +
-            Platform.pathSeparator +
-            'Downloads',
+        '${documents.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Downloads',
       );
       await directory.create(recursive: true);
 
       final idSuffix =
           track.id.length > 8 ? track.id.substring(0, 8) : track.id;
       final fileName =
-          _safeFileName(track.title) + '_' + idSuffix + '.' + track.format;
+          '${_safeFileName(track.title)}_$idSuffix.${track.format}';
       final destination =
           directory.path + Platform.pathSeparator + fileName;
 
@@ -260,11 +256,11 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
         _downloadProgress.remove(track.id);
         _downloadedPaths[track.id] = destination;
       });
-      _showMessage('已下载到：' + destination);
+      _showMessage('已下载到：$destination');
     } catch (error) {
       if (!mounted) return;
       setState(() => _downloadProgress.remove(track.id));
-      _showMessage('下载失败：' + error.toString(), error: true);
+      _showMessage('下载失败：$error', error: true);
     }
   }
 
@@ -321,9 +317,9 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
 
   String _formatBytes(int bytes) {
     if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toStringAsFixed(0) + ' KB';
+      return '${(bytes / 1024).toStringAsFixed(0)} KB';
     }
-    return (bytes / (1024 * 1024)).toStringAsFixed(1) + ' MB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   LyricLine? _currentLyricLine(Duration position) {
@@ -423,7 +419,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                       onPressed: _busy ? null : _retrySavedConnection,
                       icon: const Icon(Icons.history),
                       label: Text(
-                        '重试上次桌面 · ' + _savedConnection!.host,
+                        '重试上次桌面 · ${_savedConnection!.host}',
                       ),
                     ),
                   ],
@@ -485,7 +481,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
             children: [
               Expanded(
                 child: Text(
-                  '来自 ' + connection.host,
+                  '来自 ${connection.host}',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
@@ -494,7 +490,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            _tracks.length.toString() + ' 首可播放音乐',
+            '${_tracks.length} 首可播放音乐',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (_error != null) ...[
@@ -621,9 +617,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                   ),
                   subtitle: Text(
                     lyricLine?.text ??
-                        (state.formattedPosition +
-                            ' / ' +
-                            state.formattedDuration),
+                        ('${state.formattedPosition} / ${state.formattedDuration}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

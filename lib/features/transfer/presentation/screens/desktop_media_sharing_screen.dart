@@ -79,7 +79,6 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
             useUnfilteredMacPicker ? null : supportedExtensions,
         allowMultiple: true,
         dialogTitle: '选择要共享的音频文件',
-        allowCompression: false,
         withData: false,
         withReadStream: false,
       );
@@ -181,7 +180,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
       }
 
       final track = SharedAudioTrack(
-        id: 'project-' + selected.id,
+        id: 'project-${selected.id}',
         title: selected.name,
         artist: selected.artist,
         album: selected.album,
@@ -201,7 +200,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
           ? '已加入工程音频和歌词'
           : '已加入工程音频');
     } catch (error) {
-      _showMessage('读取工程失败：' + error.toString(), error: true);
+      _showMessage('读取工程失败：$error', error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -272,14 +271,14 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   }
 
   String _formatBytes(int bytes) {
-    if (bytes < 1024) return bytes.toString() + ' B';
+    if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toStringAsFixed(1) + ' KB';
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
     if (bytes < 1024 * 1024 * 1024) {
-      return (bytes / (1024 * 1024)).toStringAsFixed(1) + ' MB';
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
-    return (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2) + ' GB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
   @override
@@ -477,7 +476,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
           ),
           Expanded(
             child: SelectableText(
-              endpoint.host + ':' + endpoint.port.toString(),
+              '${endpoint.host}:${endpoint.port}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
@@ -498,7 +497,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                 Text('共享音乐', style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 Text(
-                  _tracks.length.toString() + ' 首',
+                  '${_tracks.length} 首',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
@@ -539,9 +538,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
-                    track.format.toUpperCase() +
-                        ' · ' +
-                        _formatBytes(track.byteLength),
+                    '${track.format.toUpperCase()} · ${_formatBytes(track.byteLength)}',
                   ),
                   trailing: running
                       ? null

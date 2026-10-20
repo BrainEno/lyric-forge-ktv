@@ -58,12 +58,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final outputDirectory = Directory(request.outputDirectory);
       await outputDirectory.create(recursive: true);
 
-      final normalizedPath = outputDirectory.path +
-          Platform.pathSeparator +
-          'qwen_transcription_input.wav';
-      final rawJsonPath = outputDirectory.path +
-          Platform.pathSeparator +
-          'qwen3_asr_result.json';
+      final normalizedPath = '${outputDirectory.path}${Platform.pathSeparator}qwen_transcription_input.wav';
+      final rawJsonPath = '${outputDirectory.path}${Platform.pathSeparator}qwen3_asr_result.json';
 
       _emit(
         TranscriptionStage.preprocessing,
@@ -80,7 +76,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.loadingModel,
         0.16,
-        '正在加载 ' + _modelLabel(request.config.qwenModelPath) + ' 与 ForcedAligner',
+        '正在加载 ${_modelLabel(request.config.qwenModelPath)} 与 ForcedAligner',
       );
       await _ensureServer(request.config);
       _throwIfCancelled();
@@ -88,7 +84,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.transcribing,
         0.34,
-        _modelLabel(request.config.qwenModelPath) + ' 正在识别歌曲',
+        '${_modelLabel(request.config.qwenModelPath)} 正在识别歌曲',
       );
       final response = await _requestTranscription(
         audioPath: normalizedPath,
@@ -191,13 +187,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> _validateExecutable(String executable, String label) async {
     final value = executable.trim();
     if (value.isEmpty) {
-      throw TranscriptionException.environment(label + ' 路径未配置');
+      throw TranscriptionException.environment('$label 路径未配置');
     }
 
     final hasExplicitPath = value.contains('/') || value.contains('\\');
     if (hasExplicitPath) {
       if (!await File(value).exists()) {
-        throw TranscriptionException.environment(label + ' 可执行文件不存在');
+        throw TranscriptionException.environment('$label 可执行文件不存在');
       }
       return;
     }
@@ -205,11 +201,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     try {
       final result = await Process.run(value, const ['--help']);
       if (result.exitCode != 0) {
-        throw TranscriptionException.environment(label + ' 无法执行');
+        throw TranscriptionException.environment('$label 无法执行');
       }
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
-        label + ' 无法执行',
+        '$label 无法执行',
         details: error.message,
       );
     }
@@ -430,7 +426,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       'max_batch_size': 4,
       'bucket_by_length': true,
       if (context.trim().isNotEmpty) 'context': context.trim(),
-      if (language != null) 'language': language,
+      'language': ?language,
     };
     request.add(utf8.encode(jsonEncode(body)));
 

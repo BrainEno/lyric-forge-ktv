@@ -74,7 +74,7 @@ PlaybackItem _remoteItem({
 class _FakeSession implements PlaybackSessionService {
   final StreamController<PlaybackSessionState> _controller =
       StreamController<PlaybackSessionState>.broadcast();
-  PlaybackSessionState _state;
+  final PlaybackSessionState _state;
 
   _FakeSession(PlaybackItem item)
       : _state = PlaybackSessionState(

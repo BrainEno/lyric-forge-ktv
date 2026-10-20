@@ -44,7 +44,6 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
       allowedExtensions: useUnfilteredMacPicker ? null : supportedExtensions,
       allowMultiple: false,
       dialogTitle: '重新定位音频文件',
-      allowCompression: false,
       withData: false,
       withReadStream: false,
     );

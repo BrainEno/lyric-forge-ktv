@@ -217,7 +217,7 @@ class _MobileArtwork extends StatelessWidget {
                 : Image.network(
                     remoteUri.toString(),
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => fallback,
+                    errorBuilder: (_, _, _) => fallback,
                   ),
       ),
     );

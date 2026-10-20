@@ -473,8 +473,7 @@ class LocalAsrManagedStorageService {
         'managedRoot': Directory(root).absolute.path,
         if (securityScopedParent != null)
           'securityScopedParent': Directory(securityScopedParent).absolute.path,
-        if (securityScopedBookmark != null)
-          'securityScopedBookmark': securityScopedBookmark,
+        'securityScopedBookmark': ?securityScopedBookmark,
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       }),
       flush: true,

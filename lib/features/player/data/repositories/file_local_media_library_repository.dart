@@ -39,11 +39,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     }
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -51,7 +47,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
-    return File(directory.path + Platform.pathSeparator + 'media_library.json');
+    return File('${directory.path}${Platform.pathSeparator}media_library.json');
   }
 
   String _pathKey(String path) {
@@ -131,7 +127,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      final temporary = File(file.path + '.tmp');
+      final temporary = File('${file.path}.tmp');
       await temporary.writeAsString(payload, flush: true);
       if (await file.exists()) await file.delete();
       await temporary.rename(file.path);

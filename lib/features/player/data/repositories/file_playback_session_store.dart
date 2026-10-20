@@ -26,11 +26,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
 
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -39,7 +35,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
     return File(
-      directory.path + Platform.pathSeparator + 'playback_session.json',
+      '${directory.path}${Platform.pathSeparator}playback_session.json',
     );
   }
 

@@ -62,9 +62,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
 
       final fallbackDirectory = Directory(
-        request.outputDirectory +
-            Platform.pathSeparator +
-            'whisper_second_opinion',
+        '${request.outputDirectory}${Platform.pathSeparator}whisper_second_opinion',
       );
       await fallbackDirectory.create(recursive: true);
 
@@ -185,7 +183,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _emit(
         progress.stage,
         mapped.clamp(0.02, 0.56).toDouble(),
-        'Whisper 主识别 · ' + progress.message,
+        'Whisper 主识别 · ${progress.message}',
       );
     });
 
@@ -194,9 +192,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       whisperResult = await fallback.transcribe(
         TranscriptionRequest(
           inputAudioPath: request.inputAudioPath,
-          outputDirectory: request.outputDirectory +
-              Platform.pathSeparator +
-              'whisper_primary',
+          outputDirectory: '${request.outputDirectory}${Platform.pathSeparator}whisper_primary',
           config: request.config.copyWith(
             mode: TranscriptionMode.whisperOnly,
           ),
@@ -216,9 +212,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     );
 
     final qwenDirectory = Directory(
-      request.outputDirectory +
-          Platform.pathSeparator +
-          'qwen_second_opinion',
+      '${request.outputDirectory}${Platform.pathSeparator}qwen_second_opinion',
     );
     await qwenDirectory.create(recursive: true);
 
@@ -230,7 +224,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         _emit(
           TranscriptionStage.fallback,
           mapped.clamp(0.58, 0.92).toDouble(),
-          'Qwen 第二意见 · ' + progress.message,
+          'Qwen 第二意见 · ${progress.message}',
         );
       });
 
@@ -512,7 +506,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.fallback,
         mapped.clamp(0.76, 0.94).toDouble(),
-        'Whisper 第二意见 · ' + progress.message,
+        'Whisper 第二意见 · ${progress.message}',
       );
     });
 

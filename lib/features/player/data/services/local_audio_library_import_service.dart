@@ -39,7 +39,6 @@ class LocalAudioLibraryImportService implements AudioLibraryImportService {
       allowedExtensions: useUnfilteredMacPicker ? null : _supported,
       allowMultiple: true,
       dialogTitle: '选择一个或多个音频文件',
-      allowCompression: false,
       withData: false,
       withReadStream: false,
     );

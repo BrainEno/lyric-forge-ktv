@@ -37,13 +37,9 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       final outputDirectory = Directory(request.outputDirectory);
       await outputDirectory.create(recursive: true);
 
-      final normalizedPath = outputDirectory.path +
-          Platform.pathSeparator +
-          'transcription_input.wav';
-      final outputBase = outputDirectory.path +
-          Platform.pathSeparator +
-          'whisper_result';
-      final rawJsonPath = outputBase + '.json';
+      final normalizedPath = '${outputDirectory.path}${Platform.pathSeparator}transcription_input.wav';
+      final outputBase = '${outputDirectory.path}${Platform.pathSeparator}whisper_result';
+      final rawJsonPath = '$outputBase.json';
 
       _emit(TranscriptionStage.preprocessing, 0.08, '正在准备 16 kHz 单声道人声');
       await _runFfmpeg(
@@ -108,12 +104,12 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<void> _validateExecutable(String executable, String label) async {
     final value = executable.trim();
     if (value.isEmpty) {
-      throw TranscriptionException.environment(label + ' 路径未配置');
+      throw TranscriptionException.environment('$label 路径未配置');
     }
 
     final hasExplicitPath = value.contains('/') || value.contains('\\');
     if (hasExplicitPath && !await File(value).exists()) {
-      throw TranscriptionException.environment(label + ' 可执行文件不存在');
+      throw TranscriptionException.environment('$label 可执行文件不存在');
     }
 
     if (!hasExplicitPath) {
@@ -122,11 +118,11 @@ class WhisperCppTranscriptionService implements TranscriptionService {
             label == 'FFmpeg' ? const ['-version'] : const ['-h'];
         final result = await Process.run(value, arguments);
         if (result.exitCode != 0) {
-          throw TranscriptionException.environment(label + ' 无法执行');
+          throw TranscriptionException.environment('$label 无法执行');
         }
       } on ProcessException catch (error) {
         throw TranscriptionException.environment(
-          label + ' 无法执行',
+          '$label 无法执行',
           details: error.message,
         );
       }
@@ -176,7 +172,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     required String inputPath,
     required String outputBase,
   }) async {
-    final jsonFile = File(outputBase + '.json');
+    final jsonFile = File('$outputBase.json');
     if (await jsonFile.exists()) await jsonFile.delete();
 
     final result = await _runProcess(
@@ -203,7 +199,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
           _emit(
             TranscriptionStage.transcribing,
             0.20 + fraction * 0.72,
-            'Whisper 正在识别 · ' + value.toString() + '%',
+            'Whisper 正在识别 · $value%',
           );
         }
       },

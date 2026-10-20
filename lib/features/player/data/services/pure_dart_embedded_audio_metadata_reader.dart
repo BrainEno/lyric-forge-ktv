@@ -65,7 +65,7 @@ class PureDartEmbeddedAudioMetadataReader
   Future<Directory> _artworkDirectory() async {
     if (rootDirectory != null) {
       final directory = Directory(
-        rootDirectory!.path + Platform.pathSeparator + 'EmbeddedArtwork',
+        '${rootDirectory!.path}${Platform.pathSeparator}EmbeddedArtwork',
       );
       await directory.create(recursive: true);
       return directory;
@@ -73,13 +73,7 @@ class PureDartEmbeddedAudioMetadataReader
 
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data' +
-          Platform.pathSeparator +
-          'EmbeddedArtwork',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data${Platform.pathSeparator}EmbeddedArtwork',
     );
     await directory.create(recursive: true);
     return directory;
@@ -94,9 +88,7 @@ class PureDartEmbeddedAudioMetadataReader
     final directory = await _artworkDirectory();
     final extension = _imageExtension(mimeType);
     final file = File(
-      directory.path +
-          Platform.pathSeparator +
-          '${_stablePathHash(sourcePath)}.$extension',
+      '${directory.path}${Platform.pathSeparator}${_stablePathHash(sourcePath)}.$extension',
     );
     await file.writeAsBytes(bytes, flush: true);
     return file.path;

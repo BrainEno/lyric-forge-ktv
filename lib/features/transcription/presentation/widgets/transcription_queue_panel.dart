@@ -205,7 +205,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: state.items.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (context, index) {
                     return _QueueItemTile(

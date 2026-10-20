@@ -45,10 +45,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
     try {
       final root = Directory(
-        request.outputDirectory + Platform.pathSeparator + 'chunk_session',
+        '${request.outputDirectory}${Platform.pathSeparator}chunk_session',
       );
       await root.create(recursive: true);
-      final chunksDir = Directory(root.path + Platform.pathSeparator + 'chunks');
+      final chunksDir = Directory('${root.path}${Platform.pathSeparator}chunks');
       await chunksDir.create(recursive: true);
 
       _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频并准备可恢复分片');
@@ -65,7 +65,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
       final plan = _buildPlan(duration);
       final fingerprint = await _fingerprint(request.inputAudioPath);
-      final manifestFile = File(root.path + Platform.pathSeparator + 'session.json');
+      final manifestFile = File('${root.path}${Platform.pathSeparator}session.json');
       var manifest = await _loadManifest(manifestFile);
       final compatible = manifest != null &&
           manifest['version'] == 1 &&
@@ -94,7 +94,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           .map((e) => e.toString())
           .toSet();
       final restored = completed.where(
-        (id) => File(chunksDir.path + Platform.pathSeparator + id + '.json').existsSync(),
+        (id) => File('${chunksDir.path}${Platform.pathSeparator}$id.json').existsSync(),
       ).length;
       if (restored > 0) {
         _emit(
@@ -109,11 +109,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         final chunk = plan[index];
         final id = _chunkId(index);
         final resultFile = File(
-          chunksDir.path + Platform.pathSeparator + id + '.json',
+          '${chunksDir.path}${Platform.pathSeparator}$id.json',
         );
         if (completed.contains(id) && await resultFile.exists()) continue;
 
-        final wav = File(chunksDir.path + Platform.pathSeparator + id + '.wav');
+        final wav = File('${chunksDir.path}${Platform.pathSeparator}$id.wav');
         await _extractChunk(
           executable: request.config.ffmpegExecutable,
           inputPath: request.inputAudioPath,
@@ -137,7 +137,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           );
           try {
             final chunkOutput = Directory(
-              chunksDir.path + Platform.pathSeparator + id + '_work',
+              '${chunksDir.path}${Platform.pathSeparator}${id}_work',
             );
             await chunkOutput.create(recursive: true);
             result = await _runDelegate(
@@ -208,7 +208,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       for (var index = 0; index < plan.length; index++) {
         final json = jsonDecode(
           await File(
-            chunksDir.path + Platform.pathSeparator + _chunkId(index) + '.json',
+            '${chunksDir.path}${Platform.pathSeparator}${_chunkId(index)}.json',
           ).readAsString(),
         ) as Map<String, dynamic>;
         documents.add(
@@ -221,7 +221,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       }
 
       final merged = _mergeDocuments(documents);
-      final finalFile = File(root.path + Platform.pathSeparator + 'merged_result.json');
+      final finalFile = File('${root.path}${Platform.pathSeparator}merged_result.json');
       await finalFile.writeAsString(
         const JsonEncoder.withIndent('  ').convert(merged.toJson()),
         flush: true,
@@ -416,7 +416,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   }
 
   Future<void> _writeManifest(File file, Map<String, dynamic> manifest) async {
-    final temp = File(file.path + '.tmp');
+    final temp = File('${file.path}.tmp');
     await temp.writeAsString(
       const JsonEncoder.withIndent('  ').convert(manifest),
       flush: true,
@@ -430,7 +430,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   String _mostCommon(List<String> values) {
     if (values.isEmpty) return 'unknown';
     final counts = <String, int>{};
-    for (final value in values) counts[value] = (counts[value] ?? 0) + 1;
+    for (final value in values) {
+      counts[value] = (counts[value] ?? 0) + 1;
+    }
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 

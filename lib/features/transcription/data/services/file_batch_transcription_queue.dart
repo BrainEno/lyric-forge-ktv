@@ -64,11 +64,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
     }
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -77,7 +73,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
     return File(
-      directory.path + Platform.pathSeparator + 'transcription_queue.json',
+      '${directory.path}${Platform.pathSeparator}transcription_queue.json',
     );
   }
 
@@ -484,7 +480,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File(file.path + '.tmp');
+      final temporary = File('${file.path}.tmp');
       await temporary.writeAsString(payload, flush: true);
       if (await file.exists()) await file.delete();
       await temporary.rename(file.path);

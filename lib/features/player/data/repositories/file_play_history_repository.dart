@@ -31,11 +31,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -43,7 +39,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
-    return File(directory.path + Platform.pathSeparator + 'play_history.json');
+    return File('${directory.path}${Platform.pathSeparator}play_history.json');
   }
 
   String _pathKey(String path) {
@@ -108,7 +104,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File(file.path + '.tmp');
+      final temporary = File('${file.path}.tmp');
       await temporary.writeAsString(payload, flush: true);
       if (await file.exists()) await file.delete();
       await temporary.rename(file.path);

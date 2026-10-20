@@ -58,7 +58,7 @@ class _FakeService implements TranscriptionService {
         ],
       ),
       normalizedAudioPath: request.inputAudioPath,
-      rawJsonPath: request.outputDirectory + Platform.pathSeparator + 'raw.json',
+      rawJsonPath: '${request.outputDirectory}${Platform.pathSeparator}raw.json',
       detectedLanguage: 'en',
     );
   }

@@ -221,11 +221,11 @@ class LocalProjectTranscriptionWorkflow
 
   String _buildRecognitionContext(ProjectManifest project) {
     final parts = <String>[
-      'Song title: ' + project.name,
+      'Song title: ${project.name}',
       if (project.artist != null && project.artist!.trim().isNotEmpty)
-        'Artist: ' + project.artist!.trim(),
+        'Artist: ${project.artist!.trim()}',
       if (project.album != null && project.album!.trim().isNotEmpty)
-        'Album: ' + project.album!.trim(),
+        'Album: ${project.album!.trim()}',
     ];
     return parts.join('. ');
   }
@@ -252,9 +252,7 @@ class LocalProjectTranscriptionWorkflow
     if (project.projectDirectory != null &&
         project.projectDirectory!.trim().isNotEmpty) {
       final directory = Directory(
-        project.projectDirectory! +
-            Platform.pathSeparator +
-            'transcription',
+        '${project.projectDirectory!}${Platform.pathSeparator}transcription',
       );
       await directory.create(recursive: true);
       return directory;
@@ -262,16 +260,10 @@ class LocalProjectTranscriptionWorkflow
 
     final support = await getApplicationSupportDirectory();
     final projectDirectory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Projects' +
-          Platform.pathSeparator +
-          project.id,
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Projects${Platform.pathSeparator}${project.id}',
     );
     final transcriptionDirectory = Directory(
-      projectDirectory.path + Platform.pathSeparator + 'transcription',
+      '${projectDirectory.path}${Platform.pathSeparator}transcription',
     );
     await transcriptionDirectory.create(recursive: true);
     return transcriptionDirectory;
@@ -285,18 +277,14 @@ class LocalProjectTranscriptionWorkflow
     if (lyrics == null || lyrics.lines.isEmpty) return;
 
     final backupDirectory = Directory(
-      outputDirectory.path + Platform.pathSeparator + 'backups',
+      '${outputDirectory.path}${Platform.pathSeparator}backups',
     );
     await backupDirectory.create(recursive: true);
     final timestamp = DateTime.now().toUtc().toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final backup = File(
-      backupDirectory.path +
-          Platform.pathSeparator +
-          'lyrics_' +
-          timestamp +
-          '.json',
+      '${backupDirectory.path}${Platform.pathSeparator}lyrics_$timestamp.json',
     );
     await backup.writeAsString(
       const JsonEncoder.withIndent('  ').convert(lyrics.toJson()),

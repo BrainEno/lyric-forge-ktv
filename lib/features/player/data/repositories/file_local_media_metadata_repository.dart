@@ -24,11 +24,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
     }
     final support = await getApplicationSupportDirectory();
     final directory = Directory(
-      support.path +
-          Platform.pathSeparator +
-          'LyricForge' +
-          Platform.pathSeparator +
-          'Data',
+      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Data',
     );
     await directory.create(recursive: true);
     return directory;
@@ -36,13 +32,13 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
 
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
-    return File(directory.path + Platform.pathSeparator + 'media_metadata.json');
+    return File('${directory.path}${Platform.pathSeparator}media_metadata.json');
   }
 
   Future<Directory> _artworkDirectory() async {
     final directory = await _dataDirectory();
     final artwork = Directory(
-      directory.path + Platform.pathSeparator + 'MediaArtwork',
+      '${directory.path}${Platform.pathSeparator}MediaArtwork',
     );
     await artwork.create(recursive: true);
     return artwork;

@@ -341,7 +341,7 @@ class _LyricImportOptionsDialogState
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
-                value: _encodingValue,
+                initialValue: _encodingValue,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.translate_rounded),

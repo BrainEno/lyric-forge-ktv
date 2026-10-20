@@ -268,12 +268,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         ],
         commandName: _ffmpegName,
       );
-      if (ffmpegPath == null) {
-        ffmpegPath = await _installFfmpeg(
+      ffmpegPath ??= await _installFfmpeg(
           root,
           proxyOverride: config.downloadProxy,
         );
-      }
 
       _throwIfCancelled();
 
@@ -684,7 +682,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     String proxyOverride = '',
   }) async {
     await target.parent.create(recursive: true);
-    final part = File(target.path + '.part');
+    final part = File('${target.path}.part');
 
     var existing = 0;
     if (resumable && await part.exists()) {
@@ -846,11 +844,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          'Expand-Archive -LiteralPath ' +
-              _psQuote(archive) +
-              ' -DestinationPath ' +
-              _psQuote(destination) +
-              ' -Force',
+          'Expand-Archive -LiteralPath ${_psQuote(archive)} -DestinationPath ${_psQuote(destination)} -Force',
         ],
       );
     } else {
@@ -1229,11 +1223,11 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   String _psQuote(String value) {
-    return "'" + value.replaceAll("'", "''") + "'";
+    return "'${value.replaceAll("'", "''")}'";
   }
 
   String _percent(double fraction) {
-    return (fraction * 100).clamp(0, 100).toStringAsFixed(0) + '%';
+    return '${(fraction * 100).clamp(0, 100).toStringAsFixed(0)}%';
   }
 
   void _emit(

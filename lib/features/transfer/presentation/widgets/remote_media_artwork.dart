@@ -47,7 +47,7 @@ class RemoteMediaArtwork extends StatelessWidget {
                     remoteUri.toString(),
                     fit: BoxFit.cover,
                     filterQuality: FilterQuality.medium,
-                    errorBuilder: (_, __, ___) => _Fallback(icon: fallbackIcon),
+                    errorBuilder: (_, _, _) => _Fallback(icon: fallbackIcon),
                     loadingBuilder: (context, child, progress) {
                       if (progress == null) return child;
                       return Stack(

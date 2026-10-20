@@ -9,7 +9,9 @@ void main() {
       'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
     ).readAsString();
 
-    final partFile = source.indexOf("final part = File(target.path + '.part');");
+    final partFile = source.indexOf(
+      r"final part = File('${target.path}.part');",
+    );
     final partLength = source.indexOf('existing = await part.length();', partFile);
     final range = source.indexOf(
       "request.headers.set(HttpHeaders.rangeHeader, 'bytes=\$existing-');",
@@ -42,7 +44,10 @@ void main() {
       RegExp(r'resumable:\s*true').allMatches(source).length,
       greaterThanOrEqualTo(2),
     );
-    expect(source, contains("final part = File(target.path + '.part');"));
+    expect(
+      source,
+      contains(r"final part = File('${target.path}.part');"),
+    );
   });
 
   test('Whisper model download times out and preserves resumable failures', () async {

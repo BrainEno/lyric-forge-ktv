@@ -221,7 +221,8 @@ class LyricForgeSystemMediaHandler extends BaseAudioHandler {
   Future<void> skipToQueueItem(int index) => session.playAt(index);
 
   @override
-  Future<void> playMediaItem(MediaItem item) => playFromMediaId(item.id);
+  Future<void> playMediaItem(MediaItem mediaItem) =>
+      playFromMediaId(mediaItem.id);
 
   @override
   Future<void> playFromMediaId(

@@ -347,7 +347,7 @@ class _QueueArtwork extends StatelessWidget {
                 ? Image.network(
                     remote.toString(),
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => fallback,
+                    errorBuilder: (_, _, _) => fallback,
                   )
                 : fallback,
       ),
