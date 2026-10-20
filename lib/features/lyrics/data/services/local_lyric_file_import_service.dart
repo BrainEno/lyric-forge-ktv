@@ -5,6 +5,7 @@ import 'package:charset/charset.dart' as charset;
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_file_import_service.dart';
+import '../../domain/services/lyric_timeline_validator.dart';
 
 class LocalLyricFileImportService implements LyricFileImportService {
   static const Set<String> _extensions = {
@@ -61,20 +62,14 @@ class LocalLyricFileImportService implements LyricFileImportService {
       'lrc' => _parseLrc(normalizedText, sourcePath, detectedEncoding),
       'srt' => _parseSrt(normalizedText, sourcePath, detectedEncoding),
       'vtt' => _parseVtt(normalizedText, sourcePath, detectedEncoding),
-      'ass' || 'ssa' =>
-        _parseAss(normalizedText, sourcePath, detectedEncoding),
-      'txt' || 'text' =>
-        _parsePlainText(normalizedText, sourcePath, detectedEncoding),
-      _ => throw LyricImportException(
-          '暂不支持 .$normalizedExtension 歌词文件。',
-        ),
+      'ass' || 'ssa' => _parseAss(normalizedText, sourcePath, detectedEncoding),
+      'txt' ||
+      'text' => _parsePlainText(normalizedText, sourcePath, detectedEncoding),
+      _ => throw LyricImportException('暂不支持 .$normalizedExtension 歌词文件。'),
     };
   }
 
-  _DecodedText _decodeText(
-    List<int> bytes, {
-    String? encodingHint,
-  }) {
+  _DecodedText _decodeText(List<int> bytes, {String? encodingHint}) {
     if (bytes.isEmpty) return const _DecodedText('', 'utf-8');
 
     if (bytes.length >= 3 &&
@@ -99,10 +94,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
       try {
         return _DecodedText(encoding.decode(bytes), encoding.name);
       } catch (error) {
-        throw LyricImportException(
-          '无法使用 $encodingHint 解码歌词文件',
-          cause: error,
-        );
+        throw LyricImportException('无法使用 $encodingHint 解码歌词文件', cause: error);
       }
     }
 
@@ -138,17 +130,12 @@ class LocalLyricFileImportService implements LyricFileImportService {
     }
   }
 
-  LyricImportResult _parseLrc(
-    String text,
-    String sourcePath,
-    String encoding,
-  ) {
+  LyricImportResult _parseLrc(String text, String sourcePath, String encoding) {
     final title = _lrcMetadata(text, 'ti');
     final artist = _lrcMetadata(text, 'ar');
     final album = _lrcMetadata(text, 'al');
-    final language = _lrcMetadata(text, 'lang') ??
-        _lrcMetadata(text, 'language') ??
-        'und';
+    final language =
+        _lrcMetadata(text, 'lang') ?? _lrcMetadata(text, 'language') ?? 'und';
     final offsetText = _lrcMetadata(text, 'offset');
     final offset = int.tryParse(offsetText ?? '') ?? 0;
     final entries = <_TimedText>[];
@@ -192,13 +179,15 @@ class LocalLyricFileImportService implements LyricFileImportService {
         end = current.start + const Duration(milliseconds: 500);
       }
       lines.add(
-        LyricLine(
-          text: current.text,
-          startTime: current.start,
-          endTime: end,
-        ),
+        LyricLine(text: current.text, startTime: current.start, endTime: end),
       );
     }
+
+    final lrcValidator = const LyricTimelineValidator();
+    final lrcValidation = lrcValidator.validate(lines: lines);
+    final lrcConflicts = lrcValidation.issues
+        .map((issue) => issue.message)
+        .toList(growable: false);
 
     final document = LyricDocument(
       language: language,
@@ -221,24 +210,17 @@ class LocalLyricFileImportService implements LyricFileImportService {
       title: title,
       artist: artist,
       album: album,
+      conflicts: lrcConflicts,
     );
   }
 
-  LyricImportResult _parseSrt(
-    String text,
-    String sourcePath,
-    String encoding,
-  ) {
+  LyricImportResult _parseSrt(String text, String sourcePath, String encoding) {
     final lines = _parseSubtitleBlocks(text, webVtt: false);
     return LyricImportResult(
       document: LyricDocument(
         language: 'und',
         lines: lines,
-        metadata: _metadata(
-          format: 'srt',
-          sourcePath: sourcePath,
-          timed: true,
-        ),
+        metadata: _metadata(format: 'srt', sourcePath: sourcePath, timed: true),
       ),
       format: LyricImportFormat.srt,
       sourcePath: sourcePath,
@@ -246,21 +228,13 @@ class LocalLyricFileImportService implements LyricFileImportService {
     );
   }
 
-  LyricImportResult _parseVtt(
-    String text,
-    String sourcePath,
-    String encoding,
-  ) {
+  LyricImportResult _parseVtt(String text, String sourcePath, String encoding) {
     final lines = _parseSubtitleBlocks(text, webVtt: true);
     return LyricImportResult(
       document: LyricDocument(
         language: 'und',
         lines: lines,
-        metadata: _metadata(
-          format: 'vtt',
-          sourcePath: sourcePath,
-          timed: true,
-        ),
+        metadata: _metadata(format: 'vtt', sourcePath: sourcePath, timed: true),
       ),
       format: LyricImportFormat.webvtt,
       sourcePath: sourcePath,
@@ -268,11 +242,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
     );
   }
 
-  LyricImportResult _parseAss(
-    String text,
-    String sourcePath,
-    String encoding,
-  ) {
+  LyricImportResult _parseAss(String text, String sourcePath, String encoding) {
     final lines = <LyricLine>[];
     var inEvents = false;
     List<String> fields = const [
@@ -323,9 +293,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
           .replaceAll(r'\n', '\n')
           .trim();
       if (lyricText.isEmpty) continue;
-      lines.add(
-        LyricLine(text: lyricText, startTime: start, endTime: end),
-      );
+      lines.add(LyricLine(text: lyricText, startTime: start, endTime: end));
     }
 
     lines.sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -333,11 +301,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
       document: LyricDocument(
         language: 'und',
         lines: lines,
-        metadata: _metadata(
-          format: 'ass',
-          sourcePath: sourcePath,
-          timed: true,
-        ),
+        metadata: _metadata(format: 'ass', sourcePath: sourcePath, timed: true),
       ),
       format: LyricImportFormat.ass,
       sourcePath: sourcePath,
@@ -412,9 +376,7 @@ class LocalLyricFileImportService implements LyricFileImportService {
           .replaceAll(RegExp(r'<[^>]+>'), '')
           .trim();
       if (cueText.isEmpty) continue;
-      result.add(
-        LyricLine(text: cueText, startTime: start, endTime: end),
-      );
+      result.add(LyricLine(text: cueText, startTime: start, endTime: end));
     }
 
     result.sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -422,8 +384,9 @@ class LocalLyricFileImportService implements LyricFileImportService {
   }
 
   Duration? _parseLrcTimestamp(String value) {
-    final match = RegExp(r'^(\d{1,3}):(\d{1,2})(?:[\.:](\d{1,3}))?$')
-        .firstMatch(value.trim());
+    final match = RegExp(
+      r'^(\d{1,3}):(\d{1,2})(?:[\.:](\d{1,3}))?$',
+    ).firstMatch(value.trim());
     if (match == null) return null;
     final minutes = int.parse(match.group(1)!);
     final seconds = int.parse(match.group(2)!);
@@ -467,8 +430,9 @@ class LocalLyricFileImportService implements LyricFileImportService {
   }
 
   Duration? _parseAssTimestamp(String value) {
-    final match = RegExp(r'^(\d+):(\d{1,2}):(\d{1,2})\.(\d{1,2})$')
-        .firstMatch(value.trim());
+    final match = RegExp(
+      r'^(\d+):(\d{1,2}):(\d{1,2})\.(\d{1,2})$',
+    ).firstMatch(value.trim());
     if (match == null) return null;
     final hours = int.parse(match.group(1)!);
     final minutes = int.parse(match.group(2)!);
@@ -524,9 +488,11 @@ class LocalLyricFileImportService implements LyricFileImportService {
     if (expectedColumns <= 1) return [value];
     final result = <String>[];
     var start = 0;
-    for (var i = 0;
-        i < value.length && result.length < expectedColumns - 1;
-        i++) {
+    for (
+      var i = 0;
+      i < value.length && result.length < expectedColumns - 1;
+      i++
+    ) {
       if (value.codeUnitAt(i) == 0x2C) {
         result.add(value.substring(start, i));
         start = i + 1;

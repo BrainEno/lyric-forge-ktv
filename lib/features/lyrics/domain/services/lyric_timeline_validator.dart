@@ -169,7 +169,7 @@ class LyricTimelineValidator {
       if (index < lines.length - 1) {
         final next = lines[index + 1];
         final gap = next.startTime - line.endTime;
-        if (!gap.isNegative && gap < minGap) {
+        if (gap > Duration.zero && gap < minGap) {
           issues.add(
             TimelineIssue(
               lineIndex: index,
