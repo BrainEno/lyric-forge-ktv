@@ -5,18 +5,19 @@
 
 ## 目标
 
-参考歌词逐行确认（阶段 C3）已完成并准备提交：新增字符级 diff、逐行采纳/跳过、全选高置信、手动编辑行二次确认、漏行待处理清单、时间轴整体开关；C2 的批量摘要对话框已移除，应用仍走显式保存并保留备份/溯源 metadata。下一步优先做对齐备份恢复 UI，之后才是阶段 D 在线歌词搜索。
+参考歌词确认链路阶段 A/B/C1/C2/C3 已完成并提交，最新提交为 `e433303`（逐行确认）。C3 新增字符级 diff、逐行采纳/跳过、全选高置信、手动编辑行二次确认、漏行待处理清单、时间轴整体开关；C2 的批量摘要对话框已移除，应用仍走显式保存并保留备份/溯源 metadata。工作树干净，剩余工作是人工复核 C3、对齐备份恢复 UI、清理纠正行的旧 `fallbackCandidates` 徽标，最后才是阶段 D 在线歌词搜索。
 
 ## Git 现场
 
 ```text
 $ git status --short
-(clean after this task's commit)
+(clean)
 
 $ git diff --stat
-(clean after this task's commit)
+(empty)
 
 $ git log --oneline -5
+e433303 Add per-line reference lyric review
 9701155 Add reference lyric correction entry and apply flow
 241f6a8 Add reference lyric alignment service
 b186d81 Add lyric editor progress bar and insert-at-playback
@@ -38,12 +39,12 @@ b575f1a Make playback progress bars seekable with hover time hints
 - `dart format` 新增/改动文件 => 0 changed。
 - `flutter analyze lib/features/lyrics test/features/lyrics` => 0 error / 0 warning；仅 4 条既有 info（3× `use_null_aware_elements`、1× `unnecessary_import`）。
 - `flutter test test/features/lyrics/` => 66/66 通过。
-- `dart tool/work_log.dart check` => 0 error；提交前剩 2 条 commit-subject 告警（阶段 A 既有 + 本次待提交）。
+- `dart tool/work_log.dart check` => 0 error；仅剩阶段 A 既有的 1 条 commit-subject 告警。
 - 未运行全量 `flutter analyze` / 全量测试套件。
 
 ## 下一步
 
-1. 人工复核 C3：390×844、844×390、1024×768、1366×768、1600×900，重点看逐行卡片、长行 diff、底栏按钮、手动编辑解锁、漏行清单和时间轴开关。
+1. 人工复核 C3：390×844、844×390、768×1024、1024×768、1366×768、1600×900、1920×1080、2560×1440，含连续缩放；重点看逐行卡片、长行 diff、底栏按钮、手动编辑解锁、漏行清单和时间轴开关。
 2. 实现对齐备份恢复 UI：当前 `metadata['referenceAlignmentBackup']` 是单槽快照，尚无入口；恢复前要确认覆盖当前文档，并保留溯源。
 3. 可选清理：被参考纠正的行上旧 `fallbackCandidates` 徽标仍在，应用时可按行索引清除。
 
@@ -58,4 +59,4 @@ b575f1a Make playback progress bars seekable with hover time hints
 
 ---
 
-最后更新：2026-10-20 11:53
+最后更新：2026-10-20 12:04
