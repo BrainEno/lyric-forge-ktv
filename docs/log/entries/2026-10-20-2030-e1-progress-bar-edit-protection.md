@@ -1,0 +1,7 @@
+# [2026-10-20 20:30] 进度条与编辑保护修复（E1）
+
+- Scope: 可靠性加固阶段 E1。共享进度条改为松手只提交一次最终跳转；修复批量补行后会话级手动编辑索引错位；核实全屏 KTV 录制期间进度条是否仍可拖动；补齐进度条 widget 测试。
+- Files: `lib/features/player/presentation/widgets/seekable_progress_bar.dart`（按下不再立即 seek，统一在松手时落一次最终位置，移除 `_pressedPosition` 与 200ms 移动阈值）；`test/features/player/seekable_progress_bar_test.dart`（拖动改为按下/拖动期间不求、松手一次求，新增短距离拖动落点测试）；`lib/features/lyrics/domain/services/reference_alignment_applier.dart`（`AppliedReferenceInsertion` 新增 `insertBeforeAsrLineIndex` 原始插入点并随补行记录）；`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`（批量补行后按“插入点 ≤ 原索引”的数量迁移 `_manuallyEditedLineIndices`，避免再次纠正时保护错位）；`test/features/lyrics/domain/services/reference_alignment_applier_test.dart`（新增补行记录原始插入点的测试）；`docs/log/entries/2026-10-20-2030-e1-progress-bar-edit-protection.md`、`docs/work_log.md`。
+- Validation: `dart format` 4 个已整洁文件（0 变更，未对编辑器大文件做整体格式化）；`flutter analyze --no-pub` 5 个变更文件 → No issues found；`flutter test --no-pub test/features/player/seekable_progress_bar_test.dart test/features/lyrics/` → 105/105 通过（进度条 9 例、歌词 96 例）。
+- Notes: 全屏 KTV 录制锁已在 `player_screen.dart` 通过 `enabled: !recordingLocked`（`recordingLocked = _recordingService.currentState.isRecording`）在录制期间禁拖；`immersive_ktv_screen.dart` 为纯播放视图、无录制集成，不在录制期间出现，无需改动。编辑器索引迁移逻辑未配独立 widget 测试（编辑器依赖 ServiceLocator/音频服务，启动重），已通过 applier 数据契约测试与代码审查覆盖；保存重开后索引仍为会话级，跨重开保护靠单槽备份兜底（既有行为）。未做多视口人工复核（本阶段无布局变更）。
+- Commit: Fix progress bar single seek on release and manual-edit index drift after batch completion

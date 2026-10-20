@@ -708,5 +708,37 @@ void main() {
       expect(result.insertions, hasLength(1));
       expect(result.hasChanges, isTrue);
     });
+
+    test('补行记录原始插入点，用于迁移手动编辑索引', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句歌词',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        const LyricLine(
+          text: '第三句歌词',
+          startTime: Duration(seconds: 8),
+          endTime: Duration(seconds: 12),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      // 补行应插到原始索引 1（即第二句）之前，并记录该原始插入点。
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedMissingReferenceIndices: const {1},
+      );
+
+      expect(result.insertions, hasLength(1));
+      final insertion = result.insertions.single;
+      expect(insertion.referenceIndex, 1);
+      expect(insertion.insertBeforeAsrLineIndex, 1);
+      expect(insertion.asrLineIndex, 1);
+    });
   });
 }

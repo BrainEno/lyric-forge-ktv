@@ -28,7 +28,7 @@ void main() {
     expect(find.text('--:--'), findsOneWidget);
   });
 
-  testWidgets('tapping seeks immediately to the tapped position', (
+  testWidgets('tapping seeks exactly once to the tapped position', (
     tester,
   ) async {
     final seeks = <Duration>[];
@@ -66,22 +66,51 @@ void main() {
     final gesture = await tester.startGesture(_pointAt(tester, 0.2));
     await tester.pump();
 
-    // Pressing seeks once right away.
-    expect(seeks, hasLength(1));
-    expect(seeks.single.inMilliseconds, inInclusiveRange(19000, 21000));
+    // 按下不再立即 seek，拖动过程也不求，只在松手时落一次最终位置。
+    expect(seeks, isEmpty);
 
     await gesture.moveTo(_pointAt(tester, 0.8));
     await tester.pump();
 
-    // While dragging the target time is shown live and no extra seek is sent.
+    // 目标时间实时显示，期间不发送额外 seek。
     expect(find.text('01:20'), findsNWidgets(2));
-    expect(seeks, hasLength(1));
+    expect(seeks, isEmpty);
 
     await gesture.up();
     await tester.pump();
 
-    expect(seeks, hasLength(2));
+    expect(seeks, hasLength(1));
     expect(seeks.last.inMilliseconds, inInclusiveRange(79000, 81000));
+  });
+
+  testWidgets('short drag lands accurately on the final position', (
+    tester,
+  ) async {
+    final seeks = <Duration>[];
+    await tester.pumpWidget(
+      _app(
+        _state(
+          position: const Duration(seconds: 30),
+          duration: const Duration(seconds: 100),
+        ),
+        seeks.add,
+      ),
+    );
+
+    final gesture = await tester.startGesture(_pointAt(tester, 0.5));
+    await tester.pump();
+    expect(seeks, isEmpty);
+
+    // 极短距离拖动：从 50% 到 55%，应在松手时按落点 seek。
+    await gesture.moveTo(_pointAt(tester, 0.55));
+    await tester.pump();
+    expect(seeks, isEmpty);
+
+    await gesture.up();
+    await tester.pump();
+
+    expect(seeks, hasLength(1));
+    expect(seeks.last.inMilliseconds, inInclusiveRange(54000, 56000));
   });
 
   testWidgets('hovering shows the time under the cursor', (tester) async {

@@ -10,8 +10,8 @@ import '../../domain/models/playback_state.dart';
 ///
 /// 交互约定：
 /// - 鼠标悬停：在轨道上方显示光标处的 `mm:ss` 气泡；
-/// - 按下：立即跳转到该位置；
-/// - 拖动：滑块/气泡跟随指针实时显示目标时间，松开后再落一次最终位置；
+/// - 点击或拖动：均只在松手时落一次最终位置，点击触发一次 seek、
+///   拖动触发一次最终 seek，短距离拖动同样按落点跳转；
 /// - 时长未知或 [enabled] 为 false 时只显示进度，不响应交互。
 ///
 /// [SeekableProgressBar.mini] 用于主界面底部固定播放条：细轨道、无滑块、
@@ -61,9 +61,6 @@ class _SeekableProgressBarState extends State<SeekableProgressBar> {
 
   /// 鼠标悬停位置（0..1），离开后为 null。
   double? _hoverFraction;
-
-  /// 按下时的目标位置，用于避免单击松手后重复 seek。
-  Duration? _pressedPosition;
 
   bool get _canSeek {
     final durationMs = widget.state.duration?.inMilliseconds ?? 0;
@@ -126,7 +123,6 @@ class _SeekableProgressBarState extends State<SeekableProgressBar> {
                 ? null
                 : (_) => setState(() {
                     _dragFraction = null;
-                    _pressedPosition = null;
                   }),
             child: SizedBox(
               height: hitHeight,
@@ -263,14 +259,12 @@ class _SeekableProgressBarState extends State<SeekableProgressBar> {
   void _handlePointerDown(double dx, double width, int durationMs) {
     if (width <= 0 || durationMs <= 0) return;
     final fraction = (dx / width).clamp(0.0, 1.0);
-    final target = Duration(milliseconds: (fraction * durationMs).round());
     setState(() {
       _dragFraction = fraction;
-      _pressedPosition = target;
       _hoverFraction = fraction;
     });
-    // 按下即跳转；拖动过程只更新显示，松开时再落最终位置。
-    widget.onSeek(target);
+    // 不按下即求：点击与拖动统一在松手时只落一次最终位置，避免拖动
+    // 产生“按下一次 + 松手一次”两次 seek。
   }
 
   void _handlePointerUp(double dx, double width, int durationMs) {
@@ -278,16 +272,12 @@ class _SeekableProgressBarState extends State<SeekableProgressBar> {
     if (!wasDragging || width <= 0 || durationMs <= 0) return;
     final fraction = (dx / width).clamp(0.0, 1.0);
     final target = Duration(milliseconds: (fraction * durationMs).round());
-    final pressed = _pressedPosition;
     setState(() {
       _dragFraction = null;
-      _pressedPosition = null;
     });
-    // 纯点击已经在按下时 seek 过，避免重复触发。
-    final movedSincePress =
-        pressed != null &&
-        (target - pressed).abs() > const Duration(milliseconds: 200);
-    if (movedSincePress) widget.onSeek(target);
+    // 松手时只执行一次最终跳转；短距离拖动也按落点 seek，不再按移动
+    // 距离阈值过滤，保证轻微拖动也能准确落点。
+    widget.onSeek(target);
   }
 
   void _seekRelative(int direction) {

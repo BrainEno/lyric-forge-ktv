@@ -26,6 +26,12 @@ class AppliedReferenceInsertion {
   /// 参考行在原始参考列表中的索引。
   final int referenceIndex;
 
+  /// 插入到该 ASR 行之前；等于文档行数时表示追加到末尾。
+  ///
+  /// 这是原始文档中的位置，与 [asrLineIndex]（插入后的最终索引）不同，
+  /// 供调用方把会话级手动编辑索引迁移到补行后的文档，避免保护错位。
+  final int insertBeforeAsrLineIndex;
+
   /// 插入后在文档中的最终行索引。
   final int asrLineIndex;
 
@@ -36,6 +42,7 @@ class AppliedReferenceInsertion {
 
   const AppliedReferenceInsertion({
     required this.referenceIndex,
+    required this.insertBeforeAsrLineIndex,
     required this.asrLineIndex,
     required this.text,
     required this.startTime,
@@ -239,6 +246,7 @@ class ReferenceAlignmentApplier {
             insertions.add(
               AppliedReferenceInsertion(
                 referenceIndex: insertion.referenceIndex,
+                insertBeforeAsrLineIndex: insertion.insertBeforeAsrLineIndex,
                 asrLineIndex: finalIndex,
                 text: insertion.text,
                 startTime: insertion.startTime,

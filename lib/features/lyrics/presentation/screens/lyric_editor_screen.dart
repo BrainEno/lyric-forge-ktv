@@ -263,6 +263,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     setState(() {
       _editingDocument = appliedDocument.copyWith(metadata: metadata);
       _hasChanges = true;
+      // 补行会把插入点之后的原有行整体后移，同步迁移会话级"手动编辑"索引，
+      // 避免再次运行纠正时保护错位（手工编辑的行失保护、新插入行被误保护）。
+      if (result.insertions.isNotEmpty) {
+        _manuallyEditedLineIndices
+          ..clear()
+          ..addAll(
+            {
+              for (final p in _manuallyEditedLineIndices)
+                p +
+                    result.insertions
+                        .where((i) => i.insertBeforeAsrLineIndex <= p)
+                        .length,
+            }..removeWhere(
+                (i) => i < 0 || i >= appliedDocument.lines.length),
+          );
+      }
       _filter = _ReviewFilter.all;
       if (result.corrections.isNotEmpty) {
         _selectedLineIndex = result.corrections.first.asrLineIndex;
