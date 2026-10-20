@@ -57,3 +57,4 @@
 - [2026-10-19 23:38] 全播放界面进度条支持悬停、点击与拖动跳转 `Make playback progress bars seekable with hover time hints` ([entry](log/entries/2026-10-19-2338-seekable-progress-bars-everywhere.md))
 - [2026-10-20 00:16] 参考歌词行级序列对齐服务 `Add reference lyric alignment service` ([entry](log/entries/2026-10-20-0016-reference-lyric-alignment-service.md))
 - [2026-10-20 00:39] 参考歌词纠正入口与批量应用 `Add reference lyric correction entry and apply flow` ([entry](log/entries/2026-10-20-0039-reference-lyric-alignment-entry-and-apply.md))
+- [2026-10-20 11:53] 参考歌词逐行确认（C3） `Add per-line reference lyric review` ([entry](log/entries/2026-10-20-1153-reference-alignment-per-line-review.md))
