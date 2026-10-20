@@ -121,7 +121,9 @@ class _ReferenceAlignmentReviewSheetState
   final Set<int> _acceptedMissingReferenceIndices = {};
   final Set<int> _overriddenAsrLineIndices = {};
 
-  late final List<LyricAlignmentEntry> _replaceEntries;
+  /// 可供逐行纠正的条目：replace（高置信）、lowConfidence（低置信）与
+  /// ambiguous（歧义匹配）。missing 漏行走独立的补全区。
+  late final List<LyricAlignmentEntry> _correctableEntries;
   late final List<LyricAlignmentEntry> _missingEntries;
   late final Map<int, ReferenceLineCompletionInsertion> _missingInsertions;
   late final ReferenceLineCompletionPlan _completionPlan;
@@ -130,6 +132,10 @@ class _ReferenceAlignmentReviewSheetState
   late final int _unmatchedCount;
   late final int _lockedCount;
   late bool _applyTiming;
+
+  /// 歧义条目的用户选择：referenceIndex → 'replace' | 'insert' | null。
+  /// insert 表示将参考行作为漏行插入，replace 表示替换匹配的 ASR 行。
+  final Map<int, String> _ambiguousChoice = {};
 
   bool get _canApplyTiming =>
       widget.input.timed && widget.timingUnavailableReason == null;
@@ -146,10 +152,11 @@ class _ReferenceAlignmentReviewSheetState
   @override
   void initState() {
     super.initState();
-    _replaceEntries = [
+    _correctableEntries = [
       for (final entry in widget.alignment.entries)
-        if (entry.status == ReferenceLineAlignmentStatus.replace &&
-            entry.asrLineIndex != null)
+        if (entry.asrLineIndex != null &&
+            entry.status != ReferenceLineAlignmentStatus.identical &&
+            entry.status != ReferenceLineAlignmentStatus.missing)
           entry,
     ];
     _missingEntries = [
@@ -165,7 +172,7 @@ class _ReferenceAlignmentReviewSheetState
         insertion.referenceIndex: insertion,
     };
     _diffs = {
-      for (final entry in _replaceEntries)
+      for (final entry in _correctableEntries)
         entry.referenceIndex: _diffService.diff(
           _asrText(entry),
           entry.referenceText,
@@ -177,18 +184,20 @@ class _ReferenceAlignmentReviewSheetState
         )
         .length;
     _unmatchedCount = widget.alignment.unmatchedAsrIndices.length;
-    _lockedCount = _replaceEntries
+    _lockedCount = _correctableEntries
         .where(
           (entry) =>
               widget.manuallyEditedLineIndices.contains(entry.asrLineIndex),
         )
         .length;
 
-    for (final entry in _replaceEntries) {
+    // 仅高置信 replace 自动预选；lowConfidence/ambiguous 需用户显式确认。
+    for (final entry in _correctableEntries) {
       if (widget.manuallyEditedLineIndices.contains(entry.asrLineIndex)) {
         continue;
       }
-      if (entry.similarity >= widget.minimumSimilarity) {
+      if (entry.status == ReferenceLineAlignmentStatus.replace &&
+          entry.similarity >= widget.minimumSimilarity) {
         _acceptedReferenceIndices.add(entry.referenceIndex);
       }
     }
@@ -216,7 +225,7 @@ class _ReferenceAlignmentReviewSheetState
       _acceptedReferenceIndices
         ..clear()
         ..addAll([
-          for (final entry in _replaceEntries)
+          for (final entry in _correctableEntries)
             if (_isLocked(entry)
                 ? _overriddenAsrLineIndices.contains(entry.asrLineIndex)
                 : entry.similarity >= widget.minimumSimilarity)
@@ -293,20 +302,21 @@ class _ReferenceAlignmentReviewSheetState
               const SizedBox(height: AppSpacing.sm),
               _buildQuickActions(spec),
               const SizedBox(height: AppSpacing.md),
-              if (_replaceEntries.isEmpty)
+              if (_correctableEntries.isEmpty)
                 const _NoteBox(
                   icon: Icons.check_circle_outline_rounded,
                   text: '没有需要逐行确认的文字差异。',
                 )
               else ...[
-                _SectionTitle('逐行确认（${_replaceEntries.length}）'),
-                for (final entry in _replaceEntries)
+                _SectionTitle('逐行确认（${_correctableEntries.length}）'),
+                for (final entry in _correctableEntries)
                   _ReviewCard(
                     entry: entry,
                     diff: _diffs[entry.referenceIndex] ?? const [],
                     accepted: _acceptedReferenceIndices.contains(
                       entry.referenceIndex,
                     ),
+                    ambiguousChoice: _ambiguousChoice[entry.referenceIndex],
                     locked: _isLocked(entry),
                     overridden: _overriddenAsrLineIndices.contains(
                       entry.asrLineIndex,
@@ -316,6 +326,7 @@ class _ReferenceAlignmentReviewSheetState
                       setState(() {
                         if (value) {
                           _acceptedReferenceIndices.add(entry.referenceIndex);
+                          _ambiguousChoice.remove(entry.referenceIndex);
                         } else {
                           _acceptedReferenceIndices.remove(
                             entry.referenceIndex,
@@ -324,6 +335,33 @@ class _ReferenceAlignmentReviewSheetState
                       });
                     },
                     onOverride: () => _confirmOverride(entry),
+                    onAmbiguousChoice: (choice) {
+                      setState(() {
+                        if (choice == null || choice == 'skip') {
+                          _ambiguousChoice[entry.referenceIndex] = 'skip';
+                          _acceptedReferenceIndices.remove(
+                            entry.referenceIndex,
+                          );
+                          _acceptedMissingReferenceIndices.remove(
+                            entry.referenceIndex,
+                          );
+                        } else if (choice == 'replace') {
+                          _ambiguousChoice[entry.referenceIndex] = 'replace';
+                          _acceptedReferenceIndices.add(entry.referenceIndex);
+                          _acceptedMissingReferenceIndices.remove(
+                            entry.referenceIndex,
+                          );
+                        } else if (choice == 'insert') {
+                          _ambiguousChoice[entry.referenceIndex] = 'insert';
+                          _acceptedMissingReferenceIndices.add(
+                            entry.referenceIndex,
+                          );
+                          _acceptedReferenceIndices.remove(
+                            entry.referenceIndex,
+                          );
+                        }
+                      });
+                    },
                   ),
               ],
               if (_missingEntries.isNotEmpty) ...[
@@ -440,7 +478,7 @@ class _ReferenceAlignmentReviewSheetState
       children: [
         _ReviewMetric(
           label: '待确认',
-          count: _replaceEntries.length,
+          count: _correctableEntries.length,
           color: AppColors.accent,
         ),
         _ReviewMetric(label: '已选', count: _acceptedReferenceIndices.length),
@@ -477,7 +515,7 @@ class _ReferenceAlignmentReviewSheetState
       runSpacing: AppSpacing.xs,
       children: [
         OutlinedButton.icon(
-          onPressed: _replaceEntries.isEmpty ? null : _selectHighConfidence,
+          onPressed: _correctableEntries.isEmpty ? null : _selectHighConfidence,
           style: OutlinedButton.styleFrom(
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
@@ -648,9 +686,15 @@ class _ReviewCard extends StatelessWidget {
   final bool accepted;
   final bool locked;
   final bool overridden;
+
+  /// 歧义条目的用户选择：'replace' | 'insert' | null。
+  final String? ambiguousChoice;
   final int thresholdPercent;
   final ValueChanged<bool> onChanged;
   final VoidCallback onOverride;
+
+  /// 歧义条目选择替换/插入时回调。
+  final ValueChanged<String?>? onAmbiguousChoice;
 
   const _ReviewCard({
     required this.entry,
@@ -658,15 +702,18 @@ class _ReviewCard extends StatelessWidget {
     required this.accepted,
     required this.locked,
     required this.overridden,
+    this.ambiguousChoice,
     required this.thresholdPercent,
     required this.onChanged,
     required this.onOverride,
+    this.onAmbiguousChoice,
   });
 
   @override
   Widget build(BuildContext context) {
     final similarityPercent = (entry.similarity * 100).round();
     final lowConfidence = similarityPercent < thresholdPercent;
+    final isAmbiguous = entry.status == ReferenceLineAlignmentStatus.ambiguous;
     final showCheckbox = !locked || overridden;
 
     return Container(
@@ -714,12 +761,55 @@ class _ReviewCard extends StatelessWidget {
                     ),
                     if (lowConfidence)
                       const _Badge(label: '低相似', color: AppColors.warning),
+                    if (entry.status == ReferenceLineAlignmentStatus.ambiguous)
+                      const _Badge(label: '歧义匹配', color: AppColors.warning),
                     if (locked)
                       const _Badge(label: '已手动编辑', color: AppColors.warning),
                   ],
                 ),
               ),
-              if (showCheckbox)
+              if (isAmbiguous && onAmbiguousChoice != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: ambiguousChoice == 'replace',
+                          onChanged: (_) => onAmbiguousChoice?.call('replace'),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('替换此行', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: ambiguousChoice == 'insert',
+                          onChanged: (_) => onAmbiguousChoice?.call('insert'),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('作为漏行插入', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: ambiguousChoice == 'skip',
+                          onChanged: (_) => onAmbiguousChoice?.call('skip'),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text('跳过', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              ] else if (showCheckbox)
                 Checkbox(
                   value: accepted,
                   onChanged: (value) => onChanged(value ?? false),

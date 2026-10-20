@@ -243,6 +243,40 @@ class ReferenceAlignmentApplier {
         byPosition.putIfAbsent(position, () => []).add(insertion);
       }
 
+      // 歧义匹配条目若用户选择"作为漏行插入"，不会出现在补全计划中，
+      // 需按其匹配到的 ASR 行位置合成插入项（insertBeforeAsrLineIndex =
+      // 匹配行的索引，保持时间轴连续、不静默覆盖）。
+      final unresolvedMissing = <int>[];
+      for (final referenceIndex in selectedMissing) {
+        if (!byPosition.values.any(
+          (list) => list.any((i) => i.referenceIndex == referenceIndex),
+        )) {
+          unresolvedMissing.add(referenceIndex);
+        }
+      }
+      for (final entry in alignment.entries) {
+        if (!unresolvedMissing.contains(entry.referenceIndex)) continue;
+        final asrIndex = entry.asrLineIndex;
+        if (asrIndex == null || asrIndex < 0 || asrIndex >= lines.length) {
+          continue;
+        }
+        final asrLine = lines[asrIndex];
+        byPosition
+            .putIfAbsent(asrIndex, () => [])
+            .add(
+              ReferenceLineCompletionInsertion(
+                referenceIndex: entry.referenceIndex,
+                text: entry.referenceText,
+                insertBeforeAsrLineIndex: asrIndex,
+                startTime: asrLine.startTime,
+                endTime: asrLine.endTime,
+                requiresConfirmation: true,
+                previousAsrLineIndex: null,
+                nextAsrLineIndex: null,
+              ),
+            );
+      }
+
       var finalIndex = 0;
       for (var index = 0; index <= lines.length; index++) {
         final pending = byPosition[index];

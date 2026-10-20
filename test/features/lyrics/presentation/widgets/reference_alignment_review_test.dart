@@ -272,4 +272,160 @@ void main() {
     expect(decision, isNotNull);
     expect(decision!.acceptedMissingReferenceIndices, {1});
   });
+
+  testWidgets('歧义匹配行显示替换或插入漏行两种选择', (tester) async {
+    const document = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          text: '第一句歌词a',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          text: '第一句歌词b',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 8),
+        ),
+      ],
+    );
+    const input = ReferenceLyricInput(
+      lines: [ReferenceLyricLine(text: '第一句歌词')],
+      timed: false,
+      format: 'txt',
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+
+    // 断言域层已标记歧义匹配。
+    final entry = alignment.entries.single;
+    expect(entry.status, ReferenceLineAlignmentStatus.ambiguous);
+    expect(entry.ambiguous, isTrue);
+
+    ReferenceAlignmentReviewDecision? decision;
+    await pumpReview(
+      tester,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: const {},
+      onResult: (value) => decision = value,
+    );
+
+    expect(find.text('歧义匹配'), findsOneWidget);
+    expect(find.text('替换此行'), findsOneWidget);
+    expect(find.text('作为漏行插入'), findsOneWidget);
+    expect(find.text('跳过'), findsOneWidget);
+
+    // 三个互斥选择，默认均未选中。
+    final checkboxes = find.byType(Checkbox);
+    expect(checkboxes, findsNWidgets(3));
+    // 通过 element 列表检查默认值均为 false。
+    for (final element in tester.widgetList<Checkbox>(checkboxes)) {
+      expect(element.value, isFalse);
+    }
+    expect(find.text('没有可应用的修改'), findsOneWidget);
+  });
+
+  testWidgets('歧义匹配选择替换后，参考行进入 acceptedReferenceIndices', (tester) async {
+    const document = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          text: '第一句歌词a',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          text: '第一句歌词b',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 8),
+        ),
+      ],
+    );
+    const input = ReferenceLyricInput(
+      lines: [ReferenceLyricLine(text: '第一句歌词')],
+      timed: false,
+      format: 'txt',
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+
+    ReferenceAlignmentReviewDecision? decision;
+    await pumpReview(
+      tester,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: const {},
+      onResult: (value) => decision = value,
+    );
+
+    final checkboxes = find.byType(Checkbox);
+    expect(checkboxes, findsNWidgets(3));
+    // 第一个选项为“替换此行”。
+    await tester.tap(checkboxes.at(0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '应用 1 行修正'));
+    await tester.pumpAndSettle();
+
+    expect(decision, isNotNull);
+    expect(decision!.acceptedReferenceIndices, {0});
+    expect(decision!.acceptedMissingReferenceIndices, isEmpty);
+  });
+
+  testWidgets('歧义匹配选择作为漏行插入后，参考行进入 acceptedMissingReferenceIndices', (
+    tester,
+  ) async {
+    const document = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          text: '第一句歌词a',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          text: '第一句歌词b',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 8),
+        ),
+      ],
+    );
+    const input = ReferenceLyricInput(
+      lines: [ReferenceLyricLine(text: '第一句歌词')],
+      timed: false,
+      format: 'txt',
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: input.lines,
+    );
+
+    ReferenceAlignmentReviewDecision? decision;
+    await pumpReview(
+      tester,
+      document: document,
+      alignment: alignment,
+      input: input,
+      manuallyEditedLineIndices: const {},
+      onResult: (value) => decision = value,
+    );
+
+    final checkboxes = find.byType(Checkbox);
+    expect(checkboxes, findsNWidgets(3));
+    // 第二个选项为“作为漏行插入”。
+    await tester.tap(checkboxes.at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '补全 1 行'));
+    await tester.pumpAndSettle();
+
+    expect(decision, isNotNull);
+    expect(decision!.acceptedMissingReferenceIndices, {0});
+    expect(decision!.acceptedReferenceIndices, isEmpty);
+  });
 }
