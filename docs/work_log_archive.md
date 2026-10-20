@@ -55,3 +55,4 @@
 
 - [2026-10-19 23:24] 修复播放进度条拖动并统一时间显示 `Fix draggable playback progress bar with time labels` ([entry](log/entries/2026-10-19-2324-fix-draggable-playback-progress-bar.md))
 - [2026-10-19 23:38] 全播放界面进度条支持悬停、点击与拖动跳转 `Make playback progress bars seekable with hover time hints` ([entry](log/entries/2026-10-19-2338-seekable-progress-bars-everywhere.md))
+- [2026-10-20 00:16] 参考歌词行级序列对齐服务 `Add reference lyric alignment service` ([entry](log/entries/2026-10-20-0016-reference-lyric-alignment-service.md))
