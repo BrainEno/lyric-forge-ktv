@@ -60,3 +60,4 @@
 - [2026-10-20 11:53] 参考歌词逐行确认（C3） `Add per-line reference lyric review` ([entry](log/entries/2026-10-20-1153-reference-alignment-per-line-review.md))
 - [2026-10-20 12:28] 对齐备份恢复 UI `Add reference alignment backup restore flow` ([entry](log/entries/2026-10-20-1228-reference-alignment-backup-restore.md))
 - [2026-10-20 13:25] 清理分析器提示信息 `Clear analyzer lint infos` ([entry](log/entries/2026-10-20-1325-clear-analyzer-lint-infos.md))
+- [2026-10-20 15:01] 参考歌词补全漏行与推断时间轴 `Add reference lyric missing-line completion` ([entry](log/entries/2026-10-20-1501-reference-lyric-completion.md))
