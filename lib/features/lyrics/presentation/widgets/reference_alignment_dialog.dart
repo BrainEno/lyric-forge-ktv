@@ -232,7 +232,7 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
           const Text('参考歌词纠正'),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '用正确的歌词文本纠正当前 ASR 草稿；应用前会自动备份。',
+            '用正确的歌词文本纠正当前 ASR 草稿，并可补全漏行、推断时间；应用前会自动备份。',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
@@ -286,7 +286,7 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
                 Text(
                   _pasteHasText
                       ? '识别为：${_formatLabel(_pasteExtension)}'
-                      : '纯文本只纠正文字；LRC/SRT 等带时间戳的文本还可选择采用参考时间轴。',
+                      : '纯文本会纠正文字并补全漏行（按相邻行推断时间）；LRC/SRT 等带时间戳的文本还可选择采用参考时间轴。',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: _pasteHasText
                         ? AppColors.textSecondary
