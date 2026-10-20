@@ -16,11 +16,11 @@ $ git diff --stat
 (empty)
 
 $ git log --oneline -5
+eb2d023 Clarify reference lyric completion copy
+c795453 Update handoff after reference lyric completion
 bf5216a Archive phase A progress bar entry
 49d81d5 Add reference lyric missing-line completion
 5af8e3b Fix work log handoff sections
-7bf6efd Fix all analyzer lint infos
-de91642 Add reference alignment backup restore flow
 ```
 
 ## 已改文件
@@ -29,6 +29,7 @@ de91642 Add reference alignment backup restore flow
 - 修改 `lib/features/lyrics/domain/services/reference_alignment_applier.dart`：`acceptedMissingReferenceIndices`、`AppliedReferenceInsertion`，纠错与补行一次完成。
 - 修改 `lib/features/lyrics/presentation/widgets/reference_alignment_review.dart`：漏行卡片、默认勾选、时间/位置/需确认提示、补全文案。
 - 修改 `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：传递漏行选择、选中首个插入行、写入 `acceptedMissingReferenceCount`/`insertedReferenceCount`/`skippedMissingReferenceCount`/`insertions`。
+- 修改 `lib/features/lyrics/presentation/widgets/reference_alignment_dialog.dart`：纯文本输入提示改为“纠正文字并补全漏行（按相邻行推断时间）”，与 C4 行为一致。
 - 测试：新增 `reference_timeline_completion_service_test.dart`（9 例）；扩展 `reference_alignment_applier_test.dart`（4 例）与 `reference_alignment_review_test.dart`（2 例）。
 - 文档：`docs/lyric_review_alignment_plan.md`（C4）、`docs/decisions.md`（D-008，D-006 漏行规则标记部分取代）、`docs/work_log.md`、`docs/work_log_index.md`、`docs/work_log_archive.md`、本文件。
 
@@ -58,4 +59,4 @@ de91642 Add reference alignment backup restore flow
 
 ---
 
-最后更新：2026-10-20 15:10
+最后更新：2026-10-20 15:06
