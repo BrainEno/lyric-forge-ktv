@@ -68,3 +68,5 @@
 - [2026-10-20 20:56] 完善 LRC 时间戳冲突处理（E2.3） `Report LRC timestamp import conflicts via LyricImportResult.conflicts` ([entry](log/entries/2026-10-20-2056-e2-lrc-conflict.md))
 - [2026-10-21 00:35] 对齐服务区分匹配/自动替换阈值并引入低置信与歧义状态（E3.1） `Distinguish alignment match and auto-replace thresholds with low-confidence and ambiguous states` ([entry](log/entries/2026-10-21-0035-e3-alignment-threshold-states.md))
 - [2026-10-21 01:28] 审核界面支持歧义匹配的替换或插入漏行判断（E3.3） `Review UI supports ambiguous match replace-or-insert-missing-line choice` ([entry](log/entries/2026-10-21-0128-e3-review-ambiguous-choice.md))
+- [2026-10-21 01:35] 歌词对齐回归样本测试集（E3.4） ([entry](log/entries/2026-10-21-0135-e3-regression-sample-set.md))
+- [2026-10-21 11:31] 歌词行稳定标识 LyricLine.id（E4.1） `Add stable line identity field to LyricLine` ([entry](log/entries/2026-10-21-1131-e4-line-id.md))
