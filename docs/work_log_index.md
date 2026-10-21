@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-21 17:04. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-21 22:22. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -24,7 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **Lyric review plan:** docs/lyric_review_alignment_plan.md — phases A–E reliability and reference alignment done; E6 post-apply line diff/timeline repair merged (PR #125); phase F explainable smart-review priority queue merged and locally validated (PR #126); phase G guided review completion is now in Draft: persist a line-level reviewed decision by stable ID + text/timing fingerprint, confirm-and-continue to the next highest-priority row, and automatically reopen review if content/timing changes. Next: run local validation and viewport checks for phase G; phase D online lyric search remains optional.
+- **Lyric review plan:** docs/lyric_review_alignment_plan.md — phases A–E and E6 complete (PR #125); phase F smart-review priority queue merged (PR #126); phase G persistent review decisions + confirm-and-continue merged (PR #127); phase H one-tap audition from smart-review rows is in Draft PR #128. Latest goal: reduce clicks when listening through risk-ranked rows; run local Flutter validation and compact/desktop viewport checks before merge.
 
 ## Follow-up leads — re-check before acting
 

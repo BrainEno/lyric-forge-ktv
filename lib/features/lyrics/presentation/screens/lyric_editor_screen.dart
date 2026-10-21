@@ -29,6 +29,7 @@ import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
+import '../widgets/smart_review_audition_button.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
 
@@ -1228,6 +1229,9 @@ class _LyricEditorContent extends StatelessWidget {
                           fallbackCandidateFor: _fallbackCandidateFor,
                           reviewPriorityByIndex: reviewPriorityByIndex,
                           filter: filter,
+                          onPreviewLine: project.audioAsset == null
+                              ? null
+                              : onPreviewLine,
                           onInsertedLineFocus: twoPane
                               ? onSelectLine
                               : (index) => _showInspectorSheet(
@@ -1583,6 +1587,7 @@ class _LyricListPane extends StatefulWidget {
   final int focusRequestId;
   final int? focusLineIndex;
   final Map<String, dynamic>? Function(int) fallbackCandidateFor;
+  final ValueChanged<int>? onPreviewLine;
   final ValueChanged<int> onInsertedLineFocus;
   final ValueChanged<int> onSelectLine;
 
@@ -1597,6 +1602,7 @@ class _LyricListPane extends StatefulWidget {
     required this.focusRequestId,
     required this.focusLineIndex,
     required this.fallbackCandidateFor,
+    required this.onPreviewLine,
     required this.onInsertedLineFocus,
     required this.onSelectLine,
   });
@@ -1738,6 +1744,11 @@ class _LyricListPaneState extends State<_LyricListPane> {
           priority: widget.reviewPriorityByIndex[index],
           selected: widget.selectedIndex == index,
           playing: widget.currentPlaybackLine == index,
+          showAudition: widget.filter == _ReviewFilter.smartReview &&
+              widget.onPreviewLine != null,
+          onPreview: widget.onPreviewLine == null
+              ? null
+              : () => widget.onPreviewLine!(index),
           onTap: () => widget.onSelectLine(index),
         );
       },
@@ -1753,6 +1764,8 @@ class _LyricReviewRow extends StatelessWidget {
   final LyricReviewPriority? priority;
   final bool selected;
   final bool playing;
+  final bool showAudition;
+  final VoidCallback? onPreview;
   final VoidCallback onTap;
 
   const _LyricReviewRow({
@@ -1763,6 +1776,8 @@ class _LyricReviewRow extends StatelessWidget {
     required this.priority,
     required this.selected,
     required this.playing,
+    required this.showAudition,
+    required this.onPreview,
     required this.onTap,
   });
 
@@ -1866,6 +1881,10 @@ class _LyricReviewRow extends StatelessWidget {
                     label: '${line.confidence}',
                     warning: line.confidence < 70,
                   ),
+                ],
+                if (showAudition) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  SmartReviewAuditionButton(onPressed: onPreview),
                 ],
                 if (!spec.supportsTwoPane) ...[
                   const SizedBox(width: AppSpacing.xs),
