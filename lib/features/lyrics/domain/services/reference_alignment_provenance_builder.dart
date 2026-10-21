@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import '../models/reference_lyric_input.dart';
+import '../models/timing_provenance.dart';
 import 'reference_alignment_applier.dart';
 
 /// 把一次参考对齐应用结果整理成可追溯的 `metadata['referenceAlignment']`。
@@ -46,6 +47,8 @@ class ReferenceAlignmentProvenanceBuilder {
       if (input.artist != null) 'referenceArtist': input.artist,
       'referenceTimed': input.timed,
       'referenceOffsetMs': input.offset.inMilliseconds,
+      'referenceConflictCount': input.conflicts.length,
+      'referenceWarningCount': input.warnings.length,
       'minimumSimilarity': minimumSimilarity,
       'applyReferenceTiming': applyReferenceTiming,
       'acceptedReferenceCount': acceptedReferenceCount,
@@ -92,7 +95,33 @@ class ReferenceAlignmentProvenanceBuilder {
           (index) => result.appliedIndexByOriginalIndex[index] ?? index,
         ),
       ),
+      kLyricTimingProvenanceKey: _timingProvenance(appliedDocument, result),
     };
+  }
+
+  /// 以稳定行标识为键合并时间来源。
+  ///
+  /// 已有 `manual` 记录不会被本次自动写入覆盖；其余本次涉及的行走新来源。
+  Map<String, String> _timingProvenance(
+    LyricDocument appliedDocument,
+    ReferenceAlignmentApplyResult result,
+  ) {
+    final merged = <String, String>{};
+    final existing = appliedDocument.metadata[kLyricTimingProvenanceKey];
+    if (existing is Map) {
+      for (final item in existing.entries) {
+        if (item.key is String && item.value is String) {
+          merged[item.key as String] = item.value as String;
+        }
+      }
+    }
+    for (final item in result.timingProvenanceByAppliedIndex.entries) {
+      final lineId = lineIdAt(appliedDocument, item.key);
+      if (lineId == null) continue;
+      if (merged[lineId] == LyricTimingProvenance.manual.name) continue;
+      merged[lineId] = item.value.name;
+    }
+    return merged;
   }
 
   Map<String, dynamic> _lineRef(LyricDocument document, int index) {

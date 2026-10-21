@@ -19,7 +19,7 @@ void main() {
           endTime: Duration(seconds: 5),
         ),
         LyricLine(
-          text: '今天天气真好',
+          text: '第二句错',
           startTime: Duration(seconds: 5),
           endTime: Duration(seconds: 9),
         ),
@@ -31,7 +31,7 @@ void main() {
     return const ReferenceLyricInput(
       lines: [
         ReferenceLyricLine(text: '月亮代表我的心'),
-        ReferenceLyricLine(text: '明天天气不错'),
+        ReferenceLyricLine(text: '第二句对'),
       ],
       timed: false,
       format: 'txt',

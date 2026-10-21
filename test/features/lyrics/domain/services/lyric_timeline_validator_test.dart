@@ -151,6 +151,123 @@ void main() {
     });
   });
 
+  group('重复开始时间与非单调', () {
+    test('相邻行开始时间完全相同时检测 duplicateStart', () {
+      final result = validate([
+        line(startMs: 1000, endMs: 3000),
+        line(startMs: 1000, endMs: 5000),
+      ]);
+
+      expect(
+        result.issues.any((i) => i.type == TimelineIssueType.duplicateStart),
+        isTrue,
+      );
+      expect(result.needsCalibration, contains(1));
+    });
+
+    test('开始时间倒退时检测 nonMonotonicStart', () {
+      final result = validate([
+        line(startMs: 5000, endMs: 8000),
+        line(startMs: 3000, endMs: 6000),
+      ]);
+
+      expect(
+        result.issues.any((i) => i.type == TimelineIssueType.nonMonotonicStart),
+        isTrue,
+      );
+      expect(result.needsCalibration, contains(1));
+    });
+
+    test('叠加全局偏移后有效开始时间为负会被提示', () {
+      final result = const LyricTimelineValidator().validate(
+        lines: [line(startMs: 100, endMs: 2000)],
+        globalOffset: const Duration(milliseconds: -500),
+      );
+
+      expect(
+        result.issues.any(
+          (i) => i.type == TimelineIssueType.negativeEffectiveStart,
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('前后对比', () {
+    test('只把新引入的问题算作 introduced，原有冲突不重复报警', () {
+      final before = [
+        line(startMs: 0, endMs: 5000),
+        line(startMs: 3000, endMs: 6000), // 已存在重叠
+      ];
+      final after = [
+        line(startMs: 0, endMs: 5000),
+        line(startMs: 3000, endMs: 6000),
+        line(startMs: 7000, endMs: 7000), // 新引入零时长
+      ];
+
+      final comparison = const LyricTimelineValidator().compare(
+        before: before,
+        after: after,
+      );
+
+      expect(comparison.introduced, isNotEmpty);
+      expect(
+        comparison.introduced.every(
+          (issue) => issue.type == TimelineIssueType.zeroOrNegativeDuration,
+        ),
+        isTrue,
+      );
+      expect(comparison.hasIntroducedSeriousIssues, isTrue);
+      expect(comparison.resolved, isEmpty);
+    });
+
+    test('有稳定行标识时插入行不会把后续原有冲突误判为新问题', () {
+      const before = [
+        LyricLine(
+          id: 'a',
+          text: '第一句',
+          startTime: Duration(seconds: 0),
+          endTime: Duration(seconds: 5),
+        ),
+        LyricLine(
+          id: 'b',
+          text: '第二句',
+          startTime: Duration(seconds: 3),
+          endTime: Duration(seconds: 6),
+        ),
+      ];
+      const after = [
+        LyricLine(
+          id: 'inserted',
+          text: '插入句',
+          startTime: Duration(seconds: 0),
+          endTime: Duration(seconds: 2),
+        ),
+        LyricLine(
+          id: 'a',
+          text: '第一句',
+          startTime: Duration(seconds: 2),
+          endTime: Duration(seconds: 5),
+        ),
+        LyricLine(
+          id: 'b',
+          text: '第二句',
+          startTime: Duration(seconds: 3),
+          endTime: Duration(seconds: 6),
+        ),
+      ];
+
+      final comparison = const LyricTimelineValidator().compare(
+        before: before,
+        after: after,
+      );
+
+      // 插入行本身合法；原有 a/b 行重叠按 id 匹配，不计为本次引入。
+      expect(comparison.introduced, isEmpty);
+      expect(comparison.hasIntroducedSeriousIssues, isFalse);
+    });
+  });
+
   group('音频时长边界（尾部插入）', () {
     const duration = Duration(seconds: 30);
 

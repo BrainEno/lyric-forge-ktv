@@ -119,6 +119,35 @@ void main() {
       expect(input.lines[0].endTime, const Duration(milliseconds: 2400));
     });
 
+    test('LRC 重复时间戳作为冲突原样传给审核界面', () {
+      final input = parser.parsePasted(
+        '[00:01.00]第一句\n[00:01.00]第二句\n[00:05.00]第三句\n',
+      );
+
+      expect(input.timed, isTrue);
+      expect(input.hasConflicts, isTrue);
+      expect(
+        input.conflicts.any((message) => message.contains('开始时间相同')),
+        isTrue,
+      );
+      expect(input.warnings, isEmpty);
+    });
+
+    test('偏移导致的零时长参考行产生修复警告', () {
+      final input = parser.parsePasted(
+        '[00:00.20]第一句\n[00:00.30]第二句\n',
+        offset: const Duration(milliseconds: -300),
+      );
+
+      expect(input.hasWarnings, isTrue);
+      expect(
+        input.warnings.any((message) => message.contains('结束时间不晚于开始时间')),
+        isTrue,
+      );
+      expect(input.lines[0].startTime, Duration.zero);
+      expect(input.lines[0].endTime, greaterThan(input.lines[0].startTime!));
+    });
+
     test('SRT 粘贴走字幕解析并保留时间戳', () {
       final input = parser.parsePasted(
         '1\n00:00:01,000 --> 00:00:03,000\n你好\n',

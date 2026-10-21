@@ -8,14 +8,14 @@ enum ReferenceLineAlignmentStatus {
   /// 归一化后与 ASR 行完全一致，不需要改文本。
   identical,
 
-  /// 匹配到 ASR 行，相似度达到[autoReplaceThreshold]，建议用参考文本纠正，可自动采纳。
+  /// 匹配到 ASR 行，相似度达到 autoReplaceThreshold，建议用参考文本纠正，可自动采纳。
   replace,
 
-  /// 匹配到 ASR 行，但相似度低于[autoReplaceThreshold]，属于低置信度匹配。
+  /// 匹配到 ASR 行，但相似度低于 autoReplaceThreshold，属于低置信度匹配。
   /// 不应自动替换，需要用户在审核界面确认是否替换，还是作为漏行另行插入。
   lowConfidence,
 
-  /// 匹配到 ASR 行，但存在另一条 ASR 行的相似度接近（在[ambiguityMargin]之内），
+  /// 匹配到 ASR 行，但存在另一条全局可行的 ASR 行序列对齐同样接近，
   /// 可能是 ASR 将两行合并或把一行拆成多行，需要用户定点确认是替换还是插入漏行。
   ambiguous,
 
@@ -34,11 +34,50 @@ enum AsrLineAlignmentStatus {
   /// 有参考行对应但相似度低于自动替换阈值，属于低置信度匹配。
   lowConfidence,
 
-  /// 有参考行对应但存在歧义候选，可能是 ASR 合并/拆分。
+  /// 有参考行对应但存在另一条全局可行的序列对齐同样接近，可能是 ASR 合并/拆分。
   ambiguous,
 
   /// 参考歌词中没有对应行（多余识别/幻觉）。
   unmatched,
+}
+
+/// 一条结构差异诊断：参考与 ASR 可能是一对多或多对一。
+enum StructuralAlignmentMismatchKind {
+  /// 多条 ASR 行合起来才对应一条参考行（ASR 拆分）。
+  mergedAsrLines,
+
+  /// 一条 ASR 行对应多条参考行（ASR 合并）。
+  splitAsrLine,
+}
+
+class StructuralAlignmentMismatch {
+  final StructuralAlignmentMismatchKind kind;
+
+  /// 涉及的参考行原始索引（按参考顺序）。
+  final List<int> referenceIndices;
+
+  /// 涉及的 ASR 行原始索引（按 ASR 顺序）。
+  final List<int> asrLineIndices;
+
+  final double similarity;
+
+  const StructuralAlignmentMismatch({
+    required this.kind,
+    required this.referenceIndices,
+    required this.asrLineIndices,
+    required this.similarity,
+  });
+
+  String get message {
+    final refs = referenceIndices.map((index) => index + 1).join('、');
+    final asr = asrLineIndices.map((index) => index + 1).join('、');
+    return switch (kind) {
+      StructuralAlignmentMismatchKind.mergedAsrLines =>
+        '参考第 $refs 行可能对应草稿第 $asr 行（ASR 把一行拆成了多行），需要确认后再处理。',
+      StructuralAlignmentMismatchKind.splitAsrLine =>
+        '草稿第 $asr 行可能对应参考第 $refs 行（ASR 把多行合并成了一行），需要确认后再处理。',
+    };
+  }
 }
 
 /// 参考行视角：这条参考歌词对应哪条 ASR 行、相似度多少、映射到什么时间。
@@ -64,9 +103,12 @@ class LyricAlignmentEntry {
   /// 这条参考行本身是否带时间戳。
   final bool referenceHasTimestamp;
 
-  /// 是否为歧义匹配：存在另一条 ASR 行与本参考行的相似度接近（在
-  /// [ambiguityMargin] 之内），可能是 ASR 合并/拆分。
+  /// 是否为歧义匹配：存在另一条全局可行的序列对齐与本行得分接近。
   final bool ambiguous;
+
+  /// 是否可能涉及一对多/多对一结构差异；这类行必须显式确认，
+  /// 不能当作普通的一对一替换或自动补行。
+  final bool structuralMismatch;
 
   final ReferenceLineAlignmentStatus status;
 
@@ -79,6 +121,7 @@ class LyricAlignmentEntry {
     required this.endTime,
     required this.referenceHasTimestamp,
     required this.ambiguous,
+    this.structuralMismatch = false,
     required this.status,
   });
 }
@@ -94,8 +137,11 @@ class AsrLineAlignment {
   /// 与参考行的相似度；未匹配时为 0。
   final double similarity;
 
-  /// 是否为歧义匹配：存在另一条参考行与本 ASR 行的相似度接近。
+  /// 是否为歧义匹配：存在另一条全局可行的序列对齐与本行得分接近。
   final bool ambiguous;
+
+  /// 是否可能属于一对多/多对一结构差异。
+  final bool structuralMismatch;
 
   final AsrLineAlignmentStatus status;
 
@@ -104,6 +150,7 @@ class AsrLineAlignment {
     required this.referenceIndex,
     required this.similarity,
     required this.ambiguous,
+    this.structuralMismatch = false,
     required this.status,
   });
 }
@@ -115,7 +162,14 @@ class LyricAlignmentResult {
   /// ASR 行视角的结果，按 ASR 行顺序排列。
   final List<AsrLineAlignment> asrLines;
 
-  const LyricAlignmentResult({required this.entries, required this.asrLines});
+  /// 一对多/多对一结构差异诊断，供审核界面单独提示。
+  final List<StructuralAlignmentMismatch> structuralMismatches;
+
+  const LyricAlignmentResult({
+    required this.entries,
+    required this.asrLines,
+    this.structuralMismatches = const [],
+  });
 
   /// 在 ASR 中找不到对应行的参考行索引。
   List<int> get missingReferenceIndices => [
@@ -130,47 +184,77 @@ class LyricAlignmentResult {
       if (line.status == AsrLineAlignmentStatus.unmatched) line.asrLineIndex,
   ];
 
+  /// 低置信或歧义匹配的参考行索引。
+  List<int> get uncertainReferenceIndices => [
+    for (final entry in entries)
+      if (entry.status == ReferenceLineAlignmentStatus.lowConfidence ||
+          entry.status == ReferenceLineAlignmentStatus.ambiguous ||
+          entry.structuralMismatch)
+        entry.referenceIndex,
+  ];
+
   bool get hasMissingReferences => missingReferenceIndices.isNotEmpty;
 
   bool get hasUnmatchedAsrLines => unmatchedAsrIndices.isNotEmpty;
+
+  bool get hasStructuralMismatches => structuralMismatches.isNotEmpty;
 }
 
 /// 把 ASR 歌词草稿与用户提供的参考歌词做行级序列对齐。
 ///
 /// 只做纯计算，不修改任何输入；应用纠正、写 metadata、备份由上层负责。
 ///
-/// 算法：
-/// - 文本归一化：全角转半角、去空白/标点/符号、大小写折叠；
-/// - 相似度：归一化文本的字符级 Levenshtein 比率；
-/// - 对齐：全局 Needleman-Wunsch，单行配对得分 = 相似度，跳过一行的代价 =
-///   [gapPenalty]；相似度低于 [minimumPairSimilarity] 的行不允许配对；
-/// - 重复段（副歌）依靠整段序列顺序约束，不会把第二次副歌错配到第一次；
-/// - 空行（归一化后为空）不参与对齐，也不出现在结果中；
-/// - 带时间戳的参考行直接采用自己的时间，未带时间戳的行采用匹配到的 ASR 行时间；
-/// - 漏行的参考行不自动插入，只标记为 [ReferenceLineAlignmentStatus.missing]。
+/// 打分模型（不是简单的相似度累加）：
+/// - 配对得分 = 相似度 - [matchBias]；只有相似度严格高于 [matchBias] 的配对
+///   才会带来正收益；
+/// - 跳过一次参考行或一次 ASR 行的代价为 [gapPenalty]（默认 0，仅用于打破平局）；
+/// - 因此一条弱匹配（相似度接近 [minimumPairSimilarity]）会输给"跳过参考行 +
+///   跳过 ASR 行"两条 gap，被归类为漏行/多余行，而不是被强行替换；
+/// - 精确匹配和高相似度匹配的收益明显高于两条 gap，仍会优先配对。
+///
+/// 对齐仍然全局保序（Needleman-Wunsch）。歧义判定使用前向/后向 DP 的全局
+/// 证据：如果同一参考行（或 ASR 行）换成另一条可行配对后，整段序列的最优
+/// 得分仍然接近，才标记为歧义，而不是只看单行相似度。
 class LyricAlignmentService {
-  /// 低于该相似度不允许配对。ASR 错字通常仍高于该值。
+  /// 允许进入配对候选的最低相似度。低于该值直接视为不可配对。
   final double minimumPairSimilarity;
 
-  /// 跳过一行的得分代价（正数）。
+  /// 配对收益偏移：配对得分 = 相似度 - [matchBias]。
+  ///
+  /// 默认 0.7，意味着相似度 0.7 以下的弱匹配会输给两条 gap；0.8 以上的
+  /// 高置信匹配仍有明显正收益。
+  final double matchBias;
+
+  /// 跳过一行的分数代价（正数或 0）。默认 0，仅用于打破完全平局。
   final double gapPenalty;
+
+  /// 自动替换阈值；与 [ReferenceAlignmentApplier.minimumSimilarity] 共用同一语义。
+  static const double defaultAutoReplaceThreshold = 0.8;
 
   const LyricAlignmentService({
     this.minimumPairSimilarity = 0.5,
-    this.gapPenalty = 0.35,
+    this.matchBias = 0.7,
+    this.gapPenalty = 0,
   }) : assert(minimumPairSimilarity > 0 && minimumPairSimilarity <= 1),
-       assert(gapPenalty > 0);
+       assert(matchBias >= 0 && matchBias <= 1),
+       assert(gapPenalty >= 0);
 
   static const double _epsilon = 1e-9;
+
+  double get _effectivePairFloor => math.max(minimumPairSimilarity, matchBias);
+
+  bool _canPair(double similarity) =>
+      similarity >= minimumPairSimilarity && similarity > matchBias;
 
   LyricAlignmentResult align({
     required LyricDocument document,
     required List<ReferenceLyricLine> referenceLines,
-    double autoReplaceThreshold = 0.8,
-    double ambiguityMargin = 0.15,
+    double autoReplaceThreshold = defaultAutoReplaceThreshold,
+    double ambiguityScoreMargin = 0.05,
   }) {
     assert(autoReplaceThreshold >= 0 && autoReplaceThreshold <= 1);
-    assert(ambiguityMargin >= 0 && ambiguityMargin <= 1);
+    assert(ambiguityScoreMargin >= 0);
+
     final references = <_PreparedLine>[];
     for (var index = 0; index < referenceLines.length; index++) {
       final normalized = normalizeLine(referenceLines[index].text);
@@ -191,12 +275,18 @@ class LyricAlignmentService {
     final asrCount = asrLines.length;
     final similarities = _buildSimilarityMatrix(references, asrLines);
 
-    // refToAsr[r] = 匹配到的 asr 预处理数组下标。
     final refToAsr = List<int?>.filled(referenceCount, null);
     final asrToRef = List<int?>.filled(asrCount, null);
+    List<List<double>>? forward;
 
     if (referenceCount > 0 && asrCount > 0) {
+      forward = _fillForward(
+        similarities: similarities,
+        referenceCount: referenceCount,
+        asrCount: asrCount,
+      );
       _traceback(
+        forward: forward,
         similarities: similarities,
         referenceCount: referenceCount,
         asrCount: asrCount,
@@ -205,12 +295,77 @@ class LyricAlignmentService {
       );
     }
 
+    // 歧义：用前向/后向 DP 的全局得分判断"换一条可行配对是否同样合理"。
+    final ambiguousReferences = <int>{};
+    final ambiguousAsrLines = <int>{};
+    if (forward != null && referenceCount > 0 && asrCount > 0) {
+      final backward = _fillBackward(
+        similarities: similarities,
+        referenceCount: referenceCount,
+        asrCount: asrCount,
+      );
+      final optimal = forward[referenceCount][asrCount];
+
+      for (var r = 0; r < referenceCount; r++) {
+        final matched = refToAsr[r];
+        if (matched == null) continue;
+        final top = _topTwoForReference(
+          r: r,
+          forward: forward,
+          backward: backward,
+          similarities: similarities,
+          asrCount: asrCount,
+        );
+        final competitor = top.firstIndex == matched
+            ? top.secondScore
+            : top.firstScore;
+        if (_isCompetitive(optimal, competitor, ambiguityScoreMargin)) {
+          ambiguousReferences.add(r);
+        }
+      }
+
+      for (var a = 0; a < asrCount; a++) {
+        final matched = asrToRef[a];
+        if (matched == null) continue;
+        final top = _topTwoForAsrLine(
+          a: a,
+          forward: forward,
+          backward: backward,
+          similarities: similarities,
+          referenceCount: referenceCount,
+        );
+        final competitor = top.firstIndex == matched
+            ? top.secondScore
+            : top.firstScore;
+        if (_isCompetitive(optimal, competitor, ambiguityScoreMargin)) {
+          ambiguousAsrLines.add(a);
+        }
+      }
+    }
+
+    // 结构差异：一对多/多对一不做隐式多行合并，只标记为需确认。
+    final structural = _detectStructuralMismatches(
+      references: references,
+      asrLines: asrLines,
+      refToAsr: refToAsr,
+      asrToRef: asrToRef,
+    );
+    final structuralReferenceIndices = <int>{};
+    final structuralAsrIndices = <int>{};
+    for (final mismatch in structural) {
+      structuralReferenceIndices.addAll(mismatch.referenceIndices);
+      structuralAsrIndices.addAll(mismatch.asrLineIndices);
+    }
+
     final entries = <LyricAlignmentEntry>[];
     for (var r = 0; r < referenceCount; r++) {
       final preparedReference = references[r];
       final reference = referenceLines[preparedReference.originalIndex];
       final matchedAsr = refToAsr[r];
       final referenceHasTimestamp = reference.hasTimestamp;
+      final structuralMismatch = structuralReferenceIndices.contains(
+        preparedReference.originalIndex,
+      );
 
       if (matchedAsr == null) {
         entries.add(
@@ -227,6 +382,7 @@ class LyricAlignmentService {
                 : null,
             referenceHasTimestamp: referenceHasTimestamp,
             ambiguous: false,
+            structuralMismatch: structuralMismatch,
             status: ReferenceLineAlignmentStatus.missing,
           ),
         );
@@ -237,19 +393,7 @@ class LyricAlignmentService {
       final asrLine = document.lines[asr.originalIndex];
       final identical = preparedReference.normalized == asr.normalized;
       final similarity = similarities[r][matchedAsr];
-
-      // 歧义匹配：另一条 ASR 行与本参考行的相似度接近（在 ambiguityMargin 之内），
-      // 且本身也达到了匹配阈值，可能是 ASR 合并/拆分。
-      var ambiguous = false;
-      for (var a2 = 0; a2 < asrCount; a2++) {
-        if (a2 == matchedAsr) continue;
-        final otherSimilarity = similarities[r][a2];
-        if (otherSimilarity >= minimumPairSimilarity &&
-            otherSimilarity >= similarity - ambiguityMargin) {
-          ambiguous = true;
-          break;
-        }
-      }
+      final ambiguous = ambiguousReferences.contains(r);
 
       final status = identical
           ? ReferenceLineAlignmentStatus.identical
@@ -272,6 +416,7 @@ class LyricAlignmentService {
               : asrLine.endTime,
           referenceHasTimestamp: referenceHasTimestamp,
           ambiguous: ambiguous,
+          structuralMismatch: structuralMismatch,
           status: status,
         ),
       );
@@ -281,6 +426,9 @@ class LyricAlignmentService {
     for (var a = 0; a < asrCount; a++) {
       final preparedAsr = asrLines[a];
       final matchedReference = asrToRef[a];
+      final structuralMismatch = structuralAsrIndices.contains(
+        preparedAsr.originalIndex,
+      );
       if (matchedReference == null) {
         asrResults.add(
           AsrLineAlignment(
@@ -288,6 +436,7 @@ class LyricAlignmentService {
             referenceIndex: null,
             similarity: 0,
             ambiguous: false,
+            structuralMismatch: structuralMismatch,
             status: AsrLineAlignmentStatus.unmatched,
           ),
         );
@@ -297,17 +446,7 @@ class LyricAlignmentService {
       final reference = references[matchedReference];
       final identical = reference.normalized == preparedAsr.normalized;
       final similarity = similarities[matchedReference][a];
-
-      var asrAmbiguous = false;
-      for (var r2 = 0; r2 < referenceCount; r2++) {
-        if (r2 == matchedReference) continue;
-        final otherSimilarity = similarities[r2][a];
-        if (otherSimilarity >= minimumPairSimilarity &&
-            otherSimilarity >= similarity - ambiguityMargin) {
-          asrAmbiguous = true;
-          break;
-        }
-      }
+      final asrAmbiguous = ambiguousAsrLines.contains(a);
 
       final asrStatus = identical
           ? AsrLineAlignmentStatus.matched
@@ -322,12 +461,17 @@ class LyricAlignmentService {
           referenceIndex: reference.originalIndex,
           similarity: similarity,
           ambiguous: asrAmbiguous,
+          structuralMismatch: structuralMismatch,
           status: asrStatus,
         ),
       );
     }
 
-    return LyricAlignmentResult(entries: entries, asrLines: asrResults);
+    return LyricAlignmentResult(
+      entries: entries,
+      asrLines: asrResults,
+      structuralMismatches: structural,
+    );
   }
 
   /// 全角转半角、去空白与标点、大小写折叠后的文本。
@@ -382,30 +526,32 @@ class LyricAlignmentService {
       (_) => List<double>.filled(asrLines.length, 0),
       growable: false,
     );
+    final floor = _effectivePairFloor;
     for (var r = 0; r < references.length; r++) {
       for (var a = 0; a < asrLines.length; a++) {
-        // 长度差已经决定了相似度上限低于阈值，提前跳过。
-        final maxLength = math.max(
-          references[r].runes.length,
-          asrLines[a].runes.length,
-        );
-        if (maxLength > 0) {
-          final lengthGap =
-              (references[r].runes.length - asrLines[a].runes.length).abs();
-          if (lengthGap / maxLength > 1 - minimumPairSimilarity) continue;
+        final left = references[r];
+        final right = asrLines[a];
+        if (left.normalized == right.normalized) {
+          matrix[r][a] = 1;
+          continue;
         }
-        matrix[r][a] = _similarity(references[r].runes, asrLines[a].runes);
+        // 长度差已经决定了相似度上限低于可配对阈值，提前跳过。
+        final maxLength = math.max(left.runes.length, right.runes.length);
+        if (maxLength > 0) {
+          final lengthGap = (left.runes.length - right.runes.length).abs();
+          if (lengthGap / maxLength > 1 - floor) continue;
+        }
+        final similarity = _similarity(left.runes, right.runes);
+        if (similarity >= floor) matrix[r][a] = similarity;
       }
     }
     return matrix;
   }
 
-  void _traceback({
+  List<List<double>> _fillForward({
     required List<List<double>> similarities,
     required int referenceCount,
     required int asrCount,
-    required List<int?> refToAsr,
-    required List<int?> asrToRef,
   }) {
     final dp = List<List<double>>.generate(
       referenceCount + 1,
@@ -426,38 +572,253 @@ class LyricAlignmentService {
         if (skipAsr > best) best = skipAsr;
 
         final similarity = similarities[r - 1][a - 1];
-        if (similarity >= minimumPairSimilarity) {
-          final pair = dp[r - 1][a - 1] + similarity;
+        if (_canPair(similarity)) {
+          final pair = dp[r - 1][a - 1] + similarity - matchBias;
           if (pair > best) best = pair;
         }
         dp[r][a] = best;
       }
     }
+    return dp;
+  }
 
+  List<List<double>> _fillBackward({
+    required List<List<double>> similarities,
+    required int referenceCount,
+    required int asrCount,
+  }) {
+    final dp = List<List<double>>.generate(
+      referenceCount + 1,
+      (_) => List<double>.filled(asrCount + 1, 0),
+      growable: false,
+    );
+    for (var r = referenceCount - 1; r >= 0; r--) {
+      dp[r][asrCount] = dp[r + 1][asrCount] - gapPenalty;
+    }
+    for (var a = asrCount - 1; a >= 0; a--) {
+      dp[referenceCount][a] = dp[referenceCount][a + 1] - gapPenalty;
+    }
+    for (var r = referenceCount - 1; r >= 0; r--) {
+      for (var a = asrCount - 1; a >= 0; a--) {
+        var best = dp[r + 1][a] - gapPenalty;
+        final skipAsr = dp[r][a + 1] - gapPenalty;
+        if (skipAsr > best) best = skipAsr;
+
+        final similarity = similarities[r][a];
+        if (_canPair(similarity)) {
+          final pair = similarity - matchBias + dp[r + 1][a + 1];
+          if (pair > best) best = pair;
+        }
+        dp[r][a] = best;
+      }
+    }
+    return dp;
+  }
+
+  ({int? firstIndex, double firstScore, double? secondScore})
+  _topTwoForReference({
+    required int r,
+    required List<List<double>> forward,
+    required List<List<double>> backward,
+    required List<List<double>> similarities,
+    required int asrCount,
+  }) {
+    int? firstIndex;
+    var firstScore = double.negativeInfinity;
+    double? secondScore;
+    for (var a = 0; a < asrCount; a++) {
+      final similarity = similarities[r][a];
+      if (!_canPair(similarity)) continue;
+      final score =
+          forward[r][a] + similarity - matchBias + backward[r + 1][a + 1];
+      if (score > firstScore + _epsilon) {
+        if (firstIndex != null) secondScore = firstScore;
+        firstScore = score;
+        firstIndex = a;
+      } else if (secondScore == null || score > secondScore + _epsilon) {
+        secondScore = score;
+      }
+    }
+    return (
+      firstIndex: firstIndex,
+      firstScore: firstIndex == null ? 0 : firstScore,
+      secondScore: secondScore,
+    );
+  }
+
+  ({int? firstIndex, double firstScore, double? secondScore})
+  _topTwoForAsrLine({
+    required int a,
+    required List<List<double>> forward,
+    required List<List<double>> backward,
+    required List<List<double>> similarities,
+    required int referenceCount,
+  }) {
+    int? firstIndex;
+    var firstScore = double.negativeInfinity;
+    double? secondScore;
+    for (var r = 0; r < referenceCount; r++) {
+      final similarity = similarities[r][a];
+      if (!_canPair(similarity)) continue;
+      final score =
+          forward[r][a] + similarity - matchBias + backward[r + 1][a + 1];
+      if (score > firstScore + _epsilon) {
+        if (firstIndex != null) secondScore = firstScore;
+        firstScore = score;
+        firstIndex = r;
+      } else if (secondScore == null || score > secondScore + _epsilon) {
+        secondScore = score;
+      }
+    }
+    return (
+      firstIndex: firstIndex,
+      firstScore: firstIndex == null ? 0 : firstScore,
+      secondScore: secondScore,
+    );
+  }
+
+  static bool _isCompetitive(
+    double optimal,
+    double? competitor,
+    double margin,
+  ) {
+    if (competitor == null || competitor == double.negativeInfinity) {
+      return false;
+    }
+    return optimal - competitor <= margin + _epsilon;
+  }
+
+  void _traceback({
+    required List<List<double>> forward,
+    required List<List<double>> similarities,
+    required int referenceCount,
+    required int asrCount,
+    required List<int?> refToAsr,
+    required List<int?> asrToRef,
+  }) {
     var r = referenceCount;
     var a = asrCount;
     while (r > 0 || a > 0) {
       if (r > 0 && a > 0) {
         final similarity = similarities[r - 1][a - 1];
-        if (similarity >= minimumPairSimilarity &&
-            (dp[r][a] - (dp[r - 1][a - 1] + similarity)).abs() < _epsilon) {
-          refToAsr[r - 1] = a - 1;
-          asrToRef[a - 1] = r - 1;
-          r--;
-          a--;
-          continue;
+        if (_canPair(similarity)) {
+          final pair = forward[r - 1][a - 1] + similarity - matchBias;
+          if ((forward[r][a] - pair).abs() < _epsilon) {
+            refToAsr[r - 1] = a - 1;
+            asrToRef[a - 1] = r - 1;
+            r--;
+            a--;
+            continue;
+          }
         }
       }
 
       if (r > 0 &&
           (a == 0 ||
-              (dp[r][a] - (dp[r - 1][a] - gapPenalty)).abs() < _epsilon)) {
+              (forward[r][a] - (forward[r - 1][a] - gapPenalty)).abs() <
+                  _epsilon)) {
         r--;
         continue;
       }
 
       a--;
     }
+  }
+
+  List<StructuralAlignmentMismatch> _detectStructuralMismatches({
+    required List<_PreparedLine> references,
+    required List<_PreparedLine> asrLines,
+    required List<int?> refToAsr,
+    required List<int?> asrToRef,
+  }) {
+    const maxWindow = 3;
+    final mismatches = <StructuralAlignmentMismatch>[];
+    final seenKeys = <String>{};
+
+    // 多条未匹配 ASR 行合起来接近一条漏掉的参考行。
+    for (var r = 0; r < references.length; r++) {
+      if (refToAsr[r] != null) continue;
+      final reference = references[r];
+      double? bestSimilarity;
+      List<int>? bestAsr;
+      for (var start = 0; start < asrLines.length; start++) {
+        final runes = <int>[];
+        for (var length = 1; length <= maxWindow; length++) {
+          final index = start + length - 1;
+          if (index >= asrLines.length) break;
+          if (asrToRef[index] != null) break;
+          runes.addAll(asrLines[index].runes);
+          if (length < 2) continue;
+          final similarity = _similarity(reference.runes, runes);
+          if (similarity < minimumPairSimilarity) continue;
+          if (bestSimilarity == null || similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestAsr = [
+              for (var i = start; i <= index; i++) asrLines[i].originalIndex,
+            ];
+          }
+        }
+      }
+      if (bestAsr != null && bestSimilarity != null) {
+        final key = 'm:${reference.originalIndex}:${bestAsr.join(',')}';
+        if (seenKeys.add(key)) {
+          mismatches.add(
+            StructuralAlignmentMismatch(
+              kind: StructuralAlignmentMismatchKind.mergedAsrLines,
+              referenceIndices: [reference.originalIndex],
+              asrLineIndices: bestAsr,
+              similarity: bestSimilarity,
+            ),
+          );
+        }
+      }
+    }
+
+    // 多条漏掉的参考行合起来接近一条未匹配的 ASR 行。
+    for (var a = 0; a < asrLines.length; a++) {
+      if (asrToRef[a] != null) continue;
+      final asr = asrLines[a];
+      double? bestSimilarity;
+      List<int>? bestReference;
+      for (var start = 0; start < references.length; start++) {
+        final runes = <int>[];
+        for (var length = 1; length <= maxWindow; length++) {
+          final index = start + length - 1;
+          if (index >= references.length) break;
+          if (refToAsr[index] != null) break;
+          runes.addAll(references[index].runes);
+          if (length < 2) continue;
+          final similarity = _similarity(asr.runes, runes);
+          if (similarity < minimumPairSimilarity) continue;
+          if (bestSimilarity == null || similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestReference = [
+              for (var i = start; i <= index; i++) references[i].originalIndex,
+            ];
+          }
+        }
+      }
+      if (bestReference != null && bestSimilarity != null) {
+        final key = 's:${asr.originalIndex}:${bestReference.join(',')}';
+        if (seenKeys.add(key)) {
+          mismatches.add(
+            StructuralAlignmentMismatch(
+              kind: StructuralAlignmentMismatchKind.splitAsrLine,
+              referenceIndices: bestReference,
+              asrLineIndices: [asr.originalIndex],
+              similarity: bestSimilarity,
+            ),
+          );
+        }
+      }
+    }
+
+    mismatches.sort((a, b) {
+      final left = a.referenceIndices.isEmpty ? 0 : a.referenceIndices.first;
+      final right = b.referenceIndices.isEmpty ? 0 : b.referenceIndices.first;
+      return left.compareTo(right);
+    });
+    return mismatches;
   }
 
   static double _similarity(List<int> a, List<int> b) {

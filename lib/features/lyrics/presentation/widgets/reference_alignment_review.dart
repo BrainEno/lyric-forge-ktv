@@ -7,6 +7,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/character_diff_service.dart';
 import '../../domain/services/lyric_alignment_service.dart';
+import '../../domain/services/reference_alignment_batch_selector.dart';
 import '../../domain/services/reference_timeline_completion_service.dart';
 
 /// 逐行确认的结果；调用方只应写入用户明确采纳的行（或时间轴）。
@@ -116,6 +117,7 @@ class ReferenceAlignmentReviewSheet extends StatefulWidget {
 class _ReferenceAlignmentReviewSheetState
     extends State<ReferenceAlignmentReviewSheet> {
   static const _diffService = CharacterDiffService();
+  static const _batchSelector = ReferenceAlignmentBatchSelector();
 
   final Set<int> _acceptedReferenceIndices = {};
   final Set<int> _acceptedMissingReferenceIndices = {};
@@ -124,6 +126,8 @@ class _ReferenceAlignmentReviewSheetState
   /// 可供逐行纠正的条目：replace（高置信）、lowConfidence（低置信）与
   /// ambiguous（歧义匹配）。missing 漏行走独立的补全区。
   late final List<LyricAlignmentEntry> _correctableEntries;
+  late final List<LyricAlignmentEntry> _safeEntries;
+  late final List<LyricAlignmentEntry> _uncertainEntries;
   late final List<LyricAlignmentEntry> _missingEntries;
   late final Map<int, ReferenceLineCompletionInsertion> _missingInsertions;
   late final ReferenceLineCompletionPlan _completionPlan;
@@ -159,6 +163,20 @@ class _ReferenceAlignmentReviewSheetState
             entry.status != ReferenceLineAlignmentStatus.missing)
           entry,
     ];
+    _safeEntries = [
+      for (final entry in _correctableEntries)
+        if (entry.status == ReferenceLineAlignmentStatus.replace &&
+            !entry.ambiguous &&
+            !entry.structuralMismatch &&
+            entry.similarity >= widget.minimumSimilarity &&
+            !widget.manuallyEditedLineIndices.contains(entry.asrLineIndex))
+          entry,
+    ];
+    final safeKeys = {for (final entry in _safeEntries) entry.referenceIndex};
+    _uncertainEntries = [
+      for (final entry in _correctableEntries)
+        if (!safeKeys.contains(entry.referenceIndex)) entry,
+    ];
     _missingEntries = [
       for (final entry in widget.alignment.entries)
         if (entry.status == ReferenceLineAlignmentStatus.missing) entry,
@@ -191,16 +209,8 @@ class _ReferenceAlignmentReviewSheetState
         )
         .length;
 
-    // 仅高置信 replace 自动预选；lowConfidence/ambiguous 需用户显式确认。
-    for (final entry in _correctableEntries) {
-      if (widget.manuallyEditedLineIndices.contains(entry.asrLineIndex)) {
-        continue;
-      }
-      if (entry.status == ReferenceLineAlignmentStatus.replace &&
-          entry.similarity >= widget.minimumSimilarity) {
-        _acceptedReferenceIndices.add(entry.referenceIndex);
-      }
-    }
+    // 仅安全批量自动预选；lowConfidence/ambiguous/结构差异需用户显式确认。
+    _acceptedReferenceIndices.addAll(_currentSelection().safeReferenceIndices);
     _applyTiming = _canApplyTiming && widget.timedLineCount > 0;
     for (final insertion in _completionPlan.insertions) {
       if (!insertion.requiresConfirmation) {
@@ -220,17 +230,54 @@ class _ReferenceAlignmentReviewSheetState
   bool _isLocked(LyricAlignmentEntry entry) =>
       widget.manuallyEditedLineIndices.contains(entry.asrLineIndex);
 
+  ReferenceAlignmentBatchSelection _currentSelection() {
+    return _batchSelector.select(
+      alignment: widget.alignment,
+      completionPlan: _completionPlan,
+      minimumSimilarity: widget.minimumSimilarity,
+      protectedLineIndices: widget.manuallyEditedLineIndices.difference(
+        _overriddenAsrLineIndices,
+      ),
+    );
+  }
+
   void _selectHighConfidence() {
     setState(() {
       _acceptedReferenceIndices
         ..clear()
-        ..addAll([
-          for (final entry in _correctableEntries)
-            if (_isLocked(entry)
-                ? _overriddenAsrLineIndices.contains(entry.asrLineIndex)
-                : entry.similarity >= widget.minimumSimilarity)
-              entry.referenceIndex,
-        ]);
+        ..addAll(_currentSelection().safeReferenceIndices);
+    });
+  }
+
+  /// 显式选择全部需确认行；这是批量覆盖低置信/歧义行的唯一入口。
+  Future<void> _selectUncertain() async {
+    final selection = _currentSelection();
+    if (selection.uncertainReferenceIndices.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text('采纳全部低置信/歧义行？'),
+        content: Text(
+          '将选中 ${selection.uncertainReferenceIndices.length} 行相似度不足、'
+          '存在歧义或结构差异的匹配。它们可能替换掉正确的草稿行，'
+          '建议先逐行检查差异再应用。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('仍然全部选中'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _acceptedReferenceIndices.addAll(selection.uncertainReferenceIndices);
     });
   }
 
@@ -280,6 +327,46 @@ class _ReferenceAlignmentReviewSheetState
     });
   }
 
+  Widget _buildReviewCard(LyricAlignmentEntry entry) {
+    return _ReviewCard(
+      entry: entry,
+      diff: _diffs[entry.referenceIndex] ?? const [],
+      accepted: _acceptedReferenceIndices.contains(entry.referenceIndex),
+      ambiguousChoice: _ambiguousChoice[entry.referenceIndex],
+      locked: _isLocked(entry),
+      overridden: _overriddenAsrLineIndices.contains(entry.asrLineIndex),
+      thresholdPercent: _thresholdPercent,
+      onChanged: (value) {
+        setState(() {
+          if (value) {
+            _acceptedReferenceIndices.add(entry.referenceIndex);
+            _ambiguousChoice.remove(entry.referenceIndex);
+          } else {
+            _acceptedReferenceIndices.remove(entry.referenceIndex);
+          }
+        });
+      },
+      onOverride: () => _confirmOverride(entry),
+      onAmbiguousChoice: (choice) {
+        setState(() {
+          if (choice == null || choice == 'skip') {
+            _ambiguousChoice[entry.referenceIndex] = 'skip';
+            _acceptedReferenceIndices.remove(entry.referenceIndex);
+            _acceptedMissingReferenceIndices.remove(entry.referenceIndex);
+          } else if (choice == 'replace') {
+            _ambiguousChoice[entry.referenceIndex] = 'replace';
+            _acceptedReferenceIndices.add(entry.referenceIndex);
+            _acceptedMissingReferenceIndices.remove(entry.referenceIndex);
+          } else if (choice == 'insert') {
+            _ambiguousChoice[entry.referenceIndex] = 'insert';
+            _acceptedMissingReferenceIndices.add(entry.referenceIndex);
+            _acceptedReferenceIndices.remove(entry.referenceIndex);
+          }
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
@@ -299,6 +386,31 @@ class _ReferenceAlignmentReviewSheetState
             padding: EdgeInsets.fromLTRB(gutter, 0, gutter, AppSpacing.md),
             children: [
               _buildMetrics(),
+              if (widget.input.conflicts.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _NoteBox(
+                  icon: Icons.warning_amber_rounded,
+                  text:
+                      '参考歌词导入时发现时间轴冲突：\n'
+                      '${widget.input.conflicts.join('\n')}',
+                ),
+              ],
+              if (widget.input.warnings.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _NoteBox(
+                  icon: Icons.info_outline_rounded,
+                  text: widget.input.warnings.join('\n'),
+                ),
+              ],
+              if (widget.alignment.structuralMismatches.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _NoteBox(
+                  icon: Icons.call_split_rounded,
+                  text: widget.alignment.structuralMismatches
+                      .map((mismatch) => mismatch.message)
+                      .join('\n'),
+                ),
+              ],
               const SizedBox(height: AppSpacing.sm),
               _buildQuickActions(spec),
               const SizedBox(height: AppSpacing.md),
@@ -308,61 +420,19 @@ class _ReferenceAlignmentReviewSheetState
                   text: '没有需要逐行确认的文字差异。',
                 )
               else ...[
-                _SectionTitle('逐行确认（${_correctableEntries.length}）'),
-                for (final entry in _correctableEntries)
-                  _ReviewCard(
-                    entry: entry,
-                    diff: _diffs[entry.referenceIndex] ?? const [],
-                    accepted: _acceptedReferenceIndices.contains(
-                      entry.referenceIndex,
-                    ),
-                    ambiguousChoice: _ambiguousChoice[entry.referenceIndex],
-                    locked: _isLocked(entry),
-                    overridden: _overriddenAsrLineIndices.contains(
-                      entry.asrLineIndex,
-                    ),
-                    thresholdPercent: _thresholdPercent,
-                    onChanged: (value) {
-                      setState(() {
-                        if (value) {
-                          _acceptedReferenceIndices.add(entry.referenceIndex);
-                          _ambiguousChoice.remove(entry.referenceIndex);
-                        } else {
-                          _acceptedReferenceIndices.remove(
-                            entry.referenceIndex,
-                          );
-                        }
-                      });
-                    },
-                    onOverride: () => _confirmOverride(entry),
-                    onAmbiguousChoice: (choice) {
-                      setState(() {
-                        if (choice == null || choice == 'skip') {
-                          _ambiguousChoice[entry.referenceIndex] = 'skip';
-                          _acceptedReferenceIndices.remove(
-                            entry.referenceIndex,
-                          );
-                          _acceptedMissingReferenceIndices.remove(
-                            entry.referenceIndex,
-                          );
-                        } else if (choice == 'replace') {
-                          _ambiguousChoice[entry.referenceIndex] = 'replace';
-                          _acceptedReferenceIndices.add(entry.referenceIndex);
-                          _acceptedMissingReferenceIndices.remove(
-                            entry.referenceIndex,
-                          );
-                        } else if (choice == 'insert') {
-                          _ambiguousChoice[entry.referenceIndex] = 'insert';
-                          _acceptedMissingReferenceIndices.add(
-                            entry.referenceIndex,
-                          );
-                          _acceptedReferenceIndices.remove(
-                            entry.referenceIndex,
-                          );
-                        }
-                      });
-                    },
+                if (_safeEntries.isNotEmpty) ...[
+                  _SectionTitle('可安全批量采纳（${_safeEntries.length}）'),
+                  for (final entry in _safeEntries) _buildReviewCard(entry),
+                ],
+                if (_uncertainEntries.isNotEmpty) ...[
+                  if (_safeEntries.isNotEmpty)
+                    const SizedBox(height: AppSpacing.sm),
+                  _SectionTitle(
+                    '需逐行确认：低置信 / 歧义 / 结构差异（${_uncertainEntries.length}）',
                   ),
+                  for (final entry in _uncertainEntries)
+                    _buildReviewCard(entry),
+                ],
               ],
               if (_missingEntries.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.md),
@@ -515,13 +585,22 @@ class _ReferenceAlignmentReviewSheetState
       runSpacing: AppSpacing.xs,
       children: [
         OutlinedButton.icon(
-          onPressed: _correctableEntries.isEmpty ? null : _selectHighConfidence,
+          onPressed: _safeEntries.isEmpty ? null : _selectHighConfidence,
           style: OutlinedButton.styleFrom(
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
           icon: const Icon(Icons.done_all_rounded, size: 18),
-          label: Text('全选高置信 ≥$_thresholdPercent%'),
+          label: Text('全选安全行 ≥$_thresholdPercent%'),
         ),
+        if (_uncertainEntries.isNotEmpty)
+          OutlinedButton.icon(
+            onPressed: _selectUncertain,
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, spec.minimumInteractiveExtent),
+            ),
+            icon: const Icon(Icons.rule_rounded, size: 18),
+            label: Text('选择需确认行（${_uncertainEntries.length}）'),
+          ),
         if (_completableCount > 0)
           OutlinedButton.icon(
             onPressed: _selectCompletableMissing,

@@ -272,15 +272,15 @@ void main() {
 
   group('匹配阈值 vs 自动替换阈值', () {
     test('相似度在匹配阈值与自动替换阈值之间时标记为低置信度，不自动替换', () {
-      // '今天天气真好' 与 '明天天气不错' 归一化后 6 字中 3 字不同，相似度 0.5：
-      // 达到默认匹配阈值 0.5 而低于默认自动替换阈值 0.8。
+      // '第二句错' 与 '第二句对' 归一化后 4 字中 1 字不同，相似度 0.75：
+      // 高于配对偏置 0.7 而低于默认自动替换阈值 0.8。
       final result = service.align(
-        document: document([asr('今天天气真好')]),
-        referenceLines: [reference('明天天气不错')],
+        document: document([asr('第二句错')]),
+        referenceLines: [reference('第二句对')],
       );
 
       final entry = result.entries.single;
-      expect(entry.similarity, closeTo(0.5, 1e-9));
+      expect(entry.similarity, closeTo(0.75, 1e-9));
       expect(entry.status, ReferenceLineAlignmentStatus.lowConfidence);
       expect(
         result.asrLines.single.status,
@@ -288,11 +288,26 @@ void main() {
       );
     });
 
-    test('降低自动替换阈值后，低置信度匹配可被自动替换', () {
+    test('相似度低于配对偏置的弱匹配输给两条 gap，归为漏行/多余行', () {
+      // '今天天气真好' 与 '明天天气不错' 相似度 0.5，低于默认 matchBias 0.7；
+      // 强行配对不如"跳过参考行 + 跳过 ASR 行"两条 gap，因此不再标为低置信。
       final result = service.align(
         document: document([asr('今天天气真好')]),
         referenceLines: [reference('明天天气不错')],
-        autoReplaceThreshold: 0.5,
+      );
+
+      expect(
+        result.entries.single.status,
+        ReferenceLineAlignmentStatus.missing,
+      );
+      expect(result.asrLines.single.status, AsrLineAlignmentStatus.unmatched);
+    });
+
+    test('降低自动替换阈值后，低置信度匹配可被自动替换', () {
+      final result = service.align(
+        document: document([asr('第二句错')]),
+        referenceLines: [reference('第二句对')],
+        autoReplaceThreshold: 0.7,
       );
 
       expect(
@@ -324,10 +339,7 @@ void main() {
     test('两条 ASR 行与同一参考行相似度接近时标记为歧义匹配', () {
       // 参考与两条 ASR 行都不完全相同，但相似度均为 0.8 且互为接近候选。
       final result = service.align(
-        document: document([
-          asr('第一句歌词a'),
-          asr('第一句歌词b'),
-        ]),
+        document: document([asr('第一句歌词a'), asr('第一句歌词b')]),
         referenceLines: [reference('第一句歌词')],
       );
 
@@ -339,10 +351,7 @@ void main() {
 
     test('相似度差距大于歧义边际时不标记为歧义匹配', () {
       final result = service.align(
-        document: document([
-          asr('第一句歌词'),
-          asr('完全不同的内容'),
-        ]),
+        document: document([asr('第一句歌词'), asr('完全不同的内容')]),
         referenceLines: [reference('第一句歌词内容')],
       );
 

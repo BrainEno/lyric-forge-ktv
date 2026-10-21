@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_alignment_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_timeline_completion_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -120,6 +121,98 @@ void main() {
     expect(insertion.startTime, Duration.zero);
     expect(insertion.endTime, const Duration(seconds: 5));
     expect(insertion.requiresConfirmation, isFalse);
+  });
+
+  test('插值按文字视觉长度分配，CJK 长行获得更长区间', () {
+    final document = buildDocument(const [
+      LyricLine(
+        text: '第一句歌词',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 2),
+      ),
+      LyricLine(
+        text: '第四句歌词',
+        startTime: Duration(seconds: 10),
+        endTime: Duration(seconds: 12),
+      ),
+    ]);
+
+    final plan = buildPlan(document, const [
+      ReferenceLyricLine(text: '第一句歌词'),
+      ReferenceLyricLine(text: '短'),
+      ReferenceLyricLine(text: '这是一句明显更长的歌词内容'),
+      ReferenceLyricLine(text: '第四句歌词'),
+    ]);
+
+    expect(plan.insertions, hasLength(2));
+    final short = plan.insertions[0];
+    final long = plan.insertions[1];
+    expect(
+      long.endTime - long.startTime,
+      greaterThan(short.endTime - short.startTime),
+    );
+    expect(short.startTime, const Duration(seconds: 2));
+    expect(long.endTime, const Duration(seconds: 10));
+    expect(short.timingProvenance, LyricTimingProvenance.interpolated);
+    expect(long.timingProvenance, LyricTimingProvenance.interpolated);
+  });
+
+  test('末尾漏行标记为 estimatedTail 并在音频末尾收尾', () {
+    final document = buildDocument(const [
+      LyricLine(
+        text: '第一句歌词',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 4),
+      ),
+    ]);
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: const [
+        ReferenceLyricLine(text: '第一句歌词'),
+        ReferenceLyricLine(text: '第二句歌词'),
+      ],
+    );
+
+    final plan = completionService.buildPlan(
+      document: document,
+      alignment: alignment,
+      audioDuration: const Duration(seconds: 6),
+    );
+
+    final insertion = plan.insertions.single;
+    expect(insertion.startTime, const Duration(seconds: 4));
+    expect(insertion.endTime, const Duration(seconds: 6));
+    expect(insertion.timingProvenance, LyricTimingProvenance.estimatedTail);
+  });
+
+  test('带时间戳漏行标记为 reference 来源', () {
+    final document = buildDocument(const [
+      LyricLine(
+        text: '第一句歌词',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 4),
+      ),
+      LyricLine(
+        text: '第三句歌词',
+        startTime: Duration(seconds: 8),
+        endTime: Duration(seconds: 12),
+      ),
+    ]);
+
+    final plan = buildPlan(document, const [
+      ReferenceLyricLine(text: '第一句歌词'),
+      ReferenceLyricLine(
+        text: '第二句歌词',
+        startTime: Duration(seconds: 5),
+        endTime: Duration(seconds: 7),
+      ),
+      ReferenceLyricLine(text: '第三句歌词'),
+    ]);
+
+    expect(
+      plan.insertions.single.timingProvenance,
+      LyricTimingProvenance.reference,
+    );
   });
 
   test('末尾漏行从上一行结束时间开始并默认延长五秒', () {

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_alignment_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_timeline_validator.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_alignment_applier.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -72,21 +74,21 @@ void main() {
     test('低于阈值的相似度不会自动纠正', () {
       final document = buildDocument([
         const LyricLine(
-          text: '今天天气真好',
+          text: '第二句错',
           startTime: Duration.zero,
           endTime: Duration(seconds: 3),
         ),
       ]);
       final alignment = alignmentService.align(
         document: document,
-        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+        referenceLines: const [ReferenceLyricLine(text: '第二句对')],
       );
 
       final result = applier.apply(document: document, alignment: alignment);
 
       expect(result.corrections, isEmpty);
       expect(result.skippedLowConfidenceIndices, [0]);
-      expect(result.document.lines.single.text, '今天天气真好');
+      expect(result.document.lines.single.text, '第二句错');
       expect(result.hasChanges, isFalse);
     });
 
@@ -376,6 +378,111 @@ void main() {
       expect(result.document.lines.single.endTime, const Duration(seconds: 35));
     });
 
+    test('记录参考时间来源，并在音频末尾收尾', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 5),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [
+          ReferenceLyricLine(
+            text: '第一句',
+            startTime: Duration(seconds: 28),
+            endTime: Duration(seconds: 35),
+          ),
+        ],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        applyReferenceTiming: true,
+        audioDuration: const Duration(seconds: 30),
+      );
+
+      expect(result.document.lines.single.endTime, const Duration(seconds: 30));
+      expect(
+        result.timingProvenanceByAppliedIndex[0],
+        LyricTimingProvenance.reference,
+      );
+      expect(result.timelineComparison, isNotNull);
+    });
+
+    test('未采用参考时间轴时，文字纠正记录 mappedAsr 来源', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '月亮代表我的星',
+          startTime: Duration(seconds: 1),
+          endTime: Duration(seconds: 5),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [ReferenceLyricLine(text: '月亮代表我的心')],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        applyReferenceTiming: true,
+      );
+
+      // 参考无时间戳，只能沿用 ASR 行时间。
+      expect(
+        result.timingProvenanceByAppliedIndex[0],
+        LyricTimingProvenance.mappedAsr,
+      );
+    });
+
+    test('引入的重复开始时间会出现在 timelineComparison.introduced', () {
+      final document = buildDocument([
+        const LyricLine(
+          text: '第一句',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 5),
+        ),
+        const LyricLine(
+          text: '第二句',
+          startTime: Duration(seconds: 5),
+          endTime: Duration(seconds: 9),
+        ),
+      ]);
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: const [
+          ReferenceLyricLine(
+            text: '第一句',
+            startTime: Duration(seconds: 10),
+            endTime: Duration(seconds: 14),
+          ),
+          ReferenceLyricLine(
+            text: '第二句',
+            startTime: Duration(seconds: 10),
+            endTime: Duration(seconds: 18),
+          ),
+        ],
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        applyReferenceTiming: true,
+      );
+
+      expect(result.timelineComparison, isNotNull);
+      expect(
+        result.timelineComparison!.introduced.any(
+          (issue) => issue.type == TimelineIssueType.duplicateStart,
+        ),
+        isTrue,
+      );
+      expect(result.timelineComparison!.hasIntroducedSeriousIssues, isTrue);
+    });
+
     test('手动编辑过的行不参与时间轴替换', () {
       final document = timedDocument();
       final alignment = alignmentService.align(
@@ -489,14 +596,14 @@ void main() {
     test('未选中的低相似行记录为低置信', () {
       final document = buildDocument([
         const LyricLine(
-          text: '今天天气真好',
+          text: '第二句错',
           startTime: Duration.zero,
           endTime: Duration(seconds: 3),
         ),
       ]);
       final alignment = alignmentService.align(
         document: document,
-        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+        referenceLines: const [ReferenceLyricLine(text: '第二句对')],
       );
 
       final result = applier.apply(
@@ -591,14 +698,14 @@ void main() {
     test('低置信度行不自动采纳，记为低置信度跳过', () {
       final document = buildDocument([
         const LyricLine(
-          text: '今天天气真好',
+          text: '第二句错',
           startTime: Duration.zero,
           endTime: Duration(seconds: 3),
         ),
       ]);
       final alignment = alignmentService.align(
         document: document,
-        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+        referenceLines: const [ReferenceLyricLine(text: '第二句对')],
       );
 
       expect(
@@ -610,21 +717,21 @@ void main() {
 
       expect(result.corrections, isEmpty);
       expect(result.skippedLowConfidenceIndices, [0]);
-      expect(result.document.lines.single.text, '今天天气真好');
+      expect(result.document.lines.single.text, '第二句错');
       expect(result.hasChanges, isFalse);
     });
 
     test('低置信度行可被显式采纳', () {
       final document = buildDocument([
         const LyricLine(
-          text: '今天天气真好',
+          text: '第二句错',
           startTime: Duration.zero,
           endTime: Duration(seconds: 3),
         ),
       ]);
       final alignment = alignmentService.align(
         document: document,
-        referenceLines: const [ReferenceLyricLine(text: '明天天气不错')],
+        referenceLines: const [ReferenceLyricLine(text: '第二句对')],
       );
       final entry = alignment.entries.single;
 
@@ -634,7 +741,7 @@ void main() {
         acceptedReferenceIndices: {entry.referenceIndex},
       );
 
-      expect(result.document.lines.single.text, '明天天气不错');
+      expect(result.document.lines.single.text, '第二句对');
       expect(result.document.lines.single.confidence, 100);
       expect(result.skippedLowConfidenceIndices, isEmpty);
       expect(result.hasChanges, isTrue);
@@ -760,7 +867,7 @@ void main() {
     test('文字纠正与漏行补全同时生效且索引保持正确', () {
       final document = buildDocument([
         const LyricLine(
-          text: '第一句错字',
+          text: '第一句歌辞',
           startTime: Duration.zero,
           endTime: Duration(seconds: 4),
         ),

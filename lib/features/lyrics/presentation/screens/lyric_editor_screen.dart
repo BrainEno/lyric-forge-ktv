@@ -19,6 +19,7 @@ import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
+import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_alignment_applier.dart';
 import '../../domain/services/reference_alignment_provenance_builder.dart';
 import '../../domain/services/reference_alignment_restore_service.dart';
@@ -28,13 +29,25 @@ import '../widgets/reference_alignment_review.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
+/// 参考对齐应用前的完整内存快照，用于立即撤销（不写磁盘）。
+class _AlignmentUndoSnapshot {
+  final LyricDocument document;
+  final Set<String> manuallyEditedLineIds;
+  final int? selectedLineIndex;
+  final bool hasChanges;
+
+  const _AlignmentUndoSnapshot({
+    required this.document,
+    required this.manuallyEditedLineIds,
+    required this.selectedLineIndex,
+    required this.hasChanges,
+  });
+}
+
 class LyricEditorScreen extends StatefulWidget {
   final String projectId;
 
-  const LyricEditorScreen({
-    super.key,
-    required this.projectId,
-  });
+  const LyricEditorScreen({super.key, required this.projectId});
 
   @override
   State<LyricEditorScreen> createState() => _LyricEditorScreenState();
@@ -63,6 +76,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   /// 本次编辑器会话中手动改过文字的行标识（基于稳定 lineId）；
   /// 插入/删除/对齐后标识不随索引漂移，参考对齐默认跳过这些行。
   final Set<String> _manuallyEditedLineIds = {};
+
+  /// 最近一次参考对齐应用前的内存快照；任何后续手动编辑都会使其失效。
+  _AlignmentUndoSnapshot? _alignmentUndoSnapshot;
 
   /// 受保护行的当前索引视图：按稳定标识在现有行序中重新定位，供逐行确认使用。
   Set<int> get _manuallyEditedLineIndices {
@@ -104,12 +120,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     await _repository.updateProject(updated);
     if (!mounted) return;
 
-    setState(() => _hasChanges = false);
+    setState(() {
+      _hasChanges = false;
+      _alignmentUndoSnapshot = null;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('歌词已保存'),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('歌词已保存'), duration: Duration(seconds: 2)),
     );
   }
 
@@ -126,19 +142,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         album: project.album,
       );
       if (!mounted || path == null) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('LRC 歌词已导出：$path')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('LRC 歌词已导出：$path')));
     } on LyricExportException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导出歌词失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('导出歌词失败：$error')));
     }
   }
 
@@ -161,9 +177,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       referenceLines: input.lines,
     );
     if (alignment.entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
       return;
     }
 
@@ -194,13 +210,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       alignment: alignment,
       applyReferenceTiming: decision.applyReferenceTiming,
       acceptedReferenceIndices: decision.acceptedReferenceIndices,
-      acceptedMissingReferenceIndices:
-          decision.acceptedMissingReferenceIndices,
+      acceptedMissingReferenceIndices: decision.acceptedMissingReferenceIndices,
       protectedLineIndices: _manuallyEditedLineIndices.difference(
         decision.overriddenAsrLineIndices,
       ),
+      audioDuration: project.audioAsset?.duration,
     );
     if (!result.hasChanges) return;
+
+    // 时间轴校验门：允许先看预览，但严重的新冲突必须由用户明确决定保留。
+    final comparison = result.timelineComparison;
+    if (comparison != null && comparison.hasIntroducedSeriousIssues) {
+      final keep = await _confirmIntroducedTimelineIssues(comparison);
+      if (!mounted || keep != true) return;
+    }
+
+    final snapshot = _AlignmentUndoSnapshot(
+      document: document,
+      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
+      selectedLineIndex: _selectedLineIndex,
+      hasChanges: _hasChanges,
+    );
 
     final appliedDocument = decision.applyReferenceTiming
         ? result.document.copyWith(globalOffset: Duration.zero)
@@ -240,8 +270,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         acceptedReferenceCount: decision.acceptedReferenceIndices.length,
         acceptedMissingReferenceCount:
             decision.acceptedMissingReferenceIndices.length,
-        overriddenManuallyEditedCount:
-            decision.overriddenAsrLineIndices.length,
+        overriddenManuallyEditedCount: decision.overriddenAsrLineIndices.length,
         result: result,
         appliedDocument: appliedWithLineIds,
       );
@@ -249,6 +278,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     setState(() {
       _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);
       _hasChanges = true;
+      _alignmentUndoSnapshot = snapshot;
       _filter = _ReviewFilter.all;
       if (result.corrections.isNotEmpty) {
         _selectedLineIndex = result.corrections.first.asrLineIndex;
@@ -258,22 +288,79 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     });
 
     final parts = <String>[
-      if (result.corrections.isNotEmpty)
-        '纠正 ${result.corrections.length} 行',
+      if (result.corrections.isNotEmpty) '纠正 ${result.corrections.length} 行',
       if (result.insertions.isNotEmpty) '补全 ${result.insertions.length} 行',
-      if (result.timingUpdatedCount > 0)
-        '更新 ${result.timingUpdatedCount} 行时间',
+      if (result.timingUpdatedCount > 0) '更新 ${result.timingUpdatedCount} 行时间',
       if (result.skippedManuallyEditedIndices.isNotEmpty)
         '跳过 ${result.skippedManuallyEditedIndices.length} 行手动编辑',
       if (decision.overriddenAsrLineIndices.isNotEmpty)
         '覆盖 ${decision.overriddenAsrLineIndices.length} 行手动编辑',
     ];
+    final timelineWarning = comparison?.hasIntroducedSeriousIssues == true
+        ? '；时间轴有新增冲突，已按你的确认保留'
+        : '';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}。请检查后保存。',
+          '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}$timelineWarning。'
+          '请检查后保存。',
         ),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmIntroducedTimelineIssues(
+    LyricTimelineValidationComparison comparison,
+  ) {
+    final issues = comparison.introduced
+        .where((issue) => !issue.canAutoFix)
+        .take(6)
+        .map((issue) => '• ${issue.message}')
+        .join('\n');
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.bgElevated,
+        title: const Text('这次对齐引入了时间轴冲突'),
+        content: SingleChildScrollView(
+          child: Text(
+            '以下问题在应用前不存在：\n\n$issues\n\n'
+            '可以撤销本次对齐后手动校准，或先保留并在编辑器中逐行修正。',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('撤销本次对齐'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('保留并检查'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _undoAlignmentApply() {
+    final snapshot = _alignmentUndoSnapshot;
+    if (snapshot == null) return;
+    setState(() {
+      _editingDocument = snapshot.document;
+      _manuallyEditedLineIds
+        ..clear()
+        ..addAll(snapshot.manuallyEditedLineIds);
+      _selectedLineIndex = snapshot.selectedLineIndex;
+      _hasChanges = snapshot.hasChanges;
+      _alignmentUndoSnapshot = null;
+      _filter = _ReviewFilter.all;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已撤销本次参考歌词对齐（未写入磁盘）'),
+        duration: Duration(seconds: 3),
       ),
     );
   }
@@ -326,6 +413,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ..addAll(_lineMarkers.restore(restoredDocument));
       _editingDocument = restoredDocument;
       _hasChanges = true;
+      _alignmentUndoSnapshot = null;
       _filter = _ReviewFilter.all;
       final lastIndex = restored.lines.length - 1;
       if (lastIndex < 0) {
@@ -361,8 +449,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ),
       );
 
-      final current = _editingDocument ??
-          const LyricDocument(language: 'zh', lines: []);
+      final current =
+          _editingDocument ?? const LyricDocument(language: 'zh', lines: []);
       final metadata = _clearIndexedReviewMetadata(current.metadata);
       _editingDocument = _lineMarkers.assignMissingLineIds(
         current.copyWith(lines: lines, metadata: metadata),
@@ -370,6 +458,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _selectedLineIndex = lines.length - 1;
       _filter = _ReviewFilter.all;
       _hasChanges = true;
+      _alignmentUndoSnapshot = null;
     });
   }
 
@@ -395,6 +484,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _selectedLineIndex = insertion.index;
       _filter = _ReviewFilter.all;
       _hasChanges = true;
+      _alignmentUndoSnapshot = null;
       _focusRequestId++;
       _focusLineIndex = insertion.index;
     });
@@ -416,9 +506,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       await _playbackSession.seek(position);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法跳转试听：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法跳转试听：$error')));
     }
   }
 
@@ -439,6 +529,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       lines[index] = updatedLine;
       _editingDocument = _editingDocument!.copyWith(lines: lines);
       _hasChanges = true;
+      _alignmentUndoSnapshot = null;
     });
   }
 
@@ -490,6 +581,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _manuallyEditedLineIds.remove(removedLine.id);
       }
 
+      _alignmentUndoSnapshot = null;
       if (lines.isEmpty) {
         _selectedLineIndex = null;
       } else if (_selectedLineIndex == index) {
@@ -514,6 +606,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     setState(() {
       _editingDocument = _editingDocument?.copyWith(globalOffset: offset);
       _hasChanges = true;
+      _alignmentUndoSnapshot = null;
     });
   }
 
@@ -559,9 +652,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法试听当前歌词行：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法试听当前歌词行：$error')));
     }
   }
 
@@ -576,9 +669,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       await _playbackSession.togglePlayPause();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法控制试听：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法控制试听：$error')));
     }
   }
 
@@ -623,7 +716,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 playbackSnapshot.data ?? const PlaybackState.idle();
             final activeProject =
                 _playbackSession.currentState.currentItem?.projectId ==
-                    project.id;
+                project.id;
 
             return _LyricEditorContent(
               project: project,
@@ -644,6 +737,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onReferenceAlignment: _editingDocument!.lines.isEmpty
                   ? null
                   : () => _openReferenceAlignment(project),
+              onUndoReferenceAlignment: _alignmentUndoSnapshot == null
+                  ? null
+                  : _undoAlignmentApply,
               onRestoreAlignment: canRestore ? _restoreAlignmentBackup : null,
               onAddLine: _addNewLine,
               onInsertAtPlayback: _insertLineAtPlayback,
@@ -719,6 +815,7 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
@@ -748,6 +845,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSave,
     required this.onExport,
     required this.onReferenceAlignment,
+    required this.onUndoReferenceAlignment,
     required this.onRestoreAlignment,
     required this.onAddLine,
     required this.onInsertAtPlayback,
@@ -835,7 +933,7 @@ class _LyricEditorContent extends StatelessWidget {
                 fallbackCandidate: _fallbackCandidateFor(index),
                 isCurrentPlaybackLine:
                     playbackBelongsToProject &&
-                        _currentPlaybackLineIndex() == index,
+                    _currentPlaybackLineIndex() == index,
                 isPlaying: playbackBelongsToProject && playback.isPlaying,
                 autofocusText: autofocusText,
                 onUpdate: (updated) => onUpdateLine(index, updated),
@@ -861,14 +959,17 @@ class _LyricEditorContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final lowConfidenceCount =
-        document.lines.where((line) => line.confidence < 70).length;
-    final reviewCount = List<int>.generate(document.lines.length, (i) => i)
-        .where(_needsReview)
+    final lowConfidenceCount = document.lines
+        .where((line) => line.confidence < 70)
         .length;
+    final reviewCount = List<int>.generate(
+      document.lines.length,
+      (i) => i,
+    ).where(_needsReview).length;
     final currentPlaybackLine = _currentPlaybackLineIndex();
     final visibleIndices = _visibleIndices();
-    final selectedIndex = selectedLineIndex != null &&
+    final selectedIndex =
+        selectedLineIndex != null &&
             selectedLineIndex! >= 0 &&
             selectedLineIndex! < document.lines.length
         ? selectedLineIndex
@@ -887,9 +988,9 @@ class _LyricEditorContent extends StatelessWidget {
               project.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),
@@ -900,6 +1001,13 @@ class _LyricEditorContent extends StatelessWidget {
               tooltip: '参考歌词纠正',
               onPressed: onReferenceAlignment,
               icon: const Icon(Icons.auto_fix_high_rounded),
+            ),
+          if ((spec.isCompactOrMedium || spec.isShort) &&
+              onUndoReferenceAlignment != null)
+            IconButton(
+              tooltip: '撤销本次参考对齐',
+              onPressed: onUndoReferenceAlignment,
+              icon: const Icon(Icons.undo_rounded),
             ),
           if ((spec.isCompactOrMedium || spec.isShort) &&
               onRestoreAlignment != null)
@@ -946,16 +1054,18 @@ class _LyricEditorContent extends StatelessWidget {
               onFollowPlaybackChanged: onFollowPlaybackChanged,
               onUpdateOffset: onUpdateOffset,
               onTogglePlayback: onTogglePlayback,
-              onInsertAtPlayback:
-                  playbackBelongsToProject ? onInsertAtPlayback : null,
+              onInsertAtPlayback: playbackBelongsToProject
+                  ? onInsertAtPlayback
+                  : null,
               onSeekPlayback: onSeekPlayback,
               onReferenceAlignment: onReferenceAlignment,
+              onUndoReferenceAlignment: onUndoReferenceAlignment,
               onRestoreAlignment: onRestoreAlignment,
               onOpenPlayer: project.canPlay
                   ? () => Navigator.pushNamed(
-                        context,
-                        Routes.playerPath(project.id),
-                      )
+                      context,
+                      Routes.playerPath(project.id),
+                    )
                   : null,
             ),
             Expanded(
@@ -963,7 +1073,9 @@ class _LyricEditorContent extends StatelessWidget {
                   ? _EmptyLyricsState(onAddLine: onAddLine)
                   : LayoutBuilder(
                       builder: (context, constraints) {
-                        final layout = AppResponsive.fromConstraints(constraints);
+                        final layout = AppResponsive.fromConstraints(
+                          constraints,
+                        );
                         final twoPane = layout.supportsTwoPane;
                         final list = _LyricListPane(
                           document: document,
@@ -977,10 +1089,10 @@ class _LyricEditorContent extends StatelessWidget {
                           onInsertedLineFocus: twoPane
                               ? onSelectLine
                               : (index) => _showInspectorSheet(
-                                    context,
-                                    index,
-                                    autofocusText: true,
-                                  ),
+                                  context,
+                                  index,
+                                  autofocusText: true,
+                                ),
                           onSelectLine: twoPane
                               ? onSelectLine
                               : (index) => _showInspectorSheet(context, index),
@@ -1009,7 +1121,8 @@ class _LyricEditorContent extends StatelessWidget {
                                 onPreviewLine: onPreviewLine,
                                 onSetStartFromPlayback: onSetStartFromPlayback,
                                 onSetEndFromPlayback: onSetEndFromPlayback,
-                                autofocusText: selectedIndex != null &&
+                                autofocusText:
+                                    selectedIndex != null &&
                                     selectedIndex == focusLineIndex,
                                 focusRequestId: focusRequestId,
                               ),
@@ -1024,8 +1137,9 @@ class _LyricEditorContent extends StatelessWidget {
               visibleLines: visibleIndices.length,
               hasChanges: hasChanges,
               onAddLine: onAddLine,
-              onInsertAtPlayback:
-                  playbackBelongsToProject ? onInsertAtPlayback : null,
+              onInsertAtPlayback: playbackBelongsToProject
+                  ? onInsertAtPlayback
+                  : null,
             ),
           ],
         ),
@@ -1049,6 +1163,7 @@ class _EditorToolbar extends StatelessWidget {
   final VoidCallback? onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback? onOpenPlayer;
 
@@ -1067,6 +1182,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
     required this.onReferenceAlignment,
+    required this.onUndoReferenceAlignment,
     required this.onRestoreAlignment,
     required this.onOpenPlayer,
   });
@@ -1145,8 +1261,7 @@ class _EditorToolbar extends StatelessWidget {
             ),
             ChoiceChip(
               selected: filter == _ReviewFilter.lowConfidence,
-              onSelected: (_) =>
-                  onFilterChanged(_ReviewFilter.lowConfidence),
+              onSelected: (_) => onFilterChanged(_ReviewFilter.lowConfidence),
               label: const Text('低置信度'),
             ),
           ]),
@@ -1171,8 +1286,8 @@ class _EditorToolbar extends StatelessWidget {
               Text(
                 '尚未开始试听',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                  color: AppColors.textSecondary,
+                ),
               ),
             if (!spec.isCompactOrMedium)
               Tooltip(
@@ -1194,6 +1309,15 @@ class _EditorToolbar extends StatelessWidget {
                   onPressed: onReferenceAlignment,
                   icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
                   label: const Text('参考歌词纠正'),
+                ),
+              ),
+            if (!compactControls && onUndoReferenceAlignment != null)
+              Tooltip(
+                message: '撤销最近一次参考对齐（未保存前有效）',
+                child: FilledButton.tonalIcon(
+                  onPressed: onUndoReferenceAlignment,
+                  icon: const Icon(Icons.undo_rounded, size: 18),
+                  label: const Text('撤销本次对齐'),
                 ),
               ),
             if (!compactControls && onRestoreAlignment != null)
@@ -1224,15 +1348,14 @@ class _EditorToolbar extends StatelessWidget {
               ),
             Text(
               '全局偏移',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
             ),
             _OffsetButton(
               label: '-100ms',
-              onPressed: () => onUpdateOffset(
-                offset - const Duration(milliseconds: 100),
-              ),
+              onPressed: () =>
+                  onUpdateOffset(offset - const Duration(milliseconds: 100)),
             ),
             Container(
               padding: const EdgeInsets.symmetric(
@@ -1246,15 +1369,14 @@ class _EditorToolbar extends StatelessWidget {
               child: Text(
                 _formatSignedDuration(offset),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
             _OffsetButton(
               label: '+100ms',
-              onPressed: () => onUpdateOffset(
-                offset + const Duration(milliseconds: 100),
-              ),
+              onPressed: () =>
+                  onUpdateOffset(offset + const Duration(milliseconds: 100)),
             ),
             if (offset != Duration.zero)
               TextButton(
@@ -1356,7 +1478,8 @@ class _LyricListPaneState extends State<_LyricListPane> {
       final visiblePosition = widget.visibleIndices.indexOf(current);
       if (visiblePosition < 0) return;
       final position = _scrollController.position;
-      final rawTarget = visiblePosition * _estimatedRowExtent -
+      final rawTarget =
+          visiblePosition * _estimatedRowExtent -
           position.viewportDimension * 0.42;
       final target = rawTarget
           .clamp(position.minScrollExtent, position.maxScrollExtent)
@@ -1422,13 +1545,14 @@ class _LyricReviewRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final needsReview = line.confidence < 70 ||
+    final needsReview =
+        line.confidence < 70 ||
         (line.confidence < 100 && fallbackCandidate != null);
     final background = selected
         ? AppColors.bgSurface
         : playing
-            ? AppColors.accent.withAlpha(18)
-            : Colors.transparent;
+        ? AppColors.accent.withAlpha(18)
+        : Colors.transparent;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
@@ -1439,7 +1563,9 @@ class _LyricReviewRow extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
           child: Container(
-            constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+            constraints: BoxConstraints(
+              minHeight: spec.minimumInteractiveExtent,
+            ),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
               vertical: AppSpacing.sm,
@@ -1462,10 +1588,8 @@ class _LyricReviewRow extends StatelessWidget {
                         )
                       : Text(
                           '${index + 1}',
-                          style:
-                              Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: AppColors.textTertiary),
                         ),
                 ),
                 SizedBox(
@@ -1473,9 +1597,9 @@ class _LyricReviewRow extends StatelessWidget {
                   child: Text(
                     _formatDuration(line.startTime),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textTertiary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
+                      color: AppColors.textTertiary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
                 Expanded(
@@ -1484,12 +1608,11 @@ class _LyricReviewRow extends StatelessWidget {
                     maxLines: spec.isCompact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: line.text.trim().isEmpty
-                              ? AppColors.textTertiary
-                              : AppColors.textPrimary,
-                          fontWeight:
-                              playing ? FontWeight.w700 : FontWeight.w500,
-                        ),
+                      color: line.text.trim().isEmpty
+                          ? AppColors.textTertiary
+                          : AppColors.textPrimary,
+                      fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
@@ -1576,10 +1699,12 @@ class _InspectorPane extends StatelessWidget {
       onUpdate: (updated) => onUpdateLine(index, updated),
       onDelete: () => onDeleteLine(index),
       onPreview: () => onPreviewLine(index),
-      onUsePlaybackAsStart:
-          playbackBelongsToProject ? () => onSetStartFromPlayback(index) : null,
-      onUsePlaybackAsEnd:
-          playbackBelongsToProject ? () => onSetEndFromPlayback(index) : null,
+      onUsePlaybackAsStart: playbackBelongsToProject
+          ? () => onSetStartFromPlayback(index)
+          : null,
+      onUsePlaybackAsEnd: playbackBelongsToProject
+          ? () => onSetEndFromPlayback(index)
+          : null,
     );
   }
 }
@@ -1720,16 +1845,16 @@ class _LineInspectorState extends State<_LineInspector> {
                     Text(
                       '第 ${widget.index + 1} 行',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${_formatDuration(_workingLine.startTime)} → ${_formatDuration(_workingLine.endTime)} · ${_formatCompactDuration(duration)}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
+                        color: AppColors.textTertiary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ],
                 ),
@@ -1871,15 +1996,15 @@ class _TimingEditor extends StatelessWidget {
                 child: Text(
                   title,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               Text(
                 _formatDuration(value),
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
@@ -1897,14 +2022,12 @@ class _TimingEditor extends StatelessWidget {
               _NudgeButton(
                 label: '-100ms',
                 minHeight: spec.minimumInteractiveExtent,
-                onPressed: () =>
-                    onNudge(const Duration(milliseconds: -100)),
+                onPressed: () => onNudge(const Duration(milliseconds: -100)),
               ),
               _NudgeButton(
                 label: '+100ms',
                 minHeight: spec.minimumInteractiveExtent,
-                onPressed: () =>
-                    onNudge(const Duration(milliseconds: 100)),
+                onPressed: () => onNudge(const Duration(milliseconds: 100)),
               ),
               _NudgeButton(
                 label: '+1s',
@@ -1952,9 +2075,9 @@ class _AlternativeCandidateCard extends StatelessWidget {
         children: [
           Text(
             '$alternativeEngine 备选',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.info,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.info),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(alternativeText),
@@ -1965,8 +2088,8 @@ class _AlternativeCandidateCard extends StatelessWidget {
                 child: Text(
                   '当前结果来自 $primaryEngine',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
               TextButton(onPressed: onApply, child: const Text('采用备选')),
@@ -1996,17 +2119,14 @@ class _NoSelectionInspector extends StatelessWidget {
             color: AppColors.textTertiary,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            '选择一行开始校对',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('选择一行开始校对', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '文本、双引擎备选和时间轴微调都会集中显示在这里。',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -2051,9 +2171,9 @@ class _BottomBar extends StatelessWidget {
                   : '显示 $visibleLines / $totalLines 行',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ),
           if (hasChanges && !spec.isCompact) ...[
@@ -2110,17 +2230,17 @@ class _EmptyLyricsState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               '这个工程还没有歌词',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               '可以先返回工程页运行自动识别，也可以从这里手动建立第一行歌词。',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
@@ -2147,16 +2267,9 @@ class _FilteredEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.task_alt_rounded,
-            size: 42,
-            color: AppColors.accent,
-          ),
+          const Icon(Icons.task_alt_rounded, size: 42, color: AppColors.accent),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            '当前筛选下没有待处理歌词',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('当前筛选下没有待处理歌词', style: Theme.of(context).textTheme.titleMedium),
         ],
       ),
     );
@@ -2181,8 +2294,8 @@ class _MetricPill extends StatelessWidget {
     final color = warning
         ? AppColors.warning
         : emphasized
-            ? AppColors.accent
-            : AppColors.textSecondary;
+        ? AppColors.accent
+        : AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -2199,9 +2312,9 @@ class _MetricPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: color),
           ),
         ],
       ),
@@ -2225,8 +2338,8 @@ class _TinyBadge extends StatelessWidget {
     final color = warning
         ? AppColors.warning
         : accent
-            ? AppColors.accent
-            : AppColors.textTertiary;
+        ? AppColors.accent
+        : AppColors.textTertiary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
@@ -2235,10 +2348,9 @@ class _TinyBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontSize: 10,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: color, fontSize: 10),
       ),
     );
   }
@@ -2293,9 +2405,10 @@ String _formatDuration(Duration duration) {
   final safe = duration.isNegative ? Duration.zero : duration;
   final minutes = safe.inMinutes.remainder(60).toString().padLeft(2, '0');
   final seconds = safe.inSeconds.remainder(60).toString().padLeft(2, '0');
-  final millis = (safe.inMilliseconds.remainder(1000) ~/ 10)
-      .toString()
-      .padLeft(2, '0');
+  final millis = (safe.inMilliseconds.remainder(1000) ~/ 10).toString().padLeft(
+    2,
+    '0',
+  );
   return '$minutes:$seconds.$millis';
 }
 

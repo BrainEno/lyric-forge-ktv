@@ -1,5 +1,7 @@
 import '../../../project/domain/models/lyric_document.dart';
+import '../models/timing_provenance.dart';
 import 'lyric_alignment_service.dart';
+import 'lyric_timeline_validator.dart';
 import 'reference_timeline_completion_service.dart';
 
 /// 一行被参考歌词纠正的记录，用于摘要展示和 metadata 溯源。
@@ -11,6 +13,9 @@ class AppliedReferenceCorrection {
   final double similarity;
   final bool timingChanged;
 
+  /// 本次写入的时间来源；没有改动时间或未采用参考时间轴时为 null。
+  final LyricTimingProvenance? timingProvenance;
+
   const AppliedReferenceCorrection({
     required this.asrLineIndex,
     required this.referenceIndex,
@@ -18,6 +23,7 @@ class AppliedReferenceCorrection {
     required this.newText,
     required this.similarity,
     required this.timingChanged,
+    this.timingProvenance,
   });
 }
 
@@ -42,6 +48,9 @@ class AppliedReferenceInsertion {
   final Duration endTime;
   final bool requiresConfirmation;
 
+  /// 补入行的时间来源：参考时间戳 / 空隙插值 / 末尾估算。
+  final LyricTimingProvenance timingProvenance;
+
   const AppliedReferenceInsertion({
     required this.referenceIndex,
     required this.insertBeforeAsrLineIndex,
@@ -50,6 +59,7 @@ class AppliedReferenceInsertion {
     required this.startTime,
     required this.endTime,
     required this.requiresConfirmation,
+    this.timingProvenance = LyricTimingProvenance.interpolated,
   });
 
   /// [asrLineIndex] 的语义明确别名：补入行在应用后文档中的最终行索引。
@@ -78,6 +88,12 @@ class ReferenceAlignmentApplyResult {
   final int missingReferenceCount;
   final int unmatchedAsrCount;
 
+  /// 本次写入时间（含补行）的来源，键为应用后文档行索引。
+  final Map<int, LyricTimingProvenance> timingProvenanceByAppliedIndex;
+
+  /// 应用前后时间轴对比；没有改动时间时为 null。
+  final LyricTimelineValidationComparison? timelineComparison;
+
   const ReferenceAlignmentApplyResult({
     required this.document,
     required this.corrections,
@@ -90,6 +106,8 @@ class ReferenceAlignmentApplyResult {
     required this.identicalCount,
     required this.missingReferenceCount,
     required this.unmatchedAsrCount,
+    this.timingProvenanceByAppliedIndex = const {},
+    this.timelineComparison,
   });
 
   bool get hasChanges =>
@@ -114,17 +132,22 @@ class ReferenceAlignmentApplyResult {
 /// [ReferenceTimelineCompletionService] 推断的位置与时间插入；null 或空集合
 /// 保持旧行为（不插入漏行）。
 class ReferenceAlignmentApplier {
-  /// 低于该相似度不自动采纳。默认 0.8，界面显示为 80%。
+  /// 低于该相似度不自动采纳。默认与对齐服务的自动替换阈值一致。
   final double minimumSimilarity;
 
   /// 漏行插入计划的计算服务；测试或调用方可替换。
   final ReferenceTimelineCompletionService completionService;
 
+  /// 时间轴校验器，用于区分应用前已有问题与本次引入的问题。
+  final LyricTimelineValidator timelineValidator;
+
   const ReferenceAlignmentApplier({
-    this.minimumSimilarity = 0.8,
+    this.minimumSimilarity = LyricAlignmentService.defaultAutoReplaceThreshold,
     this.completionService = const ReferenceTimelineCompletionService(),
+    this.timelineValidator = const LyricTimelineValidator(),
   }) : assert(minimumSimilarity >= 0 && minimumSimilarity <= 1);
 
+  /// [audioDuration] 提供后会用于检查补行/时间替换是否越过音频末尾。
   ReferenceAlignmentApplyResult apply({
     required LyricDocument document,
     required LyricAlignmentResult alignment,
@@ -132,12 +155,14 @@ class ReferenceAlignmentApplier {
     Set<int>? acceptedReferenceIndices,
     Set<int>? acceptedMissingReferenceIndices,
     Set<int> protectedLineIndices = const {},
+    Duration? audioDuration,
   }) {
     final lines = List<LyricLine>.from(document.lines);
     final corrections = <AppliedReferenceCorrection>[];
     final skippedManuallyEdited = <int>{};
     final skippedLowConfidence = <int>{};
     final skippedBySelection = <int>{};
+    final timingByOriginalIndex = <int, LyricTimingProvenance>{};
     var timingUpdatedCount = 0;
     var identicalCount = 0;
 
@@ -204,7 +229,11 @@ class ReferenceAlignmentApplier {
       if (applyReferenceTiming &&
           entry.referenceHasTimestamp &&
           entry.startTime != null) {
-        final timing = _resolveTiming(alignment.entries, entryIndex);
+        final timing = _resolveTiming(
+          alignment.entries,
+          entryIndex,
+          audioDuration: audioDuration,
+        );
         if (timing != null &&
             (previousLine.startTime != timing.start ||
                 previousLine.endTime != timing.end)) {
@@ -214,6 +243,7 @@ class ReferenceAlignmentApplier {
           );
           timingChanged = true;
           timingUpdatedCount++;
+          timingByOriginalIndex[asrIndex] = LyricTimingProvenance.reference;
         }
       }
 
@@ -221,6 +251,14 @@ class ReferenceAlignmentApplier {
 
       lines[asrIndex] = updated;
       if (textChanged) {
+        final provenance = timingChanged
+            ? LyricTimingProvenance.reference
+            : entry.referenceHasTimestamp && applyReferenceTiming
+            ? LyricTimingProvenance.reference
+            : (applyReferenceTiming ? LyricTimingProvenance.mappedAsr : null);
+        if (provenance != null) {
+          timingByOriginalIndex[asrIndex] = provenance;
+        }
         corrections.add(
           AppliedReferenceCorrection(
             asrLineIndex: asrIndex,
@@ -229,6 +267,7 @@ class ReferenceAlignmentApplier {
             newText: entry.referenceText,
             similarity: entry.similarity,
             timingChanged: timingChanged,
+            timingProvenance: provenance,
           ),
         );
       }
@@ -246,6 +285,7 @@ class ReferenceAlignmentApplier {
       final plan = completionService.buildPlan(
         document: document,
         alignment: alignment,
+        audioDuration: audioDuration,
       );
       final byPosition = <int, List<ReferenceLineCompletionInsertion>>{};
       for (final insertion in plan.insertions) {
@@ -287,6 +327,8 @@ class ReferenceAlignmentApplier {
                 requiresConfirmation: true,
                 previousAsrLineIndex: null,
                 nextAsrLineIndex: null,
+                timingProvenance:
+                    ReferenceTimelineCompletionService.provenanceFor(entry),
               ),
             );
       }
@@ -312,6 +354,7 @@ class ReferenceAlignmentApplier {
                 startTime: insertion.startTime,
                 endTime: insertion.endTime,
                 requiresConfirmation: insertion.requiresConfirmation,
+                timingProvenance: insertion.timingProvenance,
               ),
             );
             finalIndex++;
@@ -330,6 +373,24 @@ class ReferenceAlignmentApplier {
       finalLines.addAll(lines);
     }
 
+    final timingProvenance = <int, LyricTimingProvenance>{
+      for (final item in timingByOriginalIndex.entries)
+        appliedIndexByOriginalIndex[item.key] ?? item.key: item.value,
+      for (final insertion in insertions)
+        insertion.appliedLineIndex: insertion.timingProvenance,
+    };
+
+    final comparison = timingUpdatedCount > 0 || insertions.isNotEmpty
+        ? timelineValidator.compare(
+            before: document.lines,
+            after: finalLines,
+            audioDuration: audioDuration,
+            globalOffset: applyReferenceTiming
+                ? Duration.zero
+                : document.globalOffset ?? Duration.zero,
+          )
+        : null;
+
     return ReferenceAlignmentApplyResult(
       document: document.copyWith(lines: finalLines),
       corrections: corrections,
@@ -342,13 +403,16 @@ class ReferenceAlignmentApplier {
       identicalCount: identicalCount,
       missingReferenceCount: alignment.missingReferenceIndices.length,
       unmatchedAsrCount: alignment.unmatchedAsrIndices.length,
+      timingProvenanceByAppliedIndex: timingProvenance,
+      timelineComparison: comparison,
     );
   }
 
   ({Duration start, Duration end})? _resolveTiming(
     List<LyricAlignmentEntry> entries,
-    int entryIndex,
-  ) {
+    int entryIndex, {
+    Duration? audioDuration,
+  }) {
     final entry = entries[entryIndex];
     final start = entry.startTime;
     if (start == null) return null;
@@ -362,6 +426,13 @@ class ReferenceAlignmentApplier {
       if (end <= nonNegativeStart) {
         end = nonNegativeStart + const Duration(milliseconds: 500);
       }
+    }
+    // 结束时间越过音频末尾时收尾到音频结束；开始时间本身越界则保留，
+    // 由时间轴校验器明确提示，不静默删除或挪动该行。
+    if (audioDuration != null &&
+        nonNegativeStart < audioDuration &&
+        end > audioDuration) {
+      end = audioDuration;
     }
 
     return (start: nonNegativeStart, end: end);

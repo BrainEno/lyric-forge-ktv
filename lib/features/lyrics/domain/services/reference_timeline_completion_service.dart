@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import '../../../project/domain/models/lyric_document.dart';
+import '../models/timing_provenance.dart';
 import 'lyric_alignment_service.dart';
 
 /// 一条准备补进歌词文档的漏行。
@@ -32,6 +35,9 @@ class ReferenceLineCompletionInsertion {
   /// 后一个已匹配的 ASR 行索引；没有时为 null。
   final int? nextAsrLineIndex;
 
+  /// 时间的来源：参考时间戳、空隙插值或末尾估算。
+  final LyricTimingProvenance timingProvenance;
+
   const ReferenceLineCompletionInsertion({
     required this.referenceIndex,
     required this.text,
@@ -41,6 +47,7 @@ class ReferenceLineCompletionInsertion {
     required this.requiresConfirmation,
     this.previousAsrLineIndex,
     this.nextAsrLineIndex,
+    this.timingProvenance = LyricTimingProvenance.interpolated,
   });
 }
 
@@ -79,9 +86,16 @@ class ReferenceTimelineCompletionService {
 
   const ReferenceTimelineCompletionService();
 
+  /// 参考行时间的来源；没有可用参考时间时按插入位置再细分。
+  static LyricTimingProvenance provenanceFor(LyricAlignmentEntry entry) =>
+      _hasUsableReferenceTime(entry)
+      ? LyricTimingProvenance.reference
+      : LyricTimingProvenance.interpolated;
+
   ReferenceLineCompletionPlan buildPlan({
     required LyricDocument document,
     required LyricAlignmentResult alignment,
+    Duration? audioDuration,
   }) {
     if (!alignment.hasMissingReferences) {
       return ReferenceLineCompletionPlan.empty;
@@ -113,6 +127,7 @@ class ReferenceTimelineCompletionService {
           nextMatched: nextMatched,
           document: document,
           unmatchedAsrIndices: unmatchedAsrIndices,
+          audioDuration: audioDuration,
         ),
       );
     }
@@ -126,6 +141,7 @@ class ReferenceTimelineCompletionService {
     required LyricAlignmentEntry? nextMatched,
     required LyricDocument document,
     required List<int> unmatchedAsrIndices,
+    Duration? audioDuration,
   }) {
     final previousIndex = previousMatched?.asrLineIndex;
     final nextIndex = nextMatched?.asrLineIndex;
@@ -147,23 +163,28 @@ class ReferenceTimelineCompletionService {
       gapStart = previousLine.startTime;
     }
 
-    final untimedCount = group
+    final untimedEntries = group
         .where((entry) => !_hasUsableReferenceTime(entry))
-        .length;
+        .toList(growable: false);
     final distribution = _distribute(
-      count: untimedCount,
+      weights: [
+        for (final entry in untimedEntries) _textWeight(entry.referenceText),
+      ],
       gapStart: gapStart,
       gapEnd: nextLine?.startTime,
     );
+    final isTail = nextLine == null;
 
     final result = <ReferenceLineCompletionInsertion>[];
     var untimedCursor = 0;
     for (var entryIndex = 0; entryIndex < group.length; entryIndex++) {
       final entry = group[entryIndex];
-      final Duration start;
-      final Duration end;
+      var start = Duration.zero;
+      var end = Duration.zero;
+      var provenance = provenanceFor(entry);
       var requiresConfirmation =
           hasUnmatchedInGap ||
+          entry.structuralMismatch ||
           (previousLine == null && nextLine == null) ||
           distribution.tooTight;
 
@@ -187,6 +208,14 @@ class ReferenceTimelineCompletionService {
         final slot = distribution.slots[untimedCursor++];
         start = slot.start;
         end = slot.end;
+        if (isTail) provenance = LyricTimingProvenance.estimatedTail;
+      }
+
+      // 音频末尾：能收尾就收尾，不能收尾时明确要求确认，由校验器提示。
+      if (audioDuration != null && start >= audioDuration) {
+        requiresConfirmation = true;
+      } else if (audioDuration != null && end > audioDuration) {
+        end = audioDuration;
       }
 
       result.add(
@@ -199,10 +228,32 @@ class ReferenceTimelineCompletionService {
           requiresConfirmation: requiresConfirmation,
           previousAsrLineIndex: previousIndex,
           nextAsrLineIndex: nextIndex,
+          timingProvenance: provenance,
         ),
       );
     }
     return result;
+  }
+
+  /// 按文字视觉长度估算演唱时长权重：CJK/假名/谚文每字计 2，其它可见字符计 1。
+  ///
+  /// 只用于没有参考时间戳时在固定空隙内分配时长，不宣称与实际语速一致。
+  static int _textWeight(String text) {
+    var weight = 0;
+    for (final rune in text.runes) {
+      if (rune <= 0x20) continue;
+      final isWide =
+          (rune >= 0x3040 && rune <= 0x30FF) ||
+          (rune >= 0x3400 && rune <= 0x9FFF) ||
+          (rune >= 0xAC00 && rune <= 0xD7AF) ||
+          (rune >= 0xFF01 && rune <= 0xFF60);
+      if (isWide) {
+        weight += 2;
+      } else if (rune >= 0x21) {
+        weight += 1;
+      }
+    }
+    return weight < 1 ? 1 : weight;
   }
 
   static bool _hasUsableReferenceTime(LyricAlignmentEntry entry) =>
@@ -229,10 +280,11 @@ class ReferenceTimelineCompletionService {
   }
 
   _TimeDistribution _distribute({
-    required int count,
+    required List<int> weights,
     required Duration gapStart,
     required Duration? gapEnd,
   }) {
+    final count = weights.length;
     if (count == 0) {
       return const _TimeDistribution(slots: [], tooTight: false);
     }
@@ -248,24 +300,35 @@ class ReferenceTimelineCompletionService {
 
     final endBoundary = gapEnd < gapStart ? gapStart : gapEnd;
     var tooTight = gapEnd <= gapStart;
-    final availableMicros =
-        endBoundary.inMicroseconds - gapStart.inMicroseconds;
-    var perMicros = availableMicros ~/ count;
-    if (perMicros < minimumDuration.inMicroseconds) {
-      perMicros = minimumDuration.inMicroseconds;
-      tooTight = true;
-    }
+    final availableMicros = math.max(
+      0,
+      endBoundary.inMicroseconds - gapStart.inMicroseconds,
+    );
+    final totalWeight = weights.fold<int>(0, (sum, weight) => sum + weight);
+    var cursorMicros = gapStart.inMicroseconds;
+    var remainingMicros = availableMicros;
 
     for (var index = 0; index < count; index++) {
-      final startMicros = gapStart.inMicroseconds + perMicros * index;
-      var endMicros = startMicros + perMicros;
-      if (index == count - 1) {
-        endMicros = endBoundary.inMicroseconds;
-      }
-      if (endMicros - startMicros < minimumDuration.inMicroseconds) {
-        endMicros = startMicros + minimumDuration.inMicroseconds;
+      final isLast = index == count - 1;
+      var durationMicros = isLast
+          ? remainingMicros
+          : (availableMicros * weights[index]) ~/ math.max(1, totalWeight);
+      if (durationMicros < minimumDuration.inMicroseconds) {
+        durationMicros = minimumDuration.inMicroseconds;
         tooTight = true;
       }
+      final startMicros = cursorMicros;
+      var endMicros = startMicros + durationMicros;
+      if (endMicros > endBoundary.inMicroseconds) {
+        // 极窄空隙：保证最小时长，同时标记需确认，不静默重叠。
+        endMicros = math.max(
+          startMicros + minimumDuration.inMicroseconds,
+          endBoundary.inMicroseconds,
+        );
+        tooTight = true;
+      }
+      remainingMicros = math.max(0, endBoundary.inMicroseconds - endMicros);
+      cursorMicros = endMicros;
       slots.add((
         start: Duration(microseconds: startMicros),
         end: Duration(microseconds: endMicros),

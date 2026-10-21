@@ -113,9 +113,10 @@ class ReferenceLyricTextParser {
         : Duration.zero;
     final totalOffset = timed ? sourceOffset + offset : Duration.zero;
 
-    final lines = timed
+    final timedResult = timed
         ? _timedLines(result.document.lines, totalOffset)
-        : _plainLines(result.document.lines);
+        : null;
+    final lines = timedResult?.lines ?? _plainLines(result.document.lines);
 
     if (lines.isEmpty) {
       throw ReferenceLyricParseException(timed ? '没有识别到带时间戳的歌词行' : '没有识别到歌词文本');
@@ -129,6 +130,8 @@ class ReferenceLyricTextParser {
       sourcePath: result.sourcePath.isEmpty ? null : result.sourcePath,
       title: title ?? result.title,
       artist: artist ?? result.artist,
+      conflicts: List.unmodifiable(result.conflicts),
+      warnings: List.unmodifiable(timedResult?.warnings ?? const <String>[]),
     );
   }
 
@@ -142,10 +145,7 @@ class ReferenceLyricTextParser {
     return lines;
   }
 
-  List<ReferenceLyricLine> _timedLines(
-    List<LyricLine> source,
-    Duration offset,
-  ) {
+  _TimedLines _timedLines(List<LyricLine> source, Duration offset) {
     final shifted = <({String text, Duration start, Duration end})>[];
     for (final line in source) {
       final text = line.text.trim();
@@ -158,9 +158,11 @@ class ReferenceLyricTextParser {
     }
 
     final lines = <ReferenceLyricLine>[];
+    final warnings = <String>[];
+    Duration? previousStart;
     for (var index = 0; index < shifted.length; index++) {
       final current = shifted[index];
-      var start = current.start;
+      final start = current.start;
       var end = current.end;
       if (end <= start) {
         end = index + 1 < shifted.length
@@ -169,16 +171,28 @@ class ReferenceLyricTextParser {
         if (end <= start) {
           end = start + const Duration(milliseconds: 500);
         }
+        warnings.add('参考第 ${index + 1} 行结束时间不晚于开始时间，已按相邻行/默认时长保守修复。');
       }
+      if (previousStart != null && start < previousStart) {
+        warnings.add('参考第 ${index + 1} 行开始时间早于上一行，时间轴顺序可能有问题。');
+      }
+      previousStart = start;
       lines.add(
         ReferenceLyricLine(text: current.text, startTime: start, endTime: end),
       );
     }
-    return lines;
+    return _TimedLines(lines: lines, warnings: warnings);
   }
 
   static Duration _shift(Duration value, Duration offset) {
     final shifted = value + offset;
     return shifted.isNegative ? Duration.zero : shifted;
   }
+}
+
+class _TimedLines {
+  final List<ReferenceLyricLine> lines;
+  final List<String> warnings;
+
+  const _TimedLines({required this.lines, required this.warnings});
 }

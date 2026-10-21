@@ -5,8 +5,17 @@ enum TimelineIssueType {
   /// 开始时间为负。
   negativeStart,
 
+  /// 叠加 globalOffset 后的有效开始时间为负（播放侧会被夹到 0）。
+  negativeEffectiveStart,
+
   /// 结束时间不晚于开始时间（零或负时长），无法可靠确定展示区间。
   zeroOrNegativeDuration,
+
+  /// 开始时间早于上一行（歌词顺序与时间顺序不一致）。
+  nonMonotonicStart,
+
+  /// 与上一行开始时间完全相同，容易产生重叠或同一区间。
+  duplicateStart,
 
   /// 与前一行重叠：本行开始时间早于前一行结束时间。
   overlapsPrevious,
@@ -64,6 +73,30 @@ class LyricTimelineValidationResult {
   });
 }
 
+/// 一次编辑操作前后的时间轴冲突对比。
+class LyricTimelineValidationComparison {
+  final LyricTimelineValidationResult before;
+  final LyricTimelineValidationResult after;
+
+  /// 本次操作新引入的问题。
+  final List<TimelineIssue> introduced;
+
+  /// 操作前存在、操作后消失的问题。
+  final List<TimelineIssue> resolved;
+
+  const LyricTimelineValidationComparison({
+    required this.before,
+    required this.after,
+    required this.introduced,
+    required this.resolved,
+  });
+
+  bool get hasIntroducedIssues => introduced.isNotEmpty;
+
+  bool get hasIntroducedSeriousIssues =>
+      introduced.any((issue) => !issue.canAutoFix);
+}
+
 /// 歌词时间轴正确性校验器。
 ///
 /// 纯 Dart、无 Flutter 依赖，不修改任何输入。仅做只读检测，冲突
@@ -71,8 +104,9 @@ class LyricTimelineValidationResult {
 /// 推断时，由调用方让用户进行定点校准。
 ///
 /// 检查项：
-/// - 负开始时间；
+/// - 负开始时间 / 负有效开始时间（含 globalOffset）；
 /// - 零或负时长（end <= start）；
+/// - 开始时间倒退（与歌词顺序不一致）与重复开始时间；
 /// - 与前后行重叠；
 /// - 极短空隙；
 /// - 超出音频总时长（尾部插入边界）。
@@ -95,9 +129,11 @@ class LyricTimelineValidator {
   /// 以免静默改变用户顺序）。
   /// [audioDuration] 为音频总时长，提供后会对尾部插入做时长边界检查；
   /// 未提供时不做音频边界检查。
+  /// [globalOffset] 用于检查叠加整体偏移后的有效开始时间是否为负。
   LyricTimelineValidationResult validate({
     required List<LyricLine> lines,
     Duration? audioDuration,
+    Duration globalOffset = Duration.zero,
   }) {
     final issues = <TimelineIssue>[];
     final needsCalibration = <int>{};
@@ -119,6 +155,23 @@ class LyricTimelineValidator {
         continue;
       }
 
+      // 叠加 globalOffset 后的有效开始时间。
+      if (globalOffset != Duration.zero) {
+        final effectiveStart = line.startTime + globalOffset;
+        if (effectiveStart.isNegative) {
+          issues.add(
+            TimelineIssue(
+              lineIndex: index,
+              type: TimelineIssueType.negativeEffectiveStart,
+              message:
+                  '第 ${index + 1} 行叠加整体偏移 ${globalOffset.inMilliseconds} ms 后开始时间为负，'
+                  '播放时会从 0 开始。',
+              canAutoFix: true,
+            ),
+          );
+        }
+      }
+
       // 零或负时长。
       if (line.endTime <= line.startTime) {
         issues.add(
@@ -130,12 +183,37 @@ class LyricTimelineValidator {
           ),
         );
         needsCalibration.add(index);
-        continue;
       }
 
-      // 与前一行重叠。
       if (index > 0) {
         final previous = lines[index - 1];
+
+        // 开始时间倒退：歌词顺序与时间顺序不一致。
+        if (line.startTime < previous.startTime) {
+          issues.add(
+            TimelineIssue(
+              lineIndex: index,
+              type: TimelineIssueType.nonMonotonicStart,
+              message: '第 ${index + 1} 行开始时间早于第 $index 行，歌词顺序与时间轴顺序不一致，需定点校准。',
+              canAutoFix: false,
+            ),
+          );
+          needsCalibration.add(index);
+        } else if (line.startTime == previous.startTime) {
+          issues.add(
+            TimelineIssue(
+              lineIndex: index,
+              type: TimelineIssueType.duplicateStart,
+              message:
+                  '第 ${index + 1} 行与第 $index 行开始时间相同（${_formatMs(line.startTime)}），'
+                  '可能出现同一区间或重叠，需定点校准。',
+              canAutoFix: false,
+            ),
+          );
+          needsCalibration.add(index);
+        }
+
+        // 与前一行重叠。
         if (line.startTime < previous.endTime) {
           issues.add(
             TimelineIssue(
@@ -209,8 +287,75 @@ class LyricTimelineValidator {
 
     return LyricTimelineValidationResult(
       isValid: issues.isEmpty,
-      issues: issues..sort((a, b) => a.lineIndex.compareTo(b.lineIndex)),
+      issues: issues
+        ..sort((a, b) {
+          final byLine = a.lineIndex.compareTo(b.lineIndex);
+          if (byLine != 0) return byLine;
+          return a.type.index.compareTo(b.type.index);
+        }),
       needsCalibration: needsCalibration,
     );
+  }
+
+  /// 对比一次操作前后的时间轴问题，区分"原有冲突"与"本次引入的冲突"。
+  ///
+  /// 有稳定行标识时按标识匹配；没有标识时退回"类型 + 文本 + 起止时间"，
+  /// 避免插入行导致索引漂移后被误判为新问题。
+  LyricTimelineValidationComparison compare({
+    required List<LyricLine> before,
+    required List<LyricLine> after,
+    Duration? audioDuration,
+    Duration globalOffset = Duration.zero,
+  }) {
+    final beforeResult = validate(
+      lines: before,
+      audioDuration: audioDuration,
+      globalOffset: globalOffset,
+    );
+    final afterResult = validate(
+      lines: after,
+      audioDuration: audioDuration,
+      globalOffset: globalOffset,
+    );
+
+    final beforeKeys = _issueKeys(before, beforeResult.issues);
+    final afterKeys = _issueKeys(after, afterResult.issues);
+
+    return LyricTimelineValidationComparison(
+      before: beforeResult,
+      after: afterResult,
+      introduced: [
+        for (var index = 0; index < afterResult.issues.length; index++)
+          if (!beforeKeys.contains(afterKeys[index])) afterResult.issues[index],
+      ],
+      resolved: [
+        for (var index = 0; index < beforeResult.issues.length; index++)
+          if (!afterKeys.contains(beforeKeys[index]))
+            beforeResult.issues[index],
+      ],
+    );
+  }
+
+  List<String> _issueKeys(List<LyricLine> lines, List<TimelineIssue> issues) {
+    return [
+      for (final issue in issues)
+        if (issue.lineIndex >= 0 && issue.lineIndex < lines.length)
+          _issueKey(lines[issue.lineIndex], issue)
+        else
+          '${issue.type.name}|line:${issue.lineIndex}',
+    ];
+  }
+
+  String _issueKey(LyricLine line, TimelineIssue issue) {
+    final id = line.id;
+    if (id != null) return '${issue.type.name}|id:$id';
+    return '${issue.type.name}|${line.text}|'
+        '${line.startTime.inMilliseconds}|${line.endTime.inMilliseconds}';
+  }
+
+  static String _formatMs(Duration value) {
+    final seconds = value.inMilliseconds ~/ 1000;
+    final milliseconds = value.inMilliseconds % 1000;
+    return '$seconds.${milliseconds.toString().padLeft(3, '0')}s';
   }
 }

@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-21 00:35. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-21 14:03. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -24,7 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **Lyric review plan:** `docs/lyric_review_alignment_plan.md` — phase A seekable progress bar **done** (`Fix draggable playback progress bar with time labels`), phase B editor pause-at-position line insert **done**, phase C1 reference-lyric alignment service **done**, phase C2 reference-lyric entry/parse/batch-apply with backup **done**, phase C3 per-line diff review with manual-edit lock and missing-line checklist **done**, C3.1 alignment-backup restore flow **done** (`Add reference alignment backup restore flow`), C4 pure-text reference missing-line completion with inferred timeline **done** (`Add reference lyric missing-line completion`). Reliability hardening E1–E4 **done** (timeline validator/insertion audio boundary/LRC conflicts, alignment threshold states + ambiguous review choice + regression set, stable line identity + persisted manual-edit markers + alignment provenance). Next: phase D optional online lyric search.
+- **Lyric review plan:** `docs/lyric_review_alignment_plan.md` — phase A seekable progress bar **done** (`Fix draggable playback progress bar with time labels`), phase B editor pause-at-position line insert **done**, phase C1 reference-lyric alignment service **done**, phase C2 reference-lyric entry/parse/batch-apply with backup **done**, phase C3 per-line diff review with manual-edit lock and missing-line checklist **done**, C3.1 alignment-backup restore flow **done** (`Add reference alignment backup restore flow`), C4 pure-text reference missing-line completion with inferred timeline **done** (`Add reference lyric missing-line completion`). Reliability hardening E1–E5 **done** (timeline validator/insertion audio boundary/LRC conflicts; alignment threshold states + ambiguous review choice + regression set; stable line identity + persisted manual-edit markers + alignment provenance; safe/uncertain batch split, timing provenance, introduced-conflict gate and in-memory undo). Next: phase D optional online lyric search, or manual viewport checks for the E5 review/undo flow.
 
 ## Follow-up leads — re-check before acting
 
@@ -32,7 +32,7 @@
 - A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
-- The analyzer is fully clean (0 issues project-wide) and the full quality gate passes end to end (492 tests, 2 skipped); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
+- The analyzer is fully clean (0 issues project-wide) and the full test suite passes (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
 - The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
 
 ## Archive map

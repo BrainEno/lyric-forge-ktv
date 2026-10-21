@@ -13,6 +13,12 @@ class ReferenceLyricInput {
   final String? title;
   final String? artist;
 
+  /// 导入阶段发现的时间轴冲突（例如 LRC 重复/倒退时间戳），原样带给审核界面。
+  final List<String> conflicts;
+
+  /// 导入阶段对时间戳做的保守修复说明，展示在审核界面上，不静默丢弃。
+  final List<String> warnings;
+
   const ReferenceLyricInput({
     required this.lines,
     required this.timed,
@@ -21,7 +27,12 @@ class ReferenceLyricInput {
     this.sourcePath,
     this.title,
     this.artist,
+    this.conflicts = const [],
+    this.warnings = const [],
   });
+
+  bool get hasConflicts => conflicts.isNotEmpty;
+  bool get hasWarnings => warnings.isNotEmpty;
 
   int get lineCount => lines.length;
 }

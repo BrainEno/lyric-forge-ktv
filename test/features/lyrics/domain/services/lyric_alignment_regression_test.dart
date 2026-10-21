@@ -57,7 +57,7 @@ void main() {
       expect(applied.corrections, hasLength(1));
     });
 
-    test('低置信度匹配：不自动纠正，不误报', () {
+    test('弱匹配：相似度低于配对偏置时归为漏行，不强行替换', () {
       final doc = LyricDocument(language: 'zh', lines: [asr('今天天气真好')]);
       final result = alignmentService.align(
         document: doc,
@@ -65,28 +65,30 @@ void main() {
       );
 
       final entry = result.entries.single;
-      expect(entry.status, ReferenceLineAlignmentStatus.lowConfidence);
+      expect(entry.status, ReferenceLineAlignmentStatus.missing);
+      expect(result.asrLines.single.status, AsrLineAlignmentStatus.unmatched);
       // 自动模式下不纠正，避免错误替换。
       final applied = applier.apply(document: doc, alignment: result);
       expect(applied.document.lines.single.text, '今天天气真好');
       expect(applied.corrections, isEmpty);
-      expect(applied.skippedLowConfidenceIndices, [0]);
+      expect(applied.skippedLowConfidenceIndices, isEmpty);
     });
 
     test('低置信度匹配：用户显式确认后可纠正', () {
-      final doc = LyricDocument(language: 'zh', lines: [asr('今天天气真好')]);
+      final doc = LyricDocument(language: 'zh', lines: [asr('第二句错')]);
       final result = alignmentService.align(
         document: doc,
-        referenceLines: [ref('明天天气不错')],
+        referenceLines: [ref('第二句对')],
       );
 
       final entry = result.entries.single;
+      expect(entry.status, ReferenceLineAlignmentStatus.lowConfidence);
       final applied = applier.apply(
         document: doc,
         alignment: result,
         acceptedReferenceIndices: {entry.referenceIndex},
       );
-      expect(applied.document.lines.single.text, '明天天气不错');
+      expect(applied.document.lines.single.text, '第二句对');
       expect(applied.corrections, hasLength(1));
     });
 
@@ -176,7 +178,7 @@ void main() {
       );
     });
 
-    test('错误自动采纳统计：低置信/歧义行在自动模式下采纳数为 0', () {
+    test('错误自动采纳统计：弱匹配/歧义行在自动模式下采纳数为 0', () {
       final doc = LyricDocument(
         language: 'zh',
         lines: [asr('今天天气真好'), asr('第一句歌词a'), asr('第一句歌词b')],
@@ -187,9 +189,13 @@ void main() {
       );
 
       final applied = applier.apply(document: doc, alignment: result);
-      // 低置信与歧义行均不应在自动模式下被采纳。
+      // 弱匹配被归为漏行/多余行，歧义行不自动采纳。
       expect(applied.corrections, isEmpty);
-      expect(applied.skippedLowConfidenceIndices, isNotEmpty);
+      expect(applied.skippedLowConfidenceIndices, isEmpty);
+      expect(applied.missingReferenceCount, 1);
+      // 弱匹配 ASR 行 + 未被选中的歧义候选行。
+      expect(applied.unmatchedAsrCount, 2);
+      expect(result.entries.first.status, ReferenceLineAlignmentStatus.missing);
     });
   });
 }
