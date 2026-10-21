@@ -91,4 +91,47 @@ void main() {
     expect(result.repairs, isEmpty);
     expect(result.lines.single.endTime, const Duration(milliseconds: 12000));
   });
+
+  test('redistributes conflicting estimated insertions between fixed anchors', () {
+    final result = service.repair(
+      lines: [
+        line('anchor one', 1000, 5000, id: 'a'),
+        line('estimated first', 4000, 6000, id: 'b'),
+        line('estimated second', 3500, 4500, id: 'c'),
+        line('anchor two', 20000, 22000, id: 'd'),
+      ],
+      changedLineIndices: {1, 2},
+      timingProvenanceByLineIndex: const {
+        1: LyricTimingProvenance.interpolated,
+        2: LyricTimingProvenance.estimatedTail,
+      },
+    );
+
+    expect(result.repairs.where((r) => r.type == LyricTimelineAutoRepairType.redistributeEstimate), hasLength(2));
+    expect(result.lines[1].startTime, const Duration(seconds: 4));
+    expect(result.lines[1].endTime, result.lines[2].startTime);
+    expect(result.lines[2].endTime, const Duration(seconds: 20));
+    expect(result.lines[1].startTime, greaterThanOrEqualTo(result.lines[0].endTime));
+    expect(result.lines[2].endTime, lessThanOrEqualTo(result.lines[3].startTime));
+  });
+
+  test('leaves an estimated run unchanged when there is not enough space', () {
+    final input = [
+      line('fixed', 1000, 2000, id: 'a'),
+      line('estimated 1', 1200, 1300, id: 'b'),
+      line('estimated 2', 1400, 1500, id: 'c'),
+      line('next', 2010, 3000, id: 'd'),
+    ];
+    final result = service.repair(
+      lines: input,
+      changedLineIndices: {1, 2},
+      timingProvenanceByLineIndex: const {
+        1: LyricTimingProvenance.interpolated,
+        2: LyricTimingProvenance.interpolated,
+      },
+    );
+
+    expect(result.repairs, isEmpty);
+    expect(result.lines[1].startTime, input[1].startTime);
+  });
 }

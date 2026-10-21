@@ -412,6 +412,7 @@ class ReferenceAlignmentApplier {
     final autoRepair = timelineRepairService.repair(
       lines: finalLines,
       changedLineIndices: changedTimelineIndices,
+      timingProvenanceByLineIndex: timingProvenance,
       protectedLineIndices: protectedTimelineIndices,
       audioDuration: audioDuration,
     );
