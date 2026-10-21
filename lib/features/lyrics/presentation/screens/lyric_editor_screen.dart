@@ -26,6 +26,7 @@ import '../../domain/services/reference_alignment_restore_service.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
+import '../widgets/reference_alignment_result_comparison.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence }
 
@@ -221,7 +222,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     // 时间轴校验门：允许先看预览，但严重的新冲突必须由用户明确决定保留。
     final comparison = result.timelineComparison;
     if (comparison != null && comparison.hasIntroducedSeriousIssues) {
-      final keep = await _confirmIntroducedTimelineIssues(comparison);
+      final keep = await _confirmIntroducedTimelineIssues(
+        comparison,
+        autoRepairCount: result.timelineRepairs.length,
+      );
       if (!mounted || keep != true) return;
     }
 
@@ -291,6 +295,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (result.corrections.isNotEmpty) '纠正 ${result.corrections.length} 行',
       if (result.insertions.isNotEmpty) '补全 ${result.insertions.length} 行',
       if (result.timingUpdatedCount > 0) '更新 ${result.timingUpdatedCount} 行时间',
+      if (result.timelineRepairs.isNotEmpty)
+        '自动修复时间轴 ${result.timelineRepairs.length} 处',
       if (result.skippedManuallyEditedIndices.isNotEmpty)
         '跳过 ${result.skippedManuallyEditedIndices.length} 行手动编辑',
       if (decision.overriddenAsrLineIndices.isNotEmpty)
@@ -312,8 +318,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   Future<bool?> _confirmIntroducedTimelineIssues(
-    LyricTimelineValidationComparison comparison,
-  ) {
+    LyricTimelineValidationComparison comparison, {
+    required int autoRepairCount,
+  }) {
     final issues = comparison.introduced
         .where((issue) => !issue.canAutoFix)
         .take(6)
@@ -326,8 +333,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         title: const Text('这次对齐引入了时间轴冲突'),
         content: SingleChildScrollView(
           child: Text(
-            '以下问题在应用前不存在：\n\n$issues\n\n'
-            '可以撤销本次对齐后手动校准，或先保留并在编辑器中逐行修正。',
+            '系统已先尝试安全修复结束时间重叠：${autoRepairCount} 处。\n\n'
+            '以下问题在自动修复后仍无法可靠推断：\n\n$issues\n\n'
+            '可以撤销本次对齐，或保留结果并逐行校准。',
           ),
         ),
         actions: [
@@ -341,6 +349,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showAlignmentComparison(ProjectManifest project) async {
+    final before = _alignmentUndoSnapshot?.document;
+    final after = _editingDocument;
+    if (before == null || after == null) return;
+
+    await showReferenceAlignmentResultComparison(
+      context,
+      before: before,
+      after: after,
+      onPreviewLine: (index) => _previewLine(project, index),
     );
   }
 
@@ -740,6 +761,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onUndoReferenceAlignment: _alignmentUndoSnapshot == null
                   ? null
                   : _undoAlignmentApply,
+              onViewAlignmentComparison: _alignmentUndoSnapshot == null
+                  ? null
+                  : () => _showAlignmentComparison(project),
               onRestoreAlignment: canRestore ? _restoreAlignmentBackup : null,
               onAddLine: _addNewLine,
               onInsertAtPlayback: _insertLineAtPlayback,
@@ -816,6 +840,7 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onUndoReferenceAlignment;
+  final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
@@ -846,6 +871,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onExport,
     required this.onReferenceAlignment,
     required this.onUndoReferenceAlignment,
+    required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
     required this.onAddLine,
     required this.onInsertAtPlayback,
@@ -1003,6 +1029,13 @@ class _LyricEditorContent extends StatelessWidget {
               icon: const Icon(Icons.auto_fix_high_rounded),
             ),
           if ((spec.isCompactOrMedium || spec.isShort) &&
+              onViewAlignmentComparison != null)
+            IconButton(
+              tooltip: '查看本次逐行对比',
+              onPressed: onViewAlignmentComparison,
+              icon: const Icon(Icons.compare_arrows_rounded),
+            ),
+          if ((spec.isCompactOrMedium || spec.isShort) &&
               onUndoReferenceAlignment != null)
             IconButton(
               tooltip: '撤销本次参考对齐',
@@ -1060,6 +1093,7 @@ class _LyricEditorContent extends StatelessWidget {
               onSeekPlayback: onSeekPlayback,
               onReferenceAlignment: onReferenceAlignment,
               onUndoReferenceAlignment: onUndoReferenceAlignment,
+              onViewAlignmentComparison: onViewAlignmentComparison,
               onRestoreAlignment: onRestoreAlignment,
               onOpenPlayer: project.canPlay
                   ? () => Navigator.pushNamed(
@@ -1164,6 +1198,7 @@ class _EditorToolbar extends StatelessWidget {
   final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onUndoReferenceAlignment;
+  final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback? onOpenPlayer;
 
@@ -1183,6 +1218,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onSeekPlayback,
     required this.onReferenceAlignment,
     required this.onUndoReferenceAlignment,
+    required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
     required this.onOpenPlayer,
   });
@@ -1310,6 +1346,12 @@ class _EditorToolbar extends StatelessWidget {
                   icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
                   label: const Text('参考歌词纠正'),
                 ),
+              ),
+            if (!compactControls && onViewAlignmentComparison != null)
+              OutlinedButton.icon(
+                onPressed: onViewAlignmentComparison,
+                icon: const Icon(Icons.compare_arrows_rounded, size: 18),
+                label: const Text('查看逐行对比'),
               ),
             if (!compactControls && onUndoReferenceAlignment != null)
               Tooltip(
