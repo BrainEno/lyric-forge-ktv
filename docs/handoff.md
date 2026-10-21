@@ -14,9 +14,13 @@
 $ git branch --show-current
 main
 $ git log --oneline -5
-<待填：合并提交>
+a8883b6 Merge remote-tracking branch 'origin/main'
+5241b96 Resolve leftover merge conflict in reference alignment comparison
+0f89a21 Merge pull request #127 from BrainEno/feat/guided-smart-review-confirmation-20261021
+49488cd Refresh guided review handoff after static review
+2cd74b7 Clarify review confirmation includes lyric timing
 $ git status --short
-（干净，或仅剩 generated_plugin* 行尾噪声）
+（干净；generated_plugin* 的 autocrlf 噪声已用 git checkout -- 还原）
 ```
 
 合并前本地落后远程 8 个提交（PR #127，merge commit `0f89a21`）。冲突仅出现在 `docs/handoff.md`（单槽位文件，双方都改写），已按当前真实状态重写。
@@ -54,4 +58,4 @@ $ git status --short
 
 ---
 
-最后更新：2026-10-21 23:xx
+最后更新：2026-10-21 23:39
