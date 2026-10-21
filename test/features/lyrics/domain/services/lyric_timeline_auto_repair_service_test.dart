@@ -134,4 +134,26 @@ void main() {
     expect(result.repairs, isEmpty);
     expect(result.lines[1].startTime, input[1].startTime);
   });
+
+  test('does not trim a reference-timed row while repairing an estimated neighbor', () {
+    final input = [
+      line('reference timed', 1000, 5000, id: 'reference'),
+      line('estimated', 4000, 6000, id: 'estimated'),
+    ];
+    final result = service.repair(
+      lines: input,
+      changedLineIndices: {1},
+      timingProvenanceByLineIndex: const {
+        0: LyricTimingProvenance.reference,
+        1: LyricTimingProvenance.interpolated,
+      },
+    );
+
+    expect(
+      result.repairs.where((r) => r.type == LyricTimelineAutoRepairType.trimOverlap),
+      isEmpty,
+    );
+    expect(result.lines[0].endTime, input[0].endTime);
+    expect(result.lines[1].startTime, input[0].endTime);
+  });
 }

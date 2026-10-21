@@ -245,17 +245,21 @@ class ReferenceAlignmentApplier {
           entryIndex,
           audioDuration: audioDuration,
         );
-        if (timing != null &&
-            (previousLine.startTime != timing.start ||
-                previousLine.endTime != timing.end)) {
-          updated = updated.copyWith(
-            startTime: timing.start,
-            endTime: timing.end,
-          );
-          timingChanged = true;
-          timingUpdatedCount++;
-          timingChangedOriginalIndices.add(asrIndex);
+        if (timing != null) {
+          // Record the selected reference as the timestamp source even when
+          // values happen to match the existing draft. Its timing is a fixed
+          // anchor, not an estimated interval for the repair pass to move.
           timingByOriginalIndex[asrIndex] = LyricTimingProvenance.reference;
+          if (previousLine.startTime != timing.start ||
+              previousLine.endTime != timing.end) {
+            updated = updated.copyWith(
+              startTime: timing.start,
+              endTime: timing.end,
+            );
+            timingChanged = true;
+            timingUpdatedCount++;
+            timingChangedOriginalIndices.add(asrIndex);
+          }
         }
       }
 
@@ -404,7 +408,9 @@ class ReferenceAlignmentApplier {
       for (var index = 0; index < finalLines.length; index++) {
         final lineId = finalLines[index].id;
         if (lineId != null &&
-            originalTimingProvenance[lineId] == LyricTimingProvenance.manual.name) {
+            (originalTimingProvenance[lineId] == LyricTimingProvenance.manual.name ||
+                originalTimingProvenance[lineId] ==
+                    LyricTimingProvenance.reference.name)) {
           protectedTimelineIndices.add(index);
         }
       }
