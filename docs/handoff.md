@@ -1,46 +1,45 @@
 # Handoff
 
-## Goal
-Continue reducing the time and effort required to proofread automatic lyrics. PR #125 (post-apply diff/timeline repair), #126 (explainable smart-review priority queue), and #127 (persistent line review decision + confirm-and-continue) are merged to main.
+## 目标
 
-## Current task
-PR #128: one-tap audition directly from a Smart Review row.
+按阶段降低歌词智能复核的操作成本。PR #125、#126、#127、#128 均已合并至远程 main。完成 PR #129（行级试听时间窗与循环控制）在本地的验证、编译错误修复与 Hermes 脚手架清理。
 
-- Branch: feat/smart-review-inline-audition-20261021
-- Base: main @ 0f89a21076a6576d2d22e846dd6851aacc166369
-- Add an independent play button to smart-review rows only; reuses onPreviewLine/_previewLine and existing playback session.
-- Button only appears when a project audio asset exists, uses AppResponsive.minimumInteractiveExtent, and does not select/open the inspector or change lyrics/timing.
-- Added widget test for callback, disabled state and minimum touch target.
+## Git 现场
 
-## Validation
-This execution environment has no local Flutter checkout/toolchain. dart format, flutter test, flutter analyze and quality gate were not run. Keep PR #128 Draft until local validation and responsive desktop/mobile checks pass.
+- 分支：`pr129`（基于 origin/main 与 PR #129 提交）。
+- 最近提交：`f246ab3` Refresh handoff for bounded lyric audition。
+- 清理动作：删除 `docs/hermes` 遗留目录，丢弃包含敏感 ID 的临时 stash，在 `.gitignore` 中追加 `*hermes*`。
+- 代码修复：修复 `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` 中由于未本地验证引入的编译错误（`playbackBelongsToProject` 未定义变量）与 3 处分析器警告。
 
-Suggested local commands:
+## 已改文件
 
-```powershell
-dart format lib/features/lyrics/presentation/screens/lyric_editor_screen.dart lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
-flutter test test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
-flutter analyze --no-pub
-flutter test test/features/lyrics
-flutter test
-scripts/quality_gate.ps1
-dart tool/work_log.dart write
-dart tool/work_log.dart check
-```
+- `.gitignore`
+- `lib/features/lyrics/domain/services/lyric_audition_window_service.dart`
+- `lib/features/lyrics/presentation/lyric_review_strings.dart`
+- `lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart`
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
+- `test/features/lyrics/domain/services/lyric_audition_window_service_test.dart`
+- `test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart`
+- `docs/handoff.md`
+- `docs/work_log_index.md`
+- `docs/work_log_archive.md`
+- `docs/work_log.md`
+- `docs/log/entries/2026-10-22-0240-bounded-lyric-line-audition.md`
 
-## Manual checks
-- At 390×844, clicking “从这一行开始试听” starts the selected row but does not open the bottom-sheet inspector.
-- At 1366×768 and 1600×900, clicking the icon starts the same project playback session and leaves the risk-ranked queue visible.
-- Confirm the button is absent outside Smart Review and when the project has no audio asset.
-- Confirm row tap still opens/selects the inspector as before.
-- Playback row highlight updates, but Smart Review does not auto-scroll and reorder itself due to playback stream updates.
+## 检查结果
 
-## Changed files
-- lib/features/lyrics/presentation/screens/lyric_editor_screen.dart
-- lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart
-- test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
-- docs/lyric_review_alignment_plan.md
-- docs/work_log_index.md
-- docs/log/entries/2026-10-21-2222-smart-review-inline-audition.md
+- `dart format` 格式化通过。
+- `flutter analyze --no-pub` 报告 No issues found。
+- `flutter test` 全量 549 个测试全部通过。
+- `quality_gate.ps1` 校验通过。
 
-Last updated: 2026-10-21 22:22
+## 下一步
+
+- 在真实音频下手动核验 390×844、1024×768、1366×768、1600×900 视口体验。
+- 合并 PR #129 到 main，并推进后续 PR #130 键盘优先快捷键复核流程。
+
+## 已知风险
+
+- 真实音频播放与系统硬件音频管道行为依赖真实平台运行；行结束自动暂停使用 positionStream 采样，存在细微毫秒级时间差，但已由 1 秒前置与边界平滑。
+
+最后更新：2026-10-22 02:40
