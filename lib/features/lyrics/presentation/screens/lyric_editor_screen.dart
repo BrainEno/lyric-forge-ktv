@@ -333,7 +333,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         title: const Text('这次对齐引入了时间轴冲突'),
         content: SingleChildScrollView(
           child: Text(
-            '系统已先尝试安全修复结束时间重叠：${autoRepairCount} 处。\n\n'
+            '系统已先尝试安全修复结束时间重叠：$autoRepairCount 处。\n\n'
             '以下问题在自动修复后仍无法可靠推断：\n\n$issues\n\n'
             '可以撤销本次对齐，或保留结果并逐行校准。',
           ),

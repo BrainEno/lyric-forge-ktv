@@ -87,36 +87,42 @@ class _AlignmentComparisonSheet extends StatelessWidget {
       final line = after.lines[i];
       final oldIndex = remainingOld.remove(_key(line, i));
       if (oldIndex == null) {
-        changes.add(_LineChange(
-          kind: _ChangeKind.inserted,
-          beforeIndex: null,
-          afterIndex: i,
-          beforeLine: null,
-          afterLine: line,
-        ));
+        changes.add(
+          _LineChange(
+            kind: _ChangeKind.inserted,
+            beforeIndex: null,
+            afterIndex: i,
+            beforeLine: null,
+            afterLine: line,
+          ),
+        );
         continue;
       }
       final old = before.lines[oldIndex];
       if (old.text != line.text ||
           old.startTime != line.startTime ||
           old.endTime != line.endTime) {
-        changes.add(_LineChange(
-          kind: _ChangeKind.corrected,
-          beforeIndex: oldIndex,
-          afterIndex: i,
-          beforeLine: old,
-          afterLine: line,
-        ));
+        changes.add(
+          _LineChange(
+            kind: _ChangeKind.corrected,
+            beforeIndex: oldIndex,
+            afterIndex: i,
+            beforeLine: old,
+            afterLine: line,
+          ),
+        );
       }
     }
     for (final item in remainingOld.entries) {
-      changes.add(_LineChange(
-        kind: _ChangeKind.removed,
-        beforeIndex: item.value,
-        afterIndex: null,
-        beforeLine: before.lines[item.value],
-        afterLine: null,
-      ));
+      changes.add(
+        _LineChange(
+          kind: _ChangeKind.removed,
+          beforeIndex: item.value,
+          afterIndex: null,
+          beforeLine: before.lines[item.value],
+          afterLine: null,
+        ),
+      );
     }
     return changes;
   }
@@ -133,21 +139,31 @@ class _AlignmentComparisonSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final changes = _changes();
-    final corrected = changes.where((c) => c.kind == _ChangeKind.corrected).length;
-    final inserted = changes.where((c) => c.kind == _ChangeKind.inserted).length;
-    final timeOnly = changes.where((c) =>
-      c.beforeLine != null &&
-      c.afterLine != null &&
-      c.beforeLine!.text == c.afterLine!.text &&
-      (c.beforeLine!.startTime != c.afterLine!.startTime ||
-       c.beforeLine!.endTime != c.afterLine!.endTime)
-    ).length;
+    final corrected = changes
+        .where((c) => c.kind == _ChangeKind.corrected)
+        .length;
+    final inserted = changes
+        .where((c) => c.kind == _ChangeKind.inserted)
+        .length;
+    final timeOnly = changes
+        .where(
+          (c) =>
+              c.beforeLine != null &&
+              c.afterLine != null &&
+              c.beforeLine!.text == c.afterLine!.text &&
+              (c.beforeLine!.startTime != c.afterLine!.startTime ||
+                  c.beforeLine!.endTime != c.afterLine!.endTime),
+        )
+        .length;
 
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.md, AppSpacing.sm, AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.sm,
           ),
           child: Row(
             children: [
@@ -155,7 +171,8 @@ class _AlignmentComparisonSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('本次逐行对比',
+                    Text(
+                      '本次逐行对比',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -182,18 +199,19 @@ class _AlignmentComparisonSheet extends StatelessWidget {
         const Divider(height: 1),
         Expanded(
           child: changes.isEmpty
-            ? const Center(child: Text('本次校对没有改变文字或时间轴。'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: changes.length,
-                separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (context, index) => _LineChangeCard(
-                  change: changes[index],
-                  timeLabel: _time,
-                  diffService: _diffService,
-                  onPreview: onPreviewLine,
+              ? const Center(child: Text('本次校对没有改变文字或时间轴。'))
+              : ListView.separated(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  itemCount: changes.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  itemBuilder: (context, index) => _LineChangeCard(
+                    change: changes[index],
+                    timeLabel: _time,
+                    diffService: _diffService,
+                    onPreview: onPreviewLine,
+                  ),
                 ),
-              ),
         ),
         const Divider(height: 1),
         Padding(
@@ -241,8 +259,10 @@ class _LineChangeCard extends StatelessWidget {
       _ChangeKind.inserted => '补全新增',
       _ChangeKind.removed => '移除',
     };
-    final timingChanged = old != null && current != null &&
-      (old.startTime != current.startTime || old.endTime != current.endTime);
+    final timingChanged =
+        old != null &&
+        current != null &&
+        (old.startTime != current.startTime || old.endTime != current.endTime);
     final diff = diffService.diff(old?.text ?? '', current?.text ?? '');
 
     return Container(
@@ -258,15 +278,18 @@ class _LineChangeCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text('第 ${index + 1} 行 · $title',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Text(
+                  '第 ${index + 1} 行 · $title',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               if (current != null && change.afterIndex != null)
                 OutlinedButton.icon(
-                  onPressed: onPreview == null ? null : () => onPreview!(change.afterIndex!),
+                  onPressed: onPreview == null
+                      ? null
+                      : () => onPreview!(change.afterIndex!),
                   icon: const Icon(Icons.play_arrow_rounded, size: 17),
                   label: const Text('试听这一行'),
                 ),
@@ -280,17 +303,19 @@ class _LineChangeCard extends StatelessWidget {
           _DiffRow(label: '校对后', segments: diff, showInsertions: true),
           if (timingChanged) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text('时间：${timeLabel(old)} → ${timeLabel(current)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            Text(
+              '时间：${timeLabel(old)} → ${timeLabel(current)}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ] else if (current != null && old == null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text('估算开始时间：${timeLabel(current)}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+            Text(
+              '估算开始时间：${timeLabel(current)}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ],
@@ -318,36 +343,51 @@ class _DiffRow extends StatelessWidget {
       if (!showInsertions && segment.type == CharacterDiffType.insert) continue;
       final changed = !segment.isEqual;
       final color = !changed
-        ? AppColors.textPrimary
-        : showInsertions ? AppColors.accentHover : AppColors.error;
-      spans.add(TextSpan(
-        text: segment.text,
-        style: TextStyle(
-          color: color,
-          backgroundColor: changed
-            ? (showInsertions ? AppColors.accent : AppColors.error).withAlpha(30)
-            : null,
-          fontWeight: changed ? FontWeight.w700 : FontWeight.normal,
-          decoration: !showInsertions && changed ? TextDecoration.lineThrough : null,
+          ? AppColors.textPrimary
+          : showInsertions
+          ? AppColors.accentHover
+          : AppColors.error;
+      spans.add(
+        TextSpan(
+          text: segment.text,
+          style: TextStyle(
+            color: color,
+            backgroundColor: changed
+                ? (showInsertions ? AppColors.accent : AppColors.error)
+                      .withAlpha(30)
+                : null,
+            fontWeight: changed ? FontWeight.w700 : FontWeight.normal,
+            decoration: !showInsertions && changed
+                ? TextDecoration.lineThrough
+                : null,
+          ),
         ),
-      ));
+      );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 52,
-          child: Text(label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textTertiary,
-            ),
+          child: Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
           ),
         ),
         Expanded(
           child: spans.isEmpty
-            ? const Text('（空）', style: TextStyle(color: AppColors.textTertiary))
-            : Text.rich(TextSpan(children: spans),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.4)),
+              ? const Text(
+                  '（空）',
+                  style: TextStyle(color: AppColors.textTertiary),
+                )
+              : Text.rich(
+                  TextSpan(children: spans),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(height: 1.4),
+                ),
         ),
       ],
     );

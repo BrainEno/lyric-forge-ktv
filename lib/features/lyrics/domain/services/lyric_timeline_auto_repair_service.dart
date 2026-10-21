@@ -116,7 +116,8 @@ class LyricTimelineAutoRepairService {
     if (audioDuration != null) {
       for (var index = 0; index < repaired.length; index++) {
         final current = repaired[index];
-        final hasChangedContext = changedLineIndices.contains(index) ||
+        final hasChangedContext =
+            changedLineIndices.contains(index) ||
             repairs.any((repair) => repair.lineIndex == index);
         if (!hasChangedContext ||
             protectedLineIndices.contains(index) ||
@@ -197,18 +198,24 @@ class LyricTimelineAutoRepairService {
         final lineIndex = runStart + offset;
         final before = repaired[lineIndex];
         final weight = weights[offset];
-        final start = leftBoundary +
+        final start =
+            leftBoundary +
             minimumDuration * offset +
             Duration(
               microseconds:
-                  extraAvailable.inMicroseconds * cumulativeWeight ~/ totalWeight,
+                  extraAvailable.inMicroseconds *
+                  cumulativeWeight ~/
+                  totalWeight,
             );
         cumulativeWeight += weight;
-        final end = leftBoundary +
+        final end =
+            leftBoundary +
             minimumDuration * (offset + 1) +
             Duration(
               microseconds:
-                  extraAvailable.inMicroseconds * cumulativeWeight ~/ totalWeight,
+                  extraAvailable.inMicroseconds *
+                  cumulativeWeight ~/
+                  totalWeight,
             );
         if (end - start < minimumDuration) {
           // Do not partially repair a run when the available slot cannot be
@@ -224,10 +231,7 @@ class LyricTimelineAutoRepairService {
       }
     }
 
-    return LyricTimelineAutoRepairResult(
-      lines: repaired,
-      repairs: repairs,
-    );
+    return LyricTimelineAutoRepairResult(lines: repaired, repairs: repairs);
   }
 
   bool _runNeedsRedistribution(

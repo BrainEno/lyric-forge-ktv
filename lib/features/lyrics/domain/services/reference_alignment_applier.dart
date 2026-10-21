@@ -408,7 +408,8 @@ class ReferenceAlignmentApplier {
       for (var index = 0; index < finalLines.length; index++) {
         final lineId = finalLines[index].id;
         if (lineId != null &&
-            (originalTimingProvenance[lineId] == LyricTimingProvenance.manual.name ||
+            (originalTimingProvenance[lineId] ==
+                    LyricTimingProvenance.manual.name ||
                 originalTimingProvenance[lineId] ==
                     LyricTimingProvenance.reference.name)) {
           protectedTimelineIndices.add(index);
