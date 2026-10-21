@@ -6,7 +6,7 @@
 
 继续降低歌词识别后的人工校对负担。PR #125（对齐后逐行对比与保守时间轴自动修复）、PR #126（可解释智能复核优先队列）、PR #127（持久化复核决策 + 确认本行无误并继续）均已合并到远程 main。
 
-本次会话（2026-10-21 23:xx）做两件事：一是提交 PR #126 合并时残留的 Git 冲突标记修复；二是把本地 main 同步到远程 main（远程此前已有 PR #127），并验证合并后代码。
+本次会话（2026-10-21 23:08–23:55）做三件事：一是提交 PR #126 合并时残留的 Git 冲突标记修复；二是把本地 main 同步到远程 main（远程此前已有 PR #127），并验证合并后代码；三是修复本机 Git 凭据助手配置，使 `git push` 不再卡在凭据提示。
 
 ## Git 现场
 
@@ -14,13 +14,15 @@
 $ git branch --show-current
 main
 $ git log --oneline -5
+11c5f92 Regenerate work log summary after merging PR #127
+a01605a Refresh handoff after syncing main with remote PR #127
 a8883b6 Merge remote-tracking branch 'origin/main'
 5241b96 Resolve leftover merge conflict in reference alignment comparison
 0f89a21 Merge pull request #127 from BrainEno/feat/guided-smart-review-confirmation-20261021
-49488cd Refresh guided review handoff after static review
-2cd74b7 Clarify review confirmation includes lyric timing
 $ git status --short
 （干净；generated_plugin* 的 autocrlf 噪声已用 git checkout -- 还原）
+$ git status -sb
+## main...origin/main     ← 已与远程同步
 ```
 
 合并前本地落后远程 8 个提交（PR #127，merge commit `0f89a21`）。冲突仅出现在 `docs/handoff.md`（单槽位文件，双方都改写），已按当前真实状态重写。
@@ -40,14 +42,28 @@ $ git status --short
 - `flutter analyze --no-pub` → No issues found（2.5s）
 - `flutter test test/features/lyrics` → 202/202 通过
 - `dart tool/work_log.dart check` → 0 errors, 0 warnings
-- `git push origin main` → 之前被环境以 `permission.rejected` 拒绝，本次已恢复为普通推送（首次尝试因远程有新提交被拒，合并后重推）
+- `flutter test`（全量）→ 536 通过、2 跳过、0 失败
+- `git push origin main` → 之前被环境以 `permission.rejected` 拒绝，本次已恢复为普通推送（首次尝试因远程有新提交被拒，合并后重推成功）
+
+## 本机 Git 凭据修复（全局配置，已生效）
+
+问题：Hermes 自带 Git（`AppData/Local/hermes/tools/git-2.53.0+3-win32-x64`）的系统 gitconfig 里 `credential.helper = helper-selector`，会选中 Windows 凭据管理器（`manager`）。GCM 在无 TTY 环境下无法弹窗，`git push` 会挂起或报 `could not read Username`。
+
+修复：`C:/Users/123/.gitconfig` 中设置
+
+```
+[credential]
+	helper =
+	helper = !gh auth git-credential
+```
+
+第一条空 helper 用于重置 helper 列表（清掉系统层的 helper-selector），第二条用 gh 已登录的 token 供 Git 使用。`gh auth status` 显示账号 BrainEno，scopes 含 `repo`。
 
 ## 下一步
 
-1. 确认 `git push origin main` 成功，`git status` 干净。
-2. PR #128（`feat/smart-review-inline-audition-20261021`，Draft）仍需本地跑 Flutter 验证 + 视口人工复核后才可转 Ready。其 PR 描述里说"本环境无 Flutter 工具链"，但本机实际有 D:\src\flutter，可直接验证。
-3. PR #127 的代码此前在无 Flutter 环境的容器中开发、从未跑过 analyze/test；本次合并后已跑过并全绿，但**未做真实窗口人工验证**。
-4. Phase D 在线歌词搜索仍为可选，未实现。
+1. PR #128（`feat/smart-review-inline-audition-20261021`，Draft）仍需本地跑 Flutter 验证 + 视口人工复核后才可转 Ready。其 PR 描述里说"本环境无 Flutter 工具链"，但本机实际有 D:\src\flutter，可直接验证。
+2. PR #127 的代码此前在无 Flutter 环境的容器中开发、从未跑过 analyze/test；本次合并后已跑过并全绿，但**未做真实窗口人工验证**。
+3. Phase D 在线歌词搜索仍为可选，未实现。
 
 ## 已知风险
 
@@ -58,4 +74,4 @@ $ git status --short
 
 ---
 
-最后更新：2026-10-21 23:39
+最后更新：2026-10-21 23:55
