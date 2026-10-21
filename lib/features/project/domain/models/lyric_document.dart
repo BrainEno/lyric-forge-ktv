@@ -5,12 +5,17 @@ class LyricLine {
   final bool isChorus;
   final int confidence;
 
+  /// 稳定行标识：插入/删除/对齐等结构变化后保持不变。
+  /// 用于"手工编辑保护"跨会话持久化与对齐结果溯源；旧数据没有该字段时为 null。
+  final String? id;
+
   const LyricLine({
     required this.text,
     required this.startTime,
     required this.endTime,
     this.isChorus = false,
     this.confidence = 100,
+    this.id,
   });
 
   LyricLine copyWith({
@@ -19,6 +24,7 @@ class LyricLine {
     Duration? endTime,
     bool? isChorus,
     int? confidence,
+    String? id,
   }) {
     return LyricLine(
       text: text ?? this.text,
@@ -26,6 +32,7 @@ class LyricLine {
       endTime: endTime ?? this.endTime,
       isChorus: isChorus ?? this.isChorus,
       confidence: confidence ?? this.confidence,
+      id: id ?? this.id,
     );
   }
 
@@ -36,6 +43,7 @@ class LyricLine {
       'endTime': endTime.inMilliseconds,
       'isChorus': isChorus,
       'confidence': confidence,
+      if (id != null) 'id': id,
     };
   }
 
@@ -46,6 +54,7 @@ class LyricLine {
       endTime: Duration(milliseconds: json['endTime'] as int),
       isChorus: json['isChorus'] as bool? ?? false,
       confidence: json['confidence'] as int? ?? 100,
+      id: json['id'] as String?,
     );
   }
 }
