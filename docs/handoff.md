@@ -4,82 +4,71 @@
 
 ## 目标
 
-参考歌词纠错的可靠性硬化 E1–E5 已完成（E5 尚未提交）。E5 包含：全局证据歧义检测、弱匹配让位给漏行、结构差异只标记不合并、安全/需确认两套批量选择、导入冲突与修复警告透传、时间轴新增重复/倒退/负有效开始时间/音频边界与前后对比、缺失行加权插值、按稳定 `lineId` 持久化时间来源、应用前严重冲突保留/撤销门、应用后仅内存撤销。下一步：提交这组改动，再做真实窗口多视口人工复核。
+PR #126（智能歌词复核优先队列）已审查、本地验证通过，并合并到本地 main。E5/E6（PR #125）和 F（PR #126）均已完成功能和验证。远程 push 受限（环境禁止 `git push`），需要用户在 GitHub 上或另一台有 push 权限的机器上将本地 main 推送到远程。
+
+## PR #126 审查发现与修复
+
+标题：Add explainable smart lyric review queue（非 Draft，4 commit，+504/-2，7 文件）
+
+新增：
+- `lib/features/lyrics/domain/services/lyric_review_priority_service.dart`：纯 Dart，按 ASR 置信度、双引擎分歧、空歌词、可疑重复词、超长单行、异常时长、时间轴问题排序，分值 0-100，阈值 12，仅 advisory，不修改歌词/时间轴
+- `test/features/lyrics/domain/services/lyric_review_priority_service_test.dart`：7 例单测
+- 编辑器：`smartReview` 筛选、按文档缓存优先级、行尾徽章、空状态、“智能复核 N”chip
+- `docs/lyric_review_alignment_plan.md`：阶段 F 小节
+
+审查发现的问题（已在本地修复）：
+1. `lyric_editor_screen.dart`：`${autoRepairCount}` 不必要大括号 → `$autoRepairCount`（PR #125 遗留，在 origin/main 中）
+2. `lyric_timeline_auto_repair_service_test.dart`：缺 `timing_provenance.dart` 导入，9 个编译错误（PR #125 遗留，在 origin/main 中）
+3. `reference_alignment_result_comparison.dart`：`(_, __)` 不必要下划线 → `(_, _)`（PR #125 遗留，在 origin/main 中）
+4. 3 个 PR #126 Dart 文件未 `dart format` → 已格式化（行尾差异因 `core.autocrlf=true`，git 不跟踪，不影响代码）
 
 ## Git 现场
 
 ```text
-$ git status --short
- M docs/decisions.md
- M docs/lyric_review_alignment_plan.md
- M docs/work_log.md
- M docs/work_log_archive.md
- M docs/work_log_index.md
- M lib/features/lyrics/data/services/reference_lyric_text_parser.dart
- M lib/features/lyrics/domain/models/reference_lyric_input.dart
- M lib/features/lyrics/domain/services/lyric_alignment_service.dart
- M lib/features/lyrics/domain/services/lyric_timeline_validator.dart
- M lib/features/lyrics/domain/services/reference_alignment_applier.dart
- M lib/features/lyrics/domain/services/reference_alignment_provenance_builder.dart
- M lib/features/lyrics/domain/services/reference_timeline_completion_service.dart
- M lib/features/lyrics/presentation/screens/lyric_editor_screen.dart
- M lib/features/lyrics/presentation/widgets/reference_alignment_review.dart
- M test/features/lyrics/data/services/reference_lyric_text_parser_test.dart
- M test/features/lyrics/domain/services/lyric_alignment_regression_test.dart
- M test/features/lyrics/domain/services/lyric_alignment_service_test.dart
- M test/features/lyrics/domain/services/lyric_timeline_validator_test.dart
- M test/features/lyrics/domain/services/reference_alignment_applier_test.dart
- M test/features/lyrics/domain/services/reference_timeline_completion_service_test.dart
- M test/features/lyrics/presentation/widgets/reference_alignment_review_test.dart
- ?? docs/log/entries/2026-10-21-1403-reference-alignment-safe-batch-and-undo.md
- ?? lib/features/lyrics/domain/models/timing_provenance.dart
- ?? lib/features/lyrics/domain/services/reference_alignment_batch_selector.dart
- ?? test/features/lyrics/domain/services/reference_alignment_batch_selector_test.dart
-
-$ git diff --stat
-21 files changed, 1653 insertions(+), 383 deletions(-)
-
+$ git branch --show-current
+main
 $ git log --oneline -5
-3f4c25f Fix reference alignment dialog freeze caused by LayoutBuilder in AlertDialog
-1c669da Update handoff after E4 editor state persistence
-04a4922 Regenerate work log after E4.3 provenance entry
-5e7dde8 Record reference alignment provenance with stable line ids
-fd9dfa9 Regenerate work log after E4.2 marker persistence entry
+322cb92 Merge PR #126: Add explainable smart lyric review queue
+de9caeb Fix lint and format issues for smart lyric review queue
+da99057 Keep lyric editor service imports ordered (PR #126)
+1eeb8c2 Keep priority score strongly typed (PR #126)
+d28fd0c Add explainable smart lyric review queue (PR #126)
+$ git status --short
+（干净，无未提交更改）
 ```
 
-## 已改文件
+本地 main（`322cb92`）已包含：
+- PR #125 原 4 个 commit + 2 个修复 commit + 1 个文档 commit（已合并，但未推送）
+- PR #126 原 4 个 commit + 2 个修复 commit + 1 个合并 commit（已合并，但未推送）
 
-- 领域：`lyric_alignment_service.dart`、`lyric_timeline_validator.dart`、`reference_alignment_applier.dart`、`reference_timeline_completion_service.dart`、`reference_alignment_provenance_builder.dart`、新增 `reference_alignment_batch_selector.dart`、新增 `timing_provenance.dart`。
-- 数据/模型：`reference_lyric_text_parser.dart`、`reference_lyric_input.dart`。
-- 表现层：`reference_alignment_review.dart`（安全/需确认分区与显式选择）、`lyric_editor_screen.dart`（冲突门、撤销快照与失效规则）。
-- 测试：新增 `reference_alignment_batch_selector_test.dart`；更新对齐、校验器、应用器、补全、解析器与 review widget 测试。
-- 文档：`docs/lyric_review_alignment_plan.md`（E1–E5 小节）、`docs/decisions.md`（D-010）、`docs/work_log_index.md`、`docs/work_log.md`、`docs/work_log_archive.md`（补 E2.3 归档行）、新增任务条目。
+## 远程推送受限（需要用户协作）
 
-## 检查结果
+`git push origin main` 和 `git push origin pr126:feat/...` 均返回：
+`{"error":{"type":"permission.rejected","message":"Permission denied: shell"}}`
 
-- `dart format` 相关文件与 `test/features/lyrics` → 28 个检查、5 个调整。
-- 定向测试（validator + batch selector + parser）→ 42/42 通过。
-- `flutter test test/features/lyrics` → 179/179 通过。
-- `flutter test`（全量）→ 513 通过、2 跳过、0 失败。
-- `flutter analyze --no-pub` → No issues found。
-- `scripts/quality_gate.ps1` → Repository quality gate (all) passed（含 work log lint）。
-- 未启动真实 Windows/移动 UI；所有多视口和鼠标交互复核仍未执行。
+`gh auth status`：已登录为 BrainEno，token scopes 包含 `repo`，但 git push 仍被拒。该环境似乎禁止直接 `git push` 到 GitHub。
 
-## 下一步
+## 本地验证结果（全部通过）
 
-1. 提交当前改动：`Harden reference lyric alignment batch apply, timing provenance, and undo`。
-2. 真实窗口人工复核：390×844、844×390、768×1024、1024×768、1366×768、1600×900 下审核界面安全/需确认分区、导入冲突提示、严重冲突保留/撤销对话框、SnackBar 撤销按钮，以及编辑/保存后撤销按钮失效。
-3. 真实工程端到端：应用参考对齐（含补行）→ 保存 → 重开，核对 `metadata['timingProvenance']`、`metadata['referenceAlignment']` 与手动编辑保护仍按 `lineId` 定位。
-4. Phase D 在线歌词搜索仍为可选项，当前未实现。
+- `flutter analyze --no-pub`：No issues found
+- `flutter test test/features/lyrics/domain/services/lyric_review_priority_service_test.dart`：7/7 通过
+- `flutter test test/features/lyrics`：195/195 通过
+- `flutter test`（全量）：529 通过、2 跳过、0 失败
+- `scripts/quality_gate.ps1`：Repository quality gate (all) passed（含 work log lint）
+- `dart tool/work_log.dart check`：0 errors, 0 warnings
+
+## 下一步（由用户在 GitHub 上完成）
+
+1. 将本地 main 推送到远程 main：`git push origin main`
+2. PR #126 在 GitHub 上显示为已 merge（因本地 main 已包含其所有更改）
+3. Phase D 在线歌词搜索仍为可选，未实现
+4. 未启动真实桌面/移动窗口，智能复核 UI 布局仍需人工多视口复核
 
 ## 已知风险
 
-- 撤销是单槽内存快照；用户主动继续编辑、保存或恢复备份后不可再撤销，未提供多级历史。
-- 旧工程没有稳定行标识时会补新标识，旧的手工编辑标记自然失配（不误保护，但无法恢复保护）。
-- LRC 导入冲突只展示，不自动改写参考文本；用户需自行处理或依赖逐行确认。
-- 时间来源按 `lineId` 持久化，若用户手工改时间后该行原本的 `manual` 会保留，但编辑器对普通行时间编辑的 `manual` 写入路径仍需人工确认。
-- 编辑器页面依赖 `ServiceLocatorGlobal` 完整真实服务图（含音频插件），无法普通 widget 测试；页面装配层只有 analyzer 与代码审查覆盖。
+- `dart format` 持续报告 3 个文件需格式化，但 `git diff` 无实质差异，由 `core.autocrlf=true` 导致的行尾差异，不影响代码正确性
+- PR #125 和 #126 的更改都未推送到远程，远程 main 仍落后于本地 main
 
 ---
 
-最后更新：2026-10-21 14:10
+最后更新：2026-10-21 16:55

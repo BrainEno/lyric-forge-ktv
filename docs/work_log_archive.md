@@ -67,3 +67,4 @@
 - [2026-10-20 20:48] 插入行与音频文件边界校验（E2.2） `Guard lyric insertion and audio track bounds` ([entry](log/entries/2026-10-20-2048-e2-insertion-audio-boundary.md))
 - [2026-10-20 20:56] 完善 LRC 时间戳冲突处理（E2.3） `Report LRC timestamp import conflicts via LyricImportResult.conflicts` ([entry](log/entries/2026-10-20-2056-e2-lrc-conflict.md))
 - [2026-10-21 00:35] 对齐服务区分匹配/自动替换阈值并引入低置信与歧义状态（E3.1） `Distinguish alignment match and auto-replace thresholds with low-confidence and ambiguous states` ([entry](log/entries/2026-10-21-0035-e3-alignment-threshold-states.md))
+- [2026-10-21 01:28] 审核界面支持歧义匹配的替换或插入漏行判断（E3.3） `Review UI supports ambiguous match replace-or-insert-missing-line choice` ([entry](log/entries/2026-10-21-0128-e3-review-ambiguous-choice.md))
