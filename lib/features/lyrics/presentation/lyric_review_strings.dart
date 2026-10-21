@@ -2,8 +2,7 @@
 abstract final class LyricReviewStrings {
   static const String auditionPlayTooltip = '播放/继续本行试听';
   static const String auditionPauseTooltip = '暂停本行试听';
-  static const String auditionInvalidStart =
-      '这一行的有效开始时间或结束时间无效，无法试听。';
+  static const String auditionInvalidStart = '这一行的有效开始时间或结束时间无效，无法试听。';
   static const String auditionErrorPrefix = '无法试听当前歌词行：';
   static const String loopCurrentLineLabel = '循环本行';
   static const String loopCurrentLineHelp =

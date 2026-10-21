@@ -4,46 +4,47 @@ import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_string
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/smart_review_audition_button.dart';
 
 void main() {
-  testWidgets('button does not also invoke the lyric row tap on narrow screens', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'button does not also invoke the lyric row tap on narrow screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    var auditions = 0;
-    var rowTaps = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: InkWell(
-              onTap: () => rowTaps++,
-              child: SmartReviewAuditionButton(
-                isSmartReview: true,
-                hasAudio: true,
-                isPlaying: false,
-                onPressed: () => auditions++,
+      var auditions = 0;
+      var rowTaps = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: InkWell(
+                onTap: () => rowTaps++,
+                child: SmartReviewAuditionButton(
+                  isSmartReview: true,
+                  hasAudio: true,
+                  isPlaying: false,
+                  onPressed: () => auditions++,
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final action = find.byTooltip(LyricReviewStrings.auditionPlayTooltip);
-    expect(action, findsOneWidget);
-    expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
-    expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
+      final action = find.byTooltip(LyricReviewStrings.auditionPlayTooltip);
+      expect(action, findsOneWidget);
+      expect(tester.getSize(action).width, greaterThanOrEqualTo(48));
+      expect(tester.getSize(action).height, greaterThanOrEqualTo(48));
 
-    await tester.tap(action);
-    await tester.pump();
+      await tester.tap(action);
+      await tester.pump();
 
-    expect(auditions, 1);
-    expect(rowTaps, 0);
-    expect(tester.takeException(), isNull);
-  });
+      expect(auditions, 1);
+      expect(rowTaps, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('toggling a row changes play to pause and back', (tester) async {
     var isPlaying = false;

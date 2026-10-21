@@ -184,15 +184,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _refreshReviewPriorityCache(updated, project.audioAsset?.duration);
       _selectedLineIndex = _reviewPriorityByIndex.isEmpty
           ? null
-          : (_reviewPriorityByIndex.values.toList()
-                ..sort((left, right) {
+          : (_reviewPriorityByIndex.values.toList()..sort((left, right) {
                   final byScore = right.score.compareTo(left.score);
                   return byScore != 0
                       ? byScore
                       : left.lineIndex.compareTo(right.lineIndex);
                 }))
-              .first
-              .lineIndex;
+                .first
+                .lineIndex;
     });
 
     final remaining = _reviewPriorityByIndex.length;
@@ -212,8 +211,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _repository = ServiceLocatorGlobal.I.projectRepository;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
-    _auditionPositionSubscription =
-        _audioService.positionStream.listen(_handleAuditionPosition);
+    _auditionPositionSubscription = _audioService.positionStream.listen(
+      _handleAuditionPosition,
+    );
     _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
     _lineMarkers = const LyricManualEditMarkerService();
     _referenceParser = ReferenceLyricTextParser(
@@ -479,7 +479,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       );
 
     final activeAudition = _activeLineAudition;
-    final shouldPauseAudition = activeAudition != null &&
+    final shouldPauseAudition =
+        activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
@@ -575,7 +576,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final snapshot = _alignmentUndoSnapshot;
     if (snapshot == null) return;
     final activeAudition = _activeLineAudition;
-    final shouldPauseAudition = activeAudition != null &&
+    final shouldPauseAudition =
+        activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
@@ -634,7 +636,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (restored == null || !mounted) return;
 
     final activeAudition = _activeLineAudition;
-    final shouldPauseAudition = activeAudition != null &&
+    final shouldPauseAudition =
+        activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
@@ -769,16 +772,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     final active = _activeLineAudition;
-    final isActiveLine = active != null &&
+    final isActiveLine =
+        active != null &&
         active.projectId == widget.projectId &&
         (active.lineId != null
             ? active.lineId == previousLine.id
             : active.lineIndex == index);
-    final timingChanged = previousLine.startTime != updatedLine.startTime ||
+    final timingChanged =
+        previousLine.startTime != updatedLine.startTime ||
         previousLine.endTime != updatedLine.endTime;
     final invalidateAudition = isActiveLine && timingChanged;
-    final shouldPauseAudition = invalidateAudition &&
-        active != null &&
+    final shouldPauseAudition =
+        invalidateAudition &&
         _playbackSession.currentState.currentItem?.projectId ==
             active.projectId &&
         _audioService.currentState.isPlaying;
@@ -829,13 +834,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     final removedLine = document.lines[index];
     final active = _activeLineAudition;
-    final isActiveLine = active != null &&
+    final isActiveLine =
+        active != null &&
         active.projectId == widget.projectId &&
         (active.lineId != null
             ? active.lineId == removedLine.id
             : active.lineIndex == index);
-    final shouldPauseAudition = isActiveLine &&
-        active != null &&
+    final shouldPauseAudition =
+        isActiveLine &&
         _playbackSession.currentState.currentItem?.projectId ==
             active.projectId &&
         _audioService.currentState.isPlaying;
@@ -875,7 +881,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   void _updateGlobalOffset(Duration offset) {
     final active = _activeLineAudition;
-    final shouldPauseAudition = active != null &&
+    final shouldPauseAudition =
+        active != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             active.projectId &&
         _audioService.currentState.isPlaying;
@@ -901,7 +908,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final line = document.lines[index];
     final active = _activeLineAudition;
     final currentItem = _playbackSession.currentState.currentItem;
-    final sameAudition = active != null &&
+    final sameAudition =
+        active != null &&
         active.projectId == project.id &&
         (active.lineId != null
             ? active.lineId == line.id
@@ -910,13 +918,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final playback = _audioService.currentState;
 
     try {
-      if (sameAudition && active != null && playbackBelongsToProject) {
+      if (sameAudition && playbackBelongsToProject) {
         if (playback.isPlaying) {
           await _audioService.pause();
           return;
         }
         final endAt = active.window.endAt;
-        final canResume = playback.position >= active.window.startAt &&
+        final canResume =
+            playback.position >= active.window.startAt &&
             (endAt == null || playback.position < endAt);
         if (canResume) {
           await _audioService.play();
@@ -954,7 +963,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     if (!window.canAudition) {
       final active = _activeLineAudition;
-      final shouldPauseAudition = active != null &&
+      final shouldPauseAudition =
+          active != null &&
           _playbackSession.currentState.currentItem?.projectId ==
               active.projectId &&
           _audioService.currentState.isPlaying;
@@ -1084,7 +1094,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           builder: (context, playbackSnapshot) {
             final playback =
                 playbackSnapshot.data ?? const PlaybackState.idle();
-            final activeProject =
+            final playbackBelongsToProject =
                 _playbackSession.currentState.currentItem?.projectId ==
                 project.id;
 
@@ -1092,7 +1102,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               project: project,
               document: _editingDocument!,
               playback: playback,
-              playbackBelongsToProject: activeProject,
+              playbackBelongsToProject: playbackBelongsToProject,
               hasChanges: _hasChanges,
               reviewPriorityByIndex: _reviewPriorityByIndex,
               activeAuditionLineIndex: _activeAuditionLineIndex,
@@ -1331,8 +1341,9 @@ class _LyricEditorContent extends StatelessWidget {
     }
     if (filter == _ReviewFilter.smartReview) {
       indices.sort((left, right) {
-        final byPriority = (reviewPriorityByIndex[right]?.score ?? 0)
-            .compareTo(reviewPriorityByIndex[left]?.score ?? 0);
+        final byPriority = (reviewPriorityByIndex[right]?.score ?? 0).compareTo(
+          reviewPriorityByIndex[left]?.score ?? 0,
+        );
         return byPriority != 0 ? byPriority : left.compareTo(right);
       });
     }
@@ -1577,9 +1588,11 @@ class _LyricEditorContent extends StatelessWidget {
                                 fallbackCandidate: selectedIndex == null
                                     ? null
                                     : _fallbackCandidateFor(selectedIndex),
-                                isReviewed: selectedIndex != null &&
+                                isReviewed:
+                                    selectedIndex != null &&
                                     _isLineReviewed(selectedIndex),
-                                onReviewDecision: selectedIndex != null &&
+                                onReviewDecision:
+                                    selectedIndex != null &&
                                         (_isLineReviewed(selectedIndex) ||
                                             reviewPriorityByIndex.containsKey(
                                               selectedIndex,
@@ -2076,15 +2089,17 @@ class _LyricListPaneState extends State<_LyricListPane> {
           index: index,
           line: line,
           fallbackCandidate: candidate,
-          isReviewed: const LyricReviewDecisionService()
-              .isReviewed(widget.document, index),
+          isReviewed: const LyricReviewDecisionService().isReviewed(
+            widget.document,
+            index,
+          ),
           priority: widget.reviewPriorityByIndex[index],
           selected: widget.selectedIndex == index,
           playing: widget.currentPlaybackLine == index,
           isSmartReview: widget.filter == _ReviewFilter.smartReview,
           hasAudio: widget.onPreviewLine != null,
-          auditionIsPlaying: widget.auditionPlaying &&
-              widget.activeAuditionLineIndex == index,
+          auditionIsPlaying:
+              widget.auditionPlaying && widget.activeAuditionLineIndex == index,
           onPreview: widget.onPreviewLine == null
               ? null
               : () => widget.onPreviewLine!(index),
@@ -2509,16 +2524,13 @@ class _LineInspectorState extends State<_LineInspector> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () =>
-                    widget.onReviewDecision!(!widget.isReviewed),
+                onPressed: () => widget.onReviewDecision!(!widget.isReviewed),
                 icon: Icon(
                   widget.isReviewed
                       ? Icons.undo_rounded
                       : Icons.check_circle_outline_rounded,
                 ),
-                label: Text(
-                  widget.isReviewed ? '取消已复核标记' : '确认歌词与时间无误并继续',
-                ),
+                label: Text(widget.isReviewed ? '取消已复核标记' : '确认歌词与时间无误并继续'),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -2888,7 +2900,6 @@ class _EmptyLyricsState extends StatelessWidget {
   }
 }
 
-
 class _SmartReviewEmptyState extends StatelessWidget {
   final int reviewedCount;
 
@@ -2914,9 +2925,9 @@ class _SmartReviewEmptyState extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Text(
                 completed ? '本轮智能复核已完成' : '暂未发现明显风险行',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -2924,9 +2935,9 @@ class _SmartReviewEmptyState extends StatelessWidget {
                 completed
                     ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入复核队列。请保存以保留确认记录。'
                     : '当前没有达到智能复核阈值的明显问题。自动评分不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ],

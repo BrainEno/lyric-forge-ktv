@@ -33,9 +33,7 @@ class SmartReviewAuditionButton extends StatelessWidget {
         onPressed: onPressed,
         padding: EdgeInsets.zero,
         constraints: BoxConstraints.tightFor(width: extent, height: extent),
-        icon: Icon(
-          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-        ),
+        icon: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
       ),
     );
   }

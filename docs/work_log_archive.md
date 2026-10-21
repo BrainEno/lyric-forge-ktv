@@ -70,3 +70,5 @@
 - [2026-10-21 01:28] 审核界面支持歧义匹配的替换或插入漏行判断（E3.3） `Review UI supports ambiguous match replace-or-insert-missing-line choice` ([entry](log/entries/2026-10-21-0128-e3-review-ambiguous-choice.md))
 - [2026-10-21 01:35] 歌词对齐回归样本测试集（E3.4） ([entry](log/entries/2026-10-21-0135-e3-regression-sample-set.md))
 - [2026-10-21 11:31] 歌词行稳定标识 LyricLine.id（E4.1） `Add stable line identity field to LyricLine` ([entry](log/entries/2026-10-21-1131-e4-line-id.md))
+- [2026-10-21 11:45] 手工编辑保护标记跨会话持久化（E4.2） Persist manual-edit markers by stable line identity ([entry](log/entries/2026-10-21-1145-e4-marker-persistence.md))
+- [2026-10-21 11:54] 参考对齐溯源语义与保存重开验证（E4.3） Record reference alignment provenance with stable line ids ([entry](log/entries/2026-10-21-1154-e4-alignment-provenance.md))

@@ -79,8 +79,7 @@ class LyricAuditionWindowService {
         );
       }
       var effectiveEnd = rawEffectiveEnd;
-      if (boundedAudioDuration != null &&
-          effectiveEnd > boundedAudioDuration) {
+      if (boundedAudioDuration != null && effectiveEnd > boundedAudioDuration) {
         effectiveEnd = boundedAudioDuration;
       }
       if (effectiveEnd > startAt) endAt = effectiveEnd;
