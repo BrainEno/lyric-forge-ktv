@@ -15,6 +15,9 @@ enum LyricTimingProvenance {
   /// 末尾漏行没有后锚点，按默认时长估算。
   estimatedTail,
 
+  /// 自动收紧了结束时间以消除明确的重叠或音频边界冲突。
+  autoRepaired,
+
   /// 用户在编辑器中手动校准过的时间。
   manual;
 

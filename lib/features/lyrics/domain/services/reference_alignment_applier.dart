@@ -2,6 +2,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../models/timing_provenance.dart';
 import 'lyric_alignment_service.dart';
 import 'lyric_timeline_validator.dart';
+import 'lyric_timeline_auto_repair_service.dart';
 import 'reference_timeline_completion_service.dart';
 
 /// 一行被参考歌词纠正的记录，用于摘要展示和 metadata 溯源。
@@ -94,6 +95,9 @@ class ReferenceAlignmentApplyResult {
   /// 应用前后时间轴对比；没有改动时间时为 null。
   final LyricTimelineValidationComparison? timelineComparison;
 
+  /// Conservative repairs applied before asking the user to resolve remaining conflicts.
+  final List<LyricTimelineAutoRepair> timelineRepairs;
+
   const ReferenceAlignmentApplyResult({
     required this.document,
     required this.corrections,
@@ -108,10 +112,14 @@ class ReferenceAlignmentApplyResult {
     required this.unmatchedAsrCount,
     this.timingProvenanceByAppliedIndex = const {},
     this.timelineComparison,
+    this.timelineRepairs = const [],
   });
 
   bool get hasChanges =>
-      corrections.isNotEmpty || insertions.isNotEmpty || timingUpdatedCount > 0;
+      corrections.isNotEmpty ||
+      insertions.isNotEmpty ||
+      timingUpdatedCount > 0 ||
+      timelineRepairs.isNotEmpty;
 
   int get correctableCount => corrections.length;
 
@@ -140,11 +148,13 @@ class ReferenceAlignmentApplier {
 
   /// 时间轴校验器，用于区分应用前已有问题与本次引入的问题。
   final LyricTimelineValidator timelineValidator;
+  final LyricTimelineAutoRepairService timelineRepairService;
 
   const ReferenceAlignmentApplier({
     this.minimumSimilarity = LyricAlignmentService.defaultAutoReplaceThreshold,
     this.completionService = const ReferenceTimelineCompletionService(),
     this.timelineValidator = const LyricTimelineValidator(),
+    this.timelineRepairService = const LyricTimelineAutoRepairService(),
   }) : assert(minimumSimilarity >= 0 && minimumSimilarity <= 1);
 
   /// [audioDuration] 提供后会用于检查补行/时间替换是否越过音频末尾。
@@ -163,6 +173,7 @@ class ReferenceAlignmentApplier {
     final skippedLowConfidence = <int>{};
     final skippedBySelection = <int>{};
     final timingByOriginalIndex = <int, LyricTimingProvenance>{};
+    final timingChangedOriginalIndices = <int>{};
     var timingUpdatedCount = 0;
     var identicalCount = 0;
 
@@ -234,16 +245,21 @@ class ReferenceAlignmentApplier {
           entryIndex,
           audioDuration: audioDuration,
         );
-        if (timing != null &&
-            (previousLine.startTime != timing.start ||
-                previousLine.endTime != timing.end)) {
-          updated = updated.copyWith(
-            startTime: timing.start,
-            endTime: timing.end,
-          );
-          timingChanged = true;
-          timingUpdatedCount++;
+        if (timing != null) {
+          // Record the selected reference as the timestamp source even when
+          // values happen to match the existing draft. Its timing is a fixed
+          // anchor, not an estimated interval for the repair pass to move.
           timingByOriginalIndex[asrIndex] = LyricTimingProvenance.reference;
+          if (previousLine.startTime != timing.start ||
+              previousLine.endTime != timing.end) {
+            updated = updated.copyWith(
+              startTime: timing.start,
+              endTime: timing.end,
+            );
+            timingChanged = true;
+            timingUpdatedCount++;
+            timingChangedOriginalIndices.add(asrIndex);
+          }
         }
       }
 
@@ -380,10 +396,44 @@ class ReferenceAlignmentApplier {
         insertion.appliedLineIndex: insertion.timingProvenance,
     };
 
-    final comparison = timingUpdatedCount > 0 || insertions.isNotEmpty
+    final changedTimelineIndices = <int>{
+      for (final insertion in insertions) insertion.appliedLineIndex,
+      for (final index in timingChangedOriginalIndices)
+        appliedIndexByOriginalIndex[index] ?? index,
+    };
+    final protectedTimelineIndices = <int>{};
+    final originalTimingProvenance =
+        document.metadata[kLyricTimingProvenanceKey];
+    if (originalTimingProvenance is Map) {
+      for (var index = 0; index < finalLines.length; index++) {
+        final lineId = finalLines[index].id;
+        if (lineId != null &&
+            (originalTimingProvenance[lineId] == LyricTimingProvenance.manual.name ||
+                originalTimingProvenance[lineId] ==
+                    LyricTimingProvenance.reference.name)) {
+          protectedTimelineIndices.add(index);
+        }
+      }
+    }
+    final autoRepair = timelineRepairService.repair(
+      lines: finalLines,
+      changedLineIndices: changedTimelineIndices,
+      timingProvenanceByLineIndex: timingProvenance,
+      protectedLineIndices: protectedTimelineIndices,
+      audioDuration: audioDuration,
+    );
+    final repairedLines = autoRepair.lines;
+    for (final repair in autoRepair.repairs) {
+      timingProvenance[repair.lineIndex] = LyricTimingProvenance.autoRepaired;
+    }
+
+    final comparison =
+        timingUpdatedCount > 0 ||
+            insertions.isNotEmpty ||
+            autoRepair.repairs.isNotEmpty
         ? timelineValidator.compare(
             before: document.lines,
-            after: finalLines,
+            after: repairedLines,
             audioDuration: audioDuration,
             globalOffset: applyReferenceTiming
                 ? Duration.zero
@@ -392,7 +442,7 @@ class ReferenceAlignmentApplier {
         : null;
 
     return ReferenceAlignmentApplyResult(
-      document: document.copyWith(lines: finalLines),
+      document: document.copyWith(lines: repairedLines),
       corrections: corrections,
       insertions: insertions,
       appliedIndexByOriginalIndex: appliedIndexByOriginalIndex,
@@ -405,6 +455,7 @@ class ReferenceAlignmentApplier {
       unmatchedAsrCount: alignment.unmatchedAsrIndices.length,
       timingProvenanceByAppliedIndex: timingProvenance,
       timelineComparison: comparison,
+      timelineRepairs: autoRepair.repairs,
     );
   }
 
