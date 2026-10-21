@@ -63,7 +63,7 @@
 - 背景：`metadata['referenceAlignmentBackup']` 是参考对齐应用前写入的唯一兜底快照，此前没有恢复入口；恢复属于破坏性操作，会覆盖用户当前编辑中的歌词。
 - 决定：恢复入口仅在备份存在且可解析时显示；确认对话框必须展示备份时间/来源/格式/行数并明确覆盖警告，破坏性按钮文案为"恢复并覆盖"；恢复成功后消耗备份键（单槽，不允许重复恢复旧快照），写入 `referenceAlignmentRestore` 溯源并保留备份自带的旧 `referenceAlignment`；恢复只替换编辑器内存文档并标记未保存，由用户显式保存落盘；恢复后清空会话级手动编辑行索引，避免旧索引错位。
 - 影响：取消或解析失败不修改任何状态；恢复后 `_hasChanges = true`，未保存前再次对齐会覆盖该快照；"手动编辑保护是会话级"的既有语义不变。
-- 状态：生效
+- 状态：部分已取代（会话级手动编辑保护与恢复清空索引由 D-009 取代）
 - 来源：[2026-10-20 12:28 条目](log/entries/2026-10-20-1228-reference-alignment-backup-restore.md)
 
 ## D-008 纯文本参考可补全漏行，时间由相邻锚点推断
@@ -74,3 +74,12 @@
 - 影响：C3 的"漏行不自动插入"由本决定取代；应用仍走显式保存，单槽备份与 `referenceAlignment` 溯源保留，并新增 `insertedReferenceCount`/`insertions`；不做跨行重组，断句/合并差异需用户确认；插入不删除、不重排原有行，也不裁剪相邻行已有结束时间。
 - 状态：生效
 - 来源：本条目对应的任务条目（C4 纯文本参考补全漏行）
+
+## D-009 手动编辑保护按稳定行标识持久化，对齐溯源显式标注索引基准
+
+- 日期：2026-10-21
+- 背景：手动编辑保护此前是 `Set<int>` 行索引，插入/删除/补行后容易错位，且只活在单次编辑器会话里；重开工程后保护丢失，再次运行参考对齐会静默覆盖用户改过的歌词。`referenceAlignment` 里的行号也没有说明是应用前还是应用后，补行后无法回溯到具体行。
+- 决定：`LyricLine` 增加可选稳定标识 `id`；编辑器用 `Set<String>` 记录手工编辑行，加载时补齐缺失标识，保存时把 `manuallyEditedLineIds` 写入文档 metadata，重开时恢复；受保护索引由标识在现有行序中派生，不再手工平移。对齐结果额外暴露 `appliedIndexByOriginalIndex` 与插入行 `appliedLineIndex`；`metadata['referenceAlignment']` 由纯构建器生成，固定 `indexBase: 'pre-application'`，纠正/补入/跳过的保护行都附带 `lineId`。
+- 影响：插入、删除、参考补行、备份恢复后保护仍跟随同一行；旧工程没有标识时重开会补新标识，旧标记自然失配（与旧的"会话级"行为一致，不会误保护）；`insertions[].asrLineIndex` 字段在 metadata 中改名为语义明确的 `appliedLineIndex`（无读取方依赖旧键）；编辑器的索引平移函数 `_shiftEditedIndices` 删除。
+- 状态：生效
+- 来源：[2026-10-21 11:45 条目](log/entries/2026-10-21-1145-e4-marker-persistence.md)

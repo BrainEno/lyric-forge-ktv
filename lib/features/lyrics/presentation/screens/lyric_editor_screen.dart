@@ -20,6 +20,7 @@ import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/reference_alignment_applier.dart';
+import '../../domain/services/reference_alignment_provenance_builder.dart';
 import '../../domain/services/reference_alignment_restore_service.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
@@ -45,6 +46,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final AudioPlayerService _audioService;
   late final LyricFileExportService _exportService;
   late final LyricManualEditMarkerService _lineMarkers;
+  static const _provenance = ReferenceAlignmentProvenanceBuilder();
   late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
 
@@ -230,53 +232,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         'lineCount': document.lines.length,
         'document': backupDocument.toJson(),
       }
-      ..['referenceAlignment'] = <String, dynamic>{
-        'source': 'reference-alignment',
-        'appliedAt': now.toIso8601String(),
-        if (input.sourcePath != null) 'sourcePath': input.sourcePath,
-        'format': input.format,
-        if (input.title != null) 'referenceTitle': input.title,
-        if (input.artist != null) 'referenceArtist': input.artist,
-        'referenceTimed': input.timed,
-        'referenceOffsetMs': input.offset.inMilliseconds,
-        'minimumSimilarity': applier.minimumSimilarity,
-        'applyReferenceTiming': decision.applyReferenceTiming,
-        'acceptedReferenceCount': decision.acceptedReferenceIndices.length,
-        'acceptedMissingReferenceCount':
+      ..[ReferenceAlignmentProvenanceBuilder.metadataKey] = _provenance.build(
+        appliedAt: now,
+        input: input,
+        minimumSimilarity: applier.minimumSimilarity,
+        applyReferenceTiming: decision.applyReferenceTiming,
+        acceptedReferenceCount: decision.acceptedReferenceIndices.length,
+        acceptedMissingReferenceCount:
             decision.acceptedMissingReferenceIndices.length,
-        'overriddenManuallyEditedCount':
+        overriddenManuallyEditedCount:
             decision.overriddenAsrLineIndices.length,
-        'appliedCorrectionCount': result.corrections.length,
-        'insertedReferenceCount': result.insertions.length,
-        'skippedMissingReferenceCount':
-            result.missingReferenceCount - result.insertions.length,
-        'timingUpdatedCount': result.timingUpdatedCount,
-        'skippedManuallyEditedCount':
-            result.skippedManuallyEditedIndices.length,
-        'skippedLowConfidenceCount':
-            result.skippedLowConfidenceIndices.length,
-        'skippedBySelectionCount': result.skippedBySelectionIndices.length,
-        'missingReferenceCount': result.missingReferenceCount,
-        'unmatchedAsrCount': result.unmatchedAsrCount,
-        'corrections': [
-          for (final correction in result.corrections)
-            <String, dynamic>{
-              'asrLineIndex': correction.asrLineIndex,
-              'referenceIndex': correction.referenceIndex,
-              'similarity': correction.similarity,
-            },
-        ],
-        'insertions': [
-          for (final insertion in result.insertions)
-            <String, dynamic>{
-              'asrLineIndex': insertion.asrLineIndex,
-              'referenceIndex': insertion.referenceIndex,
-              'startTime': insertion.startTime.inMilliseconds,
-              'endTime': insertion.endTime.inMilliseconds,
-              'requiresConfirmation': insertion.requiresConfirmation,
-            },
-        ],
-      };
+        result: result,
+        appliedDocument: appliedWithLineIds,
+      );
 
     setState(() {
       _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);

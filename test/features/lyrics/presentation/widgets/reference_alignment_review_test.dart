@@ -304,14 +304,13 @@ void main() {
     expect(entry.status, ReferenceLineAlignmentStatus.ambiguous);
     expect(entry.ambiguous, isTrue);
 
-    ReferenceAlignmentReviewDecision? decision;
     await pumpReview(
       tester,
       document: document,
       alignment: alignment,
       input: input,
       manuallyEditedLineIndices: const {},
-      onResult: (value) => decision = value,
+      onResult: (_) {},
     );
 
     expect(find.text('歧义匹配'), findsOneWidget);

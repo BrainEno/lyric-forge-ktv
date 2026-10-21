@@ -840,5 +840,38 @@ void main() {
       expect(insertion.insertBeforeAsrLineIndex, 1);
       expect(insertion.asrLineIndex, 1);
     });
+
+    test('补行后暴露原始行到应用后行的索引映射', () {
+      final document = buildCompletionDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(
+        document: document,
+        alignment: alignment,
+        acceptedMissingReferenceIndices: const {1},
+      );
+
+      final insertion = result.insertions.single;
+      expect(insertion.appliedLineIndex, 1);
+      expect(insertion.appliedLineIndex, insertion.asrLineIndex);
+      // 原始第 1 行被补行推到应用后第 2 行。
+      expect(result.appliedIndexByOriginalIndex, {0: 0, 1: 2});
+      expect(result.document.lines[2].text, '第三句歌词');
+    });
+
+    test('无补行时索引映射为恒等映射', () {
+      final document = buildCompletionDocument();
+      final alignment = alignmentService.align(
+        document: document,
+        referenceLines: referenceLines,
+      );
+
+      final result = applier.apply(document: document, alignment: alignment);
+
+      expect(result.appliedIndexByOriginalIndex, {0: 0, 1: 1});
+    });
   });
 }

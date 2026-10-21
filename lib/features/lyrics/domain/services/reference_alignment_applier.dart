@@ -28,11 +28,13 @@ class AppliedReferenceInsertion {
 
   /// 插入到该 ASR 行之前；等于文档行数时表示追加到末尾。
   ///
-  /// 这是原始文档中的位置，与 [asrLineIndex]（插入后的最终索引）不同，
-  /// 供调用方把会话级手动编辑索引迁移到补行后的文档，避免保护错位。
+  /// 这是**应用前**文档中的位置（索引基准为 pre-application），
+  /// 与 [asrLineIndex]（应用后的最终行索引）不同。
   final int insertBeforeAsrLineIndex;
 
-  /// 插入后在文档中的最终行索引。
+  /// 插入后在文档中的最终行索引（索引基准为应用后的文档）。
+  ///
+  /// 名称保留历史含义；语义上等同 [appliedLineIndex]。
   final int asrLineIndex;
 
   final String text;
@@ -49,12 +51,22 @@ class AppliedReferenceInsertion {
     required this.endTime,
     required this.requiresConfirmation,
   });
+
+  /// [asrLineIndex] 的语义明确别名：补入行在应用后文档中的最终行索引。
+  int get appliedLineIndex => asrLineIndex;
 }
 
 class ReferenceAlignmentApplyResult {
   final LyricDocument document;
   final List<AppliedReferenceCorrection> corrections;
   final List<AppliedReferenceInsertion> insertions;
+
+  /// 应用前文档行索引 → 应用后文档行索引。
+  ///
+  /// 补行会把后续原有行整体后移，该映射让调用方按稳定含义把溯源信息
+  /// （纠正行、受保护行）落到应用后的具体行上，而不是错位的行号。
+  final Map<int, int> appliedIndexByOriginalIndex;
+
   final List<int> skippedManuallyEditedIndices;
   final List<int> skippedLowConfidenceIndices;
 
@@ -70,6 +82,7 @@ class ReferenceAlignmentApplyResult {
     required this.document,
     required this.corrections,
     required this.insertions,
+    this.appliedIndexByOriginalIndex = const {},
     required this.skippedManuallyEditedIndices,
     required this.skippedLowConfidenceIndices,
     required this.skippedBySelectionIndices,
@@ -227,6 +240,7 @@ class ReferenceAlignmentApplier {
 
     final insertions = <AppliedReferenceInsertion>[];
     final finalLines = <LyricLine>[];
+    final appliedIndexByOriginalIndex = <int, int>{};
     final selectedMissing = acceptedMissingReferenceIndices;
     if (selectedMissing != null && selectedMissing.isNotEmpty) {
       final plan = completionService.buildPlan(
@@ -304,11 +318,15 @@ class ReferenceAlignmentApplier {
           }
         }
         if (index < lines.length) {
+          appliedIndexByOriginalIndex[index] = finalIndex;
           finalLines.add(lines[index]);
           finalIndex++;
         }
       }
     } else {
+      for (var index = 0; index < lines.length; index++) {
+        appliedIndexByOriginalIndex[index] = index;
+      }
       finalLines.addAll(lines);
     }
 
@@ -316,6 +334,7 @@ class ReferenceAlignmentApplier {
       document: document.copyWith(lines: finalLines),
       corrections: corrections,
       insertions: insertions,
+      appliedIndexByOriginalIndex: appliedIndexByOriginalIndex,
       skippedManuallyEditedIndices: sortedProtected,
       skippedLowConfidenceIndices: sortedLowConfidence,
       skippedBySelectionIndices: sortedBySelection,

@@ -132,6 +132,7 @@ void main() {
     test('删除受保护行之前的行后，保护索引自动前移', () {
       final doc = document([line('第一句', id: 'a'), line('第二句', id: 'b')]);
       final markers = {'b'};
+      expect(service.protectedIndices(doc, markers), {1});
 
       final afterDelete = document([line('第二句', id: 'b')]);
 
