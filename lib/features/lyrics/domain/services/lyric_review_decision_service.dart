@@ -8,22 +8,30 @@ class LyricReviewDecisionService {
 
   const LyricReviewDecisionService();
 
-  bool isReviewed(LyricDocument document, int lineIndex) {
-    if (lineIndex < 0 || lineIndex >= document.lines.length) return false;
-    final line = document.lines[lineIndex];
-    final id = line.id;
-    if (id == null || id.isEmpty) return false;
+  bool isReviewed(LyricDocument document, int lineIndex) =>
+      reviewedIndices(document).contains(lineIndex);
 
+  Set<int> reviewedIndices(LyricDocument document) {
     final decisions = _readDecisions(document.metadata[metadataKey]);
-    final record = decisions[id];
-    if (record is! Map) return false;
-    return record['fingerprint'] == fingerprint(line);
-  }
+    if (decisions.isEmpty || document.lines.isEmpty) return <int>{};
 
-  Set<int> reviewedIndices(LyricDocument document) => {
-    for (var index = 0; index < document.lines.length; index++)
-      if (isReviewed(document, index)) index,
-  };
+    final indexById = <String, int>{};
+    for (var index = 0; index < document.lines.length; index++) {
+      final id = document.lines[index].id;
+      if (id != null && id.isNotEmpty) indexById[id] = index;
+    }
+
+    final reviewed = <int>{};
+    for (final entry in decisions.entries) {
+      final index = indexById[entry.key];
+      final record = entry.value;
+      if (index == null || record is! Map) continue;
+      if (record['fingerprint'] == fingerprint(document.lines[index])) {
+        reviewed.add(index);
+      }
+    }
+    return reviewed;
+  }
 
   LyricDocument setReviewed(
     LyricDocument document,

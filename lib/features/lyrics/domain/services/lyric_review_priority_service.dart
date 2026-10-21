@@ -46,6 +46,7 @@ class LyricReviewPriorityService {
   }) {
     if (document.lines.isEmpty) return const [];
 
+    final reviewedIndices = reviewDecisionService.reviewedIndices(document);
     final candidates = _fallbackCandidatesByIndex(document.metadata);
     final timeline = timelineValidator.validate(
       lines: document.lines,
@@ -59,7 +60,7 @@ class LyricReviewPriorityService {
 
     final ranked = <LyricReviewPriority>[];
     for (var index = 0; index < document.lines.length; index++) {
-      if (reviewDecisionService.isReviewed(document, index)) continue;
+      if (reviewedIndices.contains(index)) continue;
       final line = document.lines[index];
       final score = _PriorityAccumulator();
       final text = line.text.trim();
