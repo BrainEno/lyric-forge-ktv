@@ -62,3 +62,4 @@
 - [2026-10-20 13:25] 清理分析器提示信息 `Clear analyzer lint infos` ([entry](log/entries/2026-10-20-1325-clear-analyzer-lint-infos.md))
 - [2026-10-20 15:01] 参考歌词补全漏行与推断时间轴 `Add reference lyric missing-line completion` ([entry](log/entries/2026-10-20-1501-reference-lyric-completion.md))
 - [2026-10-20 15:04] 同步参考补全文案 `Clarify reference lyric completion copy` ([entry](log/entries/2026-10-20-1504-reference-completion-copy.md))
+- [2026-10-20 20:30] 进度条与编辑保护修复（E1） `Fix progress bar single seek on release and manual-edit index drift after batch completion` ([entry](log/entries/2026-10-20-2030-e1-progress-bar-edit-protection.md))
