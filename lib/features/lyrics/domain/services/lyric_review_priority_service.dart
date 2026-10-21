@@ -117,7 +117,7 @@ class LyricReviewPriorityService {
         ranked.add(
           LyricReviewPriority(
             lineIndex: index,
-            score: score.value.clamp(0, 100),
+            score: score.value,
             reasons: List.unmodifiable(score.reasons),
           ),
         );
