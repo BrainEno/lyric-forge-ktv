@@ -1040,6 +1040,9 @@ class _LyricEditorContent extends StatelessWidget {
       builder: (sheetContext) {
         final sheetSpec = AppResponsive.of(sheetContext);
         final heightFactor = sheetSpec.isShort ? 0.96 : 0.88;
+        final isReviewed = _isLineReviewed(index);
+        final canRecordDecision =
+            isReviewed || reviewPriorityByIndex.containsKey(index);
         return FractionallySizedBox(
           heightFactor: heightFactor,
           child: Center(
@@ -1052,11 +1055,13 @@ class _LyricEditorContent extends StatelessWidget {
                 index: index,
                 line: document.lines[index],
                 fallbackCandidate: _fallbackCandidateFor(index),
-                isReviewed: _isLineReviewed(index),
-                onReviewDecision: (reviewed) {
-                  onReviewDecision(index, reviewed);
-                  Navigator.of(sheetContext).pop();
-                },
+                isReviewed: isReviewed,
+                onReviewDecision: canRecordDecision
+                    ? (reviewed) {
+                        onReviewDecision(index, reviewed);
+                        Navigator.of(sheetContext).pop();
+                      }
+                    : null,
                 isCurrentPlaybackLine:
                     playbackBelongsToProject &&
                     _currentPlaybackLineIndex() == index,
@@ -1251,11 +1256,18 @@ class _LyricEditorContent extends StatelessWidget {
                                     : _fallbackCandidateFor(selectedIndex),
                                 isReviewed: selectedIndex != null &&
                                     _isLineReviewed(selectedIndex),
-                                onReviewDecision: (reviewed) {
-                                  if (selectedIndex != null) {
-                                    onReviewDecision(selectedIndex, reviewed);
-                                  }
-                                },
+                                onReviewDecision: selectedIndex != null &&
+                                        (_isLineReviewed(selectedIndex) ||
+                                            reviewPriorityByIndex.containsKey(
+                                              selectedIndex,
+                                            ))
+                                    ? (reviewed) {
+                                        onReviewDecision(
+                                          selectedIndex,
+                                          reviewed,
+                                        );
+                                      }
+                                    : null,
                                 playback: playback,
                                 playbackBelongsToProject:
                                     playbackBelongsToProject,
@@ -1877,7 +1889,7 @@ class _InspectorPane extends StatelessWidget {
   final int? selectedIndex;
   final Map<String, dynamic>? fallbackCandidate;
   final bool isReviewed;
-  final ValueChanged<bool> onReviewDecision;
+  final ValueChanged<bool>? onReviewDecision;
   final PlaybackState playback;
   final bool playbackBelongsToProject;
   final int? currentPlaybackLine;
