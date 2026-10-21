@@ -1,4 +1,5 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'lyric_review_decision_service.dart';
 import 'lyric_timeline_validator.dart';
 
 enum LyricReviewRiskLevel { low, medium, high, critical }
@@ -32,9 +33,11 @@ class LyricReviewPriorityService {
   static const int minimumQueueScore = 12;
 
   final LyricTimelineValidator timelineValidator;
+  final LyricReviewDecisionService reviewDecisionService;
 
   const LyricReviewPriorityService({
     this.timelineValidator = const LyricTimelineValidator(),
+    this.reviewDecisionService = const LyricReviewDecisionService(),
   });
 
   List<LyricReviewPriority> rank(
@@ -56,6 +59,7 @@ class LyricReviewPriorityService {
 
     final ranked = <LyricReviewPriority>[];
     for (var index = 0; index < document.lines.length; index++) {
+      if (reviewDecisionService.isReviewed(document, index)) continue;
       final line = document.lines[index];
       final score = _PriorityAccumulator();
       final text = line.text.trim();
