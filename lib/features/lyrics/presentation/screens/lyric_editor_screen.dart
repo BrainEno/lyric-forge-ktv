@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -16,6 +18,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/lyric_alignment_service.dart';
+import '../../domain/services/lyric_audition_window_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
@@ -29,6 +32,7 @@ import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
+import '../lyric_review_strings.dart';
 import '../widgets/smart_review_audition_button.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
@@ -45,6 +49,20 @@ class _AlignmentUndoSnapshot {
     required this.manuallyEditedLineIds,
     required this.selectedLineIndex,
     required this.hasChanges,
+  });
+}
+
+class _ActiveLineAudition {
+  final String projectId;
+  final int lineIndex;
+  final String? lineId;
+  final LyricAuditionWindow window;
+
+  const _ActiveLineAudition({
+    required this.projectId,
+    required this.lineIndex,
+    required this.lineId,
+    required this.window,
   });
 }
 
@@ -88,6 +106,33 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   LyricDocument? _reviewPrioritySource;
   Duration? _reviewPriorityAudioDuration;
   Map<int, LyricReviewPriority> _reviewPriorityByIndex = const {};
+
+  late final StreamSubscription<Duration> _auditionPositionSubscription;
+  _ActiveLineAudition? _activeLineAudition;
+  bool _loopCurrentLineAudition = false;
+  bool _auditionBoundaryActionInFlight = false;
+
+  int? get _activeAuditionLineIndex {
+    final active = _activeLineAudition;
+    final document = _editingDocument;
+    if (active == null ||
+        document == null ||
+        active.projectId != widget.projectId ||
+        _playbackSession.currentState.currentItem?.projectId !=
+            active.projectId) {
+      return null;
+    }
+    final id = active.lineId;
+    if (id != null) {
+      for (var index = 0; index < document.lines.length; index++) {
+        if (document.lines[index].id == id) return index;
+      }
+      return null;
+    }
+    return active.lineIndex >= 0 && active.lineIndex < document.lines.length
+        ? active.lineIndex
+        : null;
+  }
 
   /// 受保护行的当前索引视图：按稳定标识在现有行序中重新定位，供逐行确认使用。
   Set<int> get _manuallyEditedLineIndices {
@@ -167,12 +212,93 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _repository = ServiceLocatorGlobal.I.projectRepository;
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    _auditionPositionSubscription =
+        _audioService.positionStream.listen(_handleAuditionPosition);
     _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
     _lineMarkers = const LyricManualEditMarkerService();
     _referenceParser = ReferenceLyricTextParser(
       ServiceLocatorGlobal.I.lyricFileImportService,
     );
     _loadProject();
+  }
+
+  void _handleAuditionPosition(Duration position) {
+    final active = _activeLineAudition;
+    if (active == null || active.window.endAt == null) return;
+
+    if (_playbackSession.currentState.currentItem?.projectId !=
+        active.projectId) {
+      if (mounted) {
+        setState(() => _activeLineAudition = null);
+      } else {
+        _activeLineAudition = null;
+      }
+      return;
+    }
+
+    final playback = _audioService.currentState;
+    final reachedNaturalEndWhileLooping =
+        _loopCurrentLineAudition && playback.isCompleted;
+    if (_auditionBoundaryActionInFlight ||
+        (!playback.isPlaying && !reachedNaturalEndWhileLooping) ||
+        position < active.window.endAt!) {
+      return;
+    }
+
+    _auditionBoundaryActionInFlight = true;
+    unawaited(_handleAuditionBoundary(active));
+  }
+
+  Future<void> _handleAuditionBoundary(_ActiveLineAudition active) async {
+    try {
+      final playback = _audioService.currentState;
+      final reachedNaturalEndWhileLooping =
+          _loopCurrentLineAudition && playback.isCompleted;
+      if (!mounted ||
+          !identical(_activeLineAudition, active) ||
+          _playbackSession.currentState.currentItem?.projectId !=
+              active.projectId ||
+          (!playback.isPlaying && !reachedNaturalEndWhileLooping)) {
+        return;
+      }
+
+      if (_loopCurrentLineAudition && active.window.endAt != null) {
+        await _playbackSession.seek(active.window.startAt);
+        if (!mounted ||
+            !identical(_activeLineAudition, active) ||
+            _playbackSession.currentState.currentItem?.projectId !=
+                active.projectId) {
+          return;
+        }
+        if (_loopCurrentLineAudition) {
+          if (!_audioService.currentState.isPlaying) {
+            await _audioService.play();
+          }
+        } else if (_audioService.currentState.isPlaying) {
+          await _audioService.pause();
+        }
+      } else if (_audioService.currentState.isPlaying) {
+        await _audioService.pause();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+          ),
+        );
+      }
+    } finally {
+      _auditionBoundaryActionInFlight = false;
+    }
+  }
+
+  Future<void> _pauseAuditionOnDispose() async {
+    try {
+      await _audioService.pause();
+    } catch (_) {
+      // The app-scoped player may already be changing sources during teardown.
+    }
   }
 
   void _loadProject() {
@@ -352,8 +478,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         appliedDocument: appliedWithLineIds,
       );
 
+    final activeAudition = _activeLineAudition;
+    final shouldPauseAudition = activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            activeAudition.projectId &&
+        _audioService.currentState.isPlaying;
     setState(() {
       _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);
+      _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = snapshot;
       _filter = _ReviewFilter.all;
@@ -363,6 +495,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _selectedLineIndex = result.insertions.first.asrLineIndex;
       }
     });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
 
     final parts = <String>[
       if (result.corrections.isNotEmpty) '纠正 ${result.corrections.length} 行',
@@ -441,8 +574,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   void _undoAlignmentApply() {
     final snapshot = _alignmentUndoSnapshot;
     if (snapshot == null) return;
+    final activeAudition = _activeLineAudition;
+    final shouldPauseAudition = activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            activeAudition.projectId &&
+        _audioService.currentState.isPlaying;
     setState(() {
       _editingDocument = snapshot.document;
+      _activeLineAudition = null;
       _manuallyEditedLineIds
         ..clear()
         ..addAll(snapshot.manuallyEditedLineIds);
@@ -451,6 +590,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _alignmentUndoSnapshot = null;
       _filter = _ReviewFilter.all;
     });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('已撤销本次参考歌词对齐（未写入磁盘）'),
@@ -493,6 +633,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
     if (restored == null || !mounted) return;
 
+    final activeAudition = _activeLineAudition;
+    final shouldPauseAudition = activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            activeAudition.projectId &&
+        _audioService.currentState.isPlaying;
     setState(() {
       // 备份文档保留了各行的稳定标识：会话内标记按标识取交集继续生效，
       // 备份元数据中持久化的标记一并恢复；旧版本备份没有标识时自然失配。
@@ -506,6 +651,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ..addAll(sessionSurvivors)
         ..addAll(_lineMarkers.restore(restoredDocument));
       _editingDocument = restoredDocument;
+      _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
       _filter = _ReviewFilter.all;
@@ -516,6 +662,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _selectedLineIndex = _selectedLineIndex!.clamp(0, lastIndex).toInt();
       }
     });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -594,6 +741,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   /// 编辑器内跳转：先暂停，避免拖动后仍在播放而错过目标位置。
   Future<void> _seekPlayback(Duration position) async {
     try {
+      if (_activeLineAudition != null && mounted) {
+        setState(() => _activeLineAudition = null);
+      }
       if (_audioService.currentState.isPlaying) {
         await _audioService.pause();
       }
@@ -607,24 +757,41 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _updateLine(int index, LyricLine updatedLine) {
-    if (_editingDocument == null ||
-        index < 0 ||
-        index >= _editingDocument!.lines.length) {
+    final document = _editingDocument;
+    if (document == null || index < 0 || index >= document.lines.length) {
       return;
     }
 
-    if (_editingDocument!.lines[index].text != updatedLine.text) {
-      final lineId = _editingDocument!.lines[index].id;
+    final previousLine = document.lines[index];
+    if (previousLine.text != updatedLine.text) {
+      final lineId = previousLine.id;
       if (lineId != null) _manuallyEditedLineIds.add(lineId);
     }
 
+    final active = _activeLineAudition;
+    final isActiveLine = active != null &&
+        active.projectId == widget.projectId &&
+        (active.lineId != null
+            ? active.lineId == previousLine.id
+            : active.lineIndex == index);
+    final timingChanged = previousLine.startTime != updatedLine.startTime ||
+        previousLine.endTime != updatedLine.endTime;
+    final invalidateAudition = isActiveLine && timingChanged;
+    final shouldPauseAudition = invalidateAudition &&
+        active != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            active.projectId &&
+        _audioService.currentState.isPlaying;
+
     setState(() {
-      final lines = List<LyricLine>.from(_editingDocument!.lines);
+      final lines = List<LyricLine>.from(document.lines);
       lines[index] = updatedLine;
-      _editingDocument = _editingDocument!.copyWith(lines: lines);
+      _editingDocument = document.copyWith(lines: lines);
+      if (invalidateAudition) _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
     });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
   void _setLineStartFromPlayback(int index) {
@@ -655,25 +822,34 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _deleteLine(int index) {
-    if (_editingDocument == null ||
-        index < 0 ||
-        index >= _editingDocument!.lines.length) {
+    final document = _editingDocument;
+    if (document == null || index < 0 || index >= document.lines.length) {
       return;
     }
 
-    setState(() {
-      final removedLine = _editingDocument!.lines[index];
-      final lines = List<LyricLine>.from(_editingDocument!.lines)
-        ..removeAt(index);
-      _editingDocument = _editingDocument!.copyWith(
-        lines: lines,
-        metadata: _clearIndexedReviewMetadata(_editingDocument!.metadata),
-      );
+    final removedLine = document.lines[index];
+    final active = _activeLineAudition;
+    final isActiveLine = active != null &&
+        active.projectId == widget.projectId &&
+        (active.lineId != null
+            ? active.lineId == removedLine.id
+            : active.lineIndex == index);
+    final shouldPauseAudition = isActiveLine &&
+        active != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            active.projectId &&
+        _audioService.currentState.isPlaying;
 
-      // 按稳定标识移除被删行的保护标记；其余标记跟随各自行的身份，无需平移。
+    setState(() {
+      final lines = List<LyricLine>.from(document.lines)..removeAt(index);
+      _editingDocument = document.copyWith(
+        lines: lines,
+        metadata: _clearIndexedReviewMetadata(document.metadata),
+      );
       if (removedLine.id != null) {
         _manuallyEditedLineIds.remove(removedLine.id);
       }
+      if (isActiveLine) _activeLineAudition = null;
 
       _alignmentUndoSnapshot = null;
       if (lines.isEmpty) {
@@ -685,6 +861,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       }
       _hasChanges = true;
     });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
   Map<String, dynamic> _clearIndexedReviewMetadata(
@@ -697,17 +874,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _updateGlobalOffset(Duration offset) {
+    final active = _activeLineAudition;
+    final shouldPauseAudition = active != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            active.projectId &&
+        _audioService.currentState.isPlaying;
     setState(() {
       _editingDocument = _editingDocument?.copyWith(globalOffset: offset);
+      _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
     });
-  }
-
-  Duration _effectiveLineStart(LyricLine line) {
-    final shifted =
-        line.startTime + (_editingDocument?.globalOffset ?? Duration.zero);
-    return shifted.isNegative ? Duration.zero : shifted;
+    if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
   Future<void> _previewLine(ProjectManifest project, int index) async {
@@ -720,8 +898,77 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       return;
     }
 
+    final line = document.lines[index];
+    final active = _activeLineAudition;
+    final currentItem = _playbackSession.currentState.currentItem;
+    final sameAudition = active != null &&
+        active.projectId == project.id &&
+        (active.lineId != null
+            ? active.lineId == line.id
+            : active.lineIndex == index);
+    final playbackBelongsToProject = currentItem?.projectId == project.id;
+    final playback = _audioService.currentState;
+
     try {
-      final currentItem = _playbackSession.currentState.currentItem;
+      if (sameAudition && active != null && playbackBelongsToProject) {
+        if (playback.isPlaying) {
+          await _audioService.pause();
+          return;
+        }
+        final endAt = active.window.endAt;
+        final canResume = playback.position >= active.window.startAt &&
+            (endAt == null || playback.position < endAt);
+        if (canResume) {
+          await _audioService.play();
+          return;
+        }
+      }
+
+      await _startLineAudition(project, index, document, audioAsset);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _startLineAudition(
+    ProjectManifest project,
+    int index,
+    LyricDocument document,
+    AudioAsset audioAsset,
+  ) async {
+    final currentItem = _playbackSession.currentState.currentItem;
+    final audioDuration = currentItem?.projectId == project.id
+        ? (_audioService.currentState.duration ?? audioAsset.duration)
+        : audioAsset.duration;
+    final window = const LyricAuditionWindowService().calculate(
+      lineStart: document.lines[index].startTime,
+      lineEnd: document.lines[index].endTime,
+      globalOffset: document.globalOffset ?? Duration.zero,
+      audioDuration: audioDuration,
+    );
+
+    if (!window.canAudition) {
+      final active = _activeLineAudition;
+      final shouldPauseAudition = active != null &&
+          _playbackSession.currentState.currentItem?.projectId ==
+              active.projectId &&
+          _audioService.currentState.isPlaying;
+      if (active != null && mounted) {
+        setState(() => _activeLineAudition = null);
+      }
+      if (shouldPauseAudition) unawaited(_audioService.pause());
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(LyricReviewStrings.auditionInvalidStart)),
+      );
+      return;
+    }
+
+    try {
       if (currentItem?.projectId != project.id) {
         final preferredSource = audioAsset.vocalPath != null
             ? AudioSourceType.vocals
@@ -740,15 +987,29 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         );
       }
 
-      await _playbackSession.seek(_effectiveLineStart(document.lines[index]));
+      await _playbackSession.seek(window.startAt);
+      final audition = _ActiveLineAudition(
+        projectId: project.id,
+        lineIndex: index,
+        lineId: document.lines[index].id,
+        window: window,
+      );
+      if (!mounted) return;
+      setState(() {
+        _activeLineAudition = audition;
+        _selectedLineIndex = index;
+      });
       if (!_audioService.currentState.isPlaying) {
         await _audioService.play();
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法试听当前歌词行：$error')));
+      setState(() => _activeLineAudition = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+        ),
+      );
     }
   }
 
@@ -759,6 +1020,17 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         final index = _selectedLineIndex ?? 0;
         await _previewLine(project, index);
         return;
+      }
+
+      final active = _activeLineAudition;
+      final playback = _audioService.currentState;
+      if (active != null &&
+          !playback.isPlaying &&
+          active.window.endAt != null &&
+          playback.position >= active.window.endAt!) {
+        // The editor-wide transport resumes the whole track after a bounded
+        // line audition has completed; the row button remains the replay action.
+        setState(() => _activeLineAudition = null);
       }
       await _playbackSession.togglePlayPause();
     } catch (error) {
@@ -823,10 +1095,31 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               playbackBelongsToProject: activeProject,
               hasChanges: _hasChanges,
               reviewPriorityByIndex: _reviewPriorityByIndex,
+              activeAuditionLineIndex: _activeAuditionLineIndex,
+              auditionPlaying: playbackBelongsToProject && playback.isPlaying,
+              loopCurrentLineAudition: _loopCurrentLineAudition,
+              onLoopCurrentLineAuditionChanged: (value) {
+                setState(() => _loopCurrentLineAudition = value);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      value
+                          ? LyricReviewStrings.loopCurrentLineEnabled
+                          : LyricReviewStrings.loopCurrentLineDisabled,
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
               followPlayback: _followPlayback,
               selectedLineIndex: _selectedLineIndex,
               filter: _filter,
-              onFilterChanged: (value) => setState(() => _filter = value),
+              onFilterChanged: (value) => setState(() {
+                _filter = value;
+                if (value != _ReviewFilter.smartReview) {
+                  _loopCurrentLineAudition = false;
+                }
+              }),
               onFollowPlaybackChanged: (value) =>
                   setState(() => _followPlayback = value),
               onSelectLine: (index) =>
@@ -862,6 +1155,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    unawaited(_auditionPositionSubscription.cancel());
+    final active = _activeLineAudition;
+    if (active != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            active.projectId &&
+        _audioService.currentState.isPlaying) {
+      unawaited(_pauseAuditionOnDispose());
+    }
+    super.dispose();
   }
 }
 
@@ -911,6 +1217,10 @@ class _LyricEditorContent extends StatelessWidget {
   final bool playbackBelongsToProject;
   final bool hasChanges;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
+  final int? activeAuditionLineIndex;
+  final bool auditionPlaying;
+  final bool loopCurrentLineAudition;
+  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
   final bool followPlayback;
   final int? selectedLineIndex;
   final _ReviewFilter filter;
@@ -944,6 +1254,10 @@ class _LyricEditorContent extends StatelessWidget {
     required this.playbackBelongsToProject,
     required this.hasChanges,
     required this.reviewPriorityByIndex,
+    required this.activeAuditionLineIndex,
+    required this.auditionPlaying,
+    required this.loopCurrentLineAudition,
+    required this.onLoopCurrentLineAuditionChanged,
     required this.followPlayback,
     required this.selectedLineIndex,
     required this.filter,
@@ -1189,6 +1503,9 @@ class _LyricEditorContent extends StatelessWidget {
               reviewCount: reviewCount,
               smartReviewCount: reviewPriorityByIndex.length,
               filter: filter,
+              loopCurrentLineAudition: loopCurrentLineAudition,
+              onLoopCurrentLineAuditionChanged:
+                  onLoopCurrentLineAuditionChanged,
               followPlayback: followPlayback,
               onFilterChanged: onFilterChanged,
               onFollowPlaybackChanged: onFollowPlaybackChanged,
@@ -1229,6 +1546,8 @@ class _LyricEditorContent extends StatelessWidget {
                           fallbackCandidateFor: _fallbackCandidateFor,
                           reviewPriorityByIndex: reviewPriorityByIndex,
                           filter: filter,
+                          activeAuditionLineIndex: activeAuditionLineIndex,
+                          auditionPlaying: auditionPlaying,
                           onPreviewLine: project.audioAsset == null
                               ? null
                               : onPreviewLine,
@@ -1316,6 +1635,8 @@ class _EditorToolbar extends StatelessWidget {
   final int reviewCount;
   final int smartReviewCount;
   final _ReviewFilter filter;
+  final bool loopCurrentLineAudition;
+  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
   final bool followPlayback;
   final ValueChanged<_ReviewFilter> onFilterChanged;
   final ValueChanged<bool> onFollowPlaybackChanged;
@@ -1337,6 +1658,8 @@ class _EditorToolbar extends StatelessWidget {
     required this.reviewCount,
     required this.smartReviewCount,
     required this.filter,
+    required this.loopCurrentLineAudition,
+    required this.onLoopCurrentLineAuditionChanged,
     required this.followPlayback,
     required this.onFilterChanged,
     required this.onFollowPlaybackChanged,
@@ -1507,6 +1830,16 @@ class _EditorToolbar extends StatelessWidget {
                   label: const Text('恢复对齐前版本'),
                 ),
               ),
+            if (filter == _ReviewFilter.smartReview)
+              Tooltip(
+                message: LyricReviewStrings.loopCurrentLineHelp,
+                child: FilterChip(
+                  selected: loopCurrentLineAudition,
+                  onSelected: onLoopCurrentLineAuditionChanged,
+                  avatar: const Icon(Icons.repeat_rounded, size: 16),
+                  label: const Text(LyricReviewStrings.loopCurrentLineLabel),
+                ),
+              ),
             FilterChip(
               selected: followPlayback,
               onSelected: onFollowPlaybackChanged,
@@ -1581,6 +1914,8 @@ class _LyricListPane extends StatefulWidget {
   final List<int> visibleIndices;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
   final _ReviewFilter filter;
+  final int? activeAuditionLineIndex;
+  final bool auditionPlaying;
   final int? selectedIndex;
   final int? currentPlaybackLine;
   final bool followPlayback;
@@ -1596,6 +1931,8 @@ class _LyricListPane extends StatefulWidget {
     required this.visibleIndices,
     required this.reviewPriorityByIndex,
     required this.filter,
+    required this.activeAuditionLineIndex,
+    required this.auditionPlaying,
     required this.selectedIndex,
     required this.currentPlaybackLine,
     required this.followPlayback,
@@ -1744,8 +2081,10 @@ class _LyricListPaneState extends State<_LyricListPane> {
           priority: widget.reviewPriorityByIndex[index],
           selected: widget.selectedIndex == index,
           playing: widget.currentPlaybackLine == index,
-          showAudition: widget.filter == _ReviewFilter.smartReview &&
-              widget.onPreviewLine != null,
+          isSmartReview: widget.filter == _ReviewFilter.smartReview,
+          hasAudio: widget.onPreviewLine != null,
+          auditionIsPlaying: widget.auditionPlaying &&
+              widget.activeAuditionLineIndex == index,
           onPreview: widget.onPreviewLine == null
               ? null
               : () => widget.onPreviewLine!(index),
@@ -1764,7 +2103,9 @@ class _LyricReviewRow extends StatelessWidget {
   final LyricReviewPriority? priority;
   final bool selected;
   final bool playing;
-  final bool showAudition;
+  final bool isSmartReview;
+  final bool hasAudio;
+  final bool auditionIsPlaying;
   final VoidCallback? onPreview;
   final VoidCallback onTap;
 
@@ -1776,7 +2117,9 @@ class _LyricReviewRow extends StatelessWidget {
     required this.priority,
     required this.selected,
     required this.playing,
-    required this.showAudition,
+    required this.isSmartReview,
+    required this.hasAudio,
+    required this.auditionIsPlaying,
     required this.onPreview,
     required this.onTap,
   });
@@ -1882,10 +2225,14 @@ class _LyricReviewRow extends StatelessWidget {
                     warning: line.confidence < 70,
                   ),
                 ],
-                if (showAudition) ...[
+                if (isSmartReview && hasAudio)
                   const SizedBox(width: AppSpacing.xs),
-                  SmartReviewAuditionButton(onPressed: onPreview),
-                ],
+                SmartReviewAuditionButton(
+                  isSmartReview: isSmartReview,
+                  hasAudio: hasAudio,
+                  isPlaying: auditionIsPlaying,
+                  onPressed: onPreview,
+                ),
                 if (!spec.supportsTwoPane) ...[
                   const SizedBox(width: AppSpacing.xs),
                   const Icon(

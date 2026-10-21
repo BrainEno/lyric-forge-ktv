@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-21 22:22. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-22. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -24,7 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **Lyric review plan:** docs/lyric_review_alignment_plan.md — phases A–E and E6 complete (PR #125); phase F smart-review priority queue merged (PR #126); phase G persistent review decisions + confirm-and-continue merged (PR #127); phase H one-tap audition from smart-review rows is in Draft PR #128. Latest goal: reduce clicks when listening through risk-ranked rows; run local Flutter validation and compact/desktop viewport checks before merge.
+- **Lyric review plan:** `docs/lyric_review_alignment_plan.md` — PR #125 post-apply diff/timeline repair, PR #126 smart-review priority queue, PR #127 persistent review decisions, and PR #128 inline audition are merged. Phase I is in Draft PR for bounded row audition: configurable preroll, offset-aware end pause, row play/pause state and loop. Local validation/work-log checks are pending for phase I.
 
 ## Follow-up leads — re-check before acting
 
