@@ -204,6 +204,28 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
             .clamp(240.0, 680.0)
             .toDouble();
 
+    // AlertDialog measures its content with intrinsics, so this width must not
+    // come from a LayoutBuilder. Estimate it from the viewport and the same
+    // inset/padding applied below, then decide whether the two metadata fields
+    // still fit side by side.
+    final dialogWidth = (media.size.width - spec.pageGutter * 2)
+        .clamp(0.0, maxWidth)
+        .toDouble();
+    final contentWidth = (dialogWidth - spec.pageGutter * 2).clamp(
+      0.0,
+      double.infinity,
+    );
+    final stackMetadataFields = contentWidth < 460;
+
+    final titleField = TextField(
+      controller: _titleController,
+      decoration: const InputDecoration(labelText: '参考歌名', isDense: true),
+    );
+    final artistField = TextField(
+      controller: _artistController,
+      decoration: const InputDecoration(labelText: '参考艺术家', isDense: true),
+    );
+
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
       insetPadding: EdgeInsets.all(spec.pageGutter),
@@ -362,40 +384,23 @@ class _ReferenceAlignmentDialogState extends State<ReferenceAlignmentDialog> {
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
               const SizedBox(height: AppSpacing.sm),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final titleField = TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: '参考歌名',
-                      isDense: true,
-                    ),
-                  );
-                  final artistField = TextField(
-                    controller: _artistController,
-                    decoration: const InputDecoration(
-                      labelText: '参考艺术家',
-                      isDense: true,
-                    ),
-                  );
-                  if (constraints.maxWidth < 460) {
-                    return Column(
-                      children: [
-                        titleField,
-                        const SizedBox(height: AppSpacing.sm),
-                        artistField,
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: titleField),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: artistField),
-                    ],
-                  );
-                },
-              ),
+              if (stackMetadataFields)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    titleField,
+                    const SizedBox(height: AppSpacing.sm),
+                    artistField,
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(child: titleField),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(child: artistField),
+                  ],
+                ),
               const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: _offsetController,
