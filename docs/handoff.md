@@ -1,77 +1,46 @@
 # Handoff
 
-> 单槽位交接文件：每个会话在中断或结束前覆盖写一次，新会话先读它，再读 `AGENTS.md` 与 `docs/work_log_index.md`。
+## Goal
+Continue reducing the time and effort required to proofread automatic lyrics. PR #125 (post-apply diff/timeline repair), #126 (explainable smart-review priority queue), and #127 (persistent line review decision + confirm-and-continue) are merged to main.
 
-## 目标
+## Current task
+PR #128: one-tap audition directly from a Smart Review row.
 
-继续降低歌词识别后的人工校对负担。PR #125（对齐后逐行对比与保守时间轴自动修复）、PR #126（可解释智能复核优先队列）、PR #127（持久化复核决策 + 确认本行无误并继续）均已合并到远程 main。
+- Branch: feat/smart-review-inline-audition-20261021
+- Base: main @ 0f89a21076a6576d2d22e846dd6851aacc166369
+- Add an independent play button to smart-review rows only; reuses onPreviewLine/_previewLine and existing playback session.
+- Button only appears when a project audio asset exists, uses AppResponsive.minimumInteractiveExtent, and does not select/open the inspector or change lyrics/timing.
+- Added widget test for callback, disabled state and minimum touch target.
 
-本次会话（2026-10-21 23:08–23:55）做三件事：一是提交 PR #126 合并时残留的 Git 冲突标记修复；二是把本地 main 同步到远程 main（远程此前已有 PR #127），并验证合并后代码；三是修复本机 Git 凭据助手配置，使 `git push` 不再卡在凭据提示。
+## Validation
+This execution environment has no local Flutter checkout/toolchain. dart format, flutter test, flutter analyze and quality gate were not run. Keep PR #128 Draft until local validation and responsive desktop/mobile checks pass.
 
-## Git 现场
+Suggested local commands:
 
-```text
-$ git branch --show-current
-main
-$ git log --oneline -5
-11c5f92 Regenerate work log summary after merging PR #127
-a01605a Refresh handoff after syncing main with remote PR #127
-a8883b6 Merge remote-tracking branch 'origin/main'
-5241b96 Resolve leftover merge conflict in reference alignment comparison
-0f89a21 Merge pull request #127 from BrainEno/feat/guided-smart-review-confirmation-20261021
-$ git status --short
-（干净；generated_plugin* 的 autocrlf 噪声已用 git checkout -- 还原）
-$ git status -sb
-## main...origin/main     ← 已与远程同步
+```powershell
+dart format lib/features/lyrics/presentation/screens/lyric_editor_screen.dart lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
+flutter test test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
+flutter analyze --no-pub
+flutter test test/features/lyrics
+flutter test
+scripts/quality_gate.ps1
+dart tool/work_log.dart write
+dart tool/work_log.dart check
 ```
 
-合并前本地落后远程 8 个提交（PR #127，merge commit `0f89a21`）。冲突仅出现在 `docs/handoff.md`（单槽位文件，双方都改写），已按当前真实状态重写。
+## Manual checks
+- At 390×844, clicking “从这一行开始试听” starts the selected row but does not open the bottom-sheet inspector.
+- At 1366×768 and 1600×900, clicking the icon starts the same project playback session and leaves the risk-ranked queue visible.
+- Confirm the button is absent outside Smart Review and when the project has no audio asset.
+- Confirm row tap still opens/selects the inspector as before.
+- Playback row highlight updates, but Smart Review does not auto-scroll and reorder itself due to playback stream updates.
 
-## 已改文件
+## Changed files
+- lib/features/lyrics/presentation/screens/lyric_editor_screen.dart
+- lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart
+- test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart
+- docs/lyric_review_alignment_plan.md
+- docs/work_log_index.md
+- docs/log/entries/2026-10-21-2222-smart-review-inline-audition.md
 
-- `lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart`：删除 PR #126 合并时残留的 Git 冲突标记（HEAD/ours/theirs 三段标记）与重复分支（13 行），保留 HEAD 侧语义。**该修复此前只在本地，远程 main 仍带冲突标记，本次随合并推上远程。**
-- `docs/log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md`：本次任务日志。
-- `docs/work_log.md`（由 `dart tool/work_log.dart write` 生成）、`docs/work_log_archive.md`：补回此前漏归档的 `2026-10-21-0135-e3-regression-sample-set.md` 一行引用。
-- `docs/handoff.md`：本文件。
-- 合并带入（来自 PR #127，远程已有，本次未改动）：`lib/features/lyrics/domain/services/lyric_review_decision_service.dart`、`lyric_review_priority_service.dart`、`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`、两个对应测试文件、`docs/lyric_review_alignment_plan.md`、`docs/work_log_index.md`、`docs/log/entries/2026-10-21-1704-guided-smart-review-confirmation.md`。
-
-## 检查结果
-
-合并后在本地真机工具链（D:\src\flutter）验证：
-
-- `flutter analyze --no-pub` → No issues found（2.5s）
-- `flutter test test/features/lyrics` → 202/202 通过
-- `dart tool/work_log.dart check` → 0 errors, 0 warnings
-- `flutter test`（全量）→ 536 通过、2 跳过、0 失败
-- `git push origin main` → 之前被环境以 `permission.rejected` 拒绝，本次已恢复为普通推送（首次尝试因远程有新提交被拒，合并后重推成功）
-
-## 本机 Git 凭据修复（全局配置，已生效）
-
-问题：Hermes 自带 Git（`AppData/Local/hermes/tools/git-2.53.0+3-win32-x64`）的系统 gitconfig 里 `credential.helper = helper-selector`，会选中 Windows 凭据管理器（`manager`）。GCM 在无 TTY 环境下无法弹窗，`git push` 会挂起或报 `could not read Username`。
-
-修复：`C:/Users/123/.gitconfig` 中设置
-
-```
-[credential]
-	helper =
-	helper = !gh auth git-credential
-```
-
-第一条空 helper 用于重置 helper 列表（清掉系统层的 helper-selector），第二条用 gh 已登录的 token 供 Git 使用。`gh auth status` 显示账号 BrainEno，scopes 含 `repo`。
-
-## 下一步
-
-1. PR #128（`feat/smart-review-inline-audition-20261021`，Draft）仍需本地跑 Flutter 验证 + 视口人工复核后才可转 Ready。其 PR 描述里说"本环境无 Flutter 工具链"，但本机实际有 D:\src\flutter，可直接验证。
-2. PR #127 的代码此前在无 Flutter 环境的容器中开发、从未跑过 analyze/test；本次合并后已跑过并全绿，但**未做真实窗口人工验证**。
-3. Phase D 在线歌词搜索仍为可选，未实现。
-
-## 已知风险
-
-- PR #126 合并时把未解决的冲突标记提交进了 main 历史（`228c258`）。本次已把修复推到远程 main，历史中仍可复现；彻底清理需改写历史（force push），需用户确认后再做。
-- PR #127 的 UI 改动（确认本行无误并继续、队列滚动）未经任何真实窗口人工检查。
-- `dart format` 持续报告部分文件需格式化，但 `git diff` 无实质差异，由 `core.autocrlf=true` 造成的行尾差异，不影响代码正确性。
-- `linux/ macos/ windows/` 下的 `generated_plugin*` 文件在切换行尾时显示为已修改，`git diff --ignore-cr-at-eol` 为空，纯属 autocrlf 噪声；本次已 `git checkout --` 还原。
-
----
-
-最后更新：2026-10-21 23:55
+Last updated: 2026-10-21 22:22
