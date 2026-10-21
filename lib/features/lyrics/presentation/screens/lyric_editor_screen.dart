@@ -2151,7 +2151,7 @@ class _LineInspectorState extends State<_LineInspector> {
                       : Icons.check_circle_outline_rounded,
                 ),
                 label: Text(
-                  widget.isReviewed ? '取消已复核标记' : '确认本行无误并继续',
+                  widget.isReviewed ? '取消已复核标记' : '确认歌词与时间无误并继续',
                 ),
               ),
             ),
