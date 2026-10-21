@@ -108,7 +108,7 @@ void main() {
     );
 
     expect(result.repairs.where((r) => r.type == LyricTimelineAutoRepairType.redistributeEstimate), hasLength(2));
-    expect(result.lines[1].startTime, const Duration(seconds: 4));
+    expect(result.lines[1].startTime, const Duration(seconds: 5));
     expect(result.lines[1].endTime, result.lines[2].startTime);
     expect(result.lines[2].endTime, const Duration(seconds: 20));
     expect(result.lines[1].startTime, greaterThanOrEqualTo(result.lines[0].endTime));

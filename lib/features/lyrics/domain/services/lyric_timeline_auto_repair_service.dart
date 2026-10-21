@@ -92,7 +92,11 @@ class LyricTimelineAutoRepairService {
 
       final current = repaired[index];
       final next = repaired[index + 1];
-      if (protectedLineIndices.contains(index) ||
+      // Estimated rows will be redistributed inside their fixed anchors below;
+      // do not use their provisional starts to truncate an otherwise fixed row.
+      if (_isEstimated(timingProvenanceByLineIndex[index]) ||
+          _isEstimated(timingProvenanceByLineIndex[index + 1]) ||
+          protectedLineIndices.contains(index) ||
           current.startTime >= next.startTime ||
           current.endTime <= next.startTime ||
           next.startTime - current.startTime < minimumDuration) {
@@ -261,6 +265,10 @@ class LyricTimelineAutoRepairService {
     }
     return false;
   }
+
+  bool _isEstimated(LyricTimingProvenance? value) =>
+      value == LyricTimingProvenance.interpolated ||
+      value == LyricTimingProvenance.estimatedTail;
 
   Duration _tailBoundary({
     required Duration start,
