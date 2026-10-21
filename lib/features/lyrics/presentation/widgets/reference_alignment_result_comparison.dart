@@ -199,7 +199,6 @@ class _AlignmentComparisonSheet extends StatelessWidget {
         const Divider(height: 1),
         Expanded(
           child: changes.isEmpty
-<<<<<<< HEAD
               ? const Center(child: Text('本次校对没有改变文字或时间轴。'))
               : ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -212,18 +211,6 @@ class _AlignmentComparisonSheet extends StatelessWidget {
                     diffService: _diffService,
                     onPreview: onPreviewLine,
                   ),
-=======
-            ? const Center(child: Text('本次校对没有改变文字或时间轴。'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: changes.length,
-                separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                itemBuilder: (context, index) => _LineChangeCard(
-                  change: changes[index],
-                  timeLabel: _time,
-                  diffService: _diffService,
-                  onPreview: onPreviewLine,
->>>>>>> de9caeb (Fix lint and format issues for smart lyric review queue)
                 ),
         ),
         const Divider(height: 1),
