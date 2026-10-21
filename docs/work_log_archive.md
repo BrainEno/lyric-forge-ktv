@@ -66,3 +66,4 @@
 - [2026-10-20 20:42] 新增歌词时间轴校验器（E2.1） `Add lyric timeline validator for conflict detection and calibration marking` ([entry](log/entries/2026-10-20-2042-e1-timeline-validator.md))
 - [2026-10-20 20:48] 插入行与音频文件边界校验（E2.2） `Guard lyric insertion and audio track bounds` ([entry](log/entries/2026-10-20-2048-e2-insertion-audio-boundary.md))
 - [2026-10-20 20:56] 完善 LRC 时间戳冲突处理（E2.3） `Report LRC timestamp import conflicts via LyricImportResult.conflicts` ([entry](log/entries/2026-10-20-2056-e2-lrc-conflict.md))
+- [2026-10-21 00:35] 对齐服务区分匹配/自动替换阈值并引入低置信与歧义状态（E3.1） `Distinguish alignment match and auto-replace thresholds with low-confidence and ambiguous states` ([entry](log/entries/2026-10-21-0035-e3-alignment-threshold-states.md))
