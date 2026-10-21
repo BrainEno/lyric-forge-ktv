@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -113,6 +114,47 @@ void main() {
     );
 
     expect(service.rank(document), isEmpty);
+  });
+
+  test('excludes explicitly reviewed lines until text or timing changes', () {
+    final document = LyricDocument(
+      language: 'en',
+      lines: [
+        LyricLine(
+          id: 'reviewed-line',
+          text: 'repeated repeated repeated',
+          confidence: 45,
+          startTime: Duration.zero,
+          endTime: const Duration(seconds: 2),
+        ),
+        LyricLine(
+          id: 'unreviewed-line',
+          text: 'steady line',
+          confidence: 40,
+          startTime: const Duration(seconds: 2),
+          endTime: const Duration(seconds: 4),
+        ),
+      ],
+    );
+    final decisions = const LyricReviewDecisionService();
+    final reviewedDocument = decisions.setReviewed(
+      document,
+      0,
+      reviewed: true,
+      reviewedAt: DateTime.utc(2026, 10, 21),
+    );
+
+    expect(service.rank(reviewedDocument).map((item) => item.lineIndex), [1]);
+
+    final edited = reviewedDocument.copyWith(
+      lines: [
+        reviewedDocument.lines[0].copyWith(
+          endTime: const Duration(milliseconds: 2100),
+        ),
+        reviewedDocument.lines[1],
+      ],
+    );
+    expect(service.rank(edited).map((item) => item.lineIndex), [0, 1]);
   });
 
   test('shows long and suspicious intervals with readable reasons', () {
