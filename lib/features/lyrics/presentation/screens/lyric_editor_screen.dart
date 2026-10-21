@@ -18,6 +18,7 @@ import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
+import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
@@ -111,6 +112,52 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _reviewPriorityByIndex = Map<int, LyricReviewPriority>.unmodifiable({
       for (final priority in ranked) priority.lineIndex: priority,
     });
+  }
+
+  void _setLineReviewDecision(
+    ProjectManifest project,
+    int index, {
+    required bool reviewed,
+  }) {
+    final document = _editingDocument;
+    if (document == null || index < 0 || index >= document.lines.length) {
+      return;
+    }
+    final updated = const LyricReviewDecisionService().setReviewed(
+      document,
+      index,
+      reviewed: reviewed,
+    );
+    if (identical(updated, document)) return;
+
+    setState(() {
+      _editingDocument = updated;
+      _hasChanges = true;
+      _alignmentUndoSnapshot = null;
+      _filter = _ReviewFilter.smartReview;
+      _refreshReviewPriorityCache(updated, project.audioAsset?.duration);
+      _selectedLineIndex = _reviewPriorityByIndex.isEmpty
+          ? null
+          : (_reviewPriorityByIndex.values.toList()
+                ..sort((left, right) {
+                  final byScore = right.score.compareTo(left.score);
+                  return byScore != 0
+                      ? byScore
+                      : left.lineIndex.compareTo(right.lineIndex);
+                }))
+              .first
+              .lineIndex;
+    });
+
+    final remaining = _reviewPriorityByIndex.length;
+    final message = reviewed
+        ? remaining == 0
+              ? '已确认第 ${index + 1} 行；智能复核队列已清空。保存后会保留本次确认。'
+              : '已确认第 ${index + 1} 行；已跳到下一条优先复核项（剩余 $remaining 行）。'
+        : '已取消第 ${index + 1} 行的复核标记；该行已重新进入复核队列。';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
   }
 
   @override
@@ -783,6 +830,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   setState(() => _followPlayback = value),
               onSelectLine: (index) =>
                   setState(() => _selectedLineIndex = index),
+              onReviewDecision: (index, reviewed) =>
+                  _setLineReviewDecision(project, index, reviewed: reviewed),
               onSave: () => _saveChanges(project),
               onExport: () => _exportLyrics(project),
               onReferenceAlignment: _editingDocument!.lines.isEmpty
@@ -867,6 +916,7 @@ class _LyricEditorContent extends StatelessWidget {
   final ValueChanged<_ReviewFilter> onFilterChanged;
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
+  final void Function(int, bool) onReviewDecision;
   final VoidCallback onSave;
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
@@ -899,6 +949,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onFilterChanged,
     required this.onFollowPlaybackChanged,
     required this.onSelectLine,
+    required this.onReviewDecision,
     required this.onSave,
     required this.onExport,
     required this.onReferenceAlignment,
@@ -930,7 +981,11 @@ class _LyricEditorContent extends StatelessWidget {
     return null;
   }
 
+  bool _isLineReviewed(int index) =>
+      const LyricReviewDecisionService().isReviewed(document, index);
+
   bool _needsReview(int index) {
+    if (_isLineReviewed(index)) return false;
     final line = document.lines[index];
     return line.confidence < 70 ||
         (line.confidence < 100 && _fallbackCandidateFor(index) != null);
@@ -985,6 +1040,9 @@ class _LyricEditorContent extends StatelessWidget {
       builder: (sheetContext) {
         final sheetSpec = AppResponsive.of(sheetContext);
         final heightFactor = sheetSpec.isShort ? 0.96 : 0.88;
+        final isReviewed = _isLineReviewed(index);
+        final canRecordDecision =
+            isReviewed || reviewPriorityByIndex.containsKey(index);
         return FractionallySizedBox(
           heightFactor: heightFactor,
           child: Center(
@@ -997,6 +1055,13 @@ class _LyricEditorContent extends StatelessWidget {
                 index: index,
                 line: document.lines[index],
                 fallbackCandidate: _fallbackCandidateFor(index),
+                isReviewed: isReviewed,
+                onReviewDecision: canRecordDecision
+                    ? (reviewed) {
+                        onReviewDecision(index, reviewed);
+                        Navigator.of(sheetContext).pop();
+                      }
+                    : null,
                 isCurrentPlaybackLine:
                     playbackBelongsToProject &&
                     _currentPlaybackLineIndex() == index,
@@ -1189,6 +1254,20 @@ class _LyricEditorContent extends StatelessWidget {
                                 fallbackCandidate: selectedIndex == null
                                     ? null
                                     : _fallbackCandidateFor(selectedIndex),
+                                isReviewed: selectedIndex != null &&
+                                    _isLineReviewed(selectedIndex),
+                                onReviewDecision: selectedIndex != null &&
+                                        (_isLineReviewed(selectedIndex) ||
+                                            reviewPriorityByIndex.containsKey(
+                                              selectedIndex,
+                                            ))
+                                    ? (reviewed) {
+                                        onReviewDecision(
+                                          selectedIndex,
+                                          reviewed,
+                                        );
+                                      }
+                                    : null,
                                 playback: playback,
                                 playbackBelongsToProject:
                                     playbackBelongsToProject,
@@ -1545,12 +1624,29 @@ class _LyricListPaneState extends State<_LyricListPane> {
     if (oldWidget.focusRequestId != widget.focusRequestId) {
       _scheduleInsertedLineFocus();
     }
-    if (widget.followPlayback &&
+    final visibleIndicesChanged = !_sameIndices(
+      oldWidget.visibleIndices,
+      widget.visibleIndices,
+    );
+    if (widget.filter == _ReviewFilter.smartReview &&
+        (oldWidget.filter != widget.filter || visibleIndicesChanged)) {
+      _scheduleScrollToTop();
+    } else if (widget.filter != _ReviewFilter.smartReview &&
+        widget.followPlayback &&
         (!oldWidget.followPlayback ||
             oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
-            oldWidget.visibleIndices != widget.visibleIndices)) {
+            visibleIndicesChanged)) {
       _scheduleFollow();
     }
+  }
+
+  bool _sameIndices(List<int> left, List<int> right) {
+    if (identical(left, right)) return true;
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
   }
 
   void _scheduleInsertedLineFocus() {
@@ -1567,9 +1663,24 @@ class _LyricListPaneState extends State<_LyricListPane> {
     super.dispose();
   }
 
+  void _scheduleScrollToTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (_scrollController.offset < 1) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
   void _scheduleFollow() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !widget.followPlayback || !_scrollController.hasClients) {
+      if (!mounted ||
+          !widget.followPlayback ||
+          widget.filter == _ReviewFilter.smartReview ||
+          !_scrollController.hasClients) {
         return;
       }
       final current = widget.currentPlaybackLine;
@@ -1596,7 +1707,11 @@ class _LyricListPaneState extends State<_LyricListPane> {
   Widget build(BuildContext context) {
     if (widget.visibleIndices.isEmpty) {
       if (widget.filter == _ReviewFilter.smartReview) {
-        return const _SmartReviewEmptyState();
+        return _SmartReviewEmptyState(
+          reviewedCount: const LyricReviewDecisionService()
+              .reviewedIndices(widget.document)
+              .length,
+        );
       }
       return const _FilteredEmptyState();
     }
@@ -1618,6 +1733,8 @@ class _LyricListPaneState extends State<_LyricListPane> {
           index: index,
           line: line,
           fallbackCandidate: candidate,
+          isReviewed: const LyricReviewDecisionService()
+              .isReviewed(widget.document, index),
           priority: widget.reviewPriorityByIndex[index],
           selected: widget.selectedIndex == index,
           playing: widget.currentPlaybackLine == index,
@@ -1632,6 +1749,7 @@ class _LyricReviewRow extends StatelessWidget {
   final int index;
   final LyricLine line;
   final Map<String, dynamic>? fallbackCandidate;
+  final bool isReviewed;
   final LyricReviewPriority? priority;
   final bool selected;
   final bool playing;
@@ -1641,6 +1759,7 @@ class _LyricReviewRow extends StatelessWidget {
     required this.index,
     required this.line,
     required this.fallbackCandidate,
+    required this.isReviewed,
     required this.priority,
     required this.selected,
     required this.playing,
@@ -1729,7 +1848,10 @@ class _LyricReviewRow extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   const _TinyBadge(label: '双引擎'),
                 ],
-                if (priority != null) ...[
+                if (isReviewed) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  const _TinyBadge(label: '已复核', accent: true),
+                ] else if (priority != null) ...[
                   const SizedBox(width: AppSpacing.xs),
                   Tooltip(
                     message: priority!.reasons.join('\n'),
@@ -1766,6 +1888,8 @@ class _InspectorPane extends StatelessWidget {
   final LyricDocument document;
   final int? selectedIndex;
   final Map<String, dynamic>? fallbackCandidate;
+  final bool isReviewed;
+  final ValueChanged<bool>? onReviewDecision;
   final PlaybackState playback;
   final bool playbackBelongsToProject;
   final int? currentPlaybackLine;
@@ -1781,6 +1905,8 @@ class _InspectorPane extends StatelessWidget {
     required this.document,
     required this.selectedIndex,
     required this.fallbackCandidate,
+    required this.isReviewed,
+    required this.onReviewDecision,
     required this.playback,
     required this.playbackBelongsToProject,
     required this.currentPlaybackLine,
@@ -1806,6 +1932,8 @@ class _InspectorPane extends StatelessWidget {
       index: index,
       line: line,
       fallbackCandidate: fallbackCandidate,
+      isReviewed: isReviewed,
+      onReviewDecision: onReviewDecision,
       isCurrentPlaybackLine:
           playbackBelongsToProject && currentPlaybackLine == index,
       isPlaying: playbackBelongsToProject && playback.isPlaying,
@@ -1827,6 +1955,8 @@ class _LineInspector extends StatefulWidget {
   final int index;
   final LyricLine line;
   final Map<String, dynamic>? fallbackCandidate;
+  final bool isReviewed;
+  final ValueChanged<bool>? onReviewDecision;
   final bool isCurrentPlaybackLine;
   final bool isPlaying;
   final bool autofocusText;
@@ -1841,6 +1971,8 @@ class _LineInspector extends StatefulWidget {
     required this.index,
     required this.line,
     required this.fallbackCandidate,
+    required this.isReviewed,
+    required this.onReviewDecision,
     required this.isCurrentPlaybackLine,
     required this.isPlaying,
     this.autofocusText = false,
@@ -2006,7 +2138,25 @@ class _LineInspectorState extends State<_LineInspector> {
                 const _TinyBadge(label: '双引擎复核'),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          if (widget.onReviewDecision != null &&
+              widget.line.id?.isNotEmpty == true) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    widget.onReviewDecision!(!widget.isReviewed),
+                icon: Icon(
+                  widget.isReviewed
+                      ? Icons.undo_rounded
+                      : Icons.check_circle_outline_rounded,
+                ),
+                label: Text(
+                  widget.isReviewed ? '取消已复核标记' : '确认歌词与时间无误并继续',
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           TextField(
             controller: _textController,
             focusNode: _textFocusNode,
@@ -2374,11 +2524,14 @@ class _EmptyLyricsState extends StatelessWidget {
 
 
 class _SmartReviewEmptyState extends StatelessWidget {
-  const _SmartReviewEmptyState();
+  final int reviewedCount;
+
+  const _SmartReviewEmptyState({required this.reviewedCount});
 
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
+    final completed = reviewedCount > 0;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -2394,7 +2547,7 @@ class _SmartReviewEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                '暂未发现明显风险行',
+                completed ? '本轮智能复核已完成' : '暂未发现明显风险行',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -2402,7 +2555,9 @@ class _SmartReviewEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '当前没有达到智能复核阈值的明显问题。自动评分不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
+                completed
+                    ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入复核队列。请保存以保留确认记录。'
+                    : '当前没有达到智能复核阈值的明显问题。自动评分不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

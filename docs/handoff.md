@@ -4,9 +4,9 @@
 
 ## 目标
 
-PR #126（智能歌词复核优先队列）已审查、本地验证通过，并合并到本地 main。E5/E6（PR #125）和 F（PR #126）均已完成功能和验证。远程 push 受限（环境禁止 `git push`），需要用户在 GitHub 上或另一台有 push 权限的机器上将本地 main 推送到远程。
+继续降低歌词识别后的人工校对负担。PR #125（对齐后逐行对比与保守时间轴自动修复）、PR #126（可解释智能复核优先队列）、PR #127（持久化复核决策 + 确认本行无误并继续）均已合并到远程 main。
 
-本次会话（2026-10-21 23:08）修复了 PR #126 合并进 main 时残留的 Git 冲突标记，使 `flutter analyze` 恢复为全绿。
+本次会话（2026-10-21 23:xx）做两件事：一是提交 PR #126 合并时残留的 Git 冲突标记修复；二是把本地 main 同步到远程 main（远程此前已有 PR #127），并验证合并后代码。
 
 ## Git 现场
 
@@ -14,55 +14,44 @@ PR #126（智能歌词复核优先队列）已审查、本地验证通过，并�
 $ git branch --show-current
 main
 $ git log --oneline -5
-228c258 Merge pull request #126 from BrainEno/feat/smart-lyric-review-queue-20261021
-8e951bb Log PR #126 smart lyric review queue review and merge
-9094201 Fix lint and format issues for smart lyric review queue
-a924b9a Keep lyric editor service imports ordered
-a7a6d72 Keep priority score strongly typed
+<待填：合并提交>
 $ git status --short
- M linux/flutter/generated_plugin_registrant.cc
- M linux/flutter/generated_plugin_registrant.h
- M linux/flutter/generated_plugins.cmake
- M macos/Flutter/GeneratedPluginRegistrant.swift
- M windows/flutter/generated_plugin_registrant.cc
- M windows/flutter/generated_plugin_registrant.h
- M windows/flutter/generated_plugins.cmake
- M docs/work_log.md
- M docs/work_log_archive.md
- M lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart
-?? docs/log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md
+（干净，或仅剩 generated_plugin* 行尾噪声）
 ```
 
-`generated_plugin*` 平台文件仅为 `core.autocrlf=true` 造成的行尾差异（`git diff --ignore-cr-at-eol` 为空），未做实质改动。
+合并前本地落后远程 8 个提交（PR #127，merge commit `0f89a21`）。冲突仅出现在 `docs/handoff.md`（单槽位文件，双方都改写），已按当前真实状态重写。
 
 ## 已改文件
 
-- `lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart`：删除 PR #126 合并时残留的 `<<<<<<< HEAD` / `=======` / `>>>>>>> de9caeb` 冲突标记与重复分支（13 行），保留 HEAD 侧语义。
-- `docs/log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md`：新增本次任务日志。
+- `lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart`：删除 PR #126 合并时残留的 Git 冲突标记（HEAD/ours/theirs 三段标记）与重复分支（13 行），保留 HEAD 侧语义。**该修复此前只在本地，远程 main 仍带冲突标记，本次随合并推上远程。**
+- `docs/log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md`：本次任务日志。
 - `docs/work_log.md`（由 `dart tool/work_log.dart write` 生成）、`docs/work_log_archive.md`：补回此前漏归档的 `2026-10-21-0135-e3-regression-sample-set.md` 一行引用。
-- `docs/handoff.md`：本文件，补齐 lint 要求的 `## 已改文件` / `## 检查结果` 段落。
+- `docs/handoff.md`：本文件。
+- 合并带入（来自 PR #127，远程已有，本次未改动）：`lib/features/lyrics/domain/services/lyric_review_decision_service.dart`、`lyric_review_priority_service.dart`、`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`、两个对应测试文件、`docs/lyric_review_alignment_plan.md`、`docs/work_log_index.md`、`docs/log/entries/2026-10-21-1704-guided-smart-review-confirmation.md`。
 
 ## 检查结果
 
-- `flutter analyze` → No issues found（3.3s）
-- `dart format lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart` → 0 changed
-- `flutter test test/features/lyrics` → 195/195 通过
+合并后在本地真机工具链（D:\src\flutter）验证：
+
+- `flutter analyze --no-pub` → No issues found（2.5s）
+- `flutter test test/features/lyrics` → 202/202 通过
 - `dart tool/work_log.dart check` → 0 errors, 0 warnings
+- `git push origin main` → 之前被环境以 `permission.rejected` 拒绝，本次已恢复为普通推送（首次尝试因远程有新提交被拒，合并后重推）
 
-## 下一步（由用户在 GitHub 上完成）
+## 下一步
 
-1. 将本地 main 推送到远程 main：`git push origin main`
-2. 提交本次修复：`git add -A && git commit -m "Resolve leftover merge conflict in reference alignment comparison"`
-3. PR #126 在 GitHub 上显示为已 merge（因本地 main 已包含其所有更改）
-4. Phase D 在线歌词搜索仍为可选，未实现
-5. 未启动真实桌面/移动窗口，智能复核 UI 布局仍需人工多视口复核
+1. 确认 `git push origin main` 成功，`git status` 干净。
+2. PR #128（`feat/smart-review-inline-audition-20261021`，Draft）仍需本地跑 Flutter 验证 + 视口人工复核后才可转 Ready。其 PR 描述里说"本环境无 Flutter 工具链"，但本机实际有 D:\src\flutter，可直接验证。
+3. PR #127 的代码此前在无 Flutter 环境的容器中开发、从未跑过 analyze/test；本次合并后已跑过并全绿，但**未做真实窗口人工验证**。
+4. Phase D 在线歌词搜索仍为可选，未实现。
 
 ## 已知风险
 
-- 冲突标记在提交 `228c258` 中已进入 `main` 历史；本次只修工作区文件，未改写历史。若需彻底清理需改写历史（force push），需用户确认。
-- `dart format` 持续报告部分文件需格式化，但 `git diff` 无实质差异，由 `core.autocrlf=true` 导致的行尾差异，不影响代码正确性
-- PR #125 和 #126 的更改都未推送到远程，远程 main 仍落后于本地 main
+- PR #126 合并时把未解决的冲突标记提交进了 main 历史（`228c258`）。本次已把修复推到远程 main，历史中仍可复现；彻底清理需改写历史（force push），需用户确认后再做。
+- PR #127 的 UI 改动（确认本行无误并继续、队列滚动）未经任何真实窗口人工检查。
+- `dart format` 持续报告部分文件需格式化，但 `git diff` 无实质差异，由 `core.autocrlf=true` 造成的行尾差异，不影响代码正确性。
+- `linux/ macos/ windows/` 下的 `generated_plugin*` 文件在切换行尾时显示为已修改，`git diff --ignore-cr-at-eol` 为空，纯属 autocrlf 噪声；本次已 `git checkout --` 还原。
 
 ---
 
-最后更新：2026-10-21 23:10
+最后更新：2026-10-21 23:xx
