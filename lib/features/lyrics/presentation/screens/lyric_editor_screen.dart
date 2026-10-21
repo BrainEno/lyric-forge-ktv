@@ -17,6 +17,7 @@ import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
+import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/reference_alignment_applier.dart';
 import '../../domain/services/reference_alignment_restore_service.dart';
@@ -43,6 +44,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioService;
   late final LyricFileExportService _exportService;
+  late final LyricManualEditMarkerService _lineMarkers;
   late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
 
@@ -56,8 +58,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   int _focusRequestId = 0;
   int? _focusLineIndex;
 
-  /// 本次编辑器会话中手动改过文字的行；参考对齐默认跳过，避免静默覆盖。
-  final Set<int> _manuallyEditedLineIndices = {};
+  /// 本次编辑器会话中手动改过文字的行标识（基于稳定 lineId）；
+  /// 插入/删除/对齐后标识不随索引漂移，参考对齐默认跳过这些行。
+  final Set<String> _manuallyEditedLineIds = {};
+
+  /// 受保护行的当前索引视图：按稳定标识在现有行序中重新定位，供逐行确认使用。
+  Set<int> get _manuallyEditedLineIndices {
+    final document = _editingDocument;
+    if (document == null) return const <int>{};
+    return _lineMarkers.protectedIndices(document, _manuallyEditedLineIds);
+  }
 
   @override
   void initState() {
@@ -66,6 +76,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _audioService = ServiceLocatorGlobal.I.audioPlayerService;
     _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
+    _lineMarkers = const LyricManualEditMarkerService();
     _referenceParser = ReferenceLyricTextParser(
       ServiceLocatorGlobal.I.lyricFileImportService,
     );
@@ -77,10 +88,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   Future<void> _saveChanges(ProjectManifest project) async {
-    if (_editingDocument == null) return;
+    final document = _editingDocument;
+    if (document == null) return;
 
     final updated = project.copyWith(
-      lyricDocument: _editingDocument,
+      lyricDocument: document.copyWith(
+        metadata: _lineMarkers.persist(document, _manuallyEditedLineIds),
+      ),
       status: ProjectStatus.editing,
       currentStage: ProcessingStage.lyricsEdited,
     );
@@ -189,6 +203,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final appliedDocument = decision.applyReferenceTiming
         ? result.document.copyWith(globalOffset: Duration.zero)
         : result.document;
+    // 对齐补入的新行缺少稳定标识，先统一补齐；手工编辑保护按标识定位，无需按索引平移。
+    final appliedWithLineIds = _lineMarkers.assignMissingLineIds(
+      appliedDocument,
+    );
 
     final now = DateTime.now();
     final backupMetadata = Map<String, dynamic>.from(document.metadata)
@@ -261,24 +279,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       };
 
     setState(() {
-      _editingDocument = appliedDocument.copyWith(metadata: metadata);
+      _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);
       _hasChanges = true;
-      // 补行会把插入点之后的原有行整体后移，同步迁移会话级"手动编辑"索引，
-      // 避免再次运行纠正时保护错位（手工编辑的行失保护、新插入行被误保护）。
-      if (result.insertions.isNotEmpty) {
-        _manuallyEditedLineIndices
-          ..clear()
-          ..addAll(
-            {
-              for (final p in _manuallyEditedLineIndices)
-                p +
-                    result.insertions
-                        .where((i) => i.insertBeforeAsrLineIndex <= p)
-                        .length,
-            }..removeWhere(
-                (i) => i < 0 || i >= appliedDocument.lines.length),
-          );
-      }
       _filter = _ReviewFilter.all;
       if (result.corrections.isNotEmpty) {
         _selectedLineIndex = result.corrections.first.asrLineIndex;
@@ -343,10 +345,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (restored == null || !mounted) return;
 
     setState(() {
-      _editingDocument = restored;
+      // 备份文档保留了各行的稳定标识：会话内标记按标识取交集继续生效，
+      // 备份元数据中持久化的标记一并恢复；旧版本备份没有标识时自然失配。
+      final restoredDocument = _lineMarkers.assignMissingLineIds(restored);
+      final sessionSurvivors = _lineMarkers.prune(
+        restoredDocument,
+        _manuallyEditedLineIds,
+      );
+      _manuallyEditedLineIds
+        ..clear()
+        ..addAll(sessionSurvivors)
+        ..addAll(_lineMarkers.restore(restoredDocument));
+      _editingDocument = restoredDocument;
       _hasChanges = true;
-      // 备份文档的行集与本次会话的编辑记录不再对应，旧索引一律作废。
-      _manuallyEditedLineIndices.clear();
       _filter = _ReviewFilter.all;
       final lastIndex = restored.lines.length - 1;
       if (lastIndex < 0) {
@@ -385,7 +396,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final current = _editingDocument ??
           const LyricDocument(language: 'zh', lines: []);
       final metadata = _clearIndexedReviewMetadata(current.metadata);
-      _editingDocument = current.copyWith(lines: lines, metadata: metadata);
+      _editingDocument = _lineMarkers.assignMissingLineIds(
+        current.copyWith(lines: lines, metadata: metadata),
+      );
       _selectedLineIndex = lines.length - 1;
       _filter = _ReviewFilter.all;
       _hasChanges = true;
@@ -405,11 +418,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       ..insert(insertion.index, insertion.line);
 
     setState(() {
-      _editingDocument = current.copyWith(
-        lines: lines,
-        metadata: _clearIndexedReviewMetadata(current.metadata),
+      _editingDocument = _lineMarkers.assignMissingLineIds(
+        current.copyWith(
+          lines: lines,
+          metadata: _clearIndexedReviewMetadata(current.metadata),
+        ),
       );
-      _shiftEditedIndices(insertion.index, 1);
       _selectedLineIndex = insertion.index;
       _filter = _ReviewFilter.all;
       _hasChanges = true;
@@ -448,7 +462,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     if (_editingDocument!.lines[index].text != updatedLine.text) {
-      _manuallyEditedLineIndices.add(index);
+      final lineId = _editingDocument!.lines[index].id;
+      if (lineId != null) _manuallyEditedLineIds.add(lineId);
     }
 
     setState(() {
@@ -457,18 +472,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _editingDocument = _editingDocument!.copyWith(lines: lines);
       _hasChanges = true;
     });
-  }
-
-  /// 插入/删除行后同步"手动编辑过"的行索引。
-  void _shiftEditedIndices(int from, int delta) {
-    if (_manuallyEditedLineIndices.isEmpty) return;
-    final shifted = <int>{
-      for (final index in _manuallyEditedLineIndices)
-        if (index < from) index else index + delta,
-    }..removeWhere((index) => index < 0);
-    _manuallyEditedLineIndices
-      ..clear()
-      ..addAll(shifted);
   }
 
   void _setLineStartFromPlayback(int index) {
@@ -506,6 +509,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     setState(() {
+      final removedLine = _editingDocument!.lines[index];
       final lines = List<LyricLine>.from(_editingDocument!.lines)
         ..removeAt(index);
       _editingDocument = _editingDocument!.copyWith(
@@ -513,8 +517,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         metadata: _clearIndexedReviewMetadata(_editingDocument!.metadata),
       );
 
-      _manuallyEditedLineIndices.remove(index);
-      _shiftEditedIndices(index + 1, -1);
+      // 按稳定标识移除被删行的保护标记；其余标记跟随各自行的身份，无需平移。
+      if (removedLine.id != null) {
+        _manuallyEditedLineIds.remove(removedLine.id);
+      }
 
       if (lines.isEmpty) {
         _selectedLineIndex = null;
@@ -622,8 +628,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         }
 
         final project = snapshot.data!;
-        _editingDocument ??= project.lyricDocument ??
-            const LyricDocument(language: 'zh', lines: []);
+        if (_editingDocument == null) {
+          final loaded =
+              project.lyricDocument ??
+              const LyricDocument(language: 'zh', lines: []);
+          // 统一补齐稳定行标识，并恢复上次保存的手工编辑保护标记。
+          _editingDocument = _lineMarkers.assignMissingLineIds(loaded);
+          _manuallyEditedLineIds
+            ..clear()
+            ..addAll(_lineMarkers.restore(_editingDocument!));
+        }
 
         if (_editingDocument!.lines.isNotEmpty && _selectedLineIndex == null) {
           _selectedLineIndex = 0;
