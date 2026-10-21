@@ -61,3 +61,4 @@
 - [2026-10-20 12:28] 对齐备份恢复 UI `Add reference alignment backup restore flow` ([entry](log/entries/2026-10-20-1228-reference-alignment-backup-restore.md))
 - [2026-10-20 13:25] 清理分析器提示信息 `Clear analyzer lint infos` ([entry](log/entries/2026-10-20-1325-clear-analyzer-lint-infos.md))
 - [2026-10-20 15:01] 参考歌词补全漏行与推断时间轴 `Add reference lyric missing-line completion` ([entry](log/entries/2026-10-20-1501-reference-lyric-completion.md))
+- [2026-10-20 15:04] 同步参考补全文案 `Clarify reference lyric completion copy` ([entry](log/entries/2026-10-20-1504-reference-completion-copy.md))
