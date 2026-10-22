@@ -41,8 +41,11 @@ class LyricTokenizer {
   int _normalizeRune(int rune) {
     if (rune >= 0xff01 && rune <= 0xff5e) return rune - 0xfee0;
     if (rune == 0x3000) return 0x20;
-    if (rune == 0x2019 || rune == 0x2018 || rune == 0x02bc ||
-        rune == 0x0060 || rune == 0x00b4) {
+    if (rune == 0x2019 ||
+        rune == 0x2018 ||
+        rune == 0x02bc ||
+        rune == 0x0060 ||
+        rune == 0x00b4) {
       return 0x27;
     }
     return rune;

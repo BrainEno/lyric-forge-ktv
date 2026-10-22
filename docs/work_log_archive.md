@@ -72,3 +72,5 @@
 - [2026-10-21 11:31] 歌词行稳定标识 LyricLine.id（E4.1） `Add stable line identity field to LyricLine` ([entry](log/entries/2026-10-21-1131-e4-line-id.md))
 - [2026-10-21 11:45] 手工编辑保护标记跨会话持久化（E4.2） Persist manual-edit markers by stable line identity ([entry](log/entries/2026-10-21-1145-e4-marker-persistence.md))
 - [2026-10-21 11:54] 参考对齐溯源语义与保存重开验证（E4.3） Record reference alignment provenance with stable line ids ([entry](log/entries/2026-10-21-1154-e4-alignment-provenance.md))
+- [2026-10-21 12:26] 修复参考歌词对话框内 LayoutBuilder 导致的卡死 Fix reference alignment dialog freeze caused by LayoutBuilder in AlertDialog ([entry](log/entries/2026-10-21-1226-reference-dialog-layout-freeze.md))
+- [2026-10-21 14:03] 参考歌词对齐：安全批量、时间来源与内存撤销 `Harden reference lyric alignment batch apply, timing provenance, and undo` ([entry](log/entries/2026-10-21-1403-reference-alignment-safe-batch-and-undo.md))

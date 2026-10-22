@@ -19,21 +19,51 @@ class ReferenceTextSanitizer {
   const ReferenceTextSanitizer();
   static const _tokenizer = LyricTokenizer();
   static const _sectionKeywords = [
-    'verse', 'chorus', 'bridge', 'intro', 'outro', 'hook', 'pre-chorus',
-    'refrain', 'instrumental', 'solo', '主歌', '副歌', '导歌', '间奏', '前奏',
-    '尾奏', '桥段', '歌词',
+    'verse',
+    'chorus',
+    'bridge',
+    'intro',
+    'outro',
+    'hook',
+    'pre-chorus',
+    'refrain',
+    'instrumental',
+    'solo',
+    '主歌',
+    '副歌',
+    '导歌',
+    '间奏',
+    '前奏',
+    '尾奏',
+    '桥段',
+    '歌词',
   ];
   static const _pageNoise = {
-    'embed', 'you might also like', 'see more', 'share', 'read more',
+    'embed',
+    'you might also like',
+    'see more',
+    'share',
+    'read more',
     'translations',
   };
   static const _creditPrefixes = [
-    '作词', '作曲', '词', '曲', '编曲', '制作人', 'lyrics by', 'written by',
-    'composed by', 'music by',
+    '作词',
+    '作曲',
+    '词',
+    '曲',
+    '编曲',
+    '制作人',
+    'lyrics by',
+    'written by',
+    'composed by',
+    'music by',
   ];
   static const _lrcPrefixes = ['[ti:', '[ar:', '[al:', '[by:', '[offset:'];
-  static const _numericEmbed = RegExp(r'^\d+\s*embed$');
-  static const _numericContributor = RegExp(r'^\d+\s*contributor');
+  // RegExp has no const constructor, so these are hoisted statics instead of
+  // per-line literals.
+  static final RegExp _numericEmbed = RegExp(r'^\d+\s*embed$');
+  static final RegExp _numericContributor = RegExp(r'^\d+\s*contributor');
+  static final RegExp _whitespaceRun = RegExp(r'\s+');
 
   SanitizedReference sanitize(String raw, {String? title, String? artist}) {
     final lines = <String>[];
@@ -41,7 +71,7 @@ class ReferenceTextSanitizer {
     var nonEmptyIndex = 0;
     final sourceLines = raw.split('\n');
     for (var index = 0; index < sourceLines.length; index++) {
-      final line = sourceLines[index].trim().replaceAll(RegExp(r'\s+'), ' ');
+      final line = sourceLines[index].trim().replaceAll(_whitespaceRun, ' ');
       if (line.isEmpty) continue;
       final checkTitle = nonEmptyIndex < 3;
       nonEmptyIndex++;
@@ -59,11 +89,17 @@ class ReferenceTextSanitizer {
     if (_isSectionHeader(line)) return RemovedReason.sectionHeader;
     if (checkTitle && _isTitleLine(line, title)) return RemovedReason.titleLine;
     final lower = line.toLowerCase();
-    if (_pageNoise.contains(lower) || _numericEmbed.hasMatch(lower) ||
-        _numericContributor.hasMatch(lower)) return RemovedReason.pageNoise;
-    if (_creditPrefixes.any((prefix) => lower.startsWith(prefix) &&
-        (lower.substring(prefix.length).startsWith(':') ||
-            lower.substring(prefix.length).startsWith('：')))) {
+    if (_pageNoise.contains(lower) ||
+        _numericEmbed.hasMatch(lower) ||
+        _numericContributor.hasMatch(lower)) {
+      return RemovedReason.pageNoise;
+    }
+    if (_creditPrefixes.any(
+      (prefix) =>
+          lower.startsWith(prefix) &&
+          (lower.substring(prefix.length).startsWith(':') ||
+              lower.substring(prefix.length).startsWith('：')),
+    )) {
       return RemovedReason.creditLine;
     }
     if (lower.endsWith(']') && _lrcPrefixes.any(lower.startsWith)) {
@@ -74,7 +110,8 @@ class ReferenceTextSanitizer {
 
   bool _isSectionHeader(String line) {
     if (line.runes.length > 40) return false;
-    final wrapped = (line.startsWith('[') && line.endsWith(']')) ||
+    final wrapped =
+        (line.startsWith('[') && line.endsWith(']')) ||
         (line.startsWith('(') && line.endsWith(')')) ||
         (line.startsWith('（') && line.endsWith('）')) ||
         (line.startsWith('［') && line.endsWith('］')) ||
@@ -92,7 +129,9 @@ class ReferenceTextSanitizer {
     final normalizedTitle = title == null ? '' : _tokenizer.normalize(title);
     if (normalizedTitle.isNotEmpty &&
         (normalized == normalizedTitle ||
-            normalized == _tokenizer.normalize('$title lyrics'))) return true;
+            normalized == _tokenizer.normalize('$title lyrics'))) {
+      return true;
+    }
     return normalized.endsWith(' lyrics') &&
         _tokenizer.tokenize(normalized).length <= 8;
   }

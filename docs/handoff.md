@@ -4,7 +4,7 @@
 
 对齐本地代码库与 GitHub `origin/main`：合并上游已合并的 PR #130/#131，以及尚未并入 main 的 PR #132（参考歌词清洗器），并补回上游缺失的 T0 工作日志条目。本地 T1 早期实现（缺实现文件）保留在 `backup/local-t1-partial-20261022` 分支。
 
-## Git 快照
+## Git 现场
 
 - 分支：`main`；基线 `origin/main @ 3f354d7`（PR #130 契约文档 + PR #131 分词器与常量）。
 - 合并来源：`582da9b`（PR #132，合并自 `feat/lyric-proofreading-t1-tokenizer-20261022`）。
