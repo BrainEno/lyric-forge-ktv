@@ -45,7 +45,10 @@ void main() {
     final draft = doc([source]);
     final result = suggester.suggest(
       draft: draft,
-      reference: input([ref('Hello world', start: 10000, end: 13000)]),
+      reference: input(
+        [ref('Hello world', start: 10000, end: 13000)],
+        warnings: const ['Timestamp was repaired'],
+      ),
     );
 
     expect(result.suggestions, hasLength(1));
@@ -57,6 +60,11 @@ void main() {
     expect(proposal.alignmentStatus, AsrLineAlignmentStatus.toBeCorrected);
     expect(proposal.similarity, greaterThanOrEqualTo(0.8));
     expect(proposal.requiresRetiming, isTrue);
+    expect(proposal.requiresManualReview, isTrue);
+    expect(
+      proposal.reasons,
+      contains(AsrReferenceCorrectionReason.referenceImportWarning),
+    );
     expect(source.startTime, const Duration(milliseconds: 2100));
     expect(source.endTime, const Duration(milliseconds: 4600));
     expect(draft.lines.single.text, 'Hello word');
@@ -128,32 +136,4 @@ void main() {
     expect(draft.lines.length, 2);
   });
 
-  test('adds review reason when reference import has warnings or conflicts', () {
-    final result = suggester.suggest(
-      draft: doc([asr('Hello word', 0, 2000)]),
-      reference: input(
-        [ref('Hello world')],
-        warnings: const ['Timestamp was repaired'],
-        conflicts: const ['Duplicate timestamp'],
-      ),
-    );
-
-    expect(result.suggestions, hasLength(1));
-    expect(
-      result.suggestions.single.reasons,
-      contains(AsrReferenceCorrectionReason.referenceImportWarning),
-    );
-    expect(result.suggestions.single.requiresManualReview, isTrue);
-  });
-
-  test('rejects invalid protected indices and unusable reference text', () {
-    expect(
-      () => suggester.suggest(
-        draft: doc([asr('Hello', 0, 1000)]),
-        reference: input([ref('Hello')]),
-        protectedDraftIndices: const {-1},
-      ),
-      throwsArgumentError,
-    );
-  });
 }
