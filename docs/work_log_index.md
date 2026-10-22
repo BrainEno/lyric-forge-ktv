@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-22. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-23. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -24,6 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
+- **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.
 - **Lyric review / proofread v2:** PRs #141 and #143–#145 are now in `main` (local validation still unverified here); #144 restores repetition code that #142 merged only into an old feature branch. Draft PR #146 adds conservative retiming proposals from exact nearby secondary-ASR timing evidence; ambiguous, low-confidence, boundary-conflicting or out-of-audio intervals are not marked ready, and nothing is auto-applied. Re-segmentation and arbitrary-reference-text ForcedAligner support remain open.
 
 ## Follow-up leads — re-check before acting
