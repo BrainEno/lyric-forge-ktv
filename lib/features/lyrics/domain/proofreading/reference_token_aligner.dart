@@ -220,6 +220,13 @@ class ReferenceTokenAligner {
     int draftLength,
   ) {
     final gaps = <_TokenGap>[];
+    if (anchors.isEmpty) {
+      if (referenceLength > 0 && draftLength > 0) {
+        gaps.add(_TokenGap(0, referenceLength, 0, draftLength));
+      }
+      return gaps;
+    }
+
     var referenceStart = 0;
     var draftStart = 0;
     for (final anchor in anchors) {
@@ -241,9 +248,6 @@ class ReferenceTokenAligner {
       gaps.add(
         _TokenGap(referenceStart, referenceLength, draftStart, draftLength),
       );
-    }
-    if (anchors.isEmpty && referenceLength > 0 && draftLength > 0) {
-      gaps.add(_TokenGap(0, referenceLength, 0, draftLength));
     }
     return gaps;
   }
