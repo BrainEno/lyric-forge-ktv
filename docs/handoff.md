@@ -10,7 +10,7 @@
 - 审查基线 main：0474fdff3dbd985b6c0db9aeabb2ccf0941a01d5。
 - 工作分支：fix/surface-weak-lyric-matches-core-20261022。
 - 分支最新实现提交：67d3b08d769295ce99ddfa7b080b4420b80b4dc2；之前先提交了回归测试 2296eaaf353ed07e541bda8d16d234b41f4114b3。
-- 尚未创建本阶段 PR；GitHub 未提供本地执行结果，且没有在此环境跑测试。
+- Draft PR #136 已创建：https://github.com/BrainEno/lyric-forge-ktv/pull/136；合并前仍需本地 Flutter 验证。GitHub 未提供本地执行结果，且没有在此环境跑测试。
 
 ## 已改文件
 
