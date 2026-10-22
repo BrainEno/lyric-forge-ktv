@@ -8,7 +8,7 @@
 
 - 本执行环境只有 GitHub 连接，没有本地 checkout；不能诚实提供本地 git status --short、git diff --stat 或 git log --oneline -5 输出。
 - 已核实 GitHub main HEAD：969edef6f64b5cd89bf84b1e95c9989825df7efd。
-- 工作分支：feat/lyric-proofreading-t3-strategy-selector-20261022；测试先行提交 7937060，选择器实现提交 373b8a1。
+- 工作分支：feat/lyric-proofreading-t3-strategy-selector-20261022；测试先行提交 7937060，选择器实现/控制流修正最新提交 c2e943c。
 - GitHub 未返回该分支提交的 status checks 或 Actions workflow runs。
 
 ## 已改文件
