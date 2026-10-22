@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'lyric_tokenizer.dart';
 import 'proofread_constants.dart';
 
