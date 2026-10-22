@@ -24,7 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **Lyric review / proofread v2:** PRs #125–#129 are merged; T0 contracts are documented, and T1 tokenizer/constants/reference sanitizer are on `main`. The latest main commit records T1 analyzer/tests/work-log validation. T2 is intentionally split for review size: T2a bounded token DP + reference coverage; T2b unique anchor chaining and repeated-chorus disambiguation. Verify both on the local Flutter toolchain before relying on them in T3.
+- **Lyric review / proofread v2:** T1 and T2a are on `main`; user reports the T2 work was validated and merged, but current `main@969edef` does not include the T2b anchor-chain source because PR #134 targeted the T2a feature branch. T3 is a pure selector based on a caller-supplied coverage value; validate locally before pipeline integration. Bring the T2b branch into `main` before T4 consumes its anchor API.
 
 ## Follow-up leads — re-check before acting
 
