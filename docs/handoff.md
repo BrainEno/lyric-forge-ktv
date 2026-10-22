@@ -1,35 +1,36 @@
 # Handoff
 
 ## 目标
-T5 phase 1：新增纯领域双 ASR 共识证据分析器，不自动替换歌词，不修改任何时间戳。
+T5 phase 2：在 PR #141 的双 ASR 共识证据上增加保守重复片段建议器。只返回人工复核候选，不自动替换歌词、不修改时间戳。
 
 ## Git 现场
-- 基线 main：`adc24416eb0be0c888f075d659970b6832e08885`（包含 PR #140）。
-- 分支：`feat/lyric-proofreading-t5-asr-consensus-20261022`。
-- 测试先行提交：`28a42ba83cffd86e34790695cd7da06dd89b24d7`；实现检查点：`8408d24c6514ac92afc58eb2a686a71a74020c76`。
-- 当前环境仅有 GitHub API，没有本地 checkout / Dart / Flutter 工具链。
+- 主分支在本次比对时为 `b736c61d1b714fda459d0370be915d082a6e1c17`。
+- 依赖分支：`feat/lyric-proofreading-t5-asr-consensus-20261022`，创建时 head 为 `a4a54ddd5e30b53a08dfce148b9205e328f8b224`。
+- 当前分支：`feat/lyric-proofreading-t5-repetition-20261022`。
+- 当前 head：`8693581948b9c7eece8f682c856853a4139027b6`；测试先行提交：`19c0b9883d3934dd1196ce51d59f3a13e490ec46`。
+- 本环境仅有 GitHub API；无法读取本地 `git status --short`、`git diff --stat` 或 `git log --oneline -5`，也没有本地 checkout / Dart / Flutter 工具链。
 
 ## 已改文件
-- `lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart`：双引擎时间重叠证据、文本相似度、低置信度与比较预算提示、primary-only/secondary-only 行。
-- `test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart`：一致/分歧、分段拼接、单引擎独有行、低置信度、比较上限与不可变结果。
-- `docs/lyric_proofreading_v2_plan.md`、`docs/work_log_index.md`：更新 T4/T5 状态与下一步。
+- `test/features/lyrics/domain/proofreading/asr_repetition_analyzer_test.dart`：测试优先；英文与 CJK 重复、正反方向、双方重复、低置信度、无关分歧、比较上限及不可变结果。
+- `lib/features/lyrics/domain/proofreading/asr_repetition_analyzer.dart`：重复片段候选分析器；仅当去掉一个相邻重复片段后文本规范化结果与另一个引擎完全一致时提出建议。
+- `docs/lyric_proofreading_v2_plan.md`、`docs/work_log_index.md`：更新 T5 阶段状态。
 - `docs/handoff.md`：本次交接状态。
 
 ## 检查结果
-- 已静态核对：分析器只返回证据，不改输入文本/时间、不应用替代结果。
-- 未运行 formatter、定向测试、analyze、歌词回归测试或 work-log lint。
-- 不创建不可变 work-log 条目，不手动编辑生成文件 `docs/work_log.md`。
+- 已通过静态阅读核对边界：两个引擎都低于置信度阈值时跳过；两侧都可能存在重复时不猜；超过比较预算则跳过；没有自动修改输入。
+- 未运行 `dart format`、定向 Flutter test、`flutter analyze --no-pub`、`flutter test test/features/lyrics` 或 `dart tool/work_log.dart check`。
+- 未新增 immutable work-log entry，未手动修改生成的 `docs/work_log.md`。
 
 ## 下一步（唯一）
-本地运行：
+在本地运行：
 ```powershell
-dart format lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
-flutter test test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
+dart format lib/features/lyrics/domain/proofreading/asr_repetition_analyzer.dart test/features/lyrics/domain/proofreading/asr_repetition_analyzer_test.dart
+flutter test test/features/lyrics/domain/proofreading/asr_repetition_analyzer_test.dart
 flutter analyze --no-pub
 flutter test test/features/lyrics
 dart tool/work_log.dart check
 ```
-通过后再考虑合入，并继续实现 T5 的重复修正/幻觉过滤阶段。
+待 PR #141 合入后，再把 PR #142 的 base 从依赖分支改到 `main`，重新确认 PR diff、冲突与检查状态。
 
 ## 已知风险
-共识分析按时间重叠聚合次级引擎片段，属于复核证据而非严格词级对齐；尚未实现文本修正、幻觉过滤、时间重建或 UI。
+此实现刻意要求规范化文本精确匹配，能降低误删正常副歌重复的风险，但不能发现带有其他 ASR 文本差异的近似重复。它只建议、不应用修改；PR #142 依赖 PR #141，未本地验证前保持 Draft。
