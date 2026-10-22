@@ -115,8 +115,8 @@
 
 - [x] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
 - [x] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
-- [ ] **T2b — 唯一锚点与重复段消歧。** 按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。
-- [ ] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
+- [ ] **T2b — 唯一锚点与重复段消歧。** 代码正在 main-based PR #139 中复核；本环境无法运行 Flutter/Dart 验证，因此未将其标记完成。按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。** 按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。
+- [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
 - [ ] **T4 — referenceFirst 流水线。** 清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；对插值与低证据时间明确给出琥珀色 verdict。
 - [ ] **T5 — asrFirst 流水线。** 多引擎共识、重新分行、重复段修正与幻觉过滤；参考纠错只提议；改动行的时间必须重新定时。
 - [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
