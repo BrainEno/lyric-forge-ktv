@@ -33,7 +33,7 @@ import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
-import '../widgets/smart_review_audition_button.dart';
+import '../widgets/lyric_row_audition_button.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
 
@@ -2096,7 +2096,6 @@ class _LyricListPaneState extends State<_LyricListPane> {
           priority: widget.reviewPriorityByIndex[index],
           selected: widget.selectedIndex == index,
           playing: widget.currentPlaybackLine == index,
-          isSmartReview: widget.filter == _ReviewFilter.smartReview,
           hasAudio: widget.onPreviewLine != null,
           auditionIsPlaying:
               widget.auditionPlaying && widget.activeAuditionLineIndex == index,
@@ -2118,7 +2117,6 @@ class _LyricReviewRow extends StatelessWidget {
   final LyricReviewPriority? priority;
   final bool selected;
   final bool playing;
-  final bool isSmartReview;
   final bool hasAudio;
   final bool auditionIsPlaying;
   final VoidCallback? onPreview;
@@ -2132,7 +2130,6 @@ class _LyricReviewRow extends StatelessWidget {
     required this.priority,
     required this.selected,
     required this.playing,
-    required this.isSmartReview,
     required this.hasAudio,
     required this.auditionIsPlaying,
     required this.onPreview,
@@ -2189,6 +2186,12 @@ class _LyricReviewRow extends StatelessWidget {
                               ?.copyWith(color: AppColors.textTertiary),
                         ),
                 ),
+                LyricRowAuditionButton(
+                  hasAudio: hasAudio,
+                  isPlaying: auditionIsPlaying,
+                  onPressed: onPreview,
+                ),
+                if (hasAudio) const SizedBox(width: AppSpacing.xs),
                 SizedBox(
                   width: spec.isCompact ? 68 : 82,
                   child: Text(
@@ -2240,14 +2243,6 @@ class _LyricReviewRow extends StatelessWidget {
                     warning: line.confidence < 70,
                   ),
                 ],
-                if (isSmartReview && hasAudio)
-                  const SizedBox(width: AppSpacing.xs),
-                SmartReviewAuditionButton(
-                  isSmartReview: isSmartReview,
-                  hasAudio: hasAudio,
-                  isPlaying: auditionIsPlaying,
-                  onPressed: onPreview,
-                ),
                 if (!spec.supportsTwoPane) ...[
                   const SizedBox(width: AppSpacing.xs),
                   const Icon(
@@ -2570,14 +2565,16 @@ class _LineInspectorState extends State<_LineInspector> {
           ],
           const SizedBox(height: AppSpacing.lg),
           _TimingEditor(
-            title: '开始时间',
+            title: '人声起点',
+            playbackPositionLabel: '标记人声起点',
             value: _workingLine.startTime,
             onNudge: _nudgeStart,
             onUsePlaybackPosition: widget.onUsePlaybackAsStart,
           ),
           const SizedBox(height: AppSpacing.sm),
           _TimingEditor(
-            title: '结束时间',
+            title: '人声终点',
+            playbackPositionLabel: '标记人声终点',
             value: _workingLine.endTime,
             onNudge: _nudgeEnd,
             onUsePlaybackPosition: widget.onUsePlaybackAsEnd,
@@ -2609,12 +2606,14 @@ class _LineInspectorState extends State<_LineInspector> {
 
 class _TimingEditor extends StatelessWidget {
   final String title;
+  final String playbackPositionLabel;
   final Duration value;
   final ValueChanged<Duration> onNudge;
   final VoidCallback? onUsePlaybackPosition;
 
   const _TimingEditor({
     required this.title,
+    required this.playbackPositionLabel,
     required this.value,
     required this.onNudge,
     this.onUsePlaybackPosition,
@@ -2667,6 +2666,16 @@ class _TimingEditor extends StatelessWidget {
                 onPressed: () => onNudge(const Duration(milliseconds: -100)),
               ),
               _NudgeButton(
+                label: '-10ms',
+                minHeight: spec.minimumInteractiveExtent,
+                onPressed: () => onNudge(const Duration(milliseconds: -10)),
+              ),
+              _NudgeButton(
+                label: '+10ms',
+                minHeight: spec.minimumInteractiveExtent,
+                onPressed: () => onNudge(const Duration(milliseconds: 10)),
+              ),
+              _NudgeButton(
                 label: '+100ms',
                 minHeight: spec.minimumInteractiveExtent,
                 onPressed: () => onNudge(const Duration(milliseconds: 100)),
@@ -2680,7 +2689,7 @@ class _TimingEditor extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onUsePlaybackPosition,
                   icon: const Icon(Icons.my_location_rounded, size: 16),
-                  label: const Text('设为当前播放位置'),
+                  label: Text(playbackPositionLabel),
                 ),
             ],
           ),

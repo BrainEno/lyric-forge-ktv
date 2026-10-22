@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
-import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/smart_review_audition_button.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_row_audition_button.dart';
 
 void main() {
   testWidgets(
@@ -20,8 +20,7 @@ void main() {
             body: Center(
               child: InkWell(
                 onTap: () => rowTaps++,
-                child: SmartReviewAuditionButton(
-                  isSmartReview: true,
+                child: LyricRowAuditionButton(
                   hasAudio: true,
                   isPlaying: false,
                   onPressed: () => auditions++,
@@ -55,8 +54,7 @@ void main() {
         home: Scaffold(
           body: StatefulBuilder(
             builder: (context, setState) => Center(
-              child: SmartReviewAuditionButton(
-                isSmartReview: true,
+              child: LyricRowAuditionButton(
                 hasAudio: true,
                 isPlaying: isPlaying,
                 onPressed: () {
@@ -93,7 +91,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('hides audition outside smart review or without audio', (
+  testWidgets('hides audition when audio is unavailable', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -101,14 +99,7 @@ void main() {
         home: Scaffold(
           body: Column(
             children: [
-              SmartReviewAuditionButton(
-                isSmartReview: false,
-                hasAudio: true,
-                isPlaying: false,
-                onPressed: null,
-              ),
-              SmartReviewAuditionButton(
-                isSmartReview: true,
+              LyricRowAuditionButton(
                 hasAudio: false,
                 isPlaying: false,
                 onPressed: null,
@@ -129,8 +120,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: Center(
-            child: SmartReviewAuditionButton(
-              isSmartReview: true,
+            child: LyricRowAuditionButton(
               hasAudio: true,
               isPlaying: false,
               onPressed: null,
