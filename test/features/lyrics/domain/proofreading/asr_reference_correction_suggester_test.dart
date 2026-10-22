@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_alignment_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
@@ -60,7 +61,11 @@ void main() {
     expect(source.startTime, const Duration(milliseconds: 2100));
     expect(source.endTime, const Duration(milliseconds: 4600));
     expect(draft.lines.single.text, 'Hello word');
-    expect(result.suggestions.single.currentText, isNot(result.suggestions.single.suggestedText));
+    expect(() => result.suggestions.add(proposal), throwsUnsupportedError);
+    expect(
+      () => proposal.reasons.add(AsrReferenceCorrectionReason.textMismatch),
+      throwsUnsupportedError,
+    );
   });
 
   test('keeps low-confidence matches as explicit review suggestions', () {
@@ -81,15 +86,6 @@ void main() {
     expect(result.suggestions.single.requiresManualReview, isTrue);
   });
 
-  test('does not suggest for identical normalized text', () {
-    final result = suggester.suggest(
-      draft: doc([asr('Hello, World!', 0, 2000)]),
-      reference: input([ref('hello world')]),
-    );
-
-    expect(result.suggestions, isEmpty);
-  });
-
   test('never suggests replacing protected draft rows', () {
     final result = suggester.suggest(
       draft: doc([asr('Hello word', 1000, 3000)]),
@@ -98,6 +94,11 @@ void main() {
     );
 
     expect(result.suggestions, isEmpty);
+    final identical = suggester.suggest(
+      draft: doc([asr('Hello, World!', 0, 2000)]),
+      reference: input([ref('hello world')]),
+    );
+    expect(identical.suggestions, isEmpty);
   });
 
   test('maps suggestions to original reference indices after header cleanup', () {
@@ -166,16 +167,4 @@ void main() {
     );
   });
 
-  test('exposes immutable suggestions and reason sets', () {
-    final result = suggester.suggest(
-      draft: doc([asr('Hello word', 0, 2000)]),
-      reference: input([ref('Hello world')]),
-    );
-
-    expect(() => result.suggestions.add(result.suggestions.single), throwsUnsupportedError);
-    expect(
-      () => result.suggestions.single.reasons.add(AsrReferenceCorrectionReason.textMismatch),
-      throwsUnsupportedError,
-    );
-  });
 }
