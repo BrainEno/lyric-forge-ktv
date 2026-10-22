@@ -4,7 +4,6 @@ import '../models/reference_lyric_line.dart';
 import '../models/timing_provenance.dart';
 import '../services/lyric_alignment_service.dart';
 import '../services/reference_alignment_applier.dart';
-import 'proofread_constants.dart';
 import 'reference_text_sanitizer.dart';
 import 'reference_token_aligner.dart';
 
