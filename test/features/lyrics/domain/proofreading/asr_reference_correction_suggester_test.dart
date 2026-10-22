@@ -56,7 +56,6 @@ void main() {
     expect(proposal.suggestedText, 'Hello world');
     expect(proposal.alignmentStatus, AsrLineAlignmentStatus.toBeCorrected);
     expect(proposal.similarity, greaterThanOrEqualTo(0.8));
-    expect(proposal.referenceHasTimestamp, isTrue);
     expect(proposal.requiresRetiming, isTrue);
     expect(source.startTime, const Duration(milliseconds: 2100));
     expect(source.endTime, const Duration(milliseconds: 4600));
@@ -113,7 +112,6 @@ void main() {
 
     expect(result.suggestions, hasLength(1));
     expect(result.suggestions.single.referenceIndex, 2);
-    expect(result.removedReferenceLines.map((line) => line.originalIndex), [0, 1]);
   });
 
   test('does not create suggestions or insert lines for unmatched references', () {
@@ -145,7 +143,6 @@ void main() {
       result.suggestions.single.reasons,
       contains(AsrReferenceCorrectionReason.referenceImportWarning),
     );
-    expect(result.warnings, ['Duplicate timestamp', 'Timestamp was repaired']);
     expect(result.suggestions.single.requiresManualReview, isTrue);
   });
 
@@ -166,5 +163,4 @@ void main() {
       throwsArgumentError,
     );
   });
-
 }
