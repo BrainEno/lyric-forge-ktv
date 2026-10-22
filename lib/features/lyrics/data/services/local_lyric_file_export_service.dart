@@ -62,7 +62,7 @@ class LocalLyricFileExportService implements LyricFileExportService {
         artist: artist,
         album: album,
       );
-      return FilePicker.platform.saveFile(
+      return await FilePicker.platform.saveFile(
         dialogTitle: '导出同步歌词',
         fileName: _normalizedFileName(suggestedFileName),
         type: FileType.custom,
