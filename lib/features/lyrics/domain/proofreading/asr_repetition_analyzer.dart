@@ -11,8 +11,7 @@ class AsrRepetitionSuggestion {
   final String originalText;
   final String suggestedText;
 
-  /// The repeated phrase after the same punctuation/spacing normalization used
-  /// by lyric alignment. This is evidence, not display-ready source formatting.
+  /// The repeated phrase normalized by lyric alignment, not display-ready text.
   final String repeatedUnitNormalized;
 
   const AsrRepetitionSuggestion({
@@ -30,14 +29,10 @@ class AsrRepetitionResult {
   AsrRepetitionResult({required List<AsrRepetitionSuggestion> suggestions})
     : suggestions = List.unmodifiable(suggestions);
 
-  bool get hasSuggestions => suggestions.isNotEmpty;
 }
 
-/// Finds conservative de-duplication candidates from dual-ASR evidence.
-///
-/// A proposal is emitted only when removing one of two adjacent, identical
-/// normalized spans makes one engine's text exactly match the other engine's
-/// text. It never mutates transcripts or edits timestamps.
+/// Returns conservative dual-ASR de-duplication candidates for manual review.
+/// It never changes transcript text or timestamps.
 class AsrRepetitionAnalyzer {
   final int reviewConfidenceThreshold;
   final int minimumRepeatedRunes;
@@ -85,8 +80,7 @@ class AsrRepetitionAnalyzer {
         primaryNormalized,
       );
 
-      // If both transcripts admit a de-duplication, do not guess which engine
-      // introduced the repetition.
+      // Never guess when both transcripts admit de-duplication.
       if ((primaryCollapse == null) == (secondaryCollapse == null)) continue;
 
       if (primaryCollapse != null) {
@@ -122,8 +116,7 @@ class AsrRepetitionAnalyzer {
       return null;
     }
 
-    // Removing one copy fixes the unit length to the source/target length
-    // difference; only its possible positions need to be checked.
+    // The length difference fixes the repeated unit length.
     for (var start = 0; start + 2 * length <= runes.length; start++) {
       var repeated = true;
       for (var i = 0; i < length; i++) {
