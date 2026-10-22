@@ -26,7 +26,7 @@
 
 ## 下一步（唯一）
 
-将 T2b 作为 Draft PR 提交，base 指向 T2a 分支；然后在本地依次执行 T2a/T2b 的 formatter、定向测试、flutter analyze --no-pub、flutter test test/features/lyrics，以及 dart tool/work_log.dart write/check。只有这些实际通过后，才能写完成日志并把 PR 标记为 Ready。
+在本地依次执行 T2a/T2b 的 formatter、定向测试、flutter analyze --no-pub、flutter test test/features/lyrics，以及 dart tool/work_log.dart write/check。T2a PR #133 通过验证并合入后，把 T2b PR #134 的 base 从 T2a 分支改为 main；只有本地验证通过后，才能写完成日志并把 PR 标记为 Ready。
 
 ## 已知风险
 
