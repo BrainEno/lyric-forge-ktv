@@ -7,7 +7,7 @@ T5 phase 2：在 PR #141 的双 ASR 共识证据上增加保守重复片段建�
 - 主分支在本次比对时为 `b736c61d1b714fda459d0370be915d082a6e1c17`。
 - 依赖分支：`feat/lyric-proofreading-t5-asr-consensus-20261022`，创建时 head 为 `a4a54ddd5e30b53a08dfce148b9205e328f8b224`。
 - 当前分支：`feat/lyric-proofreading-t5-repetition-20261022`。
-- 当前 head：`8693581948b9c7eece8f682c856853a4139027b6`；测试先行提交：`19c0b9883d3934dd1196ce51d59f3a13e490ec46`。
+- 实现检查点：`8d3e0743c491f4b737b88f52239ca48aadd08c65`；测试先行提交：`19c0b9883d3934dd1196ce51d59f3a13e490ec46`；边界测试整理：`71b25250f419eeeb442af4ea4abc97e29816199a`。PR #142 的实时 head 以 GitHub 页面为准。
 - 本环境仅有 GitHub API；无法读取本地 `git status --short`、`git diff --stat` 或 `git log --oneline -5`，也没有本地 checkout / Dart / Flutter 工具链。
 
 ## 已改文件
