@@ -118,7 +118,7 @@
 - [ ] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；仍需在本地验证唯一 n-gram 候选、有界候选数、单调非重叠锚点链和 DP 回退。高重复窗口不能作为唯一锚点。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
 - [ ] **T4 — referenceFirst 流水线。** 实现已随 PR #140 进入 main；本环境未重新运行本地测试，完成状态待验证。清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；插值与低证据时间必须给出琥珀色 verdict。
-- [ ] **T5 — asrFirst 流水线。** 分阶段进行：Draft PR #141 先新增双 ASR 共识证据分析，不自动替换文本；后续还需重新分行、重复段修正、幻觉过滤，且改动文本必须重新定时。
+- [ ] **T5 — asrFirst 流水线。** 分阶段进行：Draft PR #141 提供双 ASR 共识证据；Draft PR #142 基于共识结果新增保守的重复片段建议（删除一份重复后，规范化文本必须与另一引擎结果完全一致，且两侧置信度达标），只供人工复核，不应用文本或改时间轴。两 PR 均需本地验证；后续仍需重新分行、幻觉过滤及改动文本重定时。
 - [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
 - [ ] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
 - [ ] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。
