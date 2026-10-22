@@ -10,7 +10,6 @@ enum AsrReferenceCorrectionReason {
   ambiguousAlignment,
   structuralMismatch,
   referenceImportWarning,
-  timingReviewRequired,
 }
 
 class AsrReferenceCorrectionSuggestion {
@@ -19,9 +18,7 @@ class AsrReferenceCorrectionSuggestion {
   final String currentText;
   final String suggestedText;
   final double similarity;
-  final int draftConfidence;
   final AsrLineAlignmentStatus alignmentStatus;
-  final bool referenceHasTimestamp;
   final Set<AsrReferenceCorrectionReason> reasons;
 
   AsrReferenceCorrectionSuggestion({
@@ -30,15 +27,12 @@ class AsrReferenceCorrectionSuggestion {
     required this.currentText,
     required this.suggestedText,
     required this.similarity,
-    required this.draftConfidence,
     required this.alignmentStatus,
-    required this.referenceHasTimestamp,
     required Set<AsrReferenceCorrectionReason> reasons,
   }) : reasons = Set.unmodifiable(reasons);
 
-  /// Text changes must be re-timed before they can be applied.
-  bool get requiresRetiming =>
-      reasons.contains(AsrReferenceCorrectionReason.timingReviewRequired);
+  /// A text change must be re-timed before applying; no reference time is copied.
+  bool get requiresRetiming => true;
 
   bool get requiresManualReview =>
       alignmentStatus != AsrLineAlignmentStatus.toBeCorrected ||
@@ -63,10 +57,8 @@ class AsrReferenceCorrectionResult {
        warnings = List.unmodifiable(warnings);
 }
 
-/// Produces reference-text suggestions for existing ASR rows only.
-///
-/// It never applies reference text or reference timestamps, inserts missed
-/// lyrics, or mutates the draft. Suggested text changes require re-timing.
+/// Suggests text corrections for matched draft rows only. It never edits or
+/// inserts lyrics, applies reference timestamps, or mutates the draft.
 class AsrReferenceCorrectionSuggester {
   final ReferenceTextSanitizer sanitizer;
   final LyricAlignmentService lineAligner;
@@ -80,17 +72,14 @@ class AsrReferenceCorrectionSuggester {
     required LyricDocument draft,
     required ReferenceLyricInput reference,
     Set<int> protectedDraftIndices = const {},
-    double suggestionThreshold =
-        LyricAlignmentService.defaultAutoReplaceThreshold,
+    double suggestionThreshold = LyricAlignmentService.defaultAutoReplaceThreshold,
   }) {
     if (!suggestionThreshold.isFinite ||
         suggestionThreshold < 0 ||
         suggestionThreshold > 1) {
       throw ArgumentError.value(suggestionThreshold, 'suggestionThreshold');
     }
-    if (protectedDraftIndices.any(
-      (index) => index < 0 || index >= draft.lines.length,
-    )) {
+    if (protectedDraftIndices.any((i) => i < 0 || i >= draft.lines.length)) {
       throw ArgumentError.value(protectedDraftIndices, 'protectedDraftIndices');
     }
 
@@ -99,52 +88,45 @@ class AsrReferenceCorrectionSuggester {
       title: reference.title,
       artist: reference.artist,
     );
-    final removedIndices = sanitized.removed.map((line) => line.originalIndex).toSet();
-    final cleanedLines = <ReferenceLyricLine>[];
+    final removed = sanitized.removed.map((line) => line.originalIndex).toSet();
+    final refs = <ReferenceLyricLine>[];
     final originalIndices = <int>[];
     var cleanIndex = 0;
-    for (var index = 0; index < reference.lines.length; index++) {
-      final source = reference.lines[index];
-      if (removedIndices.contains(index) || source.text.trim().isEmpty) continue;
-      cleanedLines.add(
-        ReferenceLyricLine(
-          text: sanitized.lines[cleanIndex++],
-          startTime: source.startTime,
-          endTime: source.endTime,
-        ),
-      );
-      originalIndices.add(index);
+    for (var i = 0; i < reference.lines.length; i++) {
+      final line = reference.lines[i];
+      if (removed.contains(i) || line.text.trim().isEmpty) continue;
+      refs.add(ReferenceLyricLine(
+        text: sanitized.lines[cleanIndex++],
+        startTime: line.startTime,
+        endTime: line.endTime,
+      ));
+      originalIndices.add(i);
     }
-    if (cleanedLines.isEmpty) {
-      throw ArgumentError('Reference lyrics contain no usable lyric lines');
-    }
+    if (refs.isEmpty) throw ArgumentError('Reference lyrics contain no usable lyric lines');
 
     final alignment = lineAligner.align(
       document: draft,
-      referenceLines: cleanedLines,
+      referenceLines: refs,
       autoReplaceThreshold: suggestionThreshold,
     );
-    final importWarnings = [...reference.conflicts, ...reference.warnings];
+    final warnings = [...reference.conflicts, ...reference.warnings];
     final suggestions = <AsrReferenceCorrectionSuggestion>[];
     for (final row in alignment.asrLines) {
-      final referenceIndex = row.referenceIndex;
-      if (referenceIndex == null ||
+      final refIndex = row.referenceIndex;
+      if (refIndex == null ||
           row.status == AsrLineAlignmentStatus.matched ||
           row.status == AsrLineAlignmentStatus.unmatched ||
           protectedDraftIndices.contains(row.asrLineIndex)) {
         continue;
       }
 
-      final current = draft.lines[row.asrLineIndex];
-      final target = cleanedLines[referenceIndex];
-      if (LyricAlignmentService.normalizeLine(current.text) ==
-          LyricAlignmentService.normalizeLine(target.text)) {
-        continue;
-      }
+      final current = draft.lines[row.asrLineIndex].text;
+      final target = refs[refIndex].text;
+      if (LyricAlignmentService.normalizeLine(current) ==
+          LyricAlignmentService.normalizeLine(target)) continue;
 
       final reasons = <AsrReferenceCorrectionReason>{
         AsrReferenceCorrectionReason.textMismatch,
-        AsrReferenceCorrectionReason.timingReviewRequired,
       };
       if (row.status == AsrLineAlignmentStatus.lowConfidence) {
         reasons.add(AsrReferenceCorrectionReason.lowAlignmentConfidence);
@@ -155,33 +137,28 @@ class AsrReferenceCorrectionSuggester {
       if (row.structuralMismatch) {
         reasons.add(AsrReferenceCorrectionReason.structuralMismatch);
       }
-      if (importWarnings.isNotEmpty) {
+      if (warnings.isNotEmpty) {
         reasons.add(AsrReferenceCorrectionReason.referenceImportWarning);
       }
 
-      suggestions.add(
-        AsrReferenceCorrectionSuggestion(
-          draftIndex: row.asrLineIndex,
-          referenceIndex: originalIndices[referenceIndex],
-          currentText: current.text,
-          suggestedText: target.text,
-          similarity: row.similarity,
-          draftConfidence: current.confidence,
-          alignmentStatus: row.status,
-          referenceHasTimestamp: target.hasTimestamp,
-          reasons: reasons,
-        ),
-      );
+      suggestions.add(AsrReferenceCorrectionSuggestion(
+        draftIndex: row.asrLineIndex,
+        referenceIndex: originalIndices[refIndex],
+        currentText: current,
+        suggestedText: target,
+        similarity: row.similarity,
+        alignmentStatus: row.status,
+        reasons: reasons,
+      ));
     }
 
     return AsrReferenceCorrectionResult(
       suggestions: suggestions,
       missingReferenceIndices: [
-        for (final index in alignment.missingReferenceIndices)
-          originalIndices[index],
+        for (final i in alignment.missingReferenceIndices) originalIndices[i],
       ],
       removedReferenceLines: sanitized.removed,
-      warnings: importWarnings,
+      warnings: warnings,
     );
   }
 }
