@@ -2,37 +2,35 @@
 
 ## 目标
 
-推进歌词校对 V2 的 T3：实现纯领域策略选择器，按 referenceFirst / asrFirst / auto 与 0.25 覆盖率阈值选择分支，并记录自动 fallback notes。
+修复双引擎歌词互检漏报边界差异的问题。当前 Qwen/Whisper 的候选发现阈值为 0.72，"Ashin lady" / "passion lady" 的归一化字符相似度约为 0.727，差异候选可能被直接过滤掉。此阶段仅修复候选发现及回归测试，不改自动替换决策。
 
 ## Git 现场
 
-- 本执行环境只有 GitHub 连接，没有本地 checkout；不能诚实提供本地 git status --short、git diff --stat 或 git log --oneline -5 输出。
-- 已核实 GitHub main HEAD：969edef6f64b5cd89bf84b1e95c9989825df7efd。
-- 工作分支：feat/lyric-proofreading-t3-strategy-selector-20261022；测试先行提交 7937060，选择器实现/控制流修正最新提交 c2e943c。
-- GitHub 未返回该分支提交的 status checks 或 Actions workflow runs。
+- 当前执行环境只提供 GitHub API，没有本地 checkout；无法提供真实的本地 git status --short、git diff --stat 或 git log --oneline -5 输出。
+- 审查基线 main：0474fdff3dbd985b6c0db9aeabb2ccf0941a01d5。
+- 工作分支：fix/surface-weak-lyric-matches-core-20261022。
+- 分支最新实现提交：67d3b08d769295ce99ddfa7b080b4420b80b4dc2；之前先提交了回归测试 2296eaaf353ed07e541bda8d16d234b41f4114b3。
+- 尚未创建本阶段 PR；GitHub 未提供本地执行结果，且没有在此环境跑测试。
 
 ## 已改文件
 
-- lib/features/lyrics/domain/proofreading/proofread_strategy_selector.dart：纯领域策略选择器及可解释决策。
-- test/features/lyrics/domain/proofreading/proofread_strategy_selector_test.dart：无参考、阈值边界、低覆盖率回退、显式策略与非法 coverage。
-- docs/lyric_proofreading_v2_plan.md：标记 T2a 已合并，并保留尚未出现在 main 的 T2b 状态。
-- docs/work_log_index.md：将当前焦点更新到 T3。
-- docs/handoff.md：更新本次中断点。
+- test/high_quality_transcription_service_test.dart：新增 Qwen 主引擎与 Whisper 主引擎两种顺序下的 "Ashin lady" / "passion lady" 回归测试，要求产生待复核候选，但不得因候选阈值而自动替换。
+- lib/features/transcription/data/services/high_quality_transcription_service.dart：集中定义复核阈值 0.80，并同步更新两种引擎顺序的候选发现与原因码判定。
+- docs/handoff.md：更新交接状态。
+- docs/work_log_index.md：更新当前焦点。
 
 ## 检查结果
 
-- 用户已确认测试并合并先前的 T2 工作；但本次环境中 GitHub main@969edef 只包含 T2a 文件，T2b 锚点实现尚未出现在 main。
-- T3 的 dart format、定向 flutter test、flutter analyze 与歌词域回归测试未运行：当前只有 GitHub 连接，没有本地 checkout 或 Dart/Flutter 可执行文件。
-- 尚未添加 T3 不可变工作日志条目；未手改生成文件 docs/work_log.md。
+- 静态核对确认旧的四处 0.72 比较均改为共享的 0.80 复核阈值。
+- 未运行 dart format、flutter test、flutter analyze 或质量门：当前无本地 checkout / Dart / Flutter 工具链。
+- 未创建不可变 work-log 条目，也未手工修改生成文件 docs/work_log.md；需在本地验证后再记录完成任务。
 
 ## 下一步（唯一）
 
-在本地运行 dart format lib/features/lyrics/domain/proofreading/proofread_strategy_selector.dart test/features/lyrics/domain/proofreading/proofread_strategy_selector_test.dart；再运行定向测试、flutter analyze --no-pub、flutter test test/features/lyrics，以及 dart tool/work_log.dart write/check。
-
-验证通过后再写 T3 工作日志并将 PR 标记为 Ready；T3 只选择策略，不执行流水线，也不自行计算 coverage。
+本地检出该分支，运行 dart format lib/features/transcription/data/services/high_quality_transcription_service.dart test/high_quality_transcription_service_test.dart、flutter test test/high_quality_transcription_service_test.dart、flutter analyze --no-pub 与相关回归。通过后再写任务日志、运行 dart tool/work_log.dart write/check 并标记 PR Ready。
 
 ## 已知风险
 
-- 当前 main 缺少 T2b 锚点链实现；T3 只接受已计算的 coverage，因此暂不直接调用对齐器。
-- auto 有参考歌词时必须提供 0–1 的有限 coverage；输入缺失或非法会明确报错，不会静默选择策略。
-- 现有 T1 sanitizer 的 artist 参数目前未参与分类；当前记录的清洗规则只定义了 title 判断，后续调用前应先明确契约。
+- 0.80 是“进入人工复核候选”的阈值，不是自动替换阈值；自动采用逻辑保持原样。候选数可能增加，这是以更多人工可见差异换取少漏报的刻意取舍。
+- 字符相似度不懂语义；此改动只增加可复核证据，不代表备选一定正确。
+- 下一阶段的候选卡字符级 diff 与行内试听/单句人声起止校准分开实施，避免把识别策略、播放控制和时间编辑一次性混入同一 PR。
