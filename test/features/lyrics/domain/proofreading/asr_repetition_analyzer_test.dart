@@ -73,13 +73,6 @@ void main() {
     expect(result.suggestions.single.suggestedText, 'we are home');
   });
 
-  test('does not flag a repeated phrase shared by both engines', () {
-    final text = 'we are home we are home';
-    final result = analyzer.analyze(evidence(primary: text, secondary: text));
-
-    expect(result.suggestions, isEmpty);
-  });
-
   test('does not suggest cleanup when either engine has low confidence', () {
     final cases = [
       evidence(
@@ -99,7 +92,13 @@ void main() {
     );
   });
 
-  test('does not infer repetition from ordinary disagreement or over-budget text', () {
+  test('does not infer repetition from shared repeats, unrelated text, or oversized input', () {
+    final sharedRepeat = analyzer.analyze(
+      evidence(
+        primary: 'we are home we are home',
+        secondary: 'we are home we are home',
+      ),
+    );
     final unrelated = analyzer.analyze(
       evidence(primary: 'meet me in the morning', secondary: 'see you tonight'),
     );
@@ -111,8 +110,10 @@ void main() {
       ),
     );
 
-    expect(unrelated.suggestions, isEmpty);
-    expect(oversized.suggestions, isEmpty);
+    expect(
+      [sharedRepeat, unrelated, oversized].every((item) => item.suggestions.isEmpty),
+      isTrue,
+    );
   });
 
 }
