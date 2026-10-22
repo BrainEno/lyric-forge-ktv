@@ -123,8 +123,9 @@ void main() {
   });
 
   test('does not create suggestions or insert lines for unmatched references', () {
+    final draft = doc([asr('First verse', 0, 2000), asr('Last verse', 6000, 8000)]);
     final result = suggester.suggest(
-      draft: doc([asr('First verse', 0, 2000), asr('Last verse', 6000, 8000)]),
+      draft: draft,
       reference: input([
         ref('First verse'),
         ref('Missing middle verse'),
