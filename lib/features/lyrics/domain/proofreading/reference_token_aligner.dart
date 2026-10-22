@@ -5,11 +5,13 @@ class TokenMatch {
   final int referenceIndex;
   final int draftIndex;
   final double similarity;
+  final bool isAnchor;
 
   const TokenMatch({
     required this.referenceIndex,
     required this.draftIndex,
     required this.similarity,
+    this.isAnchor = false,
   });
 }
 
@@ -17,12 +19,16 @@ class ReferenceTokenAlignmentResult {
   final List<String> referenceTokens;
   final List<String> draftTokens;
   final List<TokenMatch> matches;
+  final int anchorCount;
+  final bool candidateLimitReached;
   final bool dpBudgetExceeded;
 
   ReferenceTokenAlignmentResult({
     required List<String> referenceTokens,
     required List<String> draftTokens,
     required List<TokenMatch> matches,
+    required this.anchorCount,
+    required this.candidateLimitReached,
     required this.dpBudgetExceeded,
   }) : referenceTokens = List.unmodifiable(referenceTokens),
        draftTokens = List.unmodifiable(draftTokens),
@@ -36,7 +42,7 @@ class ReferenceTokenAlignmentResult {
       : matchedReferenceTokenCount / referenceTokenCount;
 }
 
-/// Pure-Dart token alignment. T2b will add unique anchors for repeated passages.
+/// Pure-Dart token alignment with unique anchors for repeated passages.
 class ReferenceTokenAligner {
   final LyricTokenizer tokenizer;
 
@@ -48,26 +54,206 @@ class ReferenceTokenAligner {
   }) {
     final reference = tokenizer.tokenize(referenceText);
     final draft = tokenizer.tokenize(draftText);
-    final cells = (reference.length + 1) * (draft.length + 1);
-    if (cells > ProofreadConstants.maxNwCells) {
-      return ReferenceTokenAlignmentResult(
-        referenceTokens: reference,
-        draftTokens: draft,
-        matches: const [],
-        dpBudgetExceeded: true,
+    final referenceOccurrences = _anchorOccurrences(reference);
+    final draftOccurrences = _anchorOccurrences(draft);
+    final candidates = <_Anchor>[];
+    var candidateLimitReached = false;
+
+    for (final entry in referenceOccurrences.entries) {
+      final referencePositions = entry.value;
+      final draftPositions = draftOccurrences[entry.key];
+      if (referencePositions.length != 1 ||
+          draftPositions == null ||
+          draftPositions.length != 1) {
+        continue;
+      }
+      if (candidates.length >= ProofreadConstants.maxChainCandidates) {
+        candidateLimitReached = true;
+        candidates.clear();
+        break;
+      }
+      final isCjk = entry.key.startsWith('c:');
+      candidates.add(
+        _Anchor(
+          referencePositions.single,
+          draftPositions.single,
+          isCjk
+              ? ProofreadConstants.anchorKCjk
+              : ProofreadConstants.anchorKLatin,
+        ),
       );
     }
+
+    candidates.sort((a, b) {
+      final byReference = a.referenceStart.compareTo(b.referenceStart);
+      return byReference != 0
+          ? byReference
+          : a.draftStart.compareTo(b.draftStart);
+    });
+    final anchors = candidateLimitReached
+        ? <_Anchor>[]
+        : _selectAnchorChain(candidates);
+    final gaps = _buildGaps(anchors, reference.length, draft.length);
+
+    var dpCells = 0;
+    var dpBudgetExceeded = false;
+    for (final gap in gaps) {
+      final referenceLength = gap.referenceEnd - gap.referenceStart;
+      final draftLength = gap.draftEnd - gap.draftStart;
+      if (referenceLength == 0 || draftLength == 0) continue;
+      final needed = (referenceLength + 1) * (draftLength + 1);
+      if (needed > ProofreadConstants.maxNwCells - dpCells) {
+        dpBudgetExceeded = true;
+        break;
+      }
+      dpCells += needed;
+    }
+
+    final matches = <TokenMatch>[];
+    for (final anchor in anchors) {
+      for (var offset = 0; offset < anchor.length; offset++) {
+        matches.add(
+          TokenMatch(
+            referenceIndex: anchor.referenceStart + offset,
+            draftIndex: anchor.draftStart + offset,
+            similarity: 1,
+            isAnchor: true,
+          ),
+        );
+      }
+    }
+
+    if (!dpBudgetExceeded) {
+      for (final gap in gaps) {
+        matches.addAll(_alignGap(reference, draft, gap));
+      }
+    }
+    matches.sort((a, b) => a.referenceIndex.compareTo(b.referenceIndex));
+
     return ReferenceTokenAlignmentResult(
       referenceTokens: reference,
       draftTokens: draft,
-      matches: _align(reference, draft),
-      dpBudgetExceeded: false,
+      matches: matches,
+      anchorCount: anchors.length,
+      candidateLimitReached: candidateLimitReached,
+      dpBudgetExceeded: dpBudgetExceeded,
     );
   }
 
-  List<TokenMatch> _align(List<String> reference, List<String> draft) {
-    final rows = reference.length;
-    final columns = draft.length;
+  Map<String, List<int>> _anchorOccurrences(List<String> tokens) {
+    final result = <String, List<int>>{};
+    for (var start = 0; start < tokens.length; start++) {
+      final isCjk = tokenizer.isCjkToken(tokens[start]);
+      final length = isCjk
+          ? ProofreadConstants.anchorKCjk
+          : ProofreadConstants.anchorKLatin;
+      if (start + length > tokens.length) continue;
+
+      var sameScript = true;
+      for (var offset = 1; offset < length; offset++) {
+        if (tokenizer.isCjkToken(tokens[start + offset]) != isCjk) {
+          sameScript = false;
+          break;
+        }
+      }
+      if (!sameScript) continue;
+
+      final prefix = isCjk ? 'c' : 'l';
+      final key = '$prefix:${tokens.sublist(start, start + length).join('|')}';
+      final positions = result.putIfAbsent(key, () => <int>[]);
+      // Keep one overflow occurrence so repeated windows cannot look unique.
+      if (positions.length <= ProofreadConstants.maxOccurrencesPerKey) {
+        positions.add(start);
+      }
+    }
+    return result;
+  }
+
+  List<_Anchor> _selectAnchorChain(List<_Anchor> candidates) {
+    if (candidates.isEmpty) return <_Anchor>[];
+    final scores = List<int>.filled(candidates.length, 0);
+    final previous = List<int>.filled(candidates.length, -1);
+    var bestIndex = 0;
+
+    for (var i = 0; i < candidates.length; i++) {
+      scores[i] = candidates[i].length;
+      for (var j = 0; j < i; j++) {
+        final before = candidates[j];
+        final current = candidates[i];
+        if (before.referenceStart + before.length > current.referenceStart ||
+            before.draftStart + before.length > current.draftStart) {
+          continue;
+        }
+        final score = scores[j] + current.length;
+        if (score > scores[i]) {
+          scores[i] = score;
+          previous[i] = j;
+        }
+      }
+      if (scores[i] > scores[bestIndex]) bestIndex = i;
+    }
+
+    final chain = <_Anchor>[];
+    var index = bestIndex;
+    while (true) {
+      chain.add(candidates[index]);
+      final next = previous[index];
+      if (next < 0) break;
+      index = next;
+    }
+    return chain.reversed.toList(growable: false);
+  }
+
+  List<_TokenGap> _buildGaps(
+    List<_Anchor> anchors,
+    int referenceLength,
+    int draftLength,
+  ) {
+    final gaps = <_TokenGap>[];
+    var referenceStart = 0;
+    var draftStart = 0;
+    for (final anchor in anchors) {
+      if (referenceStart < anchor.referenceStart &&
+          draftStart < anchor.draftStart) {
+        gaps.add(
+          _TokenGap(
+            referenceStart,
+            anchor.referenceStart,
+            draftStart,
+            anchor.draftStart,
+          ),
+        );
+      }
+      referenceStart = anchor.referenceStart + anchor.length;
+      draftStart = anchor.draftStart + anchor.length;
+    }
+    if (referenceStart < referenceLength && draftStart < draftLength) {
+      gaps.add(
+        _TokenGap(referenceStart, referenceLength, draftStart, draftLength),
+      );
+    }
+    if (anchors.isEmpty && referenceLength > 0 && draftLength > 0) {
+      // No anchors means the entire sequence is one DP region.
+      gaps
+        ..clear()
+        ..add(_TokenGap(0, referenceLength, 0, draftLength));
+    }
+    return gaps;
+  }
+
+  List<TokenMatch> _alignGap(
+    List<String> reference,
+    List<String> draft,
+    _TokenGap gap,
+  ) {
+    final rows = gap.referenceEnd - gap.referenceStart;
+    final columns = gap.draftEnd - gap.draftStart;
+    if (rows == 0 || columns == 0) return <TokenMatch>[];
+    final referenceTokens = reference.sublist(
+      gap.referenceStart,
+      gap.referenceEnd,
+    );
+    final draftTokens = draft.sublist(gap.draftStart, gap.draftEnd);
     final scores = List<List<double>>.generate(
       rows + 1,
       (_) => List<double>.filled(columns + 1, 0),
@@ -87,7 +273,10 @@ class ReferenceTokenAligner {
           best = scores[i][j - 1];
           move = 2;
         }
-        final similarity = _tokenSimilarity(reference[i - 1], draft[j - 1]);
+        final similarity = _tokenSimilarity(
+          referenceTokens[i - 1],
+          draftTokens[j - 1],
+        );
         if (similarity > ProofreadConstants.softMatchMinSim) {
           final paired =
               scores[i - 1][j - 1] +
@@ -103,17 +292,22 @@ class ReferenceTokenAligner {
       }
     }
 
-    final result = <TokenMatch>[];
+    final matches = <TokenMatch>[];
     var i = rows;
     var j = columns;
     while (i > 0 && j > 0) {
       final move = moves[i][j];
       if (move == 3) {
-        result.add(
+        final refIndex = gap.referenceStart + i - 1;
+        final draftIndex = gap.draftStart + j - 1;
+        matches.add(
           TokenMatch(
-            referenceIndex: i - 1,
-            draftIndex: j - 1,
-            similarity: _tokenSimilarity(reference[i - 1], draft[j - 1]),
+            referenceIndex: refIndex,
+            draftIndex: draftIndex,
+            similarity: _tokenSimilarity(
+              referenceTokens[i - 1],
+              draftTokens[j - 1],
+            ),
           ),
         );
         i--;
@@ -124,7 +318,7 @@ class ReferenceTokenAligner {
         i--;
       }
     }
-    return result.reversed.toList(growable: false);
+    return matches.reversed.toList(growable: false);
   }
 
   double _tokenSimilarity(String leftToken, String rightToken) {
@@ -163,4 +357,24 @@ class ReferenceTokenAligner {
     if (c < min) min = c;
     return min;
   }
+}
+
+class _Anchor {
+  final int referenceStart;
+  final int draftStart;
+  final int length;
+  const _Anchor(this.referenceStart, this.draftStart, this.length);
+}
+
+class _TokenGap {
+  final int referenceStart;
+  final int referenceEnd;
+  final int draftStart;
+  final int draftEnd;
+  const _TokenGap(
+    this.referenceStart,
+    this.referenceEnd,
+    this.draftStart,
+    this.draftEnd,
+  );
 }
