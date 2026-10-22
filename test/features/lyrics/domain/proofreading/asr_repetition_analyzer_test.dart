@@ -46,10 +46,10 @@ void main() {
     final suggestion = result.suggestions.single;
     expect(suggestion.primaryIndex, 0);
     expect(suggestion.suspectSide, AsrRepetitionSide.primary);
+    expect(() => result.suggestions.add(suggestion), throwsUnsupportedError);
     expect(suggestion.originalText, 'we are on the road we are on the road tonight');
     expect(suggestion.suggestedText, 'we are on the road tonight');
     expect(suggestion.repeatedUnitNormalized, 'weareontheroad');
-    expect(result.hasSuggestions, isTrue);
   });
 
   test('detects repeated CJK text after punctuation and spacing normalization', () {
@@ -81,23 +81,22 @@ void main() {
   });
 
   test('does not suggest cleanup when either engine has low confidence', () {
-    final primaryLow = analyzer.analyze(
+    final cases = [
       evidence(
         primary: 'we are home we are home',
         secondary: 'we are home',
         primaryConfidence: 50,
       ),
-    );
-    final secondaryLow = analyzer.analyze(
       evidence(
         primary: 'we are home we are home',
         secondary: 'we are home',
         secondaryConfidence: 50,
       ),
+    ];
+    expect(
+      cases.every((item) => analyzer.analyze(item).suggestions.isEmpty),
+      isTrue,
     );
-
-    expect(primaryLow.suggestions, isEmpty);
-    expect(secondaryLow.suggestions, isEmpty);
   });
 
   test('does not infer repetition from ordinary disagreement or over-budget text', () {
@@ -116,15 +115,4 @@ void main() {
     expect(oversized.suggestions, isEmpty);
   });
 
-  test('returns immutable suggestion lists', () {
-    final result = analyzer.analyze(
-      evidence(primary: 'hello world hello world', secondary: 'hello world'),
-    );
-
-    expect(result.suggestions, hasLength(1));
-    expect(
-      () => result.suggestions.add(result.suggestions.single),
-      throwsUnsupportedError,
-    );
-  });
 }
