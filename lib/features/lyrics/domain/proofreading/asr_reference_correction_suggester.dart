@@ -43,18 +43,13 @@ class AsrReferenceCorrectionSuggestion {
 class AsrReferenceCorrectionResult {
   final List<AsrReferenceCorrectionSuggestion> suggestions;
   final List<int> missingReferenceIndices;
-  final List<RemovedLine> removedReferenceLines;
-  final List<String> warnings;
 
   AsrReferenceCorrectionResult({
     required List<AsrReferenceCorrectionSuggestion> suggestions,
     required List<int> missingReferenceIndices,
-    required List<RemovedLine> removedReferenceLines,
-    required List<String> warnings,
-  }) : suggestions = List.unmodifiable(suggestions),
+   }) : suggestions = List.unmodifiable(suggestions),
        missingReferenceIndices = List.unmodifiable(missingReferenceIndices),
-       removedReferenceLines = List.unmodifiable(removedReferenceLines),
-       warnings = List.unmodifiable(warnings);
+       ;
 }
 
 /// Suggests text corrections for matched draft rows only. It never edits or
@@ -157,8 +152,6 @@ class AsrReferenceCorrectionSuggester {
       missingReferenceIndices: [
         for (final i in alignment.missingReferenceIndices) originalIndices[i],
       ],
-      removedReferenceLines: sanitized.removed,
-      warnings: warnings,
-    );
+     );
   }
 }
