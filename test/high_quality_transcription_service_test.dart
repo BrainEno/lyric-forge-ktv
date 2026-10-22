@@ -131,6 +131,44 @@ void main() {
     );
 
     test(
+      'keeps the original primary text when a weak alternative is auto-selected',
+      () async {
+        final primaryResult = _result(
+          LyricLine(
+            text: 'Ashin lady',
+            startTime: const Duration(seconds: 10),
+            endTime: const Duration(seconds: 13),
+            confidence: 35,
+          ),
+        );
+        final fallbackResult = _result(
+          LyricLine(
+            text: 'passion lady',
+            startTime: const Duration(milliseconds: 10100),
+            endTime: const Duration(milliseconds: 12900),
+            confidence: 92,
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: primaryResult),
+          fallback: _FakeTranscriptionService(result: fallbackResult),
+        );
+
+        final result = await service.transcribe(_request(tempDirectory.path));
+        final candidate = Map<String, dynamic>.from(
+          (result.lyrics.metadata['fallbackCandidates'] as List).single as Map,
+        );
+
+        expect(result.lyrics.lines.single.text, 'passion lady');
+        expect(result.lyrics.metadata['fallbackAppliedCount'], 1);
+        expect(candidate['primaryText'], 'Ashin lady');
+        expect(candidate['alternativeText'], 'passion lady');
+
+        await service.dispose();
+      },
+    );
+
+    test(
       'surfaces the same disagreement when Whisper is primary',
       () async {
         final whisperResult = _result(
