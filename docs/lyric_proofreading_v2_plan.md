@@ -11,6 +11,7 @@
 | `LyricLine` | 已存在，同名；text、startTime、endTime、isChorus、confidence、可选 id | `lib/features/project/domain/models/lyric_document.dart:1-18` |
 | `lineId` | 当前字段实际叫 `LyricLine.id`，类型 `String?`；旧数据可为 null | `lib/features/project/domain/models/lyric_document.dart:9-10, 51-58` |
 | 行标识分配 | `LyricManualEditMarkerService.assignMissingLineIds`，用 UUID v4 为缺少 id 的行赋值 | `lib/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart:16-28` |
+| 显式人工确认 | `LyricReviewDecisionService` 将确认决策存入 `metadata['lyricReviewDecisions']`，以稳定 id + 当前文本/时间指纹记录；它与手动编辑标记是两套独立数据 | `lib/features/lyrics/domain/services/lyric_review_decision_service.dart:6-34, 36-78, 80-102` |
 | `LyricAlignmentService` | 已存在，同名；参考歌词与 ASR 草稿的行级序列对齐，不是新 token 对齐服务 | `lib/features/lyrics/domain/services/lyric_alignment_service.dart:218-254` |
 | `ReferenceAlignmentApplier` | 已存在，同名；应用行级参考纠正、可选补行与时间来源记录 | `lib/features/lyrics/domain/services/reference_alignment_applier.dart:142-170` |
 | `ReferenceTimelineCompletionService` | 已存在，同名；为参考漏行构建时间补全计划 | `lib/features/lyrics/domain/services/reference_timeline_completion_service.dart:83-95` |
@@ -22,7 +23,7 @@
 | `timingProvenance` | 当前按 `lineId -> enum.name` 存在文档 metadata；由参考对齐溯源构建器写入 | `lib/features/lyrics/domain/models/timing_provenance.dart:5-34`；`lib/features/lyrics/domain/services/reference_alignment_provenance_builder.dart:98-115` |
 | `LyricSourceStrategy` | 尚不存在；应作为 v2 新增纯 Dart 策略类型 | 计划目录：`lib/features/lyrics/domain/proofreading/` |
 | `TimeSource` | 尚不存在同义类型。现有 `LyricTimingProvenance` 是**行级参考对齐时间来源**，不可当作 token 级来源直接复用 | 现有近似概念：`lib/features/lyrics/domain/models/timing_provenance.dart:5-22`；新类型计划放入 `lib/features/lyrics/domain/proofreading/` |
-| `TimedToken` | 尚无可供 domain 使用的公开类型。Qwen 适配器里有私有 `_TimedToken`，但仅用于解析副驾响应，且没有新契约要求的 `norm` / `timeSource` | `lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart:885-902`；新类型计划放入 `lib/features/lyrics/domain/proofreading/` |
+| `TimedToken` | 尚无可供 domain 使用的公开类型。Qwen 适配器里有私有 `_TimedToken`，但仅用于解析 sidecar 响应，且没有新契约要求的 `norm` / `timeSource` | `lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart:885-902`；新类型计划放入 `lib/features/lyrics/domain/proofreading/` |
 | `TimeInterval`、`LineVerdict`、`VerdictLevel`、`ReasonCode` | 当前未发现匹配的现有类型；按 v2 契约新增，不要借用时间轴 validator 的 UI 文案类型 | 计划目录：`lib/features/lyrics/domain/proofreading/` |
 | `ProofreadResult`、`DroppedLine`、`AdlibSuggestion` | 当前未发现匹配类型；按“只产出提议、不落盘”的 v2 契约新增 | 计划目录：`lib/features/lyrics/domain/proofreading/` |
 | `LyricTokenizer`、`ReferenceTextSanitizer`、`ProofreadConstants` | 当前未发现匹配实现；属于 T1 新文件 | `lib/features/lyrics/domain/proofreading/proofread_constants.dart`；`lyric_tokenizer.dart`；`reference_text_sanitizer.dart` |
@@ -58,7 +59,7 @@
 
 ### Q5. 用户手动编辑过的行如何表示？
 
-**结论：** 编辑器会话用 `Set<String> _manuallyEditedLineIds` 记录稳定 ID；保存时写入文档 metadata 的 `manuallyEditedLineIds` 键，重开时恢复。使用 `protectedIndices` 把稳定 ID 映射成当前索引，参考对齐应用器通过 `protectedLineIndices` 跳过这些行。证据：`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart:98-102, 137-142, 312-315, 408-417`；`lib/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart:13-14, 34-49, 60-68`；`lib/features/lyrics/domain/services/reference_alignment_applier.dart:160-170, 226-229`。
+**结论：** 手动编辑标记由编辑器会话的 `Set<String> _manuallyEditedLineIds` 维护，保存到文档 metadata 的 `manuallyEditedLineIds` 键，重开时恢复；`protectedIndices` 按稳定 ID 派生出当前行索引，供参考对齐应用器跳过这些行。显式复核确认另有独立的 `LyricReviewDecisionService`，写入 `metadata['lyricReviewDecisions']`，按稳定 ID 保存 `fingerprint` 与 `reviewedAt`，并在文本或起止时间改变后自动失效。v2 将“编辑过”和“显式确认过”的保护条件合并时，必须读取两套记录并按当前行 ID 归一化，不能只看 `manuallyEditedLineIds`。证据：`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart:98-102, 137-142, 312-315, 408-417`；`lib/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart:13-14, 34-49, 60-68`；`lib/features/lyrics/domain/services/lyric_review_decision_service.dart:6-34, 36-78, 80-102`；`lib/features/lyrics/domain/services/reference_alignment_applier.dart:160-170, 226-229`。
 
 **必须处理的语义偏差：** 当前参考对齐界面有一个显式覆盖手工编辑行的用户选择（`overriddenAsrLineIndices`）。v2 新契约要求受保护行的文字与时间永不被流水线修改；新 proofread 流水线不得继承这条覆盖路径，也不能复制保护行来绕过保护。
 
