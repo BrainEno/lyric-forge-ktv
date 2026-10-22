@@ -2,33 +2,17 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../services/lyric_alignment_service.dart';
 
 enum AsrRetimingStatus {
-  readyForReview,
-  noTextChange,
-  invalidProposedText,
-  protectedLine,
-  noMatchingEvidence,
-  ambiguousEvidence,
-  lowConfidenceEvidence,
-  boundaryConflict,
-  invalidTimingEvidence,
+  readyForReview, noTextChange, invalidProposedText, protectedLine,
+  noMatchingEvidence, ambiguousEvidence, lowConfidenceEvidence,
+  boundaryConflict, invalidTimingEvidence,
 }
 
 enum AsrRetimingReason {
-  exactTimedTextMatch,
-  splitAcrossEvidenceLines,
-  textUnchanged,
-  emptyProposedText,
-  protectedLine,
-  noExactNearbyMatch,
-  multipleMatchingWindows,
-  lowConfidence,
-  overlapsPreviousLine,
-  overlapsNextLine,
-  negativeStart,
-  nonPositiveDuration,
-  durationTooShort,
-  beyondAudioDuration,
-  invalidOriginalTiming,
+  exactTimedTextMatch, splitAcrossEvidenceLines, textUnchanged,
+  emptyProposedText, protectedLine, noExactNearbyMatch,
+  multipleMatchingWindows, lowConfidence, overlapsPreviousLine,
+  overlapsNextLine, negativeStart, nonPositiveDuration, durationTooShort,
+  beyondAudioDuration, invalidOriginalTiming,
 }
 
 class AsrRetimingOption {
@@ -61,12 +45,11 @@ class AsrRetimingPlan {
   }) : options = List.unmodifiable(options),
        reasons = Set.unmodifiable(reasons);
 
-  /// A unique, high-confidence interval is ready for explicit user review.
   bool get canOfferForReview => status == AsrRetimingStatus.readyForReview;
 }
 
-/// Finds exact text evidence in a nearby, timed secondary-ASR transcript.
-/// It never estimates timing from character count or mutates the draft.
+/// Uses exact nearby secondary-ASR text/timing evidence; never mutates the draft
+/// or estimates timestamps from text length.
 class AsrRetimingPlanner {
   final Duration searchPadding;
   final Duration minimumDuration;
@@ -91,8 +74,7 @@ class AsrRetimingPlanner {
     Set<int> protectedDraftIndices = const {},
     Duration? audioDuration,
   }) {
-    if (draftIndex < 0 ||
-        draftIndex >= draft.lines.length ||
+    if (draftIndex < 0 || draftIndex >= draft.lines.length ||
         protectedDraftIndices.any((i) => i < 0 || i >= draft.lines.length)) {
       throw ArgumentError('Draft or protected line index is out of range');
     }
@@ -117,44 +99,34 @@ class AsrRetimingPlanner {
 
     final matches = <AsrRetimingOption>[];
     for (var start = 0; start < timingEvidence.lines.length; start++) {
-      final windowLines = <LyricLine>[];
-      final indices = <int>[];
+      final window = <LyricLine>[];
       for (var length = 1; length <= maxWindowLines; length++) {
         final index = start + length - 1;
         if (index >= timingEvidence.lines.length) break;
         final line = timingEvidence.lines[index];
-        if (line.startTime.isNegative ||
-            line.endTime <= line.startTime ||
-            LyricAlignmentService.normalizeLine(line.text).isEmpty) {
+        if (line.startTime.isNegative || line.endTime <= line.startTime ||
+            LyricAlignmentService.normalizeLine(line.text).isEmpty ||
+            (window.isNotEmpty && line.startTime < window.last.startTime)) {
           break;
         }
-        if (windowLines.isNotEmpty &&
-            line.startTime < windowLines.last.startTime) {
-          break;
-        }
-        windowLines.add(line);
-        indices.add(index);
-        final joinedText = windowLines.map((item) => item.text).join(' ');
-        if (LyricAlignmentService.normalizeLine(joinedText) != requested) continue;
+        window.add(line);
+        if (LyricAlignmentService.normalizeLine(window.map((x) => x.text).join(' ')) != requested) continue;
 
-        var earliest = windowLines.first.startTime;
-        var latest = windowLines.first.endTime;
-        var confidenceTotal = 0;
-        for (final item in windowLines) {
-          if (item.startTime < earliest) earliest = item.startTime;
-          if (item.endTime > latest) latest = item.endTime;
-          confidenceTotal += item.confidence.clamp(0, 100).toInt();
+        var from = window.first.startTime;
+        var to = window.first.endTime;
+        var confidence = 0;
+        for (final item in window) {
+          if (item.startTime < from) from = item.startTime;
+          if (item.endTime > to) to = item.endTime;
+          confidence += item.confidence.clamp(0, 100).toInt();
         }
-        if (_intervalGap(source.startTime, source.endTime, earliest, latest) >
-            searchPadding) {
-          continue;
+        if (_gap(source.startTime, source.endTime, from, to) <= searchPadding) {
+          matches.add(AsrRetimingOption(
+            startTime: from, endTime: to,
+            evidenceLineIndices: [for (var i = start; i < start + length; i++) i],
+            meanConfidence: (confidence / window.length).round(),
+          ));
         }
-        matches.add(AsrRetimingOption(
-          startTime: earliest,
-          endTime: latest,
-          evidenceLineIndices: indices,
-          meanConfidence: (confidenceTotal / windowLines.length).round(),
-        ));
       }
     }
 
@@ -183,8 +155,7 @@ class AsrRetimingPlanner {
         (option.startTime >= audioDuration || option.endTime > audioDuration)) {
       reasons.add(AsrRetimingReason.beyondAudioDuration);
     }
-    if (draftIndex > 0 &&
-        option.startTime < draft.lines[draftIndex - 1].endTime) {
+    if (draftIndex > 0 && option.startTime < draft.lines[draftIndex - 1].endTime) {
       reasons.add(AsrRetimingReason.overlapsPreviousLine);
     }
     if (draftIndex + 1 < draft.lines.length &&
@@ -195,45 +166,28 @@ class AsrRetimingPlanner {
       reasons.add(AsrRetimingReason.lowConfidence);
     }
 
-    final invalidTiming = reasons.contains(AsrRetimingReason.negativeStart) ||
+    final invalid = reasons.contains(AsrRetimingReason.negativeStart) ||
         reasons.contains(AsrRetimingReason.nonPositiveDuration) ||
         reasons.contains(AsrRetimingReason.durationTooShort) ||
         reasons.contains(AsrRetimingReason.beyondAudioDuration);
-    final boundaryConflict =
-        reasons.contains(AsrRetimingReason.overlapsPreviousLine) ||
+    final boundary = reasons.contains(AsrRetimingReason.overlapsPreviousLine) ||
         reasons.contains(AsrRetimingReason.overlapsNextLine);
-    final status = invalidTiming
-        ? AsrRetimingStatus.invalidTimingEvidence
-        : boundaryConflict
-        ? AsrRetimingStatus.boundaryConflict
+    final status = invalid ? AsrRetimingStatus.invalidTimingEvidence
+        : boundary ? AsrRetimingStatus.boundaryConflict
         : option.meanConfidence < minimumTimingConfidence
-        ? AsrRetimingStatus.lowConfidenceEvidence
-        : AsrRetimingStatus.readyForReview;
+            ? AsrRetimingStatus.lowConfidenceEvidence
+            : AsrRetimingStatus.readyForReview;
     return _result(draftIndex, proposedText, status, matches, reasons);
   }
 
-  Duration _intervalGap(
-    Duration firstStart,
-    Duration firstEnd,
-    Duration secondStart,
-    Duration secondEnd,
-  ) {
-    if (firstEnd < secondStart) return secondStart - firstEnd;
-    if (secondEnd < firstStart) return firstStart - secondEnd;
+  Duration _gap(Duration a, Duration b, Duration c, Duration d) {
+    if (b < c) return c - b;
+    if (d < a) return a - d;
     return Duration.zero;
   }
 
-  AsrRetimingPlan _result(
-    int draftIndex,
-    String text,
-    AsrRetimingStatus status,
-    List<AsrRetimingOption> options,
-    Set<AsrRetimingReason> reasons,
-  ) => AsrRetimingPlan(
-    draftIndex: draftIndex,
-    proposedText: text,
-    status: status,
-    options: options,
-    reasons: reasons,
-  );
+  AsrRetimingPlan _result(int index, String text, AsrRetimingStatus status,
+      List<AsrRetimingOption> options, Set<AsrRetimingReason> reasons) =>
+      AsrRetimingPlan(draftIndex: index, proposedText: text, status: status,
+          options: options, reasons: reasons);
 }
