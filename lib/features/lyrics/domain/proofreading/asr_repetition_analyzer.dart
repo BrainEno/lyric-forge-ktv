@@ -116,26 +116,34 @@ class AsrRepetitionAnalyzer {
 
   String? _findExactCollapse(String source, String target) {
     final runes = source.runes.toList(growable: false);
-    for (
-      var length = runes.length ~/ 2;
-      length >= minimumRepeatedRunes;
-      length--
-    ) {
-      for (var start = 0; start + 2 * length <= runes.length; start++) {
-        var repeated = true;
-        for (var i = 0; i < length; i++) {
-          if (runes[start + i] != runes[start + length + i]) {
-            repeated = false;
-            break;
-          }
-        }
-        if (!repeated) continue;
+    final targetRunes = target.runes.toList(growable: false);
+    final length = runes.length - targetRunes.length;
+    if (length < minimumRepeatedRunes || 2 * length > runes.length) {
+      return null;
+    }
 
-        final collapsed = String.fromCharCodes([
-          ...runes.take(start),
-          ...runes.skip(start + 2 * length),
-        ]);
-        if (collapsed != target) continue;
+    // Removing one copy fixes the unit length to the source/target length
+    // difference; only its possible positions need to be checked.
+    for (var start = 0; start + 2 * length <= runes.length; start++) {
+      var repeated = true;
+      for (var i = 0; i < length; i++) {
+        if (runes[start + i] != runes[start + length + i]) {
+          repeated = false;
+          break;
+        }
+      }
+      if (!repeated) continue;
+
+      var targetIndex = 0;
+      var matchesTarget = true;
+      for (var i = 0; i < runes.length; i++) {
+        if (i >= start + length && i < start + 2 * length) continue;
+        if (runes[i] != targetRunes[targetIndex++]) {
+          matchesTarget = false;
+          break;
+        }
+      }
+      if (matchesTarget) {
         return String.fromCharCodes(runes.skip(start).take(length));
       }
     }
