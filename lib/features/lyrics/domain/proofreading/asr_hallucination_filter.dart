@@ -35,10 +35,16 @@ class AsrHallucinationCandidateFilter {
   const AsrHallucinationCandidateFilter({
     this.lowConfidenceThreshold = 60,
     this.nearbySecondaryTolerance = const Duration(milliseconds: 1500),
-  }) : assert(lowConfidenceThreshold >= 0 && lowConfidenceThreshold <= 100),
-       assert(nearbySecondaryTolerance >= Duration.zero);
+  }) : assert(lowConfidenceThreshold >= 0 && lowConfidenceThreshold <= 100);
 
   AsrHallucinationFilterResult analyze(AsrConsensusResult evidence) {
+    if (nearbySecondaryTolerance.isNegative) {
+      throw ArgumentError.value(
+        nearbySecondaryTolerance,
+        'nearbySecondaryTolerance',
+        'Must not be negative',
+      );
+    }
     final candidates = <AsrHallucinationCandidate>[];
     for (final row in evidence.rows) {
       final line = row.primaryLine;
