@@ -28,7 +28,10 @@ void main() {
     expectTokens('我在这里等你', ['我', '在', '这', '里', '等', '你']);
     expectTokens('Ｈｅｌｌｏ　ＷＯＲＬＤ', ['hello', 'world']);
     expectTokens('I love 你 so much', ['i', 'love', '你', 'so', 'much']);
-    expectTokens("'cause rockin' all night", ['cause', 'rockin', 'all', 'night']);
+    expectTokens(
+      "'cause rockin' all night",
+      ['cause', 'rockin', 'all', 'night'],
+    );
     expectTokens('君の名は', ['君', 'の', '名', 'は']);
     expectTokens('', <String>[]);
     expectTokens('♪ ♪', <String>[]);
