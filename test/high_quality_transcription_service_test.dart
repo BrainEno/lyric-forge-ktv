@@ -90,6 +90,85 @@ void main() {
 
       await service.dispose();
     });
+
+    test('surfaces Ashin versus passion as a review candidate without auto-applying', () async {
+      final primaryResult = _result(
+        LyricLine(
+          text: 'Ashin lady',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 92,
+        ),
+      );
+      final fallbackResult = _result(
+        LyricLine(
+          text: 'passion lady',
+          startTime: const Duration(milliseconds: 10100),
+          endTime: const Duration(milliseconds: 12900),
+          confidence: 92,
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: primaryResult),
+        fallback: _FakeTranscriptionService(result: fallbackResult),
+      );
+
+      final result = await service.transcribe(_request(tempDirectory.path));
+      final metadata = result.lyrics.metadata;
+      final candidates = metadata['fallbackCandidates'] as List;
+      final candidate = Map<String, dynamic>.from(candidates.single as Map);
+
+      expect(result.lyrics.lines.single.text, 'Ashin lady');
+      expect(metadata['fallbackCandidateCount'], 1);
+      expect(metadata['fallbackAppliedCount'], 0);
+      expect(candidate['alternativeText'], 'passion lady');
+      expect(candidate['reason'], 'engine_disagreement_review');
+      expect(candidate['similarity'], closeTo(8 / 11, 0.001));
+
+      await service.dispose();
+    });
+
+    test('surfaces the same disagreement when Whisper is primary', () async {
+      final whisperResult = _result(
+        LyricLine(
+          text: 'passion lady',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 92,
+        ),
+      );
+      final qwenResult = _result(
+        LyricLine(
+          text: 'Ashin lady',
+          startTime: const Duration(milliseconds: 10100),
+          endTime: const Duration(milliseconds: 12900),
+          confidence: 92,
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: qwenResult),
+        fallback: _FakeTranscriptionService(result: whisperResult),
+      );
+
+      final result = await service.transcribe(
+        _request(
+          tempDirectory.path,
+          engineOrder: TranscriptionEngineOrder.whisperPrimary,
+        ),
+      );
+      final metadata = result.lyrics.metadata;
+      final candidates = metadata['fallbackCandidates'] as List;
+      final candidate = Map<String, dynamic>.from(candidates.single as Map);
+
+      expect(result.lyrics.lines.single.text, 'passion lady');
+      expect(metadata['fallbackCandidateCount'], 1);
+      expect(metadata['fallbackAppliedCount'], 0);
+      expect(candidate['alternativeText'], 'Ashin lady');
+      expect(candidate['reason'], 'engine_disagreement_review');
+
+      await service.dispose();
+    });
+
     test('uses Whisper primary and Qwen second opinion on Intel Mac',
         () async {
       final qwenResult = _result(
