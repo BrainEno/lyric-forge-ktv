@@ -61,9 +61,7 @@ class AsrRetimingPlanner {
     this.minimumDuration = const Duration(milliseconds: 300),
     this.minimumTimingConfidence = 70,
     this.maxWindowLines = 3,
-  }) : assert(searchPadding >= Duration.zero),
-       assert(minimumDuration > Duration.zero),
-       assert(minimumTimingConfidence >= 0 && minimumTimingConfidence <= 100),
+  }) : assert(minimumTimingConfidence >= 0 && minimumTimingConfidence <= 100),
        assert(maxWindowLines > 0);
 
   AsrRetimingPlan plan({
@@ -74,6 +72,20 @@ class AsrRetimingPlanner {
     Set<int> protectedDraftIndices = const {},
     Duration? audioDuration,
   }) {
+    if (searchPadding.isNegative) {
+      throw ArgumentError.value(
+        searchPadding,
+        'searchPadding',
+        'Must be non-negative.',
+      );
+    }
+    if (minimumDuration <= Duration.zero) {
+      throw ArgumentError.value(
+        minimumDuration,
+        'minimumDuration',
+        'Must be greater than zero.',
+      );
+    }
     if (draftIndex < 0 || draftIndex >= draft.lines.length ||
         protectedDraftIndices.any((i) => i < 0 || i >= draft.lines.length)) {
       throw ArgumentError('Draft or protected line index is out of range');

@@ -66,8 +66,7 @@ class AsrConsensusAnalyzer {
     this.agreementSimilarityThreshold = 0.80,
     this.reviewConfidenceThreshold = 60,
     this.maxComparedRunes = 512,
-  }) : assert(overlapPadding >= Duration.zero),
-       assert(agreementSimilarityThreshold >= 0 && agreementSimilarityThreshold <= 1),
+  }) : assert(agreementSimilarityThreshold >= 0 && agreementSimilarityThreshold <= 1),
        assert(reviewConfidenceThreshold >= 0 && reviewConfidenceThreshold <= 100),
        assert(maxComparedRunes > 0);
 
@@ -75,6 +74,13 @@ class AsrConsensusAnalyzer {
     required LyricDocument primary,
     required LyricDocument secondary,
   }) {
+    if (overlapPadding.isNegative) {
+      throw ArgumentError.value(
+        overlapPadding,
+        'overlapPadding',
+        'Must be non-negative.',
+      );
+    }
     final usedSecondary = <int>{};
     final rows = <AsrConsensusRow>[];
     for (var pi = 0; pi < primary.lines.length; pi++) {

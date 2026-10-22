@@ -1,0 +1,61 @@
+name: Flutter Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: format-analyze-test-worklog
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter packages
+        run: flutter pub get
+
+      - name: Check formatting for new Dart files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$BASE_SHA" && "$BASE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            mapfile -t dart_files < <(git diff --name-only --diff-filter=A "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            mapfile -t dart_files < <(git diff --name-only --diff-filter=A "${GITHUB_SHA}^" "$GITHUB_SHA" -- '*.dart')
+          else
+            dart_files=()
+          fi
+
+          if (( ${#dart_files[@]} == 0 )); then
+            echo "No newly added Dart files to format-check."
+            exit 0
+          fi
+
+          printf 'Checking %s new Dart file(s).\n' "${#dart_files[@]}"
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+
+      - name: Run repository quality gate
+        run: bash scripts/quality_gate.sh --skip-pub-get

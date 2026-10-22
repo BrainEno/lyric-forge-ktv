@@ -84,9 +84,9 @@ void main() {
       '第三句歌词',
     ]);
     expect(result.lines[1].verdict, ReferenceFirstVerdictLevel.amber);
-    expect(result.lines[1].timingProvenance, LyricTimingProvenance.interpolated);
+    expect(result.lines[1].timingProvenance, LyricTimingProvenance.autoRepaired);
     expect(result.lines[1].reasons, contains(ReferenceFirstReason.interpolatedTiming));
-    expect(result.lines[1].line.startTime, const Duration(seconds: 2));
+    expect(result.lines[1].line.startTime, const Duration(milliseconds: 2500));
     expect(result.lines[1].line.endTime, const Duration(seconds: 4));
     expect(result.droppedLines.single.draftIndex, 1);
     expect(result.droppedLines.single.line.text, 'unrelated recognition noise');

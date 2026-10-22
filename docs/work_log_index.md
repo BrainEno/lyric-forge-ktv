@@ -33,7 +33,7 @@
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
 - The analyzer was reported clean (0 issues project-wide) and the full test suite passed (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
-- The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
+- The work-log harness lint (`dart tool/work_log.dart check`) runs in the universal GitHub Actions Flutter quality gate and the local quality-gate scripts.
 
 ## Archive map
 
