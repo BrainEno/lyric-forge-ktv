@@ -42,7 +42,7 @@ class ReferenceTokenAlignmentResult {
       : matchedReferenceTokenCount / referenceTokenCount;
 }
 
-/// Pure-Dart token alignment. T2b will add unique anchors for repeated passages.
+/// Pure-Dart token alignment using unique n-gram anchors to limit DP work.
 class ReferenceTokenAligner {
   final LyricTokenizer tokenizer;
 
