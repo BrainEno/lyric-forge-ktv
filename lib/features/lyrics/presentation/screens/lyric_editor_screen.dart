@@ -33,6 +33,7 @@ import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
+import '../widgets/alternative_candidate_diff.dart';
 import '../widgets/smart_review_audition_button.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
@@ -2564,6 +2565,7 @@ class _LineInspectorState extends State<_LineInspector> {
               alternativeEngine: _engineLabel(
                 widget.fallbackCandidate!['alternativeEngine']?.toString(),
               ),
+              primaryText: _workingLine.text,
               alternativeText: alternative!,
               onApply: _applyAlternative,
             ),
@@ -2693,12 +2695,14 @@ class _TimingEditor extends StatelessWidget {
 class _AlternativeCandidateCard extends StatelessWidget {
   final String primaryEngine;
   final String alternativeEngine;
+  final String primaryText;
   final String alternativeText;
   final VoidCallback onApply;
 
   const _AlternativeCandidateCard({
     required this.primaryEngine,
     required this.alternativeEngine,
+    required this.primaryText,
     required this.alternativeText,
     required this.onApply,
   });
@@ -2722,7 +2726,10 @@ class _AlternativeCandidateCard extends StatelessWidget {
             ).textTheme.labelMedium?.copyWith(color: AppColors.info),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(alternativeText),
+          AlternativeCandidateDiff(
+            currentText: primaryText,
+            alternativeText: alternativeText,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [

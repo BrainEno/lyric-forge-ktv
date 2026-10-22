@@ -6,6 +6,8 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
+  // Surface meaningful differences for review before considering replacement.
+  static const double _reviewDisagreementThreshold = 0.80;
   final TranscriptionService primary;
   final TranscriptionService fallback;
 
@@ -363,7 +365,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final durationRatio = _durationRatio(whisperLine, qwenLines);
 
       final suspicious = _isPrimarySuspicious(whisperLine, config) ||
-          similarity < 0.72;
+          similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
       final decision = _decideWhisperPrimaryCandidate(
@@ -470,7 +472,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return _AlternativeDecision(
       useAlternative: false,
       outputConfidence: whisperLine.confidence,
-      reason: similarity < 0.72
+      reason: similarity < _reviewDisagreementThreshold
           ? 'engine_disagreement_review'
           : 'keep_whisper_primary',
     );
@@ -575,7 +577,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final durationRatio = _durationRatio(qwenLine, whisperLines);
 
       final suspicious = _isPrimarySuspicious(qwenLine, config) ||
-          similarity < 0.72;
+          similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
       final decision = _decideCandidate(
@@ -742,7 +744,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return _CandidateDecision(
       useWhisper: false,
       outputConfidence: qwenLine.confidence,
-      reason: similarity < 0.72
+      reason: similarity < _reviewDisagreementThreshold
           ? 'engine_disagreement_review'
           : 'keep_qwen_primary',
     );
