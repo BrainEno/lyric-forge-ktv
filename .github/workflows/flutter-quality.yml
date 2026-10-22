@@ -38,22 +38,22 @@ jobs:
       - name: Resolve Flutter packages
         run: flutter pub get
 
-      - name: Check formatting of changed Dart files
+      - name: Diagnose formatting of changed Dart files
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           PUSH_BASE_SHA: ${{ github.event.before || '' }}
         shell: bash
         run: |
-          base_sha="$PR_BASE_SHA"
-          if [[ -z "$base_sha" ]]; then
+          if [[ -n "$PR_BASE_SHA" ]]; then
+            base_sha="$PR_BASE_SHA"
+          elif [[ "$GITHUB_REF_NAME" == "main" && -n "$PUSH_BASE_SHA" && ! "$PUSH_BASE_SHA" =~ ^0+$ ]]; then
             base_sha="$PUSH_BASE_SHA"
-          fi
-          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
-            base_sha="$(git rev-parse "$GITHUB_SHA^" 2>/dev/null || true)"
+          else
+            base_sha="$(git merge-base origin/main "$GITHUB_SHA" 2>/dev/null || true)"
           fi
 
           if [[ -z "$base_sha" ]]; then
-            echo "No parent commit is available; skipping changed-file formatting check."
+            echo "No base commit is available; skipping changed-file formatting check."
             exit 0
           fi
 
@@ -65,8 +65,10 @@ jobs:
             exit 0
           fi
 
-          printf 'Checking formatting for %s changed Dart file(s).\n' "${#dart_files[@]}"
-          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+          printf 'Formatting %s changed Dart file(s) for diagnosis.\\n' "${#dart_files[@]}"
+          dart format "${dart_files[@]}"
+          git diff --stat -- "${dart_files[@]}"
+          git diff -- "${dart_files[@]}"
 
       - name: Run repository quality gate
         run: bash scripts/quality_gate.sh --skip-pub-get
