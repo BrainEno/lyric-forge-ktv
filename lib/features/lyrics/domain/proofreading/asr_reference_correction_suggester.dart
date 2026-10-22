@@ -49,13 +49,7 @@ class AsrReferenceCorrectionResult {
 /// Suggests text corrections for matched draft rows only. It never edits or
 /// inserts lyrics, applies reference timestamps, or mutates the draft.
 class AsrReferenceCorrectionSuggester {
-  final ReferenceTextSanitizer sanitizer;
-  final LyricAlignmentService lineAligner;
-
-  const AsrReferenceCorrectionSuggester({
-    this.sanitizer = const ReferenceTextSanitizer(),
-    this.lineAligner = const LyricAlignmentService(),
-  });
+  const AsrReferenceCorrectionSuggester();
 
   AsrReferenceCorrectionResult suggest({
     required LyricDocument draft,
@@ -72,7 +66,7 @@ class AsrReferenceCorrectionSuggester {
       throw ArgumentError.value(protectedDraftIndices, 'protectedDraftIndices');
     }
 
-    final sanitized = sanitizer.sanitize(
+    final sanitized = const ReferenceTextSanitizer().sanitize(
       reference.lines.map((line) => line.text).join('\n'),
       title: reference.title,
       artist: reference.artist,
@@ -93,7 +87,7 @@ class AsrReferenceCorrectionSuggester {
     }
     if (refs.isEmpty) throw ArgumentError('Reference lyrics contain no usable lyric lines');
 
-    final alignment = lineAligner.align(
+    final alignment = const LyricAlignmentService().align(
       document: draft,
       referenceLines: refs,
       autoReplaceThreshold: suggestionThreshold,
