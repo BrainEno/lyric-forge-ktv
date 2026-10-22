@@ -24,7 +24,7 @@
 - **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable `.part` downloads; setup progress separated from per-file progress; manual/environment/static Windows/macOS HTTP proxy resolution and independent proxy persistence. Key docs/tests: `docs/asr_runtime_installation.md`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`, `file_transcription_settings_store_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **Lyric review / proofread v2:** T3 strategy selector is merged. Current user feedback: dual-ASR mismatches near similarity 0.72 may never enter `fallbackCandidates` (e.g. “Ashin lady” vs “passion lady” ≈0.727); first fix broadens review-candidate surfacing without lowering auto-apply safety, then a separate PR adds inline character diffs to alternative candidates. Row-level audition exists in smart review; tighter vocal-boundary alignment/manual timestamp UX remains a follow-up.
+- **Lyric review / proofread v2:** PR #136 is merged to `main` and broadens dual-ASR mismatch surfacing without lowering auto-apply safety. Draft PR #137 adds character-level diffs to alternative candidates and still needs its base branch checked/retargeted after #136 merged. Draft PR #138 makes row-level single-line audition available in every lyric filter and improves manual vocal-boundary marking with playback-position buttons and ±10ms nudges. Qwen3-ForcedAligner could support forced alignment in principle, but the current sidecar caller/HTTP route does not expose arbitrary reference-text input; investigate a local alignment adapter separately. Validate locally before marking open PRs Ready.
 
 ## Follow-up leads — re-check before acting
 
@@ -32,7 +32,7 @@
 - A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
-- The analyzer is fully clean (0 issues project-wide) and the full test suite passes (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
+- The analyzer was reported clean (0 issues project-wide) and the full test suite passed (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
 - The work-log harness ships a lint (`dart tool/work_log.dart check`) that both quality gates run; it is not yet wired into a GitHub workflow.
 
 ## Archive map

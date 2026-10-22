@@ -3,16 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../lyric_review_strings.dart';
 
-/// One-tap access to the current project's app-scoped playback session.
-class SmartReviewAuditionButton extends StatelessWidget {
-  final bool isSmartReview;
+/// One-tap access to the current project's bounded single-line audition.
+class LyricRowAuditionButton extends StatelessWidget {
   final bool hasAudio;
   final bool isPlaying;
   final VoidCallback? onPressed;
 
-  const SmartReviewAuditionButton({
+  const LyricRowAuditionButton({
     super.key,
-    required this.isSmartReview,
     required this.hasAudio,
     required this.isPlaying,
     required this.onPressed,
@@ -20,7 +18,7 @@ class SmartReviewAuditionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isSmartReview || !hasAudio) return const SizedBox.shrink();
+    if (!hasAudio) return const SizedBox.shrink();
 
     final extent = AppResponsive.of(context).minimumInteractiveExtent;
     return SizedBox(
