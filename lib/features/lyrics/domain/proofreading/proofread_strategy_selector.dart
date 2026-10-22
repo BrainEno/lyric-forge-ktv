@@ -39,66 +39,67 @@ class ProofreadStrategySelector {
   }) {
     _validateCoverage(referenceCoverage);
 
-    switch (requestedStrategy) {
-      case LyricSourceStrategy.referenceFirst:
-        if (!hasReference) {
-          throw ArgumentError.value(
-            hasReference,
-            'hasReference',
-            'referenceFirst requires reference lyrics',
-          );
-        }
-        return ProofreadStrategyDecision(
-          requestedStrategy: requestedStrategy,
-          effectiveStrategy: LyricSourceStrategy.referenceFirst,
-          reason: ProofreadStrategyReason.explicitReferenceFirst,
-          referenceCoverage: referenceCoverage,
-          autoFellBackToAsr: false,
-          notes: const {},
+    if (requestedStrategy == LyricSourceStrategy.referenceFirst) {
+      if (!hasReference) {
+        throw ArgumentError.value(
+          hasReference,
+          'hasReference',
+          'referenceFirst requires reference lyrics',
         );
-      case LyricSourceStrategy.asrFirst:
-        return ProofreadStrategyDecision(
-          requestedStrategy: requestedStrategy,
-          effectiveStrategy: LyricSourceStrategy.asrFirst,
-          reason: ProofreadStrategyReason.explicitAsrFirst,
-          referenceCoverage: referenceCoverage,
-          autoFellBackToAsr: false,
-          notes: const {},
-        );
-      case LyricSourceStrategy.auto:
-        if (!hasReference) {
-          return ProofreadStrategyDecision(
-            requestedStrategy: requestedStrategy,
-            effectiveStrategy: LyricSourceStrategy.asrFirst,
-            reason: ProofreadStrategyReason.autoWithoutReference,
-            referenceCoverage: null,
-            autoFellBackToAsr: false,
-            notes: const {'autoFellBackToAsr': false},
-          );
-        }
-        if (referenceCoverage == null) {
-          throw ArgumentError(
-            'referenceCoverage is required when auto has reference lyrics',
-          );
-        }
-        final fellBack =
-            referenceCoverage < ProofreadConstants.autoRefCoverageMin;
-        return ProofreadStrategyDecision(
-          requestedStrategy: requestedStrategy,
-          effectiveStrategy: fellBack
-              ? LyricSourceStrategy.asrFirst
-              : LyricSourceStrategy.referenceFirst,
-          reason: fellBack
-              ? ProofreadStrategyReason.autoCoverageInsufficient
-              : ProofreadStrategyReason.autoCoverageSufficient,
-          referenceCoverage: referenceCoverage,
-          autoFellBackToAsr: fellBack,
-          notes: {
-            'autoFellBackToAsr': fellBack,
-            'referenceCoverage': referenceCoverage,
-          },
-        );
+      }
+      return ProofreadStrategyDecision(
+        requestedStrategy: requestedStrategy,
+        effectiveStrategy: LyricSourceStrategy.referenceFirst,
+        reason: ProofreadStrategyReason.explicitReferenceFirst,
+        referenceCoverage: referenceCoverage,
+        autoFellBackToAsr: false,
+        notes: const {},
+      );
     }
+
+    if (requestedStrategy == LyricSourceStrategy.asrFirst) {
+      return ProofreadStrategyDecision(
+        requestedStrategy: requestedStrategy,
+        effectiveStrategy: LyricSourceStrategy.asrFirst,
+        reason: ProofreadStrategyReason.explicitAsrFirst,
+        referenceCoverage: referenceCoverage,
+        autoFellBackToAsr: false,
+        notes: const {},
+      );
+    }
+
+    if (!hasReference) {
+      return ProofreadStrategyDecision(
+        requestedStrategy: requestedStrategy,
+        effectiveStrategy: LyricSourceStrategy.asrFirst,
+        reason: ProofreadStrategyReason.autoWithoutReference,
+        referenceCoverage: null,
+        autoFellBackToAsr: false,
+        notes: const {'autoFellBackToAsr': false},
+      );
+    }
+    if (referenceCoverage == null) {
+      throw ArgumentError(
+        'referenceCoverage is required when auto has reference lyrics',
+      );
+    }
+    final fellBack =
+        referenceCoverage < ProofreadConstants.autoRefCoverageMin;
+    return ProofreadStrategyDecision(
+      requestedStrategy: requestedStrategy,
+      effectiveStrategy: fellBack
+          ? LyricSourceStrategy.asrFirst
+          : LyricSourceStrategy.referenceFirst,
+      reason: fellBack
+          ? ProofreadStrategyReason.autoCoverageInsufficient
+          : ProofreadStrategyReason.autoCoverageSufficient,
+      referenceCoverage: referenceCoverage,
+      autoFellBackToAsr: fellBack,
+      notes: {
+        'autoFellBackToAsr': fellBack,
+        'referenceCoverage': referenceCoverage,
+      },
+    );
   }
 
   void _validateCoverage(double? referenceCoverage) {
