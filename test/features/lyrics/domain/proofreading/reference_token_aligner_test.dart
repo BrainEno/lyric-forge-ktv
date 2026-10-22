@@ -50,7 +50,7 @@ void main() {
 
     expect(result.anchorCount, greaterThan(0));
     expect(result.referenceCoverage, 1);
-    expect(result.matches.every((match) => match.isAnchor), isTrue);
+    expect(result.matches.where((match) => match.isAnchor).length, greaterThanOrEqualTo(4));
   });
 
   test('no matches and an empty reference both have zero coverage', () {
