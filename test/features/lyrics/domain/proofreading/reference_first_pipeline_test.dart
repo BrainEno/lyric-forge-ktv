@@ -84,7 +84,7 @@ void main() {
       '第三句歌词',
     ]);
     expect(result.lines[1].verdict, ReferenceFirstVerdictLevel.amber);
-    expect(result.lines[1].timingProvenance, LyricTimingProvenance.interpolated);
+    expect(result.lines[1].timingProvenance, LyricTimingProvenance.autoRepaired);
     expect(result.lines[1].reasons, contains(ReferenceFirstReason.interpolatedTiming));
     expect(result.lines[1].line.startTime, const Duration(seconds: 2));
     expect(result.lines[1].line.endTime, const Duration(seconds: 4));
