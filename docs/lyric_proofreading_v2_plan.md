@@ -117,7 +117,7 @@
 - [x] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
 - [ ] **T2b — 唯一锚点与重复段消歧。** 代码正在 main-based PR #139 中复核；本环境无法运行 Flutter/Dart 验证，因此未将其标记完成。按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。** 按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
-- [ ] **T4 — referenceFirst 流水线。** 清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；对插值与低证据时间明确给出琥珀色 verdict。
+- [ ] **T4 — referenceFirst 流水线。**（实施中，Draft PR #140）清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；对插值与低证据时间明确给出琥珀色 verdict。
 - [ ] **T5 — asrFirst 流水线。** 多引擎共识、重新分行、重复段修正与幻觉过滤；参考纠错只提议；改动行的时间必须重新定时。
 - [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
 - [ ] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
