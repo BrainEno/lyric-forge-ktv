@@ -7,10 +7,11 @@
 ## Git 现场
 
 - 本执行环境只有 GitHub API，没有本地 checkout；不能提供未经运行的 git status --short、git diff --stat 或 git log --oneline -5。
-- 依赖的核心候选发现修复 PR #136：https://github.com/BrainEno/lyric-forge-ktv/pull/136
-- UI 工作分支：feat/show-asr-lyric-diffs-20261022；base 指向 fix/surface-weak-lyric-matches-core-20261022。
-- 该分支最新源码提交：4c0c905b218f972ecd87f07e9caefe0d2188d51e（新增字符 diff widget）；此前的 UI 接线提交为 8e9e6d43984407c568d857ee7c45b250c6b9697c。
-- 当前尚未创建 UI PR；无本地 Flutter 验证，GitHub 也没有该分支 status checks / workflow runs。
+- 核心候选发现修复 Draft PR #136：https://github.com/BrainEno/lyric-forge-ktv/pull/136
+- 本阶段 Draft PR #137：https://github.com/BrainEno/lyric-forge-ktv/pull/137
+- UI 工作分支：feat/show-asr-lyric-diffs-20261022；base 指向核心分支 fix/surface-weak-lyric-matches-core-20261022。
+- 当前 UI 分支已包含核心分支 head 92f678fbbe4d1de7981ab13f2ce5d6ed602d397d。
+- 当前环境没有运行 Flutter 验证，GitHub 未返回相关 status checks / workflow runs。
 
 ## 已改文件
 
@@ -22,7 +23,7 @@
 
 ## 检查结果
 
-- GitHub diff 对照依赖的 core 分支：225 行变更（含本次代码与测试，不含 handoff/index）。
+- 相对核心 PR #136 的代码/测试变更约 225 行；本次 handoff 与索引更新用于交接。
 - 未运行 dart format、flutter test、flutter analyze 或质量门：当前没有本地 checkout 或 Dart/Flutter 工具链。
 - 不创建不可变 work-log 条目，也不手动编辑生成文件 docs/work_log.md，直到真实本地验证通过。
 
