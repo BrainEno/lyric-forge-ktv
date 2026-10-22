@@ -10,7 +10,7 @@
 - 审查基线 main：0474fdff3dbd985b6c0db9aeabb2ccf0941a01d5。
 - 工作分支：feat/lyric-row-audition-time-markers-20261022，目标 base 为 main。
 - 先提交的 UI 测试：738361d6d3146d662694137e8b2a2937d1af8740；行级试听组件提交：f58d16efb7cce5d22c97ec768506a5555195d806；编辑器与时间标记接线提交：a5eacfe797d2a42b8ec193c0c4c5f371bd5d384f；旧组件移除提交：90ce69570daab82607143285452a3b9e7b97bae7。
-- PR 尚未创建；当前无本地 Flutter 验证，GitHub 未返回相关 status checks / workflow runs。
+- Draft PR #138 已创建：https://github.com/BrainEno/lyric-forge-ktv/pull/138；当前无本地 Flutter 验证，GitHub 未返回相关 status checks / workflow runs。
 
 ## 已改文件
 
