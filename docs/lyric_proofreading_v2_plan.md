@@ -113,8 +113,9 @@
 
 > T1 的范围来自本任务说明的完整规格。T2–T9 是按上文目标与流水线拆出来的建议工作边界；在进入各任务时仍需检查真实调用点，不凭空新增接口。
 
-- [ ] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
-- [ ] **T2 — 参考 token 对齐。** 新增纯 Dart token 归一化/锚点匹配与 coverage 计算，限制候选数和 DP 规模；重复副歌不能被当成唯一锚点。
+- [x] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
+- [ ] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
+- [ ] **T2b — 唯一锚点与重复段消歧。** 按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。
 - [ ] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
 - [ ] **T4 — referenceFirst 流水线。** 清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；对插值与低证据时间明确给出琥珀色 verdict。
 - [ ] **T5 — asrFirst 流水线。** 多引擎共识、重新分行、重复段修正与幻觉过滤；参考纠错只提议；改动行的时间必须重新定时。

@@ -38,21 +38,20 @@ void main() {
     expect(result.matches.map((match) => match.draftIndex), [0, 1, 2, 3]);
   });
 
-  test('coverage is zero when no reference tokens match', () {
-    final result = aligner.align(
+  test('no matches and an empty reference both have zero coverage', () {
+    final unmatched = aligner.align(
       referenceText: 'one two three four',
       draftText: 'completely different',
     );
+    final empty = aligner.align(
+      referenceText: '',
+      draftText: 'hello world',
+    );
 
-    expect(result.referenceCoverage, 0);
-  });
-
-  test('empty reference produces zero coverage', () {
-    final result = aligner.align(referenceText: '', draftText: 'hello world');
-
-    expect(result.referenceTokenCount, 0);
-    expect(result.referenceCoverage, 0);
-    expect(result.matches, isEmpty);
+    expect(unmatched.referenceCoverage, 0);
+    expect(empty.referenceTokenCount, 0);
+    expect(empty.referenceCoverage, 0);
+    expect(empty.matches, isEmpty);
   });
 
   test('oversized DP input is bounded and reports degraded coverage', () {
