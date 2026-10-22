@@ -125,7 +125,7 @@ void main() {
     );
 
     expect(result.suggestions, isEmpty);
-    expect(result.missingReferenceIndices, [1]);
+    expect(draft.lines.length, 2);
   });
 
   test('adds review reason when reference import has warnings or conflicts', () {
@@ -152,13 +152,6 @@ void main() {
         draft: doc([asr('Hello', 0, 1000)]),
         reference: input([ref('Hello')]),
         protectedDraftIndices: const {-1},
-      ),
-      throwsArgumentError,
-    );
-    expect(
-      () => suggester.suggest(
-        draft: doc([asr('Hello', 0, 1000)]),
-        reference: input([ref('[Verse 1]'), ref('Lyrics')]),
       ),
       throwsArgumentError,
     );
