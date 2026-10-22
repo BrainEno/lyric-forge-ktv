@@ -2,44 +2,37 @@
 
 ## 目标
 
-按阶段降低歌词智能复核的操作成本。PR #125、#126、#127、#128 均已合并至远程 main。完成 PR #129（行级试听时间窗与循环控制）在本地的验证、编译错误修复与 Hermes 脚手架清理。
+T0：完成 lyric proofreading v2 的只读契约核对，记录真实类名、源文件位置、Q1–Q8 现状与 T1–T9 拆分。当前 Draft PR 是文档审查阶段，不含 Dart 实现。
 
 ## Git 现场
 
-- 分支：`pr129`（基于 origin/main 与 PR #129 提交）。
-- 最近提交：`f246ab3` Refresh handoff for bounded lyric audition。
-- 清理动作：删除 `docs/hermes` 遗留目录，丢弃包含敏感 ID 的临时 stash，在 `.gitignore` 中追加 `*hermes*`。
-- 代码修复：修复 `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` 中由于未本地验证引入的编译错误（`playbackBelongsToProject` 未定义变量）与 3 处分析器警告。
+- 仓库：`BrainEno/lyric-forge-ktv`。
+- GitHub 已确认的基线：`main @ 165db5b5ee12ba6b238a24d6b859095525b562b1`（PR #129 已合并）。
+- 工作分支：`docs/lyric-proofreading-v2-contracts-20261022`。
+- 本执行环境没有本地 checkout；`git status --short`、`git diff --stat`、`git log --oneline -5` 无法从本地运行。尝试 `git ls-remote` 时 shell 无法解析 github.com，因此以当前 GitHub API 返回的 main/head 信息为远程快照，不伪造本地命令输出。
 
 ## 已改文件
 
-- `.gitignore`
-- `lib/features/lyrics/domain/services/lyric_audition_window_service.dart`
-- `lib/features/lyrics/presentation/lyric_review_strings.dart`
-- `lib/features/lyrics/presentation/widgets/smart_review_audition_button.dart`
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
-- `test/features/lyrics/domain/services/lyric_audition_window_service_test.dart`
-- `test/features/lyrics/presentation/widgets/smart_review_audition_button_test.dart`
-- `docs/handoff.md`
-- `docs/work_log_index.md`
-- `docs/work_log_archive.md`
-- `docs/work_log.md`
-- `docs/log/entries/2026-10-22-0240-bounded-lyric-line-audition.md`
+- `docs/lyric_proofreading_v2_plan.md`：新增 T0 审计报告。
+- `docs/work_log_index.md`：把已合并 PR #129 的过时 Draft 状态改为已合并，并标记 v2 为当前方向。
+- `docs/handoff.md`：本交接记录。
+
+未改 Dart 源码、测试、CI 或生成式 `docs/work_log.md`。没有新增 immutable work-log entry：项目要求先完成可验证的交付再记录，本环境不能运行 work-log 生成/检查工具。
 
 ## 检查结果
 
-- `dart format` 格式化通过。
-- `flutter analyze --no-pub` 报告 No issues found。
-- `flutter test` 全量 549 个测试全部通过。
-- `quality_gate.ps1` 校验通过。
+- 已核对：AGENTS.md、work_log_index、handoff、lyric_review_alignment_plan，以及 3 条与行标识/手动保护/时间来源直接相关的 log entries。
+- 已核对源代码中的类名与关键调用点，并在 T0 文档中附路径与行号。
+- 未运行：`dart format`、`flutter analyze --no-pub`、Flutter tests、`dart tool/work_log.dart write/check`。环境没有 Dart/Flutter 可执行文件和本地 checkout；shell 到 GitHub 的 DNS 访问失败。
+- 最近一次仓库记录是歌词测试 215/215、全量测试 549/549 通过；这不是本次执行结果，细节见计划文档 Q8。
 
-## 下一步
+## 下一步（唯一）
 
-- 在真实音频下手动核验 390×844、1024×768、1366×768、1600×900 视口体验。
-- 合并 PR #129 到 main，并推进后续 PR #130 键盘优先快捷键复核流程。
+开始 T1：先新增并运行任务要求的 tokenizer / sanitizer 测试，再实现三个纯 Dart 文件；不要在 T1 中顺手实现整条 proofread pipeline。
 
 ## 已知风险
 
-- 真实音频播放与系统硬件音频管道行为依赖真实平台运行；行结束自动暂停使用 positionStream 采样，存在细微毫秒级时间差，但已由 1 秒前置与边界平滑。
-
-最后更新：2026-10-22 02:40
+- 当前 Qwen HTTP caller 没有传待对齐 transcript 字段；任意参考文本强制对齐能力尚未由当前调用路径证明。
+- 当前 Whisper adapter 没有显式禁用上文条件；目标机器上的 whisper.cpp `--help` 尚未核实。
+- 仓库文档称本地 vocal/instrumental separation backend 尚未完成；无 vocal stem 时使用 normalizedPath，再退回 originalPath。
+- work-log 生成/检查仍待在有 Dart SDK 的本地 checkout 执行后再把 PR 标记为 ready。
