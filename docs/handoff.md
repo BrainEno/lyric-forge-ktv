@@ -1,25 +1,26 @@
 # Handoff
 
 ## Goal
-T5 phase 4: suggest reference lyric text for matched ASR rows only; never apply text/timestamps or insert missing lines.
+T5 phase 5: propose a safe timing interval for changed lyric text only when nearby secondary-ASR text matches exactly.
 
 ## Git snapshot
-- Base `main`: `f6f5cdfd4d42b70dfa0a66dda01844e3311579d7`; branch `feat/lyric-proofreading-t5-reference-suggestions-20261022`; Draft PR #145.
-- PR #143 is merged; PR #144 remains Draft to port repetition code missing from main because #142 merged into the old #141 feature branch.
-- This environment only has GitHub API; local status/diff/log and Dart/Flutter tools are unavailable.
+- Branch `feat/lyric-proofreading-t5-retiming-v2-20261022` from current `main`; intended Draft PR #146.
+- Test-first commit: `dcdfe016de0b26e5dee527531f2b886cfe8f1e85`; planner implementation commit: `29f5f56b738405329884f4ac9ea1e5cf6112611e`.
+- PRs #143, #144 and #145 are now reported merged; local validation of those changes remains unverified in this environment.
+- GitHub API only; no local checkout, Dart or Flutter toolchain.
 
 ## Changed files
-- `lib/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart`: sanitizes reference headers, maps original indices, and emits text-only suggestions with alignment evidence/reason codes.
-- `test/features/lyrics/domain/proofreading/asr_reference_correction_suggester_test.dart`: typo, low-confidence, protected/identical rows, source-index mapping, missing references, import warnings and immutability.
+- `lib/features/lyrics/domain/proofreading/asr_retiming_planner.dart`: exact nearby timing evidence, supports a phrase split across up to 3 secondary rows, validates confidence, neighbor bounds, minimum duration and audio duration; immutable suggestions only.
+- `test/features/lyrics/domain/proofreading/asr_retiming_planner_test.dart`: exact/split match, missing/ambiguous evidence, low confidence, boundary/audio errors, unchanged/protected text and invalid indices.
 - Updated proofreading plan, work index and this handoff.
 
 ## Checks
-- Static review: no draft mutation, no timestamp copy, no auto-insertion; each suggestion requires re-timing.
-- Not run: `dart format`, targeted Flutter test, `flutter analyze --no-pub`, lyric regression tests or `dart tool/work_log.dart check`; no CI result.
-- No immutable work-log entry; generated `docs/work_log.md` was not hand-edited.
+- Static review only; no text/timing is applied or inferred from character count.
+- Not run: `dart format`, targeted Flutter test, `flutter analyze --no-pub`, lyric regression tests, or `dart tool/work_log.dart check`; no CI result.
+- No immutable work-log entry and no manual edit to generated `docs/work_log.md`.
 
 ## Next step
-Run the commands in PR #145 locally. If they pass, mark it ready for review; verify and merge PR #144 separately so the repetition analyzer lands on main.
+Run the commands in the PR locally. Keep Draft until they pass.
 
 ## Risks
-Existing row alignment does not re-segment lyrics or provide token timing. Low-confidence, ambiguous, structural and reference-import-warning cases need manual review; a text proposal must not be applied until safe re-timing exists.
+Secondary-ASR line timestamps are only an independent timing proxy, not a true forced aligner. Exact text match reduces risk but does not prove phoneme-level alignment; if no unique, confident, in-bounds interval exists, the planner returns a non-ready status.
