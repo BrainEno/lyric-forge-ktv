@@ -1,0 +1,68 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_token_aligner.dart';
+
+void main() {
+  const aligner = ReferenceTokenAligner();
+
+  test('aligns tokens in order across a draft-only insertion', () {
+    final result = aligner.align(
+      referenceText: 'we are on the road tonight',
+      draftText: 'we are driving on the road tonight',
+    );
+
+    expect(result.referenceTokenCount, 6);
+    expect(result.referenceCoverage, 1);
+    expect(
+      result.matches.map((match) => '${match.referenceIndex}:${match.draftIndex}'),
+      ['0:0', '1:1', '2:3', '3:4', '4:5', '5:6'],
+    );
+  });
+
+  test('soft token matches above the configured floor contribute to coverage', () {
+    final result = aligner.align(
+      referenceText: 'hello world',
+      draftText: 'hallo world',
+    );
+
+    expect(result.referenceCoverage, 1);
+    expect(result.matches.first.similarity, greaterThan(0.67));
+  });
+
+  test('repeated chorus text remains in a monotonic alignment', () {
+    final result = aligner.align(
+      referenceText: 'oh oh oh oh',
+      draftText: 'oh oh oh oh',
+    );
+
+    expect(result.referenceCoverage, 1);
+    expect(result.matches.map((match) => match.draftIndex), [0, 1, 2, 3]);
+  });
+
+  test('coverage is zero when no reference tokens match', () {
+    final result = aligner.align(
+      referenceText: 'one two three four',
+      draftText: 'completely different',
+    );
+
+    expect(result.referenceCoverage, 0);
+  });
+
+  test('empty reference produces zero coverage', () {
+    final result = aligner.align(referenceText: '', draftText: 'hello world');
+
+    expect(result.referenceTokenCount, 0);
+    expect(result.referenceCoverage, 0);
+    expect(result.matches, isEmpty);
+  });
+
+  test('oversized DP input is bounded and reports degraded coverage', () {
+    final repeatedText = List<String>.filled(2000, 'oh').join(' ');
+    final result = aligner.align(
+      referenceText: repeatedText,
+      draftText: repeatedText,
+    );
+
+    expect(result.dpBudgetExceeded, isTrue);
+    expect(result.referenceCoverage, 0);
+  });
+}
