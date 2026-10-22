@@ -1,0 +1,130 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/asr_repetition_analyzer.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+
+void main() {
+  const analyzer = AsrRepetitionAnalyzer();
+
+  LyricLine line(String text, {int confidence = 95}) => LyricLine(
+    text: text,
+    startTime: const Duration(seconds: 1),
+    endTime: const Duration(seconds: 4),
+    confidence: confidence,
+  );
+
+  AsrConsensusResult evidence({
+    required String primary,
+    required String secondary,
+    int primaryConfidence = 95,
+    int secondaryConfidence = 95,
+  }) => AsrConsensusResult(
+    rows: [
+      AsrConsensusRow(
+        primaryIndex: 0,
+        primaryLine: line(primary, confidence: primaryConfidence),
+        secondaryLineIndices: const [0],
+        secondaryText: secondary,
+        secondaryConfidence: secondaryConfidence,
+        textSimilarity: 0.6,
+        status: AsrConsensusStatus.disagreement,
+        reasons: const {AsrConsensusReason.textMismatch},
+      ),
+    ],
+    secondaryOnlyLines: const [],
+  );
+
+  test('suggests the non-repeated alternative when primary duplicates a phrase', () {
+    final result = analyzer.analyze(
+      evidence(
+        primary: 'we are on the road we are on the road tonight',
+        secondary: 'we are on the road tonight',
+      ),
+    );
+
+    expect(result.suggestions, hasLength(1));
+    final suggestion = result.suggestions.single;
+    expect(suggestion.primaryIndex, 0);
+    expect(suggestion.suspectSide, AsrRepetitionSide.primary);
+    expect(suggestion.originalText, 'we are on the road we are on the road tonight');
+    expect(suggestion.suggestedText, 'we are on the road tonight');
+    expect(suggestion.repeatedUnitNormalized, 'weareontheroad');
+    expect(result.hasSuggestions, isTrue);
+  });
+
+  test('detects repeated CJK text after punctuation and spacing normalization', () {
+    final result = analyzer.analyze(
+      evidence(primary: '我想回家，我想回家了', secondary: '我想回家了'),
+    );
+
+    expect(result.suggestions, hasLength(1));
+    expect(result.suggestions.single.suspectSide, AsrRepetitionSide.primary);
+    expect(result.suggestions.single.suggestedText, '我想回家了');
+  });
+
+  test('also surfaces a repeated secondary transcript without auto-applying primary text', () {
+    final result = analyzer.analyze(
+      evidence(primary: 'we are home', secondary: 'we are home, we are home'),
+    );
+
+    expect(result.suggestions, hasLength(1));
+    expect(result.suggestions.single.suspectSide, AsrRepetitionSide.secondary);
+    expect(result.suggestions.single.originalText, 'we are home, we are home');
+    expect(result.suggestions.single.suggestedText, 'we are home');
+  });
+
+  test('does not flag a repeated phrase shared by both engines', () {
+    final text = 'we are home we are home';
+    final result = analyzer.analyze(evidence(primary: text, secondary: text));
+
+    expect(result.suggestions, isEmpty);
+  });
+
+  test('does not suggest cleanup when either engine has low confidence', () {
+    final primaryLow = analyzer.analyze(
+      evidence(
+        primary: 'we are home we are home',
+        secondary: 'we are home',
+        primaryConfidence: 50,
+      ),
+    );
+    final secondaryLow = analyzer.analyze(
+      evidence(
+        primary: 'we are home we are home',
+        secondary: 'we are home',
+        secondaryConfidence: 50,
+      ),
+    );
+
+    expect(primaryLow.suggestions, isEmpty);
+    expect(secondaryLow.suggestions, isEmpty);
+  });
+
+  test('does not infer repetition from ordinary disagreement or over-budget text', () {
+    final unrelated = analyzer.analyze(
+      evidence(primary: 'meet me in the morning', secondary: 'see you tonight'),
+    );
+    const bounded = AsrRepetitionAnalyzer(maxComparedRunes: 12);
+    final oversized = bounded.analyze(
+      evidence(
+        primary: 'we are home we are home and then some',
+        secondary: 'we are home and then some',
+      ),
+    );
+
+    expect(unrelated.suggestions, isEmpty);
+    expect(oversized.suggestions, isEmpty);
+  });
+
+  test('returns immutable suggestion lists', () {
+    final result = analyzer.analyze(
+      evidence(primary: 'hello world hello world', secondary: 'hello world'),
+    );
+
+    expect(result.suggestions, hasLength(1));
+    expect(
+      () => result.suggestions.add(result.suggestions.single),
+      throwsUnsupportedError,
+    );
+  });
+}
