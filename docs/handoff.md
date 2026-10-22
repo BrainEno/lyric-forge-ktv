@@ -2,33 +2,44 @@
 
 ## 目标
 
-将唯一 n-gram 锚点链（T2b）引入当前 main；原 PR #134 只合入 T2a 功能分支，不能作为 main 已具备此能力的依据。
+实现歌词校对 V2 的 T4：referenceFirst 生成可审阅的歌词提案，不直接落盘；复用已有参考歌词清洗、token 对齐、行级对齐、时间补全和撤销/应用边界。
 
 ## Git 现场
 
-- main 基线：`2cca83ad992d344325aa19d84b557d951b3a234f`；分支：`feat/lyric-proofreading-t2b-anchor-chain-main-20261022`。
-- 测试先行提交：`2b487c8eb2c7f2783064171d879303af33fbb16e`；实现提交：`efe18c03a453a2ce8b042aaf4e01d281b6631380`；文档提交：`9726b565a8976dce8750a95654a67ee34b9be79d`。
-- Draft PR #139 已创建。当前环境只有 GitHub API，没有本地 checkout / Dart / Flutter 工具链。
+- main 基线：`8eb2847ae6664e33ed274200d03f52ae5629c1eb`（T2b 已合并）。
+- 工作分支：`feat/lyric-proofreading-t4-reference-first-20261022`。
+- 测试先行提交：`f5b71681b51de04211a1026b1b56b728ddba5d4e`；当前实现提交：`1b883babf15de73368f71995c0bfef09c6a8766d`。
+- 当前环境只有 GitHub API，没有本地 checkout 或 Dart/Flutter 工具链；PR 保持 Draft，待本地验证。
 
 ## 已改文件
 
-- `reference_token_aligner.dart`：有界 Latin/CJK n-gram 候选、唯一性检查、加权单调非重叠锚点链、锚点间 DP。
-- `reference_token_aligner_test.dart`：唯一锚点、顺序与重叠约束、重复副歌、DP 预算和候选溢出测试。
-- `docs/lyric_proofreading_v2_plan.md`：标记已进入 main 的 T3 selector；T2b 保持待验证。
-- `docs/work_log_index.md`：纠正 PR #136–#138 状态及当前焦点。
-- `docs/handoff.md`：记录分支与验证要求。
+- `lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart`：清洗参考歌词并映射回原始索引；计算 token coverage；复用行级对齐和参考时间应用服务生成提案；区分绿色/琥珀色/锁定行，输出未匹配 ASR 行供恢复。
+- `test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart`：覆盖 sanitizer 与原始行索引、参考/ASR 时间来源、漏行插值与未匹配行、保护行、时间轴冲突及空参考拒绝。
+- `docs/lyric_proofreading_v2_plan.md`、`docs/work_log_index.md`：记录 T4 实施中，T4 尚未标为完成。
+- `docs/handoff.md`：更新当前唯一中断点。
 
 ## 检查结果
 
-- 静态核对确认 main 已有 T2a aligner 与 T3 selector；本分支只补 T2b 缺失实现。
-- 未运行 formatter、定向测试、analyze、歌词回归测试或 work-log 检查。
-- 未创建不可变工作日志条目，未手工编辑生成文件 `docs/work_log.md`。
+- 静态审查：该流水线只返回建议文档和行级 verdict，不保存项目、不修改传入的草稿对象；保护行恢复为原始文本和时间。
+- 未运行 `dart format`、定向 `flutter test`、`flutter analyze --no-pub`、`flutter test test/features/lyrics` 或 work-log 检查，因为当前没有 Dart/Flutter 工具链。
+- 没有创建不可变 work-log 条目，也没有手动编辑生成文件 `docs/work_log.md`。
 
 ## 下一步（唯一）
 
-本地运行 `dart format lib/features/lyrics/domain/proofreading/reference_token_aligner.dart test/features/lyrics/domain/proofreading/reference_token_aligner_test.dart`、定向 `flutter test test/features/lyrics/domain/proofreading/reference_token_aligner_test.dart`、`flutter analyze --no-pub`、`flutter test test/features/lyrics` 与 `dart tool/work_log.dart write/check)。全通过后再将 PR #139 标记为 Ready。
+本地运行：
+
+```powershell
+dart format lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart
+flutter test test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart
+flutter analyze --no-pub
+flutter test test/features/lyrics
+dart tool/work_log.dart write
+dart tool/work_log.dart check
+```
+
+全部通过后再将 T4 标记完成、写不可变日志，并把 PR 标记为 Ready。
 
 ## 已知风险
 
-- 候选链选择是 O(n²)，受 `maxChainCandidates` 限制；候选溢出时放弃锚点并退回有界 DP。
-- 分区 DP 超预算时保留已确认锚点、不跑剩余软匹配，因此覆盖率可能偏低；调用端应检查 `dpBudgetExceeded`。
+- Qwen ForcedAligner 的任意参考文本适配仍未实现；没有声学对齐证据时，插值/估算时间需人工复核。
+- 若恢复受保护行后与邻行仍存在时间冲突，该冲突会明确标为琥珀色，保护行本身不被重写。
