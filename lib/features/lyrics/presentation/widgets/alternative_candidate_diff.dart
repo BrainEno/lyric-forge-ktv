@@ -85,16 +85,23 @@ class AlternativeCandidateDiff extends StatelessWidget {
       children: [
         _line(
           context,
-          label: '当前识别',
+          label: '主引擎结果',
           showAlternative: false,
           segments: segments,
         ),
         const SizedBox(height: AppSpacing.xs),
         _line(
           context,
-          label: '备选识别',
+          label: '备选引擎结果',
           showAlternative: true,
           segments: segments,
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '红色删除线标出主引擎中不同的字符；强调色标出备选引擎对应的字符。',
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
         ),
       ],
     );

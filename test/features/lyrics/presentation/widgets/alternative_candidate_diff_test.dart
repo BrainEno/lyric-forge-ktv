@@ -18,9 +18,29 @@ void main() {
       ),
     );
 
-    expect(find.text('当前识别'), findsOneWidget);
-    expect(find.text('备选识别'), findsOneWidget);
+    expect(find.text('主引擎结果'), findsOneWidget);
+    expect(find.text('备选引擎结果'), findsOneWidget);
     expect(find.text('Ashin lady', findRichText: true), findsOneWidget);
     expect(find.text('passion lady', findRichText: true), findsOneWidget);
+    final primaryLine = tester.widget<Text>(
+      find.text('Ashin lady', findRichText: true),
+    );
+    final primarySpans = (primaryLine.textSpan! as TextSpan).children!
+        .whereType<TextSpan>();
+    expect(
+      primarySpans.any(
+        (span) => span.style?.decoration == TextDecoration.lineThrough,
+      ),
+      isTrue,
+    );
+    final alternativeLine = tester.widget<Text>(
+      find.text('passion lady', findRichText: true),
+    );
+    final alternativeSpans = (alternativeLine.textSpan! as TextSpan).children!
+        .whereType<TextSpan>();
+    expect(
+      alternativeSpans.any((span) => span.style?.fontWeight == FontWeight.w700),
+      isTrue,
+    );
   });
 }

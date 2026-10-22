@@ -2409,8 +2409,14 @@ class _LineInspectorState extends State<_LineInspector> {
   String? _alternativeText() {
     final candidate = widget.fallbackCandidate;
     if (candidate == null) return null;
-    return (candidate['alternativeText'] ?? candidate['whisperText'])
-        ?.toString();
+    final explicit = candidate['alternativeText']?.toString().trim();
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+
+    // Do not fall back to the primary engine's text when no alternative exists.
+    final primaryEngine = candidate['primaryEngine']?.toString();
+    final alternativeKey = primaryEngine == 'whisper' ? 'qwenText' : 'whisperText';
+    final alternative = candidate[alternativeKey]?.toString().trim();
+    return alternative == null || alternative.isEmpty ? null : alternative;
   }
 
   String _engineLabel(String? engine) {
@@ -2565,7 +2571,9 @@ class _LineInspectorState extends State<_LineInspector> {
               alternativeEngine: _engineLabel(
                 widget.fallbackCandidate!['alternativeEngine']?.toString(),
               ),
-              primaryText: _workingLine.text,
+              primaryText:
+                  widget.fallbackCandidate!['primaryText']?.toString() ??
+                  _workingLine.text,
               alternativeText: alternative!,
               onApply: _applyAlternative,
             ),
