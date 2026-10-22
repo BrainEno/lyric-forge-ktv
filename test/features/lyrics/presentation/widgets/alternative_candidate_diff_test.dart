@@ -25,11 +25,13 @@ void main() {
       expect(find.text('Ashin lady', findRichText: true), findsOneWidget);
       expect(find.text('passion lady', findRichText: true), findsOneWidget);
 
-      final primary = tester.widget<Text>(
-        find.text('Ashin lady', findRichText: true),
+      final primary = tester.widget<RichText>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText && widget.text.toPlainText() == 'Ashin lady',
+        ),
       );
-      final primarySpans = (primary.textSpan! as TextSpan).children!
-          .whereType<TextSpan>();
+      final primarySpans = primary.text.children!.whereType<TextSpan>();
       expect(
         primarySpans.any(
           (span) => span.style?.decoration == TextDecoration.lineThrough,
@@ -37,10 +39,14 @@ void main() {
         isTrue,
       );
 
-      final alternative = tester.widget<Text>(
-        find.text('passion lady', findRichText: true),
+      final alternative = tester.widget<RichText>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText &&
+              widget.text.toPlainText() == 'passion lady',
+        ),
       );
-      final alternativeSpans = (alternative.textSpan! as TextSpan).children!
+      final alternativeSpans = alternative.text.children!
           .whereType<TextSpan>();
       expect(
         alternativeSpans.any(
