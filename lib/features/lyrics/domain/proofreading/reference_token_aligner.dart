@@ -42,7 +42,7 @@ class ReferenceTokenAlignmentResult {
       : matchedReferenceTokenCount / referenceTokenCount;
 }
 
-/// Pure-Dart token alignment with unique anchors for repeated passages.
+/// Pure-Dart token alignment. T2b will add unique anchors for repeated passages.
 class ReferenceTokenAligner {
   final LyricTokenizer tokenizer;
 
@@ -94,7 +94,6 @@ class ReferenceTokenAligner {
         ? <_Anchor>[]
         : _selectAnchorChain(candidates);
     final gaps = _buildGaps(anchors, reference.length, draft.length);
-
     var dpCells = 0;
     var dpBudgetExceeded = false;
     for (final gap in gaps) {
@@ -122,10 +121,21 @@ class ReferenceTokenAligner {
         );
       }
     }
-
     if (!dpBudgetExceeded) {
       for (final gap in gaps) {
-        matches.addAll(_alignGap(reference, draft, gap));
+        final gapMatches = _align(
+          reference.sublist(gap.referenceStart, gap.referenceEnd),
+          draft.sublist(gap.draftStart, gap.draftEnd),
+        );
+        matches.addAll(
+          gapMatches.map(
+            (match) => TokenMatch(
+              referenceIndex: match.referenceIndex + gap.referenceStart,
+              draftIndex: match.draftIndex + gap.draftStart,
+              similarity: match.similarity,
+            ),
+          ),
+        );
       }
     }
     matches.sort((a, b) => a.referenceIndex.compareTo(b.referenceIndex));
@@ -233,27 +243,14 @@ class ReferenceTokenAligner {
       );
     }
     if (anchors.isEmpty && referenceLength > 0 && draftLength > 0) {
-      // No anchors means the entire sequence is one DP region.
-      gaps
-        ..clear()
-        ..add(_TokenGap(0, referenceLength, 0, draftLength));
+      gaps.add(_TokenGap(0, referenceLength, 0, draftLength));
     }
     return gaps;
   }
 
-  List<TokenMatch> _alignGap(
-    List<String> reference,
-    List<String> draft,
-    _TokenGap gap,
-  ) {
-    final rows = gap.referenceEnd - gap.referenceStart;
-    final columns = gap.draftEnd - gap.draftStart;
-    if (rows == 0 || columns == 0) return <TokenMatch>[];
-    final referenceTokens = reference.sublist(
-      gap.referenceStart,
-      gap.referenceEnd,
-    );
-    final draftTokens = draft.sublist(gap.draftStart, gap.draftEnd);
+  List<TokenMatch> _align(List<String> reference, List<String> draft) {
+    final rows = reference.length;
+    final columns = draft.length;
     final scores = List<List<double>>.generate(
       rows + 1,
       (_) => List<double>.filled(columns + 1, 0),
@@ -273,10 +270,7 @@ class ReferenceTokenAligner {
           best = scores[i][j - 1];
           move = 2;
         }
-        final similarity = _tokenSimilarity(
-          referenceTokens[i - 1],
-          draftTokens[j - 1],
-        );
+        final similarity = _tokenSimilarity(reference[i - 1], draft[j - 1]);
         if (similarity > ProofreadConstants.softMatchMinSim) {
           final paired =
               scores[i - 1][j - 1] +
@@ -292,22 +286,17 @@ class ReferenceTokenAligner {
       }
     }
 
-    final matches = <TokenMatch>[];
+    final result = <TokenMatch>[];
     var i = rows;
     var j = columns;
     while (i > 0 && j > 0) {
       final move = moves[i][j];
       if (move == 3) {
-        final refIndex = gap.referenceStart + i - 1;
-        final draftIndex = gap.draftStart + j - 1;
-        matches.add(
+        result.add(
           TokenMatch(
-            referenceIndex: refIndex,
-            draftIndex: draftIndex,
-            similarity: _tokenSimilarity(
-              referenceTokens[i - 1],
-              draftTokens[j - 1],
-            ),
+            referenceIndex: i - 1,
+            draftIndex: j - 1,
+            similarity: _tokenSimilarity(reference[i - 1], draft[j - 1]),
           ),
         );
         i--;
@@ -318,7 +307,7 @@ class ReferenceTokenAligner {
         i--;
       }
     }
-    return matches.reversed.toList(growable: false);
+    return result.reversed.toList(growable: false);
   }
 
   double _tokenSimilarity(String leftToken, String rightToken) {
