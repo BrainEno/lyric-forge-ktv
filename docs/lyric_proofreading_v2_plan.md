@@ -115,10 +115,10 @@
 
 - [x] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
 - [x] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
-- [ ] **T2b — 唯一锚点与重复段消歧。** 代码正在 main-based PR #139 中复核；本环境无法运行 Flutter/Dart 验证，因此未将其标记完成。按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。** 按中英文 token 窗口建立有界 anchor candidates，选取单调、不重叠的锚点链；高重复 n-gram 不作为唯一锚点。
+- [ ] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；仍需在本地验证唯一 n-gram 候选、有界候选数、单调非重叠锚点链和 DP 回退。高重复窗口不能作为唯一锚点。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
-- [ ] **T4 — referenceFirst 流水线。**（实施中，Draft PR #140）清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；对插值与低证据时间明确给出琥珀色 verdict。
-- [ ] **T5 — asrFirst 流水线。** 多引擎共识、重新分行、重复段修正与幻觉过滤；参考纠错只提议；改动行的时间必须重新定时。
+- [ ] **T4 — referenceFirst 流水线。** 实现已随 PR #140 进入 main；本环境未重新运行本地测试，完成状态待验证。清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；插值与低证据时间必须给出琥珀色 verdict。
+- [ ] **T5 — asrFirst 流水线。** 分阶段进行：Draft PR #141 先新增双 ASR 共识证据分析，不自动替换文本；后续还需重新分行、重复段修正、幻觉过滤，且改动文本必须重新定时。
 - [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
 - [ ] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
 - [ ] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。

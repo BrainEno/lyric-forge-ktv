@@ -1,45 +1,35 @@
 # Handoff
 
 ## 目标
-
-实现歌词校对 V2 的 T4：referenceFirst 生成可审阅的歌词提案，不直接落盘；复用已有参考歌词清洗、token 对齐、行级对齐、时间补全和撤销/应用边界。
+T5 phase 1：新增纯领域双 ASR 共识证据分析器，不自动替换歌词，不修改任何时间戳。
 
 ## Git 现场
-
-- main 基线：`8eb2847ae6664e33ed274200d03f52ae5629c1eb`（T2b 已合并）。
-- 工作分支：`feat/lyric-proofreading-t4-reference-first-20261022`。
-- 测试先行提交：`f5b71681b51de04211a1026b1b56b728ddba5d4e`；当前实现提交：`1b883babf15de73368f71995c0bfef09c6a8766d`。
-- 当前环境只有 GitHub API，没有本地 checkout 或 Dart/Flutter 工具链；PR 保持 Draft，待本地验证。
+- 基线 main：`adc24416eb0be0c888f075d659970b6832e08885`（包含 PR #140）。
+- 分支：`feat/lyric-proofreading-t5-asr-consensus-20261022`。
+- 测试先行提交：`28a42ba83cffd86e34790695cd7da06dd89b24d7`；实现检查点：`8408d24c6514ac92afc58eb2a686a71a74020c76`。
+- 当前环境仅有 GitHub API，没有本地 checkout / Dart / Flutter 工具链。
 
 ## 已改文件
-
-- `lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart`：清洗参考歌词并映射回原始索引；计算 token coverage；复用行级对齐和参考时间应用服务生成提案；区分绿色/琥珀色/锁定行，输出未匹配 ASR 行供恢复。
-- `test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart`：覆盖 sanitizer 与原始行索引、参考/ASR 时间来源、漏行插值与未匹配行、保护行、时间轴冲突及空参考拒绝。
-- `docs/lyric_proofreading_v2_plan.md`、`docs/work_log_index.md`：记录 T4 实施中，T4 尚未标为完成。
-- `docs/handoff.md`：更新当前唯一中断点。
+- `lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart`：双引擎时间重叠证据、文本相似度、低置信度与比较预算提示、primary-only/secondary-only 行。
+- `test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart`：一致/分歧、分段拼接、单引擎独有行、低置信度、比较上限与不可变结果。
+- `docs/lyric_proofreading_v2_plan.md`、`docs/work_log_index.md`：更新 T4/T5 状态与下一步。
+- `docs/handoff.md`：本次交接状态。
 
 ## 检查结果
-
-- 静态审查：该流水线只返回建议文档和行级 verdict，不保存项目、不修改传入的草稿对象；保护行恢复为原始文本和时间。
-- 未运行 `dart format`、定向 `flutter test`、`flutter analyze --no-pub`、`flutter test test/features/lyrics` 或 work-log 检查，因为当前没有 Dart/Flutter 工具链。
-- 没有创建不可变 work-log 条目，也没有手动编辑生成文件 `docs/work_log.md`。
+- 已静态核对：分析器只返回证据，不改输入文本/时间、不应用替代结果。
+- 未运行 formatter、定向测试、analyze、歌词回归测试或 work-log lint。
+- 不创建不可变 work-log 条目，不手动编辑生成文件 `docs/work_log.md`。
 
 ## 下一步（唯一）
-
 本地运行：
-
 ```powershell
-dart format lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart
-flutter test test/features/lyrics/domain/proofreading/reference_first_pipeline_test.dart
+dart format lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
+flutter test test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
 flutter analyze --no-pub
 flutter test test/features/lyrics
-dart tool/work_log.dart write
 dart tool/work_log.dart check
 ```
-
-全部通过后再将 T4 标记完成、写不可变日志，并把 PR 标记为 Ready。
+通过后再考虑合入，并继续实现 T5 的重复修正/幻觉过滤阶段。
 
 ## 已知风险
-
-- Qwen ForcedAligner 的任意参考文本适配仍未实现；没有声学对齐证据时，插值/估算时间需人工复核。
-- 若恢复受保护行后与邻行仍存在时间冲突，该冲突会明确标为琥珀色，保护行本身不被重写。
+共识分析按时间重叠聚合次级引擎片段，属于复核证据而非严格词级对齐；尚未实现文本修正、幻觉过滤、时间重建或 UI。
