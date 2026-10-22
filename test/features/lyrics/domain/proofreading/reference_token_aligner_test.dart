@@ -12,10 +12,17 @@ void main() {
 
     expect(result.referenceTokenCount, 6);
     expect(result.referenceCoverage, 1);
+    expect(result.anchorCount, greaterThan(0));
+    expect(result.candidateLimitReached, isFalse);
     expect(
       result.matches.map((match) => '${match.referenceIndex}:${match.draftIndex}'),
       ['0:0', '1:1', '2:3', '3:4', '4:5', '5:6'],
     );
+    final anchors = result.matches.where((match) => match.isAnchor).toList();
+    for (var index = 1; index < anchors.length; index++) {
+      expect(anchors[index].referenceIndex, greaterThan(anchors[index - 1].referenceIndex));
+      expect(anchors[index].draftIndex, greaterThan(anchors[index - 1].draftIndex));
+    }
   });
 
   test('soft token matches above the configured floor contribute to coverage', () {
@@ -25,17 +32,34 @@ void main() {
     );
 
     expect(result.referenceCoverage, 1);
+    expect(result.anchorCount, 0);
     expect(result.matches.first.similarity, greaterThan(0.67));
   });
 
-  test('repeated chorus text remains in a monotonic alignment', () {
+  test('repeated chorus text is not accepted as a unique anchor', () {
     final result = aligner.align(
       referenceText: 'oh oh oh oh',
       draftText: 'oh oh oh oh',
     );
 
     expect(result.referenceCoverage, 1);
+    expect(result.anchorCount, 0);
+    expect(result.matches.where((match) => match.isAnchor), isEmpty);
     expect(result.matches.map((match) => match.draftIndex), [0, 1, 2, 3]);
+  });
+
+  test('CJK reference text can form a unique four-token anchor', () {
+    final result = aligner.align(
+      referenceText: '我在这里等你',
+      draftText: '我在这里等你',
+    );
+
+    expect(result.anchorCount, greaterThan(0));
+    expect(result.referenceCoverage, 1);
+    expect(
+      result.matches.where((match) => match.isAnchor).length,
+      greaterThanOrEqualTo(4),
+    );
   });
 
   test('no matches and an empty reference both have zero coverage', () {
@@ -62,6 +86,20 @@ void main() {
     );
 
     expect(result.dpBudgetExceeded, isTrue);
+    expect(result.anchorCount, 0);
     expect(result.referenceCoverage, 0);
+  });
+
+  test('candidate overflow drops the anchor set instead of building an unbounded chain', () {
+    final words = List<String>.generate(4005, (index) => 'word$index').join(' ');
+    final result = aligner.align(
+      referenceText: words,
+      draftText: words,
+    );
+
+    expect(result.candidateLimitReached, isTrue);
+    expect(result.anchorCount, 0);
+    expect(result.dpBudgetExceeded, isTrue);
+    expect(result.matches, isEmpty);
   });
 }
