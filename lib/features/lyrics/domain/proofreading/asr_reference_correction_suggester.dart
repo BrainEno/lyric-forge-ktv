@@ -66,7 +66,8 @@ class AsrReferenceCorrectionSuggester {
       throw ArgumentError.value(protectedDraftIndices, 'protectedDraftIndices');
     }
 
-    final sanitized = const ReferenceTextSanitizer().sanitize(
+    const sanitizer = ReferenceTextSanitizer();
+    final sanitized = sanitizer.sanitize(
       reference.lines.map((line) => line.text).join('\n'),
       title: reference.title,
       artist: reference.artist,
@@ -87,7 +88,8 @@ class AsrReferenceCorrectionSuggester {
     }
     if (refs.isEmpty) throw ArgumentError('Reference lyrics contain no usable lyric lines');
 
-    final alignment = const LyricAlignmentService().align(
+    const lineAligner = LyricAlignmentService();
+    final alignment = lineAligner.align(
       document: draft,
       referenceLines: refs,
       autoReplaceThreshold: suggestionThreshold,
