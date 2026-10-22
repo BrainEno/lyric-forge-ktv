@@ -209,6 +209,10 @@ class ReferenceFirstPipeline {
         }
         if (source.startTime != null) {
           reasons.add(ReferenceFirstReason.referenceTimestamp);
+        } else if (entry.asrLineIndex == null) {
+          reasons.add(provenance == LyricTimingProvenance.estimatedTail
+              ? ReferenceFirstReason.estimatedTailTiming
+              : ReferenceFirstReason.interpolatedTiming);
         } else {
           reasons.add(ReferenceFirstReason.mappedAsrTiming);
         }
