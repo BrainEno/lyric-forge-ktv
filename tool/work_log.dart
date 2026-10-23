@@ -264,9 +264,9 @@ class WorkLogHarness {
   }) {
     final original = archiveFile.existsSync()
         ? readText(archiveFile)
-        : '# Work Log Archive\\n\\n'
+        : '# Work Log Archive\n\n'
               '> Navigation only. Full entries live under '
-              '`docs/log/entries/`.\\n';
+              '`docs/log/entries/`.\n';
     final stableContent = original
         .replaceAll(_autoArchiveBlockPattern, '')
         .trimRight();
@@ -292,7 +292,7 @@ class WorkLogHarness {
       }
       buffer.writeln(_autoArchiveEndMarker);
     }
-    final updated = '${buffer.toString().trimRight()}\\n';
+    final updated = '${buffer.toString().trimRight()}\n';
     if (updated != original) {
       archiveFile.writeAsStringSync(updated);
     }
