@@ -22,8 +22,10 @@ void main() {
         confidence: confidence,
       );
 
-  LyricDocument doc(List<LyricLine> lines, {Map<String, dynamic> metadata = const {}}) =>
-      LyricDocument(language: 'en', lines: lines, metadata: metadata);
+  LyricDocument doc(
+    List<LyricLine> lines, {
+    Map<String, dynamic> metadata = const {},
+  }) => LyricDocument(language: 'en', lines: lines, metadata: metadata);
 
   void expectInvariants(
     ProofreadResult result, {
@@ -38,26 +40,40 @@ void main() {
       proposedDocument: result.proposedDocument,
       verdictLines: result.lines.map((line) => line.line).toList(),
       lineIds: result.lines.map((line) => line.lineId).toList(),
-      lockedVerdicts: result.lines.map((line) => line.verdict == ProofreadVerdict.locked).toList(),
-      sourceIndices: List<int>.generate(result.proposedDocument.lines.length, (index) => index),
+      lockedVerdicts: result.lines
+          .map((line) => line.verdict == ProofreadVerdict.locked)
+          .toList(),
+      sourceIndices: List<int>.generate(
+        result.proposedDocument.lines.length,
+        (index) => index,
+      ),
       protectedSourceIndices: protectedSourceIndices,
       audioDuration: audioDuration,
     );
   }
 
   test('without secondary ASR, preserves draft and marks rows for review', () {
-    final original = doc([row('first lyric', 0, 1000, id: 'one')], metadata: {'nested': {'items': ['original', 'metadata']}});
+    final original = doc(
+      [row('first lyric', 0, 1000, id: 'one')],
+      metadata: {'nested': {'items': ['original', 'metadata']}},
+    );
     final originalSnapshot = snapshotLyricDocument(original);
-    final result = pipeline.build(draft: original, audioDuration: const Duration(seconds: 2));
+    final result = pipeline.build(
+      draft: original,
+      audioDuration: const Duration(seconds: 2),
+    );
 
-    expectInvariants(result, input: original, inputSnapshot: originalSnapshot, audioDuration: const Duration(seconds: 2));
+    expectInvariants(
+      result,
+      input: original,
+      inputSnapshot: originalSnapshot,
+      audioDuration: const Duration(seconds: 2),
+    );
     expect(result.proposedDocument.lines.single.text, 'first lyric');
     expect(
       result.proposedDocument.lines.single.startTime,
       const Duration(seconds: 0),
     );
-    expectInvariants(result, input: primary, inputSnapshot: primarySnapshot, audioDuration: const Duration(seconds: 2));
-    expect(snapshotLyricDocument(secondary), secondarySnapshot);
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
     expect(result.notes, contains('secondaryAsrUnavailable'));
     expect(original.lines.single.text, 'first lyric');
@@ -84,7 +100,13 @@ void main() {
       audioDuration: const Duration(seconds: 3),
     );
 
-    expectInvariants(result, input: primary, inputSnapshot: primarySnapshot, protectedSourceIndices: const {0}, audioDuration: const Duration(seconds: 3));
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: primarySnapshot,
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 3),
+    );
     expect(snapshotLyricDocument(secondary), secondarySnapshot);
     expect(result.lines[0].verdict, ProofreadVerdict.locked);
     expect(result.lines[0].reasons, contains(ProofreadReason.protectedLine));
@@ -99,8 +121,19 @@ void main() {
     final primarySnapshot = snapshotLyricDocument(primary);
     final secondarySnapshot = snapshotLyricDocument(secondary);
 
-    final result = pipeline.build(draft: primary, secondary: secondary, audioDuration: const Duration(seconds: 2));
+    final result = pipeline.build(
+      draft: primary,
+      secondary: secondary,
+      audioDuration: const Duration(seconds: 2),
+    );
 
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: primarySnapshot,
+      audioDuration: const Duration(seconds: 2),
+    );
+    expect(snapshotLyricDocument(secondary), secondarySnapshot);
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
     expect(
       result.lines.single.reasons,
@@ -117,19 +150,33 @@ void main() {
     final before = snapshotLyricDocument(draft);
     final duration = const Duration(seconds: 2);
     final result = pipeline.build(draft: draft, audioDuration: duration);
-    expectInvariants(result, input: draft, inputSnapshot: before, audioDuration: duration);
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: before,
+      audioDuration: duration,
+    );
     expect(result.proposedDocument.lines.last.endTime, duration);
   });
 
   test('marks out-of-audio timing as a conflict without mutating the draft', () {
     final draft = doc([row('too long', 3000, 5000, id: 'too-long')]);
     final before = snapshotLyricDocument(draft);
-    final result = pipeline.build(draft: draft, audioDuration: const Duration(seconds: 4));
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 4),
+    );
     // ASR-first is diagnostic-only: preserve the source interval and flag it.
     expectInvariants(result, input: draft, inputSnapshot: before);
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
-    expect(result.lines.single.reasons, contains(ProofreadReason.timingConflict));
-    expect(result.proposedDocument.lines.single.endTime, const Duration(seconds: 5));
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.timingConflict),
+    );
+    expect(
+      result.proposedDocument.lines.single.endTime,
+      const Duration(seconds: 5),
+    );
   });
 
   test('rejects invalid protected indices and audio duration', () {
