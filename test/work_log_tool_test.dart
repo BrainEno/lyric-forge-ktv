@@ -124,7 +124,7 @@ void main() {
         timestamp: '2026-01-02 08:00',
         title: 'Legacy entry',
         commit: 'Legacy subject',
-      ).replace(
+      ).replaceAll(
         '- Commit: `Legacy subject`',
         '- Commit: Legacy subject',
       ),
