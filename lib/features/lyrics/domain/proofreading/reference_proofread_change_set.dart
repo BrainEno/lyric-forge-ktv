@@ -1,4 +1,5 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'asr_reference_correction_suggester.dart';
 import 'reference_proofread_review_builder.dart';
 
 /// A display-ready, line-level before/after diff for explicit user review.
@@ -139,6 +140,71 @@ class ReferenceProofreadChangeSet {
       }
     }
 
+    final after = draft.copyWith(lines: List.unmodifiable(updatedLines));
+    return ReferenceProofreadAppliedChange(
+      before: draft,
+      after: after,
+      changedDraftIndices: selected.keys.toList()..sort(),
+    );
+  }
+
+  /// Atomically applies selected text suggestions while preserving the draft's
+  /// existing timestamps. This is not a retiming operation; timing evidence
+  /// must be reviewed separately and reference timestamps are never copied.
+  ReferenceProofreadAppliedChange applyTextOnly({
+    required LyricDocument draft,
+    required List<AsrReferenceCorrectionSuggestion> suggestions,
+    required Set<int> selectedDraftIndices,
+    Set<int> protectedDraftIndices = const {},
+  }) {
+    if (selectedDraftIndices.isEmpty) {
+      throw ArgumentError.value(
+        selectedDraftIndices,
+        'selectedDraftIndices',
+        'Select at least one proposal.',
+      );
+    }
+    final byIndex = <int, AsrReferenceCorrectionSuggestion>{};
+    for (final suggestion in suggestions) {
+      if (byIndex.containsKey(suggestion.draftIndex)) {
+        throw StateError(
+          'Duplicate proposal for draft line ${suggestion.draftIndex}.',
+        );
+      }
+      byIndex[suggestion.draftIndex] = suggestion;
+    }
+
+    final selected = <int, AsrReferenceCorrectionSuggestion>{};
+    for (final index in selectedDraftIndices) {
+      if (index < 0 || index >= draft.lines.length) {
+        throw RangeError.index(index, draft.lines, 'selectedDraftIndices');
+      }
+      if (protectedDraftIndices.contains(index)) {
+        throw StateError('Draft line $index is protected.');
+      }
+      final suggestion = byIndex[index];
+      if (suggestion == null || suggestion.draftIndex != index) {
+        throw StateError('No review proposal exists for draft line $index.');
+      }
+      if (suggestion.requiresManualReview) {
+        throw StateError('Draft line $index requires manual review.');
+      }
+      if (draft.lines[index].text != suggestion.currentText) {
+        throw StateError('Draft line $index changed since review.');
+      }
+      if (suggestion.suggestedText.trim().isEmpty) {
+        throw StateError('Draft line $index has an empty correction.');
+      }
+      selected[index] = suggestion;
+    }
+
+    final updatedLines = List.of(draft.lines);
+    for (final entry in selected.entries) {
+      final index = entry.key;
+      updatedLines[index] = draft.lines[index].copyWith(
+        text: entry.value.suggestedText,
+      );
+    }
     final after = draft.copyWith(lines: List.unmodifiable(updatedLines));
     return ReferenceProofreadAppliedChange(
       before: draft,
