@@ -47,6 +47,28 @@ class _ReferenceProofreadTimingReviewDialogState
         item.retiming.options.length == 1;
   }
 
+  String _reasonLabel(Object reason) {
+    final name = reason.toString().split('.').last;
+    return switch (name) {
+      'exactTimedTextMatch' => '精确文本匹配',
+      'splitAcrossEvidenceLines' => '证据跨多行',
+      'textUnchanged' => '文本未变化',
+      'emptyProposedText' => '建议文本为空',
+      'protectedLine' => '该行受手动编辑保护',
+      'noExactNearbyMatch' => '附近没有精确时间证据',
+      'multipleMatchingWindows' => '存在多个匹配位置',
+      'lowConfidence' => '证据置信度不足',
+      'overlapsPreviousLine' => '与上一行时间冲突',
+      'overlapsNextLine' => '与下一行时间冲突',
+      'negativeStart' => '起始时间为负数',
+      'nonPositiveDuration' => '时间区间无效',
+      'durationTooShort' => '时间区间过短',
+      'beyondAudioDuration' => '超出音频时长',
+      'invalidOriginalTiming' => '原始时间区间无效',
+      _ => name,
+    };
+  }
+
   String _formatTime(Duration value) {
     final seconds = value.inMilliseconds / 1000;
     return '${seconds.toStringAsFixed(2)} s';
