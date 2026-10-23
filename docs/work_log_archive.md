@@ -81,3 +81,8 @@
 
 - [2026-10-21 16:50] 智能歌词复核优先队列（PR #126） ([entry](log/entries/2026-10-21-1650-smart-lyric-review-queue.md))
 - [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
+
+<!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
+## Additional archived entries (auto-generated)
+- [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
+<!-- END AUTO-GENERATED WORK LOG REFERENCES -->
