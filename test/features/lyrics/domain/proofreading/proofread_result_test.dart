@@ -47,57 +47,60 @@ void main() {
     );
   });
 
-  test('rejects invalid coverage, duplicate stable IDs, and missing verdicts', () {
-    final first = line('hello', 0, 900, id: 'duplicate');
-    final second = line('world', 1000, 1900, id: 'duplicate');
-    expect(
-      () => ProofreadResult(
-        proposedDocument: document([first]),
-        lines: [
-          ProofreadLineResult(
-            lineId: first.id,
-            line: first,
-            verdict: ProofreadVerdict.green,
-            reasons: const {},
-            risk: ProofreadRisk.low,
-          ),
-        ],
-        referenceCoverage: double.nan,
-      ),
-      throwsArgumentError,
-    );
-    expect(
-      () => ProofreadResult(
-        proposedDocument: document([first, second]),
-        lines: [
-          ProofreadLineResult(
-            lineId: first.id,
-            line: first,
-            verdict: ProofreadVerdict.green,
-            reasons: const {},
-            risk: ProofreadRisk.low,
-          ),
-          ProofreadLineResult(
-            lineId: second.id,
-            line: second,
-            verdict: ProofreadVerdict.green,
-            reasons: const {},
-            risk: ProofreadRisk.low,
-          ),
-        ],
-        referenceCoverage: 0,
-      ),
-      throwsArgumentError,
-    );
-    expect(
-      () => ProofreadResult(
-        proposedDocument: document([first]),
-        lines: const [],
-        referenceCoverage: 0,
-      ),
-      throwsArgumentError,
-    );
-  });
+  test(
+    'rejects invalid coverage, duplicate stable IDs, and missing verdicts',
+    () {
+      final first = line('hello', 0, 900, id: 'duplicate');
+      final second = line('world', 1000, 1900, id: 'duplicate');
+      expect(
+        () => ProofreadResult(
+          proposedDocument: document([first]),
+          lines: [
+            ProofreadLineResult(
+              lineId: first.id,
+              line: first,
+              verdict: ProofreadVerdict.green,
+              reasons: const {},
+              risk: ProofreadRisk.low,
+            ),
+          ],
+          referenceCoverage: double.nan,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ProofreadResult(
+          proposedDocument: document([first, second]),
+          lines: [
+            ProofreadLineResult(
+              lineId: first.id,
+              line: first,
+              verdict: ProofreadVerdict.green,
+              reasons: const {},
+              risk: ProofreadRisk.low,
+            ),
+            ProofreadLineResult(
+              lineId: second.id,
+              line: second,
+              verdict: ProofreadVerdict.green,
+              reasons: const {},
+              risk: ProofreadRisk.low,
+            ),
+          ],
+          referenceCoverage: 0,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ProofreadResult(
+          proposedDocument: document([first]),
+          lines: const [],
+          referenceCoverage: 0,
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
 
   test('validates timing intervals and confidence ranges', () {
     expect(
