@@ -13,8 +13,8 @@
 ## Log layout
 
 - `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` — one immutable file per completed task; bodies live here, never moved or deleted.
-- `docs/work_log.md` — **generated** active summary (newest 8 entries). Regenerate with `dart tool/work_log.dart write`; verify with `dart tool/work_log.dart check`. Do not hand-edit.
-- `docs/work_log_archive.md` — stage-grouped navigation for older entries.
+- `docs/work_log.md` — **generated** active summary (newest 8 entries). `dart tool/work_log.dart write` regenerates it, syncs the index snapshot date, and maintains archive links for aged-out entries; verify with `dart tool/work_log.dart check`. Do not hand-edit.
+- `docs/work_log_archive.md` — stage-grouped navigation for older entries, plus an automatically maintained fallback section for references not yet grouped by stage.
 - `docs/decisions.md` — durable decisions that still bind future work.
 - `docs/handoff.md` — single-slot interruption handoff; overwrite before ending a session.
 
@@ -47,5 +47,5 @@
 ## Maintenance
 
 - Keep this index compact (target <80 lines); update only for changed focus, stable decisions, material risks, or navigation.
-- New task → write one entry file, run `dart tool/work_log.dart write`, add the aged-out line to the archive stage section, update this index only if focus/decisions/risks changed.
+- New task → write one entry file, run `dart tool/work_log.dart write` (it syncs summary, snapshot date, and missing archive references), then run `dart tool/work_log.dart check`. Update this index body only if focus/decisions/risks changed; optionally group auto-archived references by stage.
 - Never delete entry files; superseded decisions are marked `已取代` in `docs/decisions.md`.
