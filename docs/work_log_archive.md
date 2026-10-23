@@ -84,5 +84,6 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
