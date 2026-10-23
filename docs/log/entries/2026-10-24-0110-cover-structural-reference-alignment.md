@@ -4,4 +4,4 @@
 - Files: test/features/lyrics/domain/services/lyric_alignment_service_test.dart, this entry, docs/work_log.md.
 - Validation: Added three targeted regression tests. Flutter/Dart execution is unavailable in this environment; GitHub Actions must verify formatting, analysis, tests, and work-log consistency.
 - Notes: These tests lock down existing diagnostic-only behavior. Structural mismatches remain explicit review candidates; no lyric text or timestamps are automatically changed.
-- Commit: `Cover structural reference alignment mismatches`
+- Commit: `test: cover structural reference alignment mismatches`
