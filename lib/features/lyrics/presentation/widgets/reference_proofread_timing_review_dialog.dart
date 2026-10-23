@@ -65,6 +65,7 @@ class _ReferenceProofreadTimingReviewDialogState
       'durationTooShort' => '时间区间过短',
       'beyondAudioDuration' => '超出音频时长',
       'invalidOriginalTiming' => '原始时间区间无效',
+      'invalidConfidenceEvidence' => 'ASR 置信度超出 0–100，有效证据已拒绝',
       _ => name,
     };
   }
