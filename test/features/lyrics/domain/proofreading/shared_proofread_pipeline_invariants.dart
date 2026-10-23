@@ -163,7 +163,8 @@ void expectProofreadPipelineInvariants({
           sourceIndex != null && protectedSourceIndices.contains(sourceIndex),
           isTrue,
           reason:
-              'I3: only an unchanged protected draft row may lack a reference index.',
+              'I3: only an unchanged protected draft row '
+              'may lack a reference index.',
         );
       }
     }
