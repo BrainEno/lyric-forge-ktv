@@ -86,7 +86,9 @@ class AsrReferenceCorrectionSuggester {
       ));
       originalIndices.add(i);
     }
-    if (refs.isEmpty) throw ArgumentError('Reference lyrics contain no usable lyric lines');
+    if (refs.isEmpty) {
+      throw ArgumentError('Reference lyrics contain no usable lyric lines');
+    }
 
     const lineAligner = LyricAlignmentService();
     final alignment = lineAligner.align(
