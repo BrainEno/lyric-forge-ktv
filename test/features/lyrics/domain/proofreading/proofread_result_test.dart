@@ -13,26 +13,23 @@ void main() {
   LyricDocument document(List<LyricLine> lines) =>
       LyricDocument(language: 'en', lines: lines);
 
+  ProofreadLineResult row(LyricLine value, ProofreadVerdict verdict) =>
+      ProofreadLineResult(
+        lineId: value.id,
+        line: value,
+        verdict: verdict,
+        reasons: const {ProofreadReason.asrAgreement},
+        risk: ProofreadRisk.low,
+      );
+
   test('accepts one verdict per output line and exposes grouped verdicts', () {
     final first = line('hello', 0, 900, id: 'line-1');
     final second = line('world', 1000, 1900, id: 'line-2');
     final result = ProofreadResult(
       proposedDocument: document([first, second]),
       lines: [
-        ProofreadLineResult(
-          lineId: first.id,
-          line: first,
-          verdict: ProofreadVerdict.green,
-          reasons: const {ProofreadReason.asrAgreement},
-          risk: ProofreadRisk.low,
-        ),
-        ProofreadLineResult(
-          lineId: second.id,
-          line: second,
-          verdict: ProofreadVerdict.amber,
-          reasons: const {ProofreadReason.noTimingEvidence},
-          risk: ProofreadRisk.high,
-        ),
+        row(first, ProofreadVerdict.green),
+        row(second, ProofreadVerdict.amber),
       ],
       referenceCoverage: 0.5,
     );
@@ -47,60 +44,85 @@ void main() {
     );
   });
 
-  test(
-    'rejects invalid coverage, duplicate stable IDs, and missing verdicts',
-    () {
-      final first = line('hello', 0, 900, id: 'duplicate');
-      final second = line('world', 1000, 1900, id: 'duplicate');
-      expect(
-        () => ProofreadResult(
-          proposedDocument: document([first]),
-          lines: [
-            ProofreadLineResult(
-              lineId: first.id,
-              line: first,
-              verdict: ProofreadVerdict.green,
-              reasons: const {},
-              risk: ProofreadRisk.low,
-            ),
-          ],
-          referenceCoverage: double.nan,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => ProofreadResult(
-          proposedDocument: document([first, second]),
-          lines: [
-            ProofreadLineResult(
-              lineId: first.id,
-              line: first,
-              verdict: ProofreadVerdict.green,
-              reasons: const {},
-              risk: ProofreadRisk.low,
-            ),
-            ProofreadLineResult(
-              lineId: second.id,
-              line: second,
-              verdict: ProofreadVerdict.green,
-              reasons: const {},
-              risk: ProofreadRisk.low,
-            ),
-          ],
-          referenceCoverage: 0,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => ProofreadResult(
-          proposedDocument: document([first]),
-          lines: const [],
-          referenceCoverage: 0,
-        ),
-        throwsArgumentError,
-      );
-    },
-  );
+  test('rejects invalid coverage, duplicate stable IDs, and missing verdicts', () {
+    final first = line('hello', 0, 900, id: 'duplicate');
+    final second = line('world', 1000, 1900, id: 'duplicate');
+    expect(
+      () => ProofreadResult(
+        proposedDocument: document([first]),
+        lines: [row(first, ProofreadVerdict.green)],
+        referenceCoverage: double.nan,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadResult(
+        proposedDocument: document([first, second]),
+        lines: [
+          row(first, ProofreadVerdict.green),
+          row(second, ProofreadVerdict.green),
+        ],
+        referenceCoverage: 0,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadResult(
+        proposedDocument: document([first]),
+        lines: const [],
+        referenceCoverage: 0,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('rejects verdict rows that do not match proposed output order/content', () {
+    final first = line('hello', 0, 900, id: 'line-1');
+    final second = line('world', 1000, 1900, id: 'line-2');
+    final altered = line('different text', 1000, 1900, id: 'line-2');
+
+    expect(
+      () => ProofreadResult(
+        proposedDocument: document([first, second]),
+        lines: [
+          row(first, ProofreadVerdict.green),
+          row(altered, ProofreadVerdict.amber),
+        ],
+        referenceCoverage: 1,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadResult(
+        proposedDocument: document([first, second]),
+        lines: [
+          row(second, ProofreadVerdict.green),
+          row(first, ProofreadVerdict.amber),
+        ],
+        referenceCoverage: 1,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('copies input collections so later caller mutation cannot alter result', () {
+    final lyric = line('hello', 0, 900, id: 'line-1');
+    final inputRows = <ProofreadLineResult>[row(lyric, ProofreadVerdict.green)];
+    final inputNotes = <String>['initial note'];
+    final result = ProofreadResult(
+      proposedDocument: document([lyric]),
+      lines: inputRows,
+      notes: inputNotes,
+      referenceCoverage: 1,
+    );
+
+    inputRows.clear();
+    inputNotes.add('late mutation');
+
+    expect(result.lines, hasLength(1));
+    expect(result.notes, ['initial note']);
+    expect(() => result.notes.add('forbidden'), throwsUnsupportedError);
+  });
 
   test('validates timing intervals and confidence ranges', () {
     expect(
