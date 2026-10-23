@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'shared_proofread_pipeline_invariants.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/asr_first_pipeline.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+
+import 'shared_proofread_pipeline_invariants.dart';
 
 void main() {
   const pipeline = AsrFirstPipeline();
@@ -58,16 +59,12 @@ void main() {
       metadata: {'nested': {'items': ['original', 'metadata']}},
     );
     final originalSnapshot = snapshotLyricDocument(original);
-    final result = pipeline.build(
-      draft: original,
-      audioDuration: const Duration(seconds: 2),
-    );
+    final result = pipeline.build(draft: original);
 
     expectInvariants(
       result,
       input: original,
       inputSnapshot: originalSnapshot,
-      audioDuration: const Duration(seconds: 2),
     );
     expect(result.proposedDocument.lines.single.text, 'first lyric');
     expect(
@@ -149,7 +146,10 @@ void main() {
     ]);
     final before = snapshotLyricDocument(draft);
     final duration = const Duration(seconds: 2);
-    final result = pipeline.build(draft: draft, audioDuration: duration);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: duration,
+    );
     expectInvariants(
       result,
       input: draft,
@@ -167,7 +167,11 @@ void main() {
       audioDuration: const Duration(seconds: 4),
     );
     // ASR-first is diagnostic-only: preserve the source interval and flag it.
-    expectInvariants(result, input: draft, inputSnapshot: before);
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: before,
+    );
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
     expect(
       result.lines.single.reasons,

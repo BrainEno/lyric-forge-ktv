@@ -1,10 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'shared_proofread_pipeline_invariants.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_first_pipeline.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+
+import 'shared_proofread_pipeline_invariants.dart';
 
 void main() {
   const pipeline = ReferenceFirstPipeline();
@@ -35,8 +36,10 @@ void main() {
     warnings: warnings,
   );
 
-  LyricDocument doc(List<LyricLine> lines, {Map<String, dynamic> metadata = const {}}) =>
-      LyricDocument(language: 'en', lines: lines, metadata: metadata);
+  LyricDocument doc(
+    List<LyricLine> lines, {
+    Map<String, dynamic> metadata = const {},
+  }) => LyricDocument(language: 'en', lines: lines, metadata: metadata);
 
   void expectInvariants(
     ReferenceFirstPipelineResult result, {
@@ -76,15 +79,25 @@ void main() {
       ], title: 'Roadhouse Blues'),
     );
 
-    expectInvariants(result, input: draft, inputSnapshot: draftSnapshot, audioDuration: const Duration(seconds: 8));
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+    );
     expect(result.removedReferenceLines, hasLength(2));
     expect(result.lines.map((line) => line.referenceIndex), [2, 3]);
     expect(result.proposedDocument.lines.map((line) => line.text), [
       'Keep your eyes on the road',
       "Yeah we're going",
     ]);
-    expect(result.proposedDocument.lines.first.startTime, const Duration(milliseconds: 1500));
-    expect(result.proposedDocument.lines.first.endTime, const Duration(milliseconds: 2500));
+    expect(
+      result.proposedDocument.lines.first.startTime,
+      const Duration(milliseconds: 1500),
+    );
+    expect(
+      result.proposedDocument.lines.first.endTime,
+      const Duration(milliseconds: 2500),
+    );
     expect(result.lines.first.timingProvenance, LyricTimingProvenance.reference);
     expect(result.proposedDocument.lines.last.startTime, const Duration(seconds: 3));
     expect(result.lines.last.timingProvenance, LyricTimingProvenance.mappedAsr);
@@ -104,9 +117,15 @@ void main() {
         ref('第二句歌词'),
         ref('第三句歌词'),
       ]),
+      audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result, input: draft, inputSnapshot: draftSnapshot, audioDuration: const Duration(seconds: 8));
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+      audioDuration: const Duration(seconds: 8),
+    );
     expect(result.proposedDocument.lines.map((line) => line.text), [
       '第一句歌词',
       '第二句歌词',
@@ -114,7 +133,10 @@ void main() {
     ]);
     expect(result.lines[1].verdict, ReferenceFirstVerdictLevel.amber);
     expect(result.lines[1].timingProvenance, LyricTimingProvenance.autoRepaired);
-    expect(result.lines[1].reasons, contains(ReferenceFirstReason.interpolatedTiming));
+    expect(
+      result.lines[1].reasons,
+      contains(ReferenceFirstReason.interpolatedTiming),
+    );
     expect(result.lines[1].line.startTime, const Duration(milliseconds: 2500));
     expect(result.lines[1].line.endTime, const Duration(seconds: 4));
     expect(result.droppedLines.single.draftIndex, 1);
@@ -129,9 +151,16 @@ void main() {
       draft: draft,
       reference: input([ref('protected lyrics'), ref('second lyric')]),
       protectedDraftIndices: const {0},
+      audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result, input: draft, inputSnapshot: draftSnapshot, protectedSourceIndices: const {0}, audioDuration: const Duration(seconds: 8));
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 8),
+    );
     final output = result.proposedDocument.lines.first;
     expect(output.text, protected.text);
     expect(output.startTime, protected.startTime);
@@ -145,7 +174,9 @@ void main() {
     final original = doc([
       row('line one', 0, 3000),
       row('line two', 3000, 5000),
-    ], metadata: {'nested': {'items': ['must', 'stay', 'unchanged']}});
+    ], metadata: {
+      'nested': {'items': ['must', 'stay', 'unchanged']},
+    });
     final originalSnapshot = snapshotLyricDocument(original);
     final result = pipeline.build(
       draft: original,
@@ -156,13 +187,21 @@ void main() {
       audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result, input: original, inputSnapshot: originalSnapshot, audioDuration: const Duration(seconds: 8));
+    expectInvariants(
+      result,
+      input: original,
+      inputSnapshot: originalSnapshot,
+      audioDuration: const Duration(seconds: 8),
+    );
     expect(original.lines.first.endTime, const Duration(seconds: 3));
     expect(result.proposedDocument.lines.first.endTime, const Duration(seconds: 2));
     expect(result.proposedDocument.lines[1].startTime, const Duration(seconds: 2));
     expect(result.lines.first.verdict, ReferenceFirstVerdictLevel.amber);
     expect(result.lines.first.reasons, contains(ReferenceFirstReason.timelineAdjusted));
-    expect(result.proposedDocument.lines.last.endTime, lessThanOrEqualTo(const Duration(seconds: 8)));
+    expect(
+      result.proposedDocument.lines.last.endTime,
+      lessThanOrEqualTo(const Duration(seconds: 8)),
+    );
   });
 
   test('rejects reference text that sanitizes to no usable lyrics', () {

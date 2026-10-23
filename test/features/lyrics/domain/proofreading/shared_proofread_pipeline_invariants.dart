@@ -126,13 +126,14 @@ void expectProofreadPipelineInvariants({
       expect(sourceIndex, inInclusiveRange(0, input.lines.length - 1));
     }
     if (isProtected) {
+      final protectedIndex = sourceIndex!;
       expect(
         lockedVerdicts[index],
         isTrue,
         reason: 'I4: protected rows must be locked.',
       );
       expect(
-        _sameLine(line, input.lines[sourceIndex]),
+        _sameLine(line, input.lines[protectedIndex]),
         isTrue,
         reason: 'I4: protected row text, timing, ID and flags must be unchanged.',
       );
@@ -179,7 +180,9 @@ bool _sameLine(LyricLine left, LyricLine right) =>
 double _normalizedSimilarity(String left, String right) {
   final a = _normalize(left).runes.toList();
   final b = _normalize(right).runes.toList();
-  if (a.isEmpty || b.isEmpty) return a.isEmpty && b.isEmpty ? 1 : 0;
+  if (a.isEmpty || b.isEmpty) {
+    return a.isEmpty && b.isEmpty ? 1 : 0;
+  }
   final distance = _editDistance(a, b);
   final longest = a.length > b.length ? a.length : b.length;
   return 1 - distance / longest;
