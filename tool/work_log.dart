@@ -277,7 +277,7 @@ class WorkLogHarness {
 
     final buffer = StringBuffer(stableContent);
     if (missing.isNotEmpty) {
-      if (buffer.isNotEmpty) {
+      if (buffer.length > 0) {
         buffer.writeln();
         buffer.writeln();
       }
