@@ -222,4 +222,52 @@ void main() {
     expect(draft.lines[0].text, 'First word');
     expect(draft.lines[1].text, 'Second word');
   });
+
+  test('unrelated pre-existing timeline overlap does not block a safe edit', () {
+    final draft = document([
+      line('First line', 1000, 2500),
+      line('Second line', 2000, 3500),
+      line('Third word', 5000, 6000),
+    ]);
+    final item = proposal(
+      index: 2,
+      before: 'Third word',
+      after: 'Third verse',
+      start: 5100,
+      end: 6100,
+    );
+
+    final applied = changeSet.apply(
+      draft: draft,
+      proposals: [item],
+      selectedDraftIndices: const {2},
+    );
+
+    expect(applied.after.lines[2].text, 'Third verse');
+    expect(applied.after.lines[0].endTime, const Duration(milliseconds: 2500));
+    expect(applied.after.lines[1].startTime, const Duration(milliseconds: 2000));
+  });
+
+  test('still rejects a selected timing that overlaps an unchanged neighbor', () {
+    final draft = document([
+      line('First line', 1000, 2000),
+      line('Second word', 3000, 4000),
+    ]);
+    final item = proposal(
+      index: 1,
+      before: 'Second word',
+      after: 'Second verse',
+      start: 1900,
+      end: 3900,
+    );
+
+    expect(
+      () => changeSet.apply(
+        draft: draft,
+        proposals: [item],
+        selectedDraftIndices: const {1},
+      ),
+      throwsStateError,
+    );
+  });
 }
