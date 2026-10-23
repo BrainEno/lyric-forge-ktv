@@ -441,6 +441,21 @@ void main() {
       expect(result.asrLines.every((line) => line.structuralMismatch), isTrue);
     });
 
+    test('prefers the strongest candidate when several ASR windows qualify', () {
+      final result = service.align(
+        document: document([
+          asr('今夜星光照亮我的路'),
+          asr('啊'),
+          asr('哈'),
+        ]),
+        referenceLines: [reference('今夜星光照亮我的路啊哈')],
+      );
+
+      expect(result.structuralMismatches, hasLength(1));
+      expect(result.structuralMismatches.single.asrLineIndices, [0, 1, 2]);
+      expect(result.structuralMismatches.single.similarity, 1);
+    });
+
     test('detects a merged ASR line when one long reference already matches', () {
       final result = service.align(
         document: document([asr('今夜星光照亮我的路啊')]),

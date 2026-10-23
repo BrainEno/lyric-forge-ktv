@@ -816,6 +816,8 @@ class LyricAlignmentService {
     // A long fragment can match on its own and hide a split/merged row.
     // Re-scan small windows around matched rows, but only when the other
     // adjacent rows are unmatched and concatenation materially improves fit.
+    // Keep only the strongest window per matched row to avoid overlapping
+    // duplicate diagnostics when both two- and three-row windows qualify.
     const structuralImprovement = 0.05;
     for (var r = 0; r < references.length; r++) {
       final matchedAsr = refToAsr[r];
@@ -825,6 +827,8 @@ class LyricAlignmentService {
         reference.runes,
         asrLines[matchedAsr].runes,
       );
+      double? bestSimilarity;
+      List<int>? bestIndices;
 
       for (var length = 2; length <= maxWindow; length++) {
         final firstStart = matchedAsr - length + 1 < 0
@@ -855,22 +859,27 @@ class LyricAlignmentService {
               similarity - individualSimilarity < structuralImprovement) {
             continue;
           }
-
-          final originalIndices = [
-            for (var index = start; index < end; index++)
-              asrLines[index].originalIndex,
-          ];
-          final key = 'm:${reference.originalIndex}:${originalIndices.join(',')}';
-          if (seenKeys.add(key)) {
-            mismatches.add(
-              StructuralAlignmentMismatch(
-                kind: StructuralAlignmentMismatchKind.mergedAsrLines,
-                referenceIndices: [reference.originalIndex],
-                asrLineIndices: originalIndices,
-                similarity: similarity,
-              ),
-            );
+          if (bestSimilarity == null || similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestIndices = [
+              for (var index = start; index < end; index++)
+                asrLines[index].originalIndex,
+            ];
           }
+        }
+      }
+
+      if (bestSimilarity != null && bestIndices != null) {
+        final key = 'm:${reference.originalIndex}:${bestIndices.join(',')}';
+        if (seenKeys.add(key)) {
+          mismatches.add(
+            StructuralAlignmentMismatch(
+              kind: StructuralAlignmentMismatchKind.mergedAsrLines,
+              referenceIndices: [reference.originalIndex],
+              asrLineIndices: bestIndices,
+              similarity: bestSimilarity,
+            ),
+          );
         }
       }
     }
@@ -883,6 +892,8 @@ class LyricAlignmentService {
         asr.runes,
         references[matchedReference].runes,
       );
+      double? bestSimilarity;
+      List<int>? bestIndices;
 
       for (var length = 2; length <= maxWindow; length++) {
         final firstStart = matchedReference - length + 1 < 0
@@ -913,22 +924,27 @@ class LyricAlignmentService {
               similarity - individualSimilarity < structuralImprovement) {
             continue;
           }
-
-          final originalIndices = [
-            for (var index = start; index < end; index++)
-              references[index].originalIndex,
-          ];
-          final key = 's:${asr.originalIndex}:${originalIndices.join(',')}';
-          if (seenKeys.add(key)) {
-            mismatches.add(
-              StructuralAlignmentMismatch(
-                kind: StructuralAlignmentMismatchKind.splitAsrLine,
-                referenceIndices: originalIndices,
-                asrLineIndices: [asr.originalIndex],
-                similarity: similarity,
-              ),
-            );
+          if (bestSimilarity == null || similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestIndices = [
+              for (var index = start; index < end; index++)
+                references[index].originalIndex,
+            ];
           }
+        }
+      }
+
+      if (bestSimilarity != null && bestIndices != null) {
+        final key = 's:${asr.originalIndex}:${bestIndices.join(',')}';
+        if (seenKeys.add(key)) {
+          mismatches.add(
+            StructuralAlignmentMismatch(
+              kind: StructuralAlignmentMismatchKind.splitAsrLine,
+              referenceIndices: bestIndices,
+              asrLineIndices: [asr.originalIndex],
+              similarity: bestSimilarity,
+            ),
+          );
         }
       }
     }
