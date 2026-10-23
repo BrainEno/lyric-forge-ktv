@@ -50,6 +50,9 @@ void main() {
       ),
       protectedSourceIndices: protectedSourceIndices,
       audioDuration: audioDuration,
+      timingConflictVerdicts: result.lines
+          .map((line) => line.reasons.contains(ProofreadReason.timingConflict))
+          .toList(),
     );
   }
 
@@ -171,6 +174,7 @@ void main() {
       result,
       input: draft,
       inputSnapshot: before,
+      audioDuration: const Duration(seconds: 4),
     );
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
     expect(

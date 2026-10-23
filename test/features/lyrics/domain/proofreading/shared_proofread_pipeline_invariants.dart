@@ -23,6 +23,7 @@ void expectProofreadPipelineInvariants({
   Set<int> protectedSourceIndices = const {},
   Duration? audioDuration,
   List<int?>? referenceIndices,
+  List<bool>? timingConflictVerdicts,
 }) {
   final output = proposedDocument.lines;
   expect(
@@ -45,6 +46,13 @@ void expectProofreadPipelineInvariants({
     hasLength(output.length),
     reason: 'Every output row needs source mapping.',
   );
+  if (timingConflictVerdicts != null) {
+    expect(
+      timingConflictVerdicts,
+      hasLength(output.length),
+      reason: 'Every output row needs a timing-conflict state.',
+    );
+  }
   expect(
     snapshotLyricDocument(input),
     inputSnapshot,
@@ -64,6 +72,7 @@ void expectProofreadPipelineInvariants({
     final sourceIndex = sourceIndices[index];
     final isProtected =
         sourceIndex != null && protectedSourceIndices.contains(sourceIndex);
+    final timingConflict = timingConflictVerdicts?[index] ?? false;
 
     expect(
       _sameLine(line, verdictLine),
@@ -75,32 +84,47 @@ void expectProofreadPipelineInvariants({
       line.id,
       reason: 'I7: verdict line ID must match the proposed row.',
     );
-    expect(
-      line.startTime,
-      greaterThanOrEqualTo(Duration.zero),
-      reason: 'I6: time cannot be negative.',
-    );
-    expect(
-      line.endTime,
-      greaterThan(line.startTime),
-      reason: 'Every row needs a positive interval.',
-    );
-    if (!isProtected) {
+    final hasInvalidInterval =
+        line.startTime.isNegative ||
+        line.endTime <= line.startTime ||
+        (audioDuration != null && line.endTime > audioDuration);
+    if (hasInvalidInterval) {
+      expect(
+        timingConflict,
+        isTrue,
+        reason: 'I6: an invalid source interval must be explicitly marked timingConflict.',
+      );
+    }
+    if (!timingConflict) {
+      expect(
+        line.startTime,
+        greaterThanOrEqualTo(Duration.zero),
+        reason: 'I6: accepted output cannot start before zero.',
+      );
+      expect(
+        line.endTime,
+        greaterThan(line.startTime),
+        reason: 'Accepted output needs a positive interval.',
+      );
+      if (audioDuration != null) {
+        expect(
+          line.endTime,
+          lessThanOrEqualTo(audioDuration),
+          reason: 'I6: accepted output cannot exceed audio duration.',
+        );
+      }
+    }
+    if (!isProtected && !timingConflict) {
       expect(
         line.endTime - line.startTime,
         greaterThanOrEqualTo(_minimumOrdinaryLineDuration),
         reason: 'I2: ordinary output rows must be at least 300 ms.',
       );
     }
-    if (audioDuration != null) {
-      expect(
-        line.endTime,
-        lessThanOrEqualTo(audioDuration),
-        reason: 'I6: rows cannot exceed audio duration.',
-      );
-    }
 
-    if (index > 0) {
+    if (index > 0 &&
+        !(timingConflictVerdicts?[index - 1] ?? false) &&
+        !timingConflict) {
       final previous = output[index - 1];
       expect(
         line.startTime,
@@ -113,6 +137,8 @@ void expectProofreadPipelineInvariants({
         reason: 'I1: adjacent output rows must not overlap.',
       );
       if (referenceIndices != null &&
+          !(timingConflictVerdicts?[index - 1] ?? false) &&
+          !timingConflict &&
           _normalizedSimilarity(previous.text, line.text) >= 0.9 &&
           line.startTime < previous.endTime) {
         fail(
