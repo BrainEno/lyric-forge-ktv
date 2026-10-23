@@ -60,7 +60,7 @@ Before finishing, state the plan and intended files; implement; run validation; 
 - `docs/work_log_index.md`: compact navigation, recent focus, important follow-up leads, and pointers.
 - `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md`: one immutable file per completed task. Full text of the entry lives here. Never moved, never deleted, never rewritten.
 - `docs/work_log.md`: **generated** active summary (newest 8 entries, one line each). Do not edit by hand; regenerate with `dart tool/work_log.dart write`.
-- `docs/work_log_archive.md`: navigation for older entries, grouped by stage. Bodies stay in `docs/log/entries/`.
+- `docs/work_log_archive.md`: navigation for older entries, grouped by stage. Bodies stay in `docs/log/entries/`. The writer adds missing links to an auto-generated archive section so entries never become orphaned when they leave the active window.
 - `docs/decisions.md`: durable decisions that still bind future work.
 - `docs/handoff.md`: single-slot interruption handoff; overwrite it before ending a session.
 - The repository's canonical log root is `docs/`. Do not create a competing root-level `work_log.md`.
@@ -103,9 +103,9 @@ Before finishing, state the plan and intended files; implement; run validation; 
    - `Notes`: trade-offs, unverified behavior, and deferred work.
    - `Commit`: exactly one concise English imperative commit subject.
 
-3. Regenerate the active summary: `dart tool/work_log.dart write` (never hand-edit `docs/work_log.md`).
-4. When an entry ages out of the active window, add its one-line reference to the matching stage section in `docs/work_log_archive.md`; never delete the entry file.
-5. Update `docs/work_log_index.md` only if the stable current focus, a key decision, an important deferred risk, or navigation pointers materially change. Keep it under ~80 lines; do not mirror every task.
+3. Run `dart tool/work_log.dart write` to regenerate `docs/work_log.md`, sync the index snapshot date, and add archive links for aged-out entries; never hand-edit the generated summary.
+4. Optionally move auto-generated archive links into an existing stage section when that improves navigation. Do not delete entry files.
+5. Update the curated body of `docs/work_log_index.md` only if the stable current focus, a key decision, an important deferred risk, or navigation pointers materially change. The writer updates its snapshot date automatically. Keep it under ~80 lines; do not mirror every task.
 6. Record durable, still-binding decisions in `docs/decisions.md`; superseded ones are marked `已取代` instead of being deleted.
 7. Verify the log state: `dart tool/work_log.dart check` must pass (the same lint runs inside `scripts/quality_gate.ps1` / `scripts/quality_gate.sh`).
 8. Do not log exploratory/incomplete work or claim tests passed when they were not run.
