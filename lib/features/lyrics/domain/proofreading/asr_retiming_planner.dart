@@ -13,6 +13,7 @@ enum AsrRetimingReason {
   multipleMatchingWindows, lowConfidence, overlapsPreviousLine,
   overlapsNextLine, negativeStart, nonPositiveDuration, durationTooShort,
   beyondAudioDuration, invalidOriginalTiming, invalidConfidenceEvidence,
+  invalidEvidenceTiming,
 }
 
 class AsrRetimingOption {
