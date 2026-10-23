@@ -15,9 +15,12 @@ void main() {
         endTime: Duration(milliseconds: end),
       );
 
-  LyricDocument document(List<LyricLine> lines) =>
-      LyricDocument(language: 'en', lines: lines, globalOffset: const Duration(milliseconds: 25),
-          metadata: const {'source': 'test'});
+  LyricDocument document(List<LyricLine> lines) => LyricDocument(
+        language: 'en',
+        lines: lines,
+        globalOffset: const Duration(milliseconds: 25),
+        metadata: const {'source': 'test'},
+      );
 
   ReferenceProofreadReviewItem proposal({
     required int index,
@@ -39,7 +42,9 @@ void main() {
     final timing = AsrRetimingPlan(
       draftIndex: index,
       proposedText: after,
-      status: ready ? AsrRetimingStatus.readyForReview : AsrRetimingStatus.ambiguousEvidence,
+      status: ready
+          ? AsrRetimingStatus.readyForReview
+          : AsrRetimingStatus.ambiguousEvidence,
       options: [
         AsrRetimingOption(
           startTime: Duration(milliseconds: start),
@@ -50,13 +55,21 @@ void main() {
       ],
       reasons: const {AsrRetimingReason.exactTimedTextMatch},
     );
-    return ReferenceProofreadReviewItem(correction: correction, retiming: timing);
+    return ReferenceProofreadReviewItem(
+      correction: correction,
+      retiming: timing,
+    );
   }
 
   test('diff exposes before and after text and timing without mutation', () {
     final draft = document([line('Hello word', 1000, 2000)]);
-    final item = proposal(index: 0, before: 'Hello word', after: 'Hello world',
-        start: 1100, end: 2100);
+    final item = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    );
 
     final rows = changeSet.diff(draft, [item]);
 
@@ -74,10 +87,20 @@ void main() {
       line('Hello word', 1000, 2000),
       line('Next line', 3000, 4000),
     ]);
-    final first = proposal(index: 0, before: 'Hello word', after: 'Hello world',
-        start: 1100, end: 2100);
-    final second = proposal(index: 1, before: 'Next line', after: 'Next verse',
-        start: 3100, end: 4100);
+    final first = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    );
+    final second = proposal(
+      index: 1,
+      before: 'Next line',
+      after: 'Next verse',
+      start: 3100,
+      end: 4100,
+    );
 
     final applied = changeSet.apply(
       draft: draft,
@@ -86,7 +109,10 @@ void main() {
     );
 
     expect(applied.after.lines[0].text, 'Hello world');
-    expect(applied.after.lines[0].startTime, const Duration(milliseconds: 1100));
+    expect(
+      applied.after.lines[0].startTime,
+      const Duration(milliseconds: 1100),
+    );
     expect(applied.after.lines[1].text, 'Next verse');
     expect(applied.changedDraftIndices, [0, 1]);
     expect(applied.undo(), same(draft));
@@ -101,10 +127,20 @@ void main() {
       line('Hello newer', 1000, 2000),
       line('Next line', 3000, 4000),
     ]);
-    final first = proposal(index: 0, before: 'Hello word', after: 'Hello world',
-        start: 1100, end: 2100);
-    final second = proposal(index: 1, before: 'Next line', after: 'Next verse',
-        start: 3100, end: 4100);
+    final first = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    );
+    final second = proposal(
+      index: 1,
+      before: 'Next line',
+      after: 'Next verse',
+      start: 3100,
+      end: 4100,
+    );
 
     expect(
       () => changeSet.apply(
@@ -119,8 +155,13 @@ void main() {
 
   test('rejects protected or manually reviewed proposals', () {
     final draft = document([line('Hello word', 1000, 2000)]);
-    final item = proposal(index: 0, before: 'Hello word', after: 'Hello world',
-        start: 1100, end: 2100);
+    final item = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    );
 
     expect(
       () => changeSet.apply(
@@ -134,8 +175,16 @@ void main() {
     expect(
       () => changeSet.apply(
         draft: draft,
-        proposals: [proposal(index: 0, before: 'Hello word', after: 'Hello world',
-            start: 1100, end: 2100, ready: false)],
+        proposals: [
+          proposal(
+            index: 0,
+            before: 'Hello word',
+            after: 'Hello world',
+            start: 1100,
+            end: 2100,
+            ready: false,
+          ),
+        ],
         selectedDraftIndices: const {0},
       ),
       throwsStateError,
@@ -147,10 +196,20 @@ void main() {
       line('First word', 1000, 2000),
       line('Second word', 3000, 4000),
     ]);
-    final first = proposal(index: 0, before: 'First word', after: 'First verse',
-        start: 2500, end: 3300);
-    final second = proposal(index: 1, before: 'Second word', after: 'Second verse',
-        start: 3100, end: 3800);
+    final first = proposal(
+      index: 0,
+      before: 'First word',
+      after: 'First verse',
+      start: 2500,
+      end: 3300,
+    );
+    final second = proposal(
+      index: 1,
+      before: 'Second word',
+      after: 'Second verse',
+      start: 3100,
+      end: 3800,
+    );
 
     expect(
       () => changeSet.apply(
