@@ -124,12 +124,17 @@ class ReferenceProofreadChangeSet {
       );
     }
 
-    for (var i = 0; i < updatedLines.length; i++) {
-      final line = updatedLines[i];
+    // Validate changed intervals and their boundaries. Unrelated pre-existing
+    // timeline defects must not block a text correction elsewhere in the song.
+    for (final index in selected.keys) {
+      final line = updatedLines[index];
       if (line.startTime.isNegative || line.endTime <= line.startTime) {
-        throw StateError('Resulting timing is invalid at draft line $i.');
+        throw StateError('Resulting timing is invalid at draft line $index.');
       }
-      if (i > 0 && line.startTime < updatedLines[i - 1].endTime) {
+    }
+    for (var i = 1; i < updatedLines.length; i++) {
+      if (!selected.contains(i) && !selected.contains(i - 1)) continue;
+      if (updatedLines[i].startTime < updatedLines[i - 1].endTime) {
         throw StateError('Resulting lines overlap at draft line $i.');
       }
     }
