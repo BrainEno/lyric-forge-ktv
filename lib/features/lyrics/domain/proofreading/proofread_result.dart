@@ -184,18 +184,21 @@ class ProofreadResult {
     }
   }
 
-  List<ProofreadLineResult> get greenLines =>
-      List.unmodifiable(
-        lines.where((row) => row.verdict == ProofreadVerdict.green),
-      );
+  List<ProofreadLineResult> get greenLines {
+    return lines
+        .where((row) => row.verdict == ProofreadVerdict.green)
+        .toList(growable: false);
+  }
 
-  List<ProofreadLineResult> get amberLines =>
-      List.unmodifiable(
-        lines.where((row) => row.verdict == ProofreadVerdict.amber),
-      );
+  List<ProofreadLineResult> get amberLines {
+    return lines
+        .where((row) => row.verdict == ProofreadVerdict.amber)
+        .toList(growable: false);
+  }
 
-  List<ProofreadLineResult> get lockedLines =>
-      List.unmodifiable(
-        lines.where((row) => row.verdict == ProofreadVerdict.locked),
-      );
+  List<ProofreadLineResult> get lockedLines {
+    return lines
+        .where((row) => row.verdict == ProofreadVerdict.locked)
+        .toList(growable: false);
+  }
 }
