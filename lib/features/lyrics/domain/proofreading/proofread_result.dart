@@ -178,10 +178,27 @@ class ProofreadResult {
         'Each proposed document line must have exactly one verdict.',
       );
     }
+    for (var index = 0; index < lines.length; index++) {
+      if (!_sameLine(lines[index].line, proposedDocument.lines[index])) {
+        throw ArgumentError(
+          'Line verdict at index $index must describe the corresponding '
+          'proposed document line.',
+        );
+      }
+    }
     final ids = lines.map((row) => row.lineId).whereType<String>().toList();
     if (ids.toSet().length != ids.length) {
       throw ArgumentError('Non-null line IDs must be unique.');
     }
+  }
+
+  static bool _sameLine(LyricLine left, LyricLine right) {
+    return left.id == right.id &&
+        left.text == right.text &&
+        left.startTime == right.startTime &&
+        left.endTime == right.endTime &&
+        left.isChorus == right.isChorus &&
+        left.confidence == right.confidence;
   }
 
   List<ProofreadLineResult> get greenLines {
