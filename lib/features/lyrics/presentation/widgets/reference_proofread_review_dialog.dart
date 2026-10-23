@@ -42,14 +42,17 @@ class _ReferenceProofreadReviewDialogState
 
   @override
   Widget build(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    final dialogWidth = (viewport.width - 48).clamp(0, 720).toDouble();
+    final dialogHeight = (viewport.height - 240).clamp(180, 460).toDouble();
     final eligibleCount = widget.suggestions
         .where((item) => !item.requiresManualReview)
         .length;
     return AlertDialog(
       title: const Text('参考歌词智能纠错'),
       content: SizedBox(
-        width: 720,
-        height: 460,
+        width: dialogWidth,
+        height: dialogHeight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
