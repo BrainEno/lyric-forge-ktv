@@ -402,21 +402,23 @@ void main() {
       expect(result.hasStructuralMismatches, isTrue);
     });
 
-    test('keeps structural mismatch indices in original order around empty lines', () {
+    test('preserves original indices when empty lines are skipped', () {
       final result = service.align(
         document: document([
           asr('今夜星光'),
+          asr(''),
           asr('照亮我的路'),
         ]),
         referenceLines: [
-          reference('今夜星光照亮我的路'),
           reference('，。！？'),
+          reference('今夜星光照亮我的路'),
         ],
       );
 
       expect(result.structuralMismatches, hasLength(1));
-      expect(result.structuralMismatches.single.referenceIndices, [0]);
-      expect(result.structuralMismatches.single.asrLineIndices, [0, 1]);
+      expect(result.structuralMismatches.single.referenceIndices, [1]);
+      expect(result.structuralMismatches.single.asrLineIndices, [0, 2]);
+      expect(result.entries.single.referenceIndex, 1);
     });
   });
 
