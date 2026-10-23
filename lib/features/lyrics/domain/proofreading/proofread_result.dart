@@ -23,7 +23,14 @@ enum ProofreadReason {
 
 enum ProofreadRisk { low, medium, high }
 
-enum ProofreadTimeSource { primaryAsr, secondaryAsr, forcedAligner, reference, interpolated, manual }
+enum ProofreadTimeSource {
+  primaryAsr,
+  secondaryAsr,
+  forcedAligner,
+  reference,
+  interpolated,
+  manual,
+}
 
 /// A validated half-open interval in the audio timeline: [start, end).
 class ProofreadTimeInterval {
@@ -59,7 +66,11 @@ class TimedLyricToken {
       throw ArgumentError.value(text, 'text', 'Must not be empty.');
     }
     if (confidence < 0 || confidence > 100) {
-      throw ArgumentError.value(confidence, 'confidence', 'Must be in 0..100.');
+      throw ArgumentError.value(
+        confidence,
+        'confidence',
+        'Must be in 0..100.',
+      );
     }
   }
 }
@@ -94,7 +105,11 @@ class ProofreadDroppedLine {
     required Set<ProofreadReason> reasons,
   }) : reasons = Set.unmodifiable(reasons) {
     if (sourceIndex < 0) {
-      throw ArgumentError.value(sourceIndex, 'sourceIndex', 'Must be non-negative.');
+      throw ArgumentError.value(
+        sourceIndex,
+        'sourceIndex',
+        'Must be non-negative.',
+      );
     }
   }
 }
@@ -115,13 +130,19 @@ class ProofreadAdlib {
       throw ArgumentError.value(text, 'text', 'Must not be empty.');
     }
     if (confidence < 0 || confidence > 100) {
-      throw ArgumentError.value(confidence, 'confidence', 'Must be in 0..100.');
+      throw ArgumentError.value(
+        confidence,
+        'confidence',
+        'Must be in 0..100.',
+      );
     }
   }
 }
 
 /// Shared, immutable output contract for both proofreading strategies.
-/// Constructing a result never persists or applies changes to the source document.
+///
+/// Constructing a result never persists or applies changes to the source
+/// document.
 class ProofreadResult {
   final LyricDocument proposedDocument;
   final List<ProofreadLineResult> lines;
@@ -146,10 +167,16 @@ class ProofreadResult {
     if (!referenceCoverage.isFinite ||
         referenceCoverage < 0 ||
         referenceCoverage > 1) {
-      throw ArgumentError.value(referenceCoverage, 'referenceCoverage', 'Must be in 0..1.');
+      throw ArgumentError.value(
+        referenceCoverage,
+        'referenceCoverage',
+        'Must be in 0..1.',
+      );
     }
     if (lines.length != proposedDocument.lines.length) {
-      throw ArgumentError('Each proposed document line must have exactly one verdict.');
+      throw ArgumentError(
+        'Each proposed document line must have exactly one verdict.',
+      );
     }
     final ids = lines.map((row) => row.lineId).whereType<String>().toList();
     if (ids.toSet().length != ids.length) {
@@ -157,12 +184,15 @@ class ProofreadResult {
     }
   }
 
-  List<ProofreadLineResult> get greenLines =>
-      List.unmodifiable(lines.where((row) => row.verdict == ProofreadVerdict.green));
+  List<ProofreadLineResult> get greenLines => List.unmodifiable(
+    lines.where((row) => row.verdict == ProofreadVerdict.green),
+  );
 
-  List<ProofreadLineResult> get amberLines =>
-      List.unmodifiable(lines.where((row) => row.verdict == ProofreadVerdict.amber));
+  List<ProofreadLineResult> get amberLines => List.unmodifiable(
+    lines.where((row) => row.verdict == ProofreadVerdict.amber),
+  );
 
-  List<ProofreadLineResult> get lockedLines =>
-      List.unmodifiable(lines.where((row) => row.verdict == ProofreadVerdict.locked));
+  List<ProofreadLineResult> get lockedLines => List.unmodifiable(
+    lines.where((row) => row.verdict == ProofreadVerdict.locked),
+  );
 }
