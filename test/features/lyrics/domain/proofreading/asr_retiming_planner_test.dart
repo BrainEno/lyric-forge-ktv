@@ -57,6 +57,24 @@ void main() {
     expect(result.canOfferForReview, isFalse);
   });
 
+  test('rejects out-of-range confidence instead of clamping evidence', () {
+    for (final confidence in [-1, 101]) {
+      final result = planner.plan(
+        draft: doc([line('old text', 1000, 2500)]),
+        draftIndex: 0,
+        proposedText: 'hello world',
+        timingEvidence: doc([
+          line('hello world', 1200, 2400, confidence: confidence),
+        ]),
+      );
+
+      expect(result.status, AsrRetimingStatus.invalidTimingEvidence);
+      expect(result.reasons, contains(AsrRetimingReason.invalidConfidenceEvidence));
+      expect(result.canOfferForReview, isFalse);
+      expect(result.options, isEmpty);
+    }
+  });
+
   test('rejects timing that overlaps neighbors or exceeds audio duration', () {
     final overlap = planner.plan(
       draft: doc([line('previous', 0, 2000), line('old text', 2000, 3500), line('next', 3600, 5000)]),
