@@ -201,6 +201,7 @@ void main() {
 
     final harness = WorkLogHarness(root);
     harness.writeGeneratedFiles();
+    harness.writeGeneratedFiles();
 
     final summary = File(
       '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log.md',
@@ -216,6 +217,12 @@ void main() {
     expect(summary, isNot(contains('[2026-01-01 09:02]')));
     expect(index, contains('Navigation snapshot through 2026-01-02'));
     expect(archive, contains('2026-01-01-0902-fixture-entry-2.md'));
+    expect(
+      RegExp('BEGIN AUTO-GENERATED WORK LOG REFERENCES')
+          .allMatches(archive)
+          .length,
+      1,
+    );
     expect(
       harness.lint(lookupCommits: false).where((problem) => !problem.isWarning),
       isEmpty,
