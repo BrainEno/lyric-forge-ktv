@@ -17,6 +17,8 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
+import '../../domain/proofreading/asr_reference_correction_suggester.dart';
+import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_audition_window_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
@@ -31,6 +33,7 @@ import '../../domain/services/reference_alignment_restore_service.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
+import '../widgets/reference_proofread_review_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
@@ -517,6 +520,76 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         content: Text(
           '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}$timelineWarning。'
           '请检查后保存。',
+        ),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
+      ),
+    );
+  }
+
+  Future<void> _openReferenceProofread(ProjectManifest project) async {
+    final document = _editingDocument;
+    if (document == null || document.lines.isEmpty) return;
+
+    final input = await showReferenceAlignmentDialog(
+      context,
+      parser: _referenceParser,
+      initialTitle: project.name,
+      initialArtist: project.artist,
+    );
+    if (input == null || !mounted) return;
+
+    final suggestions = const AsrReferenceCorrectionSuggester().suggest(
+      draft: document,
+      reference: input,
+      protectedDraftIndices: _manuallyEditedLineIndices,
+    ).suggestions;
+    if (suggestions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('没有发现可供复核的文字差异')),
+      );
+      return;
+    }
+
+    final selected = await showReferenceProofreadReviewDialog(
+      context,
+      document: document,
+      suggestions: suggestions,
+    );
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final applied = const ReferenceProofreadChangeSet().applyTextOnly(
+      draft: document,
+      suggestions: suggestions,
+      selectedDraftIndices: selected,
+      protectedDraftIndices: _manuallyEditedLineIndices,
+    );
+    final snapshot = _AlignmentUndoSnapshot(
+      document: document,
+      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
+      selectedLineIndex: _selectedLineIndex,
+      hasChanges: _hasChanges,
+    );
+    setState(() {
+      _editingDocument = applied.after;
+      _activeLineAudition = null;
+      _hasChanges = true;
+      _alignmentUndoSnapshot = snapshot;
+      _filter = _ReviewFilter.all;
+      _selectedLineIndex = applied.changedDraftIndices.first;
+    });
+    final activeAudition = _activeLineAudition;
+    if (activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            activeAudition.projectId &&
+        _audioService.currentState.isPlaying) {
+      unawaited(_audioService.pause());
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
+          '现有时间戳保持不变，请试听检查并保存。',
         ),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
@@ -1141,6 +1214,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onReferenceAlignment: _editingDocument!.lines.isEmpty
                   ? null
                   : () => _openReferenceAlignment(project),
+              onReferenceProofread: _editingDocument!.lines.isEmpty
+                  ? null
+                  : () => _openReferenceProofread(project),
               onUndoReferenceAlignment: _alignmentUndoSnapshot == null
                   ? null
                   : _undoAlignmentApply,
@@ -1241,6 +1317,7 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onReferenceProofread;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
@@ -1278,6 +1355,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSave,
     required this.onExport,
     required this.onReferenceAlignment,
+    required this.onReferenceProofread,
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
@@ -1527,6 +1605,7 @@ class _LyricEditorContent extends StatelessWidget {
                   : null,
               onSeekPlayback: onSeekPlayback,
               onReferenceAlignment: onReferenceAlignment,
+              onReferenceProofread: onReferenceProofread,
               onUndoReferenceAlignment: onUndoReferenceAlignment,
               onViewAlignmentComparison: onViewAlignmentComparison,
               onRestoreAlignment: onRestoreAlignment,
@@ -1658,6 +1737,7 @@ class _EditorToolbar extends StatelessWidget {
   final VoidCallback? onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onReferenceAlignment;
+  final VoidCallback? onReferenceProofread;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
@@ -1681,6 +1761,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
     required this.onReferenceAlignment,
+    required this.onReferenceProofread,
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
