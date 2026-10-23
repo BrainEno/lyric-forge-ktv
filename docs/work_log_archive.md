@@ -75,3 +75,8 @@
 - [2026-10-21 12:26] 修复参考歌词对话框内 LayoutBuilder 导致的卡死 Fix reference alignment dialog freeze caused by LayoutBuilder in AlertDialog ([entry](log/entries/2026-10-21-1226-reference-dialog-layout-freeze.md))
 - [2026-10-21 14:03] 参考歌词对齐：安全批量、时间来源与内存撤销 `Harden reference lyric alignment batch apply, timing provenance, and undo` ([entry](log/entries/2026-10-21-1403-reference-alignment-safe-batch-and-undo.md))
 - [2026-10-21 15:47] 对齐后逐行对比与保守时间轴自动修复（PR #125） `Add post-apply lyric diff view and conservative timeline auto-repair` ([entry](log/entries/2026-10-21-1547-post-apply-diff-and-timeline-auto-repair.md))
+
+
+## 2026-10-21 | Guided lyric review and audition
+
+- [2026-10-21 16:50] 智能歌词复核优先队列（PR #126） ([entry](log/entries/2026-10-21-1650-smart-lyric-review-queue.md))
