@@ -813,6 +813,126 @@ class LyricAlignmentService {
       }
     }
 
+    // A long fragment can match on its own and hide a split/merged row.
+    // Re-scan small windows around matched rows, but only when the other
+    // adjacent rows are unmatched and concatenation materially improves fit.
+    const structuralImprovement = 0.05;
+    for (var r = 0; r < references.length; r++) {
+      final matchedAsr = refToAsr[r];
+      if (matchedAsr == null) continue;
+      final reference = references[r];
+      final individualSimilarity = _similarity(
+        reference.runes,
+        asrLines[matchedAsr].runes,
+      );
+
+      for (var length = 2; length <= maxWindow; length++) {
+        final firstStart = matchedAsr - length + 1 < 0
+            ? 0
+            : matchedAsr - length + 1;
+        final lastPossibleStart = asrLines.length - length;
+        final lastStart = matchedAsr < lastPossibleStart
+            ? matchedAsr
+            : lastPossibleStart;
+        for (var start = firstStart; start <= lastStart; start++) {
+          final end = start + length;
+          var hasUnmatchedNeighbor = false;
+          var hasConflictingMatch = false;
+          final runes = <int>[];
+          for (var index = start; index < end; index++) {
+            runes.addAll(asrLines[index].runes);
+            if (index == matchedAsr) continue;
+            if (asrToRef[index] == null) {
+              hasUnmatchedNeighbor = true;
+            } else {
+              hasConflictingMatch = true;
+            }
+          }
+          if (!hasUnmatchedNeighbor || hasConflictingMatch) continue;
+
+          final similarity = _similarity(reference.runes, runes);
+          if (similarity < minimumPairSimilarity ||
+              similarity - individualSimilarity < structuralImprovement) {
+            continue;
+          }
+
+          final originalIndices = [
+            for (var index = start; index < end; index++)
+              asrLines[index].originalIndex,
+          ];
+          final key = 'm:${reference.originalIndex}:${originalIndices.join(',')}';
+          if (seenKeys.add(key)) {
+            mismatches.add(
+              StructuralAlignmentMismatch(
+                kind: StructuralAlignmentMismatchKind.mergedAsrLines,
+                referenceIndices: [reference.originalIndex],
+                asrLineIndices: originalIndices,
+                similarity: similarity,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    for (var a = 0; a < asrLines.length; a++) {
+      final matchedReference = asrToRef[a];
+      if (matchedReference == null) continue;
+      final asr = asrLines[a];
+      final individualSimilarity = _similarity(
+        asr.runes,
+        references[matchedReference].runes,
+      );
+
+      for (var length = 2; length <= maxWindow; length++) {
+        final firstStart = matchedReference - length + 1 < 0
+            ? 0
+            : matchedReference - length + 1;
+        final lastPossibleStart = references.length - length;
+        final lastStart = matchedReference < lastPossibleStart
+            ? matchedReference
+            : lastPossibleStart;
+        for (var start = firstStart; start <= lastStart; start++) {
+          final end = start + length;
+          var hasUnmatchedNeighbor = false;
+          var hasConflictingMatch = false;
+          final runes = <int>[];
+          for (var index = start; index < end; index++) {
+            runes.addAll(references[index].runes);
+            if (index == matchedReference) continue;
+            if (refToAsr[index] == null) {
+              hasUnmatchedNeighbor = true;
+            } else {
+              hasConflictingMatch = true;
+            }
+          }
+          if (!hasUnmatchedNeighbor || hasConflictingMatch) continue;
+
+          final similarity = _similarity(asr.runes, runes);
+          if (similarity < minimumPairSimilarity ||
+              similarity - individualSimilarity < structuralImprovement) {
+            continue;
+          }
+
+          final originalIndices = [
+            for (var index = start; index < end; index++)
+              references[index].originalIndex,
+          ];
+          final key = 's:${asr.originalIndex}:${originalIndices.join(',')}';
+          if (seenKeys.add(key)) {
+            mismatches.add(
+              StructuralAlignmentMismatch(
+                kind: StructuralAlignmentMismatchKind.splitAsrLine,
+                referenceIndices: originalIndices,
+                asrLineIndices: [asr.originalIndex],
+                similarity: similarity,
+              ),
+            );
+          }
+        }
+      }
+    }
+
     mismatches.sort((a, b) {
       final left = a.referenceIndices.isEmpty ? 0 : a.referenceIndices.first;
       final right = b.referenceIndices.isEmpty ? 0 : b.referenceIndices.first;
