@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/proofreading/timing_evidence_json_parser.dart';
 
 /// Imports an independent timed ASR document as evidence, never as lyrics to
 /// apply directly. Confidence values are preserved from the source JSON.
@@ -62,30 +62,9 @@ class _TimingEvidenceImportDialogState
       _error = null;
     });
     try {
-      final decoded = jsonDecode(await File(path).readAsString());
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException('JSON 顶层必须是对象');
-      }
-      final root = decoded['lyricDocument'] is Map<String, dynamic>
-          ? decoded['lyricDocument'] as Map<String, dynamic>
-          : decoded;
-      if (root['lines'] is! List) {
-        throw const FormatException('找不到 lines 数组；请选择歌词文档或工程 manifest JSON');
-      }
-      final document = LyricDocument.fromJson(root);
-      if (document.lines.isEmpty) {
-        throw const FormatException('时间证据没有歌词行');
-      }
-      for (var index = 0; index < document.lines.length; index++) {
-        final line = document.lines[index];
-        if (line.text.trim().isEmpty ||
-            line.startTime.isNegative ||
-            line.endTime <= line.startTime ||
-            line.confidence < 0 ||
-            line.confidence > 100) {
-          throw FormatException('第 ${index + 1} 行的文字、时间或置信度无效');
-        }
-      }
+      final document = const TimingEvidenceJsonParser().parse(
+        await File(path).readAsString(),
+      );
       if (!mounted) return;
       Navigator.of(context).pop(document);
     } catch (error) {
