@@ -101,19 +101,23 @@ class _ReferenceProofreadTimingReviewDialogState
                   onPressed: eligibleCount == 0
                       ? null
                       : () => setState(() {
-                            if (_selected.length == eligibleCount) {
-                              _selected.clear();
-                            } else {
-                              _selected
-                                ..clear()
-                                ..addAll(
-                                  widget.items
-                                      .where(_eligible)
-                                      .map((item) => item.correction.draftIndex),
-                                );
-                            }
-                          }),
-                  child: Text(_selected.length == eligibleCount ? '取消全选' : '全选安全项'),
+                          if (_selected.length == eligibleCount) {
+                            _selected.clear();
+                          } else {
+                            _selected
+                              ..clear()
+                              ..addAll(
+                                widget.items
+                                    .where(_eligible)
+                                    .map(
+                                      (item) => item.correction.draftIndex,
+                                    ),
+                              );
+                          }
+                        }),
+                  child: Text(
+                    _selected.length == eligibleCount ? '取消全选' : '全选安全项',
+                  ),
                 ),
               ],
             ),
@@ -121,7 +125,7 @@ class _ReferenceProofreadTimingReviewDialogState
             Expanded(
               child: ListView.separated(
                 itemCount: widget.items.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final item = widget.items[index];
                   final correction = item.correction;
@@ -130,19 +134,18 @@ class _ReferenceProofreadTimingReviewDialogState
                   final option = timing.options.length == 1
                       ? timing.options.single
                       : null;
-                  final reason = timing.reasons.map((value) => switch (value) {
-                    _ => value.name,
-                  }).join('、');
+                  final reason = timing.reasons.map(_reasonLabel).join('、');
                   return CheckboxListTile(
-                    value: eligible && _selected.contains(correction.draftIndex),
+                    value:
+                        eligible && _selected.contains(correction.draftIndex),
                     onChanged: eligible
                         ? (checked) => setState(() {
-                              if (checked == true) {
-                                _selected.add(correction.draftIndex);
-                              } else {
-                                _selected.remove(correction.draftIndex);
-                              }
-                            })
+                            if (checked == true) {
+                              _selected.add(correction.draftIndex);
+                            } else {
+                              _selected.remove(correction.draftIndex);
+                            }
+                          })
                         : null,
                     controlAffinity: ListTileControlAffinity.leading,
                     title: Text(
@@ -185,7 +188,9 @@ class _ReferenceProofreadTimingReviewDialogState
         FilledButton.icon(
           onPressed: _selected.isEmpty
               ? null
-              : () => Navigator.of(context).pop(Set<int>.unmodifiable(_selected)),
+              : () => Navigator.of(context).pop(
+                  Set<int>.unmodifiable(_selected),
+                ),
           icon: const Icon(Icons.check),
           label: Text('应用所选（${_selected.length}）'),
         ),
