@@ -46,12 +46,14 @@ class _AlignmentUndoSnapshot {
   final Set<String> manuallyEditedLineIds;
   final int? selectedLineIndex;
   final bool hasChanges;
+  final bool isReferenceProofread;
 
   const _AlignmentUndoSnapshot({
     required this.document,
     required this.manuallyEditedLineIds,
     required this.selectedLineIndex,
     required this.hasChanges,
+    this.isReferenceProofread = false,
   });
 }
 
@@ -569,6 +571,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
       selectedLineIndex: _selectedLineIndex,
       hasChanges: _hasChanges,
+      isReferenceProofread: true,
     );
     final activeAudition = _activeLineAudition;
     final shouldPauseAudition = activeAudition != null &&
@@ -667,7 +670,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('已撤销本次参考歌词对齐（未写入磁盘）'),
+        content: Text('已撤销最近一次参考歌词批量更改（未写入磁盘）'),
         duration: Duration(seconds: 3),
       ),
     );
@@ -1219,7 +1222,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onUndoReferenceAlignment: _alignmentUndoSnapshot == null
                   ? null
                   : _undoAlignmentApply,
-              onViewAlignmentComparison: _alignmentUndoSnapshot == null
+              onViewAlignmentComparison: _alignmentUndoSnapshot == null ||
+                      _alignmentUndoSnapshot!.isReferenceProofread
                   ? null
                   : () => _showAlignmentComparison(project),
               onRestoreAlignment: canRestore ? _restoreAlignmentBackup : null,
@@ -1929,7 +1933,7 @@ class _EditorToolbar extends StatelessWidget {
                 child: FilledButton.tonalIcon(
                   onPressed: onUndoReferenceAlignment,
                   icon: const Icon(Icons.undo_rounded, size: 18),
-                  label: const Text('撤销本次对齐'),
+                  label: const Text('撤销最近更改'),
                 ),
               ),
             if (!compactControls && onRestoreAlignment != null)
