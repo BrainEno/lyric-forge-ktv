@@ -10,4 +10,4 @@
   - `dart tool/work_log.dart check` → passed on the final PR run.
   - PR #147 Actions run `39831585131` → success; merged-main push run `39832028975` → success.
 - Notes: Running Dart 3.47.7 formatting across the entire repository reported historical formatting differences in 217 of 331 Dart files; this change avoids unrelated mass reformatting and currently enforces formatting only for newly added Dart files. Full analyzer/tests cover `lib` and `test`. Repository branch-protection settings could not be read or updated through the connected GitHub API, so make the stable `Flutter Quality Gate / format-analyze-test-worklog` check required in repository Settings.
-- Commit: `ci: add universal Flutter quality gate`
+- Commit: ci: add universal Flutter quality gate

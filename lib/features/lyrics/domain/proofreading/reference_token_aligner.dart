@@ -37,7 +37,11 @@ class ReferenceTokenAlignmentResult {
   int get referenceTokenCount => referenceTokens.length;
   int get matchedReferenceTokenCount =>
       matches.map((match) => match.referenceIndex).toSet().length;
-  double get referenceCoverage => referenceTokenCount == 0
+  /// False when safety limits prevented a complete alignment.
+  bool get isComplete => !candidateLimitReached && !dpBudgetExceeded;
+
+  /// Partial anchor matches must never masquerade as full coverage.
+  double get referenceCoverage => referenceTokenCount == 0 || !isComplete
       ? 0
       : matchedReferenceTokenCount / referenceTokenCount;
 }

@@ -80,3 +80,4 @@
 ## 2026-10-21 | Guided lyric review and audition
 
 - [2026-10-21 16:50] 智能歌词复核优先队列（PR #126） ([entry](log/entries/2026-10-21-1650-smart-lyric-review-queue.md))
+- [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
