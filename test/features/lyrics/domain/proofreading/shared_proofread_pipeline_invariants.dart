@@ -135,7 +135,8 @@ void expectProofreadPipelineInvariants({
       expect(
         _sameLine(line, input.lines[protectedIndex]),
         isTrue,
-        reason: 'I4: protected row text, timing, ID and flags must be unchanged.',
+        reason:
+            'I4: protected row text, timing, ID and flags must be unchanged.',
       );
     }
   }
