@@ -189,6 +189,39 @@ void main() {
     expect(rulesOf(problems), contains('index-snapshot'));
   });
 
+  test('write syncs summary, index snapshot, and aged-out archive references', () {
+    createValidHarness();
+    writeFile(
+      'docs/log/entries/2026-01-02-0800-new-entry.md',
+      entryBody(
+        timestamp: '2026-01-02 08:00',
+        title: 'New entry',
+      ),
+    );
+
+    final harness = WorkLogHarness(root);
+    harness.writeGeneratedFiles();
+
+    final summary = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log.md',
+    ).readAsStringSync();
+    final index = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log_index.md',
+    ).readAsStringSync();
+    final archive = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log_archive.md',
+    ).readAsStringSync();
+
+    expect(summary, contains('[2026-01-02 08:00] New entry'));
+    expect(summary, isNot(contains('[2026-01-01 09:02]')));
+    expect(index, contains('Navigation snapshot through 2026-01-02'));
+    expect(archive, contains('2026-01-01-0902-fixture-entry-2.md'));
+    expect(
+      harness.lint(lookupCommits: false).where((problem) => !problem.isWarning),
+      isEmpty,
+    );
+  });
+
   test('detects a decision without all fields', () {
     createValidHarness();
     writeFile(
