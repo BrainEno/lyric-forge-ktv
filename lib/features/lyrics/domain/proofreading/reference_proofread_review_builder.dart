@@ -45,7 +45,7 @@ class ReferenceProofreadReviewBuilder {
     Duration? audioDuration,
     double suggestionThreshold = 0.82,
   }) {
-    final corrections = correctionSuggester.suggest(
+    final correctionResult = correctionSuggester.suggest(
       draft: draft,
       reference: reference,
       protectedDraftIndices: protectedDraftIndices,
@@ -53,7 +53,7 @@ class ReferenceProofreadReviewBuilder {
     );
 
     return List.unmodifiable([
-      for (final correction in corrections)
+      for (final correction in correctionResult.suggestions)
         ReferenceProofreadReviewItem(
           correction: correction,
           retiming: retimingPlanner.plan(
