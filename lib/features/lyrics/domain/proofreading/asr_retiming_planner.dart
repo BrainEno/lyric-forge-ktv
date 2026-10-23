@@ -12,7 +12,7 @@ enum AsrRetimingReason {
   emptyProposedText, protectedLine, noExactNearbyMatch,
   multipleMatchingWindows, lowConfidence, overlapsPreviousLine,
   overlapsNextLine, negativeStart, nonPositiveDuration, durationTooShort,
-  beyondAudioDuration, invalidOriginalTiming,
+  beyondAudioDuration, invalidOriginalTiming, invalidConfidenceEvidence,
 }
 
 class AsrRetimingOption {
@@ -109,6 +109,16 @@ class AsrRetimingPlanner {
           const [], {AsrRetimingReason.invalidOriginalTiming});
     }
 
+    if (timingEvidence.lines.any((line) => line.confidence < 0 || line.confidence > 100)) {
+      return _result(
+        draftIndex,
+        proposedText,
+        AsrRetimingStatus.invalidTimingEvidence,
+        const [],
+        {AsrRetimingReason.invalidConfidenceEvidence},
+      );
+    }
+
     final matches = <AsrRetimingOption>[];
     for (var start = 0; start < timingEvidence.lines.length; start++) {
       final window = <LyricLine>[];
@@ -130,7 +140,7 @@ class AsrRetimingPlanner {
         for (final item in window) {
           if (item.startTime < from) from = item.startTime;
           if (item.endTime > to) to = item.endTime;
-          confidence += item.confidence.clamp(0, 100).toInt();
+          confidence += item.confidence;
         }
         if (_gap(source.startTime, source.endTime, from, to) <= searchPadding) {
           matches.add(AsrRetimingOption(
