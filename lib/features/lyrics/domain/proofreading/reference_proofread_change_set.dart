@@ -133,7 +133,7 @@ class ReferenceProofreadChangeSet {
       }
     }
     for (var i = 1; i < updatedLines.length; i++) {
-      if (!selected.contains(i) && !selected.contains(i - 1)) continue;
+      if (!selected.containsKey(i) && !selected.containsKey(i - 1)) continue;
       if (updatedLines[i].startTime < updatedLines[i - 1].endTime) {
         throw StateError('Resulting lines overlap at draft line $i.');
       }
