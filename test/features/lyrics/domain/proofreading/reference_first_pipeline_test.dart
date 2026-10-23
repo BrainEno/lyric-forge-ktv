@@ -204,6 +204,36 @@ void main() {
     );
   });
 
+  test('keeps repeated chorus rows distinct when their intervals do not overlap', () {
+    final draft = doc([
+      row('同一段副歌', 0, 1000, id: 'chorus-a'),
+      row('同一段副歌', 1500, 2500, id: 'chorus-b'),
+    ]);
+    final inputSnapshot = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      reference: input([ref('同一段副歌'), ref('同一段副歌')]),
+      protectedDraftIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+    );
+
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: inputSnapshot,
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+    );
+    expect(result.lines.map((line) => line.referenceIndex), [0, 1]);
+    expect(result.proposedDocument.lines.map((line) => line.text), [
+      '同一段副歌',
+      '同一段副歌',
+    ]);
+    expect(result.proposedDocument.lines[0].endTime, lessThanOrEqualTo(
+      result.proposedDocument.lines[1].startTime,
+    ));
+  });
+
   test('rejects reference text that sanitizes to no usable lyrics', () {
     expect(
       () => pipeline.build(
