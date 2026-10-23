@@ -570,6 +570,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       selectedLineIndex: _selectedLineIndex,
       hasChanges: _hasChanges,
     );
+    final activeAudition = _activeLineAudition;
+    final shouldPauseAudition = activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            activeAudition.projectId &&
+        _audioService.currentState.isPlaying;
     setState(() {
       _editingDocument = applied.after;
       _activeLineAudition = null;
@@ -578,13 +583,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _filter = _ReviewFilter.all;
       _selectedLineIndex = applied.changedDraftIndices.first;
     });
-    final activeAudition = _activeLineAudition;
-    if (activeAudition != null &&
-        _playbackSession.currentState.currentItem?.projectId ==
-            activeAudition.projectId &&
-        _audioService.currentState.isPlaying) {
-      unawaited(_audioService.pause());
-    }
+    if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -1538,6 +1537,13 @@ class _LyricEditorContent extends StatelessWidget {
               icon: const Icon(Icons.auto_fix_high_rounded),
             ),
           if ((spec.isCompactOrMedium || spec.isShort) &&
+              onReferenceProofread != null)
+            IconButton(
+              tooltip: '逐行智能纠错（保留时间戳）',
+              onPressed: onReferenceProofread,
+              icon: const Icon(Icons.spellcheck_rounded),
+            ),
+          if ((spec.isCompactOrMedium || spec.isShort) &&
               onViewAlignmentComparison != null)
             IconButton(
               tooltip: '查看本次逐行对比',
@@ -1898,6 +1904,17 @@ class _EditorToolbar extends StatelessWidget {
                   onPressed: onReferenceAlignment,
                   icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
                   label: const Text('参考歌词纠正'),
+                ),
+              ),
+            if (!compactControls)
+              Tooltip(
+                message: onReferenceProofread == null
+                    ? '先导入或生成歌词草稿'
+                    : '逐行审核参考歌词建议；仅替换文字并保留当前时间戳',
+                child: OutlinedButton.icon(
+                  onPressed: onReferenceProofread,
+                  icon: const Icon(Icons.spellcheck_rounded, size: 18),
+                  label: const Text('逐行智能纠错'),
                 ),
               ),
             if (!compactControls && onViewAlignmentComparison != null)
