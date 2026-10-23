@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../domain/models/lyric_document.dart';
+import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
 
 /// Explicit line-by-line review for reference-text suggestions.
