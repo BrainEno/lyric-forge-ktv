@@ -155,11 +155,17 @@ void expectProofreadPipelineInvariants({
       hasLength(output.length),
       reason: 'I3: each reference proposal needs an index.',
     );
-    expect(
-      referenceIndices.every((index) => index != null),
-      isTrue,
-      reason: 'I3: reference-first proposals must retain their original indexes.',
-    );
+    for (var index = 0; index < referenceIndices.length; index++) {
+      if (referenceIndices[index] == null) {
+        final sourceIndex = sourceIndices[index];
+        expect(
+          sourceIndex != null && protectedSourceIndices.contains(sourceIndex),
+          isTrue,
+          reason:
+              'I3: only an unchanged protected draft row may lack a reference index.',
+        );
+      }
+    }
     final nonNullReferenceIndices = referenceIndices.whereType<int>().toList();
     expect(
       nonNullReferenceIndices.toSet(),
