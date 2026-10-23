@@ -5,11 +5,11 @@
 - [2026-10-23 09:45] Prevent partial token alignment from inflating coverage `Prevent partial token alignment from inflating coverage` ([entry](log/entries/2026-10-23-0945-prevent-partial-token-alignment-coverage.md))
 - [2026-10-23 09:20] Reject malformed ASR timing evidence `Reject malformed ASR timing evidence` ([entry](log/entries/2026-10-23-0920-reject-malformed-asr-timing-evidence.md))
 - [2026-10-23 02:34] Add universal Flutter quality gate `ci: add universal Flutter quality gate` ([entry](log/entries/2026-10-23-0234-universal-flutter-quality-gate.md))
-- [2026-10-22 13:42] 对齐本地分支与 GitHub 上游并修复 sanitizer 编译错误 ([entry](log/entries/2026-10-22-1342-reconcile-local-with-github-upstream.md))
-- [2026-10-22 12:58] 契约核对与歌词智能校对 V2 架构方案设计（T0） ([entry](log/entries/2026-10-22-1258-document-lyric-proofreading-v2-contracts.md))
-- [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
-- [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
-- [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
+- [2026-10-22 13:42] 对齐本地分支与 GitHub 上游并修复 sanitizer 编译错误 `Reconcile local branch with upstream and fix sanitizer compile errors` ([entry](log/entries/2026-10-22-1342-reconcile-local-with-github-upstream.md))
+- [2026-10-22 12:58] 契约核对与歌词智能校对 V2 架构方案设计（T0） `Document lyric proofreading v2 contracts` ([entry](log/entries/2026-10-22-1258-document-lyric-proofreading-v2-contracts.md))
+- [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） `Add bounded lyric audition and loop control in smart review` ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
+- [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 `Resolve leftover merge conflict in reference alignment comparison` ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
+- [2026-10-21 22:22] Add inline audition to smart review rows `Add inline audition to smart review rows` ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
 
 <!-- 64 entries total: 8 active, 56 archived. -->
 
