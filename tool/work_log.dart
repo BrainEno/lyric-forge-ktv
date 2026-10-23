@@ -57,6 +57,15 @@ final RegExp _indexSnapshotPattern = RegExp(
   r'Navigation snapshot through (\d{4}-\d{2}-\d{2})',
 );
 
+const String _autoArchiveStartMarker =
+    '<!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->';
+const String _autoArchiveEndMarker =
+    '<!-- END AUTO-GENERATED WORK LOG REFERENCES -->';
+final RegExp _autoArchiveBlockPattern = RegExp(
+  r'\n?<!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->[\s\S]*?'
+  r'<!-- END AUTO-GENERATED WORK LOG REFERENCES -->\s*',
+);
+
 /// A single task entry parsed from `docs/log/entries/`.
 class LogEntry {
   LogEntry({
@@ -214,6 +223,79 @@ class WorkLogHarness {
         'stable decisions: [decisions](decisions.md)',
       );
     return buffer.toString();
+  }
+
+  /// Regenerates navigation data derived from immutable entry files.
+  ///
+  /// The index body remains manually maintained; only its snapshot date is
+  /// synchronized. Missing archive links are appended to a managed section so
+  /// aging an entry out of the active window never leaves it unreferenced.
+  void writeGeneratedFiles({int activeCount = kDefaultActiveCount}) {
+    final entries = readEntries();
+    final ordered = sortedEntries(entries);
+    summaryFile.writeAsStringSync(
+      buildSummary(entries, activeCount: activeCount),
+    );
+    _syncIndexSnapshot(ordered, activeCount: activeCount);
+    _syncArchiveReferences(ordered, activeCount: activeCount);
+  }
+
+  void _syncIndexSnapshot(
+    List<LogEntry> ordered, {
+    required int activeCount,
+  }) {
+    if (!indexFile.existsSync() || ordered.isEmpty || activeCount <= 0) {
+      return;
+    }
+    final text = readText(indexFile);
+    final newestDate = ordered.first.timestamp!.split(' ').first;
+    final updated = text.replaceFirstMapped(
+      _indexSnapshotPattern,
+      (_) => 'Navigation snapshot through $newestDate',
+    );
+    if (updated != text) {
+      indexFile.writeAsStringSync(updated);
+    }
+  }
+
+  void _syncArchiveReferences(
+    List<LogEntry> ordered, {
+    required int activeCount,
+  }) {
+    final original = archiveFile.existsSync()
+        ? readText(archiveFile)
+        : '# Work Log Archive\\n\\n'
+              '> Navigation only. Full entries live under '
+              '`docs/log/entries/`.\\n';
+    final stableContent = original
+        .replaceAll(_autoArchiveBlockPattern, '')
+        .trimRight();
+    final missing = ordered
+        .skip(activeCount)
+        .where((entry) => !stableContent.contains(entry.fileName))
+        .toList();
+
+    final buffer = StringBuffer(stableContent);
+    if (missing.isNotEmpty) {
+      if (buffer.isNotEmpty) {
+        buffer.writeln();
+        buffer.writeln();
+      }
+      buffer
+        ..writeln(_autoArchiveStartMarker)
+        ..writeln('## Additional archived entries (auto-generated)');
+      for (final entry in missing) {
+        buffer.writeln(
+          '- [${entry.timestamp}] ${entry.title} '
+          '([entry](log/entries/${entry.fileName}))',
+        );
+      }
+      buffer.writeln(_autoArchiveEndMarker);
+    }
+    final updated = '${buffer.toString().trimRight()}\\n';
+    if (updated != original) {
+      archiveFile.writeAsStringSync(updated);
+    }
   }
 
   /// Runs every harness rule and returns the findings.
@@ -444,12 +526,11 @@ int _run(List<String> args) {
 
   switch (args.first) {
     case 'write':
-      final entries = harness.readEntries();
-      final summary = harness.buildSummary(entries);
-      harness.summaryFile.writeAsStringSync(summary);
+      final entries = harness.sortedEntries(harness.readEntries());
+      harness.writeGeneratedFiles();
       stdout.writeln(
-        'Wrote docs/work_log.md (${harness.sortedEntries(entries).take(kDefaultActiveCount).length} '
-        'active of ${harness.sortedEntries(entries).length} entries).',
+        'Wrote work-log navigation (summary, index snapshot, and archive refs; '
+        '${entries.take(kDefaultActiveCount).length} active of ${entries.length} entries).',
       );
       return 0;
     case 'print':
