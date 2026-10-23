@@ -116,6 +116,32 @@ void main() {
     expect(summary, isNot(contains('[2026-01-01 09:00]')));
   });
 
+  test('summary preserves legacy plain-text commit fields', () {
+    createValidHarness();
+    writeFile(
+      'docs/log/entries/2026-01-02-0800-legacy-entry.md',
+      entryBody(
+        timestamp: '2026-01-02 08:00',
+        title: 'Legacy entry',
+        commit: 'Legacy subject',
+      ).replace(
+        '- Commit: `Legacy subject`',
+        '- Commit: Legacy subject',
+      ),
+    );
+
+    final harness = WorkLogHarness(root);
+    final entry = harness.readEntries().singleWhere(
+      (item) => item.fileName == '2026-01-02-0800-legacy-entry.md',
+    );
+    expect(entry.commit, 'Legacy subject');
+    expect(entry.commitIsExplicit, isFalse);
+    expect(
+      harness.buildSummary(harness.readEntries()),
+      contains('Legacy entry `Legacy subject`'),
+    );
+  });
+
   test('detects a stale summary', () {
     createValidHarness();
     writeFile('docs/work_log.md', '# Work Log (Active)\n\nstale\n');
