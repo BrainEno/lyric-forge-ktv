@@ -126,7 +126,7 @@ void expectProofreadPipelineInvariants({
       expect(sourceIndex, inInclusiveRange(0, input.lines.length - 1));
     }
     if (isProtected) {
-      final protectedIndex = sourceIndex!;
+      final protectedIndex = sourceIndex;
       expect(
         lockedVerdicts[index],
         isTrue,
