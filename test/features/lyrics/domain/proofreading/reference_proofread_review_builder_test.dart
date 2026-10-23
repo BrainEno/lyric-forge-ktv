@@ -47,31 +47,37 @@ void main() {
     expect(item.correction.currentText, 'Hello word');
     expect(item.correction.suggestedText, 'Hello world');
     expect(item.retiming.status, AsrRetimingStatus.readyForReview);
-    expect(item.retiming.options.single.startTime,
-        const Duration(milliseconds: 2200));
-    expect(item.retiming.options.single.endTime,
-        const Duration(milliseconds: 4500));
+    expect(
+      item.retiming.options.single.startTime,
+      const Duration(milliseconds: 2200),
+    );
+    expect(
+      item.retiming.options.single.endTime,
+      const Duration(milliseconds: 4500),
+    );
     expect(item.canOfferCompleteProposal, isTrue);
     expect(draft.lines.single.text, 'Hello word');
     expect(source.startTime, const Duration(milliseconds: 2100));
   });
 
-  test('keeps a text correction incomplete when exact timing evidence is absent',
-      () {
-    final result = builder.build(
-      draft: document([lyric('Hello word', 2100, 4600)]),
-      reference: reference('Hello world'),
-      timingEvidence: document([lyric('Something else', 2200, 4500)]),
-    );
+  test(
+    'keeps a text correction incomplete when exact timing evidence is absent',
+    () {
+      final result = builder.build(
+        draft: document([lyric('Hello word', 2100, 4600)]),
+        reference: reference('Hello world'),
+        timingEvidence: document([lyric('Something else', 2200, 4500)]),
+      );
 
-    expect(result, hasLength(1));
-    expect(
-      result.single.retiming.status,
-      AsrRetimingStatus.noMatchingEvidence,
-    );
-    expect(result.single.requiresManualReview, isTrue);
-    expect(result.single.canOfferCompleteProposal, isFalse);
-  });
+      expect(result, hasLength(1));
+      expect(
+        result.single.retiming.status,
+        AsrRetimingStatus.noMatchingEvidence,
+      );
+      expect(result.single.requiresManualReview, isTrue);
+      expect(result.single.canOfferCompleteProposal, isFalse);
+    },
+  );
 
   test('protected rows never produce correction bundles', () {
     final result = builder.build(
@@ -87,7 +93,10 @@ void main() {
   test('reference import warnings prevent complete proposal eligibility', () {
     final result = builder.build(
       draft: document([lyric('Hello word', 2100, 4600)]),
-      reference: reference('Hello world', warnings: const ['Timestamp repaired']),
+      reference: reference(
+        'Hello world',
+        warnings: const ['Timestamp repaired'],
+      ),
       timingEvidence: document([lyric('Hello world', 2200, 4500)]),
     );
 
