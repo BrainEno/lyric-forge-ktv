@@ -109,7 +109,10 @@ class AsrRetimingPlanner {
           const [], {AsrRetimingReason.invalidOriginalTiming});
     }
 
-    if (timingEvidence.lines.any((line) => line.confidence < 0 || line.confidence > 100)) {
+    final evidenceLines = timingEvidence.lines;
+    if (evidenceLines.any(
+      (line) => line.confidence < 0 || line.confidence > 100,
+    )) {
       return _result(
         draftIndex,
         proposedText,
@@ -117,6 +120,22 @@ class AsrRetimingPlanner {
         const [],
         {AsrRetimingReason.invalidConfidenceEvidence},
       );
+    }
+    // Reject the evidence set as a whole instead of silently skipping malformed
+    // rows: a broken timestamp sequence can otherwise make a later match look
+    // unique even though the surrounding alignment is no longer trustworthy.
+    for (var i = 0; i < evidenceLines.length; i++) {
+      final line = evidenceLines[i];
+      if (line.startTime.isNegative || line.endTime <= line.startTime ||
+          (i > 0 && line.startTime < evidenceLines[i - 1].startTime)) {
+        return _result(
+          draftIndex,
+          proposedText,
+          AsrRetimingStatus.invalidTimingEvidence,
+          const [],
+          {AsrRetimingReason.invalidEvidenceTiming},
+        );
+      }
     }
 
     final matches = <AsrRetimingOption>[];
