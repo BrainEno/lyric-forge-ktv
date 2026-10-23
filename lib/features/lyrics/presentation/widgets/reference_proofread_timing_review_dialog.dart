@@ -66,6 +66,7 @@ class _ReferenceProofreadTimingReviewDialogState
       'beyondAudioDuration' => '超出音频时长',
       'invalidOriginalTiming' => '原始时间区间无效',
       'invalidConfidenceEvidence' => 'ASR 置信度超出 0–100，有效证据已拒绝',
+      'invalidEvidenceTiming' => 'ASR 时间戳无效或顺序倒退，整组时间证据已拒绝',
       _ => name,
     };
   }
