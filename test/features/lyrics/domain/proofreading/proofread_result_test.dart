@@ -41,8 +41,10 @@ void main() {
     expect(result.amberLines.single.line.text, 'world');
     expect(result.lockedLines, isEmpty);
     expect(() => result.lines.add(result.lines.first), throwsUnsupportedError);
-    expect(() => result.lines.first.reasons.add(ProofreadReason.timingConflict),
-        throwsUnsupportedError);
+    expect(
+      () => result.lines.first.reasons.add(ProofreadReason.timingConflict),
+      throwsUnsupportedError,
+    );
   });
 
   test('rejects invalid coverage, duplicate stable IDs, and missing verdicts', () {
