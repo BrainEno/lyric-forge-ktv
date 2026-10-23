@@ -40,16 +40,19 @@ void main() {
   // Keep the reference-first pipeline's cross-cutting safety checks in one
   // helper so future ASR-first tests can reuse the same invariants.
   void expectInvariants(
-    ReferenceFirstResult result, {
+    ReferenceFirstPipelineResult result, {
     Set<String> protectedLineIds = const {},
   }) {
     final output = result.proposedDocument.lines;
     expect(result.lines, hasLength(output.length));
-    expect(
-      result.lines.map((verdict) => verdict.line),
-      output,
-      reason: 'Every verdict must describe its output row in order.',
-    );
+    for (var index = 0; index < output.length; index++) {
+      final verdictLine = result.lines[index].line;
+      final outputLine = output[index];
+      expect(verdictLine.id, outputLine.id);
+      expect(verdictLine.text, outputLine.text);
+      expect(verdictLine.startTime, outputLine.startTime);
+      expect(verdictLine.endTime, outputLine.endTime);
+    }
 
     final ids = output.map((line) => line.id).whereType<String>().toList();
     expect(ids.toSet(), hasLength(ids.length), reason: 'Line IDs must be unique.');
