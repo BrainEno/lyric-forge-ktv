@@ -61,6 +61,64 @@ void main() {
     );
   }
 
+  test('text-only apply preserves timing, metadata and offset atomically', () {
+    final draft = document([
+      line('Hello word', 1000, 2000),
+      line('Next line', 3000, 4000),
+    ]);
+    final first = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    ).correction;
+    final second = proposal(
+      index: 1,
+      before: 'Next line',
+      after: 'Next verse',
+      start: 3100,
+      end: 4100,
+    ).correction;
+
+    final applied = changeSet.applyTextOnly(
+      draft: draft,
+      suggestions: [first, second],
+      selectedDraftIndices: const {0, 1},
+    );
+
+    expect(applied.after.lines[0].text, 'Hello world');
+    expect(applied.after.lines[0].startTime, const Duration(milliseconds: 1000));
+    expect(applied.after.lines[0].endTime, const Duration(milliseconds: 2000));
+    expect(applied.after.lines[1].text, 'Next verse');
+    expect(applied.after.globalOffset, draft.globalOffset);
+    expect(applied.after.metadata, same(draft.metadata));
+    expect(applied.undo(), same(draft));
+    expect(applied.redo(), same(applied.after));
+    expect(draft.lines[0].text, 'Hello word');
+  });
+
+  test('text-only apply rejects a stale selected proposal without mutation', () {
+    final draft = document([line('Changed text', 1000, 2000)]);
+    final stale = proposal(
+      index: 0,
+      before: 'Hello word',
+      after: 'Hello world',
+      start: 1100,
+      end: 2100,
+    ).correction;
+
+    expect(
+      () => changeSet.applyTextOnly(
+        draft: draft,
+        suggestions: [stale],
+        selectedDraftIndices: const {0},
+      ),
+      throwsStateError,
+    );
+    expect(draft.lines.single.text, 'Changed text');
+  });
+
   test('diff exposes before and after text and timing without mutation', () {
     final draft = document([line('Hello word', 1000, 2000)]);
     final item = proposal(
