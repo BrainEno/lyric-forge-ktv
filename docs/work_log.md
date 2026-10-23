@@ -11,7 +11,7 @@
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 `Resolve leftover merge conflict in reference alignment comparison` ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows `Add inline audition to smart review rows` ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
 
-<!-- 64 entries total: 8 active, 56 archived. -->
+<!-- 65 entries total: 8 active, 57 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
