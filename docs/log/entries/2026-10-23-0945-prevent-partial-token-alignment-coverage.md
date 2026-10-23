@@ -4,4 +4,4 @@
 - Files: lib/features/lyrics/domain/proofreading/reference_token_aligner.dart, test/features/lyrics/domain/proofreading/reference_token_aligner_test.dart, this entry, docs/work_log.md, docs/work_log_archive.md.
 - Validation: Added a regression case with surviving unique anchors and a DP gap exceeding the cell budget. GitHub Actions must run the full analyzer, tests, and work-log check; local Flutter/Dart is unavailable here.
 - Notes: This is fail-closed confidence reporting, not a change to the anchor search or lyric mutation path. Incomplete alignment retains diagnostic matches but cannot claim reference coverage.
-- Commit: Prevent partial token alignment from inflating coverage
+- Commit: `Prevent partial token alignment from inflating coverage`
