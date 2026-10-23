@@ -25,7 +25,7 @@
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 - **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.
-- **Lyric review / proofread v2:** PRs #141 and #143–#145 are now in `main` (local validation still unverified here); #144 restores repetition code that #142 merged only into an old feature branch. Draft PR #146 adds conservative retiming proposals from exact nearby secondary-ASR timing evidence; ambiguous, low-confidence, boundary-conflicting or out-of-audio intervals are not marked ready, and nothing is auto-applied. Re-segmentation and arbitrary-reference-text ForcedAligner support remain open.
+- **Lyric review / proofread v2:** Shared `expectInvariants` now checks reference-first and ASR-first proposals for ordering, non-overlap, protected rows, source immutability, stable IDs and audio-boundary review. Out-of-audio ASR timestamps remain unchanged but are explicitly amber with `timingConflict`; see `docs/lyric_proofreading_v2_plan.md` for T7 completion and T8 UI integration next. Re-segmentation and arbitrary-reference-text ForcedAligner support remain open.
 
 ## Follow-up leads — re-check before acting
 

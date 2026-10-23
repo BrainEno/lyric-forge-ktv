@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'helpers/proofread_pipeline_invariants.dart' as invariants;
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.dart';
@@ -184,6 +185,42 @@ void main() {
     expect(result.lines.first.verdict, ReferenceFirstVerdictLevel.amber);
     expect(result.lines.first.reasons, contains(ReferenceFirstReason.timelineAdjusted));
     expect(result.proposedDocument.lines.last.endTime, lessThanOrEqualTo(const Duration(seconds: 8)));
+  });
+
+  test('repeated chorus passes shared output invariants without overlap', () {
+    final source = doc([
+      row('同一段副歌', 0, 1000, id: 'chorus-a'),
+      row('同一段副歌', 1500, 2500, id: 'chorus-b'),
+    ]);
+    final sourceSnapshot = invariants.snapshotDocument(source);
+    final result = pipeline.build(
+      draft: source,
+      reference: input([ref('同一段副歌'), ref('同一段副歌')]),
+      protectedDraftIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+    );
+
+    invariants.expectInvariants(
+      source: source,
+      sourceSnapshot: sourceSnapshot,
+      proposedDocument: result.proposedDocument,
+      rows: [
+        for (final proposal in result.lines)
+          invariants.ProofreadInvariantRow(
+            line: proposal.line,
+            lineId: proposal.line.id,
+            isLocked: proposal.verdict == ReferenceFirstVerdictLevel.locked,
+            sourceIndex: proposal.draftIndex,
+            referenceIndex: proposal.referenceIndex,
+          ),
+      ],
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+      requireUniqueReferenceIndices: true,
+    );
+
+    expect(result.lines.map((line) => line.referenceIndex), [0, 1]);
+    expect(result.lines.first.verdict, ReferenceFirstVerdictLevel.locked);
   });
 
   test('rejects reference text that sanitizes to no usable lyrics', () {
