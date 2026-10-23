@@ -75,6 +75,32 @@ void main() {
     }
   });
 
+  test('rejects malformed or out-of-order timing evidence as a whole', () {
+    final draft = doc([line('old text', 1000, 2500)]);
+    final invalidInterval = planner.plan(
+      draft: draft,
+      draftIndex: 0,
+      proposedText: 'hello world',
+      timingEvidence: doc([line('hello world', 1200, 1200)]),
+    );
+    final outOfOrder = planner.plan(
+      draft: draft,
+      draftIndex: 0,
+      proposedText: 'hello world',
+      timingEvidence: doc([
+        line('unrelated earlier row', 2000, 2800),
+        line('hello world', 1200, 1900),
+      ]),
+    );
+
+    for (final result in [invalidInterval, outOfOrder]) {
+      expect(result.status, AsrRetimingStatus.invalidTimingEvidence);
+      expect(result.reasons, contains(AsrRetimingReason.invalidEvidenceTiming));
+      expect(result.options, isEmpty);
+      expect(result.canOfferForReview, isFalse);
+    }
+  });
+
   test('rejects timing that overlaps neighbors or exceeds audio duration', () {
     final overlap = planner.plan(
       draft: doc([line('previous', 0, 2000), line('old text', 2000, 3500), line('next', 3600, 5000)]),
