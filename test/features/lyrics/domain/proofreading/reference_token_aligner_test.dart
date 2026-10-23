@@ -90,6 +90,21 @@ void main() {
     expect(result.referenceCoverage, 0);
   });
 
+  test('DP budget exhaustion reports zero coverage despite surviving anchors', () {
+    final middleReference = List<String>.filled(2000, 'oh').join(' ');
+    final middleDraft = '$middleReference extra';
+    final result = aligner.align(
+      referenceText: 'start anchor one $middleReference finish anchor end',
+      draftText: 'start anchor one $middleDraft finish anchor end',
+    );
+
+    expect(result.anchorCount, greaterThan(0));
+    expect(result.dpBudgetExceeded, isTrue);
+    expect(result.isComplete, isFalse);
+    expect(result.referenceCoverage, 0);
+    expect(result.matches, isNotEmpty, reason: 'Unique anchors remain useful diagnostics.');
+  });
+
   test('candidate overflow drops the anchor set instead of building an unbounded chain', () {
     final words = List<String>.generate(4005, (index) => 'word$index').join(' ');
     final result = aligner.align(
