@@ -9,7 +9,7 @@
 - [2026-10-22 13:42] 对齐本地分支与 GitHub 上游并修复 sanitizer 编译错误 `Reconcile local branch with upstream and fix sanitizer compile errors` ([entry](log/entries/2026-10-22-1342-reconcile-local-with-github-upstream.md))
 - [2026-10-22 12:58] 契约核对与歌词智能校对 V2 架构方案设计（T0） `Document lyric proofreading v2 contracts` ([entry](log/entries/2026-10-22-1258-document-lyric-proofreading-v2-contracts.md))
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） `Add bounded lyric audition and loop control in smart review` ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
-- [2026-10-21 23:08] 修复参考歌词对话框中的合并冲突标记 `Resolve leftover merge conflict in reference alignment comparison` ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
+- [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 `Resolve leftover merge conflict in reference alignment comparison` ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 
 <!-- 65 entries total: 8 active, 57 archived. -->
 
