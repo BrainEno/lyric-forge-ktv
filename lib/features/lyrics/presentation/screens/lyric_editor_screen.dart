@@ -18,6 +18,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
+import '../../domain/proofreading/reference_proofread_review_builder.dart';
 import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_audition_window_service.dart';
@@ -34,6 +35,8 @@ import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_dialog.dart';
 import '../widgets/reference_alignment_review.dart';
 import '../widgets/reference_proofread_review_dialog.dart';
+import '../widgets/reference_proofread_timing_review_dialog.dart';
+import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
@@ -541,10 +544,52 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
     if (input == null || !mounted) return;
 
+    final evidence = await showTimingEvidenceImportDialog(context);
+    if (!mounted) return;
+
+    final protectedIndices = _manuallyEditedLineIndices;
+    if (evidence != null) {
+      final items = const ReferenceProofreadReviewBuilder().build(
+        draft: document,
+        reference: input,
+        timingEvidence: evidence,
+        protectedDraftIndices: protectedIndices,
+        audioDuration: project.audioAsset?.duration,
+      );
+      if (items.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('没有发现可供复核的文字差异')),
+        );
+        return;
+      }
+      final selected = await showReferenceProofreadTimingReviewDialog(
+        context,
+        document: document,
+        items: items,
+      );
+      if (selected == null || selected.isEmpty || !mounted) return;
+
+      final applied = const ReferenceProofreadChangeSet().apply(
+        draft: document,
+        proposals: items,
+        selectedDraftIndices: selected,
+        protectedDraftIndices: protectedIndices,
+      );
+      _commitReferenceProofreadChange(
+        document,
+        applied,
+        message: '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；'
+            '请试听检查并保存。',
+      );
+      return;
+    }
+
+    // No independent timing evidence supplied: keep the explicit text-only
+    // workflow, preserving all existing timestamps.
     final suggestions = const AsrReferenceCorrectionSuggester().suggest(
       draft: document,
       reference: input,
-      protectedDraftIndices: _manuallyEditedLineIndices,
+      protectedDraftIndices: protectedIndices,
     ).suggestions;
     if (suggestions.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -552,7 +597,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       );
       return;
     }
-
     final selected = await showReferenceProofreadReviewDialog(
       context,
       document: document,
@@ -564,10 +608,23 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       draft: document,
       suggestions: suggestions,
       selectedDraftIndices: selected,
-      protectedDraftIndices: _manuallyEditedLineIndices,
+      protectedDraftIndices: protectedIndices,
     );
+    _commitReferenceProofreadChange(
+      document,
+      applied,
+      message: '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
+          '现有时间戳保持不变，请试听检查并保存。',
+    );
+  }
+
+  void _commitReferenceProofreadChange(
+    LyricDocument before,
+    ReferenceProofreadAppliedChange applied, {
+    required String message,
+  }) {
     final snapshot = _AlignmentUndoSnapshot(
-      document: document,
+      document: before,
       manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
       selectedLineIndex: _selectedLineIndex,
       hasChanges: _hasChanges,
@@ -589,10 +646,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
-          '现有时间戳保持不变，请试听检查并保存。',
-        ),
+        content: Text(message),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
       ),
