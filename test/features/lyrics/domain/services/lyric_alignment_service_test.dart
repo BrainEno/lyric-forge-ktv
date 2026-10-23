@@ -361,4 +361,121 @@ void main() {
       expect(entry.status, ReferenceLineAlignmentStatus.lowConfidence);
     });
   });
+
+  group('结构性分行差异', () {
+    test('detects one reference line split across consecutive ASR lines', () {
+      final result = service.align(
+        document: document([
+          asr('今夜星光'),
+          asr('照亮我的路'),
+        ]),
+        referenceLines: [reference('今夜星光照亮我的路')],
+      );
+
+      expect(result.structuralMismatches, hasLength(1));
+      final mismatch = result.structuralMismatches.single;
+      expect(mismatch.kind, StructuralAlignmentMismatchKind.mergedAsrLines);
+      expect(mismatch.referenceIndices, [0]);
+      expect(mismatch.asrLineIndices, [0, 1]);
+      expect(mismatch.similarity, 1);
+      expect(result.entries.single.structuralMismatch, isTrue);
+      expect(result.asrLines.every((line) => line.structuralMismatch), isTrue);
+    });
+
+    test('detects multiple reference lines merged into one ASR line', () {
+      final result = service.align(
+        document: document([asr('今夜星光照亮我的路')]),
+        referenceLines: [
+          reference('今夜星光'),
+          reference('照亮我的路'),
+        ],
+      );
+
+      expect(result.structuralMismatches, hasLength(1));
+      final mismatch = result.structuralMismatches.single;
+      expect(mismatch.kind, StructuralAlignmentMismatchKind.splitAsrLine);
+      expect(mismatch.referenceIndices, [0, 1]);
+      expect(mismatch.asrLineIndices, [0]);
+      expect(mismatch.similarity, 1);
+      expect(result.entries.every((entry) => entry.structuralMismatch), isTrue);
+      expect(result.asrLines.single.structuralMismatch, isTrue);
+      expect(result.hasStructuralMismatches, isTrue);
+    });
+
+    test('preserves original indices when empty lines are skipped', () {
+      final result = service.align(
+        document: document([
+          asr('今夜星光'),
+          asr(''),
+          asr('照亮我的路'),
+        ]),
+        referenceLines: [
+          reference('，。！？'),
+          reference('今夜星光照亮我的路'),
+        ],
+      );
+
+      expect(result.structuralMismatches, hasLength(1));
+      expect(result.structuralMismatches.single.referenceIndices, [1]);
+      expect(result.structuralMismatches.single.asrLineIndices, [0, 2]);
+      expect(result.entries.single.referenceIndex, 1);
+    });
+
+    test('detects a split when one long ASR fragment already matches', () {
+      final result = service.align(
+        document: document([
+          asr('今夜星光照亮我的路'),
+          asr('啊'),
+        ]),
+        referenceLines: [reference('今夜星光照亮我的路啊')],
+      );
+
+      expect(result.entries.single.asrLineIndex, 0);
+      expect(result.structuralMismatches, hasLength(1));
+      final mismatch = result.structuralMismatches.single;
+      expect(mismatch.kind, StructuralAlignmentMismatchKind.mergedAsrLines);
+      expect(mismatch.referenceIndices, [0]);
+      expect(mismatch.asrLineIndices, [0, 1]);
+      expect(mismatch.similarity, 1);
+      expect(result.entries.single.structuralMismatch, isTrue);
+      expect(result.asrLines.every((line) => line.structuralMismatch), isTrue);
+    });
+
+    test('prefers the strongest candidate when several ASR windows qualify', () {
+      final result = service.align(
+        document: document([
+          asr('今夜星光照亮我的路'),
+          asr('啊'),
+          asr('哈'),
+        ]),
+        referenceLines: [reference('今夜星光照亮我的路啊哈')],
+      );
+
+      expect(result.structuralMismatches, hasLength(1));
+      expect(result.structuralMismatches.single.asrLineIndices, [0, 1, 2]);
+      expect(result.structuralMismatches.single.similarity, 1);
+    });
+
+    test('detects a merged ASR line when one long reference already matches', () {
+      final result = service.align(
+        document: document([asr('今夜星光照亮我的路啊')]),
+        referenceLines: [
+          reference('今夜星光照亮我的路'),
+          reference('啊'),
+        ],
+      );
+
+      expect(result.entries.first.asrLineIndex, 0);
+      expect(result.entries.last.status, ReferenceLineAlignmentStatus.missing);
+      expect(result.structuralMismatches, hasLength(1));
+      final mismatch = result.structuralMismatches.single;
+      expect(mismatch.kind, StructuralAlignmentMismatchKind.splitAsrLine);
+      expect(mismatch.referenceIndices, [0, 1]);
+      expect(mismatch.asrLineIndices, [0]);
+      expect(mismatch.similarity, 1);
+      expect(result.entries.every((entry) => entry.structuralMismatch), isTrue);
+      expect(result.asrLines.single.structuralMismatch, isTrue);
+    });
+  });
+
 }

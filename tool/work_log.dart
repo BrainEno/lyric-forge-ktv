@@ -50,11 +50,24 @@ final RegExp _entryHeaderPattern = RegExp(
 );
 
 final RegExp _entryCommitPattern = RegExp(r'^- Commit: `(.+)`\s*$', multiLine: true);
+final RegExp _legacyEntryCommitPattern = RegExp(
+  r'^- Commit: (?!`)(.+?)\s*$',
+  multiLine: true,
+);
 
 final RegExp _markdownLinkPattern = RegExp(r'\]\(([^)#]+?)\)');
 
 final RegExp _indexSnapshotPattern = RegExp(
   r'Navigation snapshot through (\d{4}-\d{2}-\d{2})',
+);
+
+const String _autoArchiveStartMarker =
+    '<!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->';
+const String _autoArchiveEndMarker =
+    '<!-- END AUTO-GENERATED WORK LOG REFERENCES -->';
+final RegExp _autoArchiveBlockPattern = RegExp(
+  r'\n?<!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->[\s\S]*?'
+  r'<!-- END AUTO-GENERATED WORK LOG REFERENCES -->\s*',
 );
 
 /// A single task entry parsed from `docs/log/entries/`.
@@ -65,6 +78,7 @@ class LogEntry {
     this.timestamp,
     this.title,
     this.commit,
+    this.commitIsExplicit = false,
     this.missingFields = const <String>[],
   });
 
@@ -73,6 +87,11 @@ class LogEntry {
   final String? timestamp;
   final String? title;
   final String? commit;
+
+  /// True when the entry explicitly marks the value as a literal Git subject.
+  /// Legacy plain-text values are displayed but aren't checked against history,
+  /// because older entries often used task titles rather than commit subjects.
+  final bool commitIsExplicit;
   final List<String> missingFields;
 
   bool get hasValidHeader => timestamp != null && title != null;
@@ -160,7 +179,9 @@ class WorkLogHarness {
   LogEntry _parseEntry(File file) {
     final text = readText(file);
     final header = _entryHeaderPattern.firstMatch(text.split('\n').first);
-    final commit = _entryCommitPattern.firstMatch(text)?.group(1);
+    final explicitCommit = _entryCommitPattern.firstMatch(text);
+    final legacyCommit = _legacyEntryCommitPattern.firstMatch(text);
+    final commit = explicitCommit?.group(1) ?? legacyCommit?.group(1)?.trim();
     final missing = <String>[
       for (final field in kEntryFields)
         if (!RegExp('^- $field:', multiLine: true).hasMatch(text)) field,
@@ -173,6 +194,7 @@ class WorkLogHarness {
           : '${header!.group(1)} ${header.group(2)}',
       title: header?.group(3),
       commit: commit,
+      commitIsExplicit: explicitCommit != null,
       missingFields: missing,
     );
   }
@@ -214,6 +236,68 @@ class WorkLogHarness {
         'stable decisions: [decisions](decisions.md)',
       );
     return buffer.toString();
+  }
+
+  /// Regenerates the active summary and its derived navigation metadata.
+  ///
+  /// Only the index snapshot date is changed; the index's curated content is
+  /// left intact. Archive links are managed in a marked block so existing
+  /// stage-grouped history is preserved.
+  void writeGeneratedFiles({int activeCount = kDefaultActiveCount}) {
+    final entries = readEntries();
+    final ordered = sortedEntries(entries);
+    summaryFile.writeAsStringSync(
+      buildSummary(entries, activeCount: activeCount),
+    );
+    _syncIndexSnapshot(ordered);
+    _syncArchiveReferences(ordered, activeCount: activeCount);
+  }
+
+  void _syncIndexSnapshot(List<LogEntry> ordered) {
+    if (!indexFile.existsSync() || ordered.isEmpty) return;
+    final text = readText(indexFile);
+    final newestDate = ordered.first.timestamp!.split(' ').first;
+    final updated = text.replaceFirstMapped(
+      _indexSnapshotPattern,
+      (_) => 'Navigation snapshot through $newestDate',
+    );
+    if (updated != text) indexFile.writeAsStringSync(updated);
+  }
+
+  void _syncArchiveReferences(
+    List<LogEntry> ordered, {
+    required int activeCount,
+  }) {
+    final original = archiveFile.existsSync()
+        ? readText(archiveFile)
+        : '# Work Log Archive\n\n'
+              '> Navigation only. Full entries live under '
+              '`docs/log/entries/`.\n';
+    final stableContent =
+        original.replaceAll(_autoArchiveBlockPattern, '').trimRight();
+    final missing = ordered
+        .skip(activeCount)
+        .where((entry) => !stableContent.contains(entry.fileName))
+        .toList();
+    final buffer = StringBuffer(stableContent);
+    if (missing.isNotEmpty) {
+      if (buffer.length > 0) {
+        buffer.writeln();
+        buffer.writeln();
+      }
+      buffer
+        ..writeln(_autoArchiveStartMarker)
+        ..writeln('## Additional archived entries (auto-generated)');
+      for (final entry in missing) {
+        buffer.writeln(
+          '- [${entry.timestamp}] ${entry.title} '
+          '([entry](log/entries/${entry.fileName}))',
+        );
+      }
+      buffer.writeln(_autoArchiveEndMarker);
+    }
+    final updated = '${buffer.toString().trimRight()}\n';
+    if (updated != original) archiveFile.writeAsStringSync(updated);
   }
 
   /// Runs every harness rule and returns the findings.
@@ -376,7 +460,9 @@ class WorkLogHarness {
         final activeNames = active.map((entry) => entry.fileName).toSet();
         for (final entry in entries) {
           final commit = entry.commit;
-          if (commit == null || !activeNames.contains(entry.fileName)) {
+          if (commit == null ||
+              !entry.commitIsExplicit ||
+              !activeNames.contains(entry.fileName)) {
             continue;
           }
           if (!subjects.contains(commit)) {
@@ -444,12 +530,11 @@ int _run(List<String> args) {
 
   switch (args.first) {
     case 'write':
-      final entries = harness.readEntries();
-      final summary = harness.buildSummary(entries);
-      harness.summaryFile.writeAsStringSync(summary);
+      final entries = harness.sortedEntries(harness.readEntries());
+      harness.writeGeneratedFiles();
       stdout.writeln(
-        'Wrote docs/work_log.md (${harness.sortedEntries(entries).take(kDefaultActiveCount).length} '
-        'active of ${harness.sortedEntries(entries).length} entries).',
+        'Wrote work-log navigation (summary, index snapshot, and archive refs; '
+        '${entries.take(kDefaultActiveCount).length} active of ${entries.length} entries).',
       );
       return 0;
     case 'print':

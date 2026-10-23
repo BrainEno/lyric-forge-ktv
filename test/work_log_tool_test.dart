@@ -116,6 +116,32 @@ void main() {
     expect(summary, isNot(contains('[2026-01-01 09:00]')));
   });
 
+  test('summary preserves legacy plain-text commit fields', () {
+    createValidHarness();
+    writeFile(
+      'docs/log/entries/2026-01-02-0800-legacy-entry.md',
+      entryBody(
+        timestamp: '2026-01-02 08:00',
+        title: 'Legacy entry',
+        commit: 'Legacy subject',
+      ).replaceAll(
+        '- Commit: `Legacy subject`',
+        '- Commit: Legacy subject',
+      ),
+    );
+
+    final harness = WorkLogHarness(root);
+    final entry = harness.readEntries().singleWhere(
+      (item) => item.fileName == '2026-01-02-0800-legacy-entry.md',
+    );
+    expect(entry.commit, 'Legacy subject');
+    expect(entry.commitIsExplicit, isFalse);
+    expect(
+      harness.buildSummary(harness.readEntries()),
+      contains('Legacy entry `Legacy subject`'),
+    );
+  });
+
   test('detects a stale summary', () {
     createValidHarness();
     writeFile('docs/work_log.md', '# Work Log (Active)\n\nstale\n');
@@ -187,6 +213,46 @@ void main() {
     );
     final problems = WorkLogHarness(root).lint(lookupCommits: false);
     expect(rulesOf(problems), contains('index-snapshot'));
+  });
+
+  test('write syncs summary, index snapshot, and aged-out archive references', () {
+    createValidHarness();
+    writeFile(
+      'docs/log/entries/2026-01-02-0800-new-entry.md',
+      entryBody(
+        timestamp: '2026-01-02 08:00',
+        title: 'New entry',
+      ),
+    );
+
+    final harness = WorkLogHarness(root);
+    harness.writeGeneratedFiles();
+    harness.writeGeneratedFiles();
+
+    final summary = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log.md',
+    ).readAsStringSync();
+    final index = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log_index.md',
+    ).readAsStringSync();
+    final archive = File(
+      '${root.path}${Platform.pathSeparator}docs${Platform.pathSeparator}work_log_archive.md',
+    ).readAsStringSync();
+
+    expect(summary, contains('[2026-01-02 08:00] New entry'));
+    expect(summary, isNot(contains('[2026-01-01 09:02]')));
+    expect(index, contains('Navigation snapshot through 2026-01-02'));
+    expect(archive, contains('2026-01-01-0902-fixture-entry-2.md'));
+    expect(
+      RegExp('BEGIN AUTO-GENERATED WORK LOG REFERENCES')
+          .allMatches(archive)
+          .length,
+      1,
+    );
+    expect(
+      harness.lint(lookupCommits: false).where((problem) => !problem.isWarning),
+      isEmpty,
+    );
   });
 
   test('detects a decision without all fields', () {
