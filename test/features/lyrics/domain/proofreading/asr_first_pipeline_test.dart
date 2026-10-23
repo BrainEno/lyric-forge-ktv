@@ -6,7 +6,13 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 void main() {
   const pipeline = AsrFirstPipeline();
 
-  LyricLine row(String text, int start, int end, {String? id, int confidence = 90}) =>
+  LyricLine row(
+    String text,
+    int start,
+    int end, {
+    String? id,
+    int confidence = 90,
+  }) =>
       LyricLine(
         text: text,
         startTime: Duration(milliseconds: start),
@@ -23,20 +29,25 @@ void main() {
     final result = pipeline.build(draft: original);
 
     expect(result.proposedDocument.lines.single.text, 'first lyric');
-    expect(result.proposedDocument.lines.single.startTime, const Duration(seconds: 0));
+    expect(
+      result.proposedDocument.lines.single.startTime,
+      const Duration(seconds: 0),
+    );
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
     expect(result.notes, contains('secondaryAsrUnavailable'));
     expect(original.lines.single.text, 'first lyric');
   });
 
   test('agreement can be green while protected rows remain locked', () {
+    // Keep segments outside the analyzer's overlap padding so each line has
+    // unambiguous one-to-one secondary evidence.
     final primary = doc([
-      row('first lyric', 0, 1000, id: 'one'),
-      row('second lyric', 1000, 2000, id: 'two'),
+      row('first lyric', 0, 800, id: 'one'),
+      row('second lyric', 2000, 2800, id: 'two'),
     ]);
     final secondary = doc([
-      row('first lyric', 0, 1000),
-      row('second lyric', 1000, 2000),
+      row('first lyric', 0, 800),
+      row('second lyric', 2000, 2800),
     ]);
 
     final result = pipeline.build(
@@ -59,7 +70,10 @@ void main() {
     final result = pipeline.build(draft: primary, secondary: secondary);
 
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
-    expect(result.lines.single.reasons, contains(ProofreadReason.asrDisagreement));
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.asrDisagreement),
+    );
     expect(result.proposedDocument.lines.single.text, 'open the door');
   });
 
