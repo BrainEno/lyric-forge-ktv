@@ -151,5 +151,29 @@ void main() {
       ),
       throwsArgumentError,
     );
+    expect(
+      () => ProofreadAdlib(
+        text: 'yeah',
+        interval: ProofreadTimeInterval(
+          start: Duration.zero,
+          end: const Duration(milliseconds: 300),
+        ),
+        confidence: -1,
+        source: ProofreadTimeSource.secondaryAsr,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadAdlib(
+        text: '   ',
+        interval: ProofreadTimeInterval(
+          start: Duration.zero,
+          end: const Duration(milliseconds: 300),
+        ),
+        confidence: 80,
+        source: ProofreadTimeSource.secondaryAsr,
+      ),
+      throwsArgumentError,
+    );
   });
 }
