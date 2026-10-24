@@ -31,10 +31,10 @@ void main() {
       manager,
       contains('metadata.isContentCompatibleWith(fallbackMetadata)'),
     );
-    expect(
-      manager,
-      contains('if (metadata.sha256 == null || fallbackMetadata.sha256 == null)'),
-    );
+    expect(manager, contains('metadata.isContentCompatibleWith(fallbackMetadata)'));
+    expect(manager, contains(r"'${target.path}.modelscope.part'"));
+    expect(manager, contains('await huggingFacePartial.delete()'));
+    expect(manager, contains('contentCompatible'));
     expect(metadata, contains('rawSha256.toLowerCase()'));
     expect(metadata, contains('AsrModelDownloadSource.modelScope'));
   });
