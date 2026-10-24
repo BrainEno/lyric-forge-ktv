@@ -46,8 +46,8 @@ void main() {
         'lib/features/transcription/data/services/asr_download_connection_checker.dart',
       ).readAsStringSync();
 
-      expect(checker, contains("name: '$qwenLabel (Hugging Face)'"));
-      expect(checker, contains("name: '$alignerLabel (Hugging Face)'"));
+      expect(checker, contains(r"name: '$qwenLabel (Hugging Face)'"));
+      expect(checker, contains(r"name: '$alignerLabel (Hugging Face)'"));
       expect(checker, contains("reachable.contains('Whisper large-v3')"));
       expect(checker, contains('modelScopeManifestAvailable:'));
       expect(checker, contains('modelScopeFileAvailable:'));
