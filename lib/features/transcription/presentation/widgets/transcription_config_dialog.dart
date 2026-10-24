@@ -230,7 +230,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       if (!mounted) return;
       setState(() {
         _downloadConnectionSucceeded = true;
-        _downloadConnectionMessage = '已连通 Hugging Face 模型源，可以开始下载。';
+        _downloadConnectionMessage = 'Whisper 与 Qwen 模型文件地址均可访问。此测试不代表完整下载或模型加载一定成功。';
       });
     } catch (error) {
       if (!mounted) return;
