@@ -35,7 +35,7 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +        let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?; // (1, h, d, s)
          let attn_weights = q.matmul(&k_t)?.affine(self.scaling, 0.0)?;
          let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
-@@ -692,11 +687,27 @@
+@@ -692,13 +687,29 @@
  #[cfg(test)]
  mod tests {
      use super::{
@@ -62,4 +62,8 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +    }
  
      #[test]
-     fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
+-    fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
++    fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
++        let device = candle_core::Device::Cpu;
++        let pe = sinusoidal_positional_embedding(10, 8, &device)?;
+
