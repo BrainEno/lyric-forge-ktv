@@ -115,6 +115,26 @@ void main() {
     },
   );
 
+  test('Qwen failures stay visible and advanced settings are one click away', () {
+    final runtime = File(
+      'lib/features/transcription/data/services/resilient_asr_runtime_manager.dart',
+    ).readAsStringSync();
+    final setup = File(
+      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
+    ).readAsStringSync();
+    final checker = File(
+      'lib/features/transcription/data/services/asr_download_connection_checker.dart',
+    ).readAsStringSync();
+
+    expect(runtime, contains('没有切换识别方案'));
+    expect(setup, contains("tooltip: '打开模型高级设置'"));
+    expect(
+      checker,
+      contains('Qwen/Qwen3-ASR-1.7B/resolve/main/model-00001-of-00002.safetensors'),
+    );
+    expect(checker, contains('manualProxy: proxyOverride'));
+  });
+
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
     final card = File(
       'lib/features/transcription/presentation/widgets/asr_install_progress_card.dart',
