@@ -624,6 +624,424 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
+
+  Future<void> _openProofreadV2(ProjectManifest project) async {
+    final document = _editingDocument;
+    if (document == null || document.lines.isEmpty) return;
+
+    final options = await showProofreadV2RunOptionsDialog(context);
+    if (options == null || !mounted) return;
+
+    ReferenceLyricInput? reference;
+    if (options.useReference) {
+      reference = await showReferenceAlignmentDialog(
+        context,
+        parser: _referenceParser,
+        initialTitle: project.name,
+        initialArtist: project.artist,
+      );
+      if (reference == null || !mounted) return;
+    }
+
+    try {
+      final referenceCoverage = reference == null
+          ? null
+          : const ReferenceTokenAligner()
+                .align(
+                  referenceText: reference.lines
+                      .map((line) => line.text)
+                      .join(' '),
+                  draftText: document.lines.map((line) => line.text).join(' '),
+                )
+                .referenceCoverage;
+      final decision = const ProofreadStrategySelector().select(
+        requestedStrategy: options.strategy,
+        hasReference: reference != null,
+        referenceCoverage: referenceCoverage,
+      );
+
+      late final LyricDocument proposalDocument;
+      late final List<LyricProofreadV2ReviewItem> items;
+      late final List<LyricProofreadV2DroppedItem> droppedItems;
+      late final String strategyExplanation;
+
+      if (decision.effectiveStrategy == LyricSourceStrategy.referenceFirst) {
+        final input = reference;
+        if (input == null) {
+          throw StateError('参考歌词优先策略需要参考歌词输入。');
+        }
+        final result = const ReferenceFirstPipeline().build(
+          draft: document,
+          reference: input,
+          protectedDraftIndices: _manuallyEditedLineIndices,
+          audioDuration: project.audioAsset?.duration,
+        );
+        proposalDocument = result.proposedDocument.copyWith(
+          globalOffset: Duration.zero,
+        );
+        items = [
+          for (var index = 0; index < result.lines.length; index++)
+            () {
+              final row = result.lines[index];
+              final sourceIndex = row.draftIndex;
+              final original = sourceIndex != null &&
+                      sourceIndex >= 0 &&
+                      sourceIndex < document.lines.length
+                  ? document.lines[sourceIndex]
+                  : null;
+              return LyricProofreadV2ReviewItem(
+                proposalIndex: index,
+                sourceIndex: sourceIndex,
+                proposedLine: row.line,
+                originalLine: original,
+                verdict: switch (row.verdict) {
+                  ReferenceFirstVerdictLevel.locked =>
+                    LyricProofreadReviewVerdict.locked,
+                  ReferenceFirstVerdictLevel.green =>
+                    LyricProofreadReviewVerdict.green,
+                  ReferenceFirstVerdictLevel.amber =>
+                    LyricProofreadReviewVerdict.amber,
+                },
+                reasonLabel: row.reasons
+                    .map(_proofreadV2ReferenceReasonLabel)
+                    .join('、'),
+              );
+            }(),
+        ];
+        droppedItems = [
+          for (final row in result.droppedLines)
+            LyricProofreadV2DroppedItem(
+              sourceIndex: row.draftIndex,
+              line: row.line,
+              reasonLabel: '未找到可靠参考匹配；默认排除，可勾选恢复',
+            ),
+        ];
+        strategyExplanation = [
+          if (options.strategy == LyricSourceStrategy.auto)
+            '自动策略计算参考文本覆盖率 ' +
+                (result.tokenCoverage * 100).round().toString() +
+                '%。',
+          '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
+          if (result.tokenDpBudgetExceeded)
+            '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
+          if (result.warnings.isNotEmpty)
+            '参考输入包含 ' +
+                result.warnings.length.toString() +
+                ' 条冲突或警告，相关行会要求复核。',
+        ].join(' ');
+      } else {
+        final result = const AsrFirstPipeline().build(
+          draft: document,
+          protectedDraftIndices: _manuallyEditedLineIndices,
+          audioDuration: project.audioAsset?.duration,
+        );
+        proposalDocument = result.proposedDocument;
+        items = [
+          for (var index = 0; index < result.lines.length; index++)
+            () {
+              final row = result.lines[index];
+              return LyricProofreadV2ReviewItem(
+                proposalIndex: index,
+                sourceIndex: index,
+                proposedLine: row.line,
+                originalLine: document.lines[index],
+                verdict: switch (row.verdict) {
+                  ProofreadVerdict.locked =>
+                    LyricProofreadReviewVerdict.locked,
+                  ProofreadVerdict.green => LyricProofreadReviewVerdict.green,
+                  ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
+                },
+                reasonLabel: row.reasons.map(_proofreadV2ReasonLabel).join('、'),
+              );
+            }(),
+        ];
+        droppedItems = [
+          for (final row in result.droppedLines)
+            LyricProofreadV2DroppedItem(
+              sourceIndex: row.sourceIndex,
+              line: row.line,
+              reasonLabel: row.reasons.map(_proofreadV2ReasonLabel).join('、'),
+            ),
+        ];
+        strategyExplanation = [
+          decision.autoFellBackToAsr
+              ? '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。'
+              : '当前入口尚未接入第二份 ASR 转写稿，因此只标记当前草稿风险。',
+          'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
+        ].join(' ');
+      }
+
+      if (!mounted) return;
+      final greenCount = items
+          .where((item) => item.verdict == LyricProofreadReviewVerdict.green)
+          .length;
+      final amberCount = items
+          .where((item) => item.verdict == LyricProofreadReviewVerdict.amber)
+          .length;
+      final lockedCount = items
+          .where((item) => item.verdict == LyricProofreadReviewVerdict.locked)
+          .length;
+      final summary = '策略：' +
+          _proofreadV2StrategyLabel(decision.effectiveStrategy) +
+          (referenceCoverage == null
+              ? ''
+              : ' · 参考覆盖率 ' +
+                  (referenceCoverage * 100).round().toString() +
+                  '%') +
+          ' · 绿色 ' +
+          greenCount.toString() +
+          ' · 琥珀色 ' +
+          amberCount.toString() +
+          ' · 受保护 ' +
+          lockedCount.toString() +
+          ' · 灰色 ' +
+          droppedItems.length.toString();
+
+      final selection = await showLyricProofreadV2ReviewDialog(
+        context,
+        summary: summary,
+        explanation: strategyExplanation,
+        items: items,
+        droppedItems: droppedItems,
+        onPreviewDraftLine: project.audioAsset == null
+            ? null
+            : (index) => _previewLine(project, index),
+      );
+      if (selection == null || !mounted) return;
+
+      final after = _composeProofreadV2Document(
+        before: document,
+        proposalDocument: proposalDocument,
+        items: items,
+        droppedItems: droppedItems,
+        selection: selection,
+        effectiveStrategy: decision.effectiveStrategy,
+      );
+      final hasLineChanges =
+          !_sameProofreadLines(document.lines, after.lines) ||
+          document.globalOffset != after.globalOffset;
+      if (!hasLineChanges) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('所选提案没有产生可应用的歌词或时间变化。')),
+        );
+        return;
+      }
+
+      final comparison = const LyricTimelineValidator().compare(
+        before: document.lines,
+        after: after.lines,
+        audioDuration: project.audioAsset?.duration,
+        globalOffset: after.globalOffset ?? Duration.zero,
+      );
+      if (comparison.hasIntroducedSeriousIssues) {
+        final keep = await _confirmIntroducedTimelineIssues(
+          comparison,
+          autoRepairCount: 0,
+        );
+        if (!mounted || keep != true) return;
+      }
+      _commitProofreadV2Document(document, after);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法生成或应用校对提案：' + error.toString())),
+      );
+    }
+  }
+
+  LyricDocument _composeProofreadV2Document({
+    required LyricDocument before,
+    required LyricDocument proposalDocument,
+    required List<LyricProofreadV2ReviewItem> items,
+    required List<LyricProofreadV2DroppedItem> droppedItems,
+    required LyricProofreadV2Selection selection,
+    required LyricSourceStrategy effectiveStrategy,
+  }) {
+    final accepted = selection.acceptedProposalIndices;
+    final droppedIndices = droppedItems.map((item) => item.sourceIndex).toSet();
+    final consumedDraftIndices = <int>{};
+    final candidates = <({LyricLine line, int order})>[];
+    var order = 0;
+
+    for (final item in items) {
+      final shouldAccept =
+          item.verdict == LyricProofreadReviewVerdict.locked ||
+          accepted.contains(item.proposalIndex);
+      final sourceIndex = item.sourceIndex;
+      if (sourceIndex != null) {
+        if (sourceIndex < 0 ||
+            sourceIndex >= before.lines.length ||
+            !consumedDraftIndices.add(sourceIndex)) {
+          continue;
+        }
+        candidates.add((
+          line: shouldAccept ? item.proposedLine : before.lines[sourceIndex],
+          order: order++,
+        ));
+      } else if (shouldAccept) {
+        candidates.add((line: item.proposedLine, order: order++));
+      }
+    }
+
+    for (var index = 0; index < before.lines.length; index++) {
+      if (consumedDraftIndices.contains(index)) continue;
+      final shouldRestore = selection.restoredDraftIndices.contains(index);
+      if (shouldRestore || !droppedIndices.contains(index)) {
+        consumedDraftIndices.add(index);
+        candidates.add((line: before.lines[index], order: order++));
+      }
+    }
+
+    candidates.sort((left, right) {
+      final byStart = left.line.startTime.compareTo(right.line.startTime);
+      if (byStart != 0) return byStart;
+      final byEnd = left.line.endTime.compareTo(right.line.endTime);
+      return byEnd != 0 ? byEnd : left.order.compareTo(right.order);
+    });
+    final lines = candidates.map((candidate) => candidate.line).toList();
+
+    final metadata = Map<String, dynamic>.from(before.metadata);
+    const timingKey = 'timingProvenance';
+    final originalProvenance = metadata[timingKey];
+    final proposedProvenance = proposalDocument.metadata[timingKey];
+    final timingProvenance = <String, dynamic>{
+      if (originalProvenance is Map)
+        ...Map<String, dynamic>.from(originalProvenance),
+    };
+    final acceptedChanges = items.where(
+      (item) =>
+          item.verdict == LyricProofreadReviewVerdict.locked ||
+          accepted.contains(item.proposalIndex),
+    );
+    for (final item in acceptedChanges) {
+      final id = item.proposedLine.id;
+      if (id == null) continue;
+      if (proposedProvenance is Map && proposedProvenance.containsKey(id)) {
+        timingProvenance[id] = proposedProvenance[id];
+      } else if (item.hasChange) {
+        timingProvenance.remove(id);
+      }
+    }
+    final outputIds = lines.map((line) => line.id).whereType<String>().toSet();
+    timingProvenance.removeWhere((id, _) => !outputIds.contains(id));
+    if (originalProvenance is Map || proposedProvenance is Map) {
+      metadata[timingKey] = timingProvenance;
+    }
+
+    final timingChanged = acceptedChanges.any(
+      (item) =>
+          item.originalLine == null ||
+          item.originalLine!.startTime != item.proposedLine.startTime ||
+          item.originalLine!.endTime != item.proposedLine.endTime,
+    );
+    final offset =
+        effectiveStrategy == LyricSourceStrategy.referenceFirst && timingChanged
+        ? Duration.zero
+        : before.globalOffset;
+    final candidate = LyricDocument(
+      language: before.language,
+      lines: lines,
+      globalOffset: offset,
+      metadata: metadata,
+    );
+    return _lineMarkers.assignMissingLineIds(candidate);
+  }
+
+  bool _sameProofreadLines(List<LyricLine> left, List<LyricLine> right) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      final a = left[index];
+      final b = right[index];
+      if (a.id != b.id ||
+          a.text != b.text ||
+          a.startTime != b.startTime ||
+          a.endTime != b.endTime ||
+          a.isChorus != b.isChorus ||
+          a.confidence != b.confidence) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  String _proofreadV2StrategyLabel(LyricSourceStrategy strategy) {
+    return switch (strategy) {
+      LyricSourceStrategy.referenceFirst => '参考歌词优先',
+      LyricSourceStrategy.asrFirst => 'ASR 优先',
+      LyricSourceStrategy.auto => '自动选择',
+    };
+  }
+
+  String _proofreadV2ReferenceReasonLabel(ReferenceFirstReason reason) {
+    return switch (reason) {
+      ReferenceFirstReason.lowConfidenceAlignment => '对齐置信度低',
+      ReferenceFirstReason.ambiguousAlignment => '对齐存在歧义',
+      ReferenceFirstReason.structuralMismatch => '行结构不匹配',
+      ReferenceFirstReason.referenceTimestamp => '参考时间戳',
+      ReferenceFirstReason.mappedAsrTiming => '沿用 ASR 时间',
+      ReferenceFirstReason.interpolatedTiming => '插值时间需复核',
+      ReferenceFirstReason.estimatedTailTiming => '尾部估算时间需复核',
+      ReferenceFirstReason.timelineAdjusted => '时间轴已调整，需复核',
+      ReferenceFirstReason.protectedLine => '手动编辑保护',
+      ReferenceFirstReason.referenceImportWarning => '参考输入含警告',
+    };
+  }
+
+  String _proofreadV2ReasonLabel(ProofreadReason reason) {
+    return switch (reason) {
+      ProofreadReason.asrAgreement => 'ASR 一致',
+      ProofreadReason.asrDisagreement => 'ASR 不一致',
+      ProofreadReason.lowConfidence => '置信度低',
+      ProofreadReason.referenceCorrection => '参考文本纠正',
+      ProofreadReason.ambiguousAlignment => '对齐存在歧义',
+      ProofreadReason.structuralMismatch => '行结构不匹配',
+      ProofreadReason.repeatedSegment => '疑似重复片段',
+      ProofreadReason.suspectedHallucination => '疑似未演唱内容',
+      ProofreadReason.missingReferenceLine => '参考歌词缺行',
+      ProofreadReason.interpolatedTiming => '插值时间需复核',
+      ProofreadReason.estimatedTiming => '估算时间需复核',
+      ProofreadReason.timingAdjusted => '时间轴已调整',
+      ProofreadReason.timingConflict => '时间轴冲突',
+      ProofreadReason.protectedLine => '手动编辑保护',
+      ProofreadReason.importWarning => '导入含警告',
+      ProofreadReason.noTimingEvidence => '缺乏时间证据',
+    };
+  }
+
+  void _commitProofreadV2Document(
+    LyricDocument before,
+    LyricDocument after,
+  ) {
+    final snapshot = _AlignmentUndoSnapshot(
+      document: before,
+      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
+      selectedLineIndex: _selectedLineIndex,
+      hasChanges: _hasChanges,
+      isReferenceProofread: true,
+    );
+    final activeAudition = _activeLineAudition;
+    final shouldPauseAudition = activeAudition != null &&
+        _playbackSession.currentState.currentItem?.projectId ==
+            active.projectId &&
+        _audioService.currentState.isPlaying;
+    setState(() {
+      _editingDocument = after;
+      _activeLineAudition = null;
+      _hasChanges = true;
+      _alignmentUndoSnapshot = snapshot;
+      _filter = _ReviewFilter.all;
+      _selectedLineIndex = after.lines.isEmpty ? null : 0;
+    });
+    if (shouldPauseAudition) unawaited(_audioService.pause());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已应用智能校对提案（' + after.lines.length.toString() + ' 行），未写入磁盘。'),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
+      ),
+    );
+  }
+
   void _commitReferenceProofreadChange(
     LyricDocument before,
     ReferenceProofreadAppliedChange applied, {
