@@ -154,14 +154,15 @@ void main() {
           )),
         );
         expect(await partial.exists(), isFalse);
-      final marker = File(
-        '${root.path}${Platform.pathSeparator}models'
-        '${Platform.pathSeparator}qwen'
-        '${Platform.pathSeparator}Qwen--Qwen3-ASR-0.6B'
-        '${Platform.pathSeparator}.lyricforge-model.json',
-      );
-      expect(await marker.exists(), isFalse);
-    });
+        final marker = File(
+          '${root.path}${Platform.pathSeparator}models'
+          '${Platform.pathSeparator}qwen'
+          '${Platform.pathSeparator}Qwen--Qwen3-ASR-0.6B'
+          '${Platform.pathSeparator}.lyricforge-model.json',
+        );
+        expect(await marker.exists(), isFalse);
+      },
+    );
   });
 }
 
