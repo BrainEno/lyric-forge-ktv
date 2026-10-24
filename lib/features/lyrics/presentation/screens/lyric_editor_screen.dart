@@ -660,6 +660,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         referenceCoverage: referenceCoverage,
       );
 
+      final reviewedIndices =
+          const LyricReviewDecisionService().reviewedIndices(document);
+      final protectedDraftIndices = <int>{
+        ..._manuallyEditedLineIndices,
+        ...reviewedIndices,
+      };
+
       late final LyricDocument proposalDocument;
       late final List<LyricProofreadV2ReviewItem> items;
       late final List<LyricProofreadV2DroppedItem> droppedItems;
@@ -673,7 +680,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         final result = const ReferenceFirstPipeline().build(
           draft: document,
           reference: input,
-          protectedDraftIndices: _manuallyEditedLineIndices,
+          protectedDraftIndices: protectedDraftIndices,
           audioDuration: project.audioAsset?.duration,
         );
         proposalDocument = result.proposedDocument.copyWith(
@@ -732,7 +739,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       } else {
         final result = const AsrFirstPipeline().build(
           draft: document,
-          protectedDraftIndices: _manuallyEditedLineIndices,
+          protectedDraftIndices: protectedDraftIndices,
           audioDuration: project.audioAsset?.duration,
         );
         proposalDocument = result.proposedDocument;
