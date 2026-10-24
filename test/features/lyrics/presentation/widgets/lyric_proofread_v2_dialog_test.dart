@@ -120,12 +120,6 @@ void main() {
     expect(find.text('建议：corrected green'), findsOneWidget);
     expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('restore me'),
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
-    expect(find.text('restore me'), findsOneWidget);
-    await tester.scrollUntilVisible(
       find.byKey(const ValueKey('accept_amber_1')),
       100,
       scrollable: find.byType(Scrollable).last,
@@ -137,6 +131,7 @@ void main() {
       100,
       scrollable: find.byType(Scrollable).last,
     );
+    expect(find.text('restore me'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('应用所选（绿色 + 琥珀色 1）'));
