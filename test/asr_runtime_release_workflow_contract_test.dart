@@ -8,6 +8,15 @@ void main() {
       '.github/workflows/build-asr-runtime.yml',
     ).readAsString();
 
+    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
+    expect(
+      workflow,
+      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1"'),
+    );
+    expect(
+      workflow,
+      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1"'),
+    );
     expect(
       workflow,
       contains("needs: [flutter-validation, windows-cuda, macos-intel]"),

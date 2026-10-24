@@ -16,7 +16,7 @@ void main() {
             'name': assetName,
             'browser_download_url':
                 'https://github.com/BrainEno/lyric-forge-ktv/releases/download/'
-                    'asr-runtime-v1/$assetName',
+                    'asr-runtime-v2/$assetName',
             'size': 1223385752,
             'digest': 'sha256:$sha',
           },
