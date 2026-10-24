@@ -1022,7 +1022,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final activeAudition = _activeLineAudition;
     final shouldPauseAudition = activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
-            active.projectId &&
+            activeAudition.projectId &&
         _audioService.currentState.isPlaying;
     setState(() {
       _editingDocument = after;
