@@ -25,8 +25,12 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
     await Future.wait<void>(
       _probeUris.entries.map((probe) async {
         final currentSource = probe.key;
-        final client = await clientFactory.create(manualProxy: proxyOverride);
+        HttpClient? activeClient;
         try {
+          final client = await clientFactory.create(
+            manualProxy: proxyOverride,
+          );
+          activeClient = client;
           final request = await client
               .getUrl(Uri.parse(probe.value))
               .timeout(const Duration(seconds: 15));
@@ -67,7 +71,7 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
         } catch (error) {
           failures.add('$currentSource: $error');
         } finally {
-          client.close(force: true);
+          activeClient?.close(force: true);
         }
       }),
     );

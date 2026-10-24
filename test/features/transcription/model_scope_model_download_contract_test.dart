@@ -8,10 +8,10 @@ void main() {
       'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
     ).readAsStringSync();
 
-    expect(manager, contains("'/api/v1/models/$modelId/repo/files'"));
+    expect(manager, contains(r"'/api/v1/models/$modelId/repo/files'"));
     expect(manager, contains("'Revision': 'master'"));
     expect(manager, contains("'Recursive': 'true'"));
-    expect(manager, contains("'/models/$modelId/resolve/master/$fileName'"));
+    expect(manager, contains(r"'/models/$modelId/resolve/master/$fileName'"));
     expect(manager, contains('fromModelScopeManifest(jsonDecode(body))'));
   });
 
