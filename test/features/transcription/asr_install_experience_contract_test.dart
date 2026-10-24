@@ -164,7 +164,7 @@ void main() {
     expect(card, contains('已完成组件会自动复用'));
     expect(card, contains('整体环境准备进度（估算）'));
     expect(card, contains('失败时的环境准备进度（估算）'));
-    expect(card, contains('99%'));
+    expect(card, contains('0.99'));
     expect(card, contains('当前文件下载'));
     expect(card, contains('上方是整个识别环境的估算进度'));
     final errorCard = File(
