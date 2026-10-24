@@ -30,7 +30,8 @@ void main() {
     expect(source, contains('当前 runtime 缺少音频注意力张量布局修复'));
 
     final checksumIndex = source.indexOf('metadata.sha256');
-    final extractionIndex = source.indexOf('await _extractZip(archive.path, bundle.path)');
+    final extractionIndex =
+        source.indexOf('await _extractZip(archive.path, staging.path)');
     expect(checksumIndex, greaterThanOrEqualTo(0));
     expect(extractionIndex, greaterThan(checksumIndex));
   });
