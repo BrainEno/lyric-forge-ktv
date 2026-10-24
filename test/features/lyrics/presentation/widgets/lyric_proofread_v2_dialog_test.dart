@@ -162,18 +162,12 @@ void main() {
     expect(find.text('原文：old green'), findsOneWidget);
     expect(find.text('建议：corrected green'), findsOneWidget);
     expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('accept_amber_1')),
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('restore_dropped_2')),
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     expect(find.text('restore me'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
     await tester.pumpAndSettle();
@@ -236,18 +230,12 @@ void main() {
 
     await tester.tap(find.text('open review'));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('accept_amber_1')),
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('restore_dropped_2')),
-      100,
-      scrollable: find.byType(Scrollable).last,
-    );
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('仅应用绿色（1）'));
