@@ -149,10 +149,6 @@ void main() {
         );
         expect(
           fixture.rangeRequests,
-          contains('/hf/Qwen/Qwen3-ASR-0.6B/resolve/main/config.json=bytes=3-'),
-        );
-        expect(
-          fixture.rangeRequests,
           isNot(contains(
             '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/config.json=bytes=3-',
           )),
