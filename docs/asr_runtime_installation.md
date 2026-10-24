@@ -248,6 +248,16 @@ Advanced Settings keeps manual overrides for development and recovery:
 
 The advanced UI is not part of the first-use path.
 
+## Deterministic downloader regression coverage
+
+The test suite runs the managed Qwen downloader against a small local HTTP
+server. It exercises real Dart HTTP requests for Hugging Face metadata, an
+HTTP failure that triggers the official ModelScope manifest/file fallback,
+valid byte-range continuation of an existing `.part` file, checksum-verified
+promotion to the final filename, and rejection when source checksums disagree.
+These tests do not download the real model files or replace the manual Windows
+RTX 5080 acceptance test for a complete download and native dual-engine load.
+
 ## Runtime build pipeline
 
 `.github/workflows/build-asr-runtime.yml` builds:
