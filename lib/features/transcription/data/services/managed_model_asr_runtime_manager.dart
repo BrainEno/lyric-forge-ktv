@@ -10,6 +10,45 @@ import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
 import 'hugging_face_file_metadata.dart';
 
+/// Injectable URI builders for managed model downloads.
+///
+/// Production uses the official Hugging Face and ModelScope endpoints. Tests
+/// can point the same HTTP implementation at a local server to exercise HEAD,
+/// GET, Range, manifest, fallback and checksum behavior without live gigabyte
+/// downloads.
+class AsrModelDownloadEndpoints {
+  final Uri Function(String modelId, String fileName) huggingFaceFileUri;
+  final Uri Function(String modelId) modelScopeManifestUri;
+  final Uri Function(String modelId, String fileName) modelScopeFileUri;
+
+  const AsrModelDownloadEndpoints({
+    required this.huggingFaceFileUri,
+    required this.modelScopeManifestUri,
+    required this.modelScopeFileUri,
+  });
+
+  static const official = AsrModelDownloadEndpoints(
+    huggingFaceFileUri: _officialHuggingFaceFileUri,
+    modelScopeManifestUri: _officialModelScopeManifestUri,
+    modelScopeFileUri: _officialModelScopeFileUri,
+  );
+}
+
+Uri _officialHuggingFaceFileUri(String modelId, String fileName) => Uri.parse(
+      'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
+    );
+
+Uri _officialModelScopeManifestUri(String modelId) => Uri.https(
+      'modelscope.cn',
+      '/api/v1/models/$modelId/repo/files',
+      const {'Revision': 'master', 'Recursive': 'true'},
+    );
+
+Uri _officialModelScopeFileUri(String modelId, String fileName) => Uri.https(
+      'modelscope.cn',
+      '/models/$modelId/resolve/master/$fileName',
+    );
+
 /// Adds LyricForge-managed Qwen model downloads in front of the existing
 /// runtime installer so normal users never need to locate a Hugging Face cache.
 class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
@@ -58,6 +97,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   final TranscriptionProfileResolver profileResolver;
   final Future<Directory> Function()? managedRootResolver;
   final AsrDownloadHttpClientFactory httpClientFactory;
+  final AsrModelDownloadEndpoints downloadEndpoints;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -75,7 +115,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required this.profileResolver,
     this.managedRootResolver,
     AsrDownloadHttpClientFactory? httpClientFactory,
-  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory() {
+    AsrModelDownloadEndpoints? downloadEndpoints,
+  })  : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
+        downloadEndpoints = downloadEndpoints ?? AsrModelDownloadEndpoints.official {
     delegate.progressStream.listen(_forwardDelegateProgress);
   }
 
@@ -546,13 +588,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     }
 
     final uri = metadata.source == AsrModelDownloadSource.modelScope
-        ? Uri.https(
-            'modelscope.cn',
-            '/models/$modelId/resolve/master/$fileName',
-          )
-        : Uri.parse(
-            'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-          );
+        ? downloadEndpoints.modelScopeFileUri(modelId, fileName)
+        : downloadEndpoints.huggingFaceFileUri(modelId, fileName);
     final client = await httpClientFactory.create(
       manualProxy: proxyOverride,
     );
@@ -767,9 +804,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String fileName,
     required String proxyOverride,
   }) async {
-    final uri = Uri.parse(
-      'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-    );
+    final uri = downloadEndpoints.huggingFaceFileUri(modelId, fileName);
     final client = await httpClientFactory.create(
       manualProxy: proxyOverride,
     );
@@ -860,11 +895,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String modelId,
     required String proxyOverride,
   }) async {
-    final uri = Uri.https(
-      'modelscope.cn',
-      '/api/v1/models/$modelId/repo/files',
-      const {'Revision': 'master', 'Recursive': 'true'},
-    );
+    final uri = downloadEndpoints.modelScopeManifestUri(modelId);
     final client = await httpClientFactory.create(
       manualProxy: proxyOverride,
     );
