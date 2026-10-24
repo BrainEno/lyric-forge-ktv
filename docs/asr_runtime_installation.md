@@ -125,9 +125,11 @@ proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
 PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
 may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action checks access to both the Whisper large-v3
 and Qwen3-ASR large-file endpoints, following redirects and using the same
-configured HTTP proxy as downloads. It is a connectivity probe, not a full model
-download or runtime-load test. No third-party model mirror is selected
-automatically.
+configured HTTP proxy as downloads. This matters because Hugging Face serves large
+model files through separate storage/CDN hostnames, not only `huggingface.co`.
+The proxy must permit the relevant `hf.co` and `huggingface.co` subdomains. It is
+a connectivity probe, not a full model download or runtime-load test. No
+third-party model mirror is selected automatically.
 The proxy can be saved independently from model/runtime paths; an incomplete
 recognition profile is reported inside Advanced Settings and does not block
 saving the proxy.
