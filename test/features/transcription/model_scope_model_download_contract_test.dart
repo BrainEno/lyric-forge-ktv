@@ -23,13 +23,21 @@ void main() {
       'lib/features/transcription/data/services/hugging_face_file_metadata.dart',
     ).readAsStringSync();
 
-    expect(manager, contains('metadata.isContentCompatibleWith(fallbackMetadata)'));
-    expect(manager, contains('if (metadata.sha256 == null || fallbackMetadata.sha256 == null)'));
+    expect(
+      manager,
+      contains('metadata.isContentCompatibleWith(fallbackMetadata)'),
+    );
+    expect(
+      manager,
+      contains('if (metadata.sha256 == null || fallbackMetadata.sha256 == null)'),
+    );
     expect(metadata, contains('rawSha256.toLowerCase()'));
     expect(metadata, contains('AsrModelDownloadSource.modelScope'));
   });
 
-  test('connection test accepts ModelScope when Hugging Face Qwen is blocked', () {
+  test(
+    'connection test accepts ModelScope when Hugging Face Qwen is blocked',
+    () {
     final checker = File(
       'lib/features/transcription/data/services/asr_download_connection_checker.dart',
     ).readAsStringSync();
@@ -38,5 +46,6 @@ void main() {
     expect(checker, contains('Qwen3-ASR (ModelScope)'));
     expect(checker, contains("reachable.contains('Qwen3-ASR (ModelScope)')"));
     expect(checker, contains("reachable.contains('Whisper large-v3')"));
-  });
+    },
+  );
 }

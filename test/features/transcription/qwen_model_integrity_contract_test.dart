@@ -10,7 +10,7 @@ void main() {
   test('fetches Hugging Face metadata before trusting an existing model file', () {
     final installStart = source.indexOf('Future<String> _installModel');
     final metadataIndex = source.indexOf(
-      'final metadata = await _fetchModelFileMetadata',
+      'var metadata = await _fetchModelFileMetadata',
       installStart,
     );
     final localCheckIndex = source.indexOf(
