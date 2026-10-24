@@ -24,7 +24,7 @@ env:
   QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
   WHISPER_REPO: https://github.com/ggml-org/whisper.cpp.git
   WHISPER_REV: 927cfce34f31707e17f2bff35c349632fb9e2c3a
-  RUNTIME_TAG: asr-runtime-v1
+  RUNTIME_TAG: asr-runtime-v2
 
 jobs:
   flutter-validation:
@@ -208,6 +208,7 @@ jobs:
 
           @{
             schemaVersion = 1
+            runtimePatchRevision = "qwen-eager-attention-contiguous-v1"
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -300,6 +301,7 @@ jobs:
           cat > runtime/runtime-manifest.json <<EOF
           {
             "schemaVersion": 1,
+            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1",
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",
