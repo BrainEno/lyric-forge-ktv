@@ -35,7 +35,14 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +        let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?; // (1, h, d, s)
          let attn_weights = q.matmul(&k_t)?.affine(self.scaling, 0.0)?;
          let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
-@@ -699,1 +694,17 @@
+@@ -692,11 +687,27 @@
+ #[cfg(test)]
+ mod tests {
+     use super::{
+         AudioAttention, AudioTower, cu_seqlens_from_aftercnn_len, feature_lens_from_mask,
+         sinusoidal_positional_embedding,
+     };
+     use crate::config::AudioEncoderConfig;
      use candle_nn::Linear;
 +
 +    #[test]
@@ -53,3 +60,6 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +        }
 +        Ok(())
 +    }
+ 
+     #[test]
+     fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
