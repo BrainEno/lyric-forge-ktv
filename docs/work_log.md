@@ -9,7 +9,7 @@
 - [2026-10-24 01:10] Cover structural reference alignment mismatches `test: cover structural reference alignment mismatches` ([entry](log/entries/2026-10-24-0110-cover-structural-reference-alignment.md))
 - [2026-10-23 09:45] Prevent partial token alignment from inflating coverage `Prevent partial token alignment from inflating coverage` ([entry](log/entries/2026-10-23-0945-prevent-partial-token-alignment-coverage.md))
 - [2026-10-23 09:20] Reject malformed ASR timing evidence `Reject malformed ASR timing evidence` ([entry](log/entries/2026-10-23-0920-reject-malformed-asr-timing-evidence.md))
-- [2026-10-23 02:34] Add universal Flutter quality gate `ci: add universal flutter quality gate` ([entry](log/entries/2026-10-23-0234-universal-flutter-quality-gate.md))
+- [2026-10-23 02:34] Add universal Flutter quality gate `ci: add universal Flutter quality gate` ([entry](log/entries/2026-10-23-0234-universal-flutter-quality-gate.md))
 
 <!-- 69 entries total: 8 active, 61 archived. -->
 
