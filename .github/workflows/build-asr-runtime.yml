@@ -265,7 +265,7 @@ jobs:
       - name: Test eager attention matmul layout regression
         run: |
           cd qwen-runtime-src
-          cargo test --release -p qwen3_asr --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
+          cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
 
       - name: Build Qwen Intel runtime
         run: |
