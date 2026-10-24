@@ -62,8 +62,7 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +    }
  
      #[test]
--    fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
-+    fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
-+        let device = candle_core::Device::Cpu;
-+        let pe = sinusoidal_positional_embedding(10, 8, &device)?;
+     fn test_sinusoidal_positional_embedding_shape() -> anyhow::Result<()> {
+         let device = candle_core::Device::Cpu;
+         let pe = sinusoidal_positional_embedding(10, 8, &device)?;
 
