@@ -128,9 +128,7 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
       diagnostics: failures,
     );
 
-    if (!report.whisperAvailable ||
-        !report.qwenAvailable ||
-        !report.alignerAvailable) {
+    if (!report.whisperAvailable || !report.requiredModelsAvailable) {
       final missing = <String>[
         if (!report.whisperAvailable) 'Whisper large-v3',
         if (!report.qwenAvailable) 'Qwen ASR 模型（$qwenModelId）',

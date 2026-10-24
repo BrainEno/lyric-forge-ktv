@@ -53,7 +53,14 @@ void main() {
       expect(report.huggingFaceAlignerAvailable, isFalse);
       expect(report.modelScopeAlignerAvailable, isTrue);
       expect(report.requiredModelsAvailable, isTrue);
-      expect(report.diagnostics, isEmpty);
+      expect(
+        report.diagnostics,
+        contains(
+          startsWith(
+            'ForcedAligner (Qwen/Qwen3-ForcedAligner-0.6B) (Hugging Face): HEAD 元数据检查失败',
+          ),
+        ),
+      );
       expect(report.summary, contains('ForcedAligner 模型来源：ModelScope'));
     });
 
