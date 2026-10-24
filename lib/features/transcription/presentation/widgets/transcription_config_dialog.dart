@@ -218,6 +218,20 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
     await _resolveProfile(applyRecommendation: true);
   }
 
+  String _qwenModelIdForConnectionProbe() {
+    final profile = _resolvedProfile?.profile ?? _profilePreference;
+    if (profile == TranscriptionProfilePreference.rtx5080HighQuality) {
+      return 'Qwen/Qwen3-ASR-1.7B';
+    }
+    if (profile == TranscriptionProfilePreference.intelMacHighQuality) {
+      return 'Qwen/Qwen3-ASR-0.6B';
+    }
+    final configured = _qwenModelController.text.toLowerCase();
+    return configured.contains('qwen3-asr-0.6b')
+        ? 'Qwen/Qwen3-ASR-0.6B'
+        : 'Qwen/Qwen3-ASR-1.7B';
+  }
+
   Future<void> _testDownloadConnection() async {
     setState(() {
       _testingDownloadConnection = true;
@@ -226,6 +240,8 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
     try {
       final report = await _downloadConnectionChecker.testConnection(
         proxyOverride: _downloadProxyController.text.trim(),
+        qwenModelId: _qwenModelIdForConnectionProbe(),
+        alignerModelId: 'Qwen/Qwen3-ForcedAligner-0.6B',
       );
       if (!mounted) return;
       setState(() {

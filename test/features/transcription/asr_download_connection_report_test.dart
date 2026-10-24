@@ -3,60 +3,57 @@ import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_downl
 
 void main() {
   group('AsrDownloadConnectionReport', () {
-    test('ModelScope is available only when both manifest and file probes pass', () {
-      const manifestOnly = AsrDownloadConnectionReport(
-        whisperAvailable: true,
-        huggingFaceQwenAvailable: false,
-        modelScopeManifestAvailable: true,
-        modelScopeFileAvailable: false,
-      );
-      const fileOnly = AsrDownloadConnectionReport(
-        whisperAvailable: true,
-        huggingFaceQwenAvailable: false,
-        modelScopeManifestAvailable: false,
-        modelScopeFileAvailable: true,
-      );
-      const modelScopeReady = AsrDownloadConnectionReport(
-        whisperAvailable: true,
-        huggingFaceQwenAvailable: false,
-        modelScopeManifestAvailable: true,
-        modelScopeFileAvailable: true,
-      );
-
-      expect(manifestOnly.modelScopeAvailable, isFalse);
-      expect(manifestOnly.qwenAvailable, isFalse);
-      expect(fileOnly.modelScopeAvailable, isFalse);
-      expect(fileOnly.qwenAvailable, isFalse);
-      expect(modelScopeReady.modelScopeAvailable, isTrue);
-      expect(modelScopeReady.qwenAvailable, isTrue);
-    });
-
-    test('summary lists the source that passed and keeps the full-download caveat', () {
+    test('each ModelScope model requires both a manifest and file probe', () {
       const report = AsrDownloadConnectionReport(
         whisperAvailable: true,
         huggingFaceQwenAvailable: false,
+        huggingFaceAlignerAvailable: false,
+        modelScopeManifestAvailable: true,
+        modelScopeFileAvailable: false,
+        modelScopeAlignerManifestAvailable: true,
+        modelScopeAlignerFileAvailable: true,
+      );
+
+      expect(report.modelScopeQwenAvailable, isFalse);
+      expect(report.modelScopeAlignerAvailable, isTrue);
+      expect(report.qwenAvailable, isFalse);
+      expect(report.alignerAvailable, isTrue);
+      expect(report.requiredModelsAvailable, isFalse);
+    });
+
+    test('summary distinguishes Qwen and ForcedAligner sources', () {
+      const report = AsrDownloadConnectionReport(
+        whisperAvailable: true,
+        huggingFaceQwenAvailable: true,
+        huggingFaceAlignerAvailable: false,
         modelScopeManifestAvailable: true,
         modelScopeFileAvailable: true,
-        diagnostics: ['Qwen3-ASR (Hugging Face): HTTP 403'],
+        modelScopeAlignerManifestAvailable: true,
+        modelScopeAlignerFileAvailable: true,
+        diagnostics: ['ForcedAligner (Hugging Face): HTTP 403'],
       );
 
       expect(report.summary, contains('Whisper large-v3 可用'));
-      expect(report.summary, contains('ModelScope（清单与文件端点均通过）'));
+      expect(report.summary, contains('Qwen ASR 模型来源：Hugging Face、ModelScope'));
+      expect(report.summary, contains('ForcedAligner 模型来源：ModelScope'));
       expect(report.summary, contains('HTTP 403'));
       expect(report.summary, contains('不代表完整模型下载或引擎启动成功'));
     });
 
-    test('report includes both official Qwen sources when both pass', () {
+    test('Qwen and aligner can use different official sources', () {
       const report = AsrDownloadConnectionReport(
         whisperAvailable: true,
         huggingFaceQwenAvailable: true,
-        modelScopeManifestAvailable: true,
-        modelScopeFileAvailable: true,
+        huggingFaceAlignerAvailable: false,
+        modelScopeManifestAvailable: false,
+        modelScopeFileAvailable: false,
+        modelScopeAlignerManifestAvailable: true,
+        modelScopeAlignerFileAvailable: true,
       );
 
-      expect(report.summary, contains('Hugging Face'));
-      expect(report.summary, contains('ModelScope'));
-      expect(report.diagnostics, isEmpty);
+      expect(report.qwenAvailable, isTrue);
+      expect(report.alignerAvailable, isTrue);
+      expect(report.requiredModelsAvailable, isTrue);
     });
   });
 }

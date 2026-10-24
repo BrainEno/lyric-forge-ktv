@@ -123,15 +123,19 @@ Model and managed runtime downloads use the same proxy selection:
 Use a URL such as `http://127.0.0.1:7890`. Credentials in proxy URLs, SOCKS
 proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
 PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
-may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action probes the Whisper large-v3 file,
-the Qwen large-file endpoints on Hugging Face and ModelScope, and the official
-ModelScope repository-file manifest API. It follows download redirects and uses
-the same configured HTTP proxy as the downloader. ModelScope only counts as an
-available Qwen source when both its manifest API returns a valid file list with
-the expected model shard and SHA-256, and the file endpoint completes a one-byte
-HTTP Range GET. This avoids a false-positive result where the model URL is
-reachable but the manifest needed to start installation is blocked.
+may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action checks the Whisper large-v3 file plus the selected profile's Qwen ASR and ForcedAligner model files on both official Qwen sources. It uses the same configured HTTP proxy as the downloader.
 
+For each Hugging Face model file, the preflight checks both the non-redirecting
+`HEAD` response that installation uses to obtain a trustworthy ETag/size and a
+one-byte `Range GET` through the download redirect. For each ModelScope model,
+it checks the repository-file manifest, requires the exact weight filename and
+SHA-256, and separately checks the file endpoint with a one-byte range request.
+Qwen ASR and ForcedAligner are reported independently because either may be
+available through a different official source. The active profile selects
+Qwen3-ASR 1.7B on RTX 5080 or 0.6B on Intel Mac; the ForcedAligner remains 0.6B.
+
+This avoids false positives where a file URL responds but the metadata needed to
+start installation, or the other required model repository, is unavailable.
 The test checks metadata and real response-body paths without downloading
 gigabytes. Hugging Face large files may redirect to separate `hf.co` storage/CDN
 hosts. The probe is not a full model download or runtime-load test.
