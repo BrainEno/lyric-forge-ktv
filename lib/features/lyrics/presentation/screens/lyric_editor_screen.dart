@@ -18,6 +18,11 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
+import '../../domain/proofreading/asr_first_pipeline.dart';
+import '../../domain/proofreading/proofread_result.dart';
+import '../../domain/proofreading/proofread_strategy_selector.dart';
+import '../../domain/proofreading/reference_first_pipeline.dart';
+import '../../domain/proofreading/reference_token_aligner.dart';
 import '../../domain/proofreading/reference_proofread_review_builder.dart';
 import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_alignment_service.dart';
@@ -40,6 +45,7 @@ import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
+import '../widgets/lyric_proofread_v2_dialog.dart';
 
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
 
@@ -1273,6 +1279,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onReferenceProofread: _editingDocument!.lines.isEmpty
                   ? null
                   : () => _openReferenceProofread(project),
+              onProofreadV2: _editingDocument!.lines.isEmpty
+                  ? null
+                  : () => _openProofreadV2(project),
               onUndoReferenceAlignment: _alignmentUndoSnapshot == null
                   ? null
                   : _undoAlignmentApply,
@@ -1375,6 +1384,7 @@ class _LyricEditorContent extends StatelessWidget {
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;
+  final VoidCallback? onProofreadV2;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
@@ -1413,6 +1423,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onExport,
     required this.onReferenceAlignment,
     required this.onReferenceProofread,
+    required this.onProofreadV2,
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
@@ -1670,6 +1681,7 @@ class _LyricEditorContent extends StatelessWidget {
               onSeekPlayback: onSeekPlayback,
               onReferenceAlignment: onReferenceAlignment,
               onReferenceProofread: onReferenceProofread,
+              onProofreadV2: onProofreadV2,
               onUndoReferenceAlignment: onUndoReferenceAlignment,
               onViewAlignmentComparison: onViewAlignmentComparison,
               onRestoreAlignment: onRestoreAlignment,
@@ -1802,6 +1814,7 @@ class _EditorToolbar extends StatelessWidget {
   final ValueChanged<Duration> onSeekPlayback;
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;
+  final VoidCallback? onProofreadV2;
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
@@ -1826,6 +1839,7 @@ class _EditorToolbar extends StatelessWidget {
     required this.onSeekPlayback,
     required this.onReferenceAlignment,
     required this.onReferenceProofread,
+    required this.onProofreadV2,
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
@@ -1975,6 +1989,16 @@ class _EditorToolbar extends StatelessWidget {
                   label: const Text('逐行智能纠错'),
                 ),
               ),
+            Tooltip(
+              message: onProofreadV2 == null
+                  ? '先导入或生成歌词草稿'
+                  : '生成不自动写盘的校对提案；逐行对比后再明确应用',
+              child: FilledButton.tonalIcon(
+                onPressed: onProofreadV2,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: const Text('智能校对 V2'),
+              ),
+            ),
             if (!compactControls && onViewAlignmentComparison != null)
               OutlinedButton.icon(
                 onPressed: onViewAlignmentComparison,
