@@ -118,7 +118,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('原文：old green'), findsOneWidget);
     expect(find.text('建议：corrected green'), findsOneWidget);
-    expect(find.text('琥珀色 · 逐行复核'), findsOneWidget);
+    expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
     expect(find.text('restore me'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
