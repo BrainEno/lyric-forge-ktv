@@ -37,7 +37,9 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
     } on FormatException {
       rethrow;
     } catch (error) {
-      throw Exception('无法连接 $currentSource 模型源：$error');
+      throw Exception(
+        '无法连接 $currentSource 模型源：$error。请确认代理允许 huggingface.co 与 hf.co 的模型存储/CDN 子域名访问。',
+      );
     } finally {
       client.close(force: true);
     }
