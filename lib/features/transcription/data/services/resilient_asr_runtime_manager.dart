@@ -131,9 +131,12 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         _emit(
           AsrRuntimeComponent.qwenRuntime,
           1.0,
-          'Qwen 高质量组件暂不可用；已自动保留 Whisper 基线，可立即开始识别',
+          'Qwen 高质量组件准备失败；Whisper 基线已保留，但双引擎仍未就绪。请检查错误详情后重试。',
         );
-        return await repair(baseline);
+        throw TranscriptionException(
+          '最高质量双引擎准备失败；Whisper 基线已保留，但没有切换识别方案。请检查 Qwen runtime / 模型下载错误后重试。',
+          details: error.toString(),
+        );
       }
     } finally {
       _activeRequest = null;
