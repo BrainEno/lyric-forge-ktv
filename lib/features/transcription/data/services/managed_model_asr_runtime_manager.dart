@@ -61,6 +61,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
+  final Map<String, Future<Map<String, HuggingFaceFileMetadata>>>
+      _modelScopeManifestCache = {};
 
   bool _installingModels = false;
   bool _cancelRequested = false;
@@ -359,10 +361,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final target = File(_join(directory.path, [fileName]));
       final fileStart = index / files.length;
       final fileEnd = (index + 1) / files.length;
-      final metadata = await _fetchModelFileMetadata(
+      var metadata = await _fetchModelFileMetadata(
         modelId: modelId,
         fileName: fileName,
         proxyOverride: proxyOverride,
+        component: component,
+        progress: _mapProgress(fileStart, startProgress, endProgress),
       );
 
       var reusable = false;
@@ -381,32 +385,84 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           '已校验 ${_modelLabel(modelId)} · ${index + 1}/${files.length}',
         );
       } else {
-        await _downloadModelFile(
-          modelId: modelId,
-          fileName: fileName,
-          target: target,
-          metadata: metadata,
-          proxyOverride: proxyOverride,
-          onProgress: (
-            fraction,
-            downloadedBytes,
-            totalBytes,
-            bytesPerSecond,
-            estimatedRemaining,
-          ) {
-            final modelFraction =
-                fileStart + (fileEnd - fileStart) * fraction;
+        Future<void> downloadWithMetadata(
+          HuggingFaceFileMetadata fileMetadata,
+        ) {
+          return _downloadModelFile(
+            modelId: modelId,
+            fileName: fileName,
+            target: target,
+            metadata: fileMetadata,
+            proxyOverride: proxyOverride,
+            onProgress: (
+              fraction,
+              downloadedBytes,
+              totalBytes,
+              bytesPerSecond,
+              estimatedRemaining,
+            ) {
+              final modelFraction =
+                  fileStart + (fileEnd - fileStart) * fraction;
+              _emit(
+                component,
+                _mapProgress(modelFraction, startProgress, endProgress),
+                '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
+                downloadedBytes: downloadedBytes,
+                totalBytes: totalBytes,
+                bytesPerSecond: bytesPerSecond,
+                estimatedRemaining: estimatedRemaining,
+              );
+            },
+          );
+        }
+
+        try {
+          await downloadWithMetadata(metadata);
+        } catch (downloadError) {
+          _throwIfCancelled();
+          if (metadata.source != AsrModelDownloadSource.huggingFace) {
+            throw TranscriptionException(
+              'ModelScope 官方备用源下载 ${_modelLabel(modelId)} 失败',
+              details: '$fileName: $downloadError',
+            );
+          }
+
+          try {
+            final fallbackMetadata = await _fetchModelScopeFileMetadata(
+              modelId: modelId,
+              fileName: fileName,
+              proxyOverride: proxyOverride,
+            );
+            if (!metadata.isContentCompatibleWith(fallbackMetadata)) {
+              throw TranscriptionException(
+                'Hugging Face 与 ModelScope 的 $fileName 元数据不一致，拒绝混合下载',
+                details:
+                    'Hugging Face size=${metadata.sizeBytes}, sha256=${metadata.sha256}; '
+                    'ModelScope size=${fallbackMetadata.sizeBytes}, '
+                    'sha256=${fallbackMetadata.sha256}',
+              );
+            }
+
+            final partialFile = File('${target.path}.part');
+            if (metadata.sha256 == null || fallbackMetadata.sha256 == null) {
+              if (await partialFile.exists()) await partialFile.delete();
+            }
             _emit(
               component,
-              _mapProgress(modelFraction, startProgress, endProgress),
-              '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
-              downloadedBytes: downloadedBytes,
-              totalBytes: totalBytes,
-              bytesPerSecond: bytesPerSecond,
-              estimatedRemaining: estimatedRemaining,
+              _mapProgress(fileStart, startProgress, endProgress),
+              'Hugging Face 下载失败，正在通过官方 ModelScope 备用源重试：$downloadError',
             );
-          },
-        );
+            await downloadWithMetadata(fallbackMetadata);
+            metadata = fallbackMetadata;
+          } catch (fallbackError) {
+            _throwIfCancelled();
+            throw TranscriptionException(
+              'Hugging Face 下载失败，ModelScope 官方备用源也未能完成 ${_modelLabel(modelId)} 下载',
+              details:
+                  'Hugging Face: $downloadError\nModelScope: $fallbackError',
+            );
+          }
+        }
       }
 
       verifiedFiles.add({
@@ -481,9 +537,14 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       existing = 0;
     }
 
-    final uri = Uri.parse(
-      'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-    );
+    final uri = metadata.source == AsrModelDownloadSource.modelScope
+        ? Uri.https(
+            'modelscope.cn',
+            '/models/$modelId/resolve/master/$fileName',
+          )
+        : Uri.parse(
+            'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
+          );
     final client = await httpClientFactory.create(
       manualProxy: proxyOverride,
     );
@@ -621,6 +682,46 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String modelId,
     required String fileName,
     required String proxyOverride,
+    required AsrRuntimeComponent component,
+    required double progress,
+  }) async {
+    Object? huggingFaceError;
+    try {
+      return await _fetchHuggingFaceModelFileMetadata(
+        modelId: modelId,
+        fileName: fileName,
+        proxyOverride: proxyOverride,
+      );
+    } catch (error) {
+      _throwIfCancelled();
+      huggingFaceError = error;
+    }
+
+    _emit(
+      component,
+      progress,
+      'Hugging Face 无法读取模型元数据，正在尝试官方 ModelScope 备用源',
+    );
+    try {
+      return await _fetchModelScopeFileMetadata(
+        modelId: modelId,
+        fileName: fileName,
+        proxyOverride: proxyOverride,
+      );
+    } catch (modelScopeError) {
+      _throwIfCancelled();
+      throw TranscriptionException(
+        '无法读取 ${_modelLabel(modelId)} 文件元数据：Hugging Face 与 ModelScope 均失败',
+        details:
+            'Hugging Face: $huggingFaceError\nModelScope: $modelScopeError',
+      );
+    }
+  }
+
+  Future<HuggingFaceFileMetadata> _fetchHuggingFaceModelFileMetadata({
+    required String modelId,
+    required String fileName,
+    required String proxyOverride,
   }) async {
     final uri = Uri.parse(
       'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
@@ -670,6 +771,99 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       throw TranscriptionException(
         '无法读取 ${_modelLabel(modelId)} 文件元数据',
         details: '$fileName: $error',
+      );
+    } finally {
+      _activeRequest = null;
+      _activeClient = null;
+      client.close(force: true);
+    }
+  }
+
+  Future<HuggingFaceFileMetadata> _fetchModelScopeFileMetadata({
+    required String modelId,
+    required String fileName,
+    required String proxyOverride,
+  }) async {
+    final manifestFuture = _modelScopeManifestCache.putIfAbsent(
+      modelId,
+      () => _fetchModelScopeFileManifest(
+        modelId: modelId,
+        proxyOverride: proxyOverride,
+      ),
+    );
+
+    late Map<String, HuggingFaceFileMetadata> manifest;
+    try {
+      manifest = await manifestFuture;
+    } catch (_) {
+      if (identical(_modelScopeManifestCache[modelId], manifestFuture)) {
+        _modelScopeManifestCache.remove(modelId);
+      }
+      rethrow;
+    }
+
+    final metadata = manifest[fileName];
+    if (metadata == null) {
+      throw TranscriptionException(
+        'ModelScope 模型清单中缺少 $fileName',
+        details: 'model=$modelId, revision=master',
+      );
+    }
+    return metadata;
+  }
+
+  Future<Map<String, HuggingFaceFileMetadata>> _fetchModelScopeFileManifest({
+    required String modelId,
+    required String proxyOverride,
+  }) async {
+    final uri = Uri.https(
+      'modelscope.cn',
+      '/api/v1/models/$modelId/repo/files',
+      const {'Revision': 'master', 'Recursive': 'true'},
+    );
+    final client = await httpClientFactory.create(
+      manualProxy: proxyOverride,
+    );
+    client.userAgent = 'LyricForge/1.0';
+    _activeClient = client;
+
+    try {
+      final request = await client.getUrl(uri);
+      _activeRequest = request;
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      final response = await request.close().timeout(_downloadTimeout);
+      _activeRequest = null;
+      if (response.statusCode != HttpStatus.ok) {
+        final body = await utf8.decoder.bind(response).join().timeout(
+              _downloadTimeout,
+            );
+        throw TranscriptionException(
+          'ModelScope 无法读取模型文件清单',
+          details: 'model=$modelId, HTTP ${response.statusCode}: $body',
+        );
+      }
+
+      final body = await utf8.decoder.bind(response).join().timeout(
+            _downloadTimeout,
+          );
+      try {
+        return HuggingFaceFileMetadata.fromModelScopeManifest(jsonDecode(body));
+      } on FormatException catch (error) {
+        throw TranscriptionException(
+          'ModelScope 返回的模型文件清单无效',
+          details: error.message,
+        );
+      }
+    } on TranscriptionException {
+      rethrow;
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const TranscriptionException('识别环境安装已取消');
+      }
+      throw TranscriptionException(
+        '无法连接 ModelScope 模型文件清单',
+        details: '$error',
       );
     } finally {
       _activeRequest = null;
