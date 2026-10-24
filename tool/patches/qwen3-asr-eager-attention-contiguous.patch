@@ -1,7 +1,9 @@
 diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_encoder.rs
 --- a/qwen3_asr/src/model/audio_encoder.rs
 +++ b/qwen3_asr/src/model/audio_encoder.rs
-@@ -23,11 +23,9 @@ const LAYER_NORM_EPS: f64 = 1e-5;
+@@ -24,11 +24,9 @@
+ const LAYER_NORM_EPS: f64 = 1e-5;
+ 
 -fn maybe_contiguous_for_metal(x: Tensor) -> Result<Tensor> {
 -    if x.device().is_metal() {
 -        x.contiguous()
@@ -15,35 +17,25 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
  }
  
  fn cu_seqlens_from_aftercnn_len(
-@@ -312,15 +310,12 @@ impl AudioAttention {
-         let q = q.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
-         let k = k.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
-         let v = v.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
- 
+@@ -316,5 +316,4 @@
 -        // Metal GEMM kernels only support contiguous (or simple transposed) layouts.
 -        // These tensors are produced via reshapes/transposes that yield strided views,
 -        // so materialize contiguous buffers when running on Metal.
 -        let q = maybe_contiguous_for_metal(q)?;
 -        let v = maybe_contiguous_for_metal(v)?;
-+        // Eager attention passes these transposed views to matmul. Ensure the
-+        // layout is materialized on all backends, including Windows CUDA.
++        // Eager attention passes transposed views to matmul; materialize them
++        // for every backend, including the Windows CUDA runtime.
 +        let q = contiguous_for_attention_matmul(q)?;
 +        let v = contiguous_for_attention_matmul(v)?;
- 
+@@ -322,1 +321,1 @@
 -        let k_t = maybe_contiguous_for_metal(k.transpose(2, 3)?)?; // (1, h, d, s)
 +        let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?; // (1, h, d, s)
-         let attn_weights = q.matmul(&k_t)?.affine(self.scaling, 0.0)?;
-         let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
- 
-@@ -692,8 +687,8 @@ mod tests {
-     use super::{
+@@ -694,2 +693,2 @@
 -        AudioAttention, AudioTower, cu_seqlens_from_aftercnn_len, feature_lens_from_mask,
 -        sinusoidal_positional_embedding,
 +        AudioAttention, AudioTower, contiguous_for_attention_matmul,
 +        cu_seqlens_from_aftercnn_len, feature_lens_from_mask, sinusoidal_positional_embedding,
-     };
-@@ -805,6 +801,30 @@ mod tests {
-     }
+@@ -807,2 +806,26 @@
  
 +    #[test]
 +    fn test_eager_attention_matmul_materializes_transposed_inputs() -> anyhow::Result<()> {
@@ -70,4 +62,3 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +    }
 +
      #[test]
-     fn test_audio_attention_ignores_cu_seqlens_when_eager() -> anyhow::Result<()> {
