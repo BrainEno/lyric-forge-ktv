@@ -121,5 +121,5 @@
 - [ ] **T5 — asrFirst 流水线。** PR #141 共识分析、#143 幻觉候选、#144 重复片段移植、#145 参考纠错建议已进入 `main`（本环境未重跑本地验证）。Draft PR #146 新增安全重定时提案：只接受附近第二 ASR 的精确文本/时间匹配；多重匹配、低置信度、邻行冲突或音频越界均不得作为可用时间。未匹配时不按文本长度猜时间；不自动应用。重新分行及 ForcedAligner 任意文本适配仍待实现。
 - [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
 - [x] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
-- [ ] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。
+- [x] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。
 - [ ] **T9 — 回归与交付。** 运行 format、analyze、定向测试、`flutter test test/features/lyrics`、work-log write/check；按 AGENTS.md 记录完成条目、更新 handoff，并提交独立 PR。
