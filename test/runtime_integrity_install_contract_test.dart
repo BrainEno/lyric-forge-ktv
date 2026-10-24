@@ -25,6 +25,7 @@ void main() {
     expect(source, contains('qwenPath = null;'));
     expect(source, contains("['bundle-staging']"));
     expect(source, contains('_runtimeManifestQwenPatchVersion(staging)'));
+    expect(source, contains("['runtime', 'runtime-manifest.json']"));
     expect(source, contains('qwenPatchVersion'));
     expect(source, contains('当前 runtime 缺少音频注意力张量布局修复'));
 

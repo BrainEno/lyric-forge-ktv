@@ -511,15 +511,24 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<String?> _runtimeManifestQwenPatchVersion(Directory bundle) async {
-    final file = File(_join(bundle.path, ['runtime-manifest.json']));
-    if (!await file.exists()) return null;
-    try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return null;
-      return decoded['qwenPatchVersion']?.toString();
-    } catch (_) {
-      return null;
+    // Windows archives place the manifest at the archive root, while the
+    // macOS ditto archive preserves the top-level runtime/ directory.
+    final candidates = <File>[
+      File(_join(bundle.path, ['runtime-manifest.json'])),
+      File(_join(bundle.path, ['runtime', 'runtime-manifest.json'])),
+    ];
+    for (final file in candidates) {
+      if (!await file.exists()) continue;
+      try {
+        final decoded = jsonDecode(await file.readAsString());
+        if (decoded is! Map) continue;
+        final version = decoded['qwenPatchVersion']?.toString();
+        if (version != null) return version;
+      } catch (_) {
+        continue;
+      }
     }
+    return null;
   }
 
   bool _samePath(String left, String right) =>
