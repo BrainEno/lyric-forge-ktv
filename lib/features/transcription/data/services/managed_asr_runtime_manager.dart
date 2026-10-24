@@ -13,6 +13,8 @@ import 'runtime_release_asset_metadata.dart';
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
   static const String _runtimeReleaseTag = 'asr-runtime-v1';
+  static const String _requiredQwenPatchVersion =
+      'audio-attention-contiguous-v1';
   static const String _whisperModelName = 'ggml-large-v3.bin';
   static const String _whisperModelSha256 =
       '64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2';
@@ -74,6 +76,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       ],
       commandName: _qwenName,
     );
+    final managedQwenPath = _join(root.path, ['bundle', 'bin', _qwenName]);
+    final qwenUsesManagedBundle =
+        qwen != null && _samePath(qwen, managedQwenPath);
+    final qwenPatchReady = !qwenUsesManagedBundle ||
+        await _managedBundleHasRequiredQwenPatch(root);
+    final qwenRuntimeReady = qwen != null && qwenPatchReady;
 
     final managedWhisperModel =
         _join(root.path, ['models', 'whisper', _whisperModelName]);
@@ -122,12 +130,14 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         _component(
           AsrRuntimeComponent.qwenRuntime,
           'Qwen3-ASR 识别引擎',
-          qwen != null,
-          readyDetail: 'Qwen native runtime 已就绪',
-          missingDetail: _profileSupportsManagedRuntime(profile.profile)
-              ? '尚未安装；可由 LyricForge 自动安装'
-              : '当前自定义 Profile 需要在高级设置中指定 runtime',
-          path: qwen,
+          qwenRuntimeReady,
+          readyDetail: 'Qwen native runtime 已就绪（音频注意力修复版本）',
+          missingDetail: qwen != null && !qwenPatchReady
+              ? '当前 runtime 缺少音频注意力张量布局修复；请更新识别引擎'
+              : _profileSupportsManagedRuntime(profile.profile)
+                  ? '尚未安装；可由 LyricForge 自动安装'
+                  : '当前自定义 Profile 需要在高级设置中指定 runtime',
+          path: qwenRuntimeReady ? qwen : null,
           unavailable: !_profileSupportsManagedRuntime(profile.profile),
         ),
         _component(
@@ -249,6 +259,24 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
 
       final needsQwen = repaired.mode == TranscriptionMode.highestQuality;
+      final managedQwenPath = _join(root.path, ['bundle', 'bin', _qwenName]);
+      final qwenUsesManagedBundle =
+          qwenPath == null || _samePath(qwenPath, managedQwenPath);
+      var runtimeNeedsAttentionPatch = false;
+      if (needsQwen &&
+          _profileSupportsManagedRuntime(profile.profile) &&
+          qwenUsesManagedBundle &&
+          !await _managedBundleHasRequiredQwenPatch(root)) {
+        runtimeNeedsAttentionPatch = true;
+        qwenPath = null;
+        whisperPath = null;
+        _emit(
+          AsrRuntimeComponent.qwenRuntime,
+          0.02,
+          '检测到旧版 Qwen runtime，正在更新音频注意力兼容修复',
+        );
+      }
+
       if (whisperPath == null || (needsQwen && qwenPath == null)) {
         final installed = await _installManagedRuntimeBundle(
           root,
@@ -257,6 +285,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         );
         qwenPath = installed.$1;
         whisperPath = installed.$2;
+      }
+      if (runtimeNeedsAttentionPatch) {
+        final marker = _qwenReadyMarker(root, profile.profile);
+        if (await marker.exists()) await marker.delete();
       }
 
       _throwIfCancelled();
@@ -393,60 +425,106 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
     }
 
-    final bundle = Directory(_join(root.path, ['bundle']));
-    if (await bundle.exists()) {
-      await bundle.delete(recursive: true);
-    }
-    await bundle.create(recursive: true);
+    final staging = Directory(_join(root.path, ['bundle-staging']));
+    if (await staging.exists()) await staging.delete(recursive: true);
+    await staging.create(recursive: true);
 
     _emit(
       AsrRuntimeComponent.qwenRuntime,
       0.23,
-      '正在安装本地识别引擎',
+      '正在安装并检查本地识别引擎',
     );
-    await _extractZip(archive.path, bundle.path);
+    await _extractZip(archive.path, staging.path);
 
-    final qwen = await _findFile(bundle, _qwenName);
-    final whisper = await _findFile(bundle, _whisperName);
-    if (qwen == null || whisper == null) {
+    final patchVersion = await _runtimeManifestQwenPatchVersion(staging);
+    if (patchVersion != _requiredQwenPatchVersion) {
+      await staging.delete(recursive: true);
+      throw TranscriptionException(
+        '下载到的 Qwen runtime 尚未包含音频注意力修复；当前识别引擎未被替换，请稍后重试更新。',
+        details:
+            'expected qwenPatchVersion=$_requiredQwenPatchVersion, '
+            'actual=${patchVersion ?? 'missing'}; release=$_runtimeReleaseTag',
+      );
+    }
+
+    final stagedQwen = await _findFile(staging, _qwenName);
+    final stagedWhisper = await _findFile(staging, _whisperName);
+    if (stagedQwen == null || stagedWhisper == null) {
+      await staging.delete(recursive: true);
       throw const TranscriptionException(
         '识别引擎安装包不完整，请重新安装',
       );
     }
 
     if (!Platform.isWindows) {
-      await _makeExecutable(qwen.path);
-      await _makeExecutable(whisper.path);
+      await _makeExecutable(stagedQwen.path);
+      await _makeExecutable(stagedWhisper.path);
     }
 
     await _verifyExecutable(
-      qwen.path,
+      stagedQwen.path,
       const ['--help'],
       'Qwen3-ASR runtime',
     );
     await _verifyExecutable(
-      whisper.path,
+      stagedWhisper.path,
       const ['--help'],
       'Whisper runtime',
     );
+
+    // Keep the previous bundle until the downloaded archive passes validation.
+    final bundle = Directory(_join(root.path, ['bundle']));
+    if (await bundle.exists()) await bundle.delete(recursive: true);
+    await staging.rename(bundle.path);
+
+    final qwen = await _findFile(bundle, _qwenName);
+    final whisper = await _findFile(bundle, _whisperName);
+    if (qwen == null || whisper == null) {
+      throw const TranscriptionException(
+        '识别引擎安装包在切换到正式目录后缺少可执行文件',
+      );
+    }
 
     final bin = Directory(_join(bundle.path, ['bin']));
     await bin.create(recursive: true);
 
     final qwenTarget = File(_join(bin.path, [_qwenName]));
-    if (qwen.path != qwenTarget.path) {
+    if (!_samePath(qwen.path, qwenTarget.path)) {
       await qwen.copy(qwenTarget.path);
       if (!Platform.isWindows) await _makeExecutable(qwenTarget.path);
     }
 
     final whisperTarget = File(_join(bin.path, [_whisperName]));
-    if (whisper.path != whisperTarget.path) {
+    if (!_samePath(whisper.path, whisperTarget.path)) {
       await whisper.copy(whisperTarget.path);
       if (!Platform.isWindows) await _makeExecutable(whisperTarget.path);
     }
 
     return (qwenTarget.path, whisperTarget.path);
   }
+
+  Future<bool> _managedBundleHasRequiredQwenPatch(Directory root) async {
+    final version = await _runtimeManifestQwenPatchVersion(
+      Directory(_join(root.path, ['bundle'])),
+    );
+    return version == _requiredQwenPatchVersion;
+  }
+
+  Future<String?> _runtimeManifestQwenPatchVersion(Directory bundle) async {
+    final file = File(_join(bundle.path, ['runtime-manifest.json']));
+    if (!await file.exists()) return null;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map) return null;
+      return decoded['qwenPatchVersion']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _samePath(String left, String right) =>
+      left.replaceAll('\\', '/').toLowerCase() ==
+      right.replaceAll('\\', '/').toLowerCase();
 
   Future<String> _installFfmpeg(
     Directory root, {

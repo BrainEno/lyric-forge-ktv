@@ -20,6 +20,13 @@ void main() {
     expect(source, contains('metadata.sha256'));
     expect(source, contains("await archive.delete();"));
     expect(source, contains('正在校验 LyricForge 识别引擎完整性'));
+    expect(source, contains('_requiredQwenPatchVersion'));
+    expect(source, contains('_managedBundleHasRequiredQwenPatch(root)'));
+    expect(source, contains('qwenPath = null;'));
+    expect(source, contains("['bundle-staging']"));
+    expect(source, contains('_runtimeManifestQwenPatchVersion(staging)'));
+    expect(source, contains('qwenPatchVersion'));
+    expect(source, contains('当前 runtime 缺少音频注意力张量布局修复'));
 
     final checksumIndex = source.indexOf('metadata.sha256');
     final extractionIndex = source.indexOf('await _extractZip(archive.path, bundle.path)');
