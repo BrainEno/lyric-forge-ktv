@@ -13,6 +13,10 @@ void main() {
     expect(manager, contains("'Recursive': 'true'"));
     expect(manager, contains(r"'/models/$modelId/resolve/master/$fileName'"));
     expect(manager, contains('fromModelScopeManifest(jsonDecode(body))'));
+    expect(
+      manager,
+      contains('_modelScopeManifestCache.clear()'),
+    );
   });
 
   test('keeps source fallback guarded by size and known SHA-256', () {

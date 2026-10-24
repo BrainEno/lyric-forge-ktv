@@ -130,6 +130,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
     _cancelRequested = false;
     _delegateProgressBase = 0;
+    // The manifest cache is intentionally scoped to one installation attempt:
+    // model revisions may move, so a later retry must re-read official metadata.
+    _modelScopeManifestCache.clear();
 
     try {
       final resolved = await profileResolver.resolve(config);
