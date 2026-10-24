@@ -38,14 +38,14 @@ void main() {
   test(
     'connection test accepts ModelScope when Hugging Face Qwen is blocked',
     () {
-    final checker = File(
-      'lib/features/transcription/data/services/asr_download_connection_checker.dart',
-    ).readAsStringSync();
+      final checker = File(
+        'lib/features/transcription/data/services/asr_download_connection_checker.dart',
+      ).readAsStringSync();
 
-    expect(checker, contains('Qwen3-ASR (Hugging Face)'));
-    expect(checker, contains('Qwen3-ASR (ModelScope)'));
-    expect(checker, contains("reachable.contains('Qwen3-ASR (ModelScope)')"));
-    expect(checker, contains("reachable.contains('Whisper large-v3')"));
+      expect(checker, contains('Qwen3-ASR (Hugging Face)'));
+      expect(checker, contains('Qwen3-ASR (ModelScope)'));
+      expect(checker, contains("reachable.contains('Qwen3-ASR (ModelScope)')"));
+      expect(checker, contains("reachable.contains('Whisper large-v3')"));
     },
   );
 }

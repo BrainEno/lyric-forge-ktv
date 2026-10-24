@@ -428,6 +428,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           }
 
           try {
+            _emit(
+              component,
+              _mapProgress(fileStart, startProgress, endProgress),
+              'Hugging Face 下载失败，正在查询官方 ModelScope 备用源：$downloadError',
+            );
             final fallbackMetadata = await _fetchModelScopeFileMetadata(
               modelId: modelId,
               fileName: fileName,
