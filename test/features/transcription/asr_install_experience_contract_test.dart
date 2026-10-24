@@ -151,6 +151,11 @@ void main() {
       ),
     );
     expect(checker, contains('Qwen3-ASR (ModelScope)'));
+    expect(checker, contains('Qwen3-ASR (ModelScope 文件清单)'));
+    expect(checker, contains('/api/v1/models/Qwen/Qwen3-ASR-1.7B/repo/files'));
+    expect(checker, contains('fromModelScopeManifest'));
+    expect(checker, contains('modelScopeManifestAvailable'));
+    expect(checker, contains('modelScopeFileAvailable'));
     expect(checker, contains('至少需要 Whisper 和一个 Qwen 源可用'));
   });
 

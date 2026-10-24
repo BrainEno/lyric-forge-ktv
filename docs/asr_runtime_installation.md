@@ -123,14 +123,18 @@ Model and managed runtime downloads use the same proxy selection:
 Use a URL such as `http://127.0.0.1:7890`. Credentials in proxy URLs, SOCKS
 proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
 PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
-may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action makes a one-byte HTTP Range GET against
-the Whisper large-v3 endpoint plus both official Qwen sources (Hugging Face and
-ModelScope), follows redirects, and uses the same configured HTTP proxy as model
-downloads. The test succeeds when Whisper and at least one Qwen source return a
-real one-byte range response. It checks the response-body path without downloading
+may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action probes the Whisper large-v3 file,
+the Qwen large-file endpoints on Hugging Face and ModelScope, and the official
+ModelScope repository-file manifest API. It follows download redirects and uses
+the same configured HTTP proxy as the downloader. ModelScope only counts as an
+available Qwen source when both its manifest API returns a valid file list with
+the expected model shard and SHA-256, and the file endpoint completes a one-byte
+HTTP Range GET. This avoids a false-positive result where the model URL is
+reachable but the manifest needed to start installation is blocked.
+
+The test checks metadata and real response-body paths without downloading
 gigabytes. Hugging Face large files may redirect to separate `hf.co` storage/CDN
-hosts, while ModelScope uses its own manifest API and `resolve/master` download
-route. The probe is not a full model download or runtime-load test.
+hosts. The probe is not a full model download or runtime-load test.
 
 Managed Qwen downloads prefer Hugging Face. If its file metadata cannot be read,
 LyricForge tries the official ModelScope manifest API. If an actual Hugging Face

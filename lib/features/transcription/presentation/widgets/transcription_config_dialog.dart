@@ -224,13 +224,13 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       _downloadConnectionMessage = null;
     });
     try {
-      await _downloadConnectionChecker.testConnection(
+      final report = await _downloadConnectionChecker.testConnection(
         proxyOverride: _downloadProxyController.text.trim(),
       );
       if (!mounted) return;
       setState(() {
         _downloadConnectionSucceeded = true;
-        _downloadConnectionMessage = 'Whisper 与至少一个 Qwen（Hugging Face / 官方 ModelScope）来源完成 1 字节范围下载测试。完整模型下载及引擎启动仍需单独验证。';
+        _downloadConnectionMessage = report.summary;
       });
     } catch (error) {
       if (!mounted) return;
