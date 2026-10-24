@@ -15,33 +15,53 @@ class HttpAsrDownloadConnectionChecker implements AsrDownloadConnectionChecker {
 
   @override
   Future<void> testConnection({String? proxyOverride}) async {
-    final client = await clientFactory.create(manualProxy: proxyOverride);
-    var currentSource = 'Hugging Face';
-    try {
-      for (final probe in _probeUris.entries) {
-        currentSource = probe.key;
+    for (final probe in _probeUris.entries) {
+      final currentSource = probe.key;
+      final client = await clientFactory.create(manualProxy: proxyOverride);
+      try {
         final request = await client
-            .headUrl(Uri.parse(probe.value))
+            .getUrl(Uri.parse(probe.value))
             .timeout(const Duration(seconds: 15));
         request.followRedirects = true;
+        request.headers.set(HttpHeaders.rangeHeader, 'bytes=0-0');
+        request.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+
         final response = await request.close().timeout(
           const Duration(seconds: 20),
         );
-        await response.drain<void>().timeout(const Duration(seconds: 15));
-        if (response.statusCode < 200 || response.statusCode >= 400) {
+        if (response.statusCode != HttpStatus.partialContent) {
+          await response.listen((_) {}).cancel();
           throw HttpException(
-            '$currentSource 模型源返回 HTTP ${response.statusCode}',
+            '$currentSource 文件范围下载测试返回 HTTP ${response.statusCode}，期望 206 Partial Content',
           );
         }
+
+        final contentRange = response.headers
+            .value(HttpHeaders.contentRangeHeader)
+            ?.toLowerCase();
+        if (contentRange == null || !contentRange.startsWith('bytes 0-0/')) {
+          await response.listen((_) {}).cancel();
+          throw HttpException(
+            '$currentSource 文件范围下载测试返回无效的 Content-Range：$contentRange',
+          );
+        }
+
+        final firstChunk = await response.first.timeout(
+          const Duration(seconds: 15),
+        );
+        if (firstChunk.isEmpty) {
+          throw HttpException('$currentSource 文件范围下载测试没有收到数据');
+        }
+      } on FormatException {
+        rethrow;
+      } catch (error) {
+        throw Exception(
+          '无法完成 $currentSource 模型文件下载测试：$error。'
+          '请确认代理允许 huggingface.co 与 hf.co 的模型存储/CDN 子域名访问。',
+        );
+      } finally {
+        client.close(force: true);
       }
-    } on FormatException {
-      rethrow;
-    } catch (error) {
-      throw Exception(
-        '无法连接 $currentSource 模型源：$error。请确认代理允许 huggingface.co 与 hf.co 的模型存储/CDN 子域名访问。',
-      );
-    } finally {
-      client.close(force: true);
     }
   }
 }
