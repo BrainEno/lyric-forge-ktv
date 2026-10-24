@@ -144,6 +144,14 @@ void main() {
     expect(checker, contains("HttpHeaders.rangeHeader, 'bytes=0-0'"));
     expect(checker, contains('HttpStatus.partialContent'));
     expect(checker, contains('hf.co 的模型存储/CDN 子域名访问'));
+    expect(
+      checker,
+      contains(
+        'https://modelscope.cn/models/Qwen/Qwen3-ASR-1.7B/resolve/master/model-00001-of-00002.safetensors',
+      ),
+    );
+    expect(checker, contains('Qwen3-ASR (ModelScope)'));
+    expect(checker, contains('至少需要 Whisper 和一个 Qwen 源可用'));
   });
 
   test('rich progress card exposes component, bytes, speed and ETA copy', () {

@@ -10,7 +10,7 @@ void main() {
   test('fetches Hugging Face metadata before trusting an existing model file', () {
     final installStart = source.indexOf('Future<String> _installModel');
     final metadataIndex = source.indexOf(
-      'final metadata = await _fetchModelFileMetadata',
+      'var metadata = await _fetchModelFileMetadata',
       installStart,
     );
     final localCheckIndex = source.indexOf(
@@ -27,6 +27,14 @@ void main() {
     expect(source, contains('final request = await client.headUrl(uri);'));
     expect(source, contains('request.followRedirects = false;'));
     expect(source, contains("HttpHeaders.acceptEncodingHeader, 'identity'"));
+  });
+
+  test('redacts signed redirect queries but reports host and HTTP response details', () {
+    expect(source, contains('_downloadResponseDiagnostics(uri, response)'));
+    expect(source, contains('_redactDownloadUri(redirect.location)'));
+    expect(source, contains("response.headers.value('content-range')"));
+    expect(source, contains('redirects='));
+    expect(source, contains('response.reasonPhrase'));
   });
 
   test('validates resumed ranges and final size before accepting the part file', () {

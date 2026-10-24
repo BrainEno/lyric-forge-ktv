@@ -124,13 +124,21 @@ Use a URL such as `http://127.0.0.1:7890`. Credentials in proxy URLs, SOCKS
 proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
 PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
 may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action makes a one-byte HTTP Range GET against
-both the Whisper large-v3 and Qwen3-ASR large-file endpoints, follows redirects,
-and uses the same configured HTTP proxy as downloads. This checks a real response
-body path without downloading gigabytes. Hugging Face serves large model files
-through separate storage/CDN hostnames, not only `huggingface.co`; the proxy must
-permit the relevant `hf.co` and `huggingface.co` subdomains. The probe is not a
-full model download or runtime-load test. No third-party mirror is selected
-automatically.
+the Whisper large-v3 endpoint plus both official Qwen sources (Hugging Face and
+ModelScope), follows redirects, and uses the same configured HTTP proxy as model
+downloads. The test succeeds when Whisper and at least one Qwen source return a
+real one-byte range response. It checks the response-body path without downloading
+gigabytes. Hugging Face large files may redirect to separate `hf.co` storage/CDN
+hosts, while ModelScope uses its own manifest API and `resolve/master` download
+route. The probe is not a full model download or runtime-load test.
+
+Managed Qwen downloads prefer Hugging Face. If its file metadata cannot be read,
+LyricForge tries the official ModelScope manifest API. If an actual Hugging Face
+file download fails, LyricForge checks the matching ModelScope file's size and
+SHA-256 before switching sources. It refuses to combine sources when known file
+sizes or checksums differ. A partial download is only reused across sources when
+the known SHA-256 agrees; otherwise the partial file is deleted and restarted.
+The same configured HTTP proxy is used for both sources.
 The proxy can be saved independently from model/runtime paths; an incomplete
 recognition profile is reported inside Advanced Settings and does not block
 saving the proxy.
