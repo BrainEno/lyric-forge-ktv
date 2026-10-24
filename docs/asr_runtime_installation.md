@@ -142,11 +142,14 @@ hosts. The probe is not a full model download or runtime-load test.
 
 Managed Qwen downloads prefer Hugging Face. If its file metadata cannot be read,
 LyricForge tries the official ModelScope manifest API. If an actual Hugging Face
-file download fails, LyricForge checks the matching ModelScope file's size and
-SHA-256 before switching sources. It refuses to combine sources when known file
-sizes or checksums differ. A partial download is only reused across sources when
-the known SHA-256 agrees; otherwise the partial file is deleted and restarted.
-The same configured HTTP proxy is used for both sources.
+file download fails, LyricForge checks the matching ModelScope manifest. When
+both sources agree on size and known SHA-256, a compatible partial can continue.
+When their metadata differs, the Hugging Face partial is discarded and the
+affected file is downloaded from byte zero using a ModelScope-specific partial
+file, then verified against ModelScope's own size and SHA-256. This is a complete
+per-file source switch, never a concatenation of bytes from conflicting sources;
+a failed or inconsistent checksum still rejects the file. The same configured
+HTTP proxy is used for both sources.
 The proxy can be saved independently from model/runtime paths; an incomplete
 recognition profile is reported inside Advanced Settings and does not block
 saving the proxy.

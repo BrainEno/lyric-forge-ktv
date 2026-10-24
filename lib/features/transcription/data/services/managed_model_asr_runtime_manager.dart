@@ -483,24 +483,26 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
               fileName: fileName,
               proxyOverride: proxyOverride,
             );
-            if (!metadata.isContentCompatibleWith(fallbackMetadata)) {
-              throw TranscriptionException(
-                'Hugging Face 与 ModelScope 的 $fileName 元数据不一致，拒绝混合下载',
-                details:
-                    'Hugging Face size=${metadata.sizeBytes}, sha256=${metadata.sha256}; '
-                    'ModelScope size=${fallbackMetadata.sizeBytes}, '
-                    'sha256=${fallbackMetadata.sha256}',
-              );
-            }
-
-            final partialFile = File('${target.path}.part');
-            if (metadata.sha256 == null || fallbackMetadata.sha256 == null) {
-              if (await partialFile.exists()) await partialFile.delete();
+            final contentCompatible =
+                metadata.isContentCompatibleWith(fallbackMetadata);
+            // A partial file may only be resumed across sources when both file
+            // size and known SHA-256 agree. If source metadata disagrees, start
+            // the fallback from byte zero and verify it against ModelScope's
+            // own size/checksum rather than blocking a usable official mirror.
+            final huggingFacePartial = File('${target.path}.part');
+            if (!contentCompatible ||
+                metadata.sha256 == null ||
+                fallbackMetadata.sha256 == null) {
+              if (await huggingFacePartial.exists()) {
+                await huggingFacePartial.delete();
+              }
             }
             _emit(
               component,
               _mapProgress(fileStart, startProgress, endProgress),
-              'Hugging Face 下载失败，正在通过官方 ModelScope 备用源重试：$downloadError',
+              contentCompatible
+                  ? 'Hugging Face 下载失败，正在通过官方 ModelScope 备用源重试：$downloadError'
+                  : 'Hugging Face 与 ModelScope 的 $fileName 元数据不同；已丢弃原临时文件，将从 ModelScope 完整下载并按 SHA-256 校验',
             );
             await downloadWithMetadata(fallbackMetadata);
             metadata = fallbackMetadata;
@@ -564,7 +566,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     onProgress,
   }) async {
     await target.parent.create(recursive: true);
-    final part = File('${target.path}.part');
+    final part = File(_partialDownloadPath(target, metadata.source));
     var existing = await part.exists() ? await part.length() : 0;
 
     if (existing > metadata.sizeBytes) {
@@ -727,6 +729,17 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       _activeClient = null;
       client.close(force: true);
     }
+  }
+
+  String _partialDownloadPath(
+    File target,
+    AsrModelDownloadSource source,
+  ) {
+    // Keep fallback partials separate so a retry cannot resume ModelScope
+    // bytes as though they came from Hugging Face, or the reverse.
+    return source == AsrModelDownloadSource.modelScope
+        ? '${target.path}.modelscope.part'
+        : '${target.path}.part';
   }
 
   String _redactDownloadUri(Uri uri) {

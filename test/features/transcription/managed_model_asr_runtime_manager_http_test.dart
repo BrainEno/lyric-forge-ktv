@@ -84,18 +84,80 @@ void main() {
       expect((decoded['files'] as List).length, 8);
     });
 
-    test('refuses cross-source continuation when SHA-256 metadata differs', () async {
-      fixture.mismatchModelScopeChecksum = true;
+    test(
+      'restarts from ModelScope when Hugging Face size metadata is stale',
+      () async {
+        fixture.staleChatTemplateHeadMetadata = true;
+        final installed = await manager.installRecommended(_config);
+        final modelDirectory = Directory(installed.qwenModelPath);
+        final chatTemplate = File(
+          '${modelDirectory.path}${Platform.pathSeparator}chat_template.json',
+        );
 
-      await expectLater(
-        manager.installRecommended(_config),
-        throwsA(isA<TranscriptionException>()),
-      );
+        expect(
+          fixture.modelScopeFileRequests,
+          contains('Qwen/Qwen3-ASR-0.6B/chat_template.json'),
+        );
+        expect(await chatTemplate.length(), 1161);
+        expect(
+          await chatTemplate.readAsBytes(),
+          _DownloadFixture.staleChatTemplatePayload,
+        );
+        final marker = File(
+          '${modelDirectory.path}${Platform.pathSeparator}.lyricforge-model.json',
+        );
+        final decoded =
+            jsonDecode(await marker.readAsString()) as Map<String, dynamic>;
+        final entries = (decoded['files'] as List).cast<Map>();
+        final entry = entries.firstWhere(
+          (item) => item['name'] == 'chat_template.json',
+        );
+        expect(entry['sizeBytes'], 1161);
+        expect(entry['sha256'], _DownloadFixture.staleChatTemplateSha256);
+        expect(
+          fixture.rangeRequests,
+          isNot(contains(
+            '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/chat_template.json=bytes=',
+          )),
+        );
+      },
+    );
 
-      expect(
-        fixture.modelScopeFileRequests,
-        isNot(contains('Qwen/Qwen3-ASR-0.6B/config.json')),
-      );
+    test(
+      'does not reuse a partial file when source SHA-256 metadata differs',
+      () async {
+        fixture.mismatchModelScopeChecksum = true;
+        final modelDirectory = Directory(
+          '${root.path}${Platform.pathSeparator}models'
+          '${Platform.pathSeparator}qwen'
+          '${Platform.pathSeparator}Qwen--Qwen3-ASR-0.6B',
+        );
+        final partial = File(
+          '${modelDirectory.path}${Platform.pathSeparator}config.json.part',
+        );
+        await partial.parent.create(recursive: true);
+        await partial.writeAsBytes(_DownloadFixture.payload.sublist(0, 3));
+
+        await expectLater(
+          manager.installRecommended(_config),
+          throwsA(isA<TranscriptionException>()),
+        );
+
+        expect(
+          fixture.modelScopeFileRequests,
+          contains('Qwen/Qwen3-ASR-0.6B/config.json'),
+        );
+        expect(
+          fixture.rangeRequests,
+          contains('/hf/Qwen/Qwen3-ASR-0.6B/resolve/main/config.json=bytes=3-'),
+        );
+        expect(
+          fixture.rangeRequests,
+          isNot(contains(
+            '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/config.json=bytes=3-',
+          )),
+        );
+        expect(await partial.exists(), isFalse);
       final marker = File(
         '${root.path}${Platform.pathSeparator}models'
         '${Platform.pathSeparator}qwen'
@@ -113,6 +175,10 @@ class _DownloadFixture {
       '2cb79648d94c9a2aa10f9a1164f92c8090e37d753749aa3c8ca125c281598812';
   static const String differentSha256 =
       'c2d9eddc8c765da08e84b1835f0a55fdf0f5f3aad8269c8709b076ca67f3785d';
+  static final List<int> staleChatTemplatePayload =
+      List<int>.filled(1161, 0x61, growable: false);
+  static const String staleChatTemplateSha256 =
+      'b05f477a1425a7bb180a7323fb60e567970d71e4e5b1d52407d96e8b20f6cb7a';
   static const List<String> modelFiles = <String>[
     'chat_template.json',
     'config.json',
@@ -129,6 +195,7 @@ class _DownloadFixture {
   final List<String> modelScopeFileRequests = <String>[];
   final List<String> rangeRequests = <String>[];
   bool mismatchModelScopeChecksum = false;
+  bool staleChatTemplateHeadMetadata = false;
   int huggingFaceConfigFailures = 0;
 
   _DownloadFixture._(this.server) {
@@ -202,11 +269,18 @@ class _DownloadFixture {
       final mismatched = mismatchModelScopeChecksum &&
           modelId == 'Qwen/Qwen3-ASR-0.6B' &&
           fileName == 'config.json';
+      final staleChatTemplate = staleChatTemplateHeadMetadata &&
+          modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+          fileName == 'chat_template.json';
       return <String, Object>{
         'Type': 'blob',
         'Path': fileName,
-        'Size': payload.length,
-        'Sha256': mismatched ? differentSha256 : sha256,
+        'Size': staleChatTemplate ? staleChatTemplatePayload.length : payload.length,
+        'Sha256': staleChatTemplate
+            ? staleChatTemplateSha256
+            : mismatched
+                ? differentSha256
+                : sha256,
       };
     }).toList(growable: false);
 
@@ -224,8 +298,14 @@ class _DownloadFixture {
     final modelId = '${segments[0]}/${segments[1]}';
     final fileName = segments.last;
     if (request.method == 'HEAD') {
+      final staleChatTemplate = staleChatTemplateHeadMetadata &&
+          modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+          fileName == 'chat_template.json';
       request.response.headers.set('etag', '"$sha256"');
-      request.response.headers.set(HttpHeaders.contentLengthHeader, payload.length);
+      request.response.headers.set(
+        HttpHeaders.contentLengthHeader,
+        staleChatTemplate ? 206 : payload.length,
+      );
       request.response.headers.set('accept-ranges', 'bytes');
       await request.response.close();
       return;
@@ -243,6 +323,14 @@ class _DownloadFixture {
       await request.response.close();
       return;
     }
+    if (staleChatTemplateHeadMetadata &&
+        modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+        fileName == 'chat_template.json') {
+      request.response.headers.contentType = ContentType.text;
+      request.response.add(staleChatTemplatePayload);
+      await request.response.close();
+      return;
+    }
 
     await _writeFileResponse(request);
   }
@@ -255,16 +343,26 @@ class _DownloadFixture {
     if (request.method == 'GET') {
       modelScopeFileRequests.add('$modelId/$fileName');
     }
+    if (staleChatTemplateHeadMetadata &&
+        modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+        fileName == 'chat_template.json') {
+      await _writeFileResponse(request, bytes: staleChatTemplatePayload);
+      return;
+    }
     await _writeFileResponse(request);
   }
 
-  Future<void> _writeFileResponse(HttpRequest request) async {
+  Future<void> _writeFileResponse(
+    HttpRequest request, {
+    List<int>? bytes,
+  }) async {
+    final responseBytes = bytes ?? payload;
     final range = request.headers.value(HttpHeaders.rangeHeader);
     if (range != null) {
       rangeRequests.add('${request.uri.path}=$range');
       final match = RegExp(r'^bytes=(\d+)-$').firstMatch(range);
       final offset = int.tryParse(match?.group(1) ?? '');
-      if (offset == null || offset >= payload.length) {
+      if (offset == null || offset >= responseBytes.length) {
         request.response.statusCode = HttpStatus.requestedRangeNotSatisfiable;
         await request.response.close();
         return;
@@ -272,16 +370,16 @@ class _DownloadFixture {
       request.response.statusCode = HttpStatus.partialContent;
       request.response.headers.set(
         HttpHeaders.contentRangeHeader,
-        'bytes $offset-${payload.length - 1}/${payload.length}',
+        'bytes $offset-${responseBytes.length - 1}/${responseBytes.length}',
       );
-      request.response.contentLength = payload.length - offset;
-      request.response.add(payload.sublist(offset));
+      request.response.contentLength = responseBytes.length - offset;
+      request.response.add(responseBytes.sublist(offset));
       await request.response.close();
       return;
     }
 
-    request.response.contentLength = payload.length;
-    request.response.add(payload);
+    request.response.contentLength = responseBytes.length;
+    request.response.add(responseBytes);
     await request.response.close();
   }
 
