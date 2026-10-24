@@ -486,7 +486,7 @@ class WorkLogHarness {
     try {
       final result = Process.runSync(
         'git',
-        <String>['-C', root.path, 'log', '--pretty=format:%s', '-n', '500'],
+        <String>['-C', root.path, 'log', '--all', '--pretty=format:%s', '-n', '500'],
       );
       if (result.exitCode != 0) {
         return const <String>[];
