@@ -159,9 +159,13 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           _error = null;
         });
       } else {
+        final failedComponent = _installProgress?.component;
+        final failureMessage = error.toString();
+        await _refresh();
+        if (!mounted) return;
         setState(() {
-          _failedComponent = _installProgress?.component;
-          _error = error.toString();
+          _failedComponent = failedComponent;
+          _error = failureMessage;
         });
       }
     } catch (error) {
@@ -172,9 +176,13 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           _error = null;
         });
       } else {
+        final failedComponent = _installProgress?.component;
+        final failureMessage = '安装识别环境失败：$error';
+        await _refresh();
+        if (!mounted) return;
         setState(() {
-          _failedComponent = _installProgress?.component;
-          _error = '安装识别环境失败：$error';
+          _failedComponent = failedComponent;
+          _error = failureMessage;
         });
       }
     } finally {

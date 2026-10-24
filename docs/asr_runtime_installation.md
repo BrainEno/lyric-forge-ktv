@@ -123,9 +123,14 @@ Model and managed runtime downloads use the same proxy selection:
 Use a URL such as `http://127.0.0.1:7890`. Credentials in proxy URLs, SOCKS
 proxies, and PAC/WPAD auto-configuration are not supported. If the system uses
 PAC/WPAD, enter a local HTTP proxy address manually; automatic proxy discovery
-may otherwise fall back to direct access if no static proxy is available. The “Test download
-connection” action checks access to the Hugging Face Whisper model source before
-starting a large download. No third-party model mirror is selected automatically.
+may otherwise fall back to direct access if no static proxy is available. The “Test download connection” action makes a one-byte HTTP Range GET against
+both the Whisper large-v3 and Qwen3-ASR large-file endpoints, follows redirects,
+and uses the same configured HTTP proxy as downloads. This checks a real response
+body path without downloading gigabytes. Hugging Face serves large model files
+through separate storage/CDN hostnames, not only `huggingface.co`; the proxy must
+permit the relevant `hf.co` and `huggingface.co` subdomains. The probe is not a
+full model download or runtime-load test. No third-party mirror is selected
+automatically.
 The proxy can be saved independently from model/runtime paths; an incomplete
 recognition profile is reported inside Advanced Settings and does not block
 saving the proxy.
@@ -266,6 +271,7 @@ The installer does not silently fall back to fake paths.
 If installation or verification fails:
 
 - the component remains not ready;
+- a failed Qwen upgrade preserves the selected highest-quality mode and reports the Qwen-specific error; prepared Whisper files may remain on disk, but are not persisted as a silent Whisper-only mode change;
 - unfinished model files remain as resumable `.part` downloads;
 - the error is shown in the setup wizard;
 - transcription is blocked until required components are ready;

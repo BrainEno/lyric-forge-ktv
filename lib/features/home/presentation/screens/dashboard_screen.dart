@@ -16,7 +16,9 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../../transcription/domain/models/transcription_queue_models.dart';
+import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/batch_transcription_queue.dart';
+import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -54,6 +56,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async => setState(_loadData);
+
+  Future<void> _openModelSettings() async {
+    final services = ServiceLocatorGlobal.I;
+    try {
+      final initialConfig = await services.transcriptionSettingsStore.load() ??
+          const TranscriptionConfig(
+            mode: TranscriptionMode.highestQuality,
+            profilePreference: TranscriptionProfilePreference.automatic,
+            qwenExecutable: 'qwen3-asr',
+            whisperExecutable: 'whisper-cli',
+            modelPath: '',
+          );
+      if (!mounted) return;
+      final updated = await showDialog<TranscriptionConfig>(
+        context: context,
+        builder: (context) =>
+            TranscriptionConfigDialog(initialConfig: initialConfig),
+      );
+      if (updated == null || !mounted) return;
+      if (updated.isConfigured) {
+        await services.transcriptionSettingsStore.save(updated);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开模型高级设置失败：$error')),
+      );
+    }
+  }
 
   Future<void> _openLocalPlayer([PlayHistory? history]) async {
     await Navigator.pushNamed(context, Routes.quickPlay, arguments: history);
@@ -132,6 +163,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       _isDesktop
                                           ? Routes.mediaSharing
                                           : Routes.remoteLibrary,
+                                    ),
+                                    onOpenModelSettings: _openModelSettings,
+                                    onOpenSettings: () => Navigator.pushNamed(
+                                      context,
+                                      Routes.settings,
                                     ),
                                   ),
                                   SizedBox(height: layout.sectionGap),
@@ -276,12 +312,16 @@ class _Header extends StatelessWidget {
   final VoidCallback onOpenMusic;
   final VoidCallback onImport;
   final VoidCallback onRemote;
+  final VoidCallback onOpenModelSettings;
+  final VoidCallback onOpenSettings;
 
   const _Header({
     required this.isDesktop,
     required this.onOpenMusic,
     required this.onImport,
     required this.onRemote,
+    required this.onOpenModelSettings,
+    required this.onOpenSettings,
   });
 
   @override
@@ -348,6 +388,46 @@ class _Header extends StatelessWidget {
               onPressed: onImport,
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(layout.isCompact ? '识别歌词' : '导入并识别'),
+            ),
+            SizedBox(
+              width: layout.minimumInteractiveExtent,
+              height: layout.minimumInteractiveExtent,
+              child: PopupMenuButton<String>(
+                tooltip: '更多',
+                icon: const Icon(Icons.more_horiz_rounded),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'modelSettings':
+                      onOpenModelSettings();
+                      break;
+                    case 'settings':
+                      onOpenSettings();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'modelSettings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.tune_rounded, size: 18),
+                        SizedBox(width: AppSpacing.sm),
+                        Text('模型高级设置'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'settings',
+                    child: Row(
+                      children: [
+                        Icon(Icons.settings_outlined, size: 18),
+                        SizedBox(width: AppSpacing.sm),
+                        Text('应用设置'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );

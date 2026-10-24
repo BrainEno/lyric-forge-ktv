@@ -230,7 +230,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       if (!mounted) return;
       setState(() {
         _downloadConnectionSucceeded = true;
-        _downloadConnectionMessage = '已连通 Hugging Face 模型源，可以开始下载。';
+        _downloadConnectionMessage = 'Whisper 与 Qwen 模型均完成 1 字节范围下载测试。完整模型下载及引擎启动仍需单独验证。';
       });
     } catch (error) {
       if (!mounted) return;
@@ -455,7 +455,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                   labelText: '模型下载代理（可选）',
                   hintText: 'http://127.0.0.1:7890',
                   helperText:
-                      '留空读取代理环境变量；Windows/macOS 还会读取静态系统代理。PAC/WPAD 请手动填写。支持 HTTP 代理，不支持 SOCKS 和代理账号密码。',
+                      '留空读取代理环境变量；Windows/macOS 还会读取静态系统代理。PAC/WPAD 请手动填写 HTTP 代理。大模型下载还需要代理放行 huggingface.co 与 hf.co 的存储/CDN 子域名；支持 HTTP，不支持 SOCKS 和代理账号密码。',
                   helperMaxLines: 3,
                 ),
               ),

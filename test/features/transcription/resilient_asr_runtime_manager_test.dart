@@ -43,7 +43,7 @@ void main() {
     expect(result.mode, TranscriptionMode.highestQuality);
   });
 
-  test('falls back to ready Whisper config when Qwen upgrade fails', () async {
+  test('does not silently downgrade when Qwen upgrade fails', () async {
     final delegate = _FakeAsrRuntimeManager(
       whisperModel: whisperModel,
       ffmpeg: ffmpeg,
@@ -55,13 +55,26 @@ void main() {
     );
     addTearDown(manager.dispose);
 
-    final result = await manager.installRecommended(highestQualityConfig());
+    await expectLater(
+      manager.installRecommended(highestQualityConfig()),
+      throwsA(
+        isA<TranscriptionException>()
+            .having(
+              (error) => error.message,
+              'message',
+              contains('没有切换识别方案'),
+            )
+            .having(
+              (error) => error.details,
+              'details',
+              contains('Qwen runtime release unavailable'),
+            ),
+      ),
+    );
 
     expect(delegate.installs, hasLength(2));
-    expect(result.mode, TranscriptionMode.whisperOnly);
-    expect(result.whisperExecutable, whisperRuntime);
-    expect(result.modelPath, whisperModel);
-    expect(result.ffmpegExecutable, ffmpeg);
+    expect(delegate.installs[0].mode, TranscriptionMode.whisperOnly);
+    expect(delegate.installs[1].mode, TranscriptionMode.highestQuality);
   });
 
   test('does not swallow cancellation during highest-quality upgrade', () async {

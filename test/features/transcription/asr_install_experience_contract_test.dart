@@ -115,6 +115,37 @@ void main() {
     },
   );
 
+  test('Qwen failures stay visible and model settings are accessible from the dashboard', () {
+    final runtime = File(
+      'lib/features/transcription/data/services/resilient_asr_runtime_manager.dart',
+    ).readAsStringSync();
+    final dashboard = File(
+      'lib/features/home/presentation/screens/dashboard_screen.dart',
+    ).readAsStringSync();
+    final setup = File(
+      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
+    ).readAsStringSync();
+    final checker = File(
+      'lib/features/transcription/data/services/asr_download_connection_checker.dart',
+    ).readAsStringSync();
+
+    expect(runtime, contains('没有切换识别方案'));
+    expect(dashboard, contains("tooltip: '更多'"));
+    expect(dashboard, contains('Icons.more_horiz_rounded'));
+    expect(dashboard, contains("Text('模型高级设置')"));
+    expect(dashboard, contains('onOpenModelSettings: _openModelSettings'));
+    expect(setup, isNot(contains("tooltip: '打开模型高级设置'")));
+    expect(setup, contains("Text('高级设置')"));
+    expect(
+      checker,
+      contains('Qwen/Qwen3-ASR-1.7B/resolve/main/model-00001-of-00002.safetensors'),
+    );
+    expect(checker, contains('manualProxy: proxyOverride'));
+    expect(checker, contains("HttpHeaders.rangeHeader, 'bytes=0-0'"));
+    expect(checker, contains('HttpStatus.partialContent'));
+    expect(checker, contains('hf.co 的模型存储/CDN 子域名访问'));
+  });
+
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
     final card = File(
       'lib/features/transcription/presentation/widgets/asr_install_progress_card.dart',
