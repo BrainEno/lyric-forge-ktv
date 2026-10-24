@@ -12,7 +12,7 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +fn contiguous_for_attention_matmul(x: Tensor) -> Result<Tensor> {
 +    x.contiguous()
 +}
-@@ -312,12 +308,11 @@
+@@ -312,13 +308,12 @@
          let q = q.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
          let k = k.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
          let v = v.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
@@ -31,7 +31,7 @@ diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_en
 +        let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?; // (1, h, d, s)
          let attn_weights = q.matmul(&k_t)?.affine(self.scaling, 0.0)?;
          let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
-@@ -545,1 +541,17 @@
+@@ -699,1 +694,17 @@
      use candle_nn::Linear;
 +
 +    #[test]
