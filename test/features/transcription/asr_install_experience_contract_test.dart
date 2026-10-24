@@ -141,6 +141,7 @@ void main() {
       contains('Qwen/Qwen3-ASR-1.7B/resolve/main/model-00001-of-00002.safetensors'),
     );
     expect(checker, contains('manualProxy: proxyOverride'));
+    expect(checker, contains('hf.co 的模型存储/CDN 子域名访问'));
   });
 
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
