@@ -52,6 +52,49 @@ void main() {
     expect(result!.useReference, isTrue);
   });
 
+  testWidgets('review dialog stays within a compact phone viewport',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              await showLyricProofreadV2ReviewDialog(
+                context,
+                summary: '策略：参考歌词优先 · 绿色 1',
+                explanation: '逐行查看原文与建议。',
+                items: [
+                  LyricProofreadV2ReviewItem(
+                    proposalIndex: 0,
+                    sourceIndex: 0,
+                    originalLine: line('This is a long original lyric line that wraps on a phone'),
+                    proposedLine: line('This is the reviewed lyric line that wraps on a phone'),
+                    verdict: LyricProofreadReviewVerdict.green,
+                    reasonLabel: '高置信度参考匹配',
+                  ),
+                ],
+                droppedItems: const [],
+                onPreviewDraftLine: null,
+              );
+            },
+            child: const Text('open compact review'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open compact review'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('建议：This is the reviewed lyric line'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('review dialog compares rows and returns amber plus grey restore',
       (tester) async {
     LyricProofreadV2Selection? result;
