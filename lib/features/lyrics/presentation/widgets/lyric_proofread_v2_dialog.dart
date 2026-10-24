@@ -242,8 +242,7 @@ class _LyricProofreadV2ReviewDialogState
       )
       .length;
 
-  bool get _canApplyGreen =>
-      _greenChangeCount > 0 || _restoredDraftIndices.isNotEmpty;
+  bool get _canApplyGreen => _greenChangeCount > 0;
 
   bool get _canApplySelected =>
       _greenChangeCount > 0 ||
