@@ -57,6 +57,38 @@ void main() {
     );
   });
 
+  test('managed Qwen builds apply the eager-attention contiguous-layout patch', () async {
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
+    final patch = await File(
+      'tool/patches/qwen3-asr-eager-attention-contiguous.patch',
+    ).readAsString();
+
+    expect(workflow, contains('Apply eager attention matmul layout fix'));
+    expect(
+      workflow,
+      contains('tool/patches/qwen3-asr-eager-attention-contiguous.patch'),
+    );
+    expect(workflow, contains('git apply --check'));
+    expect(
+      workflow,
+      contains('Test eager attention matmul layout regression'),
+      reason: 'the patched Rust regression test must run in CI',
+    );
+    expect(
+      patch,
+      contains('fn contiguous_for_attention_matmul(x: Tensor) -> Result<Tensor>'),
+    );
+    expect(patch, contains('x.contiguous()'));
+    expect(patch, contains('let q = contiguous_for_attention_matmul(q)?;'));
+    expect(
+      patch,
+      contains('contiguous_for_attention_matmul(k.transpose(2, 3)?)?'),
+    );
+    expect(patch, contains('test_eager_attention_matmul_materializes_transposed_inputs'));
+  });
+
   test('Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback', () async {
     final workflow = await File(
       '.github/workflows/build-asr-runtime.yml',

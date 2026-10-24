@@ -115,6 +115,19 @@ jobs:
           Set-Location qwen-runtime-src
           git checkout $env:QWEN_REV
 
+      - name: Apply eager attention matmul layout fix
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-eager-attention-contiguous.patch"
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Qwen attention layout patch no longer applies to the pinned source." }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply Qwen attention layout patch." }
+          if (-not (Select-String -Path "qwen3_asr/src/model/audio_encoder.rs" -Pattern "contiguous_for_attention_matmul" -Quiet)) {
+            throw "Patched Qwen attention helper was not found."
+          }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -242,6 +255,17 @@ jobs:
           git clone "$QWEN_REPO" qwen-runtime-src
           cd qwen-runtime-src
           git checkout "$QWEN_REV"
+
+      - name: Apply eager attention matmul layout fix
+        run: |
+          git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-eager-attention-contiguous.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-eager-attention-contiguous.patch"
+          grep -q "contiguous_for_attention_matmul" qwen-runtime-src/qwen3_asr/src/model/audio_encoder.rs
+
+      - name: Test eager attention matmul layout regression
+        run: |
+          cd qwen-runtime-src
+          cargo test --release -p qwen3_asr --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
 
       - name: Build Qwen Intel runtime
         run: |

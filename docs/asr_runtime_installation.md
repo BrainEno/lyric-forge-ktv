@@ -179,6 +179,15 @@ lyricforge-asr-runtime-macos-x64.zip
 The application downloads only the asset matching the resolved hardware
 profile.
 
+The pinned upstream revision has an eager audio-attention layout issue: it
+materializes the transposed Q/K/V tensors only for Metal, while this runtime's
+Windows CUDA backend can reject the same strided views during the first
+attention matmul. The runtime build applies
+`tool/patches/qwen3-asr-eager-attention-contiguous.patch` to both platform
+bundles, making those attention inputs contiguous on every backend. The macOS
+runtime job runs a focused Rust regression test against non-contiguous Q/K
+views before packaging the bundle.
+
 ### Qwen models
 
 Users do not select Qwen model folders.
