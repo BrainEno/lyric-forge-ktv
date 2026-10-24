@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
+import 'package:lyric_forge_ktv/features/transcription/presentation/widgets/asr_install_error_card.dart';
 import 'package:lyric_forge_ktv/features/transcription/presentation/widgets/asr_install_progress_card.dart';
 
 void main() {
@@ -162,8 +163,16 @@ void main() {
     expect(card, contains('断点已保留'));
     expect(card, contains('已完成组件会自动复用'));
     expect(card, contains('整体环境准备进度（估算）'));
+    expect(card, contains('失败时的环境准备进度（估算）'));
+    expect(card, contains('99%'));
     expect(card, contains('当前文件下载'));
     expect(card, contains('上方是整个识别环境的估算进度'));
+    final errorCard = File(
+      'lib/features/transcription/presentation/widgets/asr_install_error_card.dart',
+    ).readAsStringSync();
+    expect(errorCard, contains('SelectionArea('));
+    expect(errorCard, contains('Clipboard.setData'));
+    expect(errorCard, contains('复制诊断详情'));
   });
 
   testWidgets('displays environment and current file progress separately', (
@@ -195,4 +204,49 @@ void main() {
     expect(find.text('30%'), findsOneWidget);
     expect(find.text('30.0 MB / 100 MB'), findsOneWidget);
   });
+  testWidgets('failed installs cannot display a completed progress state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: const Scaffold(
+          body: AsrInstallProgressCard(
+            failed: true,
+            progress: AsrRuntimeInstallProgress(
+              component: AsrRuntimeComponent.qwenModel,
+              progress: 1,
+              message: 'chat_template.json size mismatch',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('失败时的环境准备进度（估算）'), findsOneWidget);
+    expect(find.text('99% · 未完成'), findsOneWidget);
+    expect(find.text('100%'), findsNothing);
+  });
+
+  testWidgets('diagnostic card keeps long details selectable and offers copy', (
+    tester,
+  ) async {
+    const details =
+        'Qwen3-ASR chat_template.json expected=206 actual=1161; '
+        'ModelScope manifest SHA-256 validation required';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: const Scaffold(
+          body: AsrInstallErrorCard(message: details),
+        ),
+      ),
+    );
+
+    expect(find.text('暂时无法完成准备'), findsOneWidget);
+    expect(find.text(details), findsOneWidget);
+    expect(find.text('复制诊断详情'), findsOneWidget);
+  });
+
 }
