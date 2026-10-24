@@ -25,7 +25,7 @@
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 - **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.
-- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and remains open. PR #165 integrates the T8 strategy chooser, line-by-line proposal review, green-only batch apply, explicit amber acceptance, grey-row restore, line audition, and existing snapshot undo. Its code-only CI run passed all 649 tests; after documentation sync a final gate will rerun. ASR-first UI still lacks a second-transcript input, and real-device playback/responsive smoke checks remain manual.
+- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and is now merged into `main`. PR #165 integrates the T8 strategy chooser, line-by-line proposal review, green-only batch apply, explicit amber acceptance, grey-row restore, line audition, and existing snapshot undo. Its code-only CI run passed all 649 tests; after documentation sync a final gate will rerun. ASR-first UI still lacks a second-transcript input, and real-device playback/responsive smoke checks remain manual.
 
 ## Follow-up leads — re-check before acting
 

@@ -4,9 +4,9 @@
 完成歌词智能校对 V2 的 T8 界面接入，并在进入 T9 前保留明确的人为确认、应用与撤销边界。
 
 ## Git 现场
-- 基础分支：`main`，基线 `64fdb746780edee98f7df1195a839d30aa4981f5`。
-- 当前分支：`feat/proofread-v2-ui-clean-20261024`；PR #165：`https://github.com/BrainEno/lyric-forge-ktv/pull/165`，保持 open，未合并。
-- 独立 PR #164（T7 共用流水线不变量测试）仍开放；本 PR 直接基于 main，不依赖其尚未合并的提交。
+- PR #165 最初以 `64fdb746780edee98f7df1195a839d30aa4981f5` 为基线；`main` 已通过 PR #164 前进至 `6c6b8958b6d3d41eb6baee1319b405e3928eed9c`。
+- 当前分支：`feat/proofread-v2-ui-clean-20261024`；PR #165：`https://github.com/BrainEno/lyric-forge-ktv/pull/165`，保持 open，尚未合并。
+- PR #164 的 T7 共用流水线不变量测试已合并进 `main`；本次修复保留其 I6 时间边界/`timingConflict` 约束，同时保留 PR #165 的 T8 UI 接入和日志记录。
 - 当前执行环境通过 GitHub API 操作；没有本地 checkout，也不能在此直接运行 `dart` 或 `flutter` 命令。
 
 ## 已改文件
