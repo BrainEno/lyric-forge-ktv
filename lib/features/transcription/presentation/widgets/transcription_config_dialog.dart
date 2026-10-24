@@ -230,7 +230,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       if (!mounted) return;
       setState(() {
         _downloadConnectionSucceeded = true;
-        _downloadConnectionMessage = 'Whisper 与 Qwen 模型文件地址均可访问。此测试不代表完整下载或模型加载一定成功。';
+        _downloadConnectionMessage = 'Whisper 与 Qwen 模型均完成 1 字节范围下载测试。完整模型下载及引擎启动仍需单独验证。';
       });
     } catch (error) {
       if (!mounted) return;
