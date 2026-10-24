@@ -100,6 +100,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     final alignerLocal = await _modelReferenceExists(
       repaired.qwenAlignerModelPath,
     );
+    final requiresManagedModelHealth =
+        _profileSupportsManagedRuntime(profile.profile);
+    final qwenModelReady =
+        markerReady || (qwenModelLocal && !requiresManagedModelHealth);
+    final alignerReady =
+        markerReady || (alignerLocal && !requiresManagedModelHealth);
 
     final components = <AsrRuntimeComponentStatus>[
       _component(
@@ -143,20 +149,24 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         _component(
           AsrRuntimeComponent.qwenModel,
           _qwenModelLabel(repaired.qwenModelPath),
-          markerReady || qwenModelLocal,
+          qwenModelReady,
           readyDetail: markerReady
               ? 'Qwen 模型已下载并通过启动检查'
               : '已找到本地 Qwen 模型',
-          missingDetail: '首次安装时会自动下载并缓存',
+          missingDetail: qwenModelLocal
+              ? '模型路径已存在，但还没有通过当前 runtime 启动检查'
+              : '首次安装时会自动下载并缓存',
         ),
         _component(
           AsrRuntimeComponent.qwenAligner,
           'Qwen ForcedAligner 0.6B',
-          markerReady || alignerLocal,
+          alignerReady,
           readyDetail: markerReady
               ? 'ForcedAligner 已下载并通过启动检查'
               : '已找到本地 ForcedAligner',
-          missingDetail: '首次安装时会自动下载并缓存',
+          missingDetail: alignerLocal
+              ? '模型路径已存在，但还没有通过当前 runtime 启动检查'
+              : '首次安装时会自动下载并缓存',
         ),
       ],
     ];

@@ -40,6 +40,9 @@ void main() {
       expect(source, contains("['state', 'runtime-build-revision.txt']"));
       expect(source, contains('needsManagedRuntimeRefresh'));
       expect(source, contains('_managedRuntimeBuildIsCurrent(root)'));
+      expect(source, contains('requiresManagedModelHealth'));
+      expect(source, contains('qwenModelReady'));
+      expect(source, contains('alignerReady'));
       expect(source, contains("decoded['runtimePatchRevision']"));
       expect(source, contains("'runtimePatchRevision': _managedRuntimeBuildRevision"));
       expect(source, contains('await staging.rename(bundle.path)'));
