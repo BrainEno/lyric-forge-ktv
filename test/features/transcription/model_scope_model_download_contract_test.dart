@@ -40,16 +40,22 @@ void main() {
   });
 
   test(
-    'connection test accepts ModelScope when Hugging Face Qwen is blocked',
+    'preflight verifies both selected model repositories and source prerequisites',
     () {
       final checker = File(
         'lib/features/transcription/data/services/asr_download_connection_checker.dart',
       ).readAsStringSync();
 
-      expect(checker, contains('Qwen3-ASR (Hugging Face)'));
-      expect(checker, contains('Qwen3-ASR (ModelScope)'));
-      expect(checker, contains("reachable.contains('Qwen3-ASR (ModelScope)')"));
+      expect(checker, contains(r"name: '$qwenLabel (Hugging Face)'"));
+      expect(checker, contains(r"name: '$alignerLabel (Hugging Face)'"));
       expect(checker, contains("reachable.contains('Whisper large-v3')"));
+      expect(checker, contains('modelScopeManifestAvailable:'));
+      expect(checker, contains('modelScopeFileAvailable:'));
+      expect(checker, contains('modelScopeAlignerManifestAvailable:'));
+      expect(checker, contains('modelScopeAlignerFileAvailable:'));
+      expect(checker, contains('request.followRedirects = false'));
+      expect(checker, contains('HuggingFaceFileMetadata.fromHeaders(headers)'));
+      expect(checker, contains('report.requiredModelsAvailable'));
     },
   );
 }

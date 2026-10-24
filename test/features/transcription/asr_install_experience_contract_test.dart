@@ -136,27 +136,17 @@ void main() {
     expect(dashboard, contains('onOpenModelSettings: _openModelSettings'));
     expect(setup, isNot(contains("tooltip: '打开模型高级设置'")));
     expect(setup, contains("Text('高级设置')"));
-    expect(
-      checker,
-      contains('Qwen/Qwen3-ASR-1.7B/resolve/main/model-00001-of-00002.safetensors'),
-    );
     expect(checker, contains('manualProxy: proxyOverride'));
     expect(checker, contains("HttpHeaders.rangeHeader, 'bytes=0-0'"));
     expect(checker, contains('HttpStatus.partialContent'));
-    expect(checker, contains('hf.co 的模型存储/CDN 子域名访问'));
-    expect(
-      checker,
-      contains(
-        'https://modelscope.cn/models/Qwen/Qwen3-ASR-1.7B/resolve/master/model-00001-of-00002.safetensors',
-      ),
-    );
-    expect(checker, contains('Qwen3-ASR (ModelScope)'));
-    expect(checker, contains('Qwen3-ASR (ModelScope 文件清单)'));
-    expect(checker, contains('/api/v1/models/Qwen/Qwen3-ASR-1.7B/repo/files'));
+    expect(checker, contains('request.followRedirects = false'));
+    expect(checker, contains('HuggingFaceFileMetadata.fromHeaders(headers)'));
     expect(checker, contains('fromModelScopeManifest'));
-    expect(checker, contains('modelScopeManifestAvailable'));
-    expect(checker, contains('modelScopeFileAvailable'));
-    expect(checker, contains('至少需要 Whisper 和一个 Qwen 源可用'));
+    expect(checker, contains('modelScopeAlignerManifestAvailable'));
+    expect(checker, contains('modelScopeAlignerFileAvailable'));
+    expect(checker, contains('qwenModelId ='));
+    expect(checker, contains('alignerModelId ='));
+    expect(checker, contains('ForcedAligner 模型'));
   });
 
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
