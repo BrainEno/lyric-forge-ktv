@@ -159,9 +159,13 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           _error = null;
         });
       } else {
+        final failedComponent = _installProgress?.component;
+        final failureMessage = error.toString();
+        await _refresh();
+        if (!mounted) return;
         setState(() {
-          _failedComponent = _installProgress?.component;
-          _error = error.toString();
+          _failedComponent = failedComponent;
+          _error = failureMessage;
         });
       }
     } catch (error) {
@@ -172,9 +176,13 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
           _error = null;
         });
       } else {
+        final failedComponent = _installProgress?.component;
+        final failureMessage = '安装识别环境失败：$error';
+        await _refresh();
+        if (!mounted) return;
         setState(() {
-          _failedComponent = _installProgress?.component;
-          _error = '安装识别环境失败：$error';
+          _failedComponent = failedComponent;
+          _error = failureMessage;
         });
       }
     } finally {
@@ -319,10 +327,22 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _SectionLabel(
-                    number: '1',
-                    title: '选择识别方案',
-                    subtitle: '大多数电脑保持推荐选项即可，模型和路径由 Elysium Player 自动处理。',
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        child: _SectionLabel(
+                          number: '1',
+                          title: '选择识别方案',
+                          subtitle: '大多数电脑保持推荐选项即可，模型和路径由 Elysium Player 自动处理。',
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '打开模型高级设置',
+                        onPressed: _installing ? null : _openAdvanced,
+                        icon: const Icon(Icons.settings_outlined, size: 20),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   DropdownButtonFormField<TranscriptionMode>(
