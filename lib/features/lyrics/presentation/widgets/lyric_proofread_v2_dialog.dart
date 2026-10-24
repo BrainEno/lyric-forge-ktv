@@ -302,7 +302,7 @@ class _LyricProofreadV2ReviewDialogState
       backgroundColor: AppColors.bgElevated,
       title: const Text('智能校对提案复核'),
       content: SizedBox(
-        width: (viewport.width - 48).clamp(300.0, 900.0).toDouble(),
+        width: (viewport.width - 80).clamp(200.0, 900.0).toDouble(),
         height: (viewport.height - 230).clamp(240.0, 620.0).toDouble(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
