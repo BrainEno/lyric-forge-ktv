@@ -104,6 +104,45 @@ void main() {
     expect(problems, isEmpty);
   });
 
+  test('finds commit subjects on retained branches after squash merges', () {
+    createValidHarness();
+    final harness = WorkLogHarness(root);
+    final newest = harness.sortedEntries(harness.readEntries()).first;
+    writeFile(
+      'docs/log/entries/${newest.fileName}',
+      entryBody(
+        timestamp: newest.timestamp!,
+        title: newest.title!,
+        commit: 'Newest fixture commit',
+      ),
+    );
+    writeFile('docs/work_log.md', harness.buildSummary(harness.readEntries()));
+
+    void runGit(List<String> arguments) {
+      final result = Process.runSync(
+        'git',
+        <String>['-C', root.path, ...arguments],
+      );
+      expect(
+        result.exitCode,
+        0,
+        reason: 'git ${arguments.join(' ')} failed: ${result.stderr}',
+      );
+    }
+
+    runGit(['init', '-b', 'base']);
+    runGit(['config', 'user.name', 'Work Log Test']);
+    runGit(['config', 'user.email', 'work-log-test@example.invalid']);
+    runGit(['commit', '--allow-empty', '-m', 'Base commit']);
+    runGit(['checkout', '-b', 'archived-log']);
+    runGit(['commit', '--allow-empty', '-m', 'Fixture commit']);
+    runGit(['checkout', '-b', 'main-log', 'base']);
+    runGit(['commit', '--allow-empty', '-m', 'Newest fixture commit']);
+
+    final problems = harness.lint();
+    expect(rulesOf(problems), isNot(contains('commit-subject')));
+  });
+
   test('summary lists newest entries first and counts the archive', () {
     createValidHarness();
     final harness = WorkLogHarness(root);

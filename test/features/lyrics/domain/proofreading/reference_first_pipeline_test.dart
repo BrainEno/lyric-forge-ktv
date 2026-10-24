@@ -5,6 +5,8 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/timing_provenance.
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/reference_first_pipeline.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
+import 'shared_proofread_pipeline_invariants.dart';
+
 void main() {
   const pipeline = ReferenceFirstPipeline();
 
@@ -34,58 +36,41 @@ void main() {
     warnings: warnings,
   );
 
-  LyricDocument doc(List<LyricLine> lines) =>
-      LyricDocument(language: 'en', lines: lines);
+  LyricDocument doc(
+    List<LyricLine> lines, {
+    Map<String, dynamic> metadata = const {},
+  }) => LyricDocument(language: 'en', lines: lines, metadata: metadata);
 
-  // Keep the reference-first pipeline's cross-cutting safety checks in one
-  // helper so future ASR-first tests can reuse the same invariants.
   void expectInvariants(
     ReferenceFirstPipelineResult result, {
-    Set<String> protectedLineIds = const {},
+    required LyricDocument input,
+    required String inputSnapshot,
+    Set<int> protectedSourceIndices = const {},
+    Duration? audioDuration,
   }) {
-    final output = result.proposedDocument.lines;
-    expect(result.lines, hasLength(output.length));
-    for (var index = 0; index < output.length; index++) {
-      final verdictLine = result.lines[index].line;
-      final outputLine = output[index];
-      expect(verdictLine.id, outputLine.id);
-      expect(verdictLine.text, outputLine.text);
-      expect(verdictLine.startTime, outputLine.startTime);
-      expect(verdictLine.endTime, outputLine.endTime);
-    }
-
-    final ids = output.map((line) => line.id).whereType<String>().toList();
-    expect(ids.toSet(), hasLength(ids.length), reason: 'Line IDs must be unique.');
-
-    for (var index = 0; index < output.length; index++) {
-      final line = output[index];
-      expect(line.startTime, greaterThanOrEqualTo(Duration.zero));
-      expect(line.endTime, greaterThan(line.startTime));
-      if (index > 0) {
-        expect(
-          line.startTime,
-          greaterThanOrEqualTo(output[index - 1].startTime),
-          reason: 'Output starts must be monotonic.',
-        );
-        expect(
-          line.startTime,
-          greaterThanOrEqualTo(output[index - 1].endTime),
-          reason: 'Output rows must not overlap.',
-        );
-      }
-      if (line.id != null && protectedLineIds.contains(line.id)) {
-        final verdict = result.lines[index];
-        expect(verdict.verdict, ReferenceFirstVerdictLevel.locked);
-      }
-    }
+    expectProofreadPipelineInvariants(
+      input: input,
+      inputSnapshot: inputSnapshot,
+      proposedDocument: result.proposedDocument,
+      verdictLines: result.lines.map((line) => line.line).toList(),
+      lineIds: result.lines.map((line) => line.line.id).toList(),
+      lockedVerdicts: result.lines
+          .map((line) => line.verdict == ReferenceFirstVerdictLevel.locked)
+          .toList(),
+      sourceIndices: result.lines.map((line) => line.draftIndex).toList(),
+      protectedSourceIndices: protectedSourceIndices,
+      audioDuration: audioDuration,
+      referenceIndices: result.lines.map((line) => line.referenceIndex).toList(),
+    );
   }
-
   test('sanitizes headers and keeps reference indices and timing', () {
+    final draft = doc([
+      row('Keep your eyes on the road', 0, 3000, id: 'first'),
+      row('Yeah we are going', 3000, 6000),
+    ]);
+    final draftSnapshot = snapshotLyricDocument(draft);
     final result = pipeline.build(
-      draft: doc([
-        row('Keep your eyes on the road', 0, 3000, id: 'first'),
-        row('Yeah we are going', 3000, 6000),
-      ]),
+      draft: draft,
       reference: input([
         ref('Roadhouse Blues Lyrics'),
         ref('[Verse 1]'),
@@ -94,35 +79,53 @@ void main() {
       ], title: 'Roadhouse Blues'),
     );
 
-    expectInvariants(result);
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+    );
     expect(result.removedReferenceLines, hasLength(2));
     expect(result.lines.map((line) => line.referenceIndex), [2, 3]);
     expect(result.proposedDocument.lines.map((line) => line.text), [
       'Keep your eyes on the road',
       "Yeah we're going",
     ]);
-    expect(result.proposedDocument.lines.first.startTime, const Duration(milliseconds: 1500));
-    expect(result.proposedDocument.lines.first.endTime, const Duration(milliseconds: 2500));
+    expect(
+      result.proposedDocument.lines.first.startTime,
+      const Duration(milliseconds: 1500),
+    );
+    expect(
+      result.proposedDocument.lines.first.endTime,
+      const Duration(milliseconds: 2500),
+    );
     expect(result.lines.first.timingProvenance, LyricTimingProvenance.reference);
     expect(result.proposedDocument.lines.last.startTime, const Duration(seconds: 3));
     expect(result.lines.last.timingProvenance, LyricTimingProvenance.mappedAsr);
   });
 
   test('interpolates missing reference lines as amber and exposes unmatched ASR rows', () {
+    final draft = doc([
+      row('第一句歌词', 0, 2000),
+      row('unrelated recognition noise', 2000, 2500),
+      row('第三句歌词', 4000, 6000),
+    ]);
+    final draftSnapshot = snapshotLyricDocument(draft);
     final result = pipeline.build(
-      draft: doc([
-        row('第一句歌词', 0, 2000),
-        row('unrelated recognition noise', 2000, 2500),
-        row('第三句歌词', 4000, 6000),
-      ]),
+      draft: draft,
       reference: input([
         ref('第一句歌词'),
         ref('第二句歌词'),
         ref('第三句歌词'),
       ]),
+      audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result);
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+      audioDuration: const Duration(seconds: 8),
+    );
     expect(result.proposedDocument.lines.map((line) => line.text), [
       '第一句歌词',
       '第二句歌词',
@@ -130,7 +133,10 @@ void main() {
     ]);
     expect(result.lines[1].verdict, ReferenceFirstVerdictLevel.amber);
     expect(result.lines[1].timingProvenance, LyricTimingProvenance.autoRepaired);
-    expect(result.lines[1].reasons, contains(ReferenceFirstReason.interpolatedTiming));
+    expect(
+      result.lines[1].reasons,
+      contains(ReferenceFirstReason.interpolatedTiming),
+    );
     expect(result.lines[1].line.startTime, const Duration(milliseconds: 2500));
     expect(result.lines[1].line.endTime, const Duration(seconds: 4));
     expect(result.droppedLines.single.draftIndex, 1);
@@ -139,13 +145,22 @@ void main() {
 
   test('does not change a protected line and keeps it locked', () {
     final protected = row('protected lyrics', 1200, 3700, id: 'keep-me');
+    final draft = doc([protected, row('second lyric', 4000, 6000)]);
+    final draftSnapshot = snapshotLyricDocument(draft);
     final result = pipeline.build(
-      draft: doc([protected, row('second lyric', 4000, 6000)]),
+      draft: draft,
       reference: input([ref('protected lyrics'), ref('second lyric')]),
       protectedDraftIndices: const {0},
+      audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result, protectedLineIds: const {'keep-me'});
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: draftSnapshot,
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 8),
+    );
     final output = result.proposedDocument.lines.first;
     expect(output.text, protected.text);
     expect(output.startTime, protected.startTime);
@@ -159,10 +174,10 @@ void main() {
     final original = doc([
       row('line one', 0, 3000),
       row('line two', 3000, 5000),
-    ]);
-    final originalSnapshot = original.lines
-        .map((line) => [line.id, line.text, line.startTime, line.endTime])
-        .toList();
+    ], metadata: {
+      'nested': {'items': ['must', 'stay', 'unchanged']},
+    });
+    final originalSnapshot = snapshotLyricDocument(original);
     final result = pipeline.build(
       draft: original,
       reference: input([
@@ -172,18 +187,51 @@ void main() {
       audioDuration: const Duration(seconds: 8),
     );
 
-    expectInvariants(result);
-    expect(
-      original.lines.map((line) => [line.id, line.text, line.startTime, line.endTime]).toList(),
-      originalSnapshot,
-      reason: 'Building a proposal must not mutate the source document.',
+    expectInvariants(
+      result,
+      input: original,
+      inputSnapshot: originalSnapshot,
+      audioDuration: const Duration(seconds: 8),
     );
     expect(original.lines.first.endTime, const Duration(seconds: 3));
     expect(result.proposedDocument.lines.first.endTime, const Duration(seconds: 2));
     expect(result.proposedDocument.lines[1].startTime, const Duration(seconds: 2));
     expect(result.lines.first.verdict, ReferenceFirstVerdictLevel.amber);
     expect(result.lines.first.reasons, contains(ReferenceFirstReason.timelineAdjusted));
-    expect(result.proposedDocument.lines.last.endTime, lessThanOrEqualTo(const Duration(seconds: 8)));
+    expect(
+      result.proposedDocument.lines.last.endTime,
+      lessThanOrEqualTo(const Duration(seconds: 8)),
+    );
+  });
+
+  test('keeps repeated chorus rows distinct when their intervals do not overlap', () {
+    final draft = doc([
+      row('同一段副歌', 0, 1000, id: 'chorus-a'),
+      row('同一段副歌', 1500, 2500, id: 'chorus-b'),
+    ]);
+    final inputSnapshot = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      reference: input([ref('同一段副歌'), ref('同一段副歌')]),
+      protectedDraftIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+    );
+
+    expectInvariants(
+      result,
+      input: draft,
+      inputSnapshot: inputSnapshot,
+      protectedSourceIndices: const {0},
+      audioDuration: const Duration(seconds: 4),
+    );
+    expect(result.lines.map((line) => line.referenceIndex), [0, 1]);
+    expect(result.proposedDocument.lines.map((line) => line.text), [
+      '同一段副歌',
+      '同一段副歌',
+    ]);
+    expect(result.proposedDocument.lines[0].endTime, lessThanOrEqualTo(
+      result.proposedDocument.lines[1].startTime,
+    ));
   });
 
   test('rejects reference text that sanitizes to no usable lyrics', () {
