@@ -574,7 +574,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         await response.drain<void>().timeout(_downloadTimeout);
         throw TranscriptionException(
           '无法下载 ${_modelLabel(modelId)}',
-          details: '$fileName: HTTP ${response.statusCode}',
+          details: '$fileName: ${_downloadResponseDiagnostics(uri, response)}',
         );
       }
 
@@ -590,7 +590,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
           if (await part.exists()) await part.delete();
           throw TranscriptionException(
             '${_modelLabel(modelId)} 断点续传响应不一致，已清理临时文件',
-            details: '$fileName: content-range=$contentRange',
+            details:
+                '$fileName: content-range=$contentRange; '
+                '${_downloadResponseDiagnostics(uri, response)}',
           );
         }
       } else {
@@ -639,7 +641,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         throw TranscriptionException(
           '${_modelLabel(modelId)} 下载未完成，下次将从断点继续',
           details:
-              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
+              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize; '
+              '${_downloadResponseDiagnostics(uri, response)}',
         );
       }
       if (actualSize > metadata.sizeBytes) {
@@ -647,7 +650,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         throw TranscriptionException(
           '${_modelLabel(modelId)} 文件大小异常，已清理损坏的临时文件',
           details:
-              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize',
+              '$fileName: expected=${metadata.sizeBytes}, actual=$actualSize; '
+              '${_downloadResponseDiagnostics(uri, response)}',
         );
       }
 
@@ -656,7 +660,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         if (await target.exists()) await target.delete();
         throw TranscriptionException(
           '${_modelLabel(modelId)} 完整性校验失败，已删除损坏文件',
-          details: '$fileName: etag=${metadata.etag}',
+          details:
+              '$fileName: etag=${metadata.etag}; '
+              '${_downloadResponseDiagnostics(uri, response)}',
         );
       }
 
@@ -677,13 +683,43 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       }
       throw TranscriptionException(
         '下载 ${_modelLabel(modelId)} 失败',
-        details: '$fileName: $error',
+        details: '$fileName: requested=${_redactDownloadUri(uri)}; $error',
       );
     } finally {
       _activeRequest = null;
       _activeClient = null;
       client.close(force: true);
     }
+  }
+
+  String _redactDownloadUri(Uri uri) {
+    // Redirects may contain signed CDN query parameters. Keep the host/path
+    // for diagnosis but never surface transient credentials or signatures.
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: uri.path,
+    ).toString();
+  }
+
+  String _downloadResponseDiagnostics(
+    Uri requestedUri,
+    HttpClientResponse response,
+  ) {
+    final redirects = response.redirects
+        .map(
+          (redirect) =>
+              'HTTP ${redirect.statusCode} ${redirect.method} -> '
+              '${_redactDownloadUri(redirect.location)}',
+        )
+        .join(' | ');
+    return 'requested=${_redactDownloadUri(requestedUri)}; '
+        'redirects=${redirects.isEmpty ? 'none' : redirects}; '
+        'response=HTTP ${response.statusCode} ${response.reasonPhrase}; '
+        'content-type=${response.headers.value('content-type') ?? 'unknown'}; '
+        'content-length=${response.contentLength}; '
+        'content-range=${response.headers.value('content-range') ?? 'none'}';
   }
 
   Future<HuggingFaceFileMetadata> _fetchModelFileMetadata({

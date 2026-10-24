@@ -29,6 +29,14 @@ void main() {
     expect(source, contains("HttpHeaders.acceptEncodingHeader, 'identity'"));
   });
 
+  test('redacts signed redirect queries but reports host and HTTP response details', () {
+    expect(source, contains('_downloadResponseDiagnostics(uri, response)'));
+    expect(source, contains('_redactDownloadUri(redirect.location)'));
+    expect(source, contains("response.headers.value('content-range')"));
+    expect(source, contains('redirects='));
+    expect(source, contains('response.reasonPhrase'));
+  });
+
   test('validates resumed ranges and final size before accepting the part file', () {
     final downloadStart = source.indexOf('Future<void> _downloadModelFile');
     final rangeCheck = source.indexOf(
