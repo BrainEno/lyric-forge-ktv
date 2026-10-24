@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-24. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-25. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -21,7 +21,7 @@
 ## Recent work areas
 
 - **Lyrics ↔ local songs:** linking from transcription/import, self-healing resolver (item project ID → persisted `linkedProjectId` → same-audio-path fallback), auto-link on first lyric save, queue `hasLyrics` enrichment, and an app-shell availability sync that retracts or raises that flag from the resolved project. Key tests: `playback_lyrics_project_linker_test.dart`, `playback_lyrics_project_resolver_test.dart`, `playback_lyrics_availability_test.dart`, `file_project_repository_test.dart`, `local_media_metadata_playback_test.dart`, `now_playing_lyrics_project_action_test.dart`.
-- **ASR downloads/proxy:** connect/no-data timeouts, retries and resumable source-specific partial files; manual/environment/static Windows/macOS HTTP proxy resolution; profile-aware preflight checks both Qwen ASR and ForcedAligner; ModelScope fallback is verified against each file's manifest SHA-256. If Hugging Face returns a body inconsistent with its HEAD size, discard its partial and restart that file entirely from ModelScope instead of blocking on cross-source metadata mismatch. Local HTTP tests cover 206-byte metadata versus a 1161-byte body, fallback integrity, resume and rejection of a bad manifest checksum. Real multi-gigabyte download and native dual-engine load remain manual acceptance items. Key docs/tests: `docs/asr_runtime_installation.md`, `managed_model_asr_runtime_manager_http_test.dart`, `asr_download_http_client_factory_test.dart`, `asr_runtime_resume_contract_test.dart`, `retrying_asr_runtime_manager_test.dart`, `asr_install_experience_contract_test.dart`.
+- **ASR downloads/proxy:** source-specific partial files and checksum-verified ModelScope recovery; profile-aware Qwen/ForcedAligner preflight and shared proxy routing. The managed Qwen runtime patches Candle's eager audio-attention Q/K/V tensors to contiguous layouts, records the patch version in the bundle manifest and updates old managed runtime bundles safely. Full model download and native dual-engine inference on Windows + RTX 5080 remain manual acceptance items. Key docs/tests: `docs/asr_runtime_installation.md`, `managed_asr_runtime_manager.dart`, `asr_runtime_release_workflow_contract_test.dart`, `runtime_integrity_install_contract_test.dart`.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 - **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.

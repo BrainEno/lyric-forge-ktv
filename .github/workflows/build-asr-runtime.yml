@@ -115,6 +115,17 @@ jobs:
           Set-Location qwen-runtime-src
           git checkout $env:QWEN_REV
 
+      - name: Patch Qwen attention tensor layouts
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          git apply --check ../tool/patches/qwen-audio-attention-contiguous.patch
+          git apply ../tool/patches/qwen-audio-attention-contiguous.patch
+          git diff --check
+          if (-not (Select-String -Path qwen3_asr/src/model/audio_encoder.rs -Pattern "contiguous_for_attention_matmul")) {
+            throw "Qwen attention-contiguity patch was not applied"
+          }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -132,6 +143,12 @@ jobs:
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
             exit $code
           }
+
+      - name: Test Qwen attention tensor-layout regression
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          cargo test --release -p qwen3_asr --lib --features cuda test_attention_matmul_helper_materializes_strided_views
 
       - name: Upload Qwen CUDA build diagnostics
         if: failure() && steps.qwen-build.outcome == 'failure'
@@ -205,6 +222,7 @@ jobs:
             computeCapability = "12.0"
             cudaArchitecture = "sm_120"
             qwenRevision = $env:QWEN_REV
+            qwenPatchVersion = "audio-attention-contiguous-v1"
             whisperRevision = $env:WHISPER_REV
             builtAt = (Get-Date).ToUniversalTime().ToString("o")
           } | ConvertTo-Json | Set-Content runtime/runtime-manifest.json -Encoding UTF8
@@ -243,10 +261,24 @@ jobs:
           cd qwen-runtime-src
           git checkout "$QWEN_REV"
 
+      - name: Patch Qwen attention tensor layouts
+        run: |
+          cd qwen-runtime-src
+          git apply --check ../tool/patches/qwen-audio-attention-contiguous.patch
+          git apply ../tool/patches/qwen-audio-attention-contiguous.patch
+          git diff --check
+          grep -q "contiguous_for_attention_matmul" qwen3_asr/src/model/audio_encoder.rs
+
       - name: Build Qwen Intel runtime
         run: |
           cd qwen-runtime-src
           cargo build --release -p qwen3_asr_cli --features accelerate
+
+      - name: Test Qwen attention tensor-layout regression
+        run: |
+          cd qwen-runtime-src
+          cargo test --release -p qwen3_asr --lib --features accelerate test_attention_matmul_helper_materializes_strided_views
+          cd ..
 
       - name: Fetch pinned whisper.cpp source
         run: |
@@ -279,6 +311,7 @@ jobs:
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",
+            "qwenPatchVersion": "audio-attention-contiguous-v1",
             "whisperRevision": "$WHISPER_REV"
           }
           EOF

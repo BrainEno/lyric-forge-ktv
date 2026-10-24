@@ -151,6 +151,20 @@ source-specific: a ModelScope retry may resume its own earlier partial, but it
 never appends to a Hugging Face partial, even when the metadata matches. A failed
 or inconsistent checksum still rejects the file. The same configured HTTP proxy
 is used for both sources.
+
+### Qwen runtime attention-layout compatibility
+
+Qwen3-ASR's eager audio-attention path creates transposed, non-contiguous Q/K/V
+tensor views before matrix multiplication. The pinned Candle implementation
+originally materialized these views only for Metal, leaving the CUDA eager path
+able to fail with `matmul is only supported for contiguous tensors`. LyricForge's
+managed runtime build applies the same source patch to Windows CUDA and Intel Mac
+bundles and stamps `qwenPatchVersion=audio-attention-contiguous-v1` into the
+bundle manifest. Existing managed runtimes without that marker are shown as
+needing an update. The updater checks the downloaded archive's marker and
+executables in a staging directory before replacing the previous bundle, so an
+older release cannot overwrite the existing runtime as though it were fixed.
+This source-level bug is independent of which audio file or project is selected.
 The proxy can be saved independently from model/runtime paths; an incomplete
 recognition profile is reported inside Advanced Settings and does not block
 saving the proxy.

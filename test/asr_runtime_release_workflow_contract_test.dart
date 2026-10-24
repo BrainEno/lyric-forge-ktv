@@ -57,6 +57,29 @@ void main() {
     );
   });
 
+  test('Qwen audio attention patch is applied to both native runtime builds', () async {
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
+    final patch = await File(
+      'tool/patches/qwen-audio-attention-contiguous.patch',
+    ).readAsString();
+
+    expect(
+      workflow.split('git apply ../tool/patches/qwen-audio-attention-contiguous.patch').length - 1,
+      2,
+    );
+    expect(patch, contains('contiguous_for_attention_matmul'));
+    expect(patch, contains('let q = contiguous_for_attention_matmul(q)?;'));
+    expect(patch, contains('let v = contiguous_for_attention_matmul(v)?;'));
+    expect(patch, contains('let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?;'));
+    expect(patch, contains('test_attention_matmul_helper_materializes_strided_views'));
+    expect(workflow, contains('qwenPatchVersion = "audio-attention-contiguous-v1"'));
+    expect(workflow, contains('"qwenPatchVersion": "audio-attention-contiguous-v1"'));
+    expect(workflow, contains('cargo test --release -p qwen3_asr --lib --features cuda'));
+    expect(workflow, contains('cargo test --release -p qwen3_asr --lib --features accelerate'));
+  });
+
   test('Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback', () async {
     final workflow = await File(
       '.github/workflows/build-asr-runtime.yml',

@@ -1,0 +1,51 @@
+diff --git a/qwen3_asr/src/model/audio_encoder.rs b/qwen3_asr/src/model/audio_encoder.rs
+--- a/qwen3_asr/src/model/audio_encoder.rs
++++ b/qwen3_asr/src/model/audio_encoder.rs
+@@ -26,7 +26,3 @@
+-fn maybe_contiguous_for_metal(x: Tensor) -> Result<Tensor> {
+-    if x.device().is_metal() {
+-        x.contiguous()
+-    } else {
+-        Ok(x)
+-    }
+-}
++fn contiguous_for_attention_matmul(x: Tensor) -> Result<Tensor> {
++    x.contiguous()
++}
+@@ -312,12 +308,11 @@
+         let q = q.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
+         let k = k.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
+         let v = v.transpose(0, 1)?.unsqueeze(0)?; // (1, h, s, d)
+ 
+-        // Metal GEMM kernels only support contiguous (or simple transposed) layouts.
+-        // These tensors are produced via reshapes/transposes that yield strided views,
+-        // so materialize contiguous buffers when running on Metal.
+-        let q = maybe_contiguous_for_metal(q)?;
+-        let v = maybe_contiguous_for_metal(v)?;
++        // Candle's eager GEMM backends reject these transposed strided views on
++        // some devices. Materialize Q, V, and K^T before every attention matmul.
++        let q = contiguous_for_attention_matmul(q)?;
++        let v = contiguous_for_attention_matmul(v)?;
+ 
+-        let k_t = maybe_contiguous_for_metal(k.transpose(2, 3)?)?; // (1, h, d, s)
++        let k_t = contiguous_for_attention_matmul(k.transpose(2, 3)?)?; // (1, h, d, s)
+         let attn_weights = q.matmul(&k_t)?.affine(self.scaling, 0.0)?;
+         let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
+@@ -545,1 +541,17 @@
+     use candle_nn::Linear;
++
++    #[test]
++    fn test_attention_matmul_helper_materializes_strided_views() -> anyhow::Result<()> {
++        let device = candle_core::Device::Cpu;
++        let input = candle_core::Tensor::arange(0f32, 24f32, &device)?
++            .reshape((1usize, 2usize, 3usize, 4usize))?
++            .transpose(2, 3)?;
++        if input.is_contiguous() {
++            anyhow::bail!("test fixture unexpectedly contiguous");
++        }
++        let output = super::contiguous_for_attention_matmul(input)?;
++        if !output.is_contiguous() {
++            anyhow::bail!("attention matmul input was not materialized as contiguous");
++        }
++        Ok(())
++    }
