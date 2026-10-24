@@ -883,21 +883,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       }
     }
 
+    final restoredCandidates = <({LyricLine line, int order})>[];
     for (var index = 0; index < before.lines.length; index++) {
       if (consumedDraftIndices.contains(index)) continue;
       final shouldRestore = selection.restoredDraftIndices.contains(index);
       if (shouldRestore || !droppedIndices.contains(index)) {
-        consumedDraftIndices.add(index);
-        candidates.add((line: before.lines[index], order: order++));
+        restoredCandidates.add((line: before.lines[index], order: order++));
       }
     }
-
-    candidates.sort((left, right) {
+    restoredCandidates.sort((left, right) {
       final byStart = left.line.startTime.compareTo(right.line.startTime);
       if (byStart != 0) return byStart;
-      final byEnd = left.line.endTime.compareTo(right.line.endTime);
-      return byEnd != 0 ? byEnd : left.order.compareTo(right.order);
+      return left.order.compareTo(right.order);
     });
+    for (final restored in restoredCandidates) {
+      var insertion = 0;
+      while (insertion < candidates.length &&
+          candidates[insertion].line.startTime <= restored.line.startTime) {
+        insertion++;
+      }
+      candidates.insert(insertion, restored);
+    }
     final lines = candidates.map((candidate) => candidate.line).toList();
 
     final metadata = Map<String, dynamic>.from(before.metadata);
