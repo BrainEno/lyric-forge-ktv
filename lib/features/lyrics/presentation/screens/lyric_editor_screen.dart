@@ -725,16 +725,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ];
         strategyExplanation = [
           if (options.strategy == LyricSourceStrategy.auto)
-            '自动策略计算参考文本覆盖率 ' +
-                (result.tokenCoverage * 100).round().toString() +
-                '%。',
+            '自动策略计算参考文本覆盖率 ${(result.tokenCoverage * 100).round()}%。',
           '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
           if (result.tokenDpBudgetExceeded)
             '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
           if (result.warnings.isNotEmpty)
-            '参考输入包含 ' +
-                result.warnings.length.toString() +
-                ' 条冲突或警告，相关行会要求复核。',
+            '参考输入包含 ${result.warnings.length} 条冲突或警告，相关行会要求复核。',
         ].join(' ');
       } else {
         final result = const AsrFirstPipeline().build(
@@ -788,21 +784,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final lockedCount = items
           .where((item) => item.verdict == LyricProofreadReviewVerdict.locked)
           .length;
-      final summary = '策略：' +
-          _proofreadV2StrategyLabel(decision.effectiveStrategy) +
-          (referenceCoverage == null
-              ? ''
-              : ' · 参考覆盖率 ' +
-                  (referenceCoverage * 100).round().toString() +
-                  '%') +
-          ' · 绿色 ' +
-          greenCount.toString() +
-          ' · 琥珀色 ' +
-          amberCount.toString() +
-          ' · 受保护 ' +
-          lockedCount.toString() +
-          ' · 灰色 ' +
-          droppedItems.length.toString();
+      final summary = [
+        '策略：${_proofreadV2StrategyLabel(decision.effectiveStrategy)}',
+        if (referenceCoverage != null)
+          '参考覆盖率 ${(referenceCoverage * 100).round()}%',
+        '绿色 $greenCount',
+        '琥珀色 $amberCount',
+        '受保护 $lockedCount',
+        '灰色 ${droppedItems.length}',
+      ].join(' · ');
 
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
@@ -851,7 +841,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法生成或应用校对提案：' + error.toString())),
+        SnackBar(content: Text('无法生成或应用校对提案：$error')),
       );
     }
   }
@@ -1048,7 +1038,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('已应用智能校对提案（' + after.lines.length.toString() + ' 行），未写入磁盘。'),
+        content: Text('已应用智能校对提案（${after.lines.length} 行），未写入磁盘。'),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
       ),
