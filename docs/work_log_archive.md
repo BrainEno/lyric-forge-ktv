@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-22 13:42] 对齐本地分支与 GitHub 上游并修复 sanitizer 编译错误 ([entry](log/entries/2026-10-22-1342-reconcile-local-with-github-upstream.md))
 - [2026-10-22 12:58] 契约核对与歌词智能校对 V2 架构方案设计（T0） ([entry](log/entries/2026-10-22-1258-document-lyric-proofreading-v2-contracts.md))
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
