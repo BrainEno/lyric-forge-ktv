@@ -102,4 +102,5 @@
 - [2026-10-24 15:58] Resolve proofreading v2 merge conflicts ([entry](log/entries/2026-10-24-1558-resolve-proofreading-v2-merge-conflicts.md))
 - [2026-10-24 17:50] Add official ModelScope fallback for managed Qwen model downloads ([entry](log/entries/2026-10-24-1750-modelscope-qwen-download-fallback.md))
 - [2026-10-24 18:00] Validate ModelScope manifest as part of source preflight ([entry](log/entries/2026-10-24-1800-modelscope-source-preflight.md))
+- [2026-10-24 19:15] Exercise Qwen download HTTP fallback behavior ([entry](log/entries/2026-10-24-1915-exercise-qwen-download-http-behavior.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->

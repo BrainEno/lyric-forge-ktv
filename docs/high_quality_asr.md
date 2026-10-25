@@ -235,3 +235,8 @@ The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text,
 LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-aligner` and the app calls `POST /v1/transcribe`. That request accepts audio and transcription options; it does not send the supplied lyric text as an alignment target. The existing timestamps therefore describe ASR output, not an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
 
 A separate local bridge must explicitly expose an alignment endpoint with `audio`, `text`, and `language` inputs before reference-first can use arbitrary-text forced alignment. The new Dart HTTP adapter requires an explicit endpoint and validates non-empty spans, timestamp ordering, and audio-duration bounds. It is not wired into the production workflow until a bridge is built and tested against the pinned runtime.
+
+
+## Forced-alignment evidence in proofreading proposals
+
+The ASR-first proofread pipeline can now accept already-validated alignment spans and attach them to matching review rows as `TimedLyricToken` evidence. It normalizes common whitespace and punctuation differences, matches contiguous span text against each draft line in source order, and leaves the original lyric text and line-level timestamps unchanged. Matched tokens use conservative confidence 60 and `forcedAligner` provenance. Lines without a complete match receive `noTimingEvidence` and remain in the review queue. This is a domain-level evidence contract only: the current sidecar still has no verified arbitrary-text `/v1/align` endpoint, so production runtime wiring remains a separate task.
