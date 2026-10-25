@@ -105,6 +105,9 @@ void main() {
     final patch = await File(
       'tool/patches/qwen3-asr-forced-align-http-endpoint.patch',
     ).readAsString();
+    final routeScript = await File(
+      'tool/patches/apply-qwen-align-route.py',
+    ).readAsString();
 
     expect(workflow, contains('Apply arbitrary-text forced-alignment endpoint'));
     expect(
@@ -118,7 +121,12 @@ void main() {
     );
     expect(patch, contains('WorkerCommand::Align'));
     expect(patch, contains('align(&audio_inputs, &texts, &languages)'));
-    expect(patch, contains('.route("/v1/align", post(align).options(options_ok))'));
+    expect(
+      routeScript,
+      contains('.route("/v1/align", post(align).options(options_ok))'),
+      reason: 'route insertion must use an exact source anchor, not a brittle diff line number',
+    );
+    expect(routeScript, contains('text.count(anchor) != 1'));
     expect(patch, contains('"text must not be empty"'));
     expect(patch, contains('"language must not be empty"'));
   });
