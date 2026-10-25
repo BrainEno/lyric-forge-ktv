@@ -117,8 +117,6 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -3431,0 +3507 @@
-+        .route("/v1/align", post(align).options(options_ok))
 diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
 --- a/qwen3_asr_cli/tests/serve_integration.rs
 +++ b/qwen3_asr_cli/tests/serve_integration.rs
