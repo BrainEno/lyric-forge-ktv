@@ -12,6 +12,7 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import 'asr_install_error_card.dart';
 import 'asr_install_progress_card.dart';
 import 'asr_storage_preflight_card.dart';
 import 'transcription_config_dialog.dart';
@@ -408,7 +409,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
                   ],
                   if (_error != null) ...[
                     const SizedBox(height: AppSpacing.lg),
-                    _ErrorCard(message: _error!),
+                    AsrInstallErrorCard(message: _error!),
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   Container(
@@ -769,56 +770,6 @@ class _ComponentsCard extends StatelessWidget {
                 color: AppColors.borderMuted,
               ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  final String message;
-
-  const _ErrorCard({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.error.withAlpha(18),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-        border: Border.all(color: AppColors.error.withAlpha(70)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: AppColors.error,
-            size: 20,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '暂时无法完成准备',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

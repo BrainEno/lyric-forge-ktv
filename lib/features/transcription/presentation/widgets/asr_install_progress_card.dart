@@ -27,12 +27,17 @@ class AsrInstallProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final overall = progress.progress.clamp(0.0, 1.0).toDouble();
+    // A failed install must never look complete even when stale HEAD metadata
+    // made the last emitted byte counter reach 100% before integrity checks.
+    final displayedOverall = failed
+        ? overall.clamp(0.0, 0.99).toDouble()
+        : overall;
     final component = _componentLabel(progress.component);
     final downloaded = progress.downloadedBytes;
     final total = progress.totalBytes;
     final hasTransfer = downloaded != null && total != null && total > 0;
     final transferFraction = hasTransfer
-        ? (downloaded / total).clamp(0.0, 1.0).toDouble()
+        ? (downloaded / total).clamp(0.0, failed ? 0.99 : 1.0).toDouble()
         : null;
     final accent = failed
         ? AppColors.error
@@ -83,14 +88,18 @@ class AsrInstallProgressCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '整体环境准备进度（估算）',
+                  failed
+                      ? '失败时的环境准备进度（估算）'
+                      : '整体环境准备进度（估算）',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
               ),
               Text(
-                '${(overall * 100).round()}%',
+                failed
+                    ? '${(displayedOverall * 100).round()}% · 未完成'
+                    : '${(displayedOverall * 100).round()}%',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: accent,
                   fontWeight: FontWeight.w800,
@@ -100,7 +109,8 @@ class AsrInstallProgressCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           LinearProgressIndicator(
-            value: overall,
+            value: displayedOverall,
+            valueColor: AlwaysStoppedAnimation<Color>(accent),
             minHeight: 6,
             backgroundColor: AppColors.bgHighlight,
             borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
@@ -113,7 +123,7 @@ class AsrInstallProgressCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '当前文件下载',
+                    failed ? '失败时的当前文件下载' : '当前文件下载',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -161,6 +171,7 @@ class AsrInstallProgressCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             LinearProgressIndicator(
               value: transferFraction,
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
               minHeight: 3,
               backgroundColor: AppColors.bgHighlight,
               borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
@@ -169,7 +180,9 @@ class AsrInstallProgressCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             paused
-                ? '继续后会从现有 .part 文件断点续传，不会重新下载已经完成的内容。'
+                ? '继续后会从现有来源对应的 .part 文件尝试断点续传；重试时仍会重新检查完整性。'
+                : failed
+                ? '本次环境准备尚未完成。这里显示失败前的最后一次进度；重试会重新校验文件，必要时清理不兼容的临时分片。'
                 : hasTransfer
                 ? '上方是整个识别环境的估算进度；这里是当前文件下载进度。下载中断会自动重试，已完成部分会保留。'
                 : '环境准备包含下载、校验和安装；已完成组件会自动复用，失败重试只会继续未完成部分。',

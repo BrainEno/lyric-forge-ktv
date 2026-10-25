@@ -97,7 +97,10 @@ partial file. If Hugging Face remains unreachable, installation reports the
 network error and can be resumed later without discarding downloaded bytes.
 The setup screen separates the estimated overall environment preparation
 progress (download, verification and installation) from the active file's
-download percentage, transferred bytes, speed and remaining-time estimate.
+download percentage, transferred bytes, speed and remaining-time estimate. If
+preparation fails, the progress display is explicitly marked as incomplete and
+cannot show a success-like 100%. The setup dialog and transcription settings
+allow copying or selecting the full diagnostic message for troubleshooting.
 
 Expected SHA-256:
 

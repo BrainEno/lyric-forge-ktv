@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
 - [2026-10-24 15:56] Preserve dual-engine intent when Qwen setup fails ([entry](log/entries/2026-10-24-1556-preserve-qwen-dual-engine-mode.md))
 - [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
 - [2026-10-24 02:00] Unify proofread pipeline invariants ([entry](log/entries/2026-10-24-0200-unify-proofread-pipeline-invariants.md))
@@ -98,4 +99,5 @@
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
+- [2026-10-24 15:58] Resolve proofreading v2 merge conflicts ([entry](log/entries/2026-10-24-1558-resolve-proofreading-v2-merge-conflicts.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
