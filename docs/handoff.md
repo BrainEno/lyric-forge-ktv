@@ -1,46 +1,36 @@
 # Handoff
 
 ## 目标
-为歌词智能校对 V2 建立安全的任意文本 ForcedAligner 路径。HTTP 客户端合同和 ASR-first 复核提案中的 token 证据已合并；本轮为固定版本 Rust/Candle sidecar 添加独立的 `POST /v1/align` patch，并让原生 runtime 构建应用该 patch。
+继续完成歌词智能校对 V2 的安全任意文本 ForcedAligner 路径：原生 endpoint 已合并并通过 CI；本轮新增 Dart orchestration service，将验证后的对齐结果作为 review-only token evidence 注入 ASR-first proposal。
 
 ## Git 现场
-- 基线：main 已合并 PR #179、#180、#181、#182。
-- 当前分支：`feat/qwen-forced-align-http-endpoint-20261025`。
+- 基线：PR #184 已合并，包含 pinned Rust/Candle sidecar 的 `POST /v1/align` endpoint 与 Windows CUDA/macOS Intel 原生构建修复。
+- 当前开发分支：`feat/forced-align-proofread-service-20261025`，基于最新 main。
 - 固定 Qwen 源码 revision：`7984967e8701cc90bb17d06453901036e36ca578`。
-- 当前改动独立 PR；native build 和 Flutter CI 仍待远端验证。
-- 本执行环境没有本地仓库 checkout、Rust toolchain 或 Dart/Flutter SDK；不能声称本地编译/测试通过。
-
-## 已改文件
-- `tool/patches/qwen3-asr-forced-align-http-endpoint.patch`
-- `.github/workflows/build-asr-runtime.yml`
-- `docs/high_quality_asr.md`
-- `docs/high_quality_asr_windows_setup.md`
-- `docs/handoff.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/log/entries/2026-10-25-1948-add-native-forced-align-endpoint.md`
+- 当前改动新增 `ForcedAlignmentProofreadService` 及对应 HTTP-server tests；PR CI 待验证。
+- 当前执行环境没有本地仓库 checkout 或 Dart/Flutter SDK，不能声称本地格式化、分析或测试通过。
 
 ## 本轮实现
-- 固定 Rust/Candle source patch 增加 `POST /v1/align`，请求为 `audio`、`text`、`language`；调用已加载的 `Qwen3ForcedAligner.align`，响应采用 `results[0].items`，每项提供 `text`、`start_time`、`end_time`（秒）。
-- 端点不把 `context` 当成目标歌词，不调用 `/v1/transcribe` 来伪装对齐。
-- 请求字段为空时返回 400；mock server integration test 覆盖三种必填字段校验和根端点列表。
-- Windows CUDA 与 macOS Intel 原生构建均应用 patch；macOS Intel CI 增加 endpoint contract integration test。runtime manifest patch revision 同步更新。
-- 原生 patch 输入位于 `tool/patches/**`，因此会触发昂贵的 native build；普通 Dart-only 修改仍不会触发该构建。
+- service 显式要求 audio path、reference lyric text、language、audio duration。
+- 成功时将 client spans 转为 `ProofreadAlignmentSpan`，复用 `AsrFirstPipeline` 匹配并生成低置信度的 forced-aligner review tokens。
+- 覆盖不完整时返回逐行复核 warning；endpoint/response 失败时仍生成常规 review proposal，并附加 `forcedAlignmentUnavailable` note。
+- 绝不自动应用歌词文本或行级时间戳。成功和失败路径都保留源歌词与源时间。
+- 新增测试覆盖成功映射、无匹配行提示、endpoint 失败降级。
 
 ## 检查结果
-- 已审查 pinned source：其 `Qwen3ForcedAligner` 暴露公开的 `align(audio, text, language)` API，原 server 已有单 worker 串行化模型访问机制。
-- 已静态核对 patch hunks 的上下文顺序与行数，但由于当前环境无法访问外部网络/运行 Rust，尚未在本地执行 `git apply --check` 或 cargo test。
-- 必须等待远端 CI 验证 patch 可应用、Windows/macOS runtime 可编译、endpoint integration test 通过，以及 Flutter/work-log 质量门通过。
+- 前置 PR #184 的 native runtime CI、Flutter Quality Gate 与 release contract 已通过。
+- 本轮需要远端 Flutter Quality Gate 验证新增代码；尚未验证真实歌曲的对齐质量。
+- 即使 endpoint 已合并，用户已有的 runtime bundle 仍可能不含该 endpoint，需安装重新构建的 bundle。
 
 ## 下一步
-- 如 native patch 或编译失败，按 pinned revision 的真实编译日志修复，不要先把 endpoint 宣称为可用。
-- CI 通过后，将 `ForcedAlignmentHttpClient` 接入实际复核用例，明确提供音频路径、参考歌词和语言；继续复用已合并的 `ProofreadAlignmentSpan` 证据映射。
-- 再用中文、英文、日文歌曲验证覆盖率、时间单调性和音频边界；任何不完整/异常结果只能标记复核，不自动改写歌词。
-- 后续推进逐行试听、用户确认与撤销闭环。
+- 等待本轮 CI；如失败，按实际日志修复，不绕过测试。
+- CI 通过后，下一阶段为把该 service 接入实际 proofread UI/use case，并提供可见的运行时不可用/覆盖率提示。
+- 用中文、英文、日文音轨验证覆盖率、单调时间和音频边界；异常结果只进入人工复核，不自动改写。
+- 再推进逐行试听与确认/撤销闭环。
 
 ## 已知风险
-- 本轮端点 patch 尚未经过远端 native build 验证；旧 runtime bundle 不会自动包含新 endpoint。
-- 合同测试验证请求字段与 endpoint discovery，不代表真实模型对齐质量已通过。
-- 真实音频精度仍需在 Windows RTX 5080 目标机上验收。
+- 当前 service 尚未接入用户可见 UI，因此本轮只建立可测试的 orchestration boundary。
+- CI contract test 不代表真实模型的时间戳精度已通过验收。
+- 真实音频验收仍需在 Windows RTX 5080 目标机执行。
 
-最后更新：2026-10-25 19:48（Asia/Taipei）
+最后更新：2026-10-25 22:00（Asia/Taipei）
