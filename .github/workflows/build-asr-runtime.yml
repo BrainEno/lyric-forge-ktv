@@ -140,6 +140,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Forced-alignment endpoint patch no longer applies to the pinned source." }
           git apply $patch
           if ($LASTEXITCODE -ne 0) { throw "Failed to apply forced-alignment endpoint patch." }
+          python "$env:GITHUB_WORKSPACE/tool/patches/apply-qwen-align-route.py"
+          if ($LASTEXITCODE -ne 0) { throw "Failed to insert the /v1/align route by exact anchor." }
           if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern '"/v1/align"' -Quiet)) {
             throw "Patched Qwen /v1/align route was not found."
           }
@@ -286,6 +288,7 @@ jobs:
         run: |
           git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-forced-align-http-endpoint.patch"
           git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-forced-align-http-endpoint.patch"
+          python3 "$GITHUB_WORKSPACE/tool/patches/apply-qwen-align-route.py"
           grep -q '"/v1/align"' qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
           grep -q "aligner" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
 
