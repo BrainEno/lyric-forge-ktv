@@ -117,7 +117,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -3429,2 +3507,3 @@
+@@ -3430,2 +3508,3 @@
          .route("/v1/models", get(openai_models).options(options_ok))
          .route("/v1/transcribe", post(transcribe).options(options_ok))
 +        .route("/v1/align", post(align).options(options_ok))
