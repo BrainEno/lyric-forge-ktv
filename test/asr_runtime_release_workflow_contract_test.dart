@@ -11,11 +11,11 @@ void main() {
     expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
     expect(
       workflow,
-      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1"'),
+      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
     );
     expect(
       workflow,
-      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1"'),
+      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
     );
     expect(
       workflow,
