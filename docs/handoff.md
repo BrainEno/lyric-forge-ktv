@@ -1,34 +1,32 @@
 # Handoff
 
 ## 目标
-完成歌词智能校对 V2 的 T8 界面接入，并在进入 T9 前保留明确的人为确认、应用与撤销边界。
+完成歌词智能校对 V2 的回归交付准备，确认取消不会采纳提案，且“仅应用绿色”不会丢弃仍受保护的人工确认行。
 
 ## Git 现场
-- PR #165 最初以 `64fdb746780edee98f7df1195a839d30aa4981f5` 为基线；`main` 已通过 PR #164 前进至 `6c6b8958b6d3d41eb6baee1319b405e3928eed9c`。
-- 当前分支：`feat/proofread-v2-ui-clean-20261024`；PR #165：`https://github.com/BrainEno/lyric-forge-ktv/pull/165`，保持 open，尚未合并。
-- PR #164 的 T7 共用流水线不变量测试已合并进 `main`；本次修复保留其 I6 时间边界/`timingConflict` 约束，同时保留 PR #165 的 T8 UI 接入和日志记录。
-- 当前执行环境通过 GitHub API 操作；没有本地 checkout，也不能在此直接运行 `dart` 或 `flutter` 命令。
+- `main` 最新提交：`fadca72b085580f7d19b3b568ac34fc5e0fdbc51`（`fix: make Qwen eager attention matmul inputs contiguous`）。
+- 工作分支：`test/proofread-v2-t9-regression-20261025`。
+- 本次变更通过单独 PR 提交；main 不直接写入这组回归测试。
+- 当前执行环境没有本地 repository checkout，也没有 Dart/Flutter 执行文件；远端 GitHub Actions 用作代码质量门禁。
 
 ## 已改文件
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：连接策略选择器、reference-first / ASR-first 管线、逐行提案复核、时间轴冲突确认与现有内存快照撤销。
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`：策略选择、原文/建议逐行对比、绿色批量应用、琥珀色显式采纳、灰色恢复与原始行试听。
-- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`：策略选择、琥珀色/灰色选择、绿色专用应用和窄屏布局 widget tests。
-- `docs/lyric_proofreading_v2_plan.md`：标记 T8 完成；T9 仍待执行。
-- 工作日志与索引：新增本任务不可变 entry，同步生成摘要、归档链接与交接记录。
+- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`：覆盖取消返回 null；强化绿色专用应用测试，验证 locked 行仍被保留、amber 行及恢复的灰色行不会被误带入绿色操作。
+- `docs/log/entries/2026-10-25-1356-cover-proofread-v2-review-boundaries.md` 与工作日志导航：记录本次测试范围和验证限制。
+- `docs/handoff.md`：更新当前交接状态。
 
 ## 检查结果
-- GitHub Actions Flutter Quality Gate run #109（代码提交 `f3be6088efe380042323e04533fdae57eaa79355`）：成功，**649 项测试全部通过**，repository quality gate 通过。
-- 该代码提交上的 work-log lint 为 0 errors、3 条既有历史 commit-subject warnings；本次日志同步后的新提交需再由 CI 复核。
-- 手动设备检查尚未完成：需要验证不同窗口尺寸下的提案列表、真实行试听、应用后撤销，以及保存前后行为。
+- 已检查现有 dialog 契约：取消通过 Navigator 返回 null；绿色专用操作只包含 locked 与 green 提案，不包含 amber 或灰色恢复项。
+- 本环境未运行 `dart format`、`flutter analyze`、定向 Flutter tests 或 `dart run tool/work_log.dart check`，原因是没有本地 checkout 与 SDK。
+- PR 的 GitHub Actions Flutter Quality Gate 必须通过后才允许合并；运行时修复 PR #176 已单独合并到 main，其合并前 Flutter、Windows CUDA 与 Intel macOS 检查均通过。
 
 ## 下一步
-- 等待文档同步后的最终 Flutter Quality Gate 与 work-log lint。
-- 在真实目标设备上检查响应式布局、行试听、应用/撤销；ASR-first 当前仅对草稿风险作标记，不接收第二份 ASR 转写稿。
-- 再推进 T9 回归与交付；PR #165 保持未合并，等待人工审阅。
+- 观察本 PR 的 GitHub Actions；若失败，修复后在同一分支重跑。
+- 合并前确认 work-log lint 与 Flutter 全量测试通过。
+- T9 的真实设备验收仍需在目标设备完成；随后继续 ASR-first 双转写输入与 ForcedAligner 任意文本适配的设计/实现。
 
 ## 已知风险
-- ASR-first 界面尚未接入第二份 ASR 转写稿，因此本入口不会凭空生成新的文字或时间。
-- widget tests 覆盖了策略与复核选择，但不能替代真实音频试听、播放器状态和物理设备验证。
-- work-log lint 最近一次报告的 3 条历史 commit-subject warnings 来自既有条目；不应将其描述为全零 warning。
+- 测试环境不能替代 Windows + RTX 5080 上的真实歌曲自检；合并的运行时修复仍需在新 runtime v2 发布后验证。
+- ASR-first 界面尚未接入第二份转写结果；任意参考文本强制对齐尚未完成。
+- 真实行试听、窗口尺寸矩阵以及应用后撤销仍需手动验收。
 
-最后更新：2026-10-24 13:08（Asia/Taipei）
+最后更新：2026-10-25 13:56（Asia/Taipei）
