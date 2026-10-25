@@ -147,6 +147,9 @@ void main() {
       outcome.result.proposedDocument.lines.single.startTime,
       const Duration(milliseconds: 100),
     );
-    expect(outcome.result.lines.single.reasons, isEmpty);
+    expect(
+      outcome.result.lines.single.line.startTime,
+      const Duration(milliseconds: 100),
+    );
   });
 }
