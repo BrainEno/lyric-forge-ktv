@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Apply the route-only part of the forced-alignment patch without line offsets."""
+"""Insert the forced-alignment route using a unique source anchor."""
 from pathlib import Path
 
-source = Path("qwen3_asr_cli/src/cmd_serve.rs")
+relative_source = Path("qwen3_asr_cli/src/cmd_serve.rs")
+candidates = (relative_source, Path("qwen-runtime-src") / relative_source)
+source = next((candidate for candidate in candidates if candidate.is_file()), None)
+if source is None:
+    searched = ", ".join(str(candidate) for candidate in candidates)
+    raise SystemExit(f"Could not locate cmd_serve.rs; searched: {searched}")
+
 text = source.read_text(encoding="utf-8")
 anchor = '        .route("/v1/transcribe", post(transcribe).options(options_ok))'
 route = '        .route("/v1/align", post(align).options(options_ok))'
