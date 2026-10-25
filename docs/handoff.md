@@ -10,6 +10,16 @@
 - 当前改动新增 `ForcedAlignmentProofreadService` 及对应 HTTP-server tests；PR CI 待验证。
 - 当前执行环境没有本地仓库 checkout 或 Dart/Flutter SDK，不能声称本地格式化、分析或测试通过。
 
+## 已改文件
+- `lib/features/transcription/data/services/forced_alignment_proofread_service.dart`
+- `test/features/transcription/forced_alignment_proofread_service_test.dart`
+- `docs/high_quality_asr.md`
+- `docs/handoff.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/work_log_index.md`
+- `docs/log/entries/2026-10-25-2155-wire-forced-align-proofread-service.md`
+
 ## 本轮实现
 - service 显式要求 audio path、reference lyric text、language、audio duration。
 - 成功时将 client spans 转为 `ProofreadAlignmentSpan`，复用 `AsrFirstPipeline` 匹配并生成低置信度的 forced-aligner review tokens。
