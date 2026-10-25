@@ -103,4 +103,5 @@
 - [2026-10-24 17:50] Add official ModelScope fallback for managed Qwen model downloads ([entry](log/entries/2026-10-24-1750-modelscope-qwen-download-fallback.md))
 - [2026-10-24 18:00] Validate ModelScope manifest as part of source preflight ([entry](log/entries/2026-10-24-1800-modelscope-source-preflight.md))
 - [2026-10-24 19:15] Exercise Qwen download HTTP fallback behavior ([entry](log/entries/2026-10-24-1915-exercise-qwen-download-http-behavior.md))
+- [2026-10-24 21:30] Verify all required ASR model sources before installation ([entry](log/entries/2026-10-24-2130-verify-asr-preflight-required-models.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
