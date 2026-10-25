@@ -11,11 +11,11 @@ void main() {
     expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
     expect(
       workflow,
-      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1"'),
+      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
     );
     expect(
       workflow,
-      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1"'),
+      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
     );
     expect(
       workflow,
@@ -96,6 +96,31 @@ void main() {
       contains('contiguous_for_attention_matmul(k.transpose(2, 3)?)?'),
     );
     expect(patch, contains('test_eager_attention_matmul_materializes_transposed_inputs'));
+  });
+
+  test('managed Qwen builds expose explicit forced alignment', () async {
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
+    final patch = await File(
+      'tool/patches/qwen3-asr-forced-align-http-endpoint.patch',
+    ).readAsString();
+
+    expect(workflow, contains('Apply arbitrary-text forced-alignment endpoint'));
+    expect(
+      workflow,
+      contains('tool/patches/qwen3-asr-forced-align-http-endpoint.patch'),
+    );
+    expect(
+      workflow,
+      contains('mock_serve_align_rejects_missing_contract_fields'),
+      reason: 'native CI must exercise the explicit alignment request contract',
+    );
+    expect(patch, contains('WorkerCommand::Align'));
+    expect(patch, contains('align(&audio_inputs, &texts, &languages)'));
+    expect(patch, contains('.route("/v1/align", post(align).options(options_ok))'));
+    expect(patch, contains('"text must not be empty"'));
+    expect(patch, contains('"language must not be empty"'));
   });
 
   test('Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback', () async {

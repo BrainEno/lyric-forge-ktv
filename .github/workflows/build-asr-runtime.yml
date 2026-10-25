@@ -131,6 +131,22 @@ jobs:
             throw "Patched Qwen attention helper was not found."
           }
 
+      - name: Apply arbitrary-text forced-alignment endpoint
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-forced-align-http-endpoint.patch"
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Forced-alignment endpoint patch no longer applies to the pinned source." }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply forced-alignment endpoint patch." }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern '"/v1/align"' -Quiet)) {
+            throw "Patched Qwen /v1/align route was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "aligner" -Quiet)) {
+            throw "Patched Qwen alignment handler was not found."
+          }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -211,7 +227,7 @@ jobs:
 
           @{
             schemaVersion = 1
-            runtimePatchRevision = "qwen-eager-attention-contiguous-v1"
+            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -266,10 +282,18 @@ jobs:
           git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-eager-attention-contiguous.patch"
           grep -q "contiguous_for_attention_matmul" qwen-runtime-src/qwen3_asr/src/model/audio_encoder.rs
 
+      - name: Apply arbitrary-text forced-alignment endpoint
+        run: |
+          git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-forced-align-http-endpoint.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-forced-align-http-endpoint.patch"
+          grep -q '"/v1/align"' qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+          grep -q "aligner" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+
       - name: Test eager attention matmul layout regression
         run: |
           cd qwen-runtime-src
           cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_align_rejects_missing_contract_fields
 
       - name: Build Qwen Intel runtime
         run: |
@@ -304,7 +328,7 @@ jobs:
           cat > runtime/runtime-manifest.json <<EOF
           {
             "schemaVersion": 1,
-            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1",
+            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1",
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",

@@ -132,6 +132,20 @@ alignment is enabled:
 A normal 4–6 minute song is therefore still submitted by LyricForge as one
 logical transcription job.
 
+## Arbitrary-text forced alignment endpoint
+
+The pinned native runtime build now includes a separate `POST /v1/align` endpoint with this request contract:
+
+```json
+{
+  "audio": "C:/path/to/input.wav",
+  "text": "the exact reference lyric to align",
+  "language": "English"
+}
+```
+
+A successful response contains `results[0].items`, where each item has `text`, `start_time`, and `end_time` in seconds. This is distinct from `/v1/transcribe`; the server uses the already-loaded ForcedAligner and does not treat `context` as reference text. Existing runtime bundles do not gain this endpoint automatically: rebuild or reinstall the bundle produced by the updated native workflow. Native CI must pass before treating the endpoint as available.
+
 ## Validation checklist on the target PC
 
 1. `qwen3-asr.exe --help`
