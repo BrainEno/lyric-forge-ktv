@@ -32,6 +32,30 @@ enum ProofreadTimeSource {
   manual,
 }
 
+/// A validated token/span returned by an explicit forced-alignment backend.
+/// This is evidence for review only; it never changes a LyricLine by itself.
+class ProofreadAlignmentSpan {
+  final String text;
+  final Duration start;
+  final Duration end;
+
+  ProofreadAlignmentSpan({
+    required this.text,
+    required this.start,
+    required this.end,
+  }) {
+    if (text.trim().isEmpty) {
+      throw ArgumentError.value(text, 'text', 'Must not be empty.');
+    }
+    if (start.isNegative) {
+      throw ArgumentError.value(start, 'start', 'Must be non-negative.');
+    }
+    if (end <= start) {
+      throw ArgumentError.value(end, 'end', 'Must be greater than start.');
+    }
+  }
+}
+
 /// A validated half-open interval in the audio timeline: [start, end).
 class ProofreadTimeInterval {
   final Duration start;
