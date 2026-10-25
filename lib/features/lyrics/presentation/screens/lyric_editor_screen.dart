@@ -632,6 +632,45 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final options = await showProofreadV2RunOptionsDialog(context);
     if (options == null || !mounted) return;
 
+    LyricDocument? secondaryAsr;
+    final secondaryText = options.secondaryTranscriptText;
+    if (secondaryText != null) {
+      late final ReferenceLyricInput parsed;
+      try {
+        parsed = _referenceParser.parsePasted(secondaryText);
+      } catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')),
+        );
+        return;
+      }
+      if (!parsed.timed ||
+          parsed.lines.any((line) => line.startTime == null || line.endTime == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('第二份 ASR 转写稿必须为每行都带时间戳的 LRC、SRT 或 WebVTT。'),
+          ),
+        );
+        return;
+      }
+      secondaryAsr = LyricDocument(
+        language: document.language,
+        lines: [
+          for (final line in parsed.lines)
+            LyricLine(
+              text: line.text,
+              startTime: line.startTime!,
+              endTime: line.endTime!,
+              // Imported transcripts have no calibrated confidence metadata.
+              // Keep the evidence conservative rather than treating it as 100%.
+              confidence: 60,
+            ),
+        ],
+        globalOffset: Duration.zero,
+        metadata: const {'proofreadEvidenceSource': 'secondaryAsrPaste'},
+      );
+    }
+
     ReferenceLyricInput? reference;
     if (options.useReference) {
       reference = await showReferenceAlignmentDialog(
@@ -735,6 +774,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       } else {
         final result = const AsrFirstPipeline().build(
           draft: document,
+          secondary: secondaryAsr,
           protectedDraftIndices: protectedDraftIndices,
           audioDuration: project.audioAsset?.duration,
         );
@@ -769,7 +809,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         strategyExplanation = [
           decision.autoFellBackToAsr
               ? '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。'
-              : '当前入口尚未接入第二份 ASR 转写稿，因此只标记当前草稿风险。',
+              : secondaryAsr == null
+              ? '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。'
+              : '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
         ].join(' ');
       }

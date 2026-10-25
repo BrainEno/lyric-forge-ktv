@@ -7,10 +7,12 @@ import '../../domain/proofreading/proofread_strategy_selector.dart';
 class ProofreadV2RunOptions {
   final LyricSourceStrategy strategy;
   final bool useReference;
+  final String? secondaryTranscriptText;
 
   const ProofreadV2RunOptions({
     required this.strategy,
     required this.useReference,
+    this.secondaryTranscriptText,
   });
 }
 
@@ -35,6 +37,13 @@ class _ProofreadV2RunOptionsDialogState
     extends State<_ProofreadV2RunOptionsDialog> {
   LyricSourceStrategy _strategy = LyricSourceStrategy.auto;
   bool _useReference = false;
+  final TextEditingController _secondaryTranscriptController = TextEditingController();
+
+  @override
+  void dispose() {
+    _secondaryTranscriptController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,8 +106,21 @@ class _ProofreadV2RunOptionsDialogState
             ] else ...[
               const SizedBox(height: 8),
               const Text(
-                '当前入口尚未接入第二份 ASR 转写稿；本策略只标记已有歌词的风险，'
-                '不会据此改写文字或时间。',
+                '可粘贴第二份带时间戳的转写稿（LRC、SRT 或 WebVTT）。'
+                '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const ValueKey('secondary_asr_transcript_input'),
+                controller: _secondaryTranscriptController,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: '第二份 ASR 转写稿（可选）',
+                  hintText: '[00:12.30] lyric line…',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
               ),
             ],
           ],
@@ -115,6 +137,10 @@ class _ProofreadV2RunOptionsDialogState
               strategy: _strategy,
               useReference: _strategy == LyricSourceStrategy.referenceFirst ||
                   (_strategy == LyricSourceStrategy.auto && _useReference),
+              secondaryTranscriptText: _strategy == LyricSourceStrategy.asrFirst &&
+                      _secondaryTranscriptController.text.trim().isNotEmpty
+                  ? _secondaryTranscriptController.text.trim()
+                  : null,
             ),
           ),
           child: const Text('继续'),
