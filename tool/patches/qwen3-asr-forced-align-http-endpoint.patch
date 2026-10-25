@@ -82,6 +82,12 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
          WorkerCommand::StreamOneShot { req, resp } => {
              let out = match mode {
                  WorkerMode::Real(real) => run_one_shot_stream_real(real, req),
+@@ -2546,4 +2599,5 @@ async fn root(State(state): State<AppState>) -> Json<Value> {
+             "/healthz",
+             "/v1/models",
+             "/v1/transcribe",
++            "/v1/align",
+             "/v1/chat/completions",
 @@ -2605,6 +2659,28 @@ async fn transcribe(
      out.map(Json)
  }
@@ -111,12 +117,6 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -2546,4 +2599,5 @@ async fn root(State(state): State<AppState>) -> Json<Value> {
-             "/healthz",
-             "/v1/models",
-             "/v1/transcribe",
-+            "/v1/align",
-             "/v1/chat/completions",
 @@ -3429,6 +3484,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
          .route("/healthz", get(healthz))
          .route("/v1/models", get(openai_models).options(options_ok))
