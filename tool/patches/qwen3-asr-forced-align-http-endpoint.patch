@@ -12,7 +12,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
      StreamOneShot {
          req: StreamRequest,
          resp: oneshot::Sender<ApiResult<Value>>,
-@@ -352,6 +356,13 @@ struct TranscribeRequest {
+@@ -370,6 +370,13 @@ struct TranscribeRequest {
      japanese_user_dictionary: Option<String>,
  }
  
