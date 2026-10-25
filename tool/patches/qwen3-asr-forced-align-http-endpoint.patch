@@ -1,7 +1,7 @@
 diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
 --- a/qwen3_asr_cli/src/cmd_serve.rs
 +++ b/qwen3_asr_cli/src/cmd_serve.rs
-@@ -95,6 +95,10 @@ enum WorkerCommand {
+@@ -106,6 +106,10 @@ enum WorkerCommand {
          req: TranscribeRequest,
          resp: oneshot::Sender<ApiResult<Value>>,
      },
@@ -12,7 +12,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
      StreamOneShot {
          req: StreamRequest,
          resp: oneshot::Sender<ApiResult<Value>>,
-@@ -276,6 +280,13 @@ struct TranscribeRequest {
+@@ -352,6 +356,13 @@ struct TranscribeRequest {
      japanese_user_dictionary: Option<String>,
  }
  
@@ -26,7 +26,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  #[derive(Debug, Clone, Deserialize)]
  struct StreamRequest {
      audio: String,
-@@ -668,6 +679,12 @@ fn handle_single_command(
+@@ -2127,6 +2138,12 @@ fn handle_single_command(
      stats: &ServeStats,
  ) {
      match cmd {
@@ -42,7 +42,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
          WorkerCommand::StreamOneShot { req, resp } => {
              let out = match mode {
                  WorkerMode::Real(real) => run_one_shot_stream_real(real, req),
-@@ -6208,6 +6225,40 @@ fn run_transcribe_real_batch(
+@@ -1951,6 +1951,40 @@ fn run_transcribe_real_batch(
      }
  }
  
@@ -82,7 +82,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  fn run_one_shot_stream_real(real: &RealWorkerState, req: StreamRequest) -> ApiResult<Value> {
      let audio_input = crate::audio_arg::parse_audio_arg(req.audio.as_str());
      let wav = qwen3_asr::audio::normalize::normalize_audio_input(&audio_input)
-@@ -8533,6 +8584,30 @@ async fn transcribe(
+@@ -2605,6 +2605,30 @@ async fn transcribe(
      out.map(Json)
  }
  
@@ -111,13 +111,13 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -84891,6 +84966,7 @@ async fn root(State(state): State<AppState>) -> Json<Value> {
+@@ -2546,6 +2546,7 @@ async fn root(State(state): State<AppState>) -> Json<Value> {
              "/healthz",
              "/v1/models",
              "/v1/transcribe",
 +            "/v1/align",
              "/v1/chat/completions",
-@@ -11420,6 +11496,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
+@@ -3429,6 +3430,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
          .route("/healthz", get(healthz))
          .route("/v1/models", get(openai_models).options(options_ok))
          .route("/v1/transcribe", post(transcribe).options(options_ok))
