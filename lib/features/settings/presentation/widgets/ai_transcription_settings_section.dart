@@ -12,6 +12,7 @@ import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
+import '../../../transcription/presentation/widgets/asr_install_error_card.dart';
 import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
 import '../../../transcription/presentation/widgets/asr_storage_preflight_card.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
@@ -632,15 +633,7 @@ class _AiTranscriptionSettingsSectionState
         ],
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.error.withAlpha(18),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-              border: Border.all(color: AppColors.error.withAlpha(90)),
-            ),
-            child: Text(_error!),
-          ),
+          AsrInstallErrorCard(message: _error!),
         ],
         const SizedBox(height: AppSpacing.lg),
         Wrap(
