@@ -635,7 +635,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     LyricDocument? secondaryAsr;
     final secondaryText = options.secondaryTranscriptText;
     if (secondaryText != null) {
-      final parsed = _referenceParser.parsePasted(secondaryText);
+      late final ReferenceLyricInput parsed;
+      try {
+        parsed = _referenceParser.parsePasted(secondaryText);
+      } catch (error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')),
+        );
+        return;
+      }
       if (!parsed.timed ||
           parsed.lines.any((line) => line.startTime == null || line.endTime == null)) {
         ScaffoldMessenger.of(context).showSnackBar(
