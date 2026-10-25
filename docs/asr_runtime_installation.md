@@ -166,7 +166,7 @@ revision.
 Runtime release tag:
 
 ```text
-asr-runtime-v1
+asr-runtime-v2
 ```
 
 Assets:
@@ -178,6 +178,23 @@ lyricforge-asr-runtime-macos-x64.zip
 
 The application downloads only the asset matching the resolved hardware
 profile.
+
+The pinned upstream revision has an eager audio-attention layout issue: it
+materializes the transposed Q/K/V tensors only for Metal, while this runtime's
+Windows CUDA backend can reject the same strided views during the first
+attention matmul. The runtime build applies
+`tool/patches/qwen3-asr-eager-attention-contiguous.patch` to both platform
+bundles, making those attention inputs contiguous on every backend. The macOS
+runtime job runs a focused Rust regression test against non-contiguous Q/K
+views before packaging the bundle.
+
+The fix is published under the separate `asr-runtime-v2` tag. Each bundle
+manifest records the patch revision, and the installer rejects archives that
+lack the expected revision. Existing managed installs without a matching
+revision marker are detected as outdated; one-click repair downloads the patched
+runtime, stages and verifies it before replacing the current bundle, preserves
+the downloaded model weights, and invalidates the old Qwen model-readiness
+marker so native startup and health checks run again.
 
 ### Qwen models
 
@@ -290,7 +307,7 @@ Intel macOS:
 - whisper-cli
 
 Pull requests build and smoke-check artifacts. Pushes to main additionally
-create or update the rolling `asr-runtime-v1` prerelease.
+create or update the rolling `asr-runtime-v2` prerelease.
 
 This keeps Rust/Cargo/CUDA build tooling out of the end-user setup flow.
 

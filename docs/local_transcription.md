@@ -94,7 +94,7 @@ LyricForge checks that the expected runtime release asset exists. This avoids a
 user downloading all models only to discover afterward that the native runtime
 cannot be installed.
 
-The expected release currently remains `asr-runtime-v1` with platform-specific
+The expected release currently remains `asr-runtime-v2` with platform-specific
 runtime assets. Publishing that runtime bundle is a separate deployment task
 from the managed-model and batch-queue work described here.
 

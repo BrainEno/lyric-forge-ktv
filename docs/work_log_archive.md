@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
 - [2026-10-24 02:00] Unify proofread pipeline invariants ([entry](log/entries/2026-10-24-0200-unify-proofread-pipeline-invariants.md))
 - [2026-10-24 01:43] Detect partial structural alignment mismatches ([entry](log/entries/2026-10-24-0143-detect-partial-structural-alignment-mismatches.md))
 - [2026-10-24 01:37] Repair work-log generation and legacy commit parsing ([entry](log/entries/2026-10-24-0137-sync-generated-work-log-navigation.md))
