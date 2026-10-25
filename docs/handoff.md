@@ -1,34 +1,41 @@
 # Handoff
 
 ## 目标
-推进歌词智能校对 V2 的 ASR-first 双转写证据输入；在不自动改写歌词的前提下，让第二份带时间戳的转写稿参与现有共识分析。
+为歌词智能校对 V2 建立可验证的任意文本 ForcedAligner 调用契约，后续再将其接入 reference-first / ASR-first 的时间提案。不得将 ASR 的 context 提示冒充强制对齐，也不得在时间证据不安全时自动改写歌词。
 
 ## Git 现场
-- 基线：`main` 已合并 PR #178（ASR 安装失败进度与诊断复制修复）。
-- 工作分支：`feat/asr-first-secondary-transcript-input-20261025`。
+- 基线：main 已合并 PR #179（ASR-first 第二份带时间戳转写输入）。
+- 工作分支：feat/forced-aligner-http-adapter-contract-20261025。
 - 本次改动通过独立 PR 提交；main 不直接写入功能变更。
 - 当前执行环境没有本地 repository checkout，也没有 Dart/Flutter 执行文件；远端 GitHub Actions 用作代码质量门禁。
 
 ## 已改文件
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`：ASR 优先策略新增可选的第二份带时间戳转写稿输入。
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：解析 LRC/SRT/WebVTT，仅在每行都有时间戳时传入现有 ASR 共识分析；无置信度元数据时保守设为 60。
-- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`：覆盖第二份转写稿输入值回传。
-- `docs/log/entries/2026-10-25-1530-add-secondary-asr-transcript-input.md` 与工作日志导航：记录功能边界和验证限制。
+- `lib/features/transcription/data/services/forced_alignment_http_client.dart`
+- `test/features/transcription/forced_alignment_http_client_test.dart`
+- `docs/high_quality_asr.md`
+- `docs/handoff.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/log/entries/2026-10-25-1610-forced-alignment-http-adapter-contract.md`
+
+## 本轮实现
+- lib/features/transcription/data/services/forced_alignment_http_client.dart：新增显式 HTTP 强制对齐客户端，调用方必须提供 endpoint，发送 audio/text/language；不默认调用 /v1/transcribe。
+- test/features/transcription/forced_alignment_http_client_test.dart：覆盖请求合同、嵌套结果解析、HTTP 错误、空输入、非单调时间戳与音频边界。
+- docs/high_quality_asr.md：记录官方 Qwen Python API 支持 audio + text + language，但现有 Rust/Candle sidecar 只验证了转写接口，不能据此宣称现有端点支持任意文本对齐。
 
 ## 检查结果
-- 已检查现有 dialog 契约：取消通过 Navigator 返回 null；绿色专用操作只包含 locked 与 green 提案，不包含 amber 或灰色恢复项。
-- 本环境未运行 `dart format`、`flutter analyze`、定向 Flutter tests 或 `dart run tool/work_log.dart check`，原因是没有本地 checkout 与 SDK。
-- 新增 widget 回归测试；GitHub Actions Flutter Quality Gate 必须通过后才允许合并。
+- 远程 CI 需验证格式、静态分析、全量 Flutter 测试与 work-log lint。
+- 本环境未运行 dart format、flutter analyze、定向测试或 dart run tool/work_log.dart check。
+- 新客户端是可测试的适配器边界，不代表当前 sidecar 已提供 /v1/align；尚未接入生产流程。
 
 ## 下一步
-- 观察本 PR 的 GitHub Actions；若失败，修复后在同一分支重跑。
-- 验证本 PR 的格式、分析、全量 Flutter 测试与 work-log lint。
-- 后续继续研究 ForcedAligner 是否有已验证的任意文本对齐端点；在接口和时间边界未证实前，不得将 context 提示冒充强制对齐。
+- 在固定版本的 Rust/Candle runtime 上实现或提供独立的本地 align bridge，并在 Windows CUDA 与 macOS CI 中验证。
+- 接入时验证输出文本覆盖、时间单调性、非负值与音频边界；不合格结果只能作为复核警告，不能写入歌词。
+- 随后将安全的对齐结果接入 proofread review proposal，保留用户确认与撤销边界。
 
 ## 已知风险
-- 测试环境不能替代 Windows + RTX 5080 上的真实歌曲自检；合并的运行时修复仍需在新 runtime v2 发布后验证。
-- 第二份转写输入目前仅接受全行带时间戳的 LRC/SRT/WebVTT；纯文本第二转写需先有可靠的时间证据策略。
-- 任意参考文本 ForcedAligner 适配尚未完成。
+- 当前 qwen3-asr-rs sidecar 的 /v1/transcribe 请求不接收指定文本；此 PR 不会伪造该能力。
+- 实际模型对整首歌曲和歌词片段的对齐质量仍需在 Windows + RTX 5080 上用真实歌曲验收。
 - 真实行试听、窗口尺寸矩阵以及应用后撤销仍需手动验收。
 
-最后更新：2026-10-25 15:30（Asia/Taipei）
+最后更新：2026-10-25 16:32（Asia/Taipei）

@@ -227,3 +227,11 @@ separation backend. Until that stage is implemented, transcription falls back
 to normalized audio or original audio when no vocal stem exists.
 
 The next quality-critical pipeline stage is therefore local source separation.
+
+## Arbitrary-text ForcedAligner boundary
+
+The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.
+
+LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-aligner` and the app calls `POST /v1/transcribe`. That request accepts audio and transcription options; it does not send the supplied lyric text as an alignment target. The existing timestamps therefore describe ASR output, not an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
+
+A separate local bridge must explicitly expose an alignment endpoint with `audio`, `text`, and `language` inputs before reference-first can use arbitrary-text forced alignment. The new Dart HTTP adapter requires an explicit endpoint and validates non-empty spans, timestamp ordering, and audio-duration bounds. It is not wired into the production workflow until a bridge is built and tested against the pinned runtime.

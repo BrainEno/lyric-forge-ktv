@@ -101,4 +101,5 @@
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
 - [2026-10-24 15:58] Resolve proofreading v2 merge conflicts ([entry](log/entries/2026-10-24-1558-resolve-proofreading-v2-merge-conflicts.md))
 - [2026-10-24 17:50] Add official ModelScope fallback for managed Qwen model downloads ([entry](log/entries/2026-10-24-1750-modelscope-qwen-download-fallback.md))
+- [2026-10-24 18:00] Validate ModelScope manifest as part of source preflight ([entry](log/entries/2026-10-24-1800-modelscope-source-preflight.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
