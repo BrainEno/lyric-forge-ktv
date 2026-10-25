@@ -14,7 +14,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
   static const String _runtimeReleaseTag = 'asr-runtime-v2';
   static const String _managedRuntimeBuildRevision =
-      'qwen-eager-attention-contiguous-v1';
+      'qwen-eager-attention-contiguous-v1+forced-align-http-v1';
   static const String _whisperModelName = 'ggml-large-v3.bin';
   static const String _whisperModelSha256 =
       '64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2';
