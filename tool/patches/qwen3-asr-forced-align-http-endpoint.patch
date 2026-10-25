@@ -117,7 +117,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -3429,6 +3484,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
+@@ -3429,7 +3505,8 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
          .route("/healthz", get(healthz))
          .route("/v1/models", get(openai_models).options(options_ok))
          .route("/v1/transcribe", post(transcribe).options(options_ok))
@@ -129,7 +129,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
 diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
 --- a/qwen3_asr_cli/tests/serve_integration.rs
 +++ b/qwen3_asr_cli/tests/serve_integration.rs
-@@ -451,6 +451,39 @@
+@@ -451,2 +451,39 @@
 +#[test]
 +fn mock_serve_align_rejects_missing_contract_fields() -> Result<()> {
 +    let (_guard, base_url) = spawn_mock_server()?;
