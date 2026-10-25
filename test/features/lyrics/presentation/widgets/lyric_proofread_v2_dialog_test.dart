@@ -74,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('secondary_asr_transcript_input')),
-      '[00:01.00] first line\\n[00:02.00] second line',
+      '[00:01.00] first line\n[00:02.00] second line',
     );
     await tester.tap(find.text('继续'));
     await tester.pumpAndSettle();
@@ -83,7 +83,7 @@ void main() {
     expect(result!.strategy, LyricSourceStrategy.asrFirst);
     expect(
       result!.secondaryTranscriptText,
-      '[00:01.00] first line\\n[00:02.00] second line',
+      '[00:01.00] first line\n[00:02.00] second line',
     );
   });
 
