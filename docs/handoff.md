@@ -9,6 +9,15 @@
 - 本次改动通过独立 PR 提交；main 不直接写入功能变更。
 - 当前执行环境没有本地 repository checkout，也没有 Dart/Flutter 执行文件；远端 GitHub Actions 用作代码质量门禁。
 
+## 已改文件
+- `lib/features/transcription/data/services/forced_alignment_http_client.dart`
+- `test/features/transcription/forced_alignment_http_client_test.dart`
+- `docs/high_quality_asr.md`
+- `docs/handoff.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/log/entries/2026-10-25-1610-forced-alignment-http-adapter-contract.md`
+
 ## 本轮实现
 - lib/features/transcription/data/services/forced_alignment_http_client.dart：新增显式 HTTP 强制对齐客户端，调用方必须提供 endpoint，发送 audio/text/language；不默认调用 /v1/transcribe。
 - test/features/transcription/forced_alignment_http_client_test.dart：覆盖请求合同、嵌套结果解析、HTTP 错误、空输入、非单调时间戳与音频边界。
@@ -29,4 +38,4 @@
 - 实际模型对整首歌曲和歌词片段的对齐质量仍需在 Windows + RTX 5080 上用真实歌曲验收。
 - 真实行试听、窗口尺寸矩阵以及应用后撤销仍需手动验收。
 
-最后更新：2026-10-25 16:10（Asia/Taipei）
+最后更新：2026-10-25 16:32（Asia/Taipei）
