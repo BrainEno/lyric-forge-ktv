@@ -10,7 +10,6 @@
 - [2026-10-25 13:56] Cover proofreading v2 review boundaries `test: cover proofreading review boundaries` ([entry](log/entries/2026-10-25-1356-cover-proofread-v2-review-boundaries.md))
 - [2026-10-25 02:25] Fix Qwen eager attention matmul layout `fix: make Qwen eager attention matmul inputs contiguous` ([entry](log/entries/2026-10-25-0225-fix-qwen-eager-attention-layout.md))
 - [2026-10-25 00:55] Clarify failed ASR progress and copy diagnostics `fix: clarify failed ASR progress and copy diagnostics` ([entry](log/entries/2026-10-25-0055-fix-asr-failure-progress-diagnostics.md))
-- [2026-10-24 22:30] Recover Qwen downloads when source metadata differs `fix: recover Qwen downloads when source metadata differs` ([entry](log/entries/2026-10-24-2230-fix-qwen-source-metadata-mismatch.md))
 
 <!-- 84 entries total: 8 active, 76 archived. -->
 
