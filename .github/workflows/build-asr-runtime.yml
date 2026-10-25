@@ -293,6 +293,7 @@ jobs:
         run: |
           cd qwen-runtime-src
           cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_align_rejects_missing_contract_fields
 
       - name: Build Qwen Intel runtime
         run: |
