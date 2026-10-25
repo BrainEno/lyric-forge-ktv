@@ -125,3 +125,47 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
          .route(
              "/v1/chat/completions",
              post(openai_chat_completions).options(options_ok),
+
+diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
+--- a/qwen3_asr_cli/tests/serve_integration.rs
++++ b/qwen3_asr_cli/tests/serve_integration.rs
+@@ -451,6 +451,39 @@
++#[test]
++fn mock_serve_align_rejects_missing_contract_fields() -> Result<()> {
++    let (_guard, base_url) = spawn_mock_server()?;
++
++    for (payload, expected) in [
++        (
++            serde_json::json!({"audio": "", "text": "hello", "language": "English"}),
++            "audio must not be empty",
++        ),
++        (
++            serde_json::json!({"audio": "song.wav", "text": " ", "language": "English"}),
++            "text must not be empty",
++        ),
++        (
++            serde_json::json!({"audio": "song.wav", "text": "hello", "language": ""}),
++            "language must not be empty",
++        ),
++    ] {
++        let (status, body) = post_json(base_url.as_str(), "/v1/align", &payload)?;
++        if status != 400 {
++            bail!("expected 400 for invalid /v1/align payload, got {status}: {body}");
++        }
++        let message = body.get("error").and_then(Value::as_str).unwrap_or_default();
++        if !message.contains(expected) {
++            bail!("unexpected /v1/align validation error {message:?}, expected {expected:?}");
++        }
++    }
++
++    let (_, root) = get_json(base_url.as_str(), "/")?;
++    let endpoints = root.get("endpoints").and_then(Value::as_array);
++    if !endpoints.is_some_and(|items| items.iter().any(|item| item == "/v1/align")) {
++        bail!("root endpoint list does not advertise /v1/align: {root}");
++    }
++
++    Ok(())
++}
++
+ #[test]
+ fn mock_serve_transcribe_and_oneshot_stream() -> Result<()> {
