@@ -52,6 +52,41 @@ void main() {
     expect(result!.useReference, isTrue);
   });
 
+  testWidgets('ASR-first options return the optional timestamped secondary transcript',
+      (tester) async {
+    ProofreadV2RunOptions? result;
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              result = await showProofreadV2RunOptionsDialog(context);
+            },
+            child: const Text('open strategy'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open strategy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ASR 优先'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('secondary_asr_transcript_input')),
+      '[00:01.00] first line\\n[00:02.00] second line',
+    );
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.strategy, LyricSourceStrategy.asrFirst);
+    expect(
+      result!.secondaryTranscriptText,
+      '[00:01.00] first line\\n[00:02.00] second line',
+    );
+  });
+
   testWidgets('review dialog stays within a compact phone viewport',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
