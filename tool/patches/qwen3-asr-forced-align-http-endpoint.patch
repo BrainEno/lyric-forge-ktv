@@ -117,8 +117,7 @@ diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
  async fn stream_oneshot(
      State(state): State<AppState>,
      Json(req): Json<StreamRequest>,
-@@ -3431,1 +3507,2 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> Result<()> {
-         .route("/v1/transcribe", post(transcribe).options(options_ok))
+@@ -3431,0 +3507 @@
 +        .route("/v1/align", post(align).options(options_ok))
 diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
 --- a/qwen3_asr_cli/tests/serve_integration.rs
