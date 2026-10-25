@@ -199,11 +199,34 @@ void main() {
         verdict: LyricProofreadReviewVerdict.amber,
         reasonLabel: '对齐存在歧义',
       ),
+      LyricProofreadV2ReviewItem(
+        proposalIndex: 2,
+        sourceIndex: 2,
+        originalLine: line(
+          'protected row',
+          startMs: 2100,
+          endMs: 3000,
+          id: 'locked',
+        ),
+        proposedLine: line(
+          'protected row',
+          startMs: 2100,
+          endMs: 3000,
+          id: 'locked',
+        ),
+        verdict: LyricProofreadReviewVerdict.locked,
+        reasonLabel: '手动编辑保护',
+      ),
     ];
     final dropped = [
       LyricProofreadV2DroppedItem(
-        sourceIndex: 2,
-        line: line('restore separately', startMs: 2100, endMs: 3000, id: 'drop'),
+        sourceIndex: 3,
+        line: line(
+          'restore separately',
+          startMs: 3100,
+          endMs: 4000,
+          id: 'drop',
+        ),
         reasonLabel: '未找到可靠匹配',
       ),
     ];
@@ -215,7 +238,7 @@ void main() {
             onPressed: () async {
               result = await showLyricProofreadV2ReviewDialog(
                 context,
-                summary: '绿色 1 · 琥珀色 1 · 灰色 1',
+                summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
                 explanation: '逐项复核。',
                 items: items,
                 droppedItems: dropped,
@@ -236,14 +259,55 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
+    await tester.tap(find.byKey(const ValueKey('restore_dropped_3')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('仅应用绿色（1）'));
     await tester.pumpAndSettle();
 
     expect(result, isNotNull);
     expect(result!.acceptedProposalIndices, contains(0));
+    expect(result!.acceptedProposalIndices, contains(2));
     expect(result!.acceptedProposalIndices, isNot(contains(1)));
     expect(result!.restoredDraftIndices, isEmpty);
+  });
+
+  testWidgets('review cancel returns no acceptance selection', (tester) async {
+    LyricProofreadV2Selection? result;
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              result = await showLyricProofreadV2ReviewDialog(
+                context,
+                summary: '绿色 1',
+                explanation: '取消后不采纳任何提案。',
+                items: [
+                  LyricProofreadV2ReviewItem(
+                    proposalIndex: 0,
+                    sourceIndex: 0,
+                    originalLine: line('before', id: 'line'),
+                    proposedLine: line('after', id: 'line'),
+                    verdict: LyricProofreadReviewVerdict.green,
+                    reasonLabel: '参考时间戳',
+                  ),
+                ],
+                droppedItems: const [],
+                onPreviewDraftLine: null,
+              );
+            },
+            child: const Text('open cancel review'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open cancel review'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNull);
+    expect(tester.takeException(), isNull);
   });
 }
