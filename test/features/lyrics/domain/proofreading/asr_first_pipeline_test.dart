@@ -187,6 +187,115 @@ void main() {
     );
   });
 
+  test('attaches forced-alignment tokens without changing lyric text or line timing', () {
+    final draft = doc([
+      row('Hello world!', 0, 1200, id: 'one'),
+      row('Good night', 2000, 3000, id: 'two'),
+    ]);
+    final before = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 4),
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'Hello',
+          start: Duration.zero,
+          end: const Duration(milliseconds: 350),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'world',
+          start: const Duration(milliseconds: 400),
+          end: const Duration(milliseconds: 900),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'Good',
+          start: const Duration(seconds: 2),
+          end: const Duration(milliseconds: 2400),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'night',
+          start: const Duration(milliseconds: 2450),
+          end: const Duration(seconds: 3),
+        ),
+      ],
+    );
+
+    expect(snapshotLyricDocument(draft), before);
+    expect(result.proposedDocument.lines.map((line) => line.text),
+        ['Hello world!', 'Good night']);
+    expect(result.proposedDocument.lines[0].startTime,
+        const Duration(milliseconds: 0));
+    expect(result.lines[0].tokens.map((token) => token.text), ['Hello', 'world']);
+    expect(result.lines[0].tokens.first.source, ProofreadTimeSource.forcedAligner);
+    expect(result.lines[0].tokens.first.confidence, 60);
+    expect(result.lines[1].tokens.map((token) => token.text), ['Good', 'night']);
+    expect(result.notes, contains('forcedAlignmentMatchedLines:2/2'));
+  });
+
+  test('marks unmatched lines for review when alignment evidence is incomplete', () {
+    final draft = doc([
+      row('known lyric', 0, 1000, id: 'one'),
+      row('unmatched lyric', 1200, 2200, id: 'two'),
+    ]);
+    final result = pipeline.build(
+      draft: draft,
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'known',
+          start: Duration.zero,
+          end: const Duration(milliseconds: 300),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'lyric',
+          start: const Duration(milliseconds: 350),
+          end: const Duration(milliseconds: 700),
+        ),
+      ],
+    );
+
+    expect(result.lines[0].tokens, hasLength(2));
+    expect(result.lines[1].tokens, isEmpty);
+    expect(result.lines[1].reasons, contains(ProofreadReason.noTimingEvidence));
+    expect(result.lines[1].verdict, ProofreadVerdict.amber);
+    expect(result.proposedDocument.lines, draft.lines);
+  });
+
+  test('rejects forced-alignment spans outside the audio or out of order', () {
+    final draft = doc([row('hello', 0, 1000)]);
+    expect(
+      () => pipeline.build(
+        draft: draft,
+        audioDuration: const Duration(seconds: 1),
+        forcedAlignmentSpans: [
+          ProofreadAlignmentSpan(
+            text: 'hello',
+            start: Duration.zero,
+            end: const Duration(seconds: 2),
+          ),
+        ],
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => pipeline.build(
+        draft: draft,
+        forcedAlignmentSpans: [
+          ProofreadAlignmentSpan(
+            text: 'world',
+            start: const Duration(milliseconds: 500),
+            end: const Duration(milliseconds: 700),
+          ),
+          ProofreadAlignmentSpan(
+            text: 'hello',
+            start: Duration.zero,
+            end: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('rejects invalid protected indices and audio duration', () {
     final draft = doc([row('lyric', 0, 1000)]);
     expect(
