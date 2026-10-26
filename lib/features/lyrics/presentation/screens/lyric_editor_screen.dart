@@ -565,9 +565,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         audioDuration: project.audioAsset?.duration,
       );
       if (items.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('没有发现可供复核的文字差异')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
         return;
       }
       final selected = await showReferenceProofreadTimingReviewDialog(
@@ -586,7 +586,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _commitReferenceProofreadChange(
         document,
         applied,
-        message: '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；'
+        message:
+            '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；'
             '请试听检查并保存。',
       );
       return;
@@ -594,15 +595,17 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     // No independent timing evidence supplied: keep the explicit text-only
     // workflow, preserving all existing timestamps.
-    final suggestions = const AsrReferenceCorrectionSuggester().suggest(
-      draft: document,
-      reference: input,
-      protectedDraftIndices: protectedIndices,
-    ).suggestions;
+    final suggestions = const AsrReferenceCorrectionSuggester()
+        .suggest(
+          draft: document,
+          reference: input,
+          protectedDraftIndices: protectedIndices,
+        )
+        .suggestions;
     if (suggestions.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('没有发现可供复核的文字差异')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
       return;
     }
     final selected = await showReferenceProofreadReviewDialog(
@@ -621,11 +624,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _commitReferenceProofreadChange(
       document,
       applied,
-      message: '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
+      message:
+          '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
           '现有时间戳保持不变，请试听检查并保存。',
     );
   }
-
 
   Future<void> _openProofreadV2(ProjectManifest project) async {
     final document = _editingDocument;
@@ -641,13 +644,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       try {
         parsed = _referenceParser.parsePasted(secondaryText);
       } catch (error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
         return;
       }
       if (!parsed.timed ||
-          parsed.lines.any((line) => line.startTime == null || line.endTime == null)) {
+          parsed.lines.any(
+            (line) => line.startTime == null || line.endTime == null,
+          )) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('第二份 ASR 转写稿必须为每行都带时间戳的 LRC、SRT 或 WebVTT。'),
@@ -701,8 +706,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         referenceCoverage: referenceCoverage,
       );
 
-      final reviewedIndices =
-          const LyricReviewDecisionService().reviewedIndices(document);
+      final reviewedIndices = const LyricReviewDecisionService()
+          .reviewedIndices(document);
       final protectedDraftIndices = <int>{
         ..._manuallyEditedLineIndices,
         ...reviewedIndices,
@@ -733,7 +738,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             () {
               final row = result.lines[index];
               final sourceIndex = row.draftIndex;
-              final original = sourceIndex != null &&
+              final original =
+                  sourceIndex != null &&
                       sourceIndex >= 0 &&
                       sourceIndex < document.lines.length
                   ? document.lines[sourceIndex]
@@ -769,8 +775,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           if (options.strategy == LyricSourceStrategy.auto)
             '自动策略计算参考文本覆盖率 ${(result.tokenCoverage * 100).round()}%。',
           '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
-          if (result.tokenDpBudgetExceeded)
-            '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
+          if (result.tokenDpBudgetExceeded) '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
           if (result.warnings.isNotEmpty)
             '参考输入包含 ${result.warnings.length} 条冲突或警告，相关行会要求复核。',
         ].join(' ');
@@ -779,53 +784,55 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         if (options.useForcedAlignment) {
           final audioAsset = project.audioAsset;
           final audioDuration = audioAsset?.duration;
-          if (audioAsset == null || audioDuration == null ||
+          if (audioAsset == null ||
+              audioDuration == null ||
               audioDuration <= Duration.zero) {
-            throw StateError(
-              'ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。',
-            );
+            throw StateError('ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。');
           }
           final locator = ServiceLocator();
-          final language = _forcedAlignmentLanguage(
-            document.language,
-          );
+          final language = _forcedAlignmentLanguage(document.language);
           final alignmentService = ForcedAlignmentProofreadService(
-            runner: ({
-              required String audioPath,
-              required String text,
-              required String language,
-              required Duration audioDuration,
-            }) async {
-              final savedConfig = await locator.transcriptionSettingsStore.load();
-              if (savedConfig == null) {
-                throw Exception('尚未配置本地转写运行时。');
-              }
-              final resolved = await locator.transcriptionProfileResolver
-                  .resolve(savedConfig);
-              final runtimeStatus = await locator.asrRuntimeManager.inspect(
-                resolved.config,
-              );
-              final runtimeReady = runtimeStatus.components.any(
-                    (item) => item.component == AsrRuntimeComponent.qwenRuntime &&
-                        item.state == AsrRuntimeComponentState.ready,
-                  ) &&
-                  runtimeStatus.components.any(
-                    (item) => item.component == AsrRuntimeComponent.qwenAligner &&
-                        item.state == AsrRuntimeComponentState.ready,
+            runner:
+                ({
+                  required String audioPath,
+                  required String text,
+                  required String language,
+                  required Duration audioDuration,
+                }) async {
+                  final savedConfig = await locator.transcriptionSettingsStore
+                      .load();
+                  if (savedConfig == null) {
+                    throw Exception('尚未配置本地转写运行时。');
+                  }
+                  final resolved = await locator.transcriptionProfileResolver
+                      .resolve(savedConfig);
+                  final runtimeStatus = await locator.asrRuntimeManager.inspect(
+                    resolved.config,
                   );
-              if (!runtimeReady) {
-                throw Exception(
-                  'Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。',
-                );
-              }
-              return locator.qwenNativeTranscriptionService.alignReference(
-                audioPath: audioPath,
-                text: text,
-                language: language,
-                audioDuration: audioDuration,
-                config: resolved.config,
-              );
-            },
+                  final runtimeReady =
+                      runtimeStatus.components.any(
+                        (item) =>
+                            item.component == AsrRuntimeComponent.qwenRuntime &&
+                            item.state == AsrRuntimeComponentState.ready,
+                      ) &&
+                      runtimeStatus.components.any(
+                        (item) =>
+                            item.component == AsrRuntimeComponent.qwenAligner &&
+                            item.state == AsrRuntimeComponentState.ready,
+                      );
+                  if (!runtimeReady) {
+                    throw Exception(
+                      'Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。',
+                    );
+                  }
+                  return locator.qwenNativeTranscriptionService.alignReference(
+                    audioPath: audioPath,
+                    text: text,
+                    language: language,
+                    audioDuration: audioDuration,
+                    config: resolved.config,
+                  );
+                },
           );
           alignmentOutcome = await alignmentService.buildReview(
             draft: document,
@@ -856,8 +863,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 proposedLine: row.line,
                 originalLine: document.lines[index],
                 verdict: switch (row.verdict) {
-                  ProofreadVerdict.locked =>
-                    LyricProofreadReviewVerdict.locked,
+                  ProofreadVerdict.locked => LyricProofreadReviewVerdict.locked,
                   ProofreadVerdict.green => LyricProofreadReviewVerdict.green,
                   ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
                 },
@@ -893,7 +899,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             alignmentOutcome.warning!,
           if (alignmentOutcome != null &&
               alignmentOutcome.alignmentAvailable &&
-              alignmentOutcome.result.lines.any((line) => line.tokens.isNotEmpty))
+              alignmentOutcome.result.lines.any(
+                (line) => line.tokens.isNotEmpty,
+              ))
             'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
         ].join(' ');
       }
@@ -928,6 +936,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         onPreviewDraftLine: project.audioAsset == null
             ? null
             : (index) => _previewLine(project, index),
+        onPreviewTimedLine: project.audioAsset == null
+            ? null
+            : (index, line, globalOffset) =>
+                  _previewTimedLine(project, index, line, globalOffset),
+        originalGlobalOffset: document.globalOffset ?? Duration.zero,
+        proposedGlobalOffset: proposalDocument.globalOffset ?? Duration.zero,
         onPreviewAlignmentToken: project.audioAsset == null
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),
@@ -946,9 +960,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           !_sameProofreadLines(document.lines, after.lines) ||
           document.globalOffset != after.globalOffset;
       if (!hasLineChanges) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('所选提案没有产生可应用的歌词或时间变化。')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('所选提案没有产生可应用的歌词或时间变化。')));
         return;
       }
 
@@ -968,9 +982,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _commitProofreadV2Document(document, after);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法生成或应用校对提案：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$error')));
     }
   }
 
@@ -1097,23 +1111,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   String _forcedAlignmentLanguage(String language) {
     final normalized = language.trim().toLowerCase();
-    if (normalized.contains('japanese') || normalized.contains('日本') ||
-        normalized.contains('日文') || normalized == 'ja' ||
+    if (normalized.contains('japanese') ||
+        normalized.contains('日本') ||
+        normalized.contains('日文') ||
+        normalized == 'ja' ||
         normalized.startsWith('ja-')) {
       return 'Japanese';
     }
-    if (normalized.contains('chinese') || normalized.contains('中文') ||
-        normalized.contains('汉语') || normalized == 'zh' ||
+    if (normalized.contains('chinese') ||
+        normalized.contains('中文') ||
+        normalized.contains('汉语') ||
+        normalized == 'zh' ||
         normalized.startsWith('zh-')) {
       return 'Chinese';
     }
-    if (normalized.contains('english') || normalized.contains('英文') ||
-        normalized == 'en' || normalized.startsWith('en-')) {
+    if (normalized.contains('english') ||
+        normalized.contains('英文') ||
+        normalized == 'en' ||
+        normalized.startsWith('en-')) {
       return 'English';
     }
-    throw StateError(
-      '无法从工程语言“$language”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。',
-    );
+    throw StateError('无法从工程语言“$language”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。');
   }
 
   String _proofreadV2StrategyLabel(LyricSourceStrategy strategy) {
@@ -1160,10 +1178,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     };
   }
 
-  void _commitProofreadV2Document(
-    LyricDocument before,
-    LyricDocument after,
-  ) {
+  void _commitProofreadV2Document(LyricDocument before, LyricDocument after) {
     final snapshot = _AlignmentUndoSnapshot(
       document: before,
       manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
@@ -1172,7 +1187,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       isReferenceProofread: true,
     );
     final activeAudition = _activeLineAudition;
-    final shouldPauseAudition = activeAudition != null &&
+    final shouldPauseAudition =
+        activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
@@ -1207,7 +1223,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       isReferenceProofread: true,
     );
     final activeAudition = _activeLineAudition;
-    final shouldPauseAudition = activeAudition != null &&
+    final shouldPauseAudition =
+        activeAudition != null &&
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
@@ -1600,6 +1617,94 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
+  Future<ProofreadTimedLinePreviewResult> _previewTimedLine(
+    ProjectManifest project,
+    int index,
+    LyricLine line,
+    Duration globalOffset,
+  ) async {
+    final document = _editingDocument;
+    final audioAsset = project.audioAsset;
+    if (document == null ||
+        audioAsset == null ||
+        index < 0 ||
+        index >= document.lines.length) {
+      return const ProofreadTimedLinePreviewResult.failure('工程音频或原始歌词行不可用。');
+    }
+
+    final currentItem = _playbackSession.currentState.currentItem;
+    final audioDuration = currentItem?.projectId == project.id
+        ? (_audioService.currentState.duration ?? audioAsset.duration)
+        : audioAsset.duration;
+    final window = const LyricAuditionWindowService().calculate(
+      lineStart: line.startTime,
+      lineEnd: line.endTime,
+      globalOffset: globalOffset,
+      audioDuration: audioDuration,
+    );
+    if (!window.canAudition) {
+      final error = await _startAuditionWindow(
+        project,
+        index,
+        document,
+        audioAsset,
+        window,
+        showError: false,
+      );
+      return ProofreadTimedLinePreviewResult.failure(
+        error ?? '该时间范围超出音频有效时长或时间区间无效，无法试听。',
+      );
+    }
+
+    final active = _activeLineAudition;
+    final playbackBelongsToProject =
+        _playbackSession.currentState.currentItem?.projectId == project.id;
+    final playback = _audioService.currentState;
+    final sameWindow =
+        active != null &&
+        active.projectId == project.id &&
+        active.window.startAt == window.startAt &&
+        active.window.endAt == window.endAt;
+
+    try {
+      if (active != null && sameWindow && playbackBelongsToProject) {
+        if (playback.isPlaying) {
+          await _audioService.pause();
+          return const ProofreadTimedLinePreviewResult.success(
+            message: '已暂停试听。',
+          );
+        }
+        final endAt = active.window.endAt;
+        final canResume =
+            playback.position >= active.window.startAt &&
+            (endAt == null || playback.position < endAt);
+        if (canResume) {
+          await _audioService.play();
+          if (!_audioService.currentState.isPlaying) {
+            return const ProofreadTimedLinePreviewResult.failure(
+              '播放器未恢复播放状态；请检查音频文件与播放器日志。',
+            );
+          }
+          return const ProofreadTimedLinePreviewResult.success();
+        }
+      }
+
+      final error = await _startAuditionWindow(
+        project,
+        index,
+        document,
+        audioAsset,
+        window,
+        showError: false,
+      );
+      return error == null
+          ? const ProofreadTimedLinePreviewResult.success()
+          : ProofreadTimedLinePreviewResult.failure(error);
+    } catch (error) {
+      return ProofreadTimedLinePreviewResult.failure(error.toString());
+    }
+  }
+
   Future<void> _previewLine(ProjectManifest project, int index) async {
     final document = _editingDocument;
     final audioAsset = project.audioAsset;
@@ -1665,13 +1770,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       globalOffset: document.globalOffset ?? Duration.zero,
       audioDuration: audioDuration,
     );
-    await _startAuditionWindow(
-      project,
-      index,
-      document,
-      audioAsset,
-      window,
-    );
+    await _startAuditionWindow(project, index, document, audioAsset, window);
   }
 
   Future<void> _previewProofreadToken(
@@ -1709,13 +1808,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  Future<void> _startAuditionWindow(
+  Future<String?> _startAuditionWindow(
     ProjectManifest project,
     int index,
     LyricDocument document,
     AudioAsset audioAsset,
-    LyricAuditionWindow window,
-  ) async {
+    LyricAuditionWindow window, {
+    bool showError = true,
+  }) async {
     if (!window.canAudition) {
       final active = _activeLineAudition;
       final shouldPauseAudition =
@@ -1727,10 +1827,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         setState(() => _activeLineAudition = null);
       }
       if (shouldPauseAudition) unawaited(_audioService.pause());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(LyricReviewStrings.auditionInvalidStart)),
-      );
-      return;
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(LyricReviewStrings.auditionInvalidStart),
+          ),
+        );
+      }
+      return LyricReviewStrings.auditionInvalidStart;
     }
 
     final currentItem = _playbackSession.currentState.currentItem;
@@ -1760,7 +1864,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         lineId: document.lines[index].id,
         window: window,
       );
-      if (!mounted) return;
+      if (!mounted) return '校对页面已关闭。';
       setState(() {
         _activeLineAudition = audition;
         _selectedLineIndex = index;
@@ -1768,14 +1872,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!_audioService.currentState.isPlaying) {
         await _audioService.play();
       }
+      if (!_audioService.currentState.isPlaying) {
+        return '播放器未进入播放状态；请检查音频文件与播放器日志。';
+      }
+      return null;
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _activeLineAudition = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
-        ),
-      );
+      if (mounted) {
+        setState(() => _activeLineAudition = null);
+        if (showError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+            ),
+          );
+        }
+      }
+      return error.toString();
     }
   }
 
@@ -1906,7 +2018,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onUndoReferenceAlignment: _alignmentUndoSnapshot == null
                   ? null
                   : _undoAlignmentApply,
-              onViewAlignmentComparison: _alignmentUndoSnapshot == null ||
+              onViewAlignmentComparison:
+                  _alignmentUndoSnapshot == null ||
                       _alignmentUndoSnapshot!.isReferenceProofread
                   ? null
                   : () => _showAlignmentComparison(project),

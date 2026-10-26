@@ -1,0 +1,7 @@
+# [2026-10-26 21:10] Make V2 lyric audition diagnosable and support timing A/B
+
+- Scope: Fix the V2 lyric proofread playback path so a reviewer can audition both the original row interval and the proposed interval, including each document's global offset. Return playback failures to the dialog and show them inline rather than relying only on a SnackBar behind the modal.
+- Files: `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`, `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`, `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`, `docs/handoff.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, this entry.
+- Validation: Added a widget test asserting original/proposed callbacks receive their respective lyric line and global offset, and that a playback failure is visible inside the dialog. The local environment has no Dart/Flutter SDK; the remote Flutter Quality Gate must run format, analyzer, and the targeted/full tests.
+- Notes: The existing original-row callback still works as a compatibility fallback. The screen now returns a typed audition result, avoids hiding modal playback errors in a background SnackBar, and uses the selected original/proposed interval for the bounded audition window. This does not yet substitute for listening on a rebuilt Windows app with the actual media backend.
+- Commit: `Add original and proposed-time audition controls to V2 review`
