@@ -185,7 +185,7 @@ void main() {
 
     expect(find.text('hello'), findsOneWidget);
     expect(find.text('0.20 s – 0.60 s · 置信度 35%'), findsOneWidget);
-    expect(find.text('置信度未提供'), findsOneWidget);
+    expect(find.text('0.65 s – 0.90 s · 置信度未提供'), findsOneWidget);
     await tester.tap(
       find.byKey(const ValueKey('alignment_token_0_0')),
     );
