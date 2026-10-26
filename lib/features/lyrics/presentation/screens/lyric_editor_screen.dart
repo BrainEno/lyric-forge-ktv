@@ -1645,7 +1645,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         active.window.endAt == window.endAt;
 
     try {
-      if (sameWindow && playbackBelongsToProject) {
+      if (active != null && sameWindow && playbackBelongsToProject) {
         if (playback.isPlaying) {
           await _audioService.pause();
           return '已暂停试听。';
