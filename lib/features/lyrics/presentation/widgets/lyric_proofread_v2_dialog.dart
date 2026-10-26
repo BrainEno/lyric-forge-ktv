@@ -225,11 +225,20 @@ class LyricProofreadV2Selection {
        restoredDraftIndices = Set.unmodifiable(restoredDraftIndices);
 }
 
-typedef ProofreadTimedLinePreview = Future<String?> Function(
-  int sourceIndex,
-  LyricLine line,
-  Duration globalOffset,
-);
+class ProofreadTimedLinePreviewResult {
+  final bool succeeded;
+  final String? message;
+
+  const ProofreadTimedLinePreviewResult.success({this.message})
+      : succeeded = true;
+
+  const ProofreadTimedLinePreviewResult.failure(String message)
+      : succeeded = false,
+        message = message;
+}
+
+typedef ProofreadTimedLinePreview = Future<ProofreadTimedLinePreviewResult>
+    Function(int sourceIndex, LyricLine line, Duration globalOffset);
 
 Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   BuildContext context, {
@@ -334,12 +343,12 @@ class _LyricProofreadV2ReviewDialogState
     final preview = widget.onPreviewTimedLine;
     if (preview == null) return;
     setState(() => _auditionFeedbackByProposal.remove(proposalIndex));
-    final error = await preview(sourceIndex, line, globalOffset);
+    final result = await preview(sourceIndex, line, globalOffset);
     if (!mounted) return;
     setState(() {
-      _auditionFeedbackByProposal[proposalIndex] = error == null
-          ? '正在试听$label时间范围；再次点击可暂停。'
-          : '试听失败：$error';
+      _auditionFeedbackByProposal[proposalIndex] = result.succeeded
+          ? result.message ?? '正在试听$label时间范围；再次点击可暂停。'
+          : '试听失败：${result.message ?? '未知原因'}';
     });
   }
 
