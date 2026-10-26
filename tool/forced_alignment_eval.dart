@@ -714,11 +714,13 @@ Future<void> _runCaptureCommand(List<String> args) async {
   final referenceJson = await File(referencePath).readAsString();
 
   Map<String, dynamic>? existingCorpus;
+  String? existingCorpusSource;
   if (hasAppend) {
     if (!await target.exists()) {
       throw FileSystemException('Existing corpus not found.', targetPath);
     }
     final existingSource = await target.readAsString();
+    existingCorpusSource = existingSource;
     final existingDecoded = jsonDecode(existingSource);
     evaluateForcedAlignmentCorpus(existingSource);
     final existing = existingDecoded as Map<String, dynamic>;
@@ -767,6 +769,19 @@ Future<void> _runCaptureCommand(List<String> args) async {
     };
   }
   evaluateForcedAlignmentCorpus(jsonEncode(corpus));
+  if (existingCorpusSource != null) {
+    if (!await target.exists() ||
+        await target.readAsString() != existingCorpusSource) {
+      throw FileSystemException(
+        'Corpus changed while alignment was running; refusing to overwrite it.',
+        targetPath,
+      );
+    }
+  } else {
+    // Reserve the new output path after alignment so an in-flight file creation
+    // cannot be silently overwritten.
+    await target.create(exclusive: true);
+  }
   await target.writeAsString(
     '${const JsonEncoder.withIndent('  ').convert(corpus)}\n',
     flush: true,
