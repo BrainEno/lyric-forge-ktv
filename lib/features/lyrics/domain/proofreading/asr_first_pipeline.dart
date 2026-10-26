@@ -2,6 +2,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import 'asr_consensus_analyzer.dart';
 import 'asr_hallucination_filter.dart';
 import 'asr_repetition_analyzer.dart';
+import 'lyric_tokenizer.dart';
 import 'proofread_result.dart';
 
 /// Builds a non-persisted, ASR-first review proposal from one or two transcripts.
@@ -14,12 +15,14 @@ class AsrFirstPipeline {
   final AsrConsensusAnalyzer consensusAnalyzer;
   final AsrHallucinationCandidateFilter hallucinationFilter;
   final AsrRepetitionAnalyzer repetitionAnalyzer;
+  final LyricTokenizer tokenizer;
   final int greenConfidenceThreshold;
 
   const AsrFirstPipeline({
     this.consensusAnalyzer = const AsrConsensusAnalyzer(),
     this.hallucinationFilter = const AsrHallucinationCandidateFilter(),
     this.repetitionAnalyzer = const AsrRepetitionAnalyzer(),
+    this.tokenizer = const LyricTokenizer(),
     this.greenConfidenceThreshold = 80,
   }) : assert(greenConfidenceThreshold >= 0 && greenConfidenceThreshold <= 100);
 
@@ -213,11 +216,10 @@ class AsrFirstPipeline {
   }
 
   String _normalizeAlignmentText(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll(
-          RegExp(r'[\s.,!?，。！？、:;…\-—()（）\[\]{}"“”‘’]'),
-          '',
-        );
+    // Use the shared Unicode-width and CJK token rules so matching is stable
+    // across full-width Latin text, Chinese punctuation, and Japanese kana.
+    // Apostrophes are ignored here because a backend may split contractions
+    // into separate timed spans (for example, "it" + "'s").
+    return tokenizer.tokenize(value).join().replaceAll("'", '');
   }
 }
