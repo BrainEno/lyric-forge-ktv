@@ -1660,7 +1660,57 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       globalOffset: document.globalOffset ?? Duration.zero,
       audioDuration: audioDuration,
     );
+    await _startAuditionWindow(
+      project,
+      index,
+      document,
+      audioAsset,
+      window,
+    );
+  }
 
+  Future<void> _previewProofreadToken(
+    ProjectManifest project,
+    int lineIndex,
+    TimedLyricToken token,
+  ) async {
+    final document = _editingDocument;
+    final audioAsset = project.audioAsset;
+    if (document == null ||
+        audioAsset == null ||
+        lineIndex < 0 ||
+        lineIndex >= document.lines.length) {
+      return;
+    }
+
+    final currentItem = _playbackSession.currentState.currentItem;
+    final audioDuration = currentItem?.projectId == project.id
+        ? (_audioService.currentState.duration ?? audioAsset.duration)
+        : audioAsset.duration;
+    final window = const LyricAuditionWindowService().calculate(
+      lineStart: token.interval.start,
+      lineEnd: token.interval.end,
+      globalOffset: document.globalOffset ?? Duration.zero,
+      audioDuration: audioDuration,
+      // Keep a small lead-in so users can hear the word's onset in context.
+      preRoll: const Duration(milliseconds: 250),
+    );
+    await _startAuditionWindow(
+      project,
+      lineIndex,
+      document,
+      audioAsset,
+      window,
+    );
+  }
+
+  Future<void> _startAuditionWindow(
+    ProjectManifest project,
+    int index,
+    LyricDocument document,
+    AudioAsset audioAsset,
+    LyricAuditionWindow window,
+  ) async {
     if (!window.canAudition) {
       final active = _activeLineAudition;
       final shouldPauseAudition =
@@ -1678,6 +1728,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       return;
     }
 
+    final currentItem = _playbackSession.currentState.currentItem;
     try {
       if (currentItem?.projectId != project.id) {
         final preferredSource = audioAsset.vocalPath != null
