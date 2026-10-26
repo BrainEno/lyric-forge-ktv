@@ -73,11 +73,14 @@ class ProofreadTimeInterval {
   Duration get duration => end - start;
 }
 
-/// Word/token-level timing evidence. Confidence is normalized to 0..100.
+/// Word/token-level timing evidence.
+///
+/// Confidence is normalized to 0..100 when the source provides a value;
+/// null means the backend did not expose a calibrated confidence score.
 class TimedLyricToken {
   final String text;
   final ProofreadTimeInterval interval;
-  final int confidence;
+  final int? confidence;
   final ProofreadTimeSource source;
 
   TimedLyricToken({
@@ -89,7 +92,7 @@ class TimedLyricToken {
     if (text.trim().isEmpty) {
       throw ArgumentError.value(text, 'text', 'Must not be empty.');
     }
-    if (confidence < 0 || confidence > 100) {
+    if (confidence != null && (confidence < 0 || confidence > 100)) {
       throw ArgumentError.value(
         confidence,
         'confidence',
