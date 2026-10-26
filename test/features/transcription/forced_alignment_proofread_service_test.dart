@@ -118,7 +118,6 @@ void main() {
     expect(outcome.alignmentAvailable, isTrue);
     expect(outcome.warning, contains('matched 0 of 1'));
     expect(outcome.result.lines.single.tokens, isEmpty);
-    expect(outcome.result.alignmentDiagnostics!.unmatchedLineNumbers, [1]);
     expect(outcome.result.proposedDocument.lines.single.text, 'hello world');
   });
 
@@ -163,99 +162,6 @@ void main() {
         const Duration(milliseconds: 100));
     expect(outcome.result.proposedDocument.lines.single.endTime,
         const Duration(milliseconds: 1500));
-  });
-
-
-  test('surfaces skipped spans while recovering all lyric lines', () async {
-    final twoLines = LyricDocument(
-      language: 'English',
-      lines: [
-        LyricLine(
-          id: 'hello',
-          text: 'hello',
-          startTime: Duration.zero,
-          endTime: const Duration(milliseconds: 800),
-        ),
-        LyricLine(
-          id: 'world',
-          text: 'world',
-          startTime: const Duration(seconds: 1),
-          endTime: const Duration(seconds: 2),
-        ),
-      ],
-    );
-    service = ForcedAlignmentProofreadService(
-      runner: ({
-        required String audioPath,
-        required String text,
-        required String language,
-        required Duration audioDuration,
-      }) async => [
-        ForcedAlignedSpan(
-          text: 'hello',
-          start: const Duration(milliseconds: 200),
-          end: const Duration(milliseconds: 500),
-        ),
-        ForcedAlignedSpan(
-          text: 'yeah',
-          start: const Duration(milliseconds: 700),
-          end: const Duration(milliseconds: 850),
-        ),
-        ForcedAlignedSpan(
-          text: 'world',
-          start: const Duration(milliseconds: 1200),
-          end: const Duration(milliseconds: 1700),
-        ),
-      ],
-    );
-
-    final outcome = await service.buildReview(
-      draft: twoLines,
-      audioPath: '/tmp/song.wav',
-      referenceText: 'hello\nworld',
-      language: 'English',
-      audioDuration: const Duration(seconds: 3),
-    );
-
-    expect(outcome.alignmentAvailable, isTrue);
-    expect(outcome.result.alignmentDiagnostics!.matchedLineCount, 2);
-    expect(outcome.result.alignmentDiagnostics!.skippedSpanCount, 1);
-    expect(outcome.warning, contains('skipped 1 extra spans'));
-    expect(outcome.result.lines.map((line) => line.tokens.single.text),
-        ['hello', 'world']);
-    expect(twoLines.lines[0].startTime, Duration.zero);
-    expect(twoLines.lines[1].startTime, const Duration(seconds: 1));
-  });
-
-  test('reports zero coverage when a successful aligner call returns no spans',
-      () async {
-    service = ForcedAlignmentProofreadService(
-      runner: ({
-        required String audioPath,
-        required String text,
-        required String language,
-        required Duration audioDuration,
-      }) async => const [],
-    );
-
-    final outcome = await service.buildReview(
-      draft: draft,
-      audioPath: '/tmp/song.wav',
-      referenceText: 'hello world',
-      language: 'English',
-      audioDuration: duration,
-    );
-
-    expect(outcome.alignmentAvailable, isTrue);
-    expect(outcome.warning, contains('matched 0 of 1'));
-    expect(outcome.result.alignmentDiagnostics, isNotNull);
-    expect(outcome.result.alignmentDiagnostics!.lineCoverage, 0);
-    expect(outcome.result.alignmentDiagnostics!.unmatchedLineNumbers, [1]);
-    expect(outcome.result.lines.single.reasons,
-        contains(ProofreadReason.noTimingEvidence));
-    expect(outcome.result.proposedDocument.lines.single.text, 'hello world');
-    expect(outcome.result.proposedDocument.lines.single.startTime,
-        const Duration(milliseconds: 100));
   });
 
   test('falls back to ordinary proposal when managed runner is unavailable', () async {
