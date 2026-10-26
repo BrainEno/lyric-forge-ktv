@@ -861,7 +861,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   ProofreadVerdict.green => LyricProofreadReviewVerdict.green,
                   ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
                 },
-                reasonLabel: row.reasons.map(_proofreadV2ReasonLabel).join('、'),
+                reasonLabel: [
+                  ...row.reasons.map(_proofreadV2ReasonLabel),
+                  if (options.useForcedAlignment && row.tokens.isNotEmpty)
+                    '词级对齐 ${row.tokens.length} 词',
+                  if (options.useForcedAlignment && row.tokens.isEmpty)
+                    '缺少词级对齐证据',
+                ].join('、'),
               );
             }(),
         ];
