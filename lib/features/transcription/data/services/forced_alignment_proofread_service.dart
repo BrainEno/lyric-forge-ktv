@@ -54,7 +54,6 @@ class ForcedAlignmentProofreadService {
         secondary: secondary,
         protectedDraftIndices: protectedDraftIndices,
         audioDuration: audioDuration,
-        forcedAlignmentRequested: true,
         forcedAlignmentSpans: [
           for (final span in spans)
             ProofreadAlignmentSpan(
@@ -64,28 +63,10 @@ class ForcedAlignmentProofreadService {
             ),
         ],
       );
-      final diagnostics = result.alignmentDiagnostics;
-      final matched =
-          diagnostics?.matchedLineCount ??
-          result.lines.where((line) => line.tokens.isNotEmpty).length;
-      final warnings = <String>[];
-      if (matched != draft.lines.length) {
-        final unmatchedLines = diagnostics?.unmatchedLineNumbers ?? const <int>[];
-        var message =
-            'Forced alignment matched $matched of ${draft.lines.length} lyric lines; '
-            'unmatched lines need manual review.';
-        if (unmatchedLines.isNotEmpty) {
-          message += ' Unmatched line numbers: ${unmatchedLines.join(', ')}.';
-        }
-        warnings.add(message);
-      }
-      if (diagnostics?.hasSkippedSpans ?? false) {
-        warnings.add(
-          'Forced alignment skipped ${diagnostics!.skippedSpanCount} extra spans '
-          'while recovering later line matches; inspect these gaps manually.',
-        );
-      }
-      final warning = warnings.isEmpty ? null : warnings.join(' ');
+      final matched = result.lines.where((line) => line.tokens.isNotEmpty).length;
+      final warning = matched == draft.lines.length
+          ? null
+          : 'Forced alignment matched $matched of ${draft.lines.length} lyric lines; unmatched lines need manual review.';
       return ForcedAlignmentProofreadOutcome(
         result: result,
         alignmentAvailable: true,
