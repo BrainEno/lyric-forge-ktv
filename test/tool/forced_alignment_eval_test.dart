@@ -190,12 +190,15 @@ void main() {
     );
   });
 
-  test('captures local alignment spans as millisecond corpus entries', () async {
+  test(
+    'captures local alignment spans as millisecond corpus entries',
+    () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     Map<String, dynamic>? receivedPayload;
     final subscription = server.listen((request) async {
-      receivedPayload =
-          jsonDecode(await utf8.decoder.bind(request).join()) as Map<String, dynamic>;
+      receivedPayload = jsonDecode(
+        await utf8.decoder.bind(request).join(),
+      ) as Map<String, dynamic>;
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({
         'results': [
@@ -238,7 +241,8 @@ void main() {
       await subscription.cancel();
       await server.close(force: true);
     }
-  });
+    },
+  );
 
   test('rejects remote capture endpoints before sending lyric data', () async {
     await expectLater(
@@ -257,7 +261,9 @@ void main() {
     );
   });
 
-  test('rejects captured spans that exceed the annotated audio duration', () async {
+  test(
+    'rejects captured spans that exceed the annotated audio duration',
+    () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final subscription = server.listen((request) async {
       await utf8.decoder.bind(request).join();
@@ -281,6 +287,40 @@ void main() {
             {'text': 'too late', 'startMs': 1700, 'endMs': 1900},
           ]),
           audioDurationMs: 2000,
+        ),
+        throwsFormatException,
+      );
+    } finally {
+      await subscription.cancel();
+      await server.close(force: true);
+    }
+    },
+  );
+
+
+  test('does not follow redirects away from the local alignment endpoint', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final subscription = server.listen((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response.statusCode = HttpStatus.found;
+      request.response.headers.set(
+        HttpHeaders.locationHeader,
+        'https://example.com/v1/align',
+      );
+      await request.response.close();
+    });
+    try {
+      await expectLater(
+        captureForcedAlignmentSample(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+          audioPath: 'song.wav',
+          lyricText: 'private lyric',
+          language: 'English',
+          sampleId: 'en-redirect',
+          referenceSpansJson: jsonEncode([
+            {'text': 'lyric', 'startMs': 100, 'endMs': 200},
+          ]),
+          audioDurationMs: 1000,
         ),
         throwsFormatException,
       );

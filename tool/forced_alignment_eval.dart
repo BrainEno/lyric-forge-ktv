@@ -580,6 +580,7 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   final client = HttpClient();
   try {
     final request = await client.postUrl(endpoint).timeout(requestTimeout);
+    request.followRedirects = false;
     request.headers.contentType = ContentType.json;
     request.write(jsonEncode({
       'audio': audioPath,
@@ -678,17 +679,8 @@ Future<void> _runCaptureCommand(List<String> args) async {
   }
   final lyricText = await File(textPath).readAsString();
   final referenceJson = await File(referencePath).readAsString();
-  final sample = await captureForcedAlignmentSample(
-    endpoint: endpoint,
-    audioPath: audioPath,
-    lyricText: lyricText,
-    language: options['--language']!,
-    sampleId: options['--id']!,
-    referenceSpansJson: referenceJson,
-    audioDurationMs: durationMs,
-  );
 
-  Map<String, Object?> corpus;
+  Map<String, dynamic>? existingCorpus;
   if (hasAppend) {
     if (!await target.exists()) {
       throw FileSystemException('Existing corpus not found.', targetPath);
@@ -697,19 +689,43 @@ Future<void> _runCaptureCommand(List<String> args) async {
     final existingDecoded = jsonDecode(existingSource);
     evaluateForcedAlignmentCorpus(existingSource);
     final existing = existingDecoded as Map<String, dynamic>;
-    final samples = List<dynamic>.from(existing['samples'] as List);
-    if (samples.any((row) => (row as Map)['id'] == sample['id'])) {
-      throw FormatException('Sample ID already exists: ${sample['id']}.');
-    }
-    samples.add(sample);
-    corpus = Map<String, Object?>.from(existing)..['samples'] = samples;
-  } else {
-    if (await target.exists()) {
-      throw FileSystemException(
-        'Output already exists; use --append-to to preserve and extend a corpus.',
-        targetPath,
+    final existingSamples = existing['samples'] as List<dynamic>;
+    if (existingSamples.length >= 200) {
+      throw const FormatException(
+        'Corpus already has the maximum of 200 samples.',
       );
     }
+    if (existingSamples.any(
+      (row) => row is Map && row['id'] == options['--id'],
+    )) {
+      throw FormatException('Sample ID already exists: ${options['--id']}.');
+    }
+    existingCorpus = existing;
+  } else if (await target.exists()) {
+    throw FileSystemException(
+      'Output already exists; use --append-to to preserve and extend a corpus.',
+      targetPath,
+    );
+  }
+
+  // Resolve relative paths against the CLI's working directory before sending
+  // them to the local sidecar, whose working directory may be different.
+  final sample = await captureForcedAlignmentSample(
+    endpoint: endpoint,
+    audioPath: File(audioPath).absolute.path,
+    lyricText: lyricText,
+    language: options['--language']!,
+    sampleId: options['--id']!,
+    referenceSpansJson: referenceJson,
+    audioDurationMs: durationMs,
+  );
+
+  Map<String, Object?> corpus;
+  if (existingCorpus != null) {
+    final samples = List<dynamic>.from(existingCorpus['samples'] as List)
+      ..add(sample);
+    corpus = Map<String, Object?>.from(existingCorpus)..['samples'] = samples;
+  } else {
     corpus = {
       'schemaVersion': 1,
       'toleranceMs': 150,
