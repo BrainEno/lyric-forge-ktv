@@ -212,7 +212,7 @@ void main() {
     final outcome = await service.buildReview(
       draft: twoLines,
       audioPath: '/tmp/song.wav',
-      referenceText: 'hello\\nworld',
+      referenceText: 'hello\nworld',
       language: 'English',
       audioDuration: const Duration(seconds: 3),
     );
