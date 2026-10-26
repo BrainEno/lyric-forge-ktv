@@ -196,6 +196,71 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'review dialog previews original and proposed timing with visible feedback',
+    (tester) async {
+      final original = line('original words', startMs: 1000, endMs: 2400);
+      final proposed = line('proposed words', startMs: 1500, endMs: 2900);
+      final calls = <(int, LyricLine, Duration)>[];
+
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                await showLyricProofreadV2ReviewDialog(
+                  context,
+                  summary: '绿色 0 · 琥珀色 1',
+                  explanation: '时间复核。',
+                  items: [
+                    LyricProofreadV2ReviewItem(
+                      proposalIndex: 0,
+                      sourceIndex: 0,
+                      originalLine: original,
+                      proposedLine: proposed,
+                      verdict: LyricProofreadReviewVerdict.amber,
+                      reasonLabel: '时间差异',
+                    ),
+                  ],
+                  droppedItems: const [],
+                  onPreviewDraftLine: null,
+                  originalGlobalOffset: const Duration(milliseconds: 200),
+                  proposedGlobalOffset: Duration.zero,
+                  onPreviewTimedLine: (index, lyricLine, offset) async {
+                    calls.add((index, lyricLine, offset));
+                    return lyricLine.text == 'proposed words'
+                        ? '本地音频不可用'
+                        : null;
+                  },
+                );
+              },
+              child: const Text('open timed review'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open timed review'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('preview_original_0')));
+      await tester.pumpAndSettle();
+      expect(calls, hasLength(1));
+      expect(calls.first.$1, 0);
+      expect(calls.first.$2, same(original));
+      expect(calls.first.$3, const Duration(milliseconds: 200));
+      expect(find.text('正在试听原始时间范围；再次点击可暂停。'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('preview_proposed_0')));
+      await tester.pumpAndSettle();
+      expect(calls, hasLength(2));
+      expect(calls.last.$2, same(proposed));
+      expect(calls.last.$3, Duration.zero);
+      expect(find.text('试听失败：本地音频不可用'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('review dialog stays within a compact phone viewport',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
