@@ -17,6 +17,15 @@ The current target profile is:
 
 This mode intentionally favors recognition quality over minimum runtime.
 
+## Smoke-test boundary
+
+The advanced real-audio smoke test verifies that the managed runtime can execute
+the production flow and persist an editable lyric project. It does **not**
+calculate lyric recall, word error rate, omitted-line rate, or timestamp
+accuracy. A run can complete while still producing an incomplete transcript.
+Treat the generated lyric document as a draft and compare it with a manually
+checked reference before judging recognition quality.
+
 ## Pipeline
 
 ```text
