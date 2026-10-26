@@ -46,3 +46,7 @@
 - 当前源分离后端仍未完成；原始混音可能显著影响音乐人声识别。
 
 最后更新：2026-10-26 20:40（Asia/Taipei）
+
+
+## Additional follow-up
+- The real-audio smoke-test UI now distinguishes runtime/persistence success from lyric recall or accuracy; a song can produce an editable but incomplete transcript.
