@@ -523,6 +523,9 @@ class _LyricProofreadV2ReviewDialogState
                         tokenIndex++)
                       () {
                         final token = item.alignmentTokens[tokenIndex];
+                        final confidenceLabel = token.confidence == null
+                            ? '置信度未提供'
+                            : '置信度 ${token.confidence}%';
                         final canPreview = item.sourceIndex != null &&
                             widget.onPreviewAlignmentToken != null;
                         return ListTile(
@@ -534,8 +537,7 @@ class _LyricProofreadV2ReviewDialogState
                           title: Text(token.text),
                           subtitle: Text(
                             '${_formatTime(token.interval.start)} – '
-                            '${_formatTime(token.interval.end)} · '
-                            '置信参考 ${token.confidence}%',
+                            '${_formatTime(token.interval.end)} · $confidenceLabel',
                           ),
                           trailing: IconButton(
                             key: ValueKey(
