@@ -121,6 +121,74 @@ void main() {
     expect(outcome.result.proposedDocument.lines.single.text, 'hello world');
   });
 
+  test('accepts the managed native runner and preserves review-only semantics', () async {
+    service = ForcedAlignmentProofreadService(
+      runner: ({
+        required String audioPath,
+        required String text,
+        required String language,
+        required Duration audioDuration,
+      }) async {
+        expect(audioPath, '/tmp/song.wav');
+        expect(text, 'hello world');
+        expect(language, 'English');
+        expect(audioDuration, duration);
+        return [
+          ForcedAlignedSpan(
+            text: 'hello',
+            start: const Duration(milliseconds: 200),
+            end: const Duration(milliseconds: 600),
+          ),
+          ForcedAlignedSpan(
+            text: 'world',
+            start: const Duration(milliseconds: 700),
+            end: const Duration(milliseconds: 1100),
+          ),
+        ];
+      },
+    );
+
+    final outcome = await service.buildReview(
+      draft: draft,
+      audioPath: '/tmp/song.wav',
+      referenceText: 'hello world',
+      language: 'English',
+      audioDuration: duration,
+    );
+
+    expect(outcome.alignmentAvailable, isTrue);
+    expect(outcome.result.lines.single.tokens, hasLength(2));
+    expect(outcome.result.proposedDocument.lines.single.startTime,
+        const Duration(milliseconds: 100));
+    expect(outcome.result.proposedDocument.lines.single.endTime,
+        const Duration(milliseconds: 1500));
+  });
+
+  test('falls back to ordinary proposal when managed runner is unavailable', () async {
+    service = ForcedAlignmentProofreadService(
+      runner: ({
+        required String audioPath,
+        required String text,
+        required String language,
+        required Duration audioDuration,
+      }) async => throw Exception('runtime not ready'),
+    );
+
+    final outcome = await service.buildReview(
+      draft: draft,
+      audioPath: '/tmp/song.wav',
+      referenceText: 'hello world',
+      language: 'English',
+      audioDuration: duration,
+    );
+
+    expect(outcome.alignmentAvailable, isFalse);
+    expect(outcome.warning, contains('unavailable'));
+    expect(outcome.result.notes, contains('forcedAlignmentUnavailable'));
+    expect(outcome.result.proposedDocument.lines.single.startTime,
+        const Duration(milliseconds: 100));
+  });
+
   test('keeps review usable and exposes a warning when endpoint fails', () async {
     final responseFuture = server.first.then((request) async {
       await utf8.decoder.bind(request).join();
