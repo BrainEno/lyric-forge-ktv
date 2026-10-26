@@ -1,40 +1,40 @@
 # Handoff
 
 ## 目标
-修复歌词智能校对 V2 的行级试听链路，使原始时间与建议时间可以分别试听，并让无效音频/时间范围/播放启动失败在模态对话框中可见。
+提高最高质量 ASR 的歌词召回率，避免副识别器找到的独立歌词/伴唱词因时间区间落在主识别器的长行内部而被误当成“已匹配”丢弃。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`
-- 当前分支：`fix/v2-lyric-audition-feedback-20261026`
-- 已同步到 `main@8c08eba00ef80f0f4f9d21f982c8e965a8d6b690`；PR #195 已合并，主线 4 项工作流均成功。
-- 当前环境没有本地 Git/Flutter 工作树；以远端文件、PR diff 和 GitHub Actions 作为验证依据。
+- 当前分支：`feat/asr-quality-metrics-and-recall-20261027`
+- 基线：main 已包含 PR #195 的双模型融合修复与 PR #196 的 V2 试听修复。
+- 当前执行环境没有本地 Git/Flutter 工作树；远端 GitHub Actions 负责格式、分析器和测试验证。
 
 ## 已改文件
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
-- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`
-- `docs/log/entries/2026-10-26-2110-fix-v2-audition-feedback.md`
-- `docs/log/entries/2026-10-26-2250-sync-v2-audition-main.md`
+- `lib/features/transcription/data/services/high_quality_transcription_service.dart`
+- `test/high_quality_transcription_service_test.dart`
+- `docs/high_quality_asr.md`
+- `docs/log/entries/2026-10-27-0018-preserve-overlapping-asr-lines.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
+- `docs/handoff.md`
 
 ## 本轮实现
-- V2 复核卡片可分别试听原始行与建议时间范围；两者分别使用原文档和建议文档的 globalOffset。
-- 复核对话框显示试听状态和失败原因，不再只依赖可能被模态对话框盖住的底层 SnackBar。
-- 播放帮助函数返回结构化成功/失败结果。无效时间范围、播放会话/资源错误和播放器未进入播放状态能返回具体诊断。
-- 保留旧的 `onPreviewDraftLine` 回调兼容路径。
-- 新增 widget 回归测试，核验回调行内容、时间偏移和失败信息可见性。
+- 双向合并不再把时间重叠的所有副识别行一概标为已匹配。
+- 子串匹配还需与歌词片段预期位置或对应段落边界对齐；非子串的文本相似匹配还需时间重叠强且时长可比，起止边界近似的候选行也保留为同一行比较。
+- 新颖的重叠副识别行保留为低置信度（最高 60）的单独复核行。
+- 新增测试覆盖 Qwen-primary 与 Whisper-primary 两种配置中的“长主行 + 首尾对应片段 + 内部独立歌词/ad-lib”，包括文本虽为主行子串但时间位置不符的独立短句。
 
 ## 检查结果
-- 同步主线后的代码 head `343169ace072443434c8166232d5a121a8c0f7bf` 的 Flutter Quality Gate 已通过（[run 40346423636](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40346423636)）；本次仅更新交接文档后，仍应以新 head 的最新 CI 作为合并依据。
-- 自动化测试只能验证 UI 回调契约和失败反馈。真实音频是否能从用户的 Windows/MPV 播放栈启动，仍须在重建应用后验证。
+- ASR client checks 已通过前一个代码 head；最新代码 head 的 Flutter Quality Gate 与完整回归套件尚待最终确认。
+- 这是一项保守的召回保护，不代表模型本身 WER 已下降。真实音频仍需人工核验后计入评测语料。
 
 ## 下一步
-确认 PR 最新 head 的 work-log preflight、Dart format、analyzer、定向 widget 测试及完整测试套件全部通过后，在 Windows 重建应用，选一首有已知时间戳的歌曲，依次按“试听原始行”和“试听建议时间”，确认声音实际发出、各自从对应区间起播，并检查无效范围时对话框能显示原因。
+CI 通过后，把真实歌曲的人工核验转录加入 ASR 评测语料，按语言、歌曲和引擎顺序分别统计字符/词错误率、漏行率、冗余行率和时间边界误差。不要仅凭模型置信度或成功运行 smoke test 判断准确性。之后再用相同输入音频比较 Whisper、Qwen 与融合结果，决定是否调整主模型或融合门槛。
 
 ## 已知风险
-- 本次只使已有播放链路可诊断并支持时间 A/B；如果媒体源无法打开、播放队列源与项目音频不同，仍需基于实际错误继续修复。
-- 在没有真实音频设备的执行环境中，不能宣称已完成声学/设备级验证。
+- 文本归一化子串和时间边界是候选匹配的启发式依据，无法替代人工金标准；某些 ad-lib 可能仍被判断为同一行，某些拆句可能出现多余待复核行。
+- 所有新插入副识别行仍须人工确认，不能自动视为真实歌词。
+- 没有实机音频语料评测前，不宣称整体准确率提升幅度。
 
-最后更新：2026-10-26 23:10（Asia/Taipei）
+最后更新：2026-10-27 00:48（Asia/Taipei）

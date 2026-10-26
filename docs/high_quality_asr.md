@@ -165,8 +165,16 @@ The forced aligner remains the timing authority.
 
 ## Independent-engine comparison
 
-Whisper output is matched to Qwen lines by timestamp overlap with a small
-padding window.
+Whisper output is first compared with Qwen lines inside a small timestamp
+padding window. **Time overlap alone is not considered proof that the lines
+correspond.** A secondary line is marked as covered only when normalized text
+is equal, a contained fragment's timestamps fit its likely position or a
+shared segment edge, lexical similarity is high enough over strong temporal
+overlap with comparable segment durations, or both boundaries are close enough
+to indicate an alternative hypothesis for the same segment. Novel secondary lines
+that occur inside a long primary interval are retained as low-confidence review
+rows. This is deliberately recall-oriented: the extra row is evidence to review,
+not a claim that the secondary engine is correct.
 
 Text disagreement is measured with normalized Unicode character-level
 Levenshtein similarity so the same comparison path works for:

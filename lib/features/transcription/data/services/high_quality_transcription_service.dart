@@ -335,9 +335,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
         whisperLine,
         qwenSecondOpinion.lines,
       );
-      matchedSecondaryIndices.addAll(overlappingIndices);
+      final correspondingIndices = _correspondingSecondaryLineIndices(
+        primaryLine: whisperLine,
+        secondaryLines: qwenSecondOpinion.lines,
+        overlappingIndices: overlappingIndices,
+      );
+      matchedSecondaryIndices.addAll(correspondingIndices);
       final qwenLines = [
-        for (final secondaryIndex in overlappingIndices)
+        for (final secondaryIndex in correspondingIndices)
           qwenSecondOpinion.lines[secondaryIndex],
       ];
 
@@ -356,7 +361,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'whisperText': whisperLine.text,
                 'whisperConfidence': whisperLine.confidence,
                 'selected': 'whisper',
-                'reason': 'qwen_no_overlap',
+                'reason': overlappingIndices.isEmpty
+                    ? 'qwen_no_overlap'
+                    : 'qwen_no_corresponding_line',
               },
             ),
           );
@@ -562,9 +569,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
         qwenLine,
         fallback.lines,
       );
-      matchedSecondaryIndices.addAll(overlappingIndices);
+      final correspondingIndices = _correspondingSecondaryLineIndices(
+        primaryLine: qwenLine,
+        secondaryLines: fallback.lines,
+        overlappingIndices: overlappingIndices,
+      );
+      matchedSecondaryIndices.addAll(correspondingIndices);
       final whisperLines = [
-        for (final secondaryIndex in overlappingIndices)
+        for (final secondaryIndex in correspondingIndices)
           fallback.lines[secondaryIndex],
       ];
       if (whisperLines.isEmpty) {
@@ -579,7 +591,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'qwenText': qwenLine.text,
                 'qwenConfidence': qwenLine.confidence,
                 'selected': 'qwen',
-                'reason': 'whisper_no_overlap',
+                'reason': overlappingIndices.isEmpty
+                    ? 'whisper_no_overlap'
+                    : 'whisper_no_corresponding_line',
               },
             ),
           );
@@ -696,6 +710,142 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (overlapEnd > overlapStart) result.add(index);
     }
     return result;
+  }
+
+  /// Select secondary rows that plausibly describe the same lyric as the
+  /// primary row. Timestamp overlap is only a search window: a distinct
+  /// ad-lib or omitted line can occur inside a long primary segment.
+  List<int> _correspondingSecondaryLineIndices({
+    required LyricLine primaryLine,
+    required List<LyricLine> secondaryLines,
+    required List<int> overlappingIndices,
+  }) {
+    return [
+      for (final index in overlappingIndices)
+        if (_isLikelySameLyricLine(primaryLine, secondaryLines[index])) index,
+    ];
+  }
+
+  bool _isLikelySameLyricLine(LyricLine primaryLine, LyricLine secondaryLine) {
+    final primaryText = _normalizeForComparison(primaryLine.text);
+    final secondaryText = _normalizeForComparison(secondaryLine.text);
+    if (primaryText.isEmpty || secondaryText.isEmpty) return false;
+    if (primaryText == secondaryText) return true;
+
+    final primaryContainsSecondary = primaryText.contains(secondaryText);
+    final secondaryContainsPrimary = secondaryText.contains(primaryText);
+    if (primaryContainsSecondary || secondaryContainsPrimary) {
+      // A text fragment is not enough to prove correspondence: a repeated
+      // backing vocal can contain words from a long lead-vocal segment. Its
+      // timestamps must line up with that fragment's likely position, unless
+      // it touches the same segment boundary.
+      final fullText = primaryContainsSecondary ? primaryText : secondaryText;
+      final fragmentText = primaryContainsSecondary
+          ? secondaryText
+          : primaryText;
+      final fullLine = primaryContainsSecondary ? primaryLine : secondaryLine;
+      final fragmentLine = primaryContainsSecondary
+          ? secondaryLine
+          : primaryLine;
+      return _containedFragmentMatchesTimeline(
+        fullText: fullText,
+        fragmentText: fragmentText,
+        fullLine: fullLine,
+        fragmentLine: fragmentLine,
+      );
+    }
+
+    final primaryDuration =
+        (primaryLine.endTime - primaryLine.startTime).inMilliseconds;
+    final secondaryDuration =
+        (secondaryLine.endTime - secondaryLine.startTime).inMilliseconds;
+    if (primaryDuration <= 0 || secondaryDuration <= 0) return false;
+
+    final overlapStart = primaryLine.startTime > secondaryLine.startTime
+        ? primaryLine.startTime
+        : secondaryLine.startTime;
+    final overlapEnd = primaryLine.endTime < secondaryLine.endTime
+        ? primaryLine.endTime
+        : secondaryLine.endTime;
+    final overlapMs = (overlapEnd - overlapStart).inMilliseconds;
+    final shorterDuration = primaryDuration < secondaryDuration
+        ? primaryDuration
+        : secondaryDuration;
+    final longerDuration = primaryDuration > secondaryDuration
+        ? primaryDuration
+        : secondaryDuration;
+    final overlapRatio = overlapMs <= 0 ? 0.0 : overlapMs / shorterDuration;
+    final similarity = _textSimilarity(primaryLine.text, secondaryLine.text);
+
+    // Lexically similar alternatives must also describe comparable time spans;
+    // a short nested line inside a long segment is not enough.
+    if (similarity >= 0.55 &&
+        overlapRatio >= 0.65 &&
+        longerDuration / shorterDuration <= 2.0) {
+      return true;
+    }
+
+    // A strong boundary match is enough to pair different hypotheses for the
+    // same segment, but merely sitting inside another line is not.
+    final startDelta = (primaryLine.startTime - secondaryLine.startTime)
+        .inMilliseconds
+        .abs();
+    final endDelta = (primaryLine.endTime - secondaryLine.endTime)
+        .inMilliseconds
+        .abs();
+    return startDelta <= 350 &&
+        endDelta <= 350 &&
+        longerDuration / shorterDuration <= 2.0;
+  }
+
+  bool _containedFragmentMatchesTimeline({
+    required String fullText,
+    required String fragmentText,
+    required LyricLine fullLine,
+    required LyricLine fragmentLine,
+  }) {
+    final fullDuration = (fullLine.endTime - fullLine.startTime).inMilliseconds;
+    if (fullDuration <= 0 || fullText.isEmpty) return false;
+
+    final fragmentStart = fullText.indexOf(fragmentText);
+    if (fragmentStart < 0) return false;
+    final fragmentEnd = fragmentStart + fragmentText.length;
+    final isPrefix = fragmentStart / fullText.length <= 0.10;
+    final trailingLength = fullText.length - fragmentEnd;
+    final isSuffix = trailingLength / fullText.length <= 0.10;
+    final startDelta = (fragmentLine.startTime - fullLine.startTime)
+        .inMilliseconds
+        .abs();
+    final endDelta = (fragmentLine.endTime - fullLine.endTime).inMilliseconds
+        .abs();
+
+    if (isPrefix && startDelta <= 450) return true;
+    if (isSuffix && endDelta <= 450) return true;
+
+    // For an internal fragment, compare its observed boundaries with a loose
+    // text-position estimate. The tolerance accounts for uneven singing pace;
+    // when timing does not fit, retain the fragment as a review-only extra row.
+    final expectedStartMs = (fullDuration * fragmentStart / fullText.length)
+        .round();
+    final expectedEndMs = (fullDuration * fragmentEnd / fullText.length)
+        .round();
+    final proportionalTolerance = (fullDuration * 0.18).round();
+    final toleranceMs = proportionalTolerance > 350
+        ? proportionalTolerance
+        : 350;
+    final expectedStart =
+        fullLine.startTime + Duration(milliseconds: expectedStartMs);
+    final expectedEnd =
+        fullLine.startTime + Duration(milliseconds: expectedEndMs);
+    final positionedStartDelta = (fragmentLine.startTime - expectedStart)
+        .inMilliseconds
+        .abs();
+    final positionedEndDelta = (fragmentLine.endTime - expectedEnd)
+        .inMilliseconds
+        .abs();
+
+    return positionedStartDelta <= toleranceMs &&
+        positionedEndDelta <= toleranceMs;
   }
 
   /// Retain useful lines found only by the secondary recognizer instead of
