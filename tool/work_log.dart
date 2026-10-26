@@ -550,7 +550,7 @@ class WorkLogHarness {
       '  - flutter analyze ... => TODO\n'
       '  - flutter test ... => TODO\n'
       '- Notes: TODO — record risks and unverified behavior.\n'
-      '- Commit: TODO: replace with the actual English imperative subject\n',
+      '- Commit: `TODO: replace with the actual English imperative subject`\n',
     );
     return file;
   }
