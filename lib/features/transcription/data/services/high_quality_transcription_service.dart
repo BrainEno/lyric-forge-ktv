@@ -182,6 +182,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<TranscriptionResult> _transcribeWhisperPrimary(
     TranscriptionRequest request,
   ) async {
+    final qwenModelKey = request.config.qwenModelPath.toLowerCase().contains('0.6b')
+        ? 'qwen3-asr-0.6b'
+        : 'qwen3-asr-1.7b';
+    final qwenModelLabel = qwenModelKey == 'qwen3-asr-0.6b'
+        ? 'Qwen3-ASR 0.6B'
+        : 'Qwen3-ASR 1.7B';
+
     _emit(
       TranscriptionStage.transcribing,
       0.02,
@@ -220,7 +227,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     _emit(
       TranscriptionStage.fallback,
       0.58,
-      'Qwen3-ASR 0.6B 正在进行 CPU 第二意见识别',
+      '$qwenModelLabel 正在进行第二意见识别',
     );
 
     final qwenDirectory = Directory(
@@ -268,7 +275,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'qualityMode': 'highestQuality',
             'primaryEngine': 'whisper.cpp-large-v3',
             'alignmentEngine': 'whisper-segment-timestamps',
-            'fallbackEngine': 'qwen3-asr-0.6b',
+            'fallbackEngine': qwenModelKey,
             'fallbackAlignmentEngine':
                 'qwen3-forced-aligner-0.6b',
             'fallbackStatus': 'failed',
@@ -304,7 +311,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'qualityMode': 'highestQuality',
         'primaryEngine': 'whisper.cpp-large-v3',
         'alignmentEngine': 'whisper-segment-timestamps',
-        'fallbackEngine': 'qwen3-asr-0.6b',
+        'fallbackEngine': qwenModelKey,
         'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
         'fallbackStrategy': 'fullSongSecondOpinion',
         'fallbackStatus': 'completed',
@@ -321,9 +328,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
     _emit(
       TranscriptionStage.completed,
       1.0,
-      merge.candidates.isEmpty
-          ? 'Intel Mac 高质量识别完成，两套引擎结果高度一致'
-          : 'Intel Mac 高质量识别完成，发现 ${merge.candidates.length} 行需要重点校对',
+      [
+        '最高质量识别完成',
+        if (merge.secondaryOnlyLineIndices.isNotEmpty)
+          '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+        if (merge.candidates.isNotEmpty)
+          '发现 ${merge.candidates.length} 行需要重点校对',
+        if (merge.candidates.isEmpty && merge.secondaryOnlyLineIndices.isEmpty)
+          '两套引擎结果未发现明显分歧',
+      ].join('；'),
     );
 
     return TranscriptionResult(
