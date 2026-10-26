@@ -27,14 +27,14 @@
 - 新增 widget 回归测试，核验回调行内容、时间偏移和失败信息可见性。
 
 ## 检查结果
-- 旧 PR #196 head `65a4512142ed910de662979c08055ea3d265921a` 的 Flutter Quality Gate 已通过；本次同步主线后的新 head 尚待重新运行 CI。
+- 同步主线后的代码 head `343169ace072443434c8166232d5a121a8c0f7bf` 的 Flutter Quality Gate 已通过（[run 40346423636](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40346423636)）；本次仅更新交接文档后，仍应以新 head 的最新 CI 作为合并依据。
 - 自动化测试只能验证 UI 回调契约和失败反馈。真实音频是否能从用户的 Windows/MPV 播放栈启动，仍须在重建应用后验证。
 
 ## 下一步
-先验证同步后 PR 的 work-log preflight、Dart format、analyzer、定向 widget 测试及完整测试套件；CI 通过后在 Windows 重建应用，选一首有已知时间戳的歌曲，依次按“试听原始行”和“试听建议时间”，确认声音实际发出、各自从对应区间起播，并检查无效范围时对话框能显示原因。
+确认 PR 最新 head 的 work-log preflight、Dart format、analyzer、定向 widget 测试及完整测试套件全部通过后，在 Windows 重建应用，选一首有已知时间戳的歌曲，依次按“试听原始行”和“试听建议时间”，确认声音实际发出、各自从对应区间起播，并检查无效范围时对话框能显示原因。
 
 ## 已知风险
 - 本次只使已有播放链路可诊断并支持时间 A/B；如果媒体源无法打开、播放队列源与项目音频不同，仍需基于实际错误继续修复。
 - 在没有真实音频设备的执行环境中，不能宣称已完成声学/设备级验证。
 
-最后更新：2026-10-26 22:50（Asia/Taipei）
+最后更新：2026-10-26 23:10（Asia/Taipei）
