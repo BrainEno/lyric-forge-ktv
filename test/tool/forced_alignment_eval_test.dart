@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../tool/forced_alignment_eval.dart';
+import '../../tool/forced_alignment_eval.dart' as evaluator;
 
 void main() {
   test('reports boundary MAE, median, p95 and tolerance rate', () {
-    final report = evaluateForcedAlignmentCorpus(
+    final report = evaluator.evaluateForcedAlignmentCorpus(
       jsonEncode({
         'schemaVersion': 1,
         'toleranceMs': 10,
@@ -41,7 +41,7 @@ void main() {
   test(
     'normalizes full-width Latin and joins equivalent Chinese/Japanese spans',
     () {
-      final report = evaluateForcedAlignmentCorpus(
+      final report = evaluator.evaluateForcedAlignmentCorpus(
         jsonEncode({
           'schemaVersion': 1,
           'samples': [
@@ -73,7 +73,7 @@ void main() {
   );
 
   test('reports extra ad-lib spans without losing later repeated words', () {
-    final report = evaluateForcedAlignmentCorpus(
+    final report = evaluator.evaluateForcedAlignmentCorpus(
       jsonEncode({
         'schemaVersion': 1,
         'samples': [
@@ -106,7 +106,7 @@ void main() {
   test(
     'empty output reports zero recall and no fabricated timing accuracy',
     () {
-      final report = evaluateForcedAlignmentCorpus(
+      final report = evaluator.evaluateForcedAlignmentCorpus(
         jsonEncode({
           'schemaVersion': 1,
           'samples': [
@@ -131,7 +131,7 @@ void main() {
   );
 
   test('aggregates samples by language and validates schema', () {
-    final report = evaluateForcedAlignmentCorpus(
+    final report = evaluator.evaluateForcedAlignmentCorpus(
       jsonEncode({
         'schemaVersion': 1,
         'samples': [
@@ -162,18 +162,18 @@ void main() {
     final langs = report['byLanguage']! as Map<String, dynamic>;
     expect(langs.keys, containsAll(['English', 'Chinese']));
     expect(
-      () => evaluateForcedAlignmentCorpus('{"schemaVersion":2,"samples":[]}'),
+      () => evaluator.evaluateForcedAlignmentCorpus('{"schemaVersion":2,"samples":[]}'),
       throwsFormatException,
     );
     expect(
-      () => evaluateForcedAlignmentCorpus('{"schemaVersion":1,"samples":[]}'),
+      () => evaluator.evaluateForcedAlignmentCorpus('{"schemaVersion":1,"samples":[]}'),
       throwsFormatException,
     );
   });
 
   test('rejects unordered and out-of-audio spans', () {
     expect(
-      () => evaluateForcedAlignmentCorpus(
+      () => evaluator.evaluateForcedAlignmentCorpus(
         jsonEncode({
           'schemaVersion': 1,
           'samples': [
@@ -192,7 +192,7 @@ void main() {
       throwsFormatException,
     );
     expect(
-      () => evaluateForcedAlignmentCorpus(
+      () => evaluator.evaluateForcedAlignmentCorpus(
         jsonEncode({
           'schemaVersion': 1,
           'samples': [
@@ -238,7 +238,7 @@ void main() {
         await request.response.close();
       });
       try {
-        final sample = await captureForcedAlignmentSample(
+        final sample = await evaluator.captureForcedAlignmentSample(
           endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
           audioPath: 'song.wav',
           lyricText: 'hello world',
@@ -272,7 +272,7 @@ void main() {
 
   test('rejects remote capture endpoints before sending lyric data', () async {
     await expectLater(
-      captureForcedAlignmentSample(
+      evaluator.captureForcedAlignmentSample(
         endpoint: Uri.parse('https://example.com/v1/align'),
         audioPath: 'song.wav',
         lyricText: 'private lyric',
@@ -305,7 +305,7 @@ void main() {
       });
       try {
         await expectLater(
-          captureForcedAlignmentSample(
+          evaluator.captureForcedAlignmentSample(
             endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
             audioPath: 'song.wav',
             lyricText: 'too late',
@@ -340,7 +340,7 @@ void main() {
       });
       try {
         await expectLater(
-          captureForcedAlignmentSample(
+          evaluator.captureForcedAlignmentSample(
             endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
             audioPath: 'song.wav',
             lyricText: 'private lyric',
@@ -390,7 +390,7 @@ void main() {
       });
       try {
         exitCode = 0;
-        await main([
+        await evaluator.main([
           'capture',
           '--endpoint',
           'http://127.0.0.1:${server.port}/v1/align',
@@ -469,7 +469,7 @@ void main() {
       });
       try {
         exitCode = 0;
-        await main([
+        await evaluator.main([
           'capture',
           '--endpoint',
           'http://127.0.0.1:${server.port}/v1/align',
