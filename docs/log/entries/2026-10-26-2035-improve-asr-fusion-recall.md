@@ -7,4 +7,4 @@
   - `flutter test test/high_quality_transcription_service_test.dart test/transcription_hardware_profile_test.dart` — not run locally; this environment has no local Flutter/Dart SDK. Remote Flutter Quality Gate must validate the branch.
   - Real Windows RTX 5080 / Roadhouse Blues retest — pending a rebuilt application; this patch does not claim measured acoustic accuracy.
 - Notes: Whisper-first is a provisional profile default based on the observed song-level failure, not a claim of universal Whisper superiority. Secondary-only rows are timestamp-sorted and capped at confidence 60 to force review; source transcript alternatives are remapped after insertions. Qwen lines without calibrated lexical confidence now use a neutral review-required score of 50 rather than an optimistic timing-derived 92. Source separation is still incomplete, so mixed-instrument audio may remain a quality bottleneck.
-- Commit: `Prefer Whisper first and retain secondary-only lyric lines`
+- Commit: `Preserve secondary-only ASR lines for review`
