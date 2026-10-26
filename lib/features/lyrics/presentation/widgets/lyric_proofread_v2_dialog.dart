@@ -448,20 +448,47 @@ class _LyricProofreadV2ReviewDialogState
                           }
                         }),
                         controlAffinity: ListTileControlAffinity.leading,
-                        secondary: widget.onPreviewDraftLine == null
+                        secondary:
+                            widget.onPreviewTimedLine == null &&
+                                widget.onPreviewDraftLine == null
                             ? null
                             : IconButton(
-                                tooltip: '试听原始行',
-                                onPressed: () => widget.onPreviewDraftLine!(
-                                  item.sourceIndex,
+                                key: ValueKey(
+                                  'preview_dropped_${item.sourceIndex}',
                                 ),
+                                tooltip: '试听原始行',
+                                onPressed: widget.onPreviewTimedLine == null
+                                    ? () => widget.onPreviewDraftLine!(
+                                        item.sourceIndex,
+                                      )
+                                    : () => _previewTimedLine(
+                                        proposalIndex: -item.sourceIndex - 1,
+                                        sourceIndex: item.sourceIndex,
+                                        line: item.line,
+                                        globalOffset: widget.originalGlobalOffset,
+                                        label: '原始',
+                                      ),
                                 icon: const Icon(Icons.play_circle_outline),
                               ),
                         title: Text('第 ${item.sourceIndex + 1} 行 · ${item.line.text}'),
-                        subtitle: Text(
-                          '${_formatTime(item.line.startTime)} – '
-                          '${_formatTime(item.line.endTime)} · '
-                          '${item.reasonLabel} · 默认排除，勾选恢复',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${_formatTime(item.line.startTime)} – '
+                              '${_formatTime(item.line.endTime)} · '
+                              '${item.reasonLabel} · 默认排除，勾选恢复',
+                            ),
+                            if (_auditionFeedbackByProposal[-item.sourceIndex - 1] !=
+                                null)
+                              Text(
+                                _auditionFeedbackByProposal[-item.sourceIndex - 1]!,
+                                key: ValueKey(
+                                  'audition_feedback_dropped_${item.sourceIndex}',
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                   ],
