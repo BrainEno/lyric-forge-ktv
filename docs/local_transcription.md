@@ -77,8 +77,10 @@ cache layouts, or model IDs.
 The automatic profile resolver currently distinguishes the main supported
 high-quality targets:
 
-- RTX 5080 class Windows desktop: Qwen3-ASR 1.7B + ForcedAligner 0.6B, with
-  Whisper as the second opinion/fallback path.
+- RTX 5080 class Windows desktop: Whisper large-v3 primary + Qwen3-ASR 1.7B
+  CUDA/BF16 second opinion, plus Qwen ForcedAligner 0.6B for timing evidence.
+  Whisper-first is a provisional quality default pending real-song evaluation;
+  it does not claim Whisper is universally better.
 - Intel Mac: Qwen3-ASR 0.6B + ForcedAligner 0.6B, with the matching lower-memory
   settings selected automatically.
 
