@@ -1,0 +1,40 @@
+name: Temporary audition formatter
+
+on:
+  push:
+    branches:
+      - fix/v2-lyric-audition-feedback-20261026
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.7'
+      - name: Resolve the same Flutter package graph as quality gate
+        run: |
+          flutter --version
+          dart --version
+          flutter pub get
+      - name: Format and commit the exact changed files
+        shell: bash
+        run: |
+          dart format lib/features/lyrics/presentation/screens/lyric_editor_screen.dart lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
+          if git diff --quiet; then
+            echo "Formatter made no changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/features/lyrics/presentation/screens/lyric_editor_screen.dart lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
+          git commit -m "style: reconcile V2 format with quality gate"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
