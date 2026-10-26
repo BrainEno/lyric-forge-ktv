@@ -92,9 +92,11 @@ class TimedLyricToken {
     if (text.trim().isEmpty) {
       throw ArgumentError.value(text, 'text', 'Must not be empty.');
     }
-    if (confidence != null && (confidence < 0 || confidence > 100)) {
+    final confidenceValue = confidence;
+    if (confidenceValue != null &&
+        (confidenceValue < 0 || confidenceValue > 100)) {
       throw ArgumentError.value(
-        confidence,
+        confidenceValue,
         'confidence',
         'Must be in 0..100.',
       );
