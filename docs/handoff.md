@@ -1,44 +1,40 @@
 # Handoff
 
 ## 目标
-继续歌词智能校对 V2：不要把缺少置信度的 ForcedAligner 词级时间结果显示为模型置信度；保持时间证据仅供复核，不自动修改歌词时间戳。
+继续歌词智能校对 V2 的 ForcedAligner 证据质量：提高跨语言文本标准化的稳定性，同时确保时间证据只用于复核、不修改源歌词。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`。
-- 基线：PR #186 已合并，main merge commit `9933a36fdfea662423a404fa8f1ac5ff0f519f24`。
-- 开发分支：`fix/unknown-forced-align-confidence-20261026`。
-- PR #187：<https://github.com/BrainEno/lyric-forge-ktv/pull/187>；合并前必须核对该 PR 最新 head 的 Flutter Quality Gate。
-- 本轮将 `TimedLyricToken.confidence` 改为可空；对齐端未提供校准置信度时使用 `null`，不再人为填入 60。
-- 本执行环境没有本地 Dart/Flutter SDK；分析和测试需以 GitHub Actions 最新 head 的结果为准。
+- main 基线：PR #187 已合并，合并提交 `7c1640c08b343f940e32485f205b4f4409287b2b`。
+- 开发分支：`fix/multiscript-align-normalization-20261026`。
+- 本轮复用 `LyricTokenizer` 做 ForcedAligner span 与歌词行的文本归一化，并增加全角拉丁文、中文和日文回归用例。
+- 本执行环境没有本地 Dart/Flutter SDK；分析和测试结论依赖 PR 最新 head 的 GitHub Actions。
 
 ## 已改文件
-- `lib/features/lyrics/domain/proofreading/proofread_result.dart`
 - `lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart`
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`
 - `test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart`
-- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`
 - `docs/high_quality_asr.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
-- `docs/log/entries/2026-10-26-1512-unknown-forced-align-confidence.md`
+- `docs/work_log_index.md`
+- `docs/log/entries/2026-10-26-1530-normalize-forced-align-text.md`
 
 ## 本轮实现
-- 词级置信度现在允许 `null`，同时继续校验明确提供的置信度必须处于 0–100。
-- ForcedAligner 对齐跨度没有置信分数字段，所以映射时保留为未知，而不是虚构 60。
-- 复核 UI 对真实提供的置信值显示百分比；缺失时显示“置信度未提供”。
-- 测试覆盖缺失值及现有显式置信值展示；歌词原文和行级时间继续保持不变。
+- ForcedAligner 文本匹配复用 `LyricTokenizer`，统一处理全角 ASCII、CJK 字符和常见标点。
+- 增加英语全角文本、中文和日文匹配测试。
+- 保持原始歌词文字、行级时间戳和时间证据的 review-only 语义不变。
 
 ## 检查结果
-- 已通过 GitHub 文件 API 核实源代码、回归断言和 ASR 文档改动。
-- 未执行本地 `dart format`、`flutter analyze` 或 `flutter test`，因为当前环境未提供 Dart/Flutter SDK。
-- 合并前必须检查此分支最新提交对应的 Flutter Quality Gate。
+- 已加入面向全角拉丁文、中文、日文的定向回归测试。
+- 本地未运行 `dart format`、`flutter analyze` 或 `flutter test`，因为当前环境没有 Dart/Flutter SDK。
+- PR 最新 head 的 Flutter Quality Gate 仍需完成；未把合成数据测试当作真实音频验收。
 
 ## 下一步
-在最新 head 的 Flutter Quality Gate 通过后，审阅并合并此 PR；再使用已重建的 Windows/RTX 5080 runtime 与真实中、英、日歌曲进行端到端验收。
+检查 PR 最新 head 的 CI；通过后等待用户合并。接下来需要在已重建的 Windows/RTX 5080 runtime 上以真实中文、英文、日文歌曲验收词级对齐边界和行覆盖率，再考虑单独的显式确认时间修复。
 
 ## 已知风险
-- 契约与 UI 测试不证明真实歌曲的 token 时间准确度。
-- `/v1/align` 当前没有校准置信度；除非未来后端明确提供有文档定义的分数，否则 UI 不应合成一个。
-- 旧 runtime bundle 可能尚未包含 `POST /v1/align` endpoint。
+- 合成测试验证文本归一化，不证明声学时间定位准确。
+- 旧 runtime bundle 可能不含 `POST /v1/align`。
+- Apostrophe 在对齐文本归一化中被忽略，以支持 backend 将英文缩写拆成多个 span；如未来需要区分撇号语义，应补充针对性合同和测试。
 
-最后更新：2026-10-26 15:12（Asia/Taipei）
+最后更新：2026-10-26 15:30（Asia/Taipei）

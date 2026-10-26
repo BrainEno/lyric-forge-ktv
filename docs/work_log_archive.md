@@ -109,4 +109,5 @@
 - [2026-10-25 02:25] Fix Qwen eager attention matmul layout ([entry](log/entries/2026-10-25-0225-fix-qwen-eager-attention-layout.md))
 - [2026-10-25 13:56] Cover proofreading v2 review boundaries ([entry](log/entries/2026-10-25-1356-cover-proofread-v2-review-boundaries.md))
 - [2026-10-25 15:30] Add timestamped secondary ASR input to proofreading `docs: log ASR-first secondary transcript input` ([entry](log/entries/2026-10-25-1530-add-secondary-asr-transcript-input.md))
+- [2026-10-25 16:10] Add explicit forced-alignment HTTP adapter contract `docs: log explicit forced-alignment adapter contract` ([entry](log/entries/2026-10-25-1610-forced-alignment-http-adapter-contract.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
