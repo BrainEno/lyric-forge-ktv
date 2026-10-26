@@ -229,8 +229,10 @@ void main() {
                   onPreviewTimedLine: (index, lyricLine, offset) async {
                     calls.add((index, lyricLine, offset));
                     return lyricLine.text == 'proposed words'
-                        ? '本地音频不可用'
-                        : null;
+                        ? const ProofreadTimedLinePreviewResult.failure(
+                            '本地音频不可用',
+                          )
+                        : const ProofreadTimedLinePreviewResult.success();
                   },
                 );
               },
