@@ -8,11 +8,13 @@ class ProofreadV2RunOptions {
   final LyricSourceStrategy strategy;
   final bool useReference;
   final String? secondaryTranscriptText;
+  final bool useForcedAlignment;
 
   const ProofreadV2RunOptions({
     required this.strategy,
     required this.useReference,
     this.secondaryTranscriptText,
+    this.useForcedAlignment = false,
   });
 }
 
@@ -37,6 +39,7 @@ class _ProofreadV2RunOptionsDialogState
     extends State<_ProofreadV2RunOptionsDialog> {
   LyricSourceStrategy _strategy = LyricSourceStrategy.auto;
   bool _useReference = false;
+  bool _useForcedAlignment = false;
   final TextEditingController _secondaryTranscriptController = TextEditingController();
 
   @override
@@ -110,6 +113,20 @@ class _ProofreadV2RunOptionsDialogState
                 '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
               ),
               const SizedBox(height: 8),
+              CheckboxListTile(
+                key: const ValueKey('forced_alignment_review_toggle'),
+                contentPadding: EdgeInsets.zero,
+                value: _useForcedAlignment,
+                onChanged: (value) => setState(
+                  () => _useForcedAlignment = value ?? false,
+                ),
+                title: const Text('使用 ForcedAligner 词级时间证据'),
+                subtitle: const Text(
+                  '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              const SizedBox(height: 8),
               TextField(
                 key: const ValueKey('secondary_asr_transcript_input'),
                 controller: _secondaryTranscriptController,
@@ -141,6 +158,8 @@ class _ProofreadV2RunOptionsDialogState
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
+              useForcedAlignment: _strategy == LyricSourceStrategy.asrFirst &&
+                  _useForcedAlignment,
             ),
           ),
           child: const Text('继续'),
