@@ -8,4 +8,4 @@
   - Latest run: https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806179
   - Root widget run: https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806271
 - Notes: The `media_kit` `osc` property message is emitted by the media-kit/MPV integration; application code does not set `osc`. The `lavf: Failed to create file cache` message is a separate MPV/FFmpeg source/cache diagnostic. A related `just_audio_media_kit` report exists at https://github.com/Pato05/just_audio_media_kit/issues/22, but this log alone does not prove the same cause or that playback failed. Do not suppress global media logs; reproduce against the exact audio source before changing cache behavior.
-- Commit: `Defer route observer notifications until after build`
+- Commit: `fix: avoid notifier updates during Navigator restoration`

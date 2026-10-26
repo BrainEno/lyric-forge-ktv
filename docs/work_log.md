@@ -9,7 +9,7 @@
 - [2026-10-26 16:15] Recover ForcedAligner line matches with bounded diagnostics `Recover line matching around bounded extra spans` ([entry](log/entries/2026-10-26-1615-forced-align-recovery-diagnostics.md))
 - [2026-10-26 15:30] Normalize multilingual forced-alignment text matching `Normalize forced alignment text with shared Unicode tokenizer` ([entry](log/entries/2026-10-26-1530-normalize-forced-align-text.md))
 - [2026-10-26 15:12] Represent unavailable ForcedAligner confidence honestly `Stop inventing ForcedAligner token confidence` ([entry](log/entries/2026-10-26-1512-unknown-forced-align-confidence.md))
-- [2026-10-26 15:05] Expose token-level ForcedAligner audition in proofreading `feat: audition forced alignment word intervals` ([entry](log/entries/2026-10-26-1505-audition-forced-align-tokens.md))
+- [2026-10-26 15:05] Expose token-level forced alignment audition in proofreading `feat: audition forced alignment word intervals` ([entry](log/entries/2026-10-26-1505-audition-forced-align-tokens.md))
 
 <!-- 94 entries total: 8 active, 86 archived. -->
 
