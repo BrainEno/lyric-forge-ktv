@@ -168,6 +168,51 @@ class ProofreadAdlib {
   }
 }
 
+/// Summary of how much ForcedAligner span evidence mapped to lyric lines.
+///
+/// Line indices are zero-based in this domain object. UI-facing consumers can
+/// use [unmatchedLineNumbers] to show conventional one-based line numbers.
+class ProofreadAlignmentDiagnostics {
+  final int totalLineCount;
+  final int matchedLineCount;
+  final int skippedSpanCount;
+  final List<int> unmatchedLineIndices;
+
+  ProofreadAlignmentDiagnostics({
+    required this.totalLineCount,
+    required this.matchedLineCount,
+    required this.skippedSpanCount,
+    required List<int> unmatchedLineIndices,
+  }) : unmatchedLineIndices = List.unmodifiable(unmatchedLineIndices) {
+    if (totalLineCount < 0 ||
+        matchedLineCount < 0 ||
+        matchedLineCount > totalLineCount ||
+        skippedSpanCount < 0) {
+      throw ArgumentError('Invalid ForcedAligner diagnostic counts.');
+    }
+    final indices = unmatchedLineIndices.toSet();
+    if (indices.length != unmatchedLineIndices.length ||
+        unmatchedLineIndices.any(
+          (index) => index < 0 || index >= totalLineCount,
+        ) ||
+        unmatchedLineIndices.length != totalLineCount - matchedLineCount) {
+      throw ArgumentError(
+        'Unmatched line indices must uniquely describe every unmatched row.',
+      );
+    }
+  }
+
+  double get lineCoverage =>
+      totalLineCount == 0 ? 1 : matchedLineCount / totalLineCount;
+
+  List<int> get unmatchedLineNumbers =>
+      unmatchedLineIndices.map((index) => index + 1).toList(growable: false);
+
+  bool get hasUnmatchedLines => unmatchedLineIndices.isNotEmpty;
+  bool get hasSkippedSpans => skippedSpanCount > 0;
+  bool get isComplete => !hasUnmatchedLines && !hasSkippedSpans;
+}
+
 /// Shared, immutable output contract for both proofreading strategies.
 ///
 /// Constructing a result never persists or applies changes to the source
@@ -180,6 +225,7 @@ class ProofreadResult {
   final List<String> notes;
   final double referenceCoverage;
   final bool autoFellBackToAsr;
+  final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
 
   ProofreadResult({
     required this.proposedDocument,
@@ -189,6 +235,7 @@ class ProofreadResult {
     List<String> notes = const [],
     required this.referenceCoverage,
     this.autoFellBackToAsr = false,
+    this.alignmentDiagnostics,
   }) : lines = List.unmodifiable(lines),
        droppedLines = List.unmodifiable(droppedLines),
        adlibs = List.unmodifiable(adlibs),
