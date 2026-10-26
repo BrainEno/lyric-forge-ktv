@@ -1672,6 +1672,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             (endAt == null || playback.position < endAt);
         if (canResume) {
           await _audioService.play();
+          if (!_audioService.currentState.isPlaying) {
+            return const ProofreadTimedLinePreviewResult.failure(
+              '播放器未恢复播放状态；请检查音频文件与播放器日志。',
+            );
+          }
           return const ProofreadTimedLinePreviewResult.success();
         }
       }
