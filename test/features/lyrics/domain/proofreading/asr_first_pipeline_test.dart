@@ -260,6 +260,62 @@ void main() {
     expect(result.proposedDocument.lines, draft.lines);
   });
 
+  test('matches full-width Latin, Chinese, and Japanese punctuation consistently', () {
+    final draft = doc([
+      row('Ｈｅｌｌｏ ｗｏｒｌｄ！', 0, 1200, id: 'latin'),
+      row('月亮代表我的心。', 1500, 2800, id: 'chinese'),
+      row('「こんにちは、世界！」', 3000, 4500, id: 'japanese'),
+    ]);
+    final before = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 5),
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'Hello',
+          start: const Duration(milliseconds: 100),
+          end: const Duration(milliseconds: 300),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'world!',
+          start: const Duration(milliseconds: 350),
+          end: const Duration(milliseconds: 700),
+        ),
+        ProofreadAlignmentSpan(
+          text: '月亮代表',
+          start: const Duration(milliseconds: 1600),
+          end: const Duration(milliseconds: 2100),
+        ),
+        ProofreadAlignmentSpan(
+          text: '我的',
+          start: const Duration(milliseconds: 2150),
+          end: const Duration(milliseconds: 2350),
+        ),
+        ProofreadAlignmentSpan(
+          text: '心。',
+          start: const Duration(milliseconds: 2400),
+          end: const Duration(milliseconds: 2700),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'こんにちは',
+          start: const Duration(milliseconds: 3100),
+          end: const Duration(milliseconds: 3600),
+        ),
+        ProofreadAlignmentSpan(
+          text: '世界！',
+          start: const Duration(milliseconds: 3650),
+          end: const Duration(milliseconds: 4200),
+        ),
+      ],
+    );
+
+    expect(snapshotLyricDocument(draft), before);
+    expect(result.lines.map((line) => line.tokens.map((token) => token.text).join()),
+        ['Helloworld!', '月亮代表我的心。', 'こんにちは世界！']);
+    expect(result.notes, contains('forcedAlignmentMatchedLines:3/3'));
+    expect(result.proposedDocument.lines, draft.lines);
+  });
+
   test('rejects forced-alignment spans outside the audio or out of order', () {
     final draft = doc([row('hello', 0, 1000)]);
     expect(
