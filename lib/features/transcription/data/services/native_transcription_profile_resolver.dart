@@ -101,11 +101,11 @@ class NativeTranscriptionProfileResolver
           profile: selected,
           label: 'RTX 5080 最高质量',
           description:
-              'Qwen3-ASR 1.7B CUDA/BF16 主识别 + ForcedAligner + Whisper large-v3 全曲第二意见',
+              'Whisper large-v3 主识别 + Qwen3-ASR 1.7B CUDA/BF16 独立第二意见；双模型独有歌词以低置信度行进入人工复核',
           hardware: hardware,
           config: config.copyWith(
             profilePreference: selected,
-            engineOrder: TranscriptionEngineOrder.qwenPrimary,
+            engineOrder: TranscriptionEngineOrder.whisperPrimary,
             qwenModelPath: qwenModelPath,
             qwenAlignerModelPath: qwenAlignerModelPath,
             qwenDevice: 'cuda',
