@@ -532,6 +532,13 @@ class WorkLogHarness {
       );
     }
 
+    if (readEntries().any((entry) => entry.timestamp == timestamp)) {
+      throw ArgumentError.value(
+        timestamp,
+        'timestamp',
+        'An entry already exists at this timestamp; choose a unique time.',
+      );
+    }
     final fileName =
         '${match.group(1)}-${match.group(2)}-${match.group(3)}-'
         '${match.group(4)}${match.group(5)}-$slug.md';
