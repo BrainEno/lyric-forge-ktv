@@ -27,6 +27,7 @@
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 - **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. Work-log lint now runs as a preflight before expensive analysis/tests to fail quickly. Use `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>` for complete entry scaffolds, then `write` and `check`; required branch protection still needs to be enabled in repository Settings.
 - **Lyric review / proofread v2:** PR #189 and #190 are merged. Review displays bounded ForcedAligner coverage diagnostics; `tool/forced_alignment_eval.dart` reports text recall/precision and boundary errors against manual references. Its `capture` subcommand records actual local `/v1/align` responses into a corpus, converts seconds to milliseconds, validates span/audio bounds, and refuses non-loopback endpoints. Use manually checked Chinese/English/Japanese samples on a rebuilt runtime before drawing accuracy conclusions or designing confirmed timestamp repair.
+- **V2 line audition:** The proofread review dialog exposes original-versus-proposed time audition with each document's own global offset, and displays playback failures inline. Widget tests cover callback arguments and visible failure feedback; Windows/MPV seek and sound output still require end-to-end verification.
 
 ## Follow-up leads — re-check before acting
 
