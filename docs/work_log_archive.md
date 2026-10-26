@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-25 21:55] Wire forced alignment into proofreading proposals `docs: log forced alignment proofreading service` ([entry](log/entries/2026-10-25-2155-wire-forced-align-proofread-service.md))
 - [2026-10-25 19:48] Add native arbitrary-text forced-alignment endpoint `docs: document native arbitrary-text forced alignment endpoint` ([entry](log/entries/2026-10-25-1948-add-native-forced-align-endpoint.md))
 - [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
 - [2026-10-24 15:56] Preserve dual-engine intent when Qwen setup fails ([entry](log/entries/2026-10-24-1556-preserve-qwen-dual-engine-mode.md))
