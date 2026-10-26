@@ -798,7 +798,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             }) async {
               final savedConfig = await locator.transcriptionSettingsStore.load();
               if (savedConfig == null) {
-                throw StateError('尚未配置本地转写运行时。');
+                throw Exception('尚未配置本地转写运行时。');
               }
               final resolved = await locator.transcriptionProfileResolver
                   .resolve(savedConfig);
@@ -814,7 +814,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                         item.state == AsrRuntimeComponentState.ready,
                   );
               if (!runtimeReady) {
-                throw StateError(
+                throw Exception(
                   'Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。',
                 );
               }
@@ -1082,16 +1082,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   String _forcedAlignmentLanguage(String language) {
     final normalized = language.trim().toLowerCase();
-    if (normalized.contains('japanese') || normalized == 'ja' ||
+    if (normalized.contains('japanese') || normalized.contains('日本') ||
+        normalized.contains('日文') || normalized == 'ja' ||
         normalized.startsWith('ja-')) {
       return 'Japanese';
     }
-    if (normalized.contains('chinese') || normalized == 'zh' ||
+    if (normalized.contains('chinese') || normalized.contains('中文') ||
+        normalized.contains('汉语') || normalized == 'zh' ||
         normalized.startsWith('zh-')) {
       return 'Chinese';
     }
-    if (normalized.contains('english') || normalized == 'en' ||
-        normalized.startsWith('en-')) {
+    if (normalized.contains('english') || normalized.contains('英文') ||
+        normalized == 'en' || normalized.startsWith('en-')) {
       return 'English';
     }
     throw StateError(
