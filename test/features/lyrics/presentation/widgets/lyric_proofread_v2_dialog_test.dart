@@ -148,7 +148,18 @@ void main() {
                     proposedLine: line('hello world'),
                     verdict: LyricProofreadReviewVerdict.amber,
                     reasonLabel: '词级对齐证据',
-                    alignmentTokens: [token],
+                    alignmentTokens: [
+                      token,
+                      TimedLyricToken(
+                        text: 'world',
+                        interval: ProofreadTimeInterval(
+                          start: const Duration(milliseconds: 650),
+                          end: const Duration(milliseconds: 900),
+                        ),
+                        confidence: null,
+                        source: ProofreadTimeSource.forcedAligner,
+                      ),
+                    ],
                   ),
                 ],
                 droppedItems: const [],
@@ -167,13 +178,14 @@ void main() {
 
     await tester.tap(find.text('open token review'));
     await tester.pumpAndSettle();
-    expect(find.text('词级时间证据（1 词）'), findsOneWidget);
+    expect(find.text('词级时间证据（2 词）'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('alignment_tokens_0')));
     await tester.pumpAndSettle();
 
     expect(find.text('hello'), findsOneWidget);
-    expect(find.text('0.20 s – 0.60 s · 置信参考 35%'), findsOneWidget);
+    expect(find.text('0.20 s – 0.60 s · 置信度 35%'), findsOneWidget);
+    expect(find.text('0.65 s – 0.90 s · 置信度未提供'), findsOneWidget);
     await tester.tap(
       find.byKey(const ValueKey('alignment_token_0_0')),
     );
