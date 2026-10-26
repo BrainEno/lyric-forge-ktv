@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,7 +36,9 @@ void main() {
     expect(result['withinToleranceBoundaryRate'], 0.75);
   });
 
-  test('normalizes full-width Latin and joins equivalent Chinese/Japanese spans', () {
+  test(
+    'normalizes full-width Latin and joins equivalent Chinese/Japanese spans',
+    () {
     final report = evaluateForcedAlignmentCorpus(jsonEncode({
       'schemaVersion': 1,
       'samples': [
@@ -61,7 +64,8 @@ void main() {
     expect(result['textPrecision'], 1);
     final groups = result['matchedGroupDetails'] as List;
     expect((groups.single as Map)['normalizedText'], 'hello世界');
-  });
+    },
+  );
 
   test('reports extra ad-lib spans without losing later repeated words', () {
     final report = evaluateForcedAlignmentCorpus(jsonEncode({
@@ -92,7 +96,9 @@ void main() {
     expect(result['textPrecision'], closeTo(0.8, 0.000001));
   });
 
-  test('empty output reports zero recall and no fabricated timing accuracy', () {
+  test(
+    'empty output reports zero recall and no fabricated timing accuracy',
+    () {
     final report = evaluateForcedAlignmentCorpus(jsonEncode({
       'schemaVersion': 1,
       'samples': [
@@ -111,7 +117,8 @@ void main() {
     expect(result['unmatchedExpectedSpans'], 1);
     expect(result['meanAbsoluteBoundaryErrorMs'], isNull);
     expect(result['withinToleranceBoundaryRate'], isNull);
-  });
+    },
+  );
 
   test('aggregates samples by language and validates schema', () {
     final report = evaluateForcedAlignmentCorpus(jsonEncode({
@@ -182,4 +189,105 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('captures local alignment spans as millisecond corpus entries', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    Map<String, dynamic>? receivedPayload;
+    final subscription = server.listen((request) async {
+      receivedPayload =
+          jsonDecode(await utf8.decoder.bind(request).join()) as Map<String, dynamic>;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'results': [
+          {
+            'items': [
+              {'text': 'hello', 'start_time': 0.101, 'end_time': 0.2795},
+            ],
+          },
+        ],
+      }));
+      await request.response.close();
+    });
+    try {
+      final sample = await captureForcedAlignmentSample(
+        endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+        audioPath: 'song.wav',
+        lyricText: 'hello world',
+        language: 'English',
+        sampleId: 'en-01',
+        referenceSpansJson: jsonEncode([
+          {'text': 'hello', 'startMs': 100, 'endMs': 300},
+        ]),
+        audioDurationMs: 2000,
+      );
+      expect(receivedPayload?['audio'], 'song.wav');
+      expect(receivedPayload?['text'], 'hello world');
+      expect(receivedPayload?['language'], 'English');
+      expect(sample['id'], 'en-01');
+      expect((sample['actualSpans'] as List).single, {
+        'text': 'hello',
+        'startMs': 101,
+        'endMs': 280,
+      });
+      expect((sample['referenceSpans'] as List).single, {
+        'text': 'hello',
+        'startMs': 100,
+        'endMs': 300,
+      });
+    } finally {
+      await subscription.cancel();
+      await server.close(force: true);
+    }
+  });
+
+  test('rejects remote capture endpoints before sending lyric data', () async {
+    await expectLater(
+      captureForcedAlignmentSample(
+        endpoint: Uri.parse('https://example.com/v1/align'),
+        audioPath: 'song.wav',
+        lyricText: 'private lyric',
+        language: 'English',
+        sampleId: 'en-remote',
+        referenceSpansJson: jsonEncode([
+          {'text': 'lyric', 'startMs': 100, 'endMs': 200},
+        ]),
+        audioDurationMs: 1000,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('rejects captured spans that exceed the annotated audio duration', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final subscription = server.listen((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'items': [
+          {'text': 'too late', 'start_time': 1.8, 'end_time': 2.1},
+        ],
+      }));
+      await request.response.close();
+    });
+    try {
+      await expectLater(
+        captureForcedAlignmentSample(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+          audioPath: 'song.wav',
+          lyricText: 'too late',
+          language: 'English',
+          sampleId: 'en-overrun',
+          referenceSpansJson: jsonEncode([
+            {'text': 'too late', 'startMs': 1700, 'endMs': 1900},
+          ]),
+          audioDurationMs: 2000,
+        ),
+        throwsFormatException,
+      );
+    } finally {
+      await subscription.cancel();
+      await server.close(force: true);
+    }
+  });
+
 }
