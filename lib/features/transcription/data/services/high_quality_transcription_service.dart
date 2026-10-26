@@ -136,6 +136,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'fallbackCandidateCount': merge.candidates.length,
           'fallbackAppliedCount': merge.appliedCount,
           'fallbackCandidates': merge.candidates,
+          'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
+          'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+          'fusionPolicy': 'add_unmatched_secondary_as_low_confidence_review_lines',
           'whisperRawJsonPath': fallbackResult.rawJsonPath,
         },
       );
@@ -143,9 +146,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.completed,
         1.0,
-        merge.candidates.isEmpty
-            ? '最高质量识别完成，两套引擎结果高度一致'
-            : '最高质量识别完成，发现 ${merge.candidates.length} 行需要重点校对',
+        [
+          '最高质量识别完成',
+          if (merge.secondaryOnlyLineIndices.isNotEmpty)
+            '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+          if (merge.candidates.isNotEmpty)
+            '发现 ${merge.candidates.length} 行需要重点校对',
+          if (merge.candidates.isEmpty && merge.secondaryOnlyLineIndices.isEmpty)
+            '两套引擎结果未发现明显分歧',
+        ].join('；'),
       );
 
       return TranscriptionResult(
@@ -302,6 +311,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'fallbackCandidateCount': merge.candidates.length,
         'fallbackAppliedCount': merge.appliedCount,
         'fallbackCandidates': merge.candidates,
+        'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
+        'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+        'fusionPolicy': 'add_unmatched_secondary_as_low_confidence_review_lines',
         'qwenRawJsonPath': qwenResult.rawJsonPath,
       },
     );
@@ -329,13 +341,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final lines = List<LyricLine>.from(whisperPrimary.lines);
     final candidates = <_RankedCandidate>[];
+    final matchedSecondaryIndices = <int>{};
 
     for (var index = 0; index < whisperPrimary.lines.length; index++) {
       final whisperLine = whisperPrimary.lines[index];
-      final qwenLines = _overlappingLines(
+      final overlappingIndices = _overlappingLineIndices(
         whisperLine,
         qwenSecondOpinion.lines,
       );
+      matchedSecondaryIndices.addAll(overlappingIndices);
+      final qwenLines = [
+        for (final secondaryIndex in overlappingIndices)
+          qwenSecondOpinion.lines[secondaryIndex],
+      ];
 
       if (qwenLines.isEmpty) {
         if (_isPrimarySuspicious(whisperLine, config)) {
@@ -426,10 +444,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
       appliedCount++;
     }
 
+    final timeline = _mergeUnmatchedSecondaryLines(
+      primaryLines: lines,
+      secondaryLines: qwenSecondOpinion.lines,
+      matchedSecondaryIndices: matchedSecondaryIndices,
+    );
+    final remappedCandidates = _remapCandidateIndices(
+      limited.map((candidate) => candidate.data).toList(growable: false),
+      timeline.primaryIndexToMergedIndex,
+    );
+
     return _MergeResult(
-      lines: lines,
-      candidates: limited.map((e) => e.data).toList(growable: false),
+      lines: timeline.lines,
+      candidates: remappedCandidates,
       appliedCount: appliedCount,
+      secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
     );
   }
 
@@ -542,13 +571,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final lines = List<LyricLine>.from(primary.lines);
     final candidates = <_RankedCandidate>[];
+    final matchedSecondaryIndices = <int>{};
 
     for (var index = 0; index < primary.lines.length; index++) {
       final qwenLine = primary.lines[index];
-      final whisperLines = _overlappingLines(
+      final overlappingIndices = _overlappingLineIndices(
         qwenLine,
         fallback.lines,
       );
+      matchedSecondaryIndices.addAll(overlappingIndices);
+      final whisperLines = [
+        for (final secondaryIndex in overlappingIndices)
+          fallback.lines[secondaryIndex],
+      ];
       if (whisperLines.isEmpty) {
         if (_isPrimarySuspicious(qwenLine, config)) {
           candidates.add(
@@ -638,10 +673,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
       appliedCount++;
     }
 
+    final timeline = _mergeUnmatchedSecondaryLines(
+      primaryLines: lines,
+      secondaryLines: fallback.lines,
+      matchedSecondaryIndices: matchedSecondaryIndices,
+    );
+    final remappedCandidates = _remapCandidateIndices(
+      limited.map((candidate) => candidate.data).toList(growable: false),
+      timeline.primaryIndexToMergedIndex,
+    );
+
     return _MergeResult(
-      lines: lines,
-      candidates: limited.map((e) => e.data).toList(growable: false),
+      lines: timeline.lines,
+      candidates: remappedCandidates,
       appliedCount: appliedCount,
+      secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
     );
   }
 
@@ -654,25 +700,118 @@ class HighQualityTranscriptionService implements TranscriptionService {
         _looksTimingSuspicious(line);
   }
 
-  List<LyricLine> _overlappingLines(
+  List<int> _overlappingLineIndices(
     LyricLine target,
     List<LyricLine> candidates,
   ) {
     final paddedStart = target.startTime - const Duration(milliseconds: 450);
     final paddedEnd = target.endTime + const Duration(milliseconds: 450);
-    final result = <LyricLine>[];
+    final result = <int>[];
 
-    for (final line in candidates) {
+    for (var index = 0; index < candidates.length; index++) {
+      final line = candidates[index];
       final overlapStart =
           line.startTime > paddedStart ? line.startTime : paddedStart;
       final overlapEnd = line.endTime < paddedEnd ? line.endTime : paddedEnd;
 
-      if (overlapEnd > overlapStart) {
-        result.add(line);
+      if (overlapEnd > overlapStart) result.add(index);
+    }
+    return result;
+  }
+
+  List<LyricLine> _overlappingLines(
+    LyricLine target,
+    List<LyricLine> candidates,
+  ) => [
+    for (final index in _overlappingLineIndices(target, candidates))
+      candidates[index],
+  ];
+
+  /// Retain useful lines found only by the secondary recognizer instead of
+  /// silently discarding them. They are inserted on the time axis with a
+  /// deliberately capped confidence so the editor forces human review.
+  _MergedTimeline _mergeUnmatchedSecondaryLines({
+    required List<LyricLine> primaryLines,
+    required List<LyricLine> secondaryLines,
+    required Set<int> matchedSecondaryIndices,
+  }) {
+    final entries = <_MergedTimelineEntry>[
+      for (var index = 0; index < primaryLines.length; index++)
+        _MergedTimelineEntry(
+          line: primaryLines[index],
+          primaryIndex: index,
+          secondaryOnly: false,
+        ),
+    ];
+
+    for (var index = 0; index < secondaryLines.length; index++) {
+      if (matchedSecondaryIndices.contains(index)) continue;
+      final line = secondaryLines[index];
+      if (line.text.trim().isEmpty ||
+          line.startTime.isNegative ||
+          line.endTime <= line.startTime) {
+        continue;
       }
+      entries.add(
+        _MergedTimelineEntry(
+          line: line.copyWith(
+            confidence: line.confidence.clamp(0, 60).toInt(),
+          ),
+          primaryIndex: null,
+          secondaryOnly: true,
+        ),
+      );
     }
 
-    return result;
+    entries.sort((left, right) {
+      final byStart = left.line.startTime.compareTo(right.line.startTime);
+      if (byStart != 0) return byStart;
+      final byEnd = left.line.endTime.compareTo(right.line.endTime);
+      if (byEnd != 0) return byEnd;
+      // Preserve the primary row before a secondary suggestion at identical
+      // times so existing lyric rows remain stable in tie cases.
+      if (left.secondaryOnly != right.secondaryOnly) {
+        return left.secondaryOnly ? 1 : -1;
+      }
+      return (left.primaryIndex ?? 0).compareTo(right.primaryIndex ?? 0);
+    });
+
+    final primaryIndexToMergedIndex = <int, int>{};
+    final secondaryOnlyLineIndices = <int>[];
+    final mergedLines = <LyricLine>[];
+    for (var index = 0; index < entries.length; index++) {
+      final entry = entries[index];
+      mergedLines.add(entry.line);
+      final primaryIndex = entry.primaryIndex;
+      if (primaryIndex != null) {
+        primaryIndexToMergedIndex[primaryIndex] = index;
+      }
+      if (entry.secondaryOnly) secondaryOnlyLineIndices.add(index);
+    }
+
+    return _MergedTimeline(
+      lines: List.unmodifiable(mergedLines),
+      primaryIndexToMergedIndex: Map.unmodifiable(primaryIndexToMergedIndex),
+      secondaryOnlyLineIndices: List.unmodifiable(secondaryOnlyLineIndices),
+    );
+  }
+
+  List<Map<String, dynamic>> _remapCandidateIndices(
+    List<Map<String, dynamic>> candidates,
+    Map<int, int> primaryIndexToMergedIndex,
+  ) {
+    return [
+      for (final candidate in candidates)
+        () {
+          final remapped = Map<String, dynamic>.from(candidate);
+          final index = remapped['lineIndex'];
+          if (index is num) {
+            remapped['lineIndex'] =
+                primaryIndexToMergedIndex[index.toInt()] ?? index.toInt();
+          }
+          return remapped;
+        }(),
+    ];
   }
 
   double _durationRatio(
@@ -896,11 +1035,37 @@ class _MergeResult {
   final List<LyricLine> lines;
   final List<Map<String, dynamic>> candidates;
   final int appliedCount;
+  final List<int> secondaryOnlyLineIndices;
 
   const _MergeResult({
     required this.lines,
     required this.candidates,
     required this.appliedCount,
+    this.secondaryOnlyLineIndices = const [],
+  });
+}
+
+class _MergedTimeline {
+  final List<LyricLine> lines;
+  final Map<int, int> primaryIndexToMergedIndex;
+  final List<int> secondaryOnlyLineIndices;
+
+  const _MergedTimeline({
+    required this.lines,
+    required this.primaryIndexToMergedIndex,
+    required this.secondaryOnlyLineIndices,
+  });
+}
+
+class _MergedTimelineEntry {
+  final LyricLine line;
+  final int? primaryIndex;
+  final bool secondaryOnly;
+
+  const _MergedTimelineEntry({
+    required this.line,
+    required this.primaryIndex,
+    required this.secondaryOnly,
   });
 }
 
