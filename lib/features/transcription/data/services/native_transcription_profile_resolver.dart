@@ -101,7 +101,8 @@ class NativeTranscriptionProfileResolver
         ResolvedTranscriptionProfile(
           profile: selected,
           label: 'RTX 5080 最高质量',
-          description: 'Whisper large-v3 主识别 + Qwen3-ASR 1.7B CUDA/BF16 独立第二意见；双模型独有歌词以低置信度行进入人工复核',
+          description:
+              'Whisper large-v3 主识别 + Qwen3-ASR 1.7B CUDA/BF16 独立第二意见；双模型独有歌词以低置信度行进入人工复核',
           hardware: hardware,
           config: config.copyWith(
             profilePreference: selected,
@@ -116,7 +117,8 @@ class NativeTranscriptionProfileResolver
         ResolvedTranscriptionProfile(
           profile: selected,
           label: 'Intel Mac 高质量',
-          description: 'Whisper large-v3 主识别 + Qwen3-ASR 0.6B CPU 第二意见；Qwen ForcedAligner 提供候选时间信息',
+          description:
+              'Whisper large-v3 主识别 + Qwen3-ASR 0.6B CPU 第二意见；Qwen ForcedAligner 提供候选时间信息',
           hardware: hardware,
           config: config.copyWith(
             profilePreference: selected,
