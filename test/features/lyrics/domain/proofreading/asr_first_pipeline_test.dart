@@ -227,7 +227,7 @@ void main() {
         const Duration(milliseconds: 0));
     expect(result.lines[0].tokens.map((token) => token.text), ['Hello', 'world']);
     expect(result.lines[0].tokens.first.source, ProofreadTimeSource.forcedAligner);
-    expect(result.lines[0].tokens.first.confidence, 60);
+    expect(result.lines[0].tokens.first.confidence, isNull);
     expect(result.lines[1].tokens.map((token) => token.text), ['Good', 'night']);
     expect(result.notes, contains('forcedAlignmentMatchedLines:2/2'));
   });
