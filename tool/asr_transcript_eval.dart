@@ -118,7 +118,7 @@ int _editDistance<T>(List<T> left, List<T> right, String context) {
       current[j] = math.min(
         math.min(current[j - 1] + 1, previous[j] + 1),
         previous[j - 1] + replace,
-      );
+      ).toInt();
     }
     final swap = previous;
     previous = current;
