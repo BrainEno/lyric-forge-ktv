@@ -3,19 +3,28 @@ import '../../../lyrics/domain/proofreading/proofread_result.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import 'forced_alignment_http_client.dart';
 
+typedef ForcedAlignmentRunner = Future<List<ForcedAlignedSpan>> Function({
+  required String audioPath,
+  required String text,
+  required String language,
+  required Duration audioDuration,
+});
+
 /// A safe boundary between the native arbitrary-text aligner and lyric review.
 ///
 /// Alignment output is evidence only: this service never applies timestamps to
 /// the source document. If the runtime is unavailable or returns invalid data,
 /// callers still receive a normal review proposal plus a visible warning.
 class ForcedAlignmentProofreadService {
-  final ForcedAlignmentHttpClient client;
+  final ForcedAlignmentHttpClient? client;
+  final ForcedAlignmentRunner? runner;
   final AsrFirstPipeline pipeline;
 
   const ForcedAlignmentProofreadService({
-    required this.client,
+    this.client,
+    this.runner,
     this.pipeline = const AsrFirstPipeline(),
-  });
+  }) : assert(client != null || runner != null);
 
   Future<ForcedAlignmentProofreadOutcome> buildReview({
     required LyricDocument draft,
@@ -27,12 +36,19 @@ class ForcedAlignmentProofreadService {
     Set<int> protectedDraftIndices = const {},
   }) async {
     try {
-      final spans = await client.align(
-        audioPath: audioPath,
-        text: referenceText,
-        language: language,
-        audioDuration: audioDuration,
-      );
+      final spans = runner != null
+          ? await runner!(
+              audioPath: audioPath,
+              text: referenceText,
+              language: language,
+              audioDuration: audioDuration,
+            )
+          : await client!.align(
+              audioPath: audioPath,
+              text: referenceText,
+              language: language,
+              audioDuration: audioDuration,
+            );
       final result = pipeline.build(
         draft: draft,
         secondary: secondary,
