@@ -359,4 +359,154 @@ void main() {
       }
     },
   );
+
+  test(
+    'preserves a new output file created while alignment is running',
+    () async {
+      final temp = await Directory.systemTemp.createTemp('alignment-capture-');
+      final audio = File('${temp.path}/song.wav')..writeAsStringSync('audio');
+      final lyrics = File('${temp.path}/lyrics.txt')
+        ..writeAsStringSync('hello');
+      final reference = File('${temp.path}/reference.json')
+        ..writeAsStringSync(
+          jsonEncode([
+            {'text': 'hello', 'startMs': 100, 'endMs': 200},
+          ]),
+        );
+      final output = File('${temp.path}/corpus.json');
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = server.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        await output.writeAsString('created during alignment');
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'items': [
+              {'text': 'hello', 'start_time': 0.1, 'end_time': 0.2},
+            ],
+          }),
+        );
+        await request.response.close();
+      });
+      try {
+        exitCode = 0;
+        await main([
+          'capture',
+          '--endpoint',
+          'http://127.0.0.1:${server.port}/v1/align',
+          '--audio',
+          audio.path,
+          '--text-file',
+          lyrics.path,
+          '--reference',
+          reference.path,
+          '--id',
+          'en-output-race',
+          '--language',
+          'English',
+          '--duration-ms',
+          '1000',
+          '--output',
+          output.path,
+        ]);
+        expect(exitCode, 2);
+        expect(await output.readAsString(), 'created during alignment');
+      } finally {
+        exitCode = 0;
+        await subscription.cancel();
+        await server.close(force: true);
+        await temp.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
+    'appends a sample while preserving corpus evaluation settings',
+    () async {
+      final temp = await Directory.systemTemp.createTemp('alignment-append-');
+      final audio = File('${temp.path}/song.wav')..writeAsStringSync('audio');
+      final lyrics = File('${temp.path}/lyrics.txt')
+        ..writeAsStringSync('new');
+      final reference = File('${temp.path}/reference.json')
+        ..writeAsStringSync(
+          jsonEncode([
+            {'text': 'new', 'startMs': 300, 'endMs': 500},
+          ]),
+        );
+      final corpusFile = File('${temp.path}/corpus.json');
+      await corpusFile.writeAsString(
+        jsonEncode({
+          'schemaVersion': 1,
+          'toleranceMs': 75,
+          'maxGroupSpans': 4,
+          'samples': [
+            {
+              'id': 'baseline',
+              'language': 'English',
+              'audioDurationMs': 1000,
+              'referenceSpans': [
+                {'text': 'old', 'startMs': 100, 'endMs': 200},
+              ],
+              'actualSpans': [
+                {'text': 'old', 'startMs': 100, 'endMs': 200},
+              ],
+            },
+          ],
+        }),
+      );
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = server.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'items': [
+              {'text': 'new', 'start_time': 0.3, 'end_time': 0.5},
+            ],
+          }),
+        );
+        await request.response.close();
+      });
+      try {
+        exitCode = 0;
+        await main([
+          'capture',
+          '--endpoint',
+          'http://127.0.0.1:${server.port}/v1/align',
+          '--audio',
+          audio.path,
+          '--text-file',
+          lyrics.path,
+          '--reference',
+          reference.path,
+          '--id',
+          'en-appended',
+          '--language',
+          'English',
+          '--duration-ms',
+          '1000',
+          '--append-to',
+          corpusFile.path,
+        ]);
+        expect(exitCode, 0);
+        final corpus =
+            jsonDecode(await corpusFile.readAsString()) as Map<String, dynamic>;
+        expect(corpus['toleranceMs'], 75);
+        expect(corpus['maxGroupSpans'], 4);
+        final samples = corpus['samples'] as List<dynamic>;
+        expect(samples, hasLength(2));
+        expect((samples[0] as Map)['id'], 'baseline');
+        expect((samples[1] as Map)['id'], 'en-appended');
+        expect((samples[1] as Map)['actualSpans'], [
+          {'text': 'new', 'startMs': 300, 'endMs': 500},
+        ]);
+      } finally {
+        exitCode = 0;
+        await subscription.cancel();
+        await server.close(force: true);
+        await temp.delete(recursive: true);
+      }
+    },
+  );
+
 }
