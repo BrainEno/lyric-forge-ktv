@@ -62,8 +62,15 @@ jobs:
             exit 0
           fi
 
-          printf 'Checking %s new Dart file(s).\n' "${#dart_files[@]}"
-          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+          printf 'Checking %s changed Dart file(s).\n' "${#dart_files[@]}"
+          if dart format --output=none --set-exit-if-changed "${dart_files[@]}"; then
+            exit 0
+          fi
+
+          echo "Formatter differences follow; apply them to the changed Dart files."
+          dart format "${dart_files[@]}"
+          git --no-pager diff -- "${dart_files[@]}"
+          exit 1
 
       - name: Run repository quality gate
         run: bash scripts/quality_gate.sh --skip-pub-get
