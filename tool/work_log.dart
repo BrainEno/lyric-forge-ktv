@@ -492,7 +492,70 @@ class WorkLogHarness {
     required String title,
   }) {
     final match = RegExp(
-      r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})
+      r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$',
+    ).firstMatch(timestamp);
+    if (match == null) {
+      throw ArgumentError.value(
+        timestamp,
+        'timestamp',
+        'Expected YYYY-MM-DD HH:mm.',
+      );
+    }
+    final year = int.parse(match.group(1)!);
+    final month = int.parse(match.group(2)!);
+    final day = int.parse(match.group(3)!);
+    final hour = int.parse(match.group(4)!);
+    final minute = int.parse(match.group(5)!);
+    final date = DateTime(year, month, day, hour, minute);
+    if (date.year != year ||
+        date.month != month ||
+        date.day != day ||
+        date.hour != hour ||
+        date.minute != minute) {
+      throw ArgumentError.value(timestamp, 'timestamp', 'Invalid date/time.');
+    }
+    if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(slug)) {
+      throw ArgumentError.value(
+        slug,
+        'slug',
+        'Use lowercase ASCII words separated by single hyphens.',
+      );
+    }
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty ||
+        cleanTitle.contains('\n') ||
+        cleanTitle.contains('\r')) {
+      throw ArgumentError.value(
+        title,
+        'title',
+        'Must be a non-empty single line.',
+      );
+    }
+
+    final fileName =
+        '${match.group(1)}-${match.group(2)}-${match.group(3)}-'
+        '${match.group(4)}${match.group(5)}-$slug.md';
+    final file = File('${entriesDir.path}$_sep$fileName');
+    if (file.existsSync()) {
+      throw FileSystemException('Entry already exists.', file.path);
+    }
+    entriesDir.createSync(recursive: true);
+    file.writeAsStringSync(
+      '# [$timestamp] $cleanTitle\n'
+      '\n'
+      '- Scope: TODO — describe the task purpose.\n'
+      '- Files: TODO — list changed files.\n'
+      '- Validation:\n'
+      '  - dart format ... => TODO\n'
+      '  - flutter analyze ... => TODO\n'
+      '  - flutter test ... => TODO\n'
+      '- Notes: TODO — record risks and unverified behavior.\n'
+      '- Commit: TODO: replace with the actual English imperative subject\n',
+    );
+    return file;
+  }
+
+  List<String> _gitSubjects() {
     try {
       final result = Process.runSync(
         'git',
@@ -615,256 +678,7 @@ int _run(List<String> args) {
       return 0;
     default:
       stdout.writeln('Unknown command: ${args.first}');
-      stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
-      return 2;
-  }
-}
-
-void main(List<String> args) {
-  exitCode = _run(args);
-}
-,
-    ).firstMatch(timestamp);
-    if (match == null) {
-      throw ArgumentError.value(
-        timestamp,
-        'timestamp',
-        'Expected YYYY-MM-DD HH:mm.',
-      );
-    }
-    final year = int.parse(match.group(1)!);
-    final month = int.parse(match.group(2)!);
-    final day = int.parse(match.group(3)!);
-    final hour = int.parse(match.group(4)!);
-    final minute = int.parse(match.group(5)!);
-    final date = DateTime(year, month, day, hour, minute);
-    if (date.year != year ||
-        date.month != month ||
-        date.day != day ||
-        date.hour != hour ||
-        date.minute != minute) {
-      throw ArgumentError.value(timestamp, 'timestamp', 'Invalid date/time.');
-    }
-    if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*
-    try {
-      final result = Process.runSync(
-        'git',
-        <String>['-C', root.path, 'log', '--all', '--pretty=format:%s', '-n', '500'],
-      );
-      if (result.exitCode != 0) {
-        return const <String>[];
-      }
-      return (result.stdout as String)
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
-    } on ProcessException {
-      return const <String>[];
-    }
-  }
-
-  String _relative(String path) {
-    final prefix = '${root.path}$_sep';
-    final normalized = path.replaceAll('/', _sep);
-    if (normalized.startsWith(prefix)) {
-      return normalized.substring(prefix.length).replaceAll(_sep, '/');
-    }
-    return normalized;
-  }
-
-  /// Reads a file as UTF-8 and normalizes line endings to `\n`.
-  static String readText(File file) {
-    if (!file.existsSync()) {
-      return '';
-    }
-    return file.readAsStringSync().replaceAll('\r\n', '\n');
-  }
-}
-
-int _run(List<String> args) {
-  final root = Directory.current;
-  final harness = WorkLogHarness(root);
-
-  if (args.isEmpty) {
-    stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
-    return 2;
-  }
-
-  switch (args.first) {
-    case 'write':
-      final entries = harness.sortedEntries(harness.readEntries());
-      harness.writeGeneratedFiles();
-      stdout.writeln(
-        'Wrote work-log navigation (summary, index snapshot, and archive refs; '
-        '${entries.take(kDefaultActiveCount).length} active of ${entries.length} entries).',
-      );
-      return 0;
-    case 'print':
-      stdout.write(harness.buildSummary(harness.readEntries()));
-      return 0;
-    case 'check':
-      final problems = harness.lint();
-      final errors = problems.where((problem) => !problem.isWarning).toList();
-      final warnings = problems.where((problem) => problem.isWarning).toList();
-      if (errors.isNotEmpty) {
-        stdout.writeln(
-          'Work log lint failed (${errors.length} error(s), ${warnings.length} warning(s)):',
-        );
-        for (final problem in errors) {
-          stdout.writeln('  $problem');
-        }
-      }
-      if (warnings.isNotEmpty) {
-        stdout.writeln('Warnings (${warnings.length}):');
-        for (final problem in warnings) {
-          stdout.writeln('  $problem');
-        }
-      }
-      if (errors.isNotEmpty) {
-        return 1;
-      }
-      stdout.writeln(
-        'Work log lint passed (0 errors, ${warnings.length} warning(s)).',
-      );
-      return 0;
-    default:
-      stdout.writeln('Unknown command: ${args.first}');
-      stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
-      return 2;
-  }
-}
-
-void main(List<String> args) {
-  exitCode = _run(args);
-}
-).hasMatch(slug)) {
-      throw ArgumentError.value(
-        slug,
-        'slug',
-        'Use lowercase ASCII words separated by single hyphens.',
-      );
-    }
-    final cleanTitle = title.trim();
-    if (cleanTitle.isEmpty ||
-        cleanTitle.contains('\n') ||
-        cleanTitle.contains('\r')) {
-      throw ArgumentError.value(
-        title,
-        'title',
-        'Must be a non-empty single line.',
-      );
-    }
-
-    final fileName =
-        '${match.group(1)}-${match.group(2)}-${match.group(3)}-'
-        '${match.group(4)}${match.group(5)}-$slug.md';
-    final file = File('${entriesDir.path}$_sep$fileName');
-    if (file.existsSync()) {
-      throw FileSystemException('Entry already exists.', file.path);
-    }
-    entriesDir.createSync(recursive: true);
-    file.writeAsStringSync(
-      '# [$timestamp] $cleanTitle\n'
-      '\n'
-      '- Scope: TODO — describe the task purpose.\n'
-      '- Files: TODO — list changed files.\n'
-      '- Validation:\n'
-      '  - dart format ... => TODO\n'
-      '  - flutter analyze ... => TODO\n'
-      '  - flutter test ... => TODO\n'
-      '- Notes: TODO — record risks and unverified behavior.\n'
-      '- Commit: TODO: replace with the actual English imperative subject\n',
-    );
-    return file;
-  }
-
-  List<String> _gitSubjects() {
-    try {
-      final result = Process.runSync(
-        'git',
-        <String>['-C', root.path, 'log', '--all', '--pretty=format:%s', '-n', '500'],
-      );
-      if (result.exitCode != 0) {
-        return const <String>[];
-      }
-      return (result.stdout as String)
-          .split('\n')
-          .map((line) => line.trim())
-          .where((line) => line.isNotEmpty)
-          .toList();
-    } on ProcessException {
-      return const <String>[];
-    }
-  }
-
-  String _relative(String path) {
-    final prefix = '${root.path}$_sep';
-    final normalized = path.replaceAll('/', _sep);
-    if (normalized.startsWith(prefix)) {
-      return normalized.substring(prefix.length).replaceAll(_sep, '/');
-    }
-    return normalized;
-  }
-
-  /// Reads a file as UTF-8 and normalizes line endings to `\n`.
-  static String readText(File file) {
-    if (!file.existsSync()) {
-      return '';
-    }
-    return file.readAsStringSync().replaceAll('\r\n', '\n');
-  }
-}
-
-int _run(List<String> args) {
-  final root = Directory.current;
-  final harness = WorkLogHarness(root);
-
-  if (args.isEmpty) {
-    stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
-    return 2;
-  }
-
-  switch (args.first) {
-    case 'write':
-      final entries = harness.sortedEntries(harness.readEntries());
-      harness.writeGeneratedFiles();
-      stdout.writeln(
-        'Wrote work-log navigation (summary, index snapshot, and archive refs; '
-        '${entries.take(kDefaultActiveCount).length} active of ${entries.length} entries).',
-      );
-      return 0;
-    case 'print':
-      stdout.write(harness.buildSummary(harness.readEntries()));
-      return 0;
-    case 'check':
-      final problems = harness.lint();
-      final errors = problems.where((problem) => !problem.isWarning).toList();
-      final warnings = problems.where((problem) => problem.isWarning).toList();
-      if (errors.isNotEmpty) {
-        stdout.writeln(
-          'Work log lint failed (${errors.length} error(s), ${warnings.length} warning(s)):',
-        );
-        for (final problem in errors) {
-          stdout.writeln('  $problem');
-        }
-      }
-      if (warnings.isNotEmpty) {
-        stdout.writeln('Warnings (${warnings.length}):');
-        for (final problem in warnings) {
-          stdout.writeln('  $problem');
-        }
-      }
-      if (errors.isNotEmpty) {
-        return 1;
-      }
-      stdout.writeln(
-        'Work log lint passed (0 errors, ${warnings.length} warning(s)).',
-      );
-      return 0;
-    default:
-      stdout.writeln('Unknown command: ${args.first}');
-      stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
+      stdout.writeln('Usage: dart tool/work_log.dart <write|check|print|new>');
       return 2;
   }
 }
