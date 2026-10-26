@@ -1,48 +1,45 @@
 # Handoff
 
 ## 目标
-修复反复出现的 work-log lint CI 失败，并改进生成日志和质量门的工作流程，不降低严格校验标准。
+继续歌词智能校对 V2 主线：让 ForcedAligner 的词级时间证据不仅可见，还能逐词试听，以便人工检查边界；仍不自动覆盖歌词行时间戳。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`。
-- 分支：`feat/forced-align-proofread-service-20261025`，改动仍在 PR #185。
-- 原失败 head：`920f7c2fe271d2d060983c67cd693395a059f0fe`；run `40278007215` 中 693 项测试全部通过，随后 work-log lint 报告新 entry 缺少 `Notes:` 字段与 `docs/work_log.md` 摘要过期。
-- 修复后的实现 head `e3cd4c0296a71a3721d8a2a2e0fa8a36d5691007` 已通过 Flutter Quality Gate。工作日志 entry 与生成导航的最终同步也已提交；合并前需确认当前最新 head 的 Actions 全部通过。
-- 当前执行环境没有本地 Dart/Flutter SDK；验证依赖 GitHub Actions。
+- 最新 main 基线：PR #185 已合并，merge commit `82a90b28f958e6752738eae8ac335b1cbd4550ed`。
+- 当前开发分支：`feat/forced-align-token-audition-20261026`。
+- 本分支增加复核卡片的词级证据展开与逐词试听回调；已添加 widget regression test，等待最新 head 的远端 Flutter Quality Gate。
+- 当前执行环境没有本地 Dart/Flutter SDK，不能声称本地格式化、分析或测试通过。
 
 ## 已改文件
-- `tool/work_log.dart`
-- `test/work_log_tool_test.dart`
-- `scripts/quality_gate.sh`
-- `scripts/quality_gate.ps1`
-- `.github/workflows/flutter-quality.yml`
-- `AGENTS.md`
+- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
+- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`
 - `docs/work_log_index.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/handoff.md`
-- `docs/log/entries/2026-10-26-1400-wire-forced-align-proofread-ui.md`
-- `docs/log/entries/2026-10-26-1430-harden-work-log-ci.md`
+- `docs/log/entries/2026-10-26-1505-audition-forced-align-tokens.md`
 
 ## 本轮实现
-- 根因不是 lint 把有效文档误判为错误：一份 entry 用了 `Safety:` 替代必需的 `Notes:`；摘要被手工编辑后额外多出空行，未与生成器输出一致。以前还发生过 archive/index/handoff 没有按生成规则同步的情况。
-- 新增 `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>`，生成包含全部必填字段的 entry 模板；校验日期、slug、单行标题并拒绝重复时间戳。
-- 增加模板与无效输入测试，并改善摘要漂移错误的修复指引。
-- Bash 与 PowerShell 质量门在完整分析/测试前执行 work-log preflight；GitHub Actions 也在 `flutter pub get` 前执行预检。严格 lint 仍是阻塞项，没有自动忽略或跳过不一致。
-- 修复原失败 entry 的字段，并同步生成摘要与归档链接。
+- `LyricProofreadV2ReviewItem` 现在可以携带逐词 `TimedLyricToken` 证据。
+- 复核卡片新增可折叠的词级证据区域，显示词语、起止时间和证据置信参考。
+- 每个词有独立试听按钮，使用现有 `LyricAuditionWindowService`，提供 250 ms 预滚并尊重全局 offset、音频时长和行级 bounded audition 生命周期。
+- 普通逐行试听抽取为共同的 bounded-window 播放入口，词级试听与原行试听共用切换项目、seek、暂停边界逻辑。
+- 点击词语试听只改变播放器状态和当前选中行；不会改写任何歌词内容、时间戳、置信度或保存工程。
+- 新增 widget 测试验证证据展开、时间显示、点击回调的行索引及 token 对象。
 
 ## 检查结果
-- 原失败 run `40278007215`：693 tests passed；失败仅发生在 work-log lint 的 `entry-fields` 和 `summary-stale`。
-- run `40279662513`，head `e3cd4c0`：Flutter Quality Gate 成功，包含 work-log preflight、分析、测试和最终 lint。
-- 本地 Dart/Flutter 命令未执行；最终日志同步后的 head 仍须通过当前最新 Actions。
+- 已通过 GitHub 文件 API 核实修改内容与测试存在。
+- 未在本执行环境运行本地 Dart/Flutter 命令；当前 PR 的最新 head 远端 CI 是最终验证依据。
 
 ## 下一步
-- 检查 PR #185 最新 head 的 Flutter Quality Gate 和所有相关契约工作流。
-- 如果失败，按最新日志修复，不绕过 work-log lint。
-- 后续新增 entry 时使用 `work_log.dart new`，完成后运行 `dart tool/work_log.dart write` 和 `dart tool/work_log.dart check`。
+- 等待最新 Flutter Quality Gate 和相关 ASR 契约检查；失败时按实际日志修复。
+- 验证中、英、日真实音频的 token 匹配准确率、可试听边界及多行覆盖情况。
+- 在真实样本达到验收门槛后，再单独设计显式确认的歌词时间修复动作；在此之前，token 时间只用于人工复核。
 
 ## 已知风险
-- 本地未安装 Dart/Flutter SDK，因此没有本地运行新增测试。
-- 工作流早期预检降低失败反馈时间，但不会替开发者自动提交生成文件；生成摘要/索引/归档漂移仍应修复并提交，不能静默放过。
+- ForcedAligner 的契约/界面测试不证明真实歌曲的 token 时间准确度。
+- 已安装 runtime bundle 需要包含原生 `POST /v1/align` endpoint，旧 bundle 必须重建后才可使用。
+- 用户手动确认和保存仍沿用现有歌词校对安全流程；本轮不引入新的行时间自动应用机制。
 
-最后更新：2026-10-26 14:30（Asia/Taipei）
+最后更新：2026-10-26 15:05（Asia/Taipei）
