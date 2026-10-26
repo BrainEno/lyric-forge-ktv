@@ -356,6 +356,9 @@ TranscriptionRequest _request(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
       qwenExecutable: 'qwen3-asr',
+      qwenModelPath: engineOrder == TranscriptionEngineOrder.whisperPrimary
+          ? 'Qwen/Qwen3-ASR-0.6B'
+          : 'Qwen/Qwen3-ASR-1.7B',
       whisperExecutable: 'whisper-cli',
       modelPath: 'ggml-large-v3.bin',
     ),
