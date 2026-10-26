@@ -188,6 +188,53 @@ void main() {
     expect(rulesOf(problems), contains('summary-stale'));
   });
 
+  test('entry template includes every required field', () {
+    final harness = WorkLogHarness(root);
+    final file = harness.createEntry(
+      timestamp: '2026-10-26 14:30',
+      slug: 'harden-work-log',
+      title: 'Harden work-log lint workflow',
+    );
+
+    expect(
+      file.uri.pathSegments.last,
+      '2026-10-26-1430-harden-work-log.md',
+    );
+    final entry = harness.readEntries().single;
+    expect(entry.hasValidHeader, isTrue);
+    expect(entry.missingFields, isEmpty);
+    expect(file.readAsStringSync(), contains('- Notes: TODO'));
+    expect(file.readAsStringSync(), contains('- Commit:'));
+  });
+
+  test('entry template rejects invalid timestamp, slug, and multiline title', () {
+    final harness = WorkLogHarness(root);
+    expect(
+      () => harness.createEntry(
+        timestamp: '2026-02-30 14:30',
+        slug: 'valid-slug',
+        title: 'Title',
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => harness.createEntry(
+        timestamp: '2026-10-26 14:30',
+        slug: '../unsafe',
+        title: 'Title',
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => harness.createEntry(
+        timestamp: '2026-10-26 14:30',
+        slug: 'valid-slug',
+        title: 'Two\nlines',
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('detects an entry without the required fields', () {
     createValidHarness();
     writeFile(
