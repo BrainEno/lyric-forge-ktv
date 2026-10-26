@@ -609,7 +609,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'qualityMode': 'highestQuality',
         'segmentCount': lines.length,
         'suspiciousLineIndexes': suspiciousIndexes,
-        'confidenceSource': 'aligner_timing_heuristics',
+        'confidenceSource': 'model_probability_or_neutral_unavailable_default',
         'rawJsonPath': rawJsonPath,
       },
     );
@@ -856,7 +856,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     Duration end, {
     int? explicitConfidence,
   }) {
-    var score = explicitConfidence ?? 92;
+    // The native response often has no calibrated lexical confidence.
+    // Use a review-required neutral baseline instead of implying 92% accuracy
+    // from a plausible-looking timestamp interval.
+    var score = explicitConfidence ?? 50;
     final duration = end - start;
 
     if (duration > const Duration(seconds: 9)) score -= 18;
