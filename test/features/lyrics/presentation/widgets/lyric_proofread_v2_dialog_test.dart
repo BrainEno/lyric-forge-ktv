@@ -6,12 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proof
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 void main() {
-  LyricLine line(
-    String text, {
-    int startMs = 0,
-    int endMs = 1000,
-    String? id,
-  }) {
+  LyricLine line(String text, {int startMs = 0, int endMs = 1000, String? id}) {
     return LyricLine(
       text: text,
       startTime: Duration(milliseconds: startMs),
@@ -21,40 +16,80 @@ void main() {
   }
 
   Widget host(Widget child) => MaterialApp(
-        theme: ThemeData.dark(),
-        home: Scaffold(body: Center(child: child)),
+    theme: ThemeData.dark(),
+    home: Scaffold(body: Center(child: child)),
+  );
+
+  testWidgets(
+    'strategy dialog returns reference-first with reference enabled',
+    (tester) async {
+      ProofreadV2RunOptions? result;
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                result = await showProofreadV2RunOptionsDialog(context);
+              },
+              child: const Text('open strategy'),
+            ),
+          ),
+        ),
       );
 
-  testWidgets('strategy dialog returns reference-first with reference enabled',
-      (tester) async {
-    ProofreadV2RunOptions? result;
-    await tester.pumpWidget(
-      host(
-        Builder(
-          builder: (context) => FilledButton(
-            onPressed: () async {
-              result = await showProofreadV2RunOptionsDialog(context);
-            },
-            child: const Text('open strategy'),
+      await tester.tap(find.text('open strategy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('参考歌词优先'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+
+      expect(result, isNotNull);
+      expect(result!.strategy, LyricSourceStrategy.referenceFirst);
+      expect(result!.useReference, isTrue);
+    },
+  );
+
+  testWidgets(
+    'ASR-first options return the optional timestamped secondary transcript',
+    (tester) async {
+      ProofreadV2RunOptions? result;
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                result = await showProofreadV2RunOptionsDialog(context);
+              },
+              child: const Text('open strategy'),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('open strategy'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('参考歌词优先'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('继续'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('open strategy'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ASR 优先'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('secondary_asr_transcript_input')),
+        '[00:01.00] first line\n[00:02.00] second line',
+      );
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
 
-    expect(result, isNotNull);
-    expect(result!.strategy, LyricSourceStrategy.referenceFirst);
-    expect(result!.useReference, isTrue);
-  });
+      expect(result, isNotNull);
+      expect(result!.strategy, LyricSourceStrategy.asrFirst);
+      expect(
+        result!.secondaryTranscriptText,
+        '[00:01.00] first line\n[00:02.00] second line',
+      );
+    },
+  );
 
-  testWidgets('ASR-first options return the optional timestamped secondary transcript',
-      (tester) async {
+  testWidgets('ASR-first options can enable ForcedAligner evidence', (
+    tester,
+  ) async {
     ProofreadV2RunOptions? result;
     await tester.pumpWidget(
       host(
@@ -73,42 +108,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('ASR 优先'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const ValueKey('secondary_asr_transcript_input')),
-      '[00:01.00] first line\n[00:02.00] second line',
+    await tester.tap(
+      find.byKey(const ValueKey('forced_alignment_review_toggle')),
     );
-    await tester.tap(find.text('继续'));
-    await tester.pumpAndSettle();
-
-    expect(result, isNotNull);
-    expect(result!.strategy, LyricSourceStrategy.asrFirst);
-    expect(
-      result!.secondaryTranscriptText,
-      '[00:01.00] first line\n[00:02.00] second line',
-    );
-  });
-
-  testWidgets('ASR-first options can enable ForcedAligner evidence',
-      (tester) async {
-    ProofreadV2RunOptions? result;
-    await tester.pumpWidget(
-      host(
-        Builder(
-          builder: (context) => FilledButton(
-            onPressed: () async {
-              result = await showProofreadV2RunOptionsDialog(context);
-            },
-            child: const Text('open strategy'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('open strategy'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('ASR 优先'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('forced_alignment_review_toggle')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('继续'));
     await tester.pumpAndSettle();
@@ -117,8 +119,9 @@ void main() {
     expect(result!.useForcedAlignment, isTrue);
   });
 
-  testWidgets('review dialog exposes token timing and can audition one word',
-      (tester) async {
+  testWidgets('review dialog exposes token timing and can audition one word', (
+    tester,
+  ) async {
     final token = TimedLyricToken(
       text: 'hello',
       interval: ProofreadTimeInterval(
@@ -186,9 +189,7 @@ void main() {
     expect(find.text('hello'), findsOneWidget);
     expect(find.text('0.20 s – 0.60 s · 置信度 35%'), findsOneWidget);
     expect(find.text('0.65 s – 0.90 s · 置信度未提供'), findsOneWidget);
-    await tester.tap(
-      find.byKey(const ValueKey('alignment_token_0_0')),
-    );
+    await tester.tap(find.byKey(const ValueKey('alignment_token_0_0')));
     await tester.pumpAndSettle();
 
     expect(auditionedLineIndex, 0);
@@ -263,8 +264,9 @@ void main() {
     },
   );
 
-  testWidgets('review dialog stays within a compact phone viewport',
-      (tester) async {
+  testWidgets('review dialog stays within a compact phone viewport', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -283,8 +285,12 @@ void main() {
                   LyricProofreadV2ReviewItem(
                     proposalIndex: 0,
                     sourceIndex: 0,
-                    originalLine: line('This is a long original lyric line that wraps on a phone'),
-                    proposedLine: line('This is the reviewed lyric line that wraps on a phone'),
+                    originalLine: line(
+                      'This is a long original lyric line that wraps on a phone',
+                    ),
+                    proposedLine: line(
+                      'This is the reviewed lyric line that wraps on a phone',
+                    ),
                     verdict: LyricProofreadReviewVerdict.green,
                     reasonLabel: '高置信度参考匹配',
                   ),
@@ -302,185 +308,217 @@ void main() {
     await tester.tap(find.text('open compact review'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('建议：This is the reviewed lyric line'), findsOneWidget);
+    expect(
+      find.textContaining('建议：This is the reviewed lyric line'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('review dialog compares rows and returns amber plus grey restore',
-      (tester) async {
-    LyricProofreadV2Selection? result;
-    final items = [
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 0,
-        sourceIndex: 0,
-        originalLine: line('old green', id: 'green'),
-        proposedLine: line('corrected green', id: 'green'),
-        verdict: LyricProofreadReviewVerdict.green,
-        reasonLabel: '高置信度参考匹配',
-      ),
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 1,
-        sourceIndex: 1,
-        originalLine: line('old amber', startMs: 1100, endMs: 2000, id: 'amber'),
-        proposedLine: line(
-          'proposed amber',
-          startMs: 1200,
-          endMs: 2100,
-          id: 'amber',
+  testWidgets(
+    'review dialog compares rows and returns amber plus grey restore',
+    (tester) async {
+      LyricProofreadV2Selection? result;
+      final items = [
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 0,
+          sourceIndex: 0,
+          originalLine: line('old green', id: 'green'),
+          proposedLine: line('corrected green', id: 'green'),
+          verdict: LyricProofreadReviewVerdict.green,
+          reasonLabel: '高置信度参考匹配',
         ),
-        verdict: LyricProofreadReviewVerdict.amber,
-        reasonLabel: '对齐存在歧义',
-      ),
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 2,
-        sourceIndex: 3,
-        originalLine: line('protected row', startMs: 2200, endMs: 3000, id: 'locked'),
-        proposedLine: line('protected row', startMs: 2200, endMs: 3000, id: 'locked'),
-        verdict: LyricProofreadReviewVerdict.locked,
-        reasonLabel: '手动编辑保护',
-      ),
-    ];
-    final dropped = [
-      LyricProofreadV2DroppedItem(
-        sourceIndex: 2,
-        line: line('restore me', startMs: 2100, endMs: 2150, id: 'drop'),
-        reasonLabel: '未找到可靠匹配',
-      ),
-    ];
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 1,
+          sourceIndex: 1,
+          originalLine: line(
+            'old amber',
+            startMs: 1100,
+            endMs: 2000,
+            id: 'amber',
+          ),
+          proposedLine: line(
+            'proposed amber',
+            startMs: 1200,
+            endMs: 2100,
+            id: 'amber',
+          ),
+          verdict: LyricProofreadReviewVerdict.amber,
+          reasonLabel: '对齐存在歧义',
+        ),
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 2,
+          sourceIndex: 3,
+          originalLine: line(
+            'protected row',
+            startMs: 2200,
+            endMs: 3000,
+            id: 'locked',
+          ),
+          proposedLine: line(
+            'protected row',
+            startMs: 2200,
+            endMs: 3000,
+            id: 'locked',
+          ),
+          verdict: LyricProofreadReviewVerdict.locked,
+          reasonLabel: '手动编辑保护',
+        ),
+      ];
+      final dropped = [
+        LyricProofreadV2DroppedItem(
+          sourceIndex: 2,
+          line: line('restore me', startMs: 2100, endMs: 2150, id: 'drop'),
+          reasonLabel: '未找到可靠匹配',
+        ),
+      ];
 
-    await tester.pumpWidget(
-      host(
-        Builder(
-          builder: (context) => FilledButton(
-            onPressed: () async {
-              result = await showLyricProofreadV2ReviewDialog(
-                context,
-                summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
-                explanation: '低置信提案需要人工确认。',
-                items: items,
-                droppedItems: dropped,
-                onPreviewDraftLine: null,
-              );
-            },
-            child: const Text('open review'),
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                result = await showLyricProofreadV2ReviewDialog(
+                  context,
+                  summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
+                  explanation: '低置信提案需要人工确认。',
+                  items: items,
+                  droppedItems: dropped,
+                  onPreviewDraftLine: null,
+                );
+              },
+              child: const Text('open review'),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('open review'));
-    await tester.pumpAndSettle();
-    expect(find.text('原文：old green'), findsOneWidget);
-    expect(find.text('建议：corrected green'), findsOneWidget);
-    expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('restore me'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('应用所选（绿色 + 琥珀色 1）'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('open review'));
+      await tester.pumpAndSettle();
+      expect(find.text('原文：old green'), findsOneWidget);
+      expect(find.text('建议：corrected green'), findsOneWidget);
+      expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('restore me'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('应用所选（绿色 + 琥珀色 1）'));
+      await tester.pumpAndSettle();
 
-    expect(result, isNotNull);
-    expect(result!.acceptedProposalIndices, containsAll(<int>{0, 1, 2}));
-    expect(result!.restoredDraftIndices, contains(2));
-  });
+      expect(result, isNotNull);
+      expect(result!.acceptedProposalIndices, containsAll(<int>{0, 1, 2}));
+      expect(result!.restoredDraftIndices, contains(2));
+    },
+  );
 
-  testWidgets('green-only action ignores amber selection and grey restoration',
-      (tester) async {
-    LyricProofreadV2Selection? result;
-    final items = [
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 0,
-        sourceIndex: 0,
-        originalLine: line('before', id: 'green'),
-        proposedLine: line('after', id: 'green'),
-        verdict: LyricProofreadReviewVerdict.green,
-        reasonLabel: '参考时间戳',
-      ),
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 1,
-        sourceIndex: 1,
-        originalLine: line('old amber', startMs: 1100, endMs: 2000, id: 'amber'),
-        proposedLine: line('new amber', startMs: 1100, endMs: 2000, id: 'amber'),
-        verdict: LyricProofreadReviewVerdict.amber,
-        reasonLabel: '对齐存在歧义',
-      ),
-      LyricProofreadV2ReviewItem(
-        proposalIndex: 2,
-        sourceIndex: 2,
-        originalLine: line(
-          'protected row',
-          startMs: 2100,
-          endMs: 3000,
-          id: 'locked',
+  testWidgets(
+    'green-only action ignores amber selection and grey restoration',
+    (tester) async {
+      LyricProofreadV2Selection? result;
+      final items = [
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 0,
+          sourceIndex: 0,
+          originalLine: line('before', id: 'green'),
+          proposedLine: line('after', id: 'green'),
+          verdict: LyricProofreadReviewVerdict.green,
+          reasonLabel: '参考时间戳',
         ),
-        proposedLine: line(
-          'protected row',
-          startMs: 2100,
-          endMs: 3000,
-          id: 'locked',
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 1,
+          sourceIndex: 1,
+          originalLine: line(
+            'old amber',
+            startMs: 1100,
+            endMs: 2000,
+            id: 'amber',
+          ),
+          proposedLine: line(
+            'new amber',
+            startMs: 1100,
+            endMs: 2000,
+            id: 'amber',
+          ),
+          verdict: LyricProofreadReviewVerdict.amber,
+          reasonLabel: '对齐存在歧义',
         ),
-        verdict: LyricProofreadReviewVerdict.locked,
-        reasonLabel: '手动编辑保护',
-      ),
-    ];
-    final dropped = [
-      LyricProofreadV2DroppedItem(
-        sourceIndex: 3,
-        line: line(
-          'restore separately',
-          startMs: 3100,
-          endMs: 4000,
-          id: 'drop',
+        LyricProofreadV2ReviewItem(
+          proposalIndex: 2,
+          sourceIndex: 2,
+          originalLine: line(
+            'protected row',
+            startMs: 2100,
+            endMs: 3000,
+            id: 'locked',
+          ),
+          proposedLine: line(
+            'protected row',
+            startMs: 2100,
+            endMs: 3000,
+            id: 'locked',
+          ),
+          verdict: LyricProofreadReviewVerdict.locked,
+          reasonLabel: '手动编辑保护',
         ),
-        reasonLabel: '未找到可靠匹配',
-      ),
-    ];
+      ];
+      final dropped = [
+        LyricProofreadV2DroppedItem(
+          sourceIndex: 3,
+          line: line(
+            'restore separately',
+            startMs: 3100,
+            endMs: 4000,
+            id: 'drop',
+          ),
+          reasonLabel: '未找到可靠匹配',
+        ),
+      ];
 
-    await tester.pumpWidget(
-      host(
-        Builder(
-          builder: (context) => FilledButton(
-            onPressed: () async {
-              result = await showLyricProofreadV2ReviewDialog(
-                context,
-                summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
-                explanation: '逐项复核。',
-                items: items,
-                droppedItems: dropped,
-                onPreviewDraftLine: null,
-              );
-            },
-            child: const Text('open review'),
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () async {
+                result = await showLyricProofreadV2ReviewDialog(
+                  context,
+                  summary: '绿色 1 · 琥珀色 1 · 受保护 1 · 灰色 1',
+                  explanation: '逐项复核。',
+                  items: items,
+                  droppedItems: dropped,
+                  onPreviewDraftLine: null,
+                );
+              },
+              child: const Text('open review'),
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('open review'));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('restore_dropped_3')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('仅应用绿色（1）'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('open review'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('restore_dropped_3')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('仅应用绿色（1）'));
+      await tester.pumpAndSettle();
 
-    expect(result, isNotNull);
-    expect(result!.acceptedProposalIndices, contains(0));
-    expect(result!.acceptedProposalIndices, contains(2));
-    expect(result!.acceptedProposalIndices, isNot(contains(1)));
-    expect(result!.restoredDraftIndices, isEmpty);
-  });
+      expect(result, isNotNull);
+      expect(result!.acceptedProposalIndices, contains(0));
+      expect(result!.acceptedProposalIndices, contains(2));
+      expect(result!.acceptedProposalIndices, isNot(contains(1)));
+      expect(result!.restoredDraftIndices, isEmpty);
+    },
+  );
 
   testWidgets('review cancel returns no acceptance selection', (tester) async {
     LyricProofreadV2Selection? result;
@@ -521,8 +559,9 @@ void main() {
     expect(result, isNull);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('shows ForcedAligner coverage diagnostics in the review UI',
-      (tester) async {
+  testWidgets('shows ForcedAligner coverage diagnostics in the review UI', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       host(
         Builder(
@@ -552,14 +591,14 @@ void main() {
     await tester.tap(find.text('open diagnostics review'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('forced_alignment_diagnostics')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('forced_alignment_diagnostics')),
+      findsOneWidget,
+    );
     expect(find.text('ForcedAligner 覆盖：2/3 行（67%）'), findsOneWidget);
     expect(find.text('未分配对齐片段：1（需要人工判定）'), findsOneWidget);
     expect(find.text('未匹配歌词行：2'), findsOneWidget);
-    expect(find.text('词级时间仅供人工复核；不自动修改歌词行级时间戳。'),
-        findsOneWidget);
+    expect(find.text('词级时间仅供人工复核；不自动修改歌词行级时间戳。'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-
 }

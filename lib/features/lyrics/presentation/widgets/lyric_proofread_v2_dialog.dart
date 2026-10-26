@@ -41,7 +41,8 @@ class _ProofreadV2RunOptionsDialogState
   LyricSourceStrategy _strategy = LyricSourceStrategy.auto;
   bool _useReference = false;
   bool _useForcedAlignment = false;
-  final TextEditingController _secondaryTranscriptController = TextEditingController();
+  final TextEditingController _secondaryTranscriptController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -69,9 +70,8 @@ class _ProofreadV2RunOptionsDialogState
                 ChoiceChip(
                   label: const Text('自动选择'),
                   selected: _strategy == LyricSourceStrategy.auto,
-                  onSelected: (_) => setState(
-                    () => _strategy = LyricSourceStrategy.auto,
-                  ),
+                  onSelected: (_) =>
+                      setState(() => _strategy = LyricSourceStrategy.auto),
                 ),
                 ChoiceChip(
                   label: const Text('参考歌词优先'),
@@ -99,9 +99,7 @@ class _ProofreadV2RunOptionsDialogState
                 onChanged: (value) =>
                     setState(() => _useReference = value ?? false),
                 title: const Text('本次提供参考歌词'),
-                subtitle: const Text(
-                  '自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。',
-                ),
+                subtitle: const Text('自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
@@ -118,9 +116,8 @@ class _ProofreadV2RunOptionsDialogState
                 key: const ValueKey('forced_alignment_review_toggle'),
                 contentPadding: EdgeInsets.zero,
                 value: _useForcedAlignment,
-                onChanged: (value) => setState(
-                  () => _useForcedAlignment = value ?? false,
-                ),
+                onChanged: (value) =>
+                    setState(() => _useForcedAlignment = value ?? false),
                 title: const Text('使用 ForcedAligner 词级时间证据'),
                 subtitle: const Text(
                   '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
@@ -153,13 +150,16 @@ class _ProofreadV2RunOptionsDialogState
           onPressed: () => Navigator.of(context).pop(
             ProofreadV2RunOptions(
               strategy: _strategy,
-              useReference: _strategy == LyricSourceStrategy.referenceFirst ||
+              useReference:
+                  _strategy == LyricSourceStrategy.referenceFirst ||
                   (_strategy == LyricSourceStrategy.auto && _useReference),
-              secondaryTranscriptText: _strategy == LyricSourceStrategy.asrFirst &&
+              secondaryTranscriptText:
+                  _strategy == LyricSourceStrategy.asrFirst &&
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
-              useForcedAlignment: _strategy == LyricSourceStrategy.asrFirst &&
+              useForcedAlignment:
+                  _strategy == LyricSourceStrategy.asrFirst &&
                   _useForcedAlignment,
             ),
           ),
@@ -230,15 +230,19 @@ class ProofreadTimedLinePreviewResult {
   final String? message;
 
   const ProofreadTimedLinePreviewResult.success({this.message})
-      : succeeded = true;
+    : succeeded = true;
 
   const ProofreadTimedLinePreviewResult.failure(String message)
-      : succeeded = false,
-        message = message;
+    : succeeded = false,
+      message = message;
 }
 
-typedef ProofreadTimedLinePreview = Future<ProofreadTimedLinePreviewResult>
-    Function(int sourceIndex, LyricLine line, Duration globalOffset);
+typedef ProofreadTimedLinePreview =
+    Future<ProofreadTimedLinePreviewResult> Function(
+      int sourceIndex,
+      LyricLine line,
+      Duration globalOffset,
+    );
 
 Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   BuildContext context, {
@@ -250,7 +254,8 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   ProofreadTimedLinePreview? onPreviewTimedLine,
   Duration originalGlobalOffset = Duration.zero,
   Duration proposedGlobalOffset = Duration.zero,
-  void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken,
+  void Function(int sourceIndex, TimedLyricToken token)?
+  onPreviewAlignmentToken,
   ProofreadAlignmentDiagnostics? alignmentDiagnostics,
 }) {
   return showDialog<LyricProofreadV2Selection>(
@@ -279,7 +284,8 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final ProofreadTimedLinePreview? onPreviewTimedLine;
   final Duration originalGlobalOffset;
   final Duration proposedGlobalOffset;
-  final void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken;
+  final void Function(int sourceIndex, TimedLyricToken token)?
+  onPreviewAlignmentToken;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
 
   const _LyricProofreadV2ReviewDialog({
@@ -318,7 +324,8 @@ class _LyricProofreadV2ReviewDialogState
       .where((item) => item.verdict == LyricProofreadReviewVerdict.locked)
       .toList(growable: false);
 
-  int get _greenChangeCount => _greenItems.where((item) => item.hasChange).length;
+  int get _greenChangeCount =>
+      _greenItems.where((item) => item.hasChange).length;
 
   int get _selectedAmberChangeCount => _amberItems
       .where(
@@ -465,12 +472,15 @@ class _LyricProofreadV2ReviewDialogState
                                         proposalIndex: -item.sourceIndex - 1,
                                         sourceIndex: item.sourceIndex,
                                         line: item.line,
-                                        globalOffset: widget.originalGlobalOffset,
+                                        globalOffset:
+                                            widget.originalGlobalOffset,
                                         label: '原始',
                                       ),
                                 icon: const Icon(Icons.play_circle_outline),
                               ),
-                        title: Text('第 ${item.sourceIndex + 1} 行 · ${item.line.text}'),
+                        title: Text(
+                          '第 ${item.sourceIndex + 1} 行 · ${item.line.text}',
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
@@ -480,10 +490,12 @@ class _LyricProofreadV2ReviewDialogState
                               '${_formatTime(item.line.endTime)} · '
                               '${item.reasonLabel} · 默认排除，勾选恢复',
                             ),
-                            if (_auditionFeedbackByProposal[-item.sourceIndex - 1] !=
+                            if (_auditionFeedbackByProposal[-item.sourceIndex -
+                                    1] !=
                                 null)
                               Text(
-                                _auditionFeedbackByProposal[-item.sourceIndex - 1]!,
+                                _auditionFeedbackByProposal[-item.sourceIndex -
+                                    1]!,
                                 key: ValueKey(
                                   'audition_feedback_dropped_${item.sourceIndex}',
                                 ),
@@ -508,19 +520,17 @@ class _LyricProofreadV2ReviewDialogState
           child: Text('仅应用绿色（$_greenChangeCount）'),
         ),
         FilledButton.icon(
-          onPressed: _canApplySelected ? () => _finish(includeAmber: true) : null,
+          onPressed: _canApplySelected
+              ? () => _finish(includeAmber: true)
+              : null,
           icon: const Icon(Icons.check_rounded),
-          label: Text(
-            '应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）',
-          ),
+          label: Text('应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）'),
         ),
       ],
     );
   }
 
-  Widget _buildAlignmentDiagnostics(
-    ProofreadAlignmentDiagnostics diagnostics,
-  ) {
+  Widget _buildAlignmentDiagnostics(ProofreadAlignmentDiagnostics diagnostics) {
     final coverageLabel = diagnostics.totalLineCount == 0
         ? '无歌词行'
         : '${(diagnostics.lineCoverage * 100).round()}%';
@@ -591,11 +601,7 @@ class _LyricProofreadV2ReviewDialogState
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  _verdictIcon(item.verdict),
-                  color: verdictColor,
-                  size: 20,
-                ),
+                Icon(_verdictIcon(item.verdict), color: verdictColor, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -681,20 +687,21 @@ class _LyricProofreadV2ReviewDialogState
                   key: ValueKey('alignment_tokens_${item.proposalIndex}'),
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
-                  title: Text(
-                    '词级时间证据（${item.alignmentTokens.length} 词）',
-                  ),
+                  title: Text('词级时间证据（${item.alignmentTokens.length} 词）'),
                   subtitle: const Text('可逐词试听；对齐时间仅供复核，不会自动应用。'),
                   children: [
-                    for (var tokenIndex = 0;
-                        tokenIndex < item.alignmentTokens.length;
-                        tokenIndex++)
+                    for (
+                      var tokenIndex = 0;
+                      tokenIndex < item.alignmentTokens.length;
+                      tokenIndex++
+                    )
                       () {
                         final token = item.alignmentTokens[tokenIndex];
                         final confidenceLabel = token.confidence == null
                             ? '置信度未提供'
                             : '置信度 ${token.confidence}%';
-                        final canPreview = item.sourceIndex != null &&
+                        final canPreview =
+                            item.sourceIndex != null &&
                             widget.onPreviewAlignmentToken != null;
                         return ListTile(
                           key: ValueKey(
@@ -740,9 +747,7 @@ class _LyricProofreadV2ReviewDialogState
                         }
                       })
                     : null,
-                title: Text(
-                  item.hasChange ? '采纳这条琥珀色建议' : '没有可应用的行级变化',
-                ),
+                title: Text(item.hasChange ? '采纳这条琥珀色建议' : '没有可应用的行级变化'),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
           ],
