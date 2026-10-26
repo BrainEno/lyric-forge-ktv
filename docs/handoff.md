@@ -1,40 +1,48 @@
 # Handoff
 
 ## 目标
-继续歌词智能校对 V2 的 ForcedAligner 证据质量：提高跨语言文本标准化的稳定性，同时确保时间证据只用于复核、不修改源歌词。
+改善 ForcedAligner 词级时间证据到歌词行的匹配：在有限范围内恢复额外片段造成的错位，并把覆盖率、跳过片段和未匹配行暴露给人工复核。不得自动修改源歌词或行级时间戳。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`。
-- main 基线：PR #187 已合并，合并提交 `7c1640c08b343f940e32485f205b4f4409287b2b`。
-- 开发分支：`fix/multiscript-align-normalization-20261026`。
-- 本轮复用 `LyricTokenizer` 做 ForcedAligner span 与歌词行的文本归一化，并增加全角拉丁文、中文和日文回归用例。
-- 本执行环境没有本地 Dart/Flutter SDK；分析和测试结论依赖 PR 最新 head 的 GitHub Actions。
+- main 基线：PR #188 已合并，合并提交 `187fb49bacbb09083ca01ec796f061676bd82c39`。
+- 开发分支：`feat/forced-align-recovery-diagnostics-20261026`。
+- 当前改动新增结构化 `ProofreadAlignmentDiagnostics`；逐行匹配最多向前略过 12 个 span、每个候选最多聚合 128 个 span。匹配严格遵循 source order，已消费 span 不会被复用。
+- 本执行环境没有本地 Dart/Flutter SDK；分析、格式化和测试需以此分支最新 head 的 GitHub Actions 为准。
 
 ## 已改文件
+- `lib/features/lyrics/domain/proofreading/proofread_result.dart`
 - `lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart`
+- `lib/features/transcription/data/services/forced_alignment_proofread_service.dart`
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
 - `test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart`
+- `test/features/lyrics/domain/proofreading/proofread_result_test.dart`
+- `test/features/transcription/forced_alignment_proofread_service_test.dart`
 - `docs/high_quality_asr.md`
+- `docs/work_log_index.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
-- `docs/work_log_index.md`
-- `docs/log/entries/2026-10-26-1530-normalize-forced-align-text.md`
+- this handoff and a new immutable work-log entry
 
 ## 本轮实现
-- ForcedAligner 文本匹配复用 `LyricTokenizer`，统一处理全角 ASCII、CJK 字符和常见标点。
-- 增加英语全角文本、中文和日文匹配测试。
-- 保持原始歌词文字、行级时间戳和时间证据的 review-only 语义不变。
+- 添加不可变 `ProofreadAlignmentDiagnostics`，记录总行数、匹配行数、覆盖率、跳过的 span、未匹配行索引和供 UI 使用的一基行号。
+- 对齐服务成功但返回空 span 时记录零覆盖率；这与运行时不可用的 fallback 区分开。
+- 匹配器可在当前 cursor 后最多搜索 12 个 span 的候选起点；每个起点最多拼接 128 个 span，保持最早命中、按序消费、不重复使用证据的原则。
+- 一行未匹配时保留最后确认的 cursor，允许后续歌词行独立恢复；将未匹配行和跳过的片段报告给复核流程，不把它们静默当成成功。
+- 复核说明展示词级覆盖率、匹配行数、跳过片段及未匹配行号。
+- 新增测试覆盖 ad-lib/额外 span 恢复、早期行未匹配时后续行仍可匹配、搜索上限、重复副歌顺序、空对齐结果、诊断对象的范围校验及不可变性。
 
 ## 检查结果
-- 已加入面向全角拉丁文、中文、日文的定向回归测试。
-- 本地未运行 `dart format`、`flutter analyze` 或 `flutter test`，因为当前环境没有 Dart/Flutter SDK。
-- PR 最新 head 的 Flutter Quality Gate 仍需完成；未把合成数据测试当作真实音频验收。
+- 已写入领域/服务/UI 回归测试，并更新 ASR 技术说明。
+- 尚未在本执行环境运行 Dart/Flutter 命令；需以最新 head 的 Flutter Quality Gate 判断是否通过。
+- 合成 span 测试只验证匹配逻辑与安全边界，不代表实际声学时间精度。
 
 ## 下一步
-检查 PR 最新 head 的 CI；通过后等待用户合并。接下来需要在已重建的 Windows/RTX 5080 runtime 上以真实中文、英文、日文歌曲验收词级对齐边界和行覆盖率，再考虑单独的显式确认时间修复。
+等待最新 head 的 CI；若失败，根据真实日志修复。通过后提交 PR 给用户审阅。合并后仍需用已重建且包含 `POST /v1/align` 的 Windows/RTX 5080 runtime 进行真实中文、英文、日文音频验收。
 
 ## 已知风险
-- 合成测试验证文本归一化，不证明声学时间定位准确。
-- 旧 runtime bundle 可能不含 `POST /v1/align`。
-- Apostrophe 在对齐文本归一化中被忽略，以支持 backend 将英文缩写拆成多个 span；如未来需要区分撇号语义，应补充针对性合同和测试。
+- 12-span look-ahead 与 128-span line cap 有意限制计算规模；超出范围的对齐仍会作为未匹配证据提示人工处理。
+- 跳过的 span 可能是 ad-lib，也可能属于未匹配歌词行，因此用“跳过片段”而不直接断言为噪声。
+- 真实歌曲中的时间精度、覆盖率和 runtime bundle 接口可用性尚未实际验证；不应据合成测试开启自动时间戳应用。
 
-最后更新：2026-10-26 15:30（Asia/Taipei）
+最后更新：2026-10-26 16:05（Asia/Taipei）
