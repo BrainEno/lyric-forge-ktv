@@ -233,6 +233,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   required List<LyricProofreadV2DroppedItem> droppedItems,
   required ValueChanged<int>? onPreviewDraftLine,
   void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken,
+  ProofreadAlignmentDiagnostics? alignmentDiagnostics,
 }) {
   return showDialog<LyricProofreadV2Selection>(
     context: context,
@@ -243,6 +244,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
       droppedItems: droppedItems,
       onPreviewDraftLine: onPreviewDraftLine,
       onPreviewAlignmentToken: onPreviewAlignmentToken,
+      alignmentDiagnostics: alignmentDiagnostics,
     ),
   );
 }
@@ -254,6 +256,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final List<LyricProofreadV2DroppedItem> droppedItems;
   final ValueChanged<int>? onPreviewDraftLine;
   final void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken;
+  final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
 
   const _LyricProofreadV2ReviewDialog({
     required this.summary,
@@ -262,6 +265,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
     required this.droppedItems,
     required this.onPreviewDraftLine,
     required this.onPreviewAlignmentToken,
+    this.alignmentDiagnostics,
   });
 
   @override
@@ -365,6 +369,8 @@ class _LyricProofreadV2ReviewDialogState
               widget.explanation,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            if (widget.alignmentDiagnostics != null)
+              _buildAlignmentDiagnostics(widget.alignmentDiagnostics!),
             const SizedBox(height: 8),
             Text(
               '绿色行可批量应用；琥珀色行默认不采纳，需逐项勾选；'
@@ -435,6 +441,60 @@ class _LyricProofreadV2ReviewDialogState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAlignmentDiagnostics(
+    ProofreadAlignmentDiagnostics diagnostics,
+  ) {
+    final coverageLabel = diagnostics.totalLineCount == 0
+        ? '无歌词行'
+        : '${(diagnostics.lineCoverage * 100).round()}%';
+    return Container(
+      key: const ValueKey('forced_alignment_diagnostics'),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.bgBase,
+        border: Border.all(
+          color: diagnostics.isComplete
+              ? AppColors.textTertiary
+              : Colors.amber.shade400,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ForcedAligner 覆盖：${diagnostics.matchedLineCount}/'
+            '${diagnostics.totalLineCount} 行（$coverageLabel）',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          if (diagnostics.hasSkippedSpans)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '未分配对齐片段：${diagnostics.skippedSpanCount}（需要人工判定）',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          if (diagnostics.hasUnmatchedLines)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '未匹配歌词行：${diagnostics.unmatchedLineNumbers.join('、')}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            '词级时间仅供人工复核；不自动修改歌词行级时间戳。',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 

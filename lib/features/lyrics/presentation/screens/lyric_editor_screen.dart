@@ -887,9 +887,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               ? '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。'
               : '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
-          if (alignmentOutcome != null && alignmentOutcome.warning != null)
+          if (alignmentOutcome != null &&
+              alignmentOutcome.warning != null &&
+              alignmentOutcome.result.alignmentDiagnostics == null)
             alignmentOutcome.warning!,
-          if (alignmentOutcome?.alignmentAvailable == true)
+          if (alignmentOutcome != null &&
+              alignmentOutcome.alignmentAvailable &&
+              alignmentOutcome.result.lines.any((line) => line.tokens.isNotEmpty))
             'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
         ].join(' ');
       }
@@ -918,6 +922,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         context,
         summary: summary,
         explanation: strategyExplanation,
+        alignmentDiagnostics: alignmentOutcome?.result.alignmentDiagnostics,
         items: items,
         droppedItems: droppedItems,
         onPreviewDraftLine: project.audioAsset == null
