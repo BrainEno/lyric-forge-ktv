@@ -8,6 +8,7 @@
 - main 基线：PR #188 已合并，合并提交 `187fb49bacbb09083ca01ec796f061676bd82c39`。
 - 开发分支：`feat/forced-align-recovery-diagnostics-20261026`。
 - 本阶段只修改领域模型、ASR-first pipeline 和其领域回归测试；服务 warning 与 UI 显示留待下一阶段，确保阶段边界清晰。
+- PR #189：<https://github.com/BrainEno/lyric-forge-ktv/pull/189>，尚未合并。
 - 本执行环境没有本地 Dart/Flutter SDK；分析、格式化和测试需以此分支最新 head 的 GitHub Actions 为准。
 
 ## 已改文件
@@ -24,8 +25,8 @@
 - 新增回归测试覆盖额外 span、前行缺失但后行可恢复、超出搜索预算、重复副歌按序消费、成功但空 spans、诊断覆盖率与不变量、以及源歌词不变。
 
 ## 检查结果
-- 领域与回归测试已写入；尚未在本执行环境运行 Dart/Flutter 命令。
-- 必须检查本分支最新 head 的 Flutter Quality Gate；不得提前宣称分析或测试通过。
+- GitHub Actions run 40289442193 在实现 head `2f32facdde5c94832ef8808382985c8c6862176a` 通过：work-log lint 0 errors/0 warnings、704 tests passed、repository quality gate passed。
+- 本执行环境没有 Dart/Flutter SDK，未运行本地命令。新增的工作日志同步会产生新的 PR head，合并前仍要核对该最新 head 的 CI。
 - 合成 span 验证文本匹配与安全边界，不代表真实歌曲的声学时间精度。
 
 ## 下一步
@@ -38,4 +39,4 @@
 - 被跳过的 span 可能来自 ad-lib，也可能属于某条未匹配歌词，所以域层只称为“跳过片段”，不擅自判断为噪声。
 - `/v1/align` 结果仍为复核证据；没有真实歌曲验收之前不得自动应用词级时间戳。
 
-最后更新：2026-10-26 16:10（Asia/Taipei）
+最后更新：2026-10-26 16:15（Asia/Taipei）
