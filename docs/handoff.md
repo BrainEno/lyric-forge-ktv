@@ -1,39 +1,36 @@
 # Handoff
 
 ## 目标
-修复 Flutter 启动时 Navigator 恢复初始路由触发的 `setState() or markNeedsBuild() called during build`，并区分同一终端日志中的底层 MPV 诊断。
+修复 Flutter 路由恢复时的构建期通知断言，并处理音频-only MPV 适配器启动时写入不支持的 OSC 运行时属性所产生的日志；区分仍需实测的文件缓存诊断。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`。
-- 基线：`main` commit `a5e666ae2285495d372d890f39e2c8d2df9956f9`。
-- 分支：`fix/route-observer-build-notification-20261026`；PR #192：https://github.com/BrainEno/lyric-forge-ktv/pull/192。
-- 变更通过 GitHub 接口写入；当前环境没有本地 Git 工作树，因此无法提供本地 `git status --short` / `git diff --stat` / `git log` 输出。PR diff 是远端状态的依据。
+- 当前 `main`：`9c85b5b8e57a30d0a8179dda355d3f0304a99ea5`（PR #192 已合并）。
+- 当前分支：`fix/media-kit-audio-osc-property-log-20261026`；PR #193：https://github.com/BrainEno/lyric-forge-ktv/pull/193。
+- 当前执行环境无本地 Git 工作树；远端 PR diff/Actions 作为状态依据。
 
 ## 已改文件
-- `lib/core/navigation/current_route_observer.dart`
-- `lib/main.dart`
-- `test/core/navigation/current_route_observer_test.dart`
-- `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md`
-- 本文件与 `docs/log/entries/2026-10-26-1800-route-observer-post-frame-sync.md`
+- 已合并主线：`lib/core/navigation/current_route_observer.dart`、`lib/main.dart`、`test/core/navigation/current_route_observer_test.dart`。
+- 当前 PR：`packages/just_audio_media_kit/lib/mediakit_player.dart`。
+- 工作日志、索引、归档、交接与本条日志。
 
 ## 本轮实现
-- 将当前路由观察器提取为单独类。
-- 对同一帧的多次路由变化进行合并，帧结束后仅发布最新路由名。
-- 覆盖启动时路由恢复和后续 push/pop，避免在 Navigator 构建阶段同步通知监听器。
-- 不通过降低全局 MPV 日志级别隐藏底层播放错误。
+- 路由观察器在一帧内合并变更并在帧结束后通知监听器；已合并 PR #192。
+- 音频-only 的 `just_audio_media_kit` 设置 `PlayerConfiguration.osc: true`，避免 media_kit 默认 `osc=false` 分支把 `osc=no` 作为运行时属性写入不支持 OSC 的音频构建。
+- 不降低 MPV 全局日志等级，不通过隐藏错误或关闭缓存来制造“干净日志”。
 
 ## 检查结果
-- Flutter Quality Gate #267 通过：变更 Dart 文件格式检查、work-log lint（0 errors / 0 warnings）、`flutter analyze lib test`、`flutter test`（721 项通过）。
-- Root widget workflow #6 通过：`flutter analyze lib/main.dart test/widget_test.dart`、根组件测试、指定 mobile-root 测试及完整 `flutter test` 均通过。
-- 质量门记录：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806179
-- Root widget 记录：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806271
+- 路由修复主线验证：Quality Gate #270、main 合并后 Quality Gate #271 均通过，包含格式、日志预检、分析及 721 项 Flutter 测试。
+- 当前 OSC 修正源代码 head `e1c2cfdc)：Quality Gate #272 通过格式、work-log 预检、`flutter analyze lib test` 与 721 项测试。
+- Quality Gate #272：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40306279221
+- 文档更新后仍需以 PR #193 最新 head 的 CI 作为最终验证。
 
 ## 下一步
-如果播放实际失败，针对产生 `lavf: Failed to create file cache` 的那首具体音频复现并检查来源路径、格式和 MPV/FFmpeg 错误上下文；不要把它与已修复的 Flutter 路由构建断言混为一谈。
+在 Windows 重建并启动后确认 `property not found _setProperty(osc, 1)` 不再出现；若 `lavf: Failed to create file cache` 仍出现且首次播放失败，记录具体音频来源/格式与第一次、第二次播放行为，再针对对应输入路径修复。
 
 ## 已知风险
-- `property not found _setProperty(osc, 1)` 由 media_kit/MPV 集成输出；应用代码没有设置 `osc`。
-- `lavf: Failed to create file cache` 是独立的 MPV/FFmpeg 源/缓存诊断。上游存在相关报告，但仅凭当前日志无法确定是否同因或是否导致播放失败：https://github.com/Pato05/just_audio_media_kit/issues/22。
-- 不降低全局错误日志级别，也不在没有复现的情况下调整缓存设置。
+- `NativeReferenceHolder: Allocated ...` 是 media_kit 原生引用分配日志，不是本次 Flutter 断言。
+- `lavf: Failed to create file cache` 是独立 MPV/FFmpeg 诊断。上游有相关 `just_audio_media_kit` 报告，但当前 Windows 日志未证明同因或是否造成播放失败：https://github.com/Pato05/just_audio_media_kit/issues/22。
+- CI 无法验证本机 Windows MPV 实际播放；本轮只处理已经从配置路径确认的 OSC 属性问题。
 
-最后更新：2026-10-26 18:00（Asia/Taipei）
+最后更新：2026-10-26 18:20（Asia/Taipei）

@@ -56,6 +56,9 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   MediaKitPlayer(super.id) {
     _player = Player(
         configuration: PlayerConfiguration(
+      // This adapter is audio-only. Avoid writing the unsupported OSC option
+      // as a runtime property on audio-only libmpv builds.
+      osc: true,
       pitch: JustAudioMediaKit.pitch,
       protocolWhitelist: JustAudioMediaKit.protocolWhitelist,
       title: JustAudioMediaKit.title,
