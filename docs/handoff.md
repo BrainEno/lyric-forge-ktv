@@ -1,43 +1,39 @@
 # Handoff
 
 ## 目标
-让真实 ForcedAligner 输出可以直接进入可重复的评估 corpus，避免手动复制秒级时间戳时产生单位错误；不修改歌词或对齐结果。
+修复 Flutter 启动时 Navigator 恢复初始路由触发的 `setState() or markNeedsBuild() called during build`，并区分同一终端日志中的底层 MPV 诊断。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`。
-- 主线基线：PR #190 已合并，当前基线 `799057638705b7e4e62e4306e77e78cf64f0872f`。
-- 当前分支：`feat/forced-alignment-local-capture-20261026`，目标 PR 指向 `main`。
-- 本任务仅扩展离线评估工具与文档/测试；不改产品 UI。
-- 本执行环境没有本地 Dart/Flutter SDK，须以最新 PR head 的 GitHub Actions 为验证依据。
+- 基线：`main` commit `a5e666ae2285495d372d890f39e2c8d2df9956f9`。
+- 分支：`fix/route-observer-build-notification-20261026`；PR #192：https://github.com/BrainEno/lyric-forge-ktv/pull/192。
+- 变更通过 GitHub 接口写入；当前环境没有本地 Git 工作树，因此无法提供本地 `git status --short` / `git diff --stat` / `git log` 输出。PR diff 是远端状态的依据。
 
 ## 已改文件
-- `tool/forced_alignment_eval.dart`
-- `test/tool/forced_alignment_eval_test.dart`
-- `docs/high_quality_asr.md`
+- `lib/core/navigation/current_route_observer.dart`
+- `lib/main.dart`
+- `test/core/navigation/current_route_observer_test.dart`
 - `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md`
-- 本文件与独立工作日志条目
+- 本文件与 `docs/log/entries/2026-10-26-1800-route-observer-post-frame-sync.md`
 
 ## 本轮实现
-- 新增 `capture` 子命令，从显式指定的 loopback `POST /v1/align` 端点获取真实对齐响应。
-- 发送音频路径、原始参考歌词文本与语言；读取 `items` 或 `results[0].items`，将秒级起止时间转换为整数毫秒。
-- 将实际 spans 与人工校验的参考 spans 包装为现有 schemaVersion 1 corpus；可创建新 corpus 或用 `--append-to` 追加样本。
-- 保留空 actual span 输出，输出前重新运行语料 schema、唯一 ID、顺序与音频时长验证；不覆盖已有 output，不发送到非 loopback host。
-- 写入前保护并发修改：新 corpus 使用 exclusive create；追加模式检测采集期间的语料变更，避免覆盖更新后的数据。
-- 更新中英日实测采集说明。
+- 将当前路由观察器提取为单独类。
+- 对同一帧的多次路由变化进行合并，帧结束后仅发布最新路由名。
+- 覆盖启动时路由恢复和后续 push/pop，避免在 Navigator 构建阶段同步通知监听器。
+- 不通过降低全局 MPV 日志级别隐藏底层播放错误。
 
 ## 检查结果
-- 已新增本机 loopback HTTP 回归测试，覆盖请求字段、秒转毫秒、nested response、远程 host 拒绝与超出音频时长的 span。
-- 当前环境没有 Dart/Flutter SDK，未在本地运行 formatter、analyzer 或测试；必须等待此分支最新 GitHub Actions。
-- 真实歌曲还没有随仓库提供，未宣称声学精度或中英日实际覆盖率通过。
+- Flutter Quality Gate #267 通过：变更 Dart 文件格式检查、work-log lint（0 errors / 0 warnings）、`flutter analyze lib test`、`flutter test`（721 项通过）。
+- Root widget workflow #6 通过：`flutter analyze lib/main.dart test/widget_test.dart`、根组件测试、指定 mobile-root 测试及完整 `flutter test` 均通过。
+- 质量门记录：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806179
+- Root widget 记录：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40303806271
 
 ## 下一步
-1. CI 通过后，在重建且含 `POST /v1/align` 的 Windows/RTX 5080 runtime 上采集人工标注的中文、英文、日文样本。
-2. 运行 `dart run tool/forced_alignment_eval.dart <corpus.json> --output <report.json>`，检查各语言的文本覆盖率、P95 边界误差和失败样本。
-3. 在真实数据被人工审阅前，不设计自动应用词级时间戳的行为。
+如果播放实际失败，针对产生 `lavf: Failed to create file cache` 的那首具体音频复现并检查来源路径、格式和 MPV/FFmpeg 错误上下文；不要把它与已修复的 Flutter 路由构建断言混为一谈。
 
 ## 已知风险
-- 需要在本机以已知 loopback 端口启动重建后的 native sidecar；当前安装的旧 bundle 可能仍不包含 `POST /v1/align`。
-- reference spans 的时间必须由人工对同一份原始音频检查；工具不能判断人工标注是否正确。
-- endpoint 未提供校准置信度；本次 capture 也不会合成或推断 confidence。
+- `property not found _setProperty(osc, 1)` 由 media_kit/MPV 集成输出；应用代码没有设置 `osc`。
+- `lavf: Failed to create file cache` 是独立的 MPV/FFmpeg 源/缓存诊断。上游存在相关报告，但仅凭当前日志无法确定是否同因或是否导致播放失败：https://github.com/Pato05/just_audio_media_kit/issues/22。
+- 不降低全局错误日志级别，也不在没有复现的情况下调整缓存设置。
 
-最后更新：2026-10-26 16:50（Asia/Taipei）
+最后更新：2026-10-26 18:00（Asia/Taipei）

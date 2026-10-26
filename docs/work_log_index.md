@@ -20,6 +20,7 @@
 
 ## Recent work areas
 
+- **App startup/navigation:** route observer coalesces Navigator route changes and publishes the current route after the frame, avoiding a ValueNotifier notification during initial route restoration. Regression coverage: `current_route_observer_test.dart`.
 - **Lyrics ↔ local songs:** linking from transcription/import, self-healing resolver (item project ID → persisted `linkedProjectId` → same-audio-path fallback), auto-link on first lyric save, queue `hasLyrics` enrichment, and an app-shell availability sync that retracts or raises that flag from the resolved project. Key tests: `playback_lyrics_project_linker_test.dart`, `playback_lyrics_project_resolver_test.dart`, `playback_lyrics_availability_test.dart`, `file_project_repository_test.dart`, `local_media_metadata_playback_test.dart`, `now_playing_lyrics_project_action_test.dart`.
 - **ASR downloads/runtime:** the pinned Qwen Rust runtime's eager-attention Q/K/V transpose views must be made contiguous for CUDA matmul; both Windows CUDA and Intel Mac builds apply `tool/patches/qwen3-asr-eager-attention-contiguous.patch` and run the Rust regression. Fixed bundles ship as `asr-runtime-v2` with an explicit patch revision; the installer detects missing/stale runtime markers, stages/verifies a replacement before switching, preserves model weights, and invalidates the old Qwen readiness marker. Real Windows + RTX 5080 song self-check remains mandatory.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
@@ -35,6 +36,10 @@
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
 - The analyzer was reported clean (0 issues project-wide) and the full test suite passed (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.
 - The work-log harness lint (`dart tool/work_log.dart check`) runs in the universal GitHub Actions Flutter quality gate and the local quality-gate scripts.
+
+## Follow-up leads — media backend
+
+- `media_kit`/MPV terminal messages are independent of the route observer: the `osc` property warning originates in the integration; `lavf: Failed to create file cache` needs reproduction with the exact audio source and playback outcome before changing cache settings.
 
 ## Archive map
 

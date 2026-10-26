@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-26 14:30] Harden work-log lint and quality-gate feedback `ci: preflight work log before expensive checks` ([entry](log/entries/2026-10-26-1430-harden-work-log-ci.md))
 - [2026-10-26 14:00] Wire the visible ForcedAligner proofreading flow `feat: show per-line forced alignment evidence` ([entry](log/entries/2026-10-26-1400-wire-forced-align-proofread-ui.md))
 - [2026-10-25 21:55] Wire forced alignment into proofreading proposals `docs: log forced alignment proofreading service` ([entry](log/entries/2026-10-25-2155-wire-forced-align-proofread-service.md))
 - [2026-10-25 19:48] Add native arbitrary-text forced-alignment endpoint `docs: document native arbitrary-text forced alignment endpoint` ([entry](log/entries/2026-10-25-1948-add-native-forced-align-endpoint.md))
