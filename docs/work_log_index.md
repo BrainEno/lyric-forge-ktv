@@ -39,7 +39,7 @@
 
 ## Follow-up leads — media backend
 
-- `media_kit`/MPV terminal messages are independent of the route observer: the `osc` property warning originates in the integration; `lavf: Failed to create file cache` needs reproduction with the exact audio source and playback outcome before changing cache settings.
+- `media_kit`/MPV terminal messages are independent of the route observer. The audio-only `just_audio_media_kit` adapter now leaves the unsupported OSC runtime option unset. `lavf: Failed to create file cache` remains a separate diagnostic requiring reproduction with the exact audio source and playback outcome before changing cache settings.
 
 ## Archive map
 
