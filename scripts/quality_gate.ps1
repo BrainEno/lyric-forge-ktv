@@ -76,6 +76,14 @@ else {
     Write-Host '  targeted tests: none (full suite when tests run)'
 }
 
+# Fail fast on documentation-contract errors before running the analyzer and
+# full test suite, rather than discovering a stale work log after all tests.
+if ($mode -eq 'all' -and -not $SkipDocs) {
+    Invoke-CheckedStep -Name 'work log preflight (before analyze/tests)' -Command {
+        dart tool/work_log.dart check
+    }
+}
+
 if (-not $SkipPubGet) {
     Invoke-CheckedStep -Name 'flutter pub get' -Command { flutter pub get }
 }
@@ -102,15 +110,6 @@ if ($mode -eq 'all' -or $mode -eq 'test') {
         Invoke-CheckedStep -Name 'flutter test' -Command {
             flutter test --no-pub --reporter expanded
         }
-    }
-}
-
-# Lint the work-log harness (entry files, generated summary, index snapshot,
-# decisions and handoff). It is documentation-only, so it runs in the default
-# mode and can be skipped with -SkipDocs.
-if ($mode -eq 'all' -and -not $SkipDocs) {
-    Invoke-CheckedStep -Name 'work log lint' -Command {
-        dart tool/work_log.dart check
     }
 }
 
