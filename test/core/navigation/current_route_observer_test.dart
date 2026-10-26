@@ -37,9 +37,8 @@ void main() {
             children: [
               ValueListenableBuilder<String?>(
                 valueListenable: observer.routeName,
-                builder: (context, routeName, _) => Text(
-                  'Current route: ${routeName ?? '<pending>'}',
-                ),
+                builder: (context, routeName, _) =>
+                    Text('Current route: ${routeName ?? '<pending>'}'),
               ),
               Expanded(child: child ?? const SizedBox.shrink()),
             ],
