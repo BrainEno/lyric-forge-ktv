@@ -1,0 +1,35 @@
+name: Temporary work-log generator
+
+on:
+  push:
+    branches:
+      - fix/v2-lyric-audition-feedback-20261026
+
+permissions:
+  contents: write
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+      - name: Generate work-log artifacts
+        run: |
+          flutter pub get
+          dart run tool/work_log.dart write
+          if git diff --quiet -- docs/work_log.md docs/work_log_archive.md docs/work_log_index.md; then
+            echo "Work-log artifacts are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work_log.md docs/work_log_archive.md docs/work_log_index.md
+          git commit -m "docs: regenerate work-log artifacts"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
