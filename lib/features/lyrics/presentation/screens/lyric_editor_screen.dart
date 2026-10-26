@@ -928,6 +928,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         onPreviewDraftLine: project.audioAsset == null
             ? null
             : (index) => _previewLine(project, index),
+        onPreviewTimedLine: project.audioAsset == null
+            ? null
+            : (index, line, globalOffset) =>
+                  _previewTimedLine(project, index, line, globalOffset),
+        originalGlobalOffset: document.globalOffset ?? Duration.zero,
+        proposedGlobalOffset: proposalDocument.globalOffset ?? Duration.zero,
         onPreviewAlignmentToken: project.audioAsset == null
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),
@@ -1600,6 +1606,72 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
+  Future<String?> _previewTimedLine(
+    ProjectManifest project,
+    int index,
+    LyricLine line,
+    Duration globalOffset,
+  ) async {
+    final document = _editingDocument;
+    final audioAsset = project.audioAsset;
+    if (document == null ||
+        audioAsset == null ||
+        index < 0 ||
+        index >= document.lines.length) {
+      return '工程音频或原始歌词行不可用。';
+    }
+
+    final currentItem = _playbackSession.currentState.currentItem;
+    final audioDuration = currentItem?.projectId == project.id
+        ? (_audioService.currentState.duration ?? audioAsset.duration)
+        : audioAsset.duration;
+    final window = const LyricAuditionWindowService().calculate(
+      lineStart: line.startTime,
+      lineEnd: line.endTime,
+      globalOffset: globalOffset,
+      audioDuration: audioDuration,
+    );
+    if (!window.canAudition) {
+      return '该时间范围超出音频有效时长或时间区间无效，无法试听。';
+    }
+
+    final active = _activeLineAudition;
+    final playbackBelongsToProject =
+        _playbackSession.currentState.currentItem?.projectId == project.id;
+    final playback = _audioService.currentState;
+    final sameWindow = active != null &&
+        active.projectId == project.id &&
+        active.window.startAt == window.startAt &&
+        active.window.endAt == window.endAt;
+
+    try {
+      if (sameWindow && playbackBelongsToProject) {
+        if (playback.isPlaying) {
+          await _audioService.pause();
+          return '已暂停试听。';
+        }
+        final endAt = active.window.endAt;
+        final canResume = playback.position >= active.window.startAt &&
+            (endAt == null || playback.position < endAt);
+        if (canResume) {
+          await _audioService.play();
+          return null;
+        }
+      }
+
+      return await _startAuditionWindow(
+        project,
+        index,
+        document,
+        audioAsset,
+        window,
+        showError: false,
+      );
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
   Future<void> _previewLine(ProjectManifest project, int index) async {
     final document = _editingDocument;
     final audioAsset = project.audioAsset;
@@ -1709,13 +1781,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  Future<void> _startAuditionWindow(
+  Future<String?> _startAuditionWindow(
     ProjectManifest project,
     int index,
     LyricDocument document,
     AudioAsset audioAsset,
-    LyricAuditionWindow window,
-  ) async {
+    LyricAuditionWindow window, {
+    bool showError = true,
+  }) async {
     if (!window.canAudition) {
       final active = _activeLineAudition;
       final shouldPauseAudition =
@@ -1727,10 +1800,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         setState(() => _activeLineAudition = null);
       }
       if (shouldPauseAudition) unawaited(_audioService.pause());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(LyricReviewStrings.auditionInvalidStart)),
-      );
-      return;
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(LyricReviewStrings.auditionInvalidStart),
+          ),
+        );
+      }
+      return LyricReviewStrings.auditionInvalidStart;
     }
 
     final currentItem = _playbackSession.currentState.currentItem;
@@ -1760,7 +1837,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         lineId: document.lines[index].id,
         window: window,
       );
-      if (!mounted) return;
+      if (!mounted) return '校对页面已关闭。';
       setState(() {
         _activeLineAudition = audition;
         _selectedLineIndex = index;
@@ -1768,14 +1845,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!_audioService.currentState.isPlaying) {
         await _audioService.play();
       }
+      if (!_audioService.currentState.isPlaying) {
+        return '播放器未进入播放状态；请检查音频文件与播放器日志。';
+      }
+      return null;
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _activeLineAudition = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
-        ),
-      );
+      if (mounted) {
+        setState(() => _activeLineAudition = null);
+        if (showError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+            ),
+          );
+        }
+      }
+      return error.toString();
     }
   }
 
