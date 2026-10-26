@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-26 15:30] Normalize multilingual forced-alignment text matching `Normalize forced alignment text with shared Unicode tokenizer` ([entry](log/entries/2026-10-26-1530-normalize-forced-align-text.md))
 - [2026-10-26 15:12] Represent unavailable ForcedAligner confidence honestly `Stop inventing ForcedAligner token confidence` ([entry](log/entries/2026-10-26-1512-unknown-forced-align-confidence.md))
 - [2026-10-26 15:05] Expose token-level forced alignment audition in proofreading `feat: audition forced alignment word intervals` ([entry](log/entries/2026-10-26-1505-audition-forced-align-tokens.md))
 - [2026-10-26 14:30] Harden work-log lint and quality-gate feedback `ci: preflight work log before expensive checks` ([entry](log/entries/2026-10-26-1430-harden-work-log-ci.md))
