@@ -22,6 +22,7 @@
 - 发送音频路径、原始参考歌词文本与语言；读取 `items` 或 `results[0].items`，将秒级起止时间转换为整数毫秒。
 - 将实际 spans 与人工校验的参考 spans 包装为现有 schemaVersion 1 corpus；可创建新 corpus 或用 `--append-to` 追加样本。
 - 保留空 actual span 输出，输出前重新运行语料 schema、唯一 ID、顺序与音频时长验证；不覆盖已有 output，不发送到非 loopback host。
+- 写入前保护并发修改：新 corpus 使用 exclusive create；追加模式检测采集期间的语料变更，避免覆盖更新后的数据。
 - 更新中英日实测采集说明。
 
 ## 检查结果
