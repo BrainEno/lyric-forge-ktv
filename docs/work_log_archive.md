@@ -104,4 +104,7 @@
 - [2026-10-24 18:00] Validate ModelScope manifest as part of source preflight ([entry](log/entries/2026-10-24-1800-modelscope-source-preflight.md))
 - [2026-10-24 19:15] Exercise Qwen download HTTP fallback behavior ([entry](log/entries/2026-10-24-1915-exercise-qwen-download-http-behavior.md))
 - [2026-10-24 21:30] Verify all required ASR model sources before installation ([entry](log/entries/2026-10-24-2130-verify-asr-preflight-required-models.md))
+- [2026-10-24 22:30] Recover Qwen downloads when source metadata differs `fix: recover Qwen downloads when source metadata differs` ([entry](log/entries/2026-10-24-2230-fix-qwen-source-metadata-mismatch.md))
+- [2026-10-25 00:55] Clarify failed ASR progress and copy diagnostics `fix: clarify failed ASR progress and copy diagnostics` ([entry](log/entries/2026-10-25-0055-fix-asr-failure-progress-diagnostics.md))
+- [2026-10-25 02:25] Fix Qwen eager attention matmul layout ([entry](log/entries/2026-10-25-0225-fix-qwen-eager-attention-layout.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->

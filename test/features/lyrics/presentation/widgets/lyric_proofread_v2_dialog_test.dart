@@ -87,6 +87,35 @@ void main() {
     );
   });
 
+  testWidgets('ASR-first options can enable ForcedAligner evidence',
+      (tester) async {
+    ProofreadV2RunOptions? result;
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              result = await showProofreadV2RunOptionsDialog(context);
+            },
+            child: const Text('open strategy'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open strategy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ASR 优先'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('forced_alignment_review_toggle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+
+    expect(result, isNotNull);
+    expect(result!.useForcedAlignment, isTrue);
+  });
+
   testWidgets('review dialog stays within a compact phone viewport',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

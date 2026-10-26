@@ -6,6 +6,8 @@
 //   dart run tool/work_log.dart check   Lint the harness and exit non-zero on
 //                                        any violation.
 //   dart run tool/work_log.dart print   Print the generated summary.
+//   dart tool/work_log.dart new --timestamp 'YYYY-MM-DD HH:mm' --slug <ascii-slug> --title <title>
+//                                        Create an entry with every required field.
 //
 // The harness keeps one immutable file per completed task under
 // docs/log/entries/. This tool only reads those files and the navigation
@@ -367,7 +369,7 @@ class WorkLogHarness {
       problems.add(
         LogProblem(
           'summary-stale',
-          'docs/work_log.md is stale; run `dart run tool/work_log.dart write`.',
+          'Generated work-log files are out of sync. Do not edit docs/work_log.md by hand; run `dart tool/work_log.dart write`, review the generated diff, and commit the result.',
         ),
       );
     }
@@ -482,6 +484,84 @@ class WorkLogHarness {
     return problems;
   }
 
+  /// Creates a canonical entry skeleton so required fields aren't forgotten.
+  /// Call this only for a completed task, then fill in concrete evidence.
+  File createEntry({
+    required String timestamp,
+    required String slug,
+    required String title,
+  }) {
+    final match = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$',
+    ).firstMatch(timestamp);
+    if (match == null) {
+      throw ArgumentError.value(
+        timestamp,
+        'timestamp',
+        'Expected YYYY-MM-DD HH:mm.',
+      );
+    }
+    final year = int.parse(match.group(1)!);
+    final month = int.parse(match.group(2)!);
+    final day = int.parse(match.group(3)!);
+    final hour = int.parse(match.group(4)!);
+    final minute = int.parse(match.group(5)!);
+    final date = DateTime(year, month, day, hour, minute);
+    if (date.year != year ||
+        date.month != month ||
+        date.day != day ||
+        date.hour != hour ||
+        date.minute != minute) {
+      throw ArgumentError.value(timestamp, 'timestamp', 'Invalid date/time.');
+    }
+    if (!RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(slug)) {
+      throw ArgumentError.value(
+        slug,
+        'slug',
+        'Use lowercase ASCII words separated by single hyphens.',
+      );
+    }
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty ||
+        cleanTitle.contains('\n') ||
+        cleanTitle.contains('\r')) {
+      throw ArgumentError.value(
+        title,
+        'title',
+        'Must be a non-empty single line.',
+      );
+    }
+
+    if (readEntries().any((entry) => entry.timestamp == timestamp)) {
+      throw ArgumentError.value(
+        timestamp,
+        'timestamp',
+        'An entry already exists at this timestamp; choose a unique time.',
+      );
+    }
+    final fileName =
+        '${match.group(1)}-${match.group(2)}-${match.group(3)}-'
+        '${match.group(4)}${match.group(5)}-$slug.md';
+    final file = File('${entriesDir.path}$_sep$fileName');
+    if (file.existsSync()) {
+      throw FileSystemException('Entry already exists.', file.path);
+    }
+    entriesDir.createSync(recursive: true);
+    file.writeAsStringSync(
+      '# [$timestamp] $cleanTitle\n'
+      '\n'
+      '- Scope: TODO — describe the task purpose.\n'
+      '- Files: TODO — list changed files.\n'
+      '- Validation:\n'
+      '  - dart format ... => TODO\n'
+      '  - flutter analyze ... => TODO\n'
+      '  - flutter test ... => TODO\n'
+      '- Notes: TODO — record risks and unverified behavior.\n'
+      '- Commit: `TODO: replace with the actual English imperative subject`\n',
+    );
+    return file;
+  }
+
   List<String> _gitSubjects() {
     try {
       final result = Process.runSync(
@@ -524,7 +604,7 @@ int _run(List<String> args) {
   final harness = WorkLogHarness(root);
 
   if (args.isEmpty) {
-    stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
+    stdout.writeln('Usage: dart tool/work_log.dart <write|check|print|new>');
     return 2;
   }
 
@@ -540,6 +620,44 @@ int _run(List<String> args) {
     case 'print':
       stdout.write(harness.buildSummary(harness.readEntries()));
       return 0;
+    case 'new':
+      final options = <String, String>{};
+      for (var index = 1; index < args.length; index += 2) {
+        if (index + 1 >= args.length ||
+            !const {'--timestamp', '--slug', '--title'}.contains(args[index]) ||
+            options.containsKey(args[index])) {
+          stderr.writeln(
+            'Usage: dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>',
+          );
+          return 2;
+        }
+        options[args[index]] = args[index + 1];
+      }
+      final missingOptions = const ['--timestamp', '--slug', '--title']
+          .where((option) => !options.containsKey(option))
+          .toList();
+      if (missingOptions.isNotEmpty) {
+        stderr.writeln('Missing required options: ${missingOptions.join(', ')}');
+        return 2;
+      }
+      try {
+        final file = harness.createEntry(
+          timestamp: options['--timestamp']!,
+          slug: options['--slug']!,
+          title: options['--title']!,
+        );
+        stdout.writeln('Created entry template: ${file.path}');
+        stdout.writeln(
+          'Fill all TODOs, then run dart tool/work_log.dart write and dart tool/work_log.dart check.',
+        );
+        return 0;
+      } on ArgumentError catch (error) {
+        stderr.writeln('Invalid work-log entry options: $error');
+        return 2;
+      } on FileSystemException catch (error) {
+        stderr.writeln(error.message);
+        return 2;
+      }
     case 'check':
       final problems = harness.lint();
       final errors = problems.where((problem) => !problem.isWarning).toList();
@@ -567,7 +685,7 @@ int _run(List<String> args) {
       return 0;
     default:
       stdout.writeln('Unknown command: ${args.first}');
-      stdout.writeln('Usage: dart run tool/work_log.dart <write|check|print>');
+      stdout.writeln('Usage: dart tool/work_log.dart <write|check|print|new>');
       return 2;
   }
 }

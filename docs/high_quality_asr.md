@@ -78,6 +78,7 @@ The sidecar must provide:
 ```text
 GET /healthz
 POST /v1/transcribe
+POST /v1/align
 ```
 
 The currently evaluated reference implementation is the Rust/Candle
@@ -114,6 +115,8 @@ Each item must contain text/word plus start/end seconds.
 This contract currently matches the native Rust/Candle Qwen3-ASR sidecar that
 was evaluated during implementation. The contract is deliberately isolated so a
 future native backend can replace it without changing project workflow or UI.
+
+The lyric editor can optionally call `POST /v1/align` during ASR-first proofreading. It uses the same managed Qwen process, normalizes the selected vocal/original audio to 16 kHz mono WAV, and feeds validated spans into review-only token evidence. The review dialog reports incomplete coverage or runtime unavailability; neither outcome writes aligned timestamps into the source document. This option requires a runtime bundle built with the forced-alignment endpoint.
 
 ## Sidecar lifetime and GPU memory
 
@@ -236,7 +239,7 @@ LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-ali
 
 The repository now carries a patch against the pinned Rust/Candle source that adds `POST /v1/align` with explicit `audio`, `text`, and `language` inputs. It calls the loaded `Qwen3ForcedAligner.align` API directly and returns `results[0].items` with `text`, `start_time`, and `end_time` in seconds; it does not route through ASR `context`. The native build workflow applies the patch for Windows CUDA and macOS Intel bundles and runs an endpoint contract integration test. Until that native CI passes and a rebuilt bundle is installed, existing downloaded runtime binaries must still be treated as lacking this endpoint.
 
-The Dart HTTP adapter remains a separate explicit boundary and validates non-empty spans, timestamp ordering, and audio-duration bounds. Wiring this client into the proofread proposal flow and validating real song alignment quality remain subsequent tasks.
+The Dart HTTP adapter validates non-empty spans, timestamp ordering, and audio-duration bounds. `ForcedAlignmentProofreadService` now passes explicit audio path, reference text, and language to `/v1/align`, then maps the returned spans into the ASR-first proofread proposal as review-only tokens. Incomplete line coverage returns a warning; request/runtime errors fall back to the ordinary proposal with a visible `forcedAlignmentUnavailable` note. Neither success nor failure edits source lyric text or timestamps. The native endpoint contract CI has passed, but existing installed runtime bundles still need rebuilding before they expose `/v1/align`; real-song accuracy and Chinese/English/Japanese coverage remain unverified.
 
 
 ## Forced-alignment evidence in proofreading proposals

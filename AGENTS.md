@@ -60,6 +60,7 @@ Before finishing, state the plan and intended files; implement; run validation; 
 - `docs/work_log_index.md`: compact navigation, recent focus, important follow-up leads, and pointers.
 - `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md`: one immutable file per completed task. Full text of the entry lives here. Never moved, never deleted, never rewritten.
 - `docs/work_log.md`: **generated** active summary (newest 8 entries, one line each). Do not edit by hand; regenerate with `dart tool/work_log.dart write`.
+- Use `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>` to create new entry files. This template guarantees the required `Scope`, `Files`, `Validation`, `Notes`, and `Commit` fields; replace every TODO and never substitute a differently named field.
 - `docs/work_log_archive.md`: navigation for older entries, grouped by stage. Bodies stay in `docs/log/entries/`. The writer adds missing links to an auto-generated archive section so entries never become orphaned when they leave the active window.
 - `docs/decisions.md`: durable decisions that still bind future work.
 - `docs/handoff.md`: single-slot interruption handoff; overwrite it before ending a session.
@@ -93,7 +94,7 @@ Before finishing, state the plan and intended files; implement; run validation; 
 ### When a task is complete
 
 1. Run relevant checks and confirm no new blocking errors.
-2. Only after implementation and validation are complete and committable, write one entry file `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` (ASCII slug, timestamp = completion time) with this exact structure:
+2. Only after implementation and validation are complete and committable, create one entry with `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>` (use Asia/Taipei time and a unique timestamp), then replace every TODO. Do not hand-author the required-field skeleton. The output file `docs/log/entries/<yyyy-mm-dd-hhmm>-<slug>.md` must follow this exact structure:
 
    `# [YYYY-MM-DD HH:MM] Task Title`
 
@@ -107,7 +108,7 @@ Before finishing, state the plan and intended files; implement; run validation; 
 4. Optionally move auto-generated archive links into an existing stage section when that improves navigation. Do not delete entry files.
 5. Update the curated body of `docs/work_log_index.md` only if the stable current focus, a key decision, an important deferred risk, or navigation pointers materially change. The writer updates its snapshot date automatically. Keep it under ~80 lines; do not mirror every task.
 6. Record durable, still-binding decisions in `docs/decisions.md`; superseded ones are marked `已取代` instead of being deleted.
-7. Verify the log state: `dart tool/work_log.dart check` must pass (the same lint runs inside `scripts/quality_gate.ps1` / `scripts/quality_gate.sh`).
+7. Run `dart tool/work_log.dart write`, then `dart tool/work_log.dart check` and review `git diff -- docs/work_log.md docs/work_log_index.md docs/work_log_archive.md`. The quality gate runs this check before analysis/tests so documentation errors fail fast; a green gate still requires generated files to be committed and the check to pass.
 8. Do not log exploratory/incomplete work or claim tests passed when they were not run.
 
 ## Required commit-message style

@@ -1,46 +1,48 @@
 # Handoff
 
 ## 目标
-为歌词智能校对 V2 建立安全的任意文本 ForcedAligner 路径。HTTP 客户端合同和 ASR-first 复核提案中的 token 证据已合并；本轮为固定版本 Rust/Candle sidecar 添加独立的 `POST /v1/align` patch，并让原生 runtime 构建应用该 patch。
+修复反复出现的 work-log lint CI 失败，并改进生成日志和质量门的工作流程，不降低严格校验标准。
 
 ## Git 现场
-- 基线：main 已合并 PR #179、#180、#181、#182。
-- 当前分支：`feat/qwen-forced-align-http-endpoint-20261025`。
-- 固定 Qwen 源码 revision：`7984967e8701cc90bb17d06453901036e36ca578`。
-- 当前改动独立 PR；native build 和 Flutter CI 仍待远端验证。
-- 本执行环境没有本地仓库 checkout、Rust toolchain 或 Dart/Flutter SDK；不能声称本地编译/测试通过。
+- 仓库：`BrainEno/lyric-forge-ktv`。
+- 分支：`feat/forced-align-proofread-service-20261025`，改动仍在 PR #185。
+- 原失败 head：`920f7c2fe271d2d060983c67cd693395a059f0fe`；run `40278007215` 中 693 项测试全部通过，随后 work-log lint 报告新 entry 缺少 `Notes:` 字段与 `docs/work_log.md` 摘要过期。
+- 修复后的实现 head `e3cd4c0296a71a3721d8a2a2e0fa8a36d5691007` 已通过 Flutter Quality Gate。工作日志 entry 与生成导航的最终同步也已提交；合并前需确认当前最新 head 的 Actions 全部通过。
+- 当前执行环境没有本地 Dart/Flutter SDK；验证依赖 GitHub Actions。
 
 ## 已改文件
-- `tool/patches/qwen3-asr-forced-align-http-endpoint.patch`
-- `.github/workflows/build-asr-runtime.yml`
-- `docs/high_quality_asr.md`
-- `docs/high_quality_asr_windows_setup.md`
-- `docs/handoff.md`
+- `tool/work_log.dart`
+- `test/work_log_tool_test.dart`
+- `scripts/quality_gate.sh`
+- `scripts/quality_gate.ps1`
+- `.github/workflows/flutter-quality.yml`
+- `AGENTS.md`
+- `docs/work_log_index.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
-- `docs/log/entries/2026-10-25-1948-add-native-forced-align-endpoint.md`
+- `docs/handoff.md`
+- `docs/log/entries/2026-10-26-1400-wire-forced-align-proofread-ui.md`
+- `docs/log/entries/2026-10-26-1430-harden-work-log-ci.md`
 
 ## 本轮实现
-- 固定 Rust/Candle source patch 增加 `POST /v1/align`，请求为 `audio`、`text`、`language`；调用已加载的 `Qwen3ForcedAligner.align`，响应采用 `results[0].items`，每项提供 `text`、`start_time`、`end_time`（秒）。
-- 端点不把 `context` 当成目标歌词，不调用 `/v1/transcribe` 来伪装对齐。
-- 请求字段为空时返回 400；mock server integration test 覆盖三种必填字段校验和根端点列表。
-- Windows CUDA 与 macOS Intel 原生构建均应用 patch；macOS Intel CI 增加 endpoint contract integration test。runtime manifest patch revision 同步更新。
-- 原生 patch 输入位于 `tool/patches/**`，因此会触发昂贵的 native build；普通 Dart-only 修改仍不会触发该构建。
+- 根因不是 lint 把有效文档误判为错误：一份 entry 用了 `Safety:` 替代必需的 `Notes:`；摘要被手工编辑后额外多出空行，未与生成器输出一致。以前还发生过 archive/index/handoff 没有按生成规则同步的情况。
+- 新增 `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>`，生成包含全部必填字段的 entry 模板；校验日期、slug、单行标题并拒绝重复时间戳。
+- 增加模板与无效输入测试，并改善摘要漂移错误的修复指引。
+- Bash 与 PowerShell 质量门在完整分析/测试前执行 work-log preflight；GitHub Actions 也在 `flutter pub get` 前执行预检。严格 lint 仍是阻塞项，没有自动忽略或跳过不一致。
+- 修复原失败 entry 的字段，并同步生成摘要与归档链接。
 
 ## 检查结果
-- 已审查 pinned source：其 `Qwen3ForcedAligner` 暴露公开的 `align(audio, text, language)` API，原 server 已有单 worker 串行化模型访问机制。
-- 已静态核对 patch hunks 的上下文顺序与行数，但由于当前环境无法访问外部网络/运行 Rust，尚未在本地执行 `git apply --check` 或 cargo test。
-- 必须等待远端 CI 验证 patch 可应用、Windows/macOS runtime 可编译、endpoint integration test 通过，以及 Flutter/work-log 质量门通过。
+- 原失败 run `40278007215`：693 tests passed；失败仅发生在 work-log lint 的 `entry-fields` 和 `summary-stale`。
+- run `40279662513`，head `e3cd4c0`：Flutter Quality Gate 成功，包含 work-log preflight、分析、测试和最终 lint。
+- 本地 Dart/Flutter 命令未执行；最终日志同步后的 head 仍须通过当前最新 Actions。
 
 ## 下一步
-- 如 native patch 或编译失败，按 pinned revision 的真实编译日志修复，不要先把 endpoint 宣称为可用。
-- CI 通过后，将 `ForcedAlignmentHttpClient` 接入实际复核用例，明确提供音频路径、参考歌词和语言；继续复用已合并的 `ProofreadAlignmentSpan` 证据映射。
-- 再用中文、英文、日文歌曲验证覆盖率、时间单调性和音频边界；任何不完整/异常结果只能标记复核，不自动改写歌词。
-- 后续推进逐行试听、用户确认与撤销闭环。
+- 检查 PR #185 最新 head 的 Flutter Quality Gate 和所有相关契约工作流。
+- 如果失败，按最新日志修复，不绕过 work-log lint。
+- 后续新增 entry 时使用 `work_log.dart new`，完成后运行 `dart tool/work_log.dart write` 和 `dart tool/work_log.dart check`。
 
 ## 已知风险
-- 本轮端点 patch 尚未经过远端 native build 验证；旧 runtime bundle 不会自动包含新 endpoint。
-- 合同测试验证请求字段与 endpoint discovery，不代表真实模型对齐质量已通过。
-- 真实音频精度仍需在 Windows RTX 5080 目标机上验收。
+- 本地未安装 Dart/Flutter SDK，因此没有本地运行新增测试。
+- 工作流早期预检降低失败反馈时间，但不会替开发者自动提交生成文件；生成摘要/索引/归档漂移仍应修复并提交，不能静默放过。
 
-最后更新：2026-10-25 19:48（Asia/Taipei）
+最后更新：2026-10-26 14:30（Asia/Taipei）

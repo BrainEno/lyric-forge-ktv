@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-25. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-26. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -24,8 +24,8 @@
 - **ASR downloads/runtime:** the pinned Qwen Rust runtime's eager-attention Q/K/V transpose views must be made contiguous for CUDA matmul; both Windows CUDA and Intel Mac builds apply `tool/patches/qwen3-asr-eager-attention-contiguous.patch` and run the Rust regression. Fixed bundles ship as `asr-runtime-v2` with an explicit patch revision; the installer detects missing/stale runtime markers, stages/verifies a replacement before switching, preserves model weights, and invalidates the old Qwen readiness marker. Real Windows + RTX 5080 song self-check remains mandatory.
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
-- **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.
-- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and is now merged into `main`. PR #165 integrates the T8 strategy chooser, line-by-line proposal review, green-only batch apply, explicit amber acceptance, grey-row restore, line audition, and existing snapshot undo. Its code-only CI run passed all 649 tests; after documentation sync a final gate will rerun. ASR-first UI still lacks a second-transcript input, and real-device playback/responsive smoke checks remain manual.
+- **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. Work-log lint now runs as a preflight before expensive analysis/tests to fail quickly. Use `dart tool/work_log.dart new --timestamp "YYYY-MM-DD HH:mm" --slug <ascii-slug> --title <title>` for complete entry scaffolds, then `write` and `check`; required branch protection still needs to be enabled in repository Settings.
+- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and is merged. PR #165 integrates strategy selection, line-by-line proposal review, safe batch apply, amber acceptance, restore, audition and undo. The forced-alignment client, evidence mapping, and native `/v1/align` endpoint are merged; `ForcedAlignmentProofreadService` is now wired to the ASR-first review dialog through the managed Qwen runtime. The opt-in path normalizes audio, checks runtime readiness, and surfaces incomplete coverage/runtime fallback warnings without applying timestamps. Next: validate row-level evidence display and real Chinese/English/Japanese audio. Existing runtime bundles must be rebuilt before the endpoint is available.
 
 ## Follow-up leads — re-check before acting
 

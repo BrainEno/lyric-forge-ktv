@@ -1,0 +1,7 @@
+# [2026-10-26 14:30] Harden work-log lint and quality-gate feedback
+
+- Scope: Reduce recurring work-log CI failures by adding a canonical entry-template command, preventing duplicate timestamps, improving generated-summary drift diagnostics, and running work-log checks before expensive validation.
+- Files: tool/work_log.dart, test/work_log_tool_test.dart, scripts/quality_gate.sh, scripts/quality_gate.ps1, .github/workflows/flutter-quality.yml, AGENTS.md, docs/work_log_index.md, docs/work_log.md, docs/work_log_archive.md, docs/handoff.md, docs/log/entries/2026-10-26-1400-wire-forced-align-proofread-ui.md, this entry.
+- Validation: The original failing Flutter Quality Gate run 40278007215 passed all 693 tests before work-log lint failed on a missing Notes field and stale generated summary. The repaired implementation head e3cd4c0296a71a3721d8a2a2e0fa8a36d5691007 passed the full Flutter Quality Gate, including analysis, tests, and work-log preflight. The log/summary synchronization on the final head is checked by the follow-up PR workflow.
+- Notes: The lint rules were behaving as designed; the repeat pattern came from manually authored entry variants and edits to generated navigation files, compounded by running lint after the full test suite. The new-entry command scaffolds all required fields; CI now checks work-log consistency before package resolution, while both quality-gate scripts also preflight when invoked directly. Strict consistency checks remain blocking and are not auto-bypassed.
+- Commit: `ci: preflight work log before expensive checks`

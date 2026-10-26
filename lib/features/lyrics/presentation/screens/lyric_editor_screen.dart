@@ -15,6 +15,8 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../../transcription/data/services/forced_alignment_proofread_service.dart';
+import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
@@ -772,12 +774,77 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             '参考输入包含 ${result.warnings.length} 条冲突或警告，相关行会要求复核。',
         ].join(' ');
       } else {
-        final result = const AsrFirstPipeline().build(
-          draft: document,
-          secondary: secondaryAsr,
-          protectedDraftIndices: protectedDraftIndices,
-          audioDuration: project.audioAsset?.duration,
-        );
+        ForcedAlignmentProofreadOutcome? alignmentOutcome;
+        late final ProofreadResult result;
+        if (options.useForcedAlignment) {
+          final audioAsset = project.audioAsset;
+          final audioDuration = audioAsset?.duration;
+          if (audioAsset == null || audioDuration == null ||
+              audioDuration <= Duration.zero) {
+            throw StateError(
+              'ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。',
+            );
+          }
+          final locator = ServiceLocator();
+          final language = _forcedAlignmentLanguage(
+            document.language,
+          );
+          final alignmentService = ForcedAlignmentProofreadService(
+            runner: ({
+              required String audioPath,
+              required String text,
+              required String language,
+              required Duration audioDuration,
+            }) async {
+              final savedConfig = await locator.transcriptionSettingsStore.load();
+              if (savedConfig == null) {
+                throw Exception('尚未配置本地转写运行时。');
+              }
+              final resolved = await locator.transcriptionProfileResolver
+                  .resolve(savedConfig);
+              final runtimeStatus = await locator.asrRuntimeManager.inspect(
+                resolved.config,
+              );
+              final runtimeReady = runtimeStatus.components.any(
+                    (item) => item.component == AsrRuntimeComponent.qwenRuntime &&
+                        item.state == AsrRuntimeComponentState.ready,
+                  ) &&
+                  runtimeStatus.components.any(
+                    (item) => item.component == AsrRuntimeComponent.qwenAligner &&
+                        item.state == AsrRuntimeComponentState.ready,
+                  );
+              if (!runtimeReady) {
+                throw Exception(
+                  'Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。',
+                );
+              }
+              return locator.qwenNativeTranscriptionService.alignReference(
+                audioPath: audioPath,
+                text: text,
+                language: language,
+                audioDuration: audioDuration,
+                config: resolved.config,
+              );
+            },
+          );
+          alignmentOutcome = await alignmentService.buildReview(
+            draft: document,
+            audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
+            referenceText: document.lines.map((line) => line.text).join('\n'),
+            language: language,
+            audioDuration: audioDuration,
+            secondary: secondaryAsr,
+            protectedDraftIndices: protectedDraftIndices,
+          );
+          result = alignmentOutcome.result;
+        } else {
+          result = const AsrFirstPipeline().build(
+            draft: document,
+            secondary: secondaryAsr,
+            protectedDraftIndices: protectedDraftIndices,
+            audioDuration: project.audioAsset?.duration,
+          );
+        }
         proposalDocument = result.proposedDocument;
         items = [
           for (var index = 0; index < result.lines.length; index++)
@@ -794,7 +861,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   ProofreadVerdict.green => LyricProofreadReviewVerdict.green,
                   ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
                 },
-                reasonLabel: row.reasons.map(_proofreadV2ReasonLabel).join('、'),
+                reasonLabel: [
+                  ...row.reasons.map(_proofreadV2ReasonLabel),
+                  if (options.useForcedAlignment && row.tokens.isNotEmpty)
+                    '词级对齐 ${row.tokens.length} 词',
+                  if (options.useForcedAlignment && row.tokens.isEmpty)
+                    '缺少词级对齐证据',
+                ].join('、'),
               );
             }(),
         ];
@@ -813,6 +886,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               ? '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。'
               : '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
+          if (alignmentOutcome != null && alignmentOutcome.warning != null)
+            alignmentOutcome.warning!,
+          if (alignmentOutcome?.alignmentAvailable == true)
+            'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
         ].join(' ');
       }
 
@@ -1007,6 +1084,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       }
     }
     return true;
+  }
+
+  String _forcedAlignmentLanguage(String language) {
+    final normalized = language.trim().toLowerCase();
+    if (normalized.contains('japanese') || normalized.contains('日本') ||
+        normalized.contains('日文') || normalized == 'ja' ||
+        normalized.startsWith('ja-')) {
+      return 'Japanese';
+    }
+    if (normalized.contains('chinese') || normalized.contains('中文') ||
+        normalized.contains('汉语') || normalized == 'zh' ||
+        normalized.startsWith('zh-')) {
+      return 'Chinese';
+    }
+    if (normalized.contains('english') || normalized.contains('英文') ||
+        normalized == 'en' || normalized.startsWith('en-')) {
+      return 'English';
+    }
+    throw StateError(
+      '无法从工程语言“$language”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。',
+    );
   }
 
   String _proofreadV2StrategyLabel(LyricSourceStrategy strategy) {
