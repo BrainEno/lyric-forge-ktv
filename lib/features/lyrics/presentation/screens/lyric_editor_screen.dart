@@ -830,7 +830,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           alignmentOutcome = await alignmentService.buildReview(
             draft: document,
             audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
-            referenceText: document.lines.map((line) => line.text).join('\\n'),
+            referenceText: document.lines.map((line) => line.text).join('\n'),
             language: language,
             audioDuration: audioDuration,
             secondary: secondaryAsr,
