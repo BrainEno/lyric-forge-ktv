@@ -425,8 +425,7 @@ void main() {
     () async {
       final temp = await Directory.systemTemp.createTemp('alignment-append-');
       final audio = File('${temp.path}/song.wav')..writeAsStringSync('audio');
-      final lyrics = File('${temp.path}/lyrics.txt')
-        ..writeAsStringSync('new');
+      final lyrics = File('${temp.path}/lyrics.txt')..writeAsStringSync('new');
       final reference = File('${temp.path}/reference.json')
         ..writeAsStringSync(
           jsonEncode([
@@ -508,5 +507,4 @@ void main() {
       }
     },
   );
-
 }
