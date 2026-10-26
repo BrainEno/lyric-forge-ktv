@@ -7,6 +7,7 @@
 - 仓库：`BrainEno/lyric-forge-ktv`。
 - 基线：PR #186 已合并，main merge commit `9933a36fdfea662423a404fa8f1ac5ff0f519f24`。
 - 开发分支：`fix/unknown-forced-align-confidence-20261026`。
+- PR #187：<https://github.com/BrainEno/lyric-forge-ktv/pull/187>；合并前必须核对该 PR 最新 head 的 Flutter Quality Gate。
 - 本轮将 `TimedLyricToken.confidence` 改为可空；对齐端未提供校准置信度时使用 `null`，不再人为填入 60。
 - 本执行环境没有本地 Dart/Flutter SDK；分析和测试需以 GitHub Actions 最新 head 的结果为准。
 
