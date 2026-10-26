@@ -83,7 +83,7 @@ class _AsrEndToEndSmokeTestCardState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'ASR 端到端自检通过：生成 ${result.lyricLineCount} 行歌词',
+            'ASR 运行链路完成：生成 ${result.lyricLineCount} 行歌词。此自检不评估歌词完整率或识别准确率。',
           ),
         ),
       );
@@ -146,7 +146,7 @@ class _AsrEndToEndSmokeTestCardState
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '选择一首本机真实音频。应用会检查并自动准备 runtime / 模型，创建工程，执行生产 ASR，验证非空歌词与转写元数据，然后自动打开歌词校对页。',
+                      '选择一首本机真实音频。应用会检查并自动准备 runtime / 模型，创建工程，执行生产 ASR，验证已生成可编辑歌词，然后自动打开歌词校对页。此自检只确认运行链路能工作，不评估漏词、错词或时间戳准确率；请在编辑器中人工检查。',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -166,7 +166,7 @@ class _AsrEndToEndSmokeTestCardState
             ),
             child: Text(
               _desktopSupported
-                  ? '首次运行可能需要下载数 GB 的识别 runtime 与模型。自检会保留生成的“· ASR 自检”工程，便于你直接检查真实歌词和时间轴。'
+                  ? '首次运行可能需要下载数 GB 的识别 runtime 与模型。自检会保留生成的“· ASR 自检”工程，便于你直接检查歌词和时间轴；显示运行链路完成不代表识别完整或准确。'
                   : '真实 ASR 自检目前只在 Windows / macOS 桌面端开放。',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
@@ -207,7 +207,7 @@ class _AsrEndToEndSmokeTestCardState
                 border: Border.all(color: AppColors.success.withAlpha(90)),
               ),
               child: Text(
-                '上次自检通过：${result.projectName} · ${result.lyricLineCount} 行歌词'
+                '上次运行链路完成（非识别质量评分）：${result.projectName} · ${result.lyricLineCount} 行歌词'
                 '${result.environmentInstalled ? ' · 本次自动准备了识别环境' : ' · 使用已有识别环境'}',
               ),
             ),
