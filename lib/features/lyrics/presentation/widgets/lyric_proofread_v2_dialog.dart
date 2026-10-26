@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
 
 class ProofreadV2RunOptions {
@@ -178,6 +179,7 @@ class LyricProofreadV2ReviewItem {
   final LyricLine? originalLine;
   final LyricProofreadReviewVerdict verdict;
   final String reasonLabel;
+  final List<TimedLyricToken> alignmentTokens;
 
   const LyricProofreadV2ReviewItem({
     required this.proposalIndex,
@@ -186,6 +188,7 @@ class LyricProofreadV2ReviewItem {
     required this.originalLine,
     required this.verdict,
     required this.reasonLabel,
+    this.alignmentTokens = const [],
   });
 
   bool get hasChange {
@@ -229,6 +232,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   required List<LyricProofreadV2ReviewItem> items,
   required List<LyricProofreadV2DroppedItem> droppedItems,
   required ValueChanged<int>? onPreviewDraftLine,
+  void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken,
 }) {
   return showDialog<LyricProofreadV2Selection>(
     context: context,
@@ -238,6 +242,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
       items: items,
       droppedItems: droppedItems,
       onPreviewDraftLine: onPreviewDraftLine,
+      onPreviewAlignmentToken: onPreviewAlignmentToken,
     ),
   );
 }
@@ -248,6 +253,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final List<LyricProofreadV2ReviewItem> items;
   final List<LyricProofreadV2DroppedItem> droppedItems;
   final ValueChanged<int>? onPreviewDraftLine;
+  final void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken;
 
   const _LyricProofreadV2ReviewDialog({
     required this.summary,
@@ -255,6 +261,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
     required this.items,
     required this.droppedItems,
     required this.onPreviewDraftLine,
+    required this.onPreviewAlignmentToken,
   });
 
   @override
@@ -497,6 +504,55 @@ class _LyricProofreadV2ReviewDialogState
                 child: Text(
                   '依据：${item.reasonLabel}',
                   style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (item.alignmentTokens.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: ExpansionTile(
+                  key: ValueKey('alignment_tokens_${item.proposalIndex}'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
+                  title: Text(
+                    '词级时间证据（${item.alignmentTokens.length} 词）',
+                  ),
+                  subtitle: const Text('可逐词试听；对齐时间仅供复核，不会自动应用。'),
+                  children: [
+                    for (var tokenIndex = 0;
+                        tokenIndex < item.alignmentTokens.length;
+                        tokenIndex++)
+                      () {
+                        final token = item.alignmentTokens[tokenIndex];
+                        final canPreview = item.sourceIndex != null &&
+                            widget.onPreviewAlignmentToken != null;
+                        return ListTile(
+                          key: ValueKey(
+                            'alignment_token_row_${item.proposalIndex}_$tokenIndex',
+                          ),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(token.text),
+                          subtitle: Text(
+                            '${_formatTime(token.interval.start)} – '
+                            '${_formatTime(token.interval.end)} · '
+                            '置信参考 ${token.confidence}%',
+                          ),
+                          trailing: IconButton(
+                            key: ValueKey(
+                              'alignment_token_${item.proposalIndex}_$tokenIndex',
+                            ),
+                            tooltip: '试听词语：${token.text}',
+                            onPressed: canPreview
+                                ? () => widget.onPreviewAlignmentToken!(
+                                    item.sourceIndex!,
+                                    token,
+                                  )
+                                : null,
+                            icon: const Icon(Icons.play_circle_outline_rounded),
+                          ),
+                        );
+                      }(),
+                  ],
                 ),
               ),
             if (item.verdict == LyricProofreadReviewVerdict.amber)
