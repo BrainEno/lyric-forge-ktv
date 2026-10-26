@@ -732,21 +732,27 @@ class HighQualityTranscriptionService implements TranscriptionService {
     if (primaryText.isEmpty || secondaryText.isEmpty) return false;
     if (primaryText == secondaryText) return true;
 
-    // Line segmentation varies by language and engine, so accept meaningful
-    // contiguous fragments (including a phrase split into multiple rows). Do
-    // not use tiny substring matches such as "oh" inside a much longer line.
-    final shorterLength = primaryText.length < secondaryText.length
-        ? primaryText.length
-        : secondaryText.length;
-    final longerLength = primaryText.length > secondaryText.length
-        ? primaryText.length
-        : secondaryText.length;
-    final containsText =
-        primaryText.contains(secondaryText) ||
-        secondaryText.contains(primaryText);
-    if (containsText &&
-        (shorterLength >= 4 || shorterLength / longerLength >= 0.35)) {
-      return true;
+    final primaryContainsSecondary = primaryText.contains(secondaryText);
+    final secondaryContainsPrimary = secondaryText.contains(primaryText);
+    if (primaryContainsSecondary || secondaryContainsPrimary) {
+      // A text fragment is not enough to prove correspondence: a repeated
+      // backing vocal can contain words from a long lead-vocal segment. Its
+      // timestamps must line up with that fragment's likely position, unless
+      // it touches the same segment boundary.
+      final fullText = primaryContainsSecondary ? primaryText : secondaryText;
+      final fragmentText = primaryContainsSecondary
+          ? secondaryText
+          : primaryText;
+      final fullLine = primaryContainsSecondary ? primaryLine : secondaryLine;
+      final fragmentLine = primaryContainsSecondary
+          ? secondaryLine
+          : primaryLine;
+      return _containedFragmentMatchesTimeline(
+        fullText: fullText,
+        fragmentText: fragmentText,
+        fullLine: fullLine,
+        fragmentLine: fragmentLine,
+      );
     }
 
     final primaryDuration =
@@ -765,28 +771,81 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final shorterDuration = primaryDuration < secondaryDuration
         ? primaryDuration
         : secondaryDuration;
+    final longerDuration = primaryDuration > secondaryDuration
+        ? primaryDuration
+        : secondaryDuration;
     final overlapRatio = overlapMs <= 0 ? 0.0 : overlapMs / shorterDuration;
     final similarity = _textSimilarity(primaryLine.text, secondaryLine.text);
 
-    // Phonetic/lexical disagreements can be the same timed line. Keep those
-    // paired for the alternative-text review rather than adding a duplicate.
-    if (similarity >= 0.55 && overlapRatio >= 0.65) return true;
+    // Lexically similar alternatives must also describe comparable time spans;
+    // a short nested line inside a long segment is not enough.
+    if (similarity >= 0.55 &&
+        overlapRatio >= 0.65 &&
+        longerDuration / shorterDuration <= 2.0) {
+      return true;
+    }
 
-    // A strong boundary match is also enough to pair an entirely different
-    // hypothesis as an alternative, but merely sitting inside another line
-    // is not: that is exactly where a missed backing/ad-lib line can hide.
+    // A strong boundary match is enough to pair different hypotheses for the
+    // same segment, but merely sitting inside another line is not.
     final startDelta = (primaryLine.startTime - secondaryLine.startTime)
         .inMilliseconds
         .abs();
     final endDelta = (primaryLine.endTime - secondaryLine.endTime)
         .inMilliseconds
         .abs();
-    final longerDuration = primaryDuration > secondaryDuration
-        ? primaryDuration
-        : secondaryDuration;
     return startDelta <= 350 &&
         endDelta <= 350 &&
         longerDuration / shorterDuration <= 2.0;
+  }
+
+  bool _containedFragmentMatchesTimeline({
+    required String fullText,
+    required String fragmentText,
+    required LyricLine fullLine,
+    required LyricLine fragmentLine,
+  }) {
+    final fullDuration =
+        (fullLine.endTime - fullLine.startTime).inMilliseconds;
+    if (fullDuration <= 0 || fullText.isEmpty) return false;
+
+    final fragmentStart = fullText.indexOf(fragmentText);
+    if (fragmentStart < 0) return false;
+    final fragmentEnd = fragmentStart + fragmentText.length;
+    final isPrefix = fragmentStart / fullText.length <= 0.10;
+    final trailingLength = fullText.length - fragmentEnd;
+    final isSuffix = trailingLength / fullText.length <= 0.10;
+    final startDelta = (fragmentLine.startTime - fullLine.startTime)
+        .inMilliseconds
+        .abs();
+    final endDelta = (fragmentLine.endTime - fullLine.endTime)
+        .inMilliseconds
+        .abs();
+
+    if (isPrefix && startDelta <= 450) return true;
+    if (isSuffix && endDelta <= 450) return true;
+
+    // For an internal fragment, compare its observed boundaries with a loose
+    // text-position estimate. The tolerance accounts for uneven singing pace;
+    // when timing does not fit, retain the fragment as a review-only extra row.
+    final expectedStartMs = (fullDuration * fragmentStart / fullText.length)
+        .round();
+    final expectedEndMs = (fullDuration * fragmentEnd / fullText.length)
+        .round();
+    final proportionalTolerance = (fullDuration * 0.18).round();
+    final toleranceMs = proportionalTolerance > 350
+        ? proportionalTolerance
+        : 350;
+    final expectedStart = fullLine.startTime +
+        Duration(milliseconds: expectedStartMs);
+    final expectedEnd =
+        fullLine.startTime + Duration(milliseconds: expectedEndMs);
+    final positionedStartDelta =
+        (fragmentLine.startTime - expectedStart).inMilliseconds.abs();
+    final positionedEndDelta =
+        (fragmentLine.endTime - expectedEnd).inMilliseconds.abs();
+
+    return positionedStartDelta <= toleranceMs &&
+        positionedEndDelta <= toleranceMs;
   }
 
   /// Retain useful lines found only by the secondary recognizer instead of
