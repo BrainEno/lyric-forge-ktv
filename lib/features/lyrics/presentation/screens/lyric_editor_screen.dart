@@ -358,16 +358,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         album: project.album,
       );
       if (!mounted || path == null) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('LRC 歌词已导出：$path')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('LRC 歌词已导出：$path')));
     } on LyricExportException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('导出歌词失败：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('导出歌词失败：$error')));
     }
   }
 
@@ -390,8 +393,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       referenceLines: input.lines,
     );
     if (alignment.entries.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
       return;
     }
 
@@ -561,8 +565,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         audioDuration: project.audioAsset?.duration,
       );
       if (items.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
         return;
       }
       final selected = await showReferenceProofreadTimingReviewDialog(
@@ -598,8 +603,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         )
         .suggestions;
     if (suggestions.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
       return;
     }
     final selected = await showReferenceProofreadReviewDialog(
@@ -638,8 +644,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       try {
         parsed = _referenceParser.parsePasted(secondaryText);
       } catch (error) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
         return;
       }
       if (!parsed.timed ||
@@ -975,8 +982,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _commitProofreadV2Document(document, after);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$error')));
     }
   }
 
@@ -1467,8 +1475,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       await _playbackSession.seek(position);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('无法跳转试听：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法跳转试听：$error')));
     }
   }
 
@@ -1891,8 +1900,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       await _playbackSession.togglePlayPause();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('无法控制试听：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法控制试听：$error')));
     }
   }
 
@@ -2302,8 +2312,9 @@ class _LyricEditorContent extends StatelessWidget {
               project.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),
@@ -2662,8 +2673,9 @@ class _EditorToolbar extends StatelessWidget {
             if (!playbackBelongsToProject)
               Text(
                 '尚未开始试听',
-                style: Theme.of(context).textTheme.labelMedium
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             if (!spec.isCompactOrMedium)
               Tooltip(
@@ -2761,8 +2773,9 @@ class _EditorToolbar extends StatelessWidget {
               ),
             Text(
               '全局偏移',
-              style: Theme.of(context).textTheme.labelMedium
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
             ),
             _OffsetButton(
               label: '-100ms',
@@ -3354,8 +3367,9 @@ class _LineInspectorState extends State<_LineInspector> {
                   children: [
                     Text(
                       '第 ${widget.index + 1} 行',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -3523,8 +3537,9 @@ class _TimingEditor extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: Theme.of(context).textTheme.labelMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               Text(
@@ -3612,8 +3627,9 @@ class _AlternativeCandidateCard extends StatelessWidget {
         children: [
           Text(
             '$alternativeEngine 备选',
-            style: Theme.of(context).textTheme.labelMedium
-                ?.copyWith(color: AppColors.info),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.info),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(alternativeText),
@@ -3623,8 +3639,9 @@ class _AlternativeCandidateCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '当前结果来自 $primaryEngine',
-                  style: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
               TextButton(onPressed: onApply, child: const Text('采用备选')),
@@ -3659,8 +3676,9 @@ class _NoSelectionInspector extends StatelessWidget {
           Text(
             '文本、双引擎备选和时间轴微调都会集中显示在这里。',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -3705,8 +3723,9 @@ class _BottomBar extends StatelessWidget {
                   : '显示 $visibleLines / $totalLines 行',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ),
           if (hasChanges && !spec.isCompact) ...[
@@ -3763,15 +3782,17 @@ class _EmptyLyricsState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               '这个工程还没有歌词',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               '可以先返回工程页运行自动识别，也可以从这里手动建立第一行歌词。',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.icon(
@@ -3814,8 +3835,9 @@ class _SmartReviewEmptyState extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Text(
                 completed ? '本轮智能复核已完成' : '暂未发现明显风险行',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -3823,8 +3845,9 @@ class _SmartReviewEmptyState extends StatelessWidget {
                 completed
                     ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入复核队列。请保存以保留确认记录。'
                     : '当前没有达到智能复核阈值的明显问题。自动评分不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -3889,8 +3912,9 @@ class _MetricPill extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: color),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: color),
           ),
         ],
       ),
@@ -3924,8 +3948,9 @@ class _TinyBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(color: color, fontSize: 10),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: color, fontSize: 10),
       ),
     );
   }
