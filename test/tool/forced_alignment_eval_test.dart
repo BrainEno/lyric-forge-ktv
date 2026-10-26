@@ -193,54 +193,54 @@ void main() {
   test(
     'captures local alignment spans as millisecond corpus entries',
     () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    Map<String, dynamic>? receivedPayload;
-    final subscription = server.listen((request) async {
-      receivedPayload = jsonDecode(
-        await utf8.decoder.bind(request).join(),
-      ) as Map<String, dynamic>;
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode({
-        'results': [
-          {
-            'items': [
-              {'text': 'hello', 'start_time': 0.101, 'end_time': 0.2795},
-            ],
-          },
-        ],
-      }));
-      await request.response.close();
-    });
-    try {
-      final sample = await captureForcedAlignmentSample(
-        endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
-        audioPath: 'song.wav',
-        lyricText: 'hello world',
-        language: 'English',
-        sampleId: 'en-01',
-        referenceSpansJson: jsonEncode([
-          {'text': 'hello', 'startMs': 100, 'endMs': 300},
-        ]),
-        audioDurationMs: 2000,
-      );
-      expect(receivedPayload?['audio'], 'song.wav');
-      expect(receivedPayload?['text'], 'hello world');
-      expect(receivedPayload?['language'], 'English');
-      expect(sample['id'], 'en-01');
-      expect((sample['actualSpans'] as List).single, {
-        'text': 'hello',
-        'startMs': 101,
-        'endMs': 280,
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      Map<String, dynamic>? receivedPayload;
+      final subscription = server.listen((request) async {
+        receivedPayload = jsonDecode(
+          await utf8.decoder.bind(request).join(),
+        ) as Map<String, dynamic>;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({
+          'results': [
+            {
+              'items': [
+                {'text': 'hello', 'start_time': 0.101, 'end_time': 0.2795},
+              ],
+            },
+          ],
+        }));
+        await request.response.close();
       });
-      expect((sample['referenceSpans'] as List).single, {
-        'text': 'hello',
-        'startMs': 100,
-        'endMs': 300,
-      });
-    } finally {
-      await subscription.cancel();
-      await server.close(force: true);
-    }
+      try {
+        final sample = await captureForcedAlignmentSample(
+          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+          audioPath: 'song.wav',
+          lyricText: 'hello world',
+          language: 'English',
+          sampleId: 'en-01',
+          referenceSpansJson: jsonEncode([
+            {'text': 'hello', 'startMs': 100, 'endMs': 300},
+          ]),
+          audioDurationMs: 2000,
+        );
+        expect(receivedPayload?['audio'], 'song.wav');
+        expect(receivedPayload?['text'], 'hello world');
+        expect(receivedPayload?['language'], 'English');
+        expect(sample['id'], 'en-01');
+        expect((sample['actualSpans'] as List).single, {
+          'text': 'hello',
+          'startMs': 101,
+          'endMs': 280,
+        });
+        expect((sample['referenceSpans'] as List).single, {
+          'text': 'hello',
+          'startMs': 100,
+          'endMs': 300,
+        });
+      } finally {
+        await subscription.cancel();
+        await server.close(force: true);
+      }
     },
   );
 
@@ -264,70 +264,72 @@ void main() {
   test(
     'rejects captured spans that exceed the annotated audio duration',
     () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final subscription = server.listen((request) async {
-      await utf8.decoder.bind(request).join();
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode({
-        'items': [
-          {'text': 'too late', 'start_time': 1.8, 'end_time': 2.1},
-        ],
-      }));
-      await request.response.close();
-    });
-    try {
-      await expectLater(
-        captureForcedAlignmentSample(
-          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
-          audioPath: 'song.wav',
-          lyricText: 'too late',
-          language: 'English',
-          sampleId: 'en-overrun',
-          referenceSpansJson: jsonEncode([
-            {'text': 'too late', 'startMs': 1700, 'endMs': 1900},
-          ]),
-          audioDurationMs: 2000,
-        ),
-        throwsFormatException,
-      );
-    } finally {
-      await subscription.cancel();
-      await server.close(force: true);
-    }
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = server.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({
+          'items': [
+            {'text': 'too late', 'start_time': 1.8, 'end_time': 2.1},
+          ],
+        }));
+        await request.response.close();
+      });
+      try {
+        await expectLater(
+          captureForcedAlignmentSample(
+            endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+            audioPath: 'song.wav',
+            lyricText: 'too late',
+            language: 'English',
+            sampleId: 'en-overrun',
+            referenceSpansJson: jsonEncode([
+              {'text': 'too late', 'startMs': 1700, 'endMs': 1900},
+            ]),
+            audioDurationMs: 2000,
+          ),
+          throwsFormatException,
+        );
+      } finally {
+        await subscription.cancel();
+        await server.close(force: true);
+      }
     },
   );
 
-
-  test('does not follow redirects away from the local alignment endpoint', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final subscription = server.listen((request) async {
-      await utf8.decoder.bind(request).join();
-      request.response.statusCode = HttpStatus.found;
-      request.response.headers.set(
-        HttpHeaders.locationHeader,
-        'https://example.com/v1/align',
-      );
-      await request.response.close();
-    });
-    try {
-      await expectLater(
-        captureForcedAlignmentSample(
-          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
-          audioPath: 'song.wav',
-          lyricText: 'private lyric',
-          language: 'English',
-          sampleId: 'en-redirect',
-          referenceSpansJson: jsonEncode([
-            {'text': 'lyric', 'startMs': 100, 'endMs': 200},
-          ]),
-          audioDurationMs: 1000,
-        ),
-        throwsFormatException,
-      );
-    } finally {
-      await subscription.cancel();
-      await server.close(force: true);
-    }
-  });
+  test(
+    'does not follow redirects away from the local alignment endpoint',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = server.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response.statusCode = HttpStatus.found;
+        request.response.headers.set(
+          HttpHeaders.locationHeader,
+          'https://example.com/v1/align',
+        );
+        await request.response.close();
+      });
+      try {
+        await expectLater(
+          captureForcedAlignmentSample(
+            endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+            audioPath: 'song.wav',
+            lyricText: 'private lyric',
+            language: 'English',
+            sampleId: 'en-redirect',
+            referenceSpansJson: jsonEncode([
+              {'text': 'lyric', 'startMs': 100, 'endMs': 200},
+            ]),
+            audioDurationMs: 1000,
+          ),
+          throwsFormatException,
+        );
+      } finally {
+        await subscription.cancel();
+        await server.close(force: true);
+      }
+    },
+  );
 
 }

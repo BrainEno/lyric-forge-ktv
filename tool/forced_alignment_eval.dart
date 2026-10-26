@@ -569,7 +569,9 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
       lyricText.trim().isEmpty ||
       language.trim().isEmpty ||
       sampleId.trim().isEmpty) {
-    throw ArgumentError('Audio, lyric text, language and sample ID are required.');
+    throw ArgumentError(
+      'Audio, lyric text, language and sample ID are required.',
+    );
   }
   if (audioDurationMs <= 0 || requestTimeout <= Duration.zero) {
     throw ArgumentError('Audio duration and request timeout must be positive.');
@@ -588,7 +590,10 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
       'language': language,
     }));
     final response = await request.close().timeout(requestTimeout);
-    final body = await utf8.decoder.bind(response).join().timeout(requestTimeout);
+    final body = await utf8.decoder
+        .bind(response)
+        .join()
+        .timeout(requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw FormatException(
         'Local /v1/align returned HTTP ${response.statusCode}.',
@@ -745,7 +750,9 @@ void _writeCaptureUsage() {
   stdout.writeln(
     'Usage: dart run tool/forced_alignment_eval.dart capture',
   );
-  stdout.writeln('  --endpoint http://127.0.0.1:PORT/v1/align --audio <audio.wav>');
+  stdout.writeln(
+    '  --endpoint http://127.0.0.1:PORT/v1/align --audio <audio.wav>',
+  );
   stdout.writeln('  --text-file <lyrics.txt> --reference <gold-spans.json>');
   stdout.writeln('  --id <sample-id> --language <English|Chinese|Japanese>');
   stdout.writeln(
@@ -780,7 +787,8 @@ Future<void> main(List<String> args) async {
   }
   if (args.isEmpty || args.contains('--help')) {
     stdout.writeln(
-      'Usage: dart run tool/forced_alignment_eval.dart <corpus.json> [--output <report.json>]',
+      'Usage: dart run tool/forced_alignment_eval.dart '
+      '<corpus.json> [--output <report.json>]',
     );
     stdout.writeln(
       'Reference times must be manually checked against the original audio.',
