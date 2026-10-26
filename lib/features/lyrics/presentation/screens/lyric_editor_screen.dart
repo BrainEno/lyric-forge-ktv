@@ -1606,7 +1606,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
-  Future<String?> _previewTimedLine(
+  Future<ProofreadTimedLinePreviewResult> _previewTimedLine(
     ProjectManifest project,
     int index,
     LyricLine line,
@@ -1618,7 +1618,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         audioAsset == null ||
         index < 0 ||
         index >= document.lines.length) {
-      return '工程音频或原始歌词行不可用。';
+      return const ProofreadTimedLinePreviewResult.failure(
+        '工程音频或原始歌词行不可用。',
+      );
     }
 
     final currentItem = _playbackSession.currentState.currentItem;
@@ -1632,7 +1634,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       audioDuration: audioDuration,
     );
     if (!window.canAudition) {
-      return '该时间范围超出音频有效时长或时间区间无效，无法试听。';
+      return const ProofreadTimedLinePreviewResult.failure(
+        '该时间范围超出音频有效时长或时间区间无效，无法试听。',
+      );
     }
 
     final active = _activeLineAudition;
@@ -1648,18 +1652,20 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (active != null && sameWindow && playbackBelongsToProject) {
         if (playback.isPlaying) {
           await _audioService.pause();
-          return '已暂停试听。';
+          return const ProofreadTimedLinePreviewResult.success(
+            message: '已暂停试听。',
+          );
         }
         final endAt = active.window.endAt;
         final canResume = playback.position >= active.window.startAt &&
             (endAt == null || playback.position < endAt);
         if (canResume) {
           await _audioService.play();
-          return null;
+          return const ProofreadTimedLinePreviewResult.success();
         }
       }
 
-      return await _startAuditionWindow(
+      final error = await _startAuditionWindow(
         project,
         index,
         document,
@@ -1667,8 +1673,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         window,
         showError: false,
       );
+      return error == null
+          ? const ProofreadTimedLinePreviewResult.success()
+          : ProofreadTimedLinePreviewResult.failure(error);
     } catch (error) {
-      return error.toString();
+      return ProofreadTimedLinePreviewResult.failure(error.toString());
     }
   }
 
