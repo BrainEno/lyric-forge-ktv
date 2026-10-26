@@ -487,6 +487,7 @@ void main() {
       row('oh yeah', 2000, 2600, id: 'chorus-2'),
     ]);
     final result = pipeline.build(
+      draft: draft,
       audioDuration: const Duration(seconds: 4),
       forcedAlignmentSpans: [
         ProofreadAlignmentSpan(
