@@ -23,6 +23,10 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   /// Completes when the player is ready
   Future<void> ready() async {
     await _readyCompleter.future;
+    // Keep packet caching in memory instead of requiring an MPV temporary
+    // cache file, which can fail on restricted or unwritable cache locations.
+    // This leaves the normal in-memory/network buffering enabled.
+    await setProperty(_player, 'cache-on-disk', 'no');
     await setProperty(_player, 'sub-auto', 'no');
   }
 
