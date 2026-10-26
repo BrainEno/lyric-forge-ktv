@@ -18,6 +18,9 @@ class AsrFirstPipeline {
   final LyricTokenizer tokenizer;
   final int greenConfidenceThreshold;
 
+  static const int _maxLeadingSkippedSpans = 12;
+  static const int _maxSpansPerLine = 128;
+
   const AsrFirstPipeline({
     this.consensusAnalyzer = const AsrConsensusAnalyzer(),
     this.hallucinationFilter = const AsrHallucinationCandidateFilter(),
@@ -32,6 +35,7 @@ class AsrFirstPipeline {
     Set<int> protectedDraftIndices = const {},
     Duration? audioDuration,
     List<ProofreadAlignmentSpan> forcedAlignmentSpans = const [],
+    bool forcedAlignmentRequested = false,
   }) {
     if (protectedDraftIndices.any(
       (index) => index < 0 || index >= draft.lines.length,
@@ -52,11 +56,18 @@ class AsrFirstPipeline {
         ? const <AsrRepetitionSuggestion>[]
         : repetitionAnalyzer.analyze(consensus).suggestions;
 
-    final alignmentTokensByLine = _matchAlignmentSpans(
-      draft.lines,
-      forcedAlignmentSpans,
-      audioDuration: audioDuration,
-    );
+    final shouldTrackAlignment =
+        forcedAlignmentRequested || forcedAlignmentSpans.isNotEmpty;
+    final alignmentMatch = shouldTrackAlignment
+        ? _matchAlignmentSpans(
+            draft.lines,
+            forcedAlignmentSpans,
+            audioDuration: audioDuration,
+          )
+        : null;
+    final alignmentTokensByLine =
+        alignmentMatch?.tokensByLine ?? const <int, List<TimedLyricToken>>{};
+    final alignmentDiagnostics = alignmentMatch?.diagnostics;
     final hallucinationIndices = hallucinations.map((item) => item.primaryIndex).toSet();
     final repetitionIndices = repetitions.map((item) => item.primaryIndex).toSet();
     final consensusByIndex = {
@@ -73,10 +84,22 @@ class AsrFirstPipeline {
     if (repetitions.isNotEmpty) {
       notes.add('repetitionSuggestions:${repetitions.length}');
     }
-    if (forcedAlignmentSpans.isNotEmpty) {
+    if (alignmentDiagnostics != null) {
       notes.add(
-        'forcedAlignmentMatchedLines:${alignmentTokensByLine.length}/${draft.lines.length}',
+        'forcedAlignmentMatchedLines:${alignmentDiagnostics.matchedLineCount}/'
+        '${alignmentDiagnostics.totalLineCount}',
       );
+      if (alignmentDiagnostics.hasSkippedSpans) {
+        notes.add(
+          'forcedAlignmentSkippedSpans:${alignmentDiagnostics.skippedSpanCount}',
+        );
+      }
+      if (alignmentDiagnostics.hasUnmatchedLines) {
+        notes.add(
+          'forcedAlignmentUnmatchedLineNumbers:'
+          '${alignmentDiagnostics.unmatchedLineNumbers.join(',')}',
+        );
+      }
     }
 
     final outputLines = <LyricLine>[];
@@ -112,7 +135,7 @@ class AsrFirstPipeline {
         reasons.add(ProofreadReason.noTimingEvidence);
       }
       final alignedTokens = alignmentTokensByLine[index] ?? const <TimedLyricToken>[];
-      if (forcedAlignmentSpans.isNotEmpty && alignedTokens.isEmpty) {
+      if (alignmentDiagnostics != null && alignedTokens.isEmpty) {
         reasons.add(ProofreadReason.noTimingEvidence);
       }
 
@@ -158,15 +181,15 @@ class AsrFirstPipeline {
       lines: results,
       referenceCoverage: 0,
       notes: notes,
+      alignmentDiagnostics: alignmentDiagnostics,
     );
   }
 
-  Map<int, List<TimedLyricToken>> _matchAlignmentSpans(
+  _AlignmentSpanMatchingResult _matchAlignmentSpans(
     List<LyricLine> lines,
     List<ProofreadAlignmentSpan> spans, {
     required Duration? audioDuration,
   }) {
-    if (spans.isEmpty) return const {};
     var previousStart = Duration.zero;
     for (var index = 0; index < spans.length; index++) {
       final span = spans[index];
@@ -182,37 +205,90 @@ class AsrFirstPipeline {
     }
 
     final matched = <int, List<TimedLyricToken>>{};
+    final unmatchedLineIndices = <int>[];
     var cursor = 0;
+    var skippedSpanCount = 0;
+
     for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
       final target = _normalizeAlignmentText(lines[lineIndex].text);
-      if (target.isEmpty) continue;
+      if (target.isEmpty) {
+        unmatchedLineIndices.add(lineIndex);
+        continue;
+      }
+
+      final range = _findAlignmentRange(
+        target: target,
+        spans: spans,
+        cursor: cursor,
+      );
+      if (range == null) {
+        // Keep the cursor on the last confirmed boundary. A later lyric line
+        // may still match within the bounded look-ahead even if this line did
+        // not; failing one row must not cascade into losing all later rows.
+        unmatchedLineIndices.add(lineIndex);
+        continue;
+      }
+
+      skippedSpanCount += range.startIndex - cursor;
+      matched[lineIndex] = [
+        for (var tokenIndex = range.startIndex;
+            tokenIndex <= range.endIndex;
+            tokenIndex++)
+          TimedLyricToken(
+            text: spans[tokenIndex].text,
+            interval: ProofreadTimeInterval(
+              start: spans[tokenIndex].start,
+              end: spans[tokenIndex].end,
+            ),
+            // The endpoint returns timings, not calibrated confidence.
+            confidence: null,
+            source: ProofreadTimeSource.forcedAligner,
+          ),
+      ];
+      cursor = range.endIndex + 1;
+    }
+
+    return _AlignmentSpanMatchingResult(
+      tokensByLine: matched,
+      diagnostics: ProofreadAlignmentDiagnostics(
+        totalLineCount: lines.length,
+        matchedLineCount: matched.length,
+        skippedSpanCount: skippedSpanCount,
+        unmatchedLineIndices: unmatchedLineIndices,
+      ),
+    );
+  }
+
+  _AlignmentSpanRange? _findAlignmentRange({
+    required String target,
+    required List<ProofreadAlignmentSpan> spans,
+    required int cursor,
+  }) {
+    if (cursor >= spans.length) return null;
+    final lastStart = cursor + _maxLeadingSkippedSpans < spans.length
+        ? cursor + _maxLeadingSkippedSpans
+        : spans.length - 1;
+
+    // Search from the earliest possible position first. This preserves source
+    // order for repeated chorus lines and avoids reusing already consumed
+    // spans. Both dimensions are capped to bound work on long recordings.
+    for (var startIndex = cursor; startIndex <= lastStart; startIndex++) {
       final joined = StringBuffer();
-      for (var endIndex = cursor;
-          endIndex < spans.length && endIndex - cursor < 128;
-          endIndex++) {
+      final lastEnd = startIndex + _maxSpansPerLine < spans.length
+          ? startIndex + _maxSpansPerLine
+          : spans.length;
+      for (var endIndex = startIndex; endIndex < lastEnd; endIndex++) {
         joined.write(_normalizeAlignmentText(spans[endIndex].text));
         final candidate = joined.toString();
         if (candidate == target) {
-          matched[lineIndex] = [
-            for (var tokenIndex = cursor; tokenIndex <= endIndex; tokenIndex++)
-              TimedLyricToken(
-                text: spans[tokenIndex].text,
-                interval: ProofreadTimeInterval(
-                  start: spans[tokenIndex].start,
-                  end: spans[tokenIndex].end,
-                ),
-                // The endpoint returns timings, not calibrated confidence.
-                confidence: null,
-                source: ProofreadTimeSource.forcedAligner,
-              ),
-          ];
-          cursor = endIndex + 1;
-          break;
+          return _AlignmentSpanRange(startIndex, endIndex);
         }
-        if (candidate.length > target.length + 2) break;
+        // Normalized text can only grow as more spans are appended. Once it
+        // exceeds the target, this start position cannot produce an exact hit.
+        if (candidate.length > target.length) break;
       }
     }
-    return matched;
+    return null;
   }
 
   String _normalizeAlignmentText(String value) {
@@ -222,4 +298,24 @@ class AsrFirstPipeline {
     // into separate timed spans (for example, "it" + "'s").
     return tokenizer.tokenize(value).join().replaceAll("'", '');
   }
+}
+
+class _AlignmentSpanMatchingResult {
+  final Map<int, List<TimedLyricToken>> tokensByLine;
+  final ProofreadAlignmentDiagnostics diagnostics;
+
+  _AlignmentSpanMatchingResult({
+    required Map<int, List<TimedLyricToken>> tokensByLine,
+    required this.diagnostics,
+  }) : tokensByLine = Map.unmodifiable({
+         for (final entry in tokensByLine.entries)
+           entry.key: List<TimedLyricToken>.unmodifiable(entry.value),
+       });
+}
+
+class _AlignmentSpanRange {
+  final int startIndex;
+  final int endIndex;
+
+  const _AlignmentSpanRange(this.startIndex, this.endIndex);
 }

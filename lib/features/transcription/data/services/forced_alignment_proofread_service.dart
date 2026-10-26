@@ -62,11 +62,11 @@ class ForcedAlignmentProofreadService {
               end: span.end,
             ),
         ],
+        // An empty successful response is a real zero-coverage result, not
+        // the same thing as alignment not being requested.
+        forcedAlignmentRequested: true,
       );
-      final matched = result.lines.where((line) => line.tokens.isNotEmpty).length;
-      final warning = matched == draft.lines.length
-          ? null
-          : 'Forced alignment matched $matched of ${draft.lines.length} lyric lines; unmatched lines need manual review.';
+      final warning = _buildAlignmentWarning(result.alignmentDiagnostics);
       return ForcedAlignmentProofreadOutcome(
         result: result,
         alignmentAvailable: true,
@@ -96,6 +96,34 @@ class ForcedAlignmentProofreadService {
         warning: 'Forced alignment is unavailable. Existing lyric text and timestamps were preserved; review timing manually.',
       );
     }
+  }
+
+  String? _buildAlignmentWarning(
+    ProofreadAlignmentDiagnostics? diagnostics,
+  ) {
+    if (diagnostics == null) {
+      return 'Forced alignment completed without line diagnostics; review timing manually.';
+    }
+    if (diagnostics.isComplete) return null;
+
+    final coveragePercent = (diagnostics.lineCoverage * 100).round();
+    final details = <String>[
+      'Forced alignment matched ${diagnostics.matchedLineCount} of '
+          '${diagnostics.totalLineCount} lyric lines '
+          '($coveragePercent% coverage).',
+    ];
+    if (diagnostics.hasSkippedSpans) {
+      details.add('Skipped alignment spans: ${diagnostics.skippedSpanCount}.');
+    }
+    if (diagnostics.hasUnmatchedLines) {
+      details.add(
+        'Unmatched lyric lines: ${diagnostics.unmatchedLineNumbers.join(', ')}.',
+      );
+    }
+    details.add(
+      'Review alignment evidence manually; no lyric timestamps were changed.',
+    );
+    return details.join(' ');
   }
 }
 

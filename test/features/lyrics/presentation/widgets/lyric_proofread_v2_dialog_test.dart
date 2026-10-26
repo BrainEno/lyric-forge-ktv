@@ -454,4 +454,45 @@ void main() {
     expect(result, isNull);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('shows ForcedAligner coverage diagnostics in the review UI',
+      (tester) async {
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              await showLyricProofreadV2ReviewDialog(
+                context,
+                summary: '策略：ASR 优先',
+                explanation: '低覆盖率证据需要人工复核。',
+                items: const [],
+                droppedItems: const [],
+                onPreviewDraftLine: null,
+                alignmentDiagnostics: ProofreadAlignmentDiagnostics(
+                  totalLineCount: 3,
+                  matchedLineCount: 2,
+                  skippedSpanCount: 1,
+                  unmatchedLineIndices: [1],
+                ),
+              );
+            },
+            child: const Text('open diagnostics review'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open diagnostics review'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('forced_alignment_diagnostics')),
+        findsOneWidget);
+    expect(find.text('ForcedAligner 覆盖：2/3 行（67%）'), findsOneWidget);
+    expect(find.text('未分配对齐片段：1（需要人工判定）'), findsOneWidget);
+    expect(find.text('未匹配歌词行：2'), findsOneWidget);
+    expect(find.text('词级时间仅供人工复核；不自动修改歌词行级时间戳。'),
+        findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
 }

@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-25 19:48] Add native arbitrary-text forced-alignment endpoint `docs: document native arbitrary-text forced alignment endpoint` ([entry](log/entries/2026-10-25-1948-add-native-forced-align-endpoint.md))
 - [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
 - [2026-10-24 15:56] Preserve dual-engine intent when Qwen setup fails ([entry](log/entries/2026-10-24-1556-preserve-qwen-dual-engine-mode.md))
 - [2026-10-24 13:08] Integrate proofreading v2 review UI `feat: integrate lyric proofreading v2 review UI` ([entry](log/entries/2026-10-24-1308-integrate-proofread-v2-review-ui.md))
@@ -110,4 +111,5 @@
 - [2026-10-25 13:56] Cover proofreading v2 review boundaries ([entry](log/entries/2026-10-25-1356-cover-proofread-v2-review-boundaries.md))
 - [2026-10-25 15:30] Add timestamped secondary ASR input to proofreading `docs: log ASR-first secondary transcript input` ([entry](log/entries/2026-10-25-1530-add-secondary-asr-transcript-input.md))
 - [2026-10-25 16:10] Add explicit forced-alignment HTTP adapter contract `docs: log explicit forced-alignment adapter contract` ([entry](log/entries/2026-10-25-1610-forced-alignment-http-adapter-contract.md))
+- [2026-10-25 17:05] Attach forced-alignment evidence to proofreading proposals ([entry](log/entries/2026-10-25-1705-forced-alignment-evidence-proposals.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->

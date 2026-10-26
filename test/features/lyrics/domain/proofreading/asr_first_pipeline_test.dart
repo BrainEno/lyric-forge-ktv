@@ -6,6 +6,76 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'shared_proofread_pipeline_invariants.dart';
 
 void main() {
+  test('alignment diagnostics report coverage and freeze unmatched indices', () {
+    final indices = <int>[0, 2];
+    final diagnostics = ProofreadAlignmentDiagnostics(
+      totalLineCount: 4,
+      matchedLineCount: 2,
+      skippedSpanCount: 3,
+      unmatchedLineIndices: indices,
+    );
+    indices.clear();
+
+    expect(diagnostics.lineCoverage, 0.5);
+    expect(diagnostics.unmatchedLineIndices, [0, 2]);
+    expect(diagnostics.unmatchedLineNumbers, [1, 3]);
+    expect(diagnostics.hasUnmatchedLines, isTrue);
+    expect(diagnostics.hasSkippedSpans, isTrue);
+    expect(diagnostics.isComplete, isFalse);
+    expect(
+      () => diagnostics.unmatchedLineIndices.add(3),
+      throwsUnsupportedError,
+    );
+    expect(
+      ProofreadAlignmentDiagnostics(
+        totalLineCount: 0,
+        matchedLineCount: 0,
+        skippedSpanCount: 0,
+        unmatchedLineIndices: const [],
+      ).lineCoverage,
+      1,
+    );
+  });
+
+  test('alignment diagnostics reject inconsistent counts and line indices', () {
+    expect(
+      () => ProofreadAlignmentDiagnostics(
+        totalLineCount: 2,
+        matchedLineCount: 2,
+        skippedSpanCount: 0,
+        unmatchedLineIndices: [1],
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadAlignmentDiagnostics(
+        totalLineCount: 2,
+        matchedLineCount: 0,
+        skippedSpanCount: 0,
+        unmatchedLineIndices: [0, 0],
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadAlignmentDiagnostics(
+        totalLineCount: 2,
+        matchedLineCount: 1,
+        skippedSpanCount: 0,
+        unmatchedLineIndices: [2],
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => ProofreadAlignmentDiagnostics(
+        totalLineCount: 2,
+        matchedLineCount: 1,
+        skippedSpanCount: -1,
+        unmatchedLineIndices: [0],
+      ),
+      throwsArgumentError,
+    );
+  });
+
   const pipeline = AsrFirstPipeline();
 
   LyricLine row(
@@ -314,6 +384,157 @@ void main() {
         ['Helloworld!', '月亮代表我的心。', 'こんにちは世界！']);
     expect(result.notes, contains('forcedAlignmentMatchedLines:3/3'));
     expect(result.proposedDocument.lines, draft.lines);
+  });
+
+
+  test('recovers later line evidence around an inserted ad-lib span', () {
+    final draft = doc([
+      row('hello', 0, 500, id: 'hello'),
+      row('world', 600, 1200, id: 'world'),
+    ]);
+    final before = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 2),
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'hello',
+          start: const Duration(milliseconds: 100),
+          end: const Duration(milliseconds: 300),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'yeah',
+          start: const Duration(milliseconds: 400),
+          end: const Duration(milliseconds: 500),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'world',
+          start: const Duration(milliseconds: 700),
+          end: const Duration(milliseconds: 900),
+        ),
+      ],
+    );
+
+    final diagnostics = result.alignmentDiagnostics!;
+    expect(diagnostics.totalLineCount, 2);
+    expect(diagnostics.matchedLineCount, 2);
+    expect(diagnostics.lineCoverage, 1);
+    expect(diagnostics.skippedSpanCount, 1);
+    expect(diagnostics.unmatchedLineIndices, isEmpty);
+    expect(diagnostics.isComplete, isFalse);
+    expect(result.lines.map((line) => line.tokens.map((token) => token.text)),
+        [ ['hello'], ['world'] ]);
+    expect(result.notes, contains('forcedAlignmentSkippedSpans:1'));
+    expect(snapshotLyricDocument(draft), before);
+  });
+
+  test('later lines can match even when an earlier lyric line has no evidence', () {
+    final draft = doc([
+      row('missing words', 0, 700, id: 'missing'),
+      row('hello', 800, 1200, id: 'hello'),
+    ]);
+    final result = pipeline.build(
+      draft: draft,
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'hello',
+          start: const Duration(milliseconds: 900),
+          end: const Duration(milliseconds: 1100),
+        ),
+      ],
+    );
+
+    final diagnostics = result.alignmentDiagnostics!;
+    expect(result.lines[0].tokens, isEmpty);
+    expect(result.lines[1].tokens.map((token) => token.text), ['hello']);
+    expect(diagnostics.matchedLineCount, 1);
+    expect(diagnostics.lineCoverage, 0.5);
+    expect(diagnostics.unmatchedLineIndices, [0]);
+    expect(diagnostics.unmatchedLineNumbers, [1]);
+    expect(result.notes, contains('forcedAlignmentUnmatchedLineNumbers:1'));
+  });
+
+  test('keeps extra-span recovery bounded to avoid distant false matches', () {
+    final draft = doc([row('hello', 0, 1000, id: 'hello')]);
+    final spans = <ProofreadAlignmentSpan>[
+      for (var index = 0; index < 13; index++)
+        ProofreadAlignmentSpan(
+          text: 'uh$index',
+          start: Duration(milliseconds: 100 + index * 100),
+          end: Duration(milliseconds: 150 + index * 100),
+        ),
+      ProofreadAlignmentSpan(
+        text: 'hello',
+        start: const Duration(milliseconds: 1600),
+        end: const Duration(milliseconds: 1800),
+      ),
+    ];
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 3),
+      forcedAlignmentSpans: spans,
+    );
+
+    expect(result.lines.single.tokens, isEmpty);
+    expect(result.alignmentDiagnostics!.matchedLineCount, 0);
+    expect(result.alignmentDiagnostics!.unmatchedLineNumbers, [1]);
+    expect(result.notes, contains('forcedAlignmentMatchedLines:0/1'));
+  });
+
+  test('matches repeated chorus lines with distinct sequential spans', () {
+    final draft = doc([
+      row('oh yeah', 0, 600, id: 'chorus-1'),
+      row('oh yeah', 2000, 2600, id: 'chorus-2'),
+    ]);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 4),
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'oh',
+          start: const Duration(milliseconds: 100),
+          end: const Duration(milliseconds: 250),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'yeah',
+          start: const Duration(milliseconds: 300),
+          end: const Duration(milliseconds: 550),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'oh',
+          start: const Duration(milliseconds: 2100),
+          end: const Duration(milliseconds: 2250),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'yeah',
+          start: const Duration(milliseconds: 2300),
+          end: const Duration(milliseconds: 2550),
+        ),
+      ],
+    );
+
+    expect(result.lines[0].tokens.map((token) => token.text), ['oh', 'yeah']);
+    expect(result.lines[1].tokens.map((token) => token.text), ['oh', 'yeah']);
+    expect(result.lines[0].tokens.first.interval.start,
+        const Duration(milliseconds: 100));
+    expect(result.lines[1].tokens.first.interval.start,
+        const Duration(milliseconds: 2100));
+    expect(result.alignmentDiagnostics!.matchedLineCount, 2);
+    expect(result.alignmentDiagnostics!.skippedSpanCount, 0);
+  });
+
+  test('records zero coverage when the aligner succeeds with no spans', () {
+    final draft = doc([row('hello world', 0, 1000, id: 'line')]);
+    final result = pipeline.build(
+      draft: draft,
+      forcedAlignmentRequested: true,
+    );
+
+    expect(result.alignmentDiagnostics, isNotNull);
+    expect(result.alignmentDiagnostics!.matchedLineCount, 0);
+    expect(result.alignmentDiagnostics!.lineCoverage, 0);
+    expect(result.alignmentDiagnostics!.unmatchedLineNumbers, [1]);
+    expect(result.lines.single.reasons, contains(ProofreadReason.noTimingEvidence));
   });
 
   test('rejects forced-alignment spans outside the audio or out of order', () {
