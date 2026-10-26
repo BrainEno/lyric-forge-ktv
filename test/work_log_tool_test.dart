@@ -205,6 +205,14 @@ void main() {
     expect(entry.missingFields, isEmpty);
     expect(file.readAsStringSync(), contains('- Notes: TODO'));
     expect(file.readAsStringSync(), contains('- Commit:'));
+    expect(
+      () => harness.createEntry(
+        timestamp: '2026-10-26 14:30',
+        slug: 'another-entry',
+        title: 'Duplicate timestamp',
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('entry template rejects invalid timestamp, slug, and multiline title', () {
