@@ -698,14 +698,6 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return result;
   }
 
-  List<LyricLine> _overlappingLines(
-    LyricLine target,
-    List<LyricLine> candidates,
-  ) => [
-    for (final index in _overlappingLineIndices(target, candidates))
-      candidates[index],
-  ];
-
   /// Retain useful lines found only by the secondary recognizer instead of
   /// silently discarding them. They are inserted on the time axis with a
   /// deliberately capped confidence so the editor forces human review.
