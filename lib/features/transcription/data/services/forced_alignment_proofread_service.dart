@@ -71,11 +71,13 @@ class ForcedAlignmentProofreadService {
       final warnings = <String>[];
       if (matched != draft.lines.length) {
         final unmatchedLines = diagnostics?.unmatchedLineNumbers ?? const <int>[];
-        warnings.add(
-          'Forced alignment matched $matched of ${draft.lines.length} lyric lines; '
-          'unmatched lines need manual review.'
-          '${unmatchedLines.isEmpty ? '' : ' Unmatched line numbers: ${unmatchedLines.join(', ')}.'}',
-        );
+        var message =
+            'Forced alignment matched $matched of ${draft.lines.length} lyric lines; '
+            'unmatched lines need manual review.';
+        if (unmatchedLines.isNotEmpty) {
+          message += ' Unmatched line numbers: ${unmatchedLines.join(', ')}.';
+        }
+        warnings.add(message);
       }
       if (diagnostics?.hasSkippedSpans ?? false) {
         warnings.add(
