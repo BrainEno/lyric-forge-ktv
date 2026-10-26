@@ -307,7 +307,7 @@ dart run tool/forced_alignment_eval.dart capture `
   --append-to "D:/Evaluation/forced_alignment_corpus.json"
 ```
 
-The tool validates sample IDs, span order and duration bounds before writing.
+The tool validates sample IDs, span order and duration bounds before writing. It reserves a new output path exclusively and refuses to overwrite an appended corpus that changed during alignment.
 An empty `items` array is preserved as an empty actual result so evaluation can
 report zero recall instead of hiding a failed alignment. Reference intervals
 must be manually checked against the same audio file; this workflow does not
