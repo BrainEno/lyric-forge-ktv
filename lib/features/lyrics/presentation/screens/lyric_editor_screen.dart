@@ -868,6 +868,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   if (options.useForcedAlignment && row.tokens.isEmpty)
                     '缺少词级对齐证据',
                 ].join('、'),
+                alignmentTokens: row.tokens,
               );
             }(),
         ];
@@ -922,6 +923,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         onPreviewDraftLine: project.audioAsset == null
             ? null
             : (index) => _previewLine(project, index),
+        onPreviewAlignmentToken: project.audioAsset == null
+            ? null
+            : (index, token) => _previewProofreadToken(project, index, token),
       );
       if (selection == null || !mounted) return;
 
