@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'core/layout/app_responsive.dart';
 import 'core/navigation/app_chrome_controller.dart';
 import 'core/navigation/app_router.dart';
+import 'core/navigation/current_route_observer.dart';
 import 'core/services/service_locator.dart';
 import 'core/theme/app_theme.dart';
 import 'features/player/data/services/mobile_system_media_session.dart';
@@ -13,7 +14,7 @@ import 'features/player/presentation/widgets/mobile_global_player_bar.dart';
 import 'features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
-final _appRouteObserver = _CurrentRouteObserver();
+final _appRouteObserver = CurrentRouteObserver();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,10 +52,7 @@ Future<void> _initializeMobileMediaSessionAfterLaunch() async {
 class ElysiumPlayerApp extends StatelessWidget {
   final bool? desktopChromeOverride;
 
-  const ElysiumPlayerApp({
-    super.key,
-    this.desktopChromeOverride,
-  });
+  const ElysiumPlayerApp({super.key, this.desktopChromeOverride});
 
   @override
   Widget build(BuildContext context) {
@@ -88,9 +86,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                   return Column(
                     children: [
                       Expanded(child: syncedShell),
-                      if (!immersive &&
-                          !keyboardVisible &&
-                          !suppressPlayerBar)
+                      if (!immersive && !keyboardVisible && !suppressPlayerBar)
                         const MobileGlobalPlayerBar(),
                     ],
                   );
@@ -111,8 +107,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                             Expanded(child: syncedShell),
                             if (!immersive) ...[
                               const GlobalTranscriptionQueueBar(),
-                              if (!suppressPlayerBar)
-                                const GlobalPlayerBar(),
+                              if (!suppressPlayerBar) const GlobalPlayerBar(),
                             ],
                           ],
                         );
@@ -126,31 +121,5 @@ class ElysiumPlayerApp extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-class _CurrentRouteObserver extends NavigatorObserver {
-  final ValueNotifier<String?> routeName = ValueNotifier<String?>(null);
-
-  void _sync(Route<dynamic>? route) {
-    routeName.value = route?.settings.name;
-  }
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPush(route, previousRoute);
-    if (route is PageRoute<dynamic>) _sync(route);
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPop(route, previousRoute);
-    if (route is PageRoute<dynamic>) _sync(previousRoute);
-  }
-
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    if (newRoute is PageRoute<dynamic>) _sync(newRoute);
   }
 }
