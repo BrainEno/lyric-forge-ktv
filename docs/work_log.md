@@ -8,7 +8,7 @@
 - [2026-10-26 21:30] Clarify ASR smoke-test scope versus lyric accuracy `Clarify that ASR smoke test does not measure lyric accuracy` ([entry](log/entries/2026-10-26-2130-clarify-asr-smoke-test-scope.md))
 - [2026-10-26 21:10] Make V2 lyric audition diagnosable and support timing A/B `Add original and proposed-time audition controls to V2 review` ([entry](log/entries/2026-10-26-2110-fix-v2-audition-feedback.md))
 - [2026-10-26 20:35] Improve ASR fusion recall and confidence handling `Preserve secondary-only ASR lines for review` ([entry](log/entries/2026-10-26-2035-improve-asr-fusion-recall.md))
-- [2026-10-26 20:00] Disable MPV on-disk packet cache for audio-only playback `fix: disable MPV on-disk packet cache for audio-only playback` ([entry](log/entries/2026-10-26-2000-disable-mpv-disk-cache.md))
+- [2026-10-26 20:00] Disable MPV on-disk packet cache for audio playback `fix: disable MPV on-disk packet cache for audio-only playback` ([entry](log/entries/2026-10-26-2000-disable-mpv-disk-cache.md))
 - [2026-10-26 18:20] Avoid unsupported OSC property in audio-only MPV adapter `fix: avoid unsupported OSC property in audio-only player` ([entry](log/entries/2026-10-26-1820-avoid-mpv-osc-property.md))
 
 <!-- 102 entries total: 8 active, 94 archived. -->
