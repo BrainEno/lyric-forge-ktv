@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import 'forced_alignment_http_client.dart';
 import '../../domain/services/transcription_service.dart';
 
 class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
@@ -141,6 +142,91 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         _scheduleIdleShutdown();
       }
       _cancelRequested = false;
+    }
+  }
+
+  /// Runs arbitrary-text alignment through the same managed native server
+  /// used by transcription. The input is normalized to 16 kHz mono WAV and
+  /// temporary audio is removed regardless of success or failure.
+  Future<List<ForcedAlignedSpan>> alignReference({
+    required String audioPath,
+    required String text,
+    required String language,
+    required Duration audioDuration,
+    required TranscriptionConfig config,
+  }) async {
+    if (_running) {
+      throw const TranscriptionException.busy(
+        'Qwen3-ASR 已有识别或对齐任务正在运行',
+      );
+    }
+    if (!await File(audioPath).exists()) {
+      throw const TranscriptionException.input('待对齐音频文件不存在');
+    }
+    if (!config.isQwenConfigured) {
+      throw const TranscriptionException.environment(
+        'ForcedAligner 需要配置 Qwen native runtime 与对齐模型',
+      );
+    }
+    if (text.trim().isEmpty || language.trim().isEmpty ||
+        audioDuration <= Duration.zero) {
+      throw const TranscriptionException.input('参考歌词、语言和音频时长均为必填项');
+    }
+
+    _running = true;
+    _cancelRequested = false;
+    _idleShutdownTimer?.cancel();
+    _idleShutdownTimer = null;
+    Directory? temporaryDirectory;
+    try {
+      await _validateExecutable(config.qwenExecutable, 'Qwen3-ASR native runtime');
+      await _validateExecutable(config.ffmpegExecutable, 'FFmpeg');
+      if (!await _modelReferenceAvailable(config.qwenModelPath) ||
+          !await _modelReferenceAvailable(config.qwenAlignerModelPath)) {
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 或 ForcedAligner 模型路径无效',
+        );
+      }
+      await _ensureServer(config);
+      temporaryDirectory = Directory(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}'
+        'lyricforge-align-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      await temporaryDirectory.create(recursive: true);
+      final normalizedPath = '${temporaryDirectory.path}${Platform.pathSeparator}alignment.wav';
+      await _runFfmpeg(
+        executable: config.ffmpegExecutable,
+        inputPath: audioPath,
+        outputPath: normalizedPath,
+      );
+      final port = _serverPort;
+      if (port == null) {
+        throw const TranscriptionException.environment('Qwen3-ASR 服务尚未启动');
+      }
+      final client = ForcedAlignmentHttpClient(
+        endpoint: Uri.parse('http://127.0.0.1:$port/v1/align'),
+      );
+      try {
+        return await client.align(
+          audioPath: normalizedPath,
+          text: text,
+          language: language,
+          audioDuration: audioDuration,
+        );
+      } finally {
+        client.close(force: true);
+      }
+    } finally {
+      if (temporaryDirectory != null && await temporaryDirectory.exists()) {
+        try {
+          await temporaryDirectory.delete(recursive: true);
+        } on FileSystemException {
+          // A stale temp file must not mask the alignment result.
+        }
+      }
+      _running = false;
+      _cancelRequested = false;
+      if (_serverProcess != null) _scheduleIdleShutdown();
     }
   }
 
