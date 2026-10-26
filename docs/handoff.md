@@ -24,6 +24,7 @@
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
 - `docs/log/entries/2026-10-25-2155-wire-forced-align-proofread-service.md`
+- `docs/log/entries/2026-10-26-1400-wire-forced-align-proofread-ui.md`
 
 ## 本轮实现
 - service 显式要求 audio path、reference lyric text、language、audio duration。
