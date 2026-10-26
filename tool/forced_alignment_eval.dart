@@ -16,7 +16,7 @@ class _Span {
   final int end;
   final String normalized;
   _Span(this.text, this.start, this.end)
-      : normalized = _tokenizer.tokenize(text).join().replaceAll("'", '');
+    : normalized = _tokenizer.tokenize(text).join().replaceAll("'", '');
 
   factory _Span.parse(dynamic raw, String field, int? duration) {
     if (raw is! Map<String, dynamic> ||
@@ -46,11 +46,11 @@ class _Sample {
   final List<_Span> actual;
 
   _Sample.parse(dynamic raw)
-      : id = _requiredString(raw, 'id'),
-        language = _requiredString(raw, 'language'),
-        duration = _optionalInt(raw, 'audioDurationMs'),
-        reference = _parseSpans(raw, 'referenceSpans'),
-        actual = _parseSpans(raw, 'actualSpans') {
+    : id = _requiredString(raw, 'id'),
+      language = _requiredString(raw, 'language'),
+      duration = _optionalInt(raw, 'audioDurationMs'),
+      reference = _parseSpans(raw, 'referenceSpans'),
+      actual = _parseSpans(raw, 'actualSpans') {
     if (duration != null && duration! <= 0) {
       throw FormatException('Sample ${id} has invalid audioDurationMs.');
     }
@@ -123,13 +123,12 @@ class _Score {
     required this.matchedActual,
     required List<int> errors,
     required List<Map<String, Object>> groups,
-  })  : errors = List.unmodifiable(errors),
-        groups = List.unmodifiable(groups);
+  }) : errors = List.unmodifiable(errors),
+       groups = List.unmodifiable(groups);
 
   double? get recall =>
       expectedChars == 0 ? null : matchedChars / expectedChars;
-  double get precision =>
-      actualChars == 0 ? 0 : matchedChars / actualChars;
+  double get precision => actualChars == 0 ? 0 : matchedChars / actualChars;
   double? get mae =>
       errors.isEmpty ? null : errors.reduce((a, b) => a + b) / errors.length;
   double? percentile(double p) {
@@ -139,39 +138,41 @@ class _Score {
       final mid = sorted.length ~/ 2;
       return (sorted[mid - 1] + sorted[mid]) / 2;
     }
-    return sorted[
-      (sorted.length * p).ceil().clamp(1, sorted.length).toInt() - 1
-    ].toDouble();
+    return sorted[(sorted.length * p).ceil().clamp(1, sorted.length).toInt() -
+            1]
+        .toDouble();
   }
 
   int get within => errors.where((error) => error <= tolerance).length;
   Map<String, Object?> toJson() => {
-        'sampleId': sample.id,
-        'language': sample.language,
-        'expectedSpanCount': sample.reference.length,
-        'actualSpanCount': sample.actual.length,
-        'matchedGroups': groups.length,
-        'matchedExpectedSpans': matchedReference,
-        'matchedActualSpans': matchedActual,
-        'unmatchedExpectedSpans': sample.reference.length - matchedReference,
-        'unmatchedActualSpans': sample.actual.length - matchedActual,
-        'expectedCharacters': expectedChars,
-        'actualCharacters': actualChars,
-        'matchedCharacters': matchedChars,
-        'textRecall': recall,
-        'textPrecision': precision,
-        'boundaryCount': errors.length,
-        'meanAbsoluteBoundaryErrorMs': mae,
-        'medianAbsoluteBoundaryErrorMs': percentile(0.5),
-        'p95AbsoluteBoundaryErrorMs': percentile(0.95),
-        'maxAbsoluteBoundaryErrorMs':
-            errors.isEmpty ? null : errors.reduce((a, b) => a > b ? a : b),
-        'withinToleranceBoundaryCount': within,
-        'withinToleranceBoundaryRate':
-            errors.isEmpty ? null : within / errors.length,
-        'toleranceMs': tolerance,
-        'matchedGroupDetails': groups,
-      };
+    'sampleId': sample.id,
+    'language': sample.language,
+    'expectedSpanCount': sample.reference.length,
+    'actualSpanCount': sample.actual.length,
+    'matchedGroups': groups.length,
+    'matchedExpectedSpans': matchedReference,
+    'matchedActualSpans': matchedActual,
+    'unmatchedExpectedSpans': sample.reference.length - matchedReference,
+    'unmatchedActualSpans': sample.actual.length - matchedActual,
+    'expectedCharacters': expectedChars,
+    'actualCharacters': actualChars,
+    'matchedCharacters': matchedChars,
+    'textRecall': recall,
+    'textPrecision': precision,
+    'boundaryCount': errors.length,
+    'meanAbsoluteBoundaryErrorMs': mae,
+    'medianAbsoluteBoundaryErrorMs': percentile(0.5),
+    'p95AbsoluteBoundaryErrorMs': percentile(0.95),
+    'maxAbsoluteBoundaryErrorMs': errors.isEmpty
+        ? null
+        : errors.reduce((a, b) => a > b ? a : b),
+    'withinToleranceBoundaryCount': within,
+    'withinToleranceBoundaryRate': errors.isEmpty
+        ? null
+        : within / errors.length,
+    'toleranceMs': tolerance,
+    'matchedGroupDetails': groups,
+  };
 }
 
 /// Aligns normalized span text in source order, allowing up to eight contiguous
@@ -201,8 +202,16 @@ _Score _evaluate(_Sample sample, int tolerance, int maxGroup) {
       var bestCount = count[i + 1][j];
       var bestAction = 0;
       var bestSpanCount = 1 << 30;
-      if (_better(score[i][j + 1], count[i][j + 1], 1, 1 << 30,
-          bestScore, bestCount, bestAction, bestSpanCount)) {
+      if (_better(
+        score[i][j + 1],
+        count[i][j + 1],
+        1,
+        1 << 30,
+        bestScore,
+        bestCount,
+        bestAction,
+        bestSpanCount,
+      )) {
         bestScore = score[i][j + 1];
         bestCount = count[i][j + 1];
         bestAction = 1;
@@ -217,8 +226,16 @@ _Score _evaluate(_Sample sample, int tolerance, int maxGroup) {
           final candidateScore = text.runes.length + score[i + a][j + b];
           final candidateCount = 1 + count[i + a][j + b];
           final candidateAction = 2 + (a - 1) * maxGroup + b - 1;
-          if (_better(candidateScore, candidateCount, candidateAction, a + b,
-              bestScore, bestCount, bestAction, bestSpanCount)) {
+          if (_better(
+            candidateScore,
+            candidateCount,
+            candidateAction,
+            a + b,
+            bestScore,
+            bestCount,
+            bestAction,
+            bestSpanCount,
+          )) {
             bestScore = candidateScore;
             bestCount = candidateCount;
             bestAction = candidateAction;
@@ -253,8 +270,8 @@ _Score _evaluate(_Sample sample, int tolerance, int maxGroup) {
     final a = encoded ~/ maxGroup + 1;
     final b = encoded % maxGroup + 1;
     final text = refGroups[i][a - 1]!;
-    final startError =
-        (sample.actual[j].start - sample.reference[i].start).abs();
+    final startError = (sample.actual[j].start - sample.reference[i].start)
+        .abs();
     final endError =
         (sample.actual[j + b - 1].end - sample.reference[i + a - 1].end).abs();
     errors
@@ -334,9 +351,9 @@ Map<String, Object?> _summarize(List<_Score> scores) {
       final mid = errors.length ~/ 2;
       return (errors[mid - 1] + errors[mid]) / 2;
     }
-    return errors[
-      (errors.length * p).ceil().clamp(1, errors.length).toInt() - 1
-    ].toDouble();
+    return errors[(errors.length * p).ceil().clamp(1, errors.length).toInt() -
+            1]
+        .toDouble();
   }
 
   return {
@@ -349,21 +366,25 @@ Map<String, Object?> _summarize(List<_Score> scores) {
     'matchedGroups': scores.fold<int>(0, (sum, row) => sum + row.groups.length),
     'unmatchedReferenceSpans': scores.fold<int>(
       0,
-      (sum, row) =>
-          sum + row.sample.reference.length - row.matchedReference,
+      (sum, row) => sum + row.sample.reference.length - row.matchedReference,
     ),
     'unmatchedActualSpans': scores.fold<int>(
-      0, (sum, row) => sum + row.sample.actual.length - row.matchedActual),
+      0,
+      (sum, row) => sum + row.sample.actual.length - row.matchedActual,
+    ),
     'boundaryCount': errors.length,
-    'meanAbsoluteBoundaryErrorMs':
-        errors.isEmpty ? null : errors.reduce((a, b) => a + b) / errors.length,
+    'meanAbsoluteBoundaryErrorMs': errors.isEmpty
+        ? null
+        : errors.reduce((a, b) => a + b) / errors.length,
     'medianAbsoluteBoundaryErrorMs': percentile(0.5),
     'p95AbsoluteBoundaryErrorMs': percentile(0.95),
-    'maxAbsoluteBoundaryErrorMs':
-        errors.isEmpty ? null : errors.reduce((a, b) => a > b ? a : b),
+    'maxAbsoluteBoundaryErrorMs': errors.isEmpty
+        ? null
+        : errors.reduce((a, b) => a > b ? a : b),
     'withinToleranceBoundaryCount': within,
-    'withinToleranceBoundaryRate':
-        errors.isEmpty ? null : within / errors.length,
+    'withinToleranceBoundaryRate': errors.isEmpty
+        ? null
+        : within / errors.length,
   };
 }
 
@@ -377,9 +398,14 @@ Map<String, Object?> evaluateForcedAlignmentCorpus(String source) {
   final rawSamples = root['samples'];
   final tolerance = root['toleranceMs'] ?? 150;
   final maxGroup = root['maxGroupSpans'] ?? 8;
-  if (rawSamples is! List || rawSamples.isEmpty || rawSamples.length > 200 ||
-      tolerance is! int || tolerance < 0 ||
-      maxGroup is! int || maxGroup < 1 || maxGroup > _maxGroup) {
+  if (rawSamples is! List ||
+      rawSamples.isEmpty ||
+      rawSamples.length > 200 ||
+      tolerance is! int ||
+      tolerance < 0 ||
+      maxGroup is! int ||
+      maxGroup < 1 ||
+      maxGroup > _maxGroup) {
     throw const FormatException(
       'Invalid samples, toleranceMs, or maxGroupSpans.',
     );
@@ -388,7 +414,8 @@ Map<String, Object?> evaluateForcedAlignmentCorpus(String source) {
   if (samples.map((sample) => sample.id).toSet().length != samples.length) {
     throw const FormatException('Sample IDs must be unique.');
   }
-  final scores = samples.map((sample) => _evaluate(sample, tolerance, maxGroup))
+  final scores = samples
+      .map((sample) => _evaluate(sample, tolerance, maxGroup))
       .toList(growable: false);
   final languages = samples.map((sample) => sample.language).toSet().toList()
     ..sort();
@@ -419,7 +446,6 @@ Map<String, Object?> evaluateForcedAlignmentCorpus(String source) {
   };
 }
 
-
 List<Map<String, Object?>> _parseReferenceSpans(
   String source,
   String sampleId,
@@ -431,8 +457,9 @@ List<Map<String, Object?>> _parseReferenceSpans(
   } on FormatException {
     throw const FormatException('Reference spans are not valid JSON.');
   }
-  final rawSpans =
-      decoded is Map<String, dynamic> ? decoded['referenceSpans'] : decoded;
+  final rawSpans = decoded is Map<String, dynamic>
+      ? decoded['referenceSpans']
+      : decoded;
   if (rawSpans is! List || rawSpans.isEmpty || rawSpans.length > _maxSpans) {
     throw const FormatException(
       'Reference JSON needs a non-empty span array within the span limit.',
@@ -452,8 +479,8 @@ double? _readSeconds(dynamic value) {
   final seconds = value is num
       ? value.toDouble()
       : value is String
-          ? double.tryParse(value)
-          : null;
+      ? double.tryParse(value)
+      : null;
   if (seconds == null || !seconds.isFinite) return null;
   return seconds;
 }
@@ -576,19 +603,20 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   if (audioDurationMs <= 0 || requestTimeout <= Duration.zero) {
     throw ArgumentError('Audio duration and request timeout must be positive.');
   }
-  final referenceSpans =
-      _parseReferenceSpans(referenceSpansJson, sampleId, audioDurationMs);
+  final referenceSpans = _parseReferenceSpans(
+    referenceSpansJson,
+    sampleId,
+    audioDurationMs,
+  );
 
   final client = HttpClient();
   try {
     final request = await client.postUrl(endpoint).timeout(requestTimeout);
     request.followRedirects = false;
     request.headers.contentType = ContentType.json;
-    request.write(jsonEncode({
-      'audio': audioPath,
-      'text': lyricText,
-      'language': language,
-    }));
+    request.write(
+      jsonEncode({'audio': audioPath, 'text': lyricText, 'language': language}),
+    );
     final response = await request.close().timeout(requestTimeout);
     final body = await utf8.decoder
         .bind(response)
@@ -747,9 +775,7 @@ Future<void> _runCaptureCommand(List<String> args) async {
 }
 
 void _writeCaptureUsage() {
-  stdout.writeln(
-    'Usage: dart run tool/forced_alignment_eval.dart capture',
-  );
+  stdout.writeln('Usage: dart run tool/forced_alignment_eval.dart capture');
   stdout.writeln(
     '  --endpoint http://127.0.0.1:PORT/v1/align --audio <audio.wav>',
   );
