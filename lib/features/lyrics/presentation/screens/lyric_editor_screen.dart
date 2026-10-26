@@ -712,6 +712,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       late final List<LyricProofreadV2ReviewItem> items;
       late final List<LyricProofreadV2DroppedItem> droppedItems;
       late final String strategyExplanation;
+      ForcedAlignmentProofreadOutcome? alignmentOutcome;
 
       if (decision.effectiveStrategy == LyricSourceStrategy.referenceFirst) {
         final input = reference;
@@ -774,7 +775,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             '参考输入包含 ${result.warnings.length} 条冲突或警告，相关行会要求复核。',
         ].join(' ');
       } else {
-        ForcedAlignmentProofreadOutcome? alignmentOutcome;
         late final ProofreadResult result;
         if (options.useForcedAlignment) {
           final audioAsset = project.audioAsset;
