@@ -335,9 +335,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
         whisperLine,
         qwenSecondOpinion.lines,
       );
-      matchedSecondaryIndices.addAll(overlappingIndices);
+      final correspondingIndices = _correspondingSecondaryLineIndices(
+        primaryLine: whisperLine,
+        secondaryLines: qwenSecondOpinion.lines,
+        overlappingIndices: overlappingIndices,
+      );
+      matchedSecondaryIndices.addAll(correspondingIndices);
       final qwenLines = [
-        for (final secondaryIndex in overlappingIndices)
+        for (final secondaryIndex in correspondingIndices)
           qwenSecondOpinion.lines[secondaryIndex],
       ];
 
@@ -356,7 +361,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'whisperText': whisperLine.text,
                 'whisperConfidence': whisperLine.confidence,
                 'selected': 'whisper',
-                'reason': 'qwen_no_overlap',
+                'reason': overlappingIndices.isEmpty
+                    ? 'qwen_no_overlap'
+                    : 'qwen_no_corresponding_line',
               },
             ),
           );
@@ -562,9 +569,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
         qwenLine,
         fallback.lines,
       );
-      matchedSecondaryIndices.addAll(overlappingIndices);
+      final correspondingIndices = _correspondingSecondaryLineIndices(
+        primaryLine: qwenLine,
+        secondaryLines: fallback.lines,
+        overlappingIndices: overlappingIndices,
+      );
+      matchedSecondaryIndices.addAll(correspondingIndices);
       final whisperLines = [
-        for (final secondaryIndex in overlappingIndices)
+        for (final secondaryIndex in correspondingIndices)
           fallback.lines[secondaryIndex],
       ];
       if (whisperLines.isEmpty) {
@@ -579,7 +591,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'qwenText': qwenLine.text,
                 'qwenConfidence': qwenLine.confidence,
                 'selected': 'qwen',
-                'reason': 'whisper_no_overlap',
+                'reason': overlappingIndices.isEmpty
+                    ? 'whisper_no_overlap'
+                    : 'whisper_no_corresponding_line',
               },
             ),
           );
@@ -696,6 +710,81 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (overlapEnd > overlapStart) result.add(index);
     }
     return result;
+  }
+
+  /// Select secondary rows that plausibly describe the same lyric as the
+  /// primary row. Timestamp overlap is only a search window: a distinct
+  /// ad-lib or omitted line can occur inside a long primary segment.
+  List<int> _correspondingSecondaryLineIndices({
+    required LyricLine primaryLine,
+    required List<LyricLine> secondaryLines,
+    required List<int> overlappingIndices,
+  }) {
+    return [
+      for (final index in overlappingIndices)
+        if (_isLikelySameLyricLine(primaryLine, secondaryLines[index])) index,
+    ];
+  }
+
+  bool _isLikelySameLyricLine(LyricLine primaryLine, LyricLine secondaryLine) {
+    final primaryText = _normalizeForComparison(primaryLine.text);
+    final secondaryText = _normalizeForComparison(secondaryLine.text);
+    if (primaryText.isEmpty || secondaryText.isEmpty) return false;
+    if (primaryText == secondaryText) return true;
+
+    // Line segmentation varies by language and engine, so accept meaningful
+    // contiguous fragments (including a phrase split into multiple rows). Do
+    // not use tiny substring matches such as "oh" inside a much longer line.
+    final shorterLength = primaryText.length < secondaryText.length
+        ? primaryText.length
+        : secondaryText.length;
+    final longerLength = primaryText.length > secondaryText.length
+        ? primaryText.length
+        : secondaryText.length;
+    final containsText =
+        primaryText.contains(secondaryText) ||
+        secondaryText.contains(primaryText);
+    if (containsText &&
+        (shorterLength >= 4 || shorterLength / longerLength >= 0.35)) {
+      return true;
+    }
+
+    final primaryDuration =
+        (primaryLine.endTime - primaryLine.startTime).inMilliseconds;
+    final secondaryDuration =
+        (secondaryLine.endTime - secondaryLine.startTime).inMilliseconds;
+    if (primaryDuration <= 0 || secondaryDuration <= 0) return false;
+
+    final overlapStart = primaryLine.startTime > secondaryLine.startTime
+        ? primaryLine.startTime
+        : secondaryLine.startTime;
+    final overlapEnd = primaryLine.endTime < secondaryLine.endTime
+        ? primaryLine.endTime
+        : secondaryLine.endTime;
+    final overlapMs = (overlapEnd - overlapStart).inMilliseconds;
+    final shorterDuration = primaryDuration < secondaryDuration
+        ? primaryDuration
+        : secondaryDuration;
+    final overlapRatio = overlapMs <= 0 ? 0.0 : overlapMs / shorterDuration;
+    final similarity = _textSimilarity(primaryLine.text, secondaryLine.text);
+
+    // Phonetic/lexical disagreements can be the same timed line. Keep those
+    // paired for the alternative-text review rather than adding a duplicate.
+    if (similarity >= 0.55 && overlapRatio >= 0.65) return true;
+
+    // A strong boundary match is also enough to pair an entirely different
+    // hypothesis as an alternative, but merely sitting inside another line
+    // is not: that is exactly where a missed backing/ad-lib line can hide.
+    final startDelta =
+        (primaryLine.startTime - secondaryLine.startTime).inMilliseconds.abs();
+    final endDelta =
+        (primaryLine.endTime - secondaryLine.endTime).inMilliseconds.abs();
+    final longerDuration = primaryDuration > secondaryDuration
+        ? primaryDuration
+        : secondaryDuration;
+    return startDelta <= 350 &&
+        endDelta <= 350 &&
+        longerDuration / shorterDuration <= 2.0;
   }
 
   /// Retain useful lines found only by the secondary recognizer instead of

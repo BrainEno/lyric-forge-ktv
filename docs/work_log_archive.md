@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-26 16:50] Capture local ForcedAligner results into evaluation corpus ([entry](log/entries/2026-10-26-1650-forced-align-local-capture.md))
 - [2026-10-26 16:35] Add repeatable ForcedAligner quality evaluation ([entry](log/entries/2026-10-26-1635-forced-align-quality-evaluation.md))
 - [2026-10-26 16:20] Surface ForcedAligner coverage diagnostics in review ([entry](log/entries/2026-10-26-1620-surface-forced-align-diagnostics.md))
 - [2026-10-26 16:15] Recover ForcedAligner line matches with bounded diagnostics ([entry](log/entries/2026-10-26-1615-forced-align-recovery-diagnostics.md))

@@ -341,7 +341,85 @@ void main() {
 
       await service.dispose();
     });
-  });
+    test(
+      'preserves a novel secondary lyric inside an overlapping primary segment '
+      'for both engine orders',
+      () async {
+        final fullLine = LyricLine(
+          text: 'we are dancing through the night',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 14),
+          confidence: 92,
+        );
+        final secondaryLines = [
+          LyricLine(
+            text: 'we are dancing',
+            startTime: const Duration(seconds: 10),
+            endTime: const Duration(milliseconds: 11700),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'sing a little song',
+            startTime: const Duration(milliseconds: 11900),
+            endTime: const Duration(milliseconds: 12600),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'through the night',
+            startTime: const Duration(milliseconds: 12700),
+            endTime: const Duration(milliseconds: 13900),
+            confidence: 92,
+          ),
+        ];
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final qwenLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
+              ? [fullLine]
+              : secondaryLines;
+          final whisperLines =
+              engineOrder == TranscriptionEngineOrder.qwenPrimary
+              ? secondaryLines
+              : [fullLine];
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(
+              result: _resultLines(qwenLines),
+            ),
+            fallback: _FakeTranscriptionService(
+              result: _resultLines(whisperLines),
+            ),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(
+                tempDirectory.path,
+                engineOrder: engineOrder,
+              ),
+            );
+            final lines = result.lyrics.lines;
+            expect(
+              lines.map((line) => line.text).toList(),
+              [fullLine.text, 'sing a little song'],
+              reason: 'engine order: $engineOrder',
+            );
+            expect(
+              lines.last.confidence,
+              60,
+              reason: 'novel secondary lines must stay review-only',
+            );
+            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
+            expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+  }
 }
 
 TranscriptionRequest _request(
