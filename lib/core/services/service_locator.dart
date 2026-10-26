@@ -100,6 +100,7 @@ class ServiceLocator {
   late final PlaybackSessionService playbackSessionService;
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
+  late final Qwen3AsrNativeTranscriptionService qwenNativeTranscriptionService;
   late final AsrRuntimeManager asrRuntimeManager;
   late final LocalAsrManagedStorageService asrManagedStorageService;
   late final AsrStoragePreflightService asrStoragePreflightService;
@@ -250,9 +251,11 @@ class ServiceLocator {
       delegate: resilientRuntime,
       storagePreflightService: asrStoragePreflightService,
     );
+    final qwenNativeTranscriptionService = Qwen3AsrNativeTranscriptionService();
+    this.qwenNativeTranscriptionService = qwenNativeTranscriptionService;
     transcriptionService = ResumableChunkedTranscriptionService(
       delegate: HighQualityTranscriptionService(
-        primary: Qwen3AsrNativeTranscriptionService(),
+        primary: qwenNativeTranscriptionService,
         fallback: WhisperCppTranscriptionService(),
       ),
     );
