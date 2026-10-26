@@ -162,11 +162,15 @@ void main() {
     final langs = report['byLanguage']! as Map<String, dynamic>;
     expect(langs.keys, containsAll(['English', 'Chinese']));
     expect(
-      () => evaluator.evaluateForcedAlignmentCorpus('{"schemaVersion":2,"samples":[]}'),
+      () => evaluator.evaluateForcedAlignmentCorpus(
+        '{"schemaVersion":2,"samples":[]}',
+      ),
       throwsFormatException,
     );
     expect(
-      () => evaluator.evaluateForcedAlignmentCorpus('{"schemaVersion":1,"samples":[]}'),
+      () => evaluator.evaluateForcedAlignmentCorpus(
+        '{"schemaVersion":1,"samples":[]}',
+      ),
       throwsFormatException,
     );
   });
