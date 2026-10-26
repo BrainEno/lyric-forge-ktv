@@ -419,7 +419,7 @@ void main() {
         }
       },
     );
-  }
+  });
 }
 
 TranscriptionRequest _request(
