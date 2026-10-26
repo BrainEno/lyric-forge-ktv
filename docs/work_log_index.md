@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-25. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-26. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -25,7 +25,7 @@
 - **KTV microphone/recording:** monitoring, take recording/mix export, input device selection and persistence; physical device behavior was not fully verified in the log.
 - **Player/LRC:** effective timestamp export, follow-play scrolling, editor return refresh, and KTV backing mode. Search entry files for `LRC`, `auto-scroll`, `backing`, or `KTV`.
 - **GitHub Actions CI:** PR #147 adds an always-on Flutter quality gate for all PRs targeting `main`, `main` pushes, and manual dispatch. The gate runs full analyzer/tests/work-log lint; required branch protection still needs to be enabled in repository Settings.
-- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and is merged. PR #165 integrates strategy selection, line-by-line proposal review, safe batch apply, amber acceptance, restore, audition and undo. The forced-alignment client, evidence mapping, and native `/v1/align` endpoint are merged; `ForcedAlignmentProofreadService` now bridges the endpoint into ASR-first proposal construction without editing source lyrics. Next: wire this service into the visible review flow, then test real Chinese/English/Japanese audio. Existing runtime bundles must be rebuilt before the endpoint is available.
+- **Lyric review / proofread v2:** PRs #141 and #143–#145 are in `main`; PR #164 adds T7 shared pipeline invariants and is merged. PR #165 integrates strategy selection, line-by-line proposal review, safe batch apply, amber acceptance, restore, audition and undo. The forced-alignment client, evidence mapping, and native `/v1/align` endpoint are merged; `ForcedAlignmentProofreadService` is now wired to the ASR-first review dialog through the managed Qwen runtime. The opt-in path normalizes audio, checks runtime readiness, and surfaces incomplete coverage/runtime fallback warnings without applying timestamps. Next: validate row-level evidence display and real Chinese/English/Japanese audio. Existing runtime bundles must be rebuilt before the endpoint is available.
 
 ## Follow-up leads — re-check before acting
 
