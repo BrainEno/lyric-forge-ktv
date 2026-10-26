@@ -225,6 +225,12 @@ class LyricProofreadV2Selection {
        restoredDraftIndices = Set.unmodifiable(restoredDraftIndices);
 }
 
+typedef ProofreadTimedLinePreview = Future<String?> Function(
+  int sourceIndex,
+  LyricLine line,
+  Duration globalOffset,
+);
+
 Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   BuildContext context, {
   required String summary,
@@ -232,6 +238,9 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   required List<LyricProofreadV2ReviewItem> items,
   required List<LyricProofreadV2DroppedItem> droppedItems,
   required ValueChanged<int>? onPreviewDraftLine,
+  ProofreadTimedLinePreview? onPreviewTimedLine,
+  Duration originalGlobalOffset = Duration.zero,
+  Duration proposedGlobalOffset = Duration.zero,
   void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken,
   ProofreadAlignmentDiagnostics? alignmentDiagnostics,
 }) {
@@ -243,6 +252,9 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
       items: items,
       droppedItems: droppedItems,
       onPreviewDraftLine: onPreviewDraftLine,
+      onPreviewTimedLine: onPreviewTimedLine,
+      originalGlobalOffset: originalGlobalOffset,
+      proposedGlobalOffset: proposedGlobalOffset,
       onPreviewAlignmentToken: onPreviewAlignmentToken,
       alignmentDiagnostics: alignmentDiagnostics,
     ),
@@ -255,6 +267,9 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final List<LyricProofreadV2ReviewItem> items;
   final List<LyricProofreadV2DroppedItem> droppedItems;
   final ValueChanged<int>? onPreviewDraftLine;
+  final ProofreadTimedLinePreview? onPreviewTimedLine;
+  final Duration originalGlobalOffset;
+  final Duration proposedGlobalOffset;
   final void Function(int sourceIndex, TimedLyricToken token)? onPreviewAlignmentToken;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
 
@@ -264,6 +279,9 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
     required this.items,
     required this.droppedItems,
     required this.onPreviewDraftLine,
+    required this.onPreviewTimedLine,
+    required this.originalGlobalOffset,
+    required this.proposedGlobalOffset,
     required this.onPreviewAlignmentToken,
     this.alignmentDiagnostics,
   });
@@ -277,6 +295,7 @@ class _LyricProofreadV2ReviewDialogState
     extends State<_LyricProofreadV2ReviewDialog> {
   final Set<int> _acceptedAmber = {};
   final Set<int> _restoredDraftIndices = {};
+  final Map<int, String> _auditionFeedbackByProposal = {};
 
   List<LyricProofreadV2ReviewItem> get _greenItems => widget.items
       .where((item) => item.verdict == LyricProofreadReviewVerdict.green)
@@ -304,6 +323,25 @@ class _LyricProofreadV2ReviewDialogState
       _greenChangeCount > 0 ||
       _selectedAmberChangeCount > 0 ||
       _restoredDraftIndices.isNotEmpty;
+
+  Future<void> _previewTimedLine({
+    required int proposalIndex,
+    required int sourceIndex,
+    required LyricLine line,
+    required Duration globalOffset,
+    required String label,
+  }) async {
+    final preview = widget.onPreviewTimedLine;
+    if (preview == null) return;
+    setState(() => _auditionFeedbackByProposal.remove(proposalIndex));
+    final error = await preview(sourceIndex, line, globalOffset);
+    if (!mounted) return;
+    setState(() {
+      _auditionFeedbackByProposal[proposalIndex] = error == null
+          ? '正在试听$label时间范围；再次点击可暂停。'
+          : '试听失败：$error';
+    });
+  }
 
   String _formatTime(Duration value) =>
       '${(value.inMilliseconds / 1000).toStringAsFixed(2)} s';
@@ -531,13 +569,37 @@ class _LyricProofreadV2ReviewDialogState
                   ),
                 ),
                 if (item.sourceIndex != null &&
-                    widget.onPreviewDraftLine != null)
+                    (widget.onPreviewTimedLine != null ||
+                        widget.onPreviewDraftLine != null))
                   IconButton(
+                    key: ValueKey('preview_original_${item.proposalIndex}'),
                     tooltip: '试听原始行',
                     visualDensity: VisualDensity.compact,
-                    onPressed: () =>
-                        widget.onPreviewDraftLine!(item.sourceIndex!),
+                    onPressed: widget.onPreviewTimedLine == null
+                        ? () => widget.onPreviewDraftLine!(item.sourceIndex!)
+                        : () => _previewTimedLine(
+                            proposalIndex: item.proposalIndex,
+                            sourceIndex: item.sourceIndex!,
+                            line: original ?? item.proposedLine,
+                            globalOffset: widget.originalGlobalOffset,
+                            label: '原始',
+                          ),
                     icon: const Icon(Icons.play_circle_outline_rounded),
+                  ),
+                if (item.sourceIndex != null &&
+                    widget.onPreviewTimedLine != null)
+                  IconButton(
+                    key: ValueKey('preview_proposed_${item.proposalIndex}'),
+                    tooltip: '试听建议时间',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _previewTimedLine(
+                      proposalIndex: item.proposalIndex,
+                      sourceIndex: item.sourceIndex!,
+                      line: item.proposedLine,
+                      globalOffset: widget.proposedGlobalOffset,
+                      label: '建议',
+                    ),
+                    icon: const Icon(Icons.hearing_rounded),
                   ),
               ],
             ),
@@ -563,6 +625,15 @@ class _LyricProofreadV2ReviewDialogState
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '依据：${item.reasonLabel}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            if (_auditionFeedbackByProposal[item.proposalIndex] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _auditionFeedbackByProposal[item.proposalIndex]!,
+                  key: ValueKey('audition_feedback_${item.proposalIndex}'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
