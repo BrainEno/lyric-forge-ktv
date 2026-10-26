@@ -804,8 +804,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required LyricLine fullLine,
     required LyricLine fragmentLine,
   }) {
-    final fullDuration =
-        (fullLine.endTime - fullLine.startTime).inMilliseconds;
+    final fullDuration = (fullLine.endTime - fullLine.startTime).inMilliseconds;
     if (fullDuration <= 0 || fullText.isEmpty) return false;
 
     final fragmentStart = fullText.indexOf(fragmentText);
@@ -817,8 +816,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final startDelta = (fragmentLine.startTime - fullLine.startTime)
         .inMilliseconds
         .abs();
-    final endDelta = (fragmentLine.endTime - fullLine.endTime)
-        .inMilliseconds
+    final endDelta = (fragmentLine.endTime - fullLine.endTime).inMilliseconds
         .abs();
 
     if (isPrefix && startDelta <= 450) return true;
@@ -835,14 +833,16 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final toleranceMs = proportionalTolerance > 350
         ? proportionalTolerance
         : 350;
-    final expectedStart = fullLine.startTime +
-        Duration(milliseconds: expectedStartMs);
+    final expectedStart =
+        fullLine.startTime + Duration(milliseconds: expectedStartMs);
     final expectedEnd =
         fullLine.startTime + Duration(milliseconds: expectedEndMs);
-    final positionedStartDelta =
-        (fragmentLine.startTime - expectedStart).inMilliseconds.abs();
-    final positionedEndDelta =
-        (fragmentLine.endTime - expectedEnd).inMilliseconds.abs();
+    final positionedStartDelta = (fragmentLine.startTime - expectedStart)
+        .inMilliseconds
+        .abs();
+    final positionedEndDelta = (fragmentLine.endTime - expectedEnd)
+        .inMilliseconds
+        .abs();
 
     return positionedStartDelta <= toleranceMs &&
         positionedEndDelta <= toleranceMs;
