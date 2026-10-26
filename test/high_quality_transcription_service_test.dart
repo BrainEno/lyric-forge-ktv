@@ -86,6 +86,66 @@ void main() {
       await service.dispose();
     });
 
+    test('keeps Whisper primary output and inserts Qwen-only review rows', () async {
+      final qwenResult = _resultLines([
+        LyricLine(
+          text: 'opening verse',
+          startTime: const Duration(milliseconds: 1100),
+          endTime: const Duration(milliseconds: 2900),
+          confidence: 92,
+        ),
+        LyricLine(
+          text: 'Qwen heard another line',
+          startTime: const Duration(seconds: 5),
+          endTime: const Duration(seconds: 6),
+          confidence: 92,
+        ),
+        LyricLine(
+          text: 'closing verse',
+          startTime: const Duration(milliseconds: 10100),
+          endTime: const Duration(milliseconds: 11900),
+          confidence: 92,
+        ),
+      ]);
+      final whisperResult = _resultLines([
+        LyricLine(
+          text: 'opening verse',
+          startTime: const Duration(seconds: 1),
+          endTime: const Duration(seconds: 3),
+          confidence: 92,
+        ),
+        LyricLine(
+          text: 'closing verse',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 12),
+          confidence: 92,
+        ),
+      ]);
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: qwenResult),
+        fallback: _FakeTranscriptionService(result: whisperResult),
+      );
+
+      final result = await service.transcribe(
+        _request(
+          tempDirectory.path,
+          engineOrder: TranscriptionEngineOrder.whisperPrimary,
+        ),
+      );
+
+      expect(result.lyrics.lines.map((line) => line.text).toList(), [
+        'opening verse',
+        'Qwen heard another line',
+        'closing verse',
+      ]);
+      expect(result.lyrics.lines[1].confidence, 60);
+      expect(result.lyrics.metadata['primaryEngine'], 'whisper.cpp-large-v3');
+      expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
+      expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
+
+      await service.dispose();
+    });
+
     test('keeps Qwen result when Whisper second opinion fails', () async {
       final primaryResult = _result(
         LyricLine(
