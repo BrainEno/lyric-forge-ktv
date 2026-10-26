@@ -9,7 +9,7 @@
 - [2026-10-26 20:00] Disable MPV on-disk packet cache for audio playback `fix: disable MPV on-disk packet cache for audio-only playback` ([entry](log/entries/2026-10-26-2000-disable-mpv-disk-cache.md))
 - [2026-10-26 18:20] Avoid unsupported OSC property in audio-only MPV adapter `fix: avoid unsupported OSC property in audio-only player` ([entry](log/entries/2026-10-26-1820-avoid-mpv-osc-property.md))
 - [2026-10-26 18:00] Defer route observer notifications until after build `fix: avoid notifier updates during Navigator restoration` ([entry](log/entries/2026-10-26-1800-route-observer-post-frame-sync.md))
-- [2026-10-26 16:50] Capture local ForcedAligner results into evaluation corpus `Capture local ForcedAligner results into evaluation corpus` ([entry](log/entries/2026-10-26-1650-forced-align-local-capture.md))
+- [2026-10-26 16:50] Capture local ForcedAligner results into evaluation corpus `Capture local ForcedAligner results for evaluation` ([entry](log/entries/2026-10-26-1650-forced-align-local-capture.md))
 
 <!-- 100 entries total: 8 active, 92 archived. -->
 

@@ -14,6 +14,7 @@
 - `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
 - `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`
 - `docs/log/entries/2026-10-26-2110-fix-v2-audition-feedback.md`
+- `docs/log/entries/2026-10-26-2250-sync-v2-audition-main.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
