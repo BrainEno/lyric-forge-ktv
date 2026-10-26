@@ -198,7 +198,8 @@ class AsrFirstPipeline {
                   start: spans[tokenIndex].start,
                   end: spans[tokenIndex].end,
                 ),
-                confidence: 60,
+                // The endpoint returns timings, not calibrated confidence.
+                confidence: null,
                 source: ProofreadTimeSource.forcedAligner,
               ),
           ];
