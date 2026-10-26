@@ -31,7 +31,7 @@ void main() {
       );
       expect(
         resolved.config.engineOrder,
-        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
       );
       expect(resolved.config.qwenModelPath, 'Qwen/Qwen3-ASR-1.7B');
       expect(resolved.config.qwenDevice, 'cuda');
@@ -98,10 +98,7 @@ void main() {
       expect(resolved.profile, TranscriptionProfilePreference.custom);
       expect(resolved.config.qwenModelPath, '/custom/model');
       expect(resolved.config.qwenDevice, 'cpu');
-      expect(
-        resolved.config.engineOrder,
-        TranscriptionEngineOrder.qwenPrimary,
-      );
+      expect(resolved.config.engineOrder, TranscriptionEngineOrder.qwenPrimary);
     });
   });
 }

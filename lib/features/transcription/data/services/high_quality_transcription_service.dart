@@ -58,11 +58,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final primaryResult = await _runPrimary(request);
       _throwIfCancelled();
 
-      _emit(
-        TranscriptionStage.fallback,
-        0.76,
-        'Whisper large-v3 正在进行全曲第二意见识别',
-      );
+      _emit(TranscriptionStage.fallback, 0.76, 'Whisper large-v3 正在进行全曲第二意见识别');
 
       final fallbackDirectory = Directory(
         '${request.outputDirectory}${Platform.pathSeparator}whisper_second_opinion',
@@ -84,11 +80,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       } on TranscriptionException catch (error) {
         if (error.message == '歌词识别已取消') rethrow;
 
-        _emit(
-          TranscriptionStage.completed,
-          1.0,
-          'Qwen 识别完成，但 Whisper 第二意见失败',
-        );
+        _emit(TranscriptionStage.completed, 1.0, 'Qwen 识别完成，但 Whisper 第二意见失败');
 
         return TranscriptionResult(
           lyrics: primaryResult.lyrics.copyWith(
@@ -111,11 +103,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       }
       _throwIfCancelled();
 
-      _emit(
-        TranscriptionStage.parsing,
-        0.96,
-        '正在比较 Qwen 与 Whisper 的歌词分歧',
-      );
+      _emit(TranscriptionStage.parsing, 0.96, '正在比较 Qwen 与 Whisper 的歌词分歧');
 
       final merge = _mergeIndependentResults(
         primary: primaryResult.lyrics,
@@ -136,6 +124,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'fallbackCandidateCount': merge.candidates.length,
           'fallbackAppliedCount': merge.appliedCount,
           'fallbackCandidates': merge.candidates,
+          'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
+          'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+          'fusionPolicy':
+              'add_unmatched_secondary_as_low_confidence_review_lines',
           'whisperRawJsonPath': fallbackResult.rawJsonPath,
         },
       );
@@ -143,9 +135,16 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _emit(
         TranscriptionStage.completed,
         1.0,
-        merge.candidates.isEmpty
-            ? '最高质量识别完成，两套引擎结果高度一致'
-            : '最高质量识别完成，发现 ${merge.candidates.length} 行需要重点校对',
+        [
+          '最高质量识别完成',
+          if (merge.secondaryOnlyLineIndices.isNotEmpty)
+            '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+          if (merge.candidates.isNotEmpty)
+            '发现 ${merge.candidates.length} 行需要重点校对',
+          if (merge.candidates.isEmpty &&
+              merge.secondaryOnlyLineIndices.isEmpty)
+            '两套引擎结果未发现明显分歧',
+        ].join('；'),
       );
 
       return TranscriptionResult(
@@ -173,14 +172,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<TranscriptionResult> _transcribeWhisperPrimary(
     TranscriptionRequest request,
   ) async {
-    _emit(
-      TranscriptionStage.transcribing,
-      0.02,
-      'Whisper large-v3 正在进行主识别',
-    );
+    final qwenModelKey =
+        request.config.qwenModelPath.toLowerCase().contains('0.6b')
+        ? 'qwen3-asr-0.6b'
+        : 'qwen3-asr-1.7b';
+    final qwenModelLabel = qwenModelKey == 'qwen3-asr-0.6b'
+        ? 'Qwen3-ASR 0.6B'
+        : 'Qwen3-ASR 1.7B';
 
-    final whisperSubscription =
-        fallback.progressStream.listen((progress) {
+    _emit(TranscriptionStage.transcribing, 0.02, 'Whisper large-v3 正在进行主识别');
+
+    final whisperSubscription = fallback.progressStream.listen((progress) {
       if (_cancelRequested) return;
       final mapped = 0.02 + progress.progress * 0.54;
       _emit(
@@ -195,10 +197,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       whisperResult = await fallback.transcribe(
         TranscriptionRequest(
           inputAudioPath: request.inputAudioPath,
-          outputDirectory: '${request.outputDirectory}${Platform.pathSeparator}whisper_primary',
-          config: request.config.copyWith(
-            mode: TranscriptionMode.whisperOnly,
-          ),
+          outputDirectory:
+              '${request.outputDirectory}${Platform.pathSeparator}whisper_primary',
+          config: request.config.copyWith(mode: TranscriptionMode.whisperOnly),
           context: request.context,
         ),
       );
@@ -208,11 +209,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
     _throwIfCancelled();
 
-    _emit(
-      TranscriptionStage.fallback,
-      0.58,
-      'Qwen3-ASR 0.6B 正在进行 CPU 第二意见识别',
-    );
+    _emit(TranscriptionStage.fallback, 0.58, '$qwenModelLabel 正在进行第二意见识别');
 
     final qwenDirectory = Directory(
       '${request.outputDirectory}${Platform.pathSeparator}qwen_second_opinion',
@@ -246,11 +243,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     } on TranscriptionException catch (error) {
       if (error.message == '歌词识别已取消') rethrow;
 
-      _emit(
-        TranscriptionStage.completed,
-        1.0,
-        'Whisper 主识别完成，但 Qwen 第二意见失败',
-      );
+      _emit(TranscriptionStage.completed, 1.0, 'Whisper 主识别完成，但 Qwen 第二意见失败');
 
       return TranscriptionResult(
         lyrics: whisperResult.lyrics.copyWith(
@@ -259,9 +252,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'qualityMode': 'highestQuality',
             'primaryEngine': 'whisper.cpp-large-v3',
             'alignmentEngine': 'whisper-segment-timestamps',
-            'fallbackEngine': 'qwen3-asr-0.6b',
-            'fallbackAlignmentEngine':
-                'qwen3-forced-aligner-0.6b',
+            'fallbackEngine': qwenModelKey,
+            'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
             'fallbackStatus': 'failed',
             'fallbackError': error.toString(),
             'fallbackCandidateCount': 0,
@@ -276,11 +268,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
     _throwIfCancelled();
 
-    _emit(
-      TranscriptionStage.parsing,
-      0.95,
-      '正在比较 Whisper 与 Qwen 的歌词分歧',
-    );
+    _emit(TranscriptionStage.parsing, 0.95, '正在比较 Whisper 与 Qwen 的歌词分歧');
 
     final merge = _mergeWhisperPrimaryResults(
       whisperPrimary: whisperResult.lyrics,
@@ -295,13 +283,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'qualityMode': 'highestQuality',
         'primaryEngine': 'whisper.cpp-large-v3',
         'alignmentEngine': 'whisper-segment-timestamps',
-        'fallbackEngine': 'qwen3-asr-0.6b',
+        'fallbackEngine': qwenModelKey,
         'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
         'fallbackStrategy': 'fullSongSecondOpinion',
         'fallbackStatus': 'completed',
         'fallbackCandidateCount': merge.candidates.length,
         'fallbackAppliedCount': merge.appliedCount,
         'fallbackCandidates': merge.candidates,
+        'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
+        'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+        'fusionPolicy':
+            'add_unmatched_secondary_as_low_confidence_review_lines',
         'qwenRawJsonPath': qwenResult.rawJsonPath,
       },
     );
@@ -309,9 +301,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
     _emit(
       TranscriptionStage.completed,
       1.0,
-      merge.candidates.isEmpty
-          ? 'Intel Mac 高质量识别完成，两套引擎结果高度一致'
-          : 'Intel Mac 高质量识别完成，发现 ${merge.candidates.length} 行需要重点校对',
+      [
+        '最高质量识别完成',
+        if (merge.secondaryOnlyLineIndices.isNotEmpty)
+          '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+        if (merge.candidates.isNotEmpty)
+          '发现 ${merge.candidates.length} 行需要重点校对',
+        if (merge.candidates.isEmpty && merge.secondaryOnlyLineIndices.isEmpty)
+          '两套引擎结果未发现明显分歧',
+      ].join('；'),
     );
 
     return TranscriptionResult(
@@ -329,13 +327,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final lines = List<LyricLine>.from(whisperPrimary.lines);
     final candidates = <_RankedCandidate>[];
+    final matchedSecondaryIndices = <int>{};
 
     for (var index = 0; index < whisperPrimary.lines.length; index++) {
       final whisperLine = whisperPrimary.lines[index];
-      final qwenLines = _overlappingLines(
+      final overlappingIndices = _overlappingLineIndices(
         whisperLine,
         qwenSecondOpinion.lines,
       );
+      matchedSecondaryIndices.addAll(overlappingIndices);
+      final qwenLines = [
+        for (final secondaryIndex in overlappingIndices)
+          qwenSecondOpinion.lines[secondaryIndex],
+      ];
 
       if (qwenLines.isEmpty) {
         if (_isPrimarySuspicious(whisperLine, config)) {
@@ -365,7 +369,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final similarity = _textSimilarity(whisperLine.text, qwenText);
       final durationRatio = _durationRatio(whisperLine, qwenLines);
 
-      final suspicious = _isPrimarySuspicious(whisperLine, config) ||
+      final suspicious =
+          _isPrimarySuspicious(whisperLine, config) ||
           similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
@@ -426,10 +431,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
       appliedCount++;
     }
 
+    final timeline = _mergeUnmatchedSecondaryLines(
+      primaryLines: lines,
+      secondaryLines: qwenSecondOpinion.lines,
+      matchedSecondaryIndices: matchedSecondaryIndices,
+    );
+    final remappedCandidates = _remapCandidateIndices(
+      limited.map((candidate) => candidate.data).toList(growable: false),
+      timeline.primaryIndexToMergedIndex,
+    );
+
     return _MergeResult(
-      lines: lines,
-      candidates: limited.map((e) => e.data).toList(growable: false),
+      lines: timeline.lines,
+      candidates: remappedCandidates,
       appliedCount: appliedCount,
+      secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
     );
   }
 
@@ -440,11 +456,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required double similarity,
     required double durationRatio,
   }) {
-    final whisperSuspicious =
-        _hasSuspiciousRepetition(whisperLine.text);
+    final whisperSuspicious = _hasSuspiciousRepetition(whisperLine.text);
     final qwenSuspicious = _hasSuspiciousRepetition(qwenText);
-    final timingCompatible =
-        durationRatio >= 0.55 && durationRatio <= 1.80;
+    final timingCompatible = durationRatio >= 0.55 && durationRatio <= 1.80;
 
     if (timingCompatible &&
         whisperSuspicious &&
@@ -479,9 +493,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     );
   }
 
-  Future<TranscriptionResult> _runPrimary(
-    TranscriptionRequest request,
-  ) async {
+  Future<TranscriptionResult> _runPrimary(TranscriptionRequest request) async {
     final subscription = primary.progressStream.listen((progress) {
       if (_cancelRequested) return;
       final mapped = 0.02 + progress.progress * 0.70;
@@ -542,13 +554,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final lines = List<LyricLine>.from(primary.lines);
     final candidates = <_RankedCandidate>[];
+    final matchedSecondaryIndices = <int>{};
 
     for (var index = 0; index < primary.lines.length; index++) {
       final qwenLine = primary.lines[index];
-      final whisperLines = _overlappingLines(
+      final overlappingIndices = _overlappingLineIndices(
         qwenLine,
         fallback.lines,
       );
+      matchedSecondaryIndices.addAll(overlappingIndices);
+      final whisperLines = [
+        for (final secondaryIndex in overlappingIndices)
+          fallback.lines[secondaryIndex],
+      ];
       if (whisperLines.isEmpty) {
         if (_isPrimarySuspicious(qwenLine, config)) {
           candidates.add(
@@ -571,13 +589,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       final whisperText = _joinFallbackLines(whisperLines);
       final whisperConfidence = _averageConfidence(whisperLines);
-      final similarity = _textSimilarity(
-        qwenLine.text,
-        whisperText,
-      );
+      final similarity = _textSimilarity(qwenLine.text, whisperText);
       final durationRatio = _durationRatio(qwenLine, whisperLines);
 
-      final suspicious = _isPrimarySuspicious(qwenLine, config) ||
+      final suspicious =
+          _isPrimarySuspicious(qwenLine, config) ||
           similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
@@ -638,59 +654,146 @@ class HighQualityTranscriptionService implements TranscriptionService {
       appliedCount++;
     }
 
+    final timeline = _mergeUnmatchedSecondaryLines(
+      primaryLines: lines,
+      secondaryLines: fallback.lines,
+      matchedSecondaryIndices: matchedSecondaryIndices,
+    );
+    final remappedCandidates = _remapCandidateIndices(
+      limited.map((candidate) => candidate.data).toList(growable: false),
+      timeline.primaryIndexToMergedIndex,
+    );
+
     return _MergeResult(
-      lines: lines,
-      candidates: limited.map((e) => e.data).toList(growable: false),
+      lines: timeline.lines,
+      candidates: remappedCandidates,
       appliedCount: appliedCount,
+      secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
     );
   }
 
-  bool _isPrimarySuspicious(
-    LyricLine line,
-    TranscriptionConfig config,
-  ) {
+  bool _isPrimarySuspicious(LyricLine line, TranscriptionConfig config) {
     return line.confidence < config.fallbackConfidenceThreshold ||
         _hasSuspiciousRepetition(line.text) ||
         _looksTimingSuspicious(line);
   }
 
-  List<LyricLine> _overlappingLines(
+  List<int> _overlappingLineIndices(
     LyricLine target,
     List<LyricLine> candidates,
   ) {
     final paddedStart = target.startTime - const Duration(milliseconds: 450);
     final paddedEnd = target.endTime + const Duration(milliseconds: 450);
-    final result = <LyricLine>[];
+    final result = <int>[];
 
-    for (final line in candidates) {
-      final overlapStart =
-          line.startTime > paddedStart ? line.startTime : paddedStart;
+    for (var index = 0; index < candidates.length; index++) {
+      final line = candidates[index];
+      final overlapStart = line.startTime > paddedStart
+          ? line.startTime
+          : paddedStart;
       final overlapEnd = line.endTime < paddedEnd ? line.endTime : paddedEnd;
 
-      if (overlapEnd > overlapStart) {
-        result.add(line);
-      }
+      if (overlapEnd > overlapStart) result.add(index);
     }
-
     return result;
   }
 
-  double _durationRatio(
-    LyricLine qwenLine,
-    List<LyricLine> whisperLines,
+  /// Retain useful lines found only by the secondary recognizer instead of
+  /// silently discarding them. They are inserted on the time axis with a
+  /// deliberately capped confidence so the editor forces human review.
+  _MergedTimeline _mergeUnmatchedSecondaryLines({
+    required List<LyricLine> primaryLines,
+    required List<LyricLine> secondaryLines,
+    required Set<int> matchedSecondaryIndices,
+  }) {
+    final entries = <_MergedTimelineEntry>[
+      for (var index = 0; index < primaryLines.length; index++)
+        _MergedTimelineEntry(
+          line: primaryLines[index],
+          primaryIndex: index,
+          secondaryOnly: false,
+        ),
+    ];
+
+    for (var index = 0; index < secondaryLines.length; index++) {
+      if (matchedSecondaryIndices.contains(index)) continue;
+      final line = secondaryLines[index];
+      if (line.text.trim().isEmpty ||
+          line.startTime.isNegative ||
+          line.endTime <= line.startTime) {
+        continue;
+      }
+      entries.add(
+        _MergedTimelineEntry(
+          line: line.copyWith(confidence: line.confidence.clamp(0, 60).toInt()),
+          primaryIndex: null,
+          secondaryOnly: true,
+        ),
+      );
+    }
+
+    entries.sort((left, right) {
+      final byStart = left.line.startTime.compareTo(right.line.startTime);
+      if (byStart != 0) return byStart;
+      final byEnd = left.line.endTime.compareTo(right.line.endTime);
+      if (byEnd != 0) return byEnd;
+      // Preserve the primary row before a secondary suggestion at identical
+      // times so existing lyric rows remain stable in tie cases.
+      if (left.secondaryOnly != right.secondaryOnly) {
+        return left.secondaryOnly ? 1 : -1;
+      }
+      return (left.primaryIndex ?? 0).compareTo(right.primaryIndex ?? 0);
+    });
+
+    final primaryIndexToMergedIndex = <int, int>{};
+    final secondaryOnlyLineIndices = <int>[];
+    final mergedLines = <LyricLine>[];
+    for (var index = 0; index < entries.length; index++) {
+      final entry = entries[index];
+      mergedLines.add(entry.line);
+      final primaryIndex = entry.primaryIndex;
+      if (primaryIndex != null) {
+        primaryIndexToMergedIndex[primaryIndex] = index;
+      }
+      if (entry.secondaryOnly) secondaryOnlyLineIndices.add(index);
+    }
+
+    return _MergedTimeline(
+      lines: List.unmodifiable(mergedLines),
+      primaryIndexToMergedIndex: Map.unmodifiable(primaryIndexToMergedIndex),
+      secondaryOnlyLineIndices: List.unmodifiable(secondaryOnlyLineIndices),
+    );
+  }
+
+  List<Map<String, dynamic>> _remapCandidateIndices(
+    List<Map<String, dynamic>> candidates,
+    Map<int, int> primaryIndexToMergedIndex,
   ) {
+    return [
+      for (final candidate in candidates)
+        () {
+          final remapped = Map<String, dynamic>.from(candidate);
+          final index = remapped['lineIndex'];
+          if (index is num) {
+            remapped['lineIndex'] =
+                primaryIndexToMergedIndex[index.toInt()] ?? index.toInt();
+          }
+          return remapped;
+        }(),
+    ];
+  }
+
+  double _durationRatio(LyricLine qwenLine, List<LyricLine> whisperLines) {
     if (whisperLines.isEmpty) return 0.0;
 
-    final qwenDuration =
-        (qwenLine.endTime - qwenLine.startTime).inMilliseconds;
+    final qwenDuration = (qwenLine.endTime - qwenLine.startTime).inMilliseconds;
     final whisperStart = whisperLines
         .map((line) => line.startTime)
         .reduce((a, b) => a < b ? a : b);
     final whisperEnd = whisperLines
         .map((line) => line.endTime)
         .reduce((a, b) => a > b ? a : b);
-    final whisperDuration =
-        (whisperEnd - whisperStart).inMilliseconds;
+    final whisperDuration = (whisperEnd - whisperStart).inMilliseconds;
 
     if (qwenDuration <= 0 || whisperDuration <= 0) return 0.0;
     return whisperDuration / qwenDuration;
@@ -769,17 +872,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
     if (parts.isEmpty) return '';
 
     final combined = parts.join();
-    final containsCjk =
-        RegExp(r'[\u3400-\u9fff\u3040-\u30ff]').hasMatch(combined);
+    final containsCjk = RegExp(
+      r'[\u3400-\u9fff\u3040-\u30ff]',
+    ).hasMatch(combined);
     return parts.join(containsCjk ? '' : ' ').trim();
   }
 
   int _averageConfidence(List<LyricLine> lines) {
     if (lines.isEmpty) return 0;
-    final total = lines.fold<int>(
-      0,
-      (sum, line) => sum + line.confidence,
-    );
+    final total = lines.fold<int>(0, (sum, line) => sum + line.confidence);
     return (total / lines.length).round().clamp(0, 100).toInt();
   }
 
@@ -794,15 +895,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final leftRunes = a.runes.toList();
     final rightRunes = b.runes.toList();
     final distance = _levenshtein(leftRunes, rightRunes);
-    final longest =
-        leftRunes.length > rightRunes.length ? leftRunes.length : rightRunes.length;
+    final longest = leftRunes.length > rightRunes.length
+        ? leftRunes.length
+        : rightRunes.length;
     return (1.0 - distance / longest).clamp(0.0, 1.0).toDouble();
   }
 
   String _normalizeForComparison(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), '');
+    return value.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'),
+      '',
+    );
   }
 
   int _levenshtein(List<int> left, List<int> right) {
@@ -852,11 +955,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return repeated >= 2 || tokens.toSet().length / tokens.length < 0.45;
   }
 
-  void _emit(
-    TranscriptionStage stage,
-    double progress,
-    String message,
-  ) {
+  void _emit(TranscriptionStage stage, double progress, String message) {
     if (_progressController.isClosed) return;
     _progressController.add(
       TranscriptionProgress(
@@ -877,10 +976,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
-    await Future.wait([
-      primary.cancel(),
-      fallback.cancel(),
-    ]);
+    await Future.wait([primary.cancel(), fallback.cancel()]);
   }
 
   @override
@@ -896,11 +992,37 @@ class _MergeResult {
   final List<LyricLine> lines;
   final List<Map<String, dynamic>> candidates;
   final int appliedCount;
+  final List<int> secondaryOnlyLineIndices;
 
   const _MergeResult({
     required this.lines,
     required this.candidates,
     required this.appliedCount,
+    this.secondaryOnlyLineIndices = const [],
+  });
+}
+
+class _MergedTimeline {
+  final List<LyricLine> lines;
+  final Map<int, int> primaryIndexToMergedIndex;
+  final List<int> secondaryOnlyLineIndices;
+
+  const _MergedTimeline({
+    required this.lines,
+    required this.primaryIndexToMergedIndex,
+    required this.secondaryOnlyLineIndices,
+  });
+}
+
+class _MergedTimelineEntry {
+  final LyricLine line;
+  final int? primaryIndex;
+  final bool secondaryOnly;
+
+  const _MergedTimelineEntry({
+    required this.line,
+    required this.primaryIndex,
+    required this.secondaryOnly,
   });
 }
 

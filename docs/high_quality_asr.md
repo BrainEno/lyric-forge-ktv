@@ -17,6 +17,15 @@ The current target profile is:
 
 This mode intentionally favors recognition quality over minimum runtime.
 
+## Smoke-test boundary
+
+The advanced real-audio smoke test verifies that the managed runtime can execute
+the production flow and persist an editable lyric project. It does **not**
+calculate lyric recall, word error rate, omitted-line rate, or timestamp
+accuracy. A run can complete while still producing an incomplete transcript.
+Treat the generated lyric document as a draft and compare it with a manually
+checked reference before judging recognition quality.
+
 ## Pipeline
 
 ```text
@@ -24,20 +33,27 @@ project audio
   -> prefer vocal stem
   -> normalized/original fallback when no vocal stem exists
   -> FFmpeg 16 kHz mono PCM
-  -> Qwen3-ASR 1.7B
-  -> Qwen3 ForcedAligner 0.6B
-  -> Qwen-aligned LyricDocument
-  -> Whisper large-v3 full-song second opinion
-  -> time-overlap comparison
-  -> conservative merge
+  -> Whisper large-v3 full-song transcript (current Windows RTX 5080 default)
+  -> Qwen3-ASR full-song second opinion
+  -> time-overlap comparison in both directions
+  -> conservative text alternatives + unmatched secondary-only lines
   -> editable LyricDocument
 ```
 
-Qwen remains the primary transcript and time-axis provider.
+**Current Windows RTX 5080 profile: Whisper is the primary transcript; Qwen3-ASR
+1.7B CUDA/BF16 is the independent second opinion.** This is a quality-first
+interim default based on the observed Roadhouse Blues end-to-end failure and the
+fact that the existing merge path favored Qwen rows even when Whisper heard
+extra lines. It is not a claim that Whisper is universally more accurate. The
+profile can be reconsidered after a manually reviewed song corpus compares both
+engines on the same normalized input.
 
-Whisper does not replace every disagreement automatically. It is used as an
-independent second opinion. Automatic replacement is intentionally conservative;
-other disagreements are surfaced in the lyric editor for review.
+The merger now checks unmatched secondary output in both directions. Lines found
+only by the secondary engine are inserted in timestamp order at confidence no
+higher than 60, so they are visible in the editor's review queue rather than
+silently discarded or trusted as ground truth. Existing per-line alternatives
+are remapped to their post-insertion row indices to avoid offering a candidate
+for the wrong lyric row.
 
 ## Why full-song Whisper second opinion
 
@@ -51,8 +67,12 @@ For Highest Quality mode this has two weaknesses:
 2. repeatedly starting Whisper for small slices reloads the fallback model and
    can be slower than one full-song pass on a high-end GPU.
 
-Highest Quality mode therefore runs one Qwen pass and one Whisper pass for the
-whole song, then compares their timed results line by line.
+Highest Quality mode runs one full-song pass for each engine, then compares
+their timed results by time overlap. On the Windows RTX 5080 profile Whisper is
+currently primary; the Intel Mac profile already uses Whisper primary. A
+secondary-only line is treated as a review-required suggestion, not as verified
+lyrics. This avoids dropping all evidence from the second recognizer merely
+because it did not overlap a primary row.
 
 ## Qwen native runtime contract
 
@@ -190,6 +210,13 @@ The editor now surfaces:
 
 A manual text edit is treated as user confirmation for that line and raises the
 line confidence to 100.
+
+The Qwen response can provide timestamped text without calibrated lexical
+confidence. In that case the adapter uses a neutral score of 50 rather than the
+old optimistic score of 92, which was inferred from timestamp/text shape and
+could make severely misrecognized lines look trustworthy. This score is a
+review-priority signal, not a calibrated probability. Explicit model-provided
+scores are still retained when available.
 
 Structural edits such as adding or deleting lines clear stale fallback index
 metadata.

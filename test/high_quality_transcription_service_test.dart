@@ -21,6 +21,137 @@ void main() {
       }
     });
 
+    test(
+      'inserts Whisper-only lines as reviewable rows and remaps candidates',
+      () async {
+        final primaryResult = _resultLines([
+          LyricLine(
+            text: 'opening verse',
+            startTime: const Duration(seconds: 1),
+            endTime: const Duration(seconds: 3),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'hello hello hello hello',
+            startTime: const Duration(seconds: 10),
+            endTime: const Duration(seconds: 12),
+            confidence: 35,
+          ),
+        ]);
+        final fallbackResult = _resultLines([
+          LyricLine(
+            text: 'opening verse',
+            startTime: const Duration(milliseconds: 1100),
+            endTime: const Duration(milliseconds: 2900),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'missing lyric line',
+            startTime: const Duration(seconds: 5),
+            endTime: const Duration(seconds: 6),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'yellow submarine',
+            startTime: const Duration(milliseconds: 10100),
+            endTime: const Duration(milliseconds: 11900),
+            confidence: 92,
+          ),
+        ]);
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: primaryResult),
+          fallback: _FakeTranscriptionService(result: fallbackResult),
+        );
+
+        final result = await service.transcribe(_request(tempDirectory.path));
+        final lines = result.lyrics.lines;
+        final metadata = result.lyrics.metadata;
+        final candidates = metadata['fallbackCandidates'] as List;
+        final candidate = Map<String, dynamic>.from(candidates.single as Map);
+
+        expect(lines.map((line) => line.text).toList(), [
+          'opening verse',
+          'missing lyric line',
+          'yellow submarine',
+        ]);
+        expect(lines[1].confidence, 60);
+        expect(lines[0].startTime, const Duration(seconds: 1));
+        expect(lines[1].startTime, const Duration(seconds: 5));
+        expect(lines[2].startTime, const Duration(seconds: 10));
+        expect(metadata['secondaryOnlyLineCount'], 1);
+        expect(metadata['secondaryOnlyLineIndices'], [1]);
+        // The replacement candidate originally referenced primary row 2. Its
+        // index must move when a new secondary-only row is inserted before it.
+        expect(candidate['lineIndex'], 2);
+        expect(lines[2].text, 'yellow submarine');
+
+        await service.dispose();
+      },
+    );
+
+    test(
+      'keeps Whisper primary output and inserts Qwen-only review rows',
+      () async {
+        final qwenResult = _resultLines([
+          LyricLine(
+            text: 'opening verse',
+            startTime: const Duration(milliseconds: 1100),
+            endTime: const Duration(milliseconds: 2900),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'Qwen heard another line',
+            startTime: const Duration(seconds: 5),
+            endTime: const Duration(seconds: 6),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'closing verse',
+            startTime: const Duration(milliseconds: 10100),
+            endTime: const Duration(milliseconds: 11900),
+            confidence: 92,
+          ),
+        ]);
+        final whisperResult = _resultLines([
+          LyricLine(
+            text: 'opening verse',
+            startTime: const Duration(seconds: 1),
+            endTime: const Duration(seconds: 3),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'closing verse',
+            startTime: const Duration(seconds: 10),
+            endTime: const Duration(seconds: 12),
+            confidence: 92,
+          ),
+        ]);
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: qwenResult),
+          fallback: _FakeTranscriptionService(result: whisperResult),
+        );
+
+        final result = await service.transcribe(
+          _request(
+            tempDirectory.path,
+            engineOrder: TranscriptionEngineOrder.whisperPrimary,
+          ),
+        );
+
+        expect(result.lyrics.lines.map((line) => line.text).toList(), [
+          'opening verse',
+          'Qwen heard another line',
+          'closing verse',
+        ]);
+        expect(result.lyrics.lines[1].confidence, 60);
+        expect(result.lyrics.metadata['primaryEngine'], 'whisper.cpp-large-v3');
+        expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
+        expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
+
+        await service.dispose();
+      },
+    );
+
     test('keeps Qwen result when Whisper second opinion fails', () async {
       final primaryResult = _result(
         LyricLine(
@@ -38,9 +169,7 @@ void main() {
         ),
       );
 
-      final result = await service.transcribe(
-        _request(tempDirectory.path),
-      );
+      final result = await service.transcribe(_request(tempDirectory.path));
 
       expect(result.lyrics.lines.single.text, '你好世界');
       expect(result.lyrics.metadata['fallbackStatus'], 'failed');
@@ -52,44 +181,44 @@ void main() {
       await service.dispose();
     });
 
-    test('replaces only clearly weak Qwen text and preserves Qwen timing',
-        () async {
-      final primaryResult = _result(
-        LyricLine(
-          text: 'hello hello hello hello',
-          startTime: const Duration(seconds: 10),
-          endTime: const Duration(seconds: 13),
-          confidence: 35,
-        ),
-      );
+    test(
+      'replaces only clearly weak Qwen text and preserves Qwen timing',
+      () async {
+        final primaryResult = _result(
+          LyricLine(
+            text: 'hello hello hello hello',
+            startTime: const Duration(seconds: 10),
+            endTime: const Duration(seconds: 13),
+            confidence: 35,
+          ),
+        );
 
-      final fallbackResult = _result(
-        LyricLine(
-          text: 'yellow submarine',
-          startTime: const Duration(milliseconds: 10100),
-          endTime: const Duration(milliseconds: 12900),
-          confidence: 92,
-        ),
-      );
+        final fallbackResult = _result(
+          LyricLine(
+            text: 'yellow submarine',
+            startTime: const Duration(milliseconds: 10100),
+            endTime: const Duration(milliseconds: 12900),
+            confidence: 92,
+          ),
+        );
 
-      final service = HighQualityTranscriptionService(
-        primary: _FakeTranscriptionService(result: primaryResult),
-        fallback: _FakeTranscriptionService(result: fallbackResult),
-      );
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: primaryResult),
+          fallback: _FakeTranscriptionService(result: fallbackResult),
+        );
 
-      final result = await service.transcribe(
-        _request(tempDirectory.path),
-      );
+        final result = await service.transcribe(_request(tempDirectory.path));
 
-      final line = result.lyrics.lines.single;
-      expect(line.text, 'yellow submarine');
-      expect(line.startTime, const Duration(seconds: 10));
-      expect(line.endTime, const Duration(seconds: 13));
-      expect(result.lyrics.metadata['fallbackStatus'], 'completed');
-      expect(result.lyrics.metadata['fallbackAppliedCount'], 1);
+        final line = result.lyrics.lines.single;
+        expect(line.text, 'yellow submarine');
+        expect(line.startTime, const Duration(seconds: 10));
+        expect(line.endTime, const Duration(seconds: 13));
+        expect(result.lyrics.metadata['fallbackStatus'], 'completed');
+        expect(result.lyrics.metadata['fallbackAppliedCount'], 1);
 
-      await service.dispose();
-    });
+        await service.dispose();
+      },
+    );
     test(
       'surfaces Ashin versus passion as a review candidate without auto-applying',
       () async {
@@ -130,52 +259,48 @@ void main() {
       },
     );
 
-    test(
-      'surfaces the same disagreement when Whisper is primary',
-      () async {
-        final whisperResult = _result(
-          LyricLine(
-            text: 'passion lady',
-            startTime: const Duration(seconds: 10),
-            endTime: const Duration(seconds: 13),
-            confidence: 92,
-          ),
-        );
-        final qwenResult = _result(
-          LyricLine(
-            text: 'Ashin lady',
-            startTime: const Duration(milliseconds: 10100),
-            endTime: const Duration(milliseconds: 12900),
-            confidence: 92,
-          ),
-        );
-        final service = HighQualityTranscriptionService(
-          primary: _FakeTranscriptionService(result: qwenResult),
-          fallback: _FakeTranscriptionService(result: whisperResult),
-        );
+    test('surfaces the same disagreement when Whisper is primary', () async {
+      final whisperResult = _result(
+        LyricLine(
+          text: 'passion lady',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 92,
+        ),
+      );
+      final qwenResult = _result(
+        LyricLine(
+          text: 'Ashin lady',
+          startTime: const Duration(milliseconds: 10100),
+          endTime: const Duration(milliseconds: 12900),
+          confidence: 92,
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: qwenResult),
+        fallback: _FakeTranscriptionService(result: whisperResult),
+      );
 
-        final result = await service.transcribe(
-          _request(
-            tempDirectory.path,
-            engineOrder: TranscriptionEngineOrder.whisperPrimary,
-          ),
-        );
-        final metadata = result.lyrics.metadata;
-        final candidates = metadata['fallbackCandidates'] as List;
-        final candidate = Map<String, dynamic>.from(candidates.single as Map);
+      final result = await service.transcribe(
+        _request(
+          tempDirectory.path,
+          engineOrder: TranscriptionEngineOrder.whisperPrimary,
+        ),
+      );
+      final metadata = result.lyrics.metadata;
+      final candidates = metadata['fallbackCandidates'] as List;
+      final candidate = Map<String, dynamic>.from(candidates.single as Map);
 
-        expect(result.lyrics.lines.single.text, 'passion lady');
-        expect(metadata['fallbackCandidateCount'], 1);
-        expect(metadata['fallbackAppliedCount'], 0);
-        expect(candidate['alternativeText'], 'Ashin lady');
-        expect(candidate['reason'], 'engine_disagreement_review');
+      expect(result.lyrics.lines.single.text, 'passion lady');
+      expect(metadata['fallbackCandidateCount'], 1);
+      expect(metadata['fallbackAppliedCount'], 0);
+      expect(candidate['alternativeText'], 'Ashin lady');
+      expect(candidate['reason'], 'engine_disagreement_review');
 
-        await service.dispose();
-      },
-    );
+      await service.dispose();
+    });
 
-    test('uses Whisper primary and Qwen second opinion on Intel Mac',
-        () async {
+    test('uses Whisper primary and Qwen second opinion on Intel Mac', () async {
       final qwenResult = _result(
         LyricLine(
           text: 'yellow submarine',
@@ -216,7 +341,6 @@ void main() {
 
       await service.dispose();
     });
-
   });
 }
 
@@ -231,17 +355,22 @@ TranscriptionRequest _request(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
       qwenExecutable: 'qwen3-asr',
+      qwenModelPath: engineOrder == TranscriptionEngineOrder.whisperPrimary
+          ? 'Qwen/Qwen3-ASR-0.6B'
+          : 'Qwen/Qwen3-ASR-1.7B',
       whisperExecutable: 'whisper-cli',
       modelPath: 'ggml-large-v3.bin',
     ),
   );
 }
 
-TranscriptionResult _result(LyricLine line) {
+TranscriptionResult _result(LyricLine line) => _resultLines([line]);
+
+TranscriptionResult _resultLines(List<LyricLine> lines) {
   return TranscriptionResult(
     lyrics: LyricDocument(
       language: 'auto',
-      lines: [line],
+      lines: lines,
       metadata: const {'draft': true},
     ),
     normalizedAudioPath: 'normalized.wav',
@@ -256,10 +385,7 @@ class _FakeTranscriptionService implements TranscriptionService {
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
 
-  _FakeTranscriptionService({
-    this.result,
-    this.error,
-  });
+  _FakeTranscriptionService({this.result, this.error});
 
   @override
   bool get isRunning => false;
