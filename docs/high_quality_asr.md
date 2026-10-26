@@ -78,6 +78,7 @@ The sidecar must provide:
 ```text
 GET /healthz
 POST /v1/transcribe
+POST /v1/align
 ```
 
 The currently evaluated reference implementation is the Rust/Candle
@@ -114,6 +115,8 @@ Each item must contain text/word plus start/end seconds.
 This contract currently matches the native Rust/Candle Qwen3-ASR sidecar that
 was evaluated during implementation. The contract is deliberately isolated so a
 future native backend can replace it without changing project workflow or UI.
+
+The lyric editor can optionally call `POST /v1/align` during ASR-first proofreading. It uses the same managed Qwen process, normalizes the selected vocal/original audio to 16 kHz mono WAV, and feeds validated spans into review-only token evidence. The review dialog reports incomplete coverage or runtime unavailability; neither outcome writes aligned timestamps into the source document. This option requires a runtime bundle built with the forced-alignment endpoint.
 
 ## Sidecar lifetime and GPU memory
 
