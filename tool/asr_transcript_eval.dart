@@ -70,12 +70,17 @@ class _Sample {
       candidates = _parseCandidates(raw) {
     if (referenceTokens.isEmpty || referenceCharacters.isEmpty) {
       throw FormatException(
-        'Reference text for sample ' + id + ' has no normalized lyric characters.',
+        'Reference text for sample ' +
+            id +
+            ' has no normalized lyric characters.',
       );
     }
     if (candidates.isEmpty || candidates.length > _maxCandidates) {
       throw FormatException(
-        'Sample ' + id + ' must contain 1–' + _maxCandidates.toString() +
+        'Sample ' +
+            id +
+            ' must contain 1–' +
+            _maxCandidates.toString() +
             ' candidates.',
       );
     }
@@ -115,10 +120,12 @@ int _editDistance<T>(List<T> left, List<T> right, String context) {
     current[0] = i;
     for (var j = 1; j <= columns.length; j++) {
       final replace = rows[i - 1] == columns[j - 1] ? 0 : 1;
-      current[j] = math.min(
-        math.min(current[j - 1] + 1, previous[j] + 1),
-        previous[j - 1] + replace,
-      ).toInt();
+      current[j] = math
+          .min(
+            math.min(current[j - 1] + 1, previous[j] + 1),
+            previous[j - 1] + replace,
+          )
+          .toInt();
     }
     final swap = previous;
     previous = current;
@@ -141,7 +148,11 @@ class _Score {
     : characterEdits = _editDistance<int>(
         sample.referenceCharacters,
         candidate.characters,
-        'Sample ' + sample.id + ' / ' + candidate.engine + ' character comparison',
+        'Sample ' +
+            sample.id +
+            ' / ' +
+            candidate.engine +
+            ' character comparison',
       ),
       tokenEdits = _editDistance<String>(
         sample.referenceTokens,
@@ -183,23 +194,29 @@ class _Score {
 
 Map<String, Object?> _summarize(List<_Score> scores) {
   final referenceCharacters = scores.fold<int>(
-    0, (sum, score) => sum + score.sample.referenceCharacters.length,
+    0,
+    (sum, score) => sum + score.sample.referenceCharacters.length,
   );
   final characterEdits = scores.fold<int>(
-    0, (sum, score) => sum + score.characterEdits,
+    0,
+    (sum, score) => sum + score.characterEdits,
   );
   final referenceTokens = scores.fold<int>(
-    0, (sum, score) => sum + score.sample.referenceTokens.length,
+    0,
+    (sum, score) => sum + score.sample.referenceTokens.length,
   );
   final tokenEdits = scores.fold<int>(
-    0, (sum, score) => sum + score.tokenEdits,
+    0,
+    (sum, score) => sum + score.tokenEdits,
   );
   final wordScores = scores.where((score) => score.wordComparable).toList();
   final referenceWords = wordScores.fold<int>(
-    0, (sum, score) => sum + score.sample.referenceTokens.length,
+    0,
+    (sum, score) => sum + score.sample.referenceTokens.length,
   );
   final wordEdits = wordScores.fold<int>(
-    0, (sum, score) => sum + score.tokenEdits,
+    0,
+    (sum, score) => sum + score.tokenEdits,
   );
   return {
     'candidateCount': scores.length,
@@ -222,10 +239,14 @@ Map<String, Object?> _summarize(List<_Score> scores) {
 Map<String, Object?> evaluateTranscriptCorpus(String source) {
   final root = jsonDecode(source);
   if (root is! Map<String, dynamic> || root['schemaVersion'] != 1) {
-    throw const FormatException('Corpus must be a schemaVersion 1 JSON object.');
+    throw const FormatException(
+      'Corpus must be a schemaVersion 1 JSON object.',
+    );
   }
   final rawSamples = root['samples'];
-  if (rawSamples is! List || rawSamples.isEmpty || rawSamples.length > _maxSamples) {
+  if (rawSamples is! List ||
+      rawSamples.isEmpty ||
+      rawSamples.length > _maxSamples) {
     throw const FormatException('Corpus needs 1–200 samples.');
   }
   final samples = rawSamples.map(_Sample.parse).toList(growable: false);
@@ -236,8 +257,10 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
     for (final sample in samples)
       for (final candidate in sample.candidates) _Score(sample, candidate),
   ];
-  final engines = scores.map((score) => score.candidate.engine).toSet().toList()..sort();
-  final languages = samples.map((sample) => sample.language).toSet().toList()..sort();
+  final engines = scores.map((score) => score.candidate.engine).toSet().toList()
+    ..sort();
+  final languages = samples.map((sample) => sample.language).toSet().toList()
+    ..sort();
 
   return {
     'schemaVersion': 1,
@@ -260,11 +283,13 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
                   score.candidate.engine == engine,
             ))
               engine: _summarize(
-                scores.where(
-                  (score) =>
-                      score.sample.language == language &&
-                      score.candidate.engine == engine,
-                ).toList(),
+                scores
+                    .where(
+                      (score) =>
+                          score.sample.language == language &&
+                          score.candidate.engine == engine,
+                    )
+                    .toList(),
               ),
         },
     },
@@ -335,7 +360,9 @@ Future<void> main(List<String> args) async {
     stderr.writeln('Invalid ASR transcript corpus: ' + error.message);
     exitCode = 2;
   } on ArgumentError catch (error) {
-    stderr.writeln('Invalid ASR transcript evaluation data: ' + error.toString());
+    stderr.writeln(
+      'Invalid ASR transcript evaluation data: ' + error.toString(),
+    );
     exitCode = 2;
   } on FileSystemException catch (error) {
     stderr.writeln(error.message);
