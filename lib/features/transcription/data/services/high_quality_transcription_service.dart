@@ -775,10 +775,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
     // A strong boundary match is also enough to pair an entirely different
     // hypothesis as an alternative, but merely sitting inside another line
     // is not: that is exactly where a missed backing/ad-lib line can hide.
-    final startDelta =
-        (primaryLine.startTime - secondaryLine.startTime).inMilliseconds.abs();
-    final endDelta =
-        (primaryLine.endTime - secondaryLine.endTime).inMilliseconds.abs();
+    final startDelta = (primaryLine.startTime - secondaryLine.startTime)
+        .inMilliseconds
+        .abs();
+    final endDelta = (primaryLine.endTime - secondaryLine.endTime)
+        .inMilliseconds
+        .abs();
     final longerDuration = primaryDuration > secondaryDuration
         ? primaryDuration
         : secondaryDuration;
@@ -961,9 +963,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
     if (parts.isEmpty) return '';
 
     final combined = parts.join();
-    final containsCjk = RegExp(
-      r'[\u3400-\u9fff\u3040-\u30ff]',
-    ).hasMatch(combined);
+    final containsCjk = RegExp(r'[\u3400-\u9fff\u3040-\u30ff]')
+        .hasMatch(combined);
     return parts.join(containsCjk ? '' : ' ').trim();
   }
 
