@@ -282,6 +282,57 @@ The Dart HTTP adapter validates non-empty spans, timestamp ordering, and audio-d
 The ASR-first proofread pipeline accepts validated alignment spans and attaches them to matching review rows as `TimedLyricToken` evidence. It normalizes alignment text with the shared Unicode-aware lyric tokenizer, including full-width Latin forms, CJK characters, and common Chinese/Japanese punctuation, then matches contiguous span text against each draft line in source order. The matcher can recover across up to 12 unmatched spans before a line and considers at most 128 spans for a single line candidate; consumed spans are never reused, and a failed row does not automatically block later rows from matching. These are hard safety bounds, not permission to guess. The domain result carries `ProofreadAlignmentDiagnostics` with total/matched line counts, line coverage, skipped span count, and unmatched line indices (zero-based in the model). The service marks alignment as requested even when a successful response contains zero spans, so the result reports zero coverage rather than silently treating the response as “not requested”. Incomplete diagnostics produce a warning with line coverage, skipped-span count, and one-based unmatched lyric row numbers. The review dialog displays those diagnostics in a dedicated summary block; an empty successful response therefore shows zero coverage and does not claim that token evidence was produced. Skipped spans are not automatically classified as noise or ad-libs. The original lyric text and line-level timestamps remain unchanged. The current `/v1/align` response provides token text and start/end times but no calibrated confidence score, so `TimedLyricToken.confidence` is `null` for ForcedAligner evidence. Do not infer model confidence from the presence or duration of a span. Contract tests cover English, full-width Latin, Chinese, Japanese text normalization, bounded recovery, repeated lines and diagnostics invariants, but synthetic spans do not prove actual audio timing accuracy; real-song coverage still requires a rebuilt runtime bundle and manual audio validation.
 
 
+## Repeatable transcript comparison across ASR engines
+
+Use the transcript evaluator to compare Whisper, Qwen, and the fused draft against
+the **same manually verified reference text for the same audio clip**:
+
+```powershell
+dart run tool/asr_transcript_eval.dart docs/evaluation/asr_transcript_corpus.json --output build/asr_transcript_report.json
+```
+
+Corpus schema version 1:
+
+```json
+{
+  "schemaVersion": 1,
+  "samples": [
+    {
+      "id": "road-house-blues-en-01",
+      "songId": "roadhouse-blues",
+      "language": "English",
+      "referenceText": "Manually checked lyrics for this exact clip",
+      "candidates": [
+        { "engine": "whisper-large-v3", "text": "Whisper output" },
+        { "engine": "qwen3-asr-1.7b", "text": "Qwen output" },
+        { "engine": "highest-quality-fusion", "text": "Fused output" }
+      ]
+    }
+  ]
+}
+```
+
+The report calculates normalized character error rate (CER), tokenizer-level
+error rate, and word error rate (WER) where meaningful; it also aggregates by
+engine and language. Normalization lowercases text, normalizes full-width forms,
+and ignores punctuation and whitespace. WER is `null` for a candidate/reference
+pair containing CJK characters because the shared tokenizer deliberately
+tokenizes CJK one character at a time; use CER and token error rate for Chinese,
+Japanese, Korean, or mixed-script clips. Aggregate rates are weighted by total
+reference units and error counts rather than averaging per-song percentages.
+Empty ASR output counts as a complete omission and is not silently excluded.
+
+Every candidate in a sample must come from the same audio clip and preprocessing
+path; otherwise the comparison is confounded. Reference lyrics must be manually
+checked for the sung words, repeated sections, and backing vocals/ad-libs that
+the benchmark intends to count. Do not treat web lyrics that omit performed
+words as a gold reference.
+
+This transcript tool does not assess timestamps or line segmentation. Use
+`tool/forced_alignment_eval.dart` with manually checked reference intervals to
+measure span recall, unmatched spans, and boundary error separately. No real-song
+accuracy claim should be made from synthetic unit tests alone.
+
 ## Repeatable ForcedAligner quality evaluation
 
 A small corpus of manually checked token intervals can be used to compare captured `POST /v1/align` spans against reference times. The evaluator reports normalized-text recall/precision, unmatched reference/output spans, mean/median/p95/max absolute boundary error, and the rate of boundaries within a configured tolerance. Results are grouped overall and by language.

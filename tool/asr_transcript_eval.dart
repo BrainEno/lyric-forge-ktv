@@ -40,13 +40,11 @@ List<int> _characters(String text) => _tokens(text).join().runes.toList();
 
 class _Candidate {
   final String engine;
-  final String text;
   final List<String> tokens;
   final List<int> characters;
 
   _Candidate.parse(dynamic raw, String sampleId)
     : engine = _requiredString(raw, 'engine'),
-      text = _requiredText(raw, 'text'),
       tokens = _tokens(_requiredText(raw, 'text')),
       characters = _characters(_requiredText(raw, 'text')) {
     if (engine.isEmpty) {
@@ -59,7 +57,6 @@ class _Sample {
   final String id;
   final String songId;
   final String language;
-  final String referenceText;
   final List<String> referenceTokens;
   final List<int> referenceCharacters;
   final List<_Candidate> candidates;
@@ -68,7 +65,6 @@ class _Sample {
     : id = _requiredString(raw, 'id'),
       songId = _optionalString(raw, 'songId') ?? _requiredString(raw, 'id'),
       language = _requiredString(raw, 'language'),
-      referenceText = _requiredText(raw, 'referenceText'),
       referenceTokens = _tokens(_requiredText(raw, 'referenceText')),
       referenceCharacters = _characters(_requiredText(raw, 'referenceText')),
       candidates = _parseCandidates(raw) {
