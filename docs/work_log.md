@@ -10,7 +10,6 @@
 - [2026-10-26 16:35] Add repeatable ForcedAligner quality evaluation `Add repeatable ForcedAligner quality evaluation` ([entry](log/entries/2026-10-26-1635-forced-align-quality-evaluation.md))
 - [2026-10-26 16:20] Surface ForcedAligner coverage diagnostics in review `feat: surface forced-alignment diagnostics in review` ([entry](log/entries/2026-10-26-1620-surface-forced-align-diagnostics.md))
 - [2026-10-26 16:15] Recover ForcedAligner line matches with bounded diagnostics `Recover line matching around bounded extra spans` ([entry](log/entries/2026-10-26-1615-forced-align-recovery-diagnostics.md))
-- [2026-10-26 15:30] Normalize multilingual forced-alignment text matching `Normalize forced alignment text with shared Unicode tokenizer` ([entry](log/entries/2026-10-26-1530-normalize-forced-align-text.md))
 
 <!-- 97 entries total: 8 active, 89 archived. -->
 
