@@ -19,8 +19,7 @@ class AsrEndToEndSmokeTestCard extends StatefulWidget {
       _AsrEndToEndSmokeTestCardState();
 }
 
-class _AsrEndToEndSmokeTestCardState
-    extends State<AsrEndToEndSmokeTestCard> {
+class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
   late final AsrEndToEndSmokeTestService _smokeTestService;
   StreamSubscription<AsrEndToEndSmokeProgress>? _progressSubscription;
 
@@ -141,15 +140,15 @@ class _AsrEndToEndSmokeTestCardState
                     Text(
                       '真实音频端到端自检',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       '选择一首本机真实音频。应用会检查并自动准备 runtime / 模型，创建工程，执行生产 ASR，验证已生成可编辑歌词，然后自动打开歌词校对页。此自检只确认运行链路能工作，不评估漏词、错词或时间戳准确率；请在编辑器中人工检查。',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -169,9 +168,9 @@ class _AsrEndToEndSmokeTestCardState
                   ? '首次运行可能需要下载数 GB 的识别 runtime 与模型。自检会保留生成的“· ASR 自检”工程，便于你直接检查歌词和时间轴；显示运行链路完成不代表识别完整或准确。'
                   : '真实 ASR 自检目前只在 Windows / macOS 桌面端开放。',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                    height: 1.5,
-                  ),
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
           ),
           if (_running && _progress != null) ...[
@@ -180,9 +179,9 @@ class _AsrEndToEndSmokeTestCardState
             const SizedBox(height: AppSpacing.sm),
             Text(
               _progress!.message,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
           if (_error != null) ...[
@@ -218,7 +217,9 @@ class _AsrEndToEndSmokeTestCardState
             runSpacing: AppSpacing.sm,
             children: [
               FilledButton.icon(
-                onPressed: !_desktopSupported || _running ? null : _runSmokeTest,
+                onPressed: !_desktopSupported || _running
+                    ? null
+                    : _runSmokeTest,
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: const Text('选择真实音频并开始自检'),
               ),
