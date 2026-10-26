@@ -103,6 +103,13 @@ print_provenance() {
 
 print_provenance
 
+# Fail fast on documentation-contract errors before running the full analyzer
+# and test suite. This avoids spending a minute or more on tests when the log is
+# already known to be inconsistent.
+if [[ "$mode" == "all" && "$skip_docs" != true ]]; then
+  run_step "work log preflight (before analyze/tests)" dart tool/work_log.dart check
+fi
+
 if [[ "$skip_pub_get" != true ]]; then
   run_step "flutter pub get" flutter pub get
 fi
@@ -124,13 +131,6 @@ if [[ "$mode" == "all" || "$mode" == "test" ]]; then
   else
     run_step "flutter test" flutter test --no-pub --reporter expanded
   fi
-fi
-
-# Lint the work-log harness (entry files, generated summary, index snapshot,
-# decisions and handoff). It is documentation-only, so it runs in the default
-# mode and can be skipped with --skip-docs.
-if [[ "$mode" == "all" && "$skip_docs" != true ]]; then
-  run_step "work log lint" dart tool/work_log.dart check
 fi
 
 printf '\nRepository quality gate (%s) passed.\n' "$mode"
