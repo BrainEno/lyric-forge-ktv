@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -114,6 +115,73 @@ void main() {
 
     expect(result, isNotNull);
     expect(result!.useForcedAlignment, isTrue);
+  });
+
+  testWidgets('review dialog exposes token timing and can audition one word',
+      (tester) async {
+    final token = TimedLyricToken(
+      text: 'hello',
+      interval: ProofreadTimeInterval(
+        start: const Duration(milliseconds: 200),
+        end: const Duration(milliseconds: 600),
+      ),
+      confidence: 35,
+      source: ProofreadTimeSource.forcedAligner,
+    );
+    int? auditionedLineIndex;
+    TimedLyricToken? auditionedToken;
+
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async {
+              await showLyricProofreadV2ReviewDialog(
+                context,
+                summary: '绿色 0 · 琥珀色 1',
+                explanation: '词级时间仅供复核。',
+                items: [
+                  LyricProofreadV2ReviewItem(
+                    proposalIndex: 0,
+                    sourceIndex: 0,
+                    originalLine: line('hello world'),
+                    proposedLine: line('hello world'),
+                    verdict: LyricProofreadReviewVerdict.amber,
+                    reasonLabel: '词级对齐证据',
+                    alignmentTokens: [token],
+                  ),
+                ],
+                droppedItems: const [],
+                onPreviewDraftLine: null,
+                onPreviewAlignmentToken: (index, value) {
+                  auditionedLineIndex = index;
+                  auditionedToken = value;
+                },
+              );
+            },
+            child: const Text('open token review'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open token review'));
+    await tester.pumpAndSettle();
+    expect(find.text('词级时间证据（1 词）'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('alignment_tokens_0')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('hello'), findsOneWidget);
+    expect(find.text('0.20 s – 0.60 s · 置信参考 35%'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('alignment_token_0_0')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(auditionedLineIndex, 0);
+    expect(auditionedToken, same(token));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('review dialog stays within a compact phone viewport',
