@@ -1,0 +1,45 @@
+name: Temporary ASR formatter
+
+on:
+  push:
+    branches:
+      - fix/asr-fusion-recall-confidence-20261026
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+      - name: Format changed ASR files and commit formatter output
+        shell: bash
+        run: |
+          dart format \
+            lib/features/transcription/data/services/high_quality_transcription_service.dart \
+            lib/features/transcription/data/services/native_transcription_profile_resolver.dart \
+            lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart \
+            test/high_quality_transcription_service_test.dart \
+            test/transcription_hardware_profile_test.dart
+          if git diff --quiet; then
+            echo "Formatter made no changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            lib/features/transcription/data/services/high_quality_transcription_service.dart \
+            lib/features/transcription/data/services/native_transcription_profile_resolver.dart \
+            lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart \
+            test/high_quality_transcription_service_test.dart \
+            test/transcription_hardware_profile_test.dart
+          git commit -m "style: format ASR fusion changes"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
