@@ -880,6 +880,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               reasonLabel: row.reasons.map(_proofreadV2ReasonLabel).join('、'),
             ),
         ];
+        final alignmentDiagnostics =
+            alignmentOutcome?.result.alignmentDiagnostics;
         strategyExplanation = [
           decision.autoFellBackToAsr
               ? '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。'
@@ -887,6 +889,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               ? '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。'
               : '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
+          if (alignmentDiagnostics != null)
+            '词级对齐覆盖率 ${(alignmentDiagnostics.lineCoverage * 100).round()}% '
+            '（匹配 ${alignmentDiagnostics.matchedLineCount}/'
+            '${alignmentDiagnostics.totalLineCount} 行，跳过额外片段 '
+            '${alignmentDiagnostics.skippedSpanCount} 个'
+            '${alignmentDiagnostics.hasUnmatchedLines ? '，未匹配行：${alignmentDiagnostics.unmatchedLineNumbers.join(', ')}' : ''}）。',
           if (alignmentOutcome != null && alignmentOutcome.warning != null)
             alignmentOutcome.warning!,
           if (alignmentOutcome?.alignmentAvailable == true)
