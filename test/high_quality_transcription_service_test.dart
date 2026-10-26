@@ -361,7 +361,13 @@ void main() {
           LyricLine(
             text: 'sing a little song',
             startTime: const Duration(milliseconds: 11900),
-            endTime: const Duration(milliseconds: 12600),
+            endTime: const Duration(milliseconds: 12300),
+            confidence: 92,
+          ),
+          LyricLine(
+            text: 'dancing',
+            startTime: const Duration(milliseconds: 12350),
+            endTime: const Duration(milliseconds: 12700),
             confidence: 92,
           ),
           LyricLine(
@@ -398,14 +404,16 @@ void main() {
             expect(lines.map((line) => line.text).toList(), [
               fullLine.text,
               'sing a little song',
+              'dancing',
             ], reason: 'engine order: $engineOrder');
             expect(
-              lines.last.confidence,
+              lines[1].confidence,
               60,
               reason: 'novel secondary lines must stay review-only',
             );
-            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
-            expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
+            expect(lines[2].confidence, 60);
+            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 2);
+            expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1, 2]);
             expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
           } finally {
             await service.dispose();
