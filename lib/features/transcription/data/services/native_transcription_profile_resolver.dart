@@ -8,9 +8,7 @@ class NativeTranscriptionProfileResolver
     implements TranscriptionProfileResolver {
   final TranscriptionHardwareInfo? hardwareOverride;
 
-  NativeTranscriptionProfileResolver({
-    this.hardwareOverride,
-  });
+  NativeTranscriptionProfileResolver({this.hardwareOverride});
 
   static const String _qwen17 = 'Qwen/Qwen3-ASR-1.7B';
   static const String _qwen06 = 'Qwen/Qwen3-ASR-0.6B';
@@ -24,10 +22,10 @@ class NativeTranscriptionProfileResolver
     final operatingSystem = Platform.isMacOS
         ? 'macos'
         : Platform.isWindows
-            ? 'windows'
-            : Platform.isLinux
-                ? 'linux'
-                : Platform.operatingSystem;
+        ? 'windows'
+        : Platform.isLinux
+        ? 'linux'
+        : Platform.operatingSystem;
 
     final architecture = await _detectArchitecture();
     String? cpuName;
@@ -36,9 +34,13 @@ class NativeTranscriptionProfileResolver
     int? systemMemoryMb;
 
     if (Platform.isMacOS) {
-      cpuName = await _runText('sysctl', const ['-n', 'machdep.cpu.brand_string']);
-      final memoryBytes =
-          int.tryParse(await _runText('sysctl', const ['-n', 'hw.memsize']) ?? '');
+      cpuName = await _runText('sysctl', const [
+        '-n',
+        'machdep.cpu.brand_string',
+      ]);
+      final memoryBytes = int.tryParse(
+        await _runText('sysctl', const ['-n', 'hw.memsize']) ?? '',
+      );
       if (memoryBytes != null) {
         systemMemoryMb = memoryBytes ~/ (1024 * 1024);
       }
@@ -67,8 +69,8 @@ class NativeTranscriptionProfileResolver
     TranscriptionConfig config,
   ) async {
     final hardware = await detectHardware();
-    final selected = config.profilePreference ==
-            TranscriptionProfilePreference.automatic
+    final selected =
+        config.profilePreference == TranscriptionProfilePreference.automatic
         ? _automaticProfileFor(hardware)
         : config.profilePreference;
 
@@ -83,8 +85,7 @@ class NativeTranscriptionProfileResolver
         config.qwenAlignerModelPath,
         _aligner06,
       );
-    } else if (selected ==
-        TranscriptionProfilePreference.intelMacHighQuality) {
+    } else if (selected == TranscriptionProfilePreference.intelMacHighQuality) {
       qwenModelPath = await _preferMatchingLocalModel(
         config.qwenModelPath,
         _qwen06,
@@ -100,8 +101,7 @@ class NativeTranscriptionProfileResolver
         ResolvedTranscriptionProfile(
           profile: selected,
           label: 'RTX 5080 最高质量',
-          description:
-              'Whisper large-v3 主识别 + Qwen3-ASR 1.7B CUDA/BF16 独立第二意见；双模型独有歌词以低置信度行进入人工复核',
+          description: 'Whisper large-v3 主识别 + Qwen3-ASR 1.7B CUDA/BF16 独立第二意见；双模型独有歌词以低置信度行进入人工复核',
           hardware: hardware,
           config: config.copyWith(
             profilePreference: selected,
@@ -116,8 +116,7 @@ class NativeTranscriptionProfileResolver
         ResolvedTranscriptionProfile(
           profile: selected,
           label: 'Intel Mac 高质量',
-          description:
-              'Whisper large-v3 主识别 + Qwen3-ASR 0.6B CPU 第二意见；Qwen ForcedAligner 提供候选时间信息',
+          description: 'Whisper large-v3 主识别 + Qwen3-ASR 0.6B CPU 第二意见；Qwen ForcedAligner 提供候选时间信息',
           hardware: hardware,
           config: config.copyWith(
             profilePreference: selected,
@@ -128,16 +127,16 @@ class NativeTranscriptionProfileResolver
             qwenDtype: 'f32',
           ),
         ),
-      TranscriptionProfilePreference.custom =>
-        ResolvedTranscriptionProfile(
-          profile: selected,
-          label: '自定义',
-          description: '使用当前手动配置的本地识别运行时与模型',
-          hardware: hardware,
-          config: config,
-        ),
-      TranscriptionProfilePreference.automatic =>
-        throw StateError('automatic profile must resolve before this point'),
+      TranscriptionProfilePreference.custom => ResolvedTranscriptionProfile(
+        profile: selected,
+        label: '自定义',
+        description: '使用当前手动配置的本地识别运行时与模型',
+        hardware: hardware,
+        config: config,
+      ),
+      TranscriptionProfilePreference.automatic => throw StateError(
+        'automatic profile must resolve before this point',
+      ),
     };
   }
 
@@ -175,8 +174,9 @@ class NativeTranscriptionProfileResolver
 
   Future<String> _detectArchitecture() async {
     if (Platform.isWindows) {
-      final value =
-          Platform.environment['PROCESSOR_ARCHITECTURE']?.trim().toLowerCase();
+      final value = Platform.environment['PROCESSOR_ARCHITECTURE']
+          ?.trim()
+          .toLowerCase();
       if (value == null || value.isEmpty) return 'unknown';
       if (value == 'amd64') return 'x86_64';
       return value;
@@ -186,13 +186,10 @@ class NativeTranscriptionProfileResolver
   }
 
   Future<(String?, int?)> _detectNvidiaGpu() async {
-    final output = await _runText(
-      'nvidia-smi',
-      const [
-        '--query-gpu=name,memory.total',
-        '--format=csv,noheader,nounits',
-      ],
-    );
+    final output = await _runText('nvidia-smi', const [
+      '--query-gpu=name,memory.total',
+      '--format=csv,noheader,nounits',
+    ]);
     if (output == null || output.trim().isEmpty) return (null, null);
 
     final line = output.split(RegExp(r'[\r\n]+')).first.trim();
@@ -203,10 +200,10 @@ class NativeTranscriptionProfileResolver
   }
 
   Future<(String?, int?)> _detectMacGpu() async {
-    final output = await _runText(
-      'system_profiler',
-      const ['-json', 'SPDisplaysDataType'],
-    );
+    final output = await _runText('system_profiler', const [
+      '-json',
+      'SPDisplaysDataType',
+    ]);
     if (output == null || output.trim().isEmpty) return (null, null);
 
     try {
@@ -224,10 +221,11 @@ class NativeTranscriptionProfileResolver
         final name = item['sppci_model']?.toString().trim();
         if (name != null && name.isNotEmpty) names.add(name);
 
-        final memoryText = (item['spdisplays_vram'] ??
-                item['spdisplays_vram_shared'] ??
-                item['spdisplays_vram_dynamic'])
-            ?.toString();
+        final memoryText =
+            (item['spdisplays_vram'] ??
+                    item['spdisplays_vram_shared'] ??
+                    item['spdisplays_vram_dynamic'])
+                ?.toString();
         final memoryMb = _parseMemoryMb(memoryText);
         if (memoryMb != null && memoryMb > maxMemoryMb) {
           maxMemoryMb = memoryMb;
@@ -245,9 +243,10 @@ class NativeTranscriptionProfileResolver
 
   int? _parseMemoryMb(String? value) {
     if (value == null) return null;
-    final match =
-        RegExp(r'(\d+(?:\.\d+)?)\s*(GB|MB)', caseSensitive: false)
-            .firstMatch(value);
+    final match = RegExp(
+      r'(\d+(?:\.\d+)?)\s*(GB|MB)',
+      caseSensitive: false,
+    ).firstMatch(value);
     if (match == null) return null;
 
     final amount = double.tryParse(match.group(1) ?? '');
@@ -256,10 +255,7 @@ class NativeTranscriptionProfileResolver
     return unit == 'GB' ? (amount * 1024).round() : amount.round();
   }
 
-  Future<String?> _runText(
-    String executable,
-    List<String> arguments,
-  ) async {
+  Future<String?> _runText(String executable, List<String> arguments) async {
     try {
       final result = await Process.run(executable, arguments);
       if (result.exitCode != 0) return null;

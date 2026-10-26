@@ -37,9 +37,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     if (_running) {
-      throw const TranscriptionException.busy(
-        'Qwen3-ASR 已有识别任务正在运行',
-      );
+      throw const TranscriptionException.busy('Qwen3-ASR 已有识别任务正在运行');
     }
 
     _running = true;
@@ -48,19 +46,17 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _idleShutdownTimer = null;
 
     try {
-      _emit(
-        TranscriptionStage.validating,
-        0.02,
-        '正在检查 Qwen3-ASR 高质量运行环境',
-      );
+      _emit(TranscriptionStage.validating, 0.02, '正在检查 Qwen3-ASR 高质量运行环境');
       await _validateRequest(request);
       _throwIfCancelled();
 
       final outputDirectory = Directory(request.outputDirectory);
       await outputDirectory.create(recursive: true);
 
-      final normalizedPath = '${outputDirectory.path}${Platform.pathSeparator}qwen_transcription_input.wav';
-      final rawJsonPath = '${outputDirectory.path}${Platform.pathSeparator}qwen3_asr_result.json';
+      final normalizedPath =
+          '${outputDirectory.path}${Platform.pathSeparator}qwen_transcription_input.wav';
+      final rawJsonPath =
+          '${outputDirectory.path}${Platform.pathSeparator}qwen3_asr_result.json';
 
       _emit(
         TranscriptionStage.preprocessing,
@@ -99,11 +95,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         flush: true,
       );
 
-      _emit(
-        TranscriptionStage.aligning,
-        0.82,
-        'ForcedAligner 正在整理歌词时间轴',
-      );
+      _emit(TranscriptionStage.aligning, 0.82, 'ForcedAligner 正在整理歌词时间轴');
       final result = _parseResponse(
         response,
         normalizedAudioPath: normalizedPath,
@@ -111,11 +103,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         modelPath: request.config.qwenModelPath,
       );
 
-      _emit(
-        TranscriptionStage.completed,
-        1.0,
-        'Qwen3-ASR 高质量识别完成',
-      );
+      _emit(TranscriptionStage.completed, 1.0, 'Qwen3-ASR 高质量识别完成');
       return result;
     } on _QwenCancelledException {
       _emit(TranscriptionStage.cancelled, 0.0, 'Qwen3-ASR 识别已取消');
@@ -124,7 +112,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       rethrow;
     } catch (error) {
       _emit(TranscriptionStage.failed, 0.0, 'Qwen3-ASR 识别失败');
-      final environmentFailure = error is ProcessException ||
+      final environmentFailure =
+          error is ProcessException ||
           error is SocketException ||
           error is HttpException;
       throw TranscriptionException(
@@ -156,9 +145,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     required TranscriptionConfig config,
   }) async {
     if (_running) {
-      throw const TranscriptionException.busy(
-        'Qwen3-ASR 已有识别或对齐任务正在运行',
-      );
+      throw const TranscriptionException.busy('Qwen3-ASR 已有识别或对齐任务正在运行');
     }
     if (!await File(audioPath).exists()) {
       throw const TranscriptionException.input('待对齐音频文件不存在');
@@ -168,7 +155,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'ForcedAligner 需要配置 Qwen native runtime 与对齐模型',
       );
     }
-    if (text.trim().isEmpty || language.trim().isEmpty ||
+    if (text.trim().isEmpty ||
+        language.trim().isEmpty ||
         audioDuration <= Duration.zero) {
       throw const TranscriptionException.input('参考歌词、语言和音频时长均为必填项');
     }
@@ -179,7 +167,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _idleShutdownTimer = null;
     Directory? temporaryDirectory;
     try {
-      await _validateExecutable(config.qwenExecutable, 'Qwen3-ASR native runtime');
+      await _validateExecutable(
+        config.qwenExecutable,
+        'Qwen3-ASR native runtime',
+      );
       await _validateExecutable(config.ffmpegExecutable, 'FFmpeg');
       if (!await _modelReferenceAvailable(config.qwenModelPath) ||
           !await _modelReferenceAvailable(config.qwenAlignerModelPath)) {
@@ -193,7 +184,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'lyricforge-align-${DateTime.now().microsecondsSinceEpoch}',
       );
       await temporaryDirectory.create(recursive: true);
-      final normalizedPath = '${temporaryDirectory.path}${Platform.pathSeparator}alignment.wav';
+      final normalizedPath =
+          '${temporaryDirectory.path}${Platform.pathSeparator}alignment.wav';
       await _runFfmpeg(
         executable: config.ffmpegExecutable,
         inputPath: audioPath,
@@ -307,22 +299,19 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(
-        executable,
-        [
-          '-y',
-          '-i',
-          inputPath,
-          '-vn',
-          '-ar',
-          '16000',
-          '-ac',
-          '1',
-          '-c:a',
-          'pcm_s16le',
-          outputPath,
-        ],
-      );
+      process = await Process.start(executable, [
+        '-y',
+        '-i',
+        inputPath,
+        '-vn',
+        '-ar',
+        '16000',
+        '-ac',
+        '1',
+        '-c:a',
+        'pcm_s16le',
+        outputPath,
+      ]);
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动 FFmpeg',
@@ -346,15 +335,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _throwIfCancelled();
 
     if (exitCode != 0) {
-      throw TranscriptionException.input(
-        'FFmpeg 音频预处理失败',
-        details: stderrText,
-      );
+      throw TranscriptionException.input('FFmpeg 音频预处理失败', details: stderrText);
     }
     if (!await output.exists()) {
-      throw const TranscriptionException.input(
-        'FFmpeg 未生成 Qwen3-ASR 输入文件',
-      );
+      throw const TranscriptionException.input('FFmpeg 未生成 Qwen3-ASR 输入文件');
     }
   }
 
@@ -379,24 +363,21 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(
-        config.qwenExecutable,
-        [
-          '--device',
-          config.qwenDevice,
-          '--dtype',
-          config.qwenDtype,
-          'serve',
-          '--model',
-          config.qwenModelPath,
-          '--host',
-          '127.0.0.1',
-          '--port',
-          port.toString(),
-          '--forced-aligner',
-          config.qwenAlignerModelPath,
-        ],
-      );
+      process = await Process.start(config.qwenExecutable, [
+        '--device',
+        config.qwenDevice,
+        '--dtype',
+        config.qwenDtype,
+        'serve',
+        '--model',
+        config.qwenModelPath,
+        '--host',
+        '127.0.0.1',
+        '--port',
+        port.toString(),
+        '--forced-aligner',
+        config.qwenAlignerModelPath,
+      ]);
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动 Qwen3-ASR native runtime',
@@ -460,10 +441,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }
 
   Future<int> _reservePort() async {
-    final socket = await ServerSocket.bind(
-      InternetAddress.loopbackIPv4,
-      0,
-    );
+    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final port = socket.port;
     await socket.close();
     return port;
@@ -477,8 +455,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final request = await _httpClient
           .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
           .timeout(const Duration(seconds: 2));
-      final response =
-          await request.close().timeout(const Duration(seconds: 2));
+      final response = await request.close().timeout(
+        const Duration(seconds: 2),
+      );
       await response.drain<void>();
       return response.statusCode == HttpStatus.ok;
     } catch (_) {
@@ -493,9 +472,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }) async {
     final port = _serverPort;
     if (port == null) {
-      throw const TranscriptionException.environment(
-        'Qwen3-ASR 服务尚未启动',
-      );
+      throw const TranscriptionException.environment('Qwen3-ASR 服务尚未启动');
     }
 
     final request = await _httpClient.postUrl(
@@ -543,9 +520,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     final decoded = jsonDecode(text);
     if (decoded is! Map) {
-      throw const TranscriptionException.environment(
-        'Qwen3-ASR 返回了无效 JSON',
-      );
+      throw const TranscriptionException.environment('Qwen3-ASR 返回了无效 JSON');
     }
 
     final envelope = Map<String, dynamic>.from(decoded);
@@ -558,9 +533,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       return envelope;
     }
 
-    throw const TranscriptionException.environment(
-      'Qwen3-ASR 响应缺少 results[0]',
-    );
+    throw const TranscriptionException.environment('Qwen3-ASR 响应缺少 results[0]');
   }
 
   String? _qwenLanguage(String value) {
@@ -670,9 +643,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     return const [];
   }
 
-  List<LyricLine> _parseAndGroupWordLevel(
-    Map<String, dynamic> response,
-  ) {
+  List<LyricLine> _parseAndGroupWordLevel(Map<String, dynamic> response) {
     final candidates = <dynamic>[
       response['words'],
       response['time_stamps'],
@@ -727,9 +698,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     final start = _readSeconds(
       item['start'] ?? item['start_time'] ?? item['begin'],
     );
-    final end = _readSeconds(
-      item['end'] ?? item['end_time'] ?? item['finish'],
-    );
+    final end = _readSeconds(item['end'] ?? item['end_time'] ?? item['finish']);
     if (start == null || end == null || end <= start) return null;
 
     return _TimedToken(
@@ -747,10 +716,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }
 
   int? _readConfidence(Map<String, dynamic> item) {
-    final raw = item['confidence'] ??
-        item['score'] ??
-        item['probability'] ??
-        item['p'];
+    final raw =
+        item['confidence'] ?? item['score'] ?? item['probability'] ?? item['p'];
     if (raw is! num) return null;
 
     final value = raw.toDouble();
@@ -779,8 +746,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           .toList(growable: false);
       final explicitConfidence = confidences.isEmpty
           ? null
-          : (confidences.reduce((a, b) => a + b) / confidences.length)
-              .round();
+          : (confidences.reduce((a, b) => a + b) / confidences.length).round();
 
       lines.add(
         LyricLine(
@@ -876,10 +842,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   bool _hasSuspiciousRepetition(String text) {
     final normalized = text
         .toLowerCase()
-        .replaceAll(
-          RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'),
-          ' ',
-        )
+        .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), ' ')
         .trim();
     if (normalized.length < 8) return false;
 
@@ -896,11 +859,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     return repeated >= 2 || tokens.toSet().length / tokens.length < 0.45;
   }
 
-  void _emit(
-    TranscriptionStage stage,
-    double progress,
-    String message,
-  ) {
+  void _emit(TranscriptionStage stage, double progress, String message) {
     if (_progressController.isClosed) return;
 
     _progressController.add(

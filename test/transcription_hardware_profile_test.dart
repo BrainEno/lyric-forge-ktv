@@ -98,10 +98,7 @@ void main() {
       expect(resolved.profile, TranscriptionProfilePreference.custom);
       expect(resolved.config.qwenModelPath, '/custom/model');
       expect(resolved.config.qwenDevice, 'cpu');
-      expect(
-        resolved.config.engineOrder,
-        TranscriptionEngineOrder.qwenPrimary,
-      );
+      expect(resolved.config.engineOrder, TranscriptionEngineOrder.qwenPrimary);
     });
   });
 }
