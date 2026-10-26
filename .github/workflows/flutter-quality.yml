@@ -33,6 +33,12 @@ jobs:
           channel: stable
           cache: true
 
+      # Catch missing work-log fields and generated-file drift before dependency
+      # resolution, analysis, or the full test suite. The scripts also preflight
+      # for local invocation outside this workflow.
+      - name: Work-log contract preflight
+        run: dart tool/work_log.dart check
+
       - name: Resolve Flutter packages
         run: flutter pub get
 
