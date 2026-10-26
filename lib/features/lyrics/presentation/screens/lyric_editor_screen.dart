@@ -1643,8 +1643,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       audioDuration: audioDuration,
     );
     if (!window.canAudition) {
-      return const ProofreadTimedLinePreviewResult.failure(
-        '该时间范围超出音频有效时长或时间区间无效，无法试听。',
+      final error = await _startAuditionWindow(
+        project,
+        index,
+        document,
+        audioAsset,
+        window,
+        showError: false,
+      );
+      return ProofreadTimedLinePreviewResult.failure(
+        error ?? '该时间范围超出音频有效时长或时间区间无效，无法试听。',
       );
     }
 
