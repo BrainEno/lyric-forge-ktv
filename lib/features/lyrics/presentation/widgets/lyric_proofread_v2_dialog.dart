@@ -569,6 +569,7 @@ class _LyricProofreadV2ReviewDialogState
                   ),
                 ),
                 if (item.sourceIndex != null &&
+                    original != null &&
                     (widget.onPreviewTimedLine != null ||
                         widget.onPreviewDraftLine != null))
                   IconButton(
@@ -580,7 +581,7 @@ class _LyricProofreadV2ReviewDialogState
                         : () => _previewTimedLine(
                             proposalIndex: item.proposalIndex,
                             sourceIndex: item.sourceIndex!,
-                            line: original ?? item.proposedLine,
+                            line: original,
                             globalOffset: widget.originalGlobalOffset,
                             label: '原始',
                           ),
