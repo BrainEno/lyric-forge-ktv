@@ -1,36 +1,39 @@
 # Handoff
 
 ## 目标
-处理 Windows/Linux 音频-only MPV 后端中的 `lavf: Failed to create file cache.`，同时保留正常内存/网络缓存，并将实机未验证的事项明确记录。
+修复歌词智能校对 V2 的行级试听链路，使原始时间与建议时间可以分别试听，并让无效音频/时间范围/播放启动失败在模态对话框中可见。
 
 ## Git 现场
-- 仓库：`BrainEno/lyric-forge-ktv`。
-- 当前 `main`：`1e2d6a5a062e9701325ab46592698bb425587bf9`（PR #192、#193 均已合并）。
-- 当前分支：`fix/mpv-disk-cache-warning-20261026`。
-- 当前 PR #194：https://github.com/BrainEno/lyric-forge-ktv/pull/194。
-- 当前环境没有本地 Git 工作树；远端文件、PR diff 与 GitHub Actions 是验证依据。
+- 仓库：`BrainEno/lyric-forge-ktv`
+- 当前分支：`fix/v2-lyric-audition-feedback-20261026`
+- 本轮工作建立于 `main@a6b4ae596bf966b5dcd9a99c4f07d6464cc9e705`
+- 当前环境没有本地 Git/Flutter 工作树；以远端文件、PR diff 和 GitHub Actions 作为验证依据。
 
 ## 已改文件
-- `packages/just_audio_media_kit/lib/mediakit_player.dart`：在适配器 ready 阶段、媒体打开之前设置 `cache-on-disk=no`。
-- `docs/log/entries/2026-10-26-2000-disable-mpv-disk-cache.md`、`docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md` 与本文件。
+- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`
+- `test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart`
+- `docs/log/entries/2026-10-26-2110-fix-v2-audition-feedback.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/work_log_index.md`
 
 ## 本轮实现
-- MPV 手册说明 `cache-on-disk` 会将 packet 数据写入临时文件；明确设为 `no` 后，常规缓存仍可用，包数据留在内存。
-- 不使用 `cache=no`，不降低 MPV 全局日志等级，也不重写播放时序。
-- 先前路由断言修复 PR #192 与 OSC 属性修复 PR #193 已合并；这条缓存告警是独立诊断。
+- V2 复核卡片可分别试听原始行与建议时间范围；两者分别使用原文档和建议文档的 globalOffset。
+- 复核对话框显示试听状态和失败原因，不再只依赖可能被模态对话框盖住的底层 SnackBar。
+- 播放帮助函数返回结构化成功/失败结果。无效时间范围、播放会话/资源错误和播放器未进入播放状态能返回具体诊断。
+- 保留旧的 `onPreviewDraftLine` 回调兼容路径。
+- 新增 widget 回归测试，核验回调行内容、时间偏移和失败信息可见性。
 
 ## 检查结果
-- 主线改动前 Quality Gate #275 已通过格式、work-log preflight、analyzer 与测试：https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40311320773。
-- MPV 选项语义依据：https://mpv.io/manual/master/。
-- PR #194 的最新 CI 需要在本次文档提交后复核。
-- 当前环境无法运行 Windows 原生 MPV 播放；没有声称本地播放已验证。
+- 远端 Flutter Quality Gate 尚待验证；本地没有 Dart/Flutter SDK，未声称格式、analyzer 或测试已经通过。
+- 自动化测试只能验证 UI 回调契约和失败反馈。真实音频是否能从用户的 Windows/MPV 播放栈启动，仍须在重建应用后验证。
 
 ## 下一步
-检查 PR #194 最新 head 的所有 CI。通过后由仓库维护者决定是否合并；重建 Windows 应用后实测本地文件与网络输入的首次播放，观察警告是否消失以及首播是否正常。如果首播仍失败，继续根据具体源路径、格式和播放错误分析，不以消除这行日志代替播放验证。
+检查此分支 CI，包括 work-log preflight、Dart format、analyzer、定向 widget 测试及完整测试套件。CI 通过后在 Windows 重建应用，选一首有已知时间戳的歌曲，依次按“试听原始行”和“试听建议时间”，确认声音实际发出、各自从对应区间起播，并检查无效范围时对话框能显示原因。
 
 ## 已知风险
-- 上游曾报告同一条日志，并指出关闭缓存选项可令日志消失却未必解决首播失败：https://github.com/Pato05/just_audio_media_kit/issues/22。
-- `NativeReferenceHolder: Allocated ...` 是原生引用分配信息，不是 Flutter 构建断言。
-- 当前改动针对可选磁盘缓存创建路径；Windows 实机结果仍未知。
+- 本次只使已有播放链路可诊断并支持时间 A/B；如果媒体源无法打开、播放队列源与项目音频不同，仍需基于实际错误继续修复。
+- 在没有真实音频设备的执行环境中，不能宣称已完成声学/设备级验证。
 
-最后更新：2026-10-26 20:00（Asia/Taipei）
+最后更新：2026-10-26 21:10（Asia/Taipei）
