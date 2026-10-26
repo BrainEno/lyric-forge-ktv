@@ -258,3 +258,57 @@ dart run tool/forced_alignment_eval.dart docs/evaluation/forced_alignment_corpus
 The corpus uses schema version 1, a non-empty `samples` array, unique sample IDs, language names, optional `audioDurationMs`, and `referenceSpans`/`actualSpans` arrays. Each span contains `text`, integer `startMs`, and integer `endMs`. Optional settings are `toleranceMs` (default 150) and `maxGroupSpans` (default 8). Ordered bounded matching accepts different span grouping without inventing intermediate timestamps.
 
 **Important:** no real audio or fabricated gold data is shipped with this tool. Reference intervals must be manually checked against the same original audio; synthetic tests validate the evaluator logic only. Keep separate Chinese, English, and Japanese samples and include repetitions/ad-libs before setting quality thresholds.
+
+## Capture real local ForcedAligner results
+
+The evaluator has a `capture` subcommand that calls a local `POST /v1/align`
+endpoint, stores the returned spans as `actualSpans`, and converts
+`start_time`/`end_time` seconds to integer milliseconds. It only accepts a
+loopback host (`localhost`, `127.0.0.1`, or another loopback IP) and the exact
+`/v1/align` path; lyrics and local file paths are never sent to an arbitrary
+remote service.
+
+Prepare a UTF-8 text file containing the exact lyric text sent to the aligner,
+and a separate JSON file of manually checked reference intervals. The reference
+file may be a JSON array or an object with a `referenceSpans` array:
+
+```json
+[
+  { "text": "hello", "startMs": 1250, "endMs": 1510 },
+  { "text": "world", "startMs": 1540, "endMs": 1850 }
+]
+```
+
+Start a rebuilt local native runtime on a known loopback port, then capture the
+first sample from PowerShell:
+
+```powershell
+dart run tool/forced_alignment_eval.dart capture `
+  --endpoint http://127.0.0.1:8000/v1/align `
+  --audio "D:/Songs/example.wav" `
+  --text-file "D:/Songs/example.txt" `
+  --reference "D:/Songs/example-reference.json" `
+  --id en-example-01 --language English `
+  --duration-ms 214000 `
+  --output "D:/Evaluation/forced_alignment_corpus.json"
+```
+
+For the next song, keep the same corpus and use `--append-to` instead of
+`--output`:
+
+```powershell
+dart run tool/forced_alignment_eval.dart capture `
+  --endpoint http://127.0.0.1:8000/v1/align `
+  --audio "D:/Songs/chinese-song.wav" `
+  --text-file "D:/Songs/chinese-song.txt" `
+  --reference "D:/Songs/chinese-song-reference.json" `
+  --id zh-example-01 --language Chinese `
+  --duration-ms 198000 `
+  --append-to "D:/Evaluation/forced_alignment_corpus.json"
+```
+
+The tool validates sample IDs, span order and duration bounds before writing. It reserves a new output path exclusively and refuses to overwrite an appended corpus that changed during alignment.
+An empty `items` array is preserved as an empty actual result so evaluation can
+report zero recall instead of hiding a failed alignment. Reference intervals
+must be manually checked against the same audio file; this workflow does not
+claim model accuracy until the corpus has been reviewed and evaluated.
