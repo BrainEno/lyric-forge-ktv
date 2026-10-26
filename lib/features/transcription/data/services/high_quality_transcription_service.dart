@@ -963,8 +963,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
     if (parts.isEmpty) return '';
 
     final combined = parts.join();
-    final containsCjk = RegExp(r'[\u3400-\u9fff\u3040-\u30ff]')
-        .hasMatch(combined);
+    final containsCjk = RegExp(
+      r'[\u3400-\u9fff\u3040-\u30ff]',
+    ).hasMatch(combined);
     return parts.join(containsCjk ? '' : ' ').trim();
   }
 
