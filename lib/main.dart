@@ -52,10 +52,7 @@ Future<void> _initializeMobileMediaSessionAfterLaunch() async {
 class ElysiumPlayerApp extends StatelessWidget {
   final bool? desktopChromeOverride;
 
-  const ElysiumPlayerApp({
-    super.key,
-    this.desktopChromeOverride,
-  });
+  const ElysiumPlayerApp({super.key, this.desktopChromeOverride});
 
   @override
   Widget build(BuildContext context) {
@@ -89,9 +86,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                   return Column(
                     children: [
                       Expanded(child: syncedShell),
-                      if (!immersive &&
-                          !keyboardVisible &&
-                          !suppressPlayerBar)
+                      if (!immersive && !keyboardVisible && !suppressPlayerBar)
                         const MobileGlobalPlayerBar(),
                     ],
                   );
@@ -112,8 +107,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                             Expanded(child: syncedShell),
                             if (!immersive) ...[
                               const GlobalTranscriptionQueueBar(),
-                              if (!suppressPlayerBar)
-                                const GlobalPlayerBar(),
+                              if (!suppressPlayerBar) const GlobalPlayerBar(),
                             ],
                           ],
                         );
@@ -129,4 +123,3 @@ class ElysiumPlayerApp extends StatelessWidget {
     );
   }
 }
-
