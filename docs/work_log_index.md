@@ -39,7 +39,7 @@
 
 ## Follow-up leads — media backend
 
-- `media_kit`/MPV terminal messages are independent of the route observer. The audio-only `just_audio_media_kit` adapter now leaves the unsupported OSC runtime option unset. `lavf: Failed to create file cache` remains a separate diagnostic requiring reproduction with the exact audio source and playback outcome before changing cache settings.
+- `media_kit`/MPV terminal messages are independent of the route observer. The audio-only `just_audio_media_kit` adapter avoids the unsupported OSC runtime write and now explicitly sets `cache-on-disk=no` before opening media, preserving normal memory/network caching. Verify `lavf: Failed to create file cache` and first-play behavior on Windows after rebuilding; do not suppress MPV errors globally.
 
 ## Archive map
 
