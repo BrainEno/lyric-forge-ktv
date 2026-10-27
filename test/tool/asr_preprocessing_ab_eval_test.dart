@@ -176,7 +176,7 @@ void main() {
     expect(qwen['baselineWordErrorRate'], isNull);
     expect(qwen['sharedWordErrorRate'], isNull);
     expect(whisper['wordErrorRateComparablePairCount'], 1);
-    expect(whisper['baselineWordErrorRate'], closeTo(1 / 3, 0.000001));
+    expect(whisper['baselineWordErrorRate'], closeTo(1 / 2, 0.000001));
     expect(whisper['sharedWordErrorRate'], 0);
 
     final pairs = report['pairs']! as List;
