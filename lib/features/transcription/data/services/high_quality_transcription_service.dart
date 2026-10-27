@@ -124,14 +124,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ...primaryResult.lyrics.metadata,
           'qualityMode': 'highestQuality',
           'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
-                request.config.qwenModelPath,
-              ),
+            request.config.qwenModelPath,
+          ),
           'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
-                request.config.qwenAlignerModelPath,
-              ),
+            request.config.qwenAlignerModelPath,
+          ),
           'fallbackEngine': TranscriptionModelIdentity.whisperEngine(
-                request.config.modelPath,
-              ),
+            request.config.modelPath,
+          ),
           'fallbackStrategy': 'fullSongSecondOpinion',
           'fallbackStatus': 'completed',
           'fallbackCandidateCount': merge.candidates.length,
@@ -262,10 +262,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
           metadata: {
             ...whisperResult.lyrics.metadata,
             'qualityMode': 'highestQuality',
-            'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+            'primaryEngine': TranscriptionModelIdentity.whisperEngine(
+              request.config.modelPath,
+            ),
             'alignmentEngine': 'whisper-segment-timestamps',
             'fallbackEngine': qwenModelKey,
-            'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+            'fallbackAlignmentEngine':
+                TranscriptionModelIdentity.qwenAlignerEngine(
                   request.config.qwenAlignerModelPath,
                 ),
             'fallbackStatus': 'failed',
@@ -295,10 +298,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
       metadata: {
         ...whisperResult.lyrics.metadata,
         'qualityMode': 'highestQuality',
-        'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+        'primaryEngine': TranscriptionModelIdentity.whisperEngine(
+              request.config.modelPath,
+            ),
         'alignmentEngine': 'whisper-segment-timestamps',
         'fallbackEngine': qwenModelKey,
-        'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+        'fallbackAlignmentEngine':
+                TranscriptionModelIdentity.qwenAlignerEngine(
                   request.config.qwenAlignerModelPath,
                 ),
         'fallbackStrategy': 'fullSongSecondOpinion',
