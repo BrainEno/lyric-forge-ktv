@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'dart:math' as math;
+
+import 'package:crypto/crypto.dart';
 
 import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
 
