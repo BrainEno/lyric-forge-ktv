@@ -39,37 +39,41 @@ void main() {
     expect(report['candidateCount'], 3);
   });
 
-  test('breaks character errors into extra, omitted, and substituted units', () {
-    final report = evaluator.evaluateTranscriptCorpus(
-      jsonEncode({
-        'schemaVersion': 1,
-        'samples': [
-          {
-            'id': 'edit-breakdown',
-            'language': 'English',
-            'referenceText': 'abcdef',
-            'candidates': [
-              {'engine': 'test-engine', 'text': 'axdefz'},
-            ],
-          },
-        ],
-      }),
-    );
-    final score =
-        (report['overallByEngine']! as Map<String, dynamic>)['test-engine']
-            as Map<String, dynamic>;
-    expect(score['characterEditCount'], 3);
-    expect(score['characterInsertions'], 1);
-    expect(score['characterDeletions'], 1);
-    expect(score['characterSubstitutions'], 1);
+  test(
+    'breaks character errors into extra, omitted, and substituted units',
+    () {
+      final report = evaluator.evaluateTranscriptCorpus(
+        jsonEncode({
+          'schemaVersion': 1,
+          'samples': [
+            {
+              'id': 'edit-breakdown',
+              'language': 'English',
+              'referenceText': 'abcdef',
+              'candidates': [
+                {'engine': 'test-engine', 'text': 'axdefz'},
+              ],
+            },
+          ],
+        }),
+      );
+      final score =
+          (report['overallByEngine']! as Map<String, dynamic>)['test-engine']
+              as Map<String, dynamic>;
+      expect(score['characterEditCount'], 3);
+      expect(score['characterInsertions'], 1);
+      expect(score['characterDeletions'], 1);
+      expect(score['characterSubstitutions'], 1);
 
-    final sample = (report['samples']! as List).single as Map<String, dynamic>;
-    final candidate =
-        (sample['candidates']! as List).single as Map<String, dynamic>;
-    expect(candidate['characterInsertions'], 1);
-    expect(candidate['characterDeletions'], 1);
-    expect(candidate['characterSubstitutions'], 1);
-  });
+      final sample =
+          (report['samples']! as List).single as Map<String, dynamic>;
+      final candidate =
+          (sample['candidates']! as List).single as Map<String, dynamic>;
+      expect(candidate['characterInsertions'], 1);
+      expect(candidate['characterDeletions'], 1);
+      expect(candidate['characterSubstitutions'], 1);
+    },
+  );
 
   test('normalizes full-width Latin and suppresses WER for CJK text', () {
     final report = evaluator.evaluateTranscriptCorpus(
