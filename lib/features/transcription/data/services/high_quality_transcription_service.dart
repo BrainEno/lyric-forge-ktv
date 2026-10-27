@@ -250,7 +250,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           metadata: {
             ...whisperResult.lyrics.metadata,
             'qualityMode': 'highestQuality',
-            'primaryEngine': 'whisper.cpp-large-v3',
+            'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
             'alignmentEngine': 'whisper-segment-timestamps',
             'fallbackEngine': qwenModelKey,
             'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
@@ -281,7 +281,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       metadata: {
         ...whisperResult.lyrics.metadata,
         'qualityMode': 'highestQuality',
-        'primaryEngine': 'whisper.cpp-large-v3',
+        'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
         'alignmentEngine': 'whisper-segment-timestamps',
         'fallbackEngine': qwenModelKey,
         'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
