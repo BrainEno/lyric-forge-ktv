@@ -4,9 +4,9 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'forced_alignment_http_client.dart';
-import '../../domain/services/transcription_service.dart';
 
 class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   final StreamController<TranscriptionProgress> _progressController =
