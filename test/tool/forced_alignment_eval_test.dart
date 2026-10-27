@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/forced_alignment_eval.dart' as evaluator;
@@ -488,6 +490,11 @@ void main() {
           'English',
           '--duration-ms',
           '1000',
+          '--reference-reviewed',
+          '--model-revision',
+          'Qwen3-ForcedAligner-0.6B@revision-test',
+          '--runtime-version',
+          'qwen3-asr-rs-test',
           '--append-to',
           corpusFile.path,
         ]);
@@ -500,7 +507,15 @@ void main() {
         expect(samples, hasLength(2));
         expect((samples[0] as Map)['id'], 'baseline');
         expect((samples[1] as Map)['id'], 'en-appended');
-        expect((samples[1] as Map)['actualSpans'], [
+        final captured = samples[1] as Map;
+        expect(
+          captured['audioSha256'],
+          sha256.convert(utf8.encode('audio')).toString(),
+        );
+        expect(captured['referenceReviewed'], true);
+        expect(captured['modelRevision'], 'Qwen3-ForcedAligner-0.6B@revision-test');
+        expect(captured['runtimeVersion'], 'qwen3-asr-rs-test');
+        expect(captured['actualSpans'], [
           {'text': 'new', 'startMs': 300, 'endMs': 500},
         ]);
       } finally {
@@ -511,4 +526,196 @@ void main() {
       }
     },
   );
+
+  test('reports missing and complete ForcedAligner provenance', () {
+    final complete = evaluator.evaluateForcedAlignmentCorpus(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'en-complete',
+            'language': 'English',
+            'audioSha256': List.filled(64, 'a').join(),
+            'audioDurationMs': 1000,
+            'referenceReviewed': true,
+            'modelRevision': 'Qwen3-ForcedAligner-0.6B@revision-test',
+            'runtimeVersion': 'qwen3-asr-rs-test',
+            'referenceSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+            'actualSpans': [
+              {'text': 'hello', 'startMs': 105, 'endMs': 205},
+            ],
+          },
+        ],
+      }),
+    );
+    final provenance = complete['provenance'] as Map<String, dynamic>;
+    expect(provenance['warnings'], isEmpty);
+    expect(provenance['samplesWithAudioFingerprint'], 1);
+    final sample = (complete['samples']! as List).single as Map<String, dynamic>;
+    expect(sample['modelRevision'], 'Qwen3-ForcedAligner-0.6B@revision-test');
+
+    final legacy = evaluator.evaluateForcedAlignmentCorpus(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'en-legacy',
+            'language': 'English',
+            'referenceSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+            'actualSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+          },
+        ],
+      }),
+    );
+    final legacyProvenance = legacy['provenance'] as Map<String, dynamic>;
+    expect(legacyProvenance['warnings'], isNotEmpty);
+    expect(legacyProvenance['samplesMissingAudioFingerprint'], ['en-legacy']);
+  });
+
+  test('strict provenance writes the report before failing incomplete corpus', () async {
+    final temp = await Directory.systemTemp.createTemp('alignment-strict-');
+    final corpus = File('${temp.path}/corpus.json');
+    final report = File('${temp.path}/report.json');
+    await corpus.writeAsString(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'legacy',
+            'language': 'English',
+            'referenceSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+            'actualSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+          },
+        ],
+      }),
+    );
+    try {
+      exitCode = 0;
+      await evaluator.main([
+        corpus.path,
+        '--require-provenance',
+        '--output',
+        report.path,
+      ]);
+      expect(exitCode, 2);
+      expect(await report.exists(), isTrue);
+      final decoded = jsonDecode(await report.readAsString()) as Map<String, dynamic>;
+      final provenance = decoded['provenance'] as Map<String, dynamic>;
+      expect(provenance['warnings'], isNotEmpty);
+    } finally {
+      exitCode = 0;
+      await temp.delete(recursive: true);
+    }
+  });
+
+  test('strict provenance accepts complete metadata regardless of option order', () async {
+    final temp = await Directory.systemTemp.createTemp('alignment-strict-pass-');
+    final corpus = File('${temp.path}/corpus.json');
+    final report = File('${temp.path}/report.json');
+    await corpus.writeAsString(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'complete',
+            'language': 'English',
+            'audioSha256': List.filled(64, 'b').join(),
+            'audioDurationMs': 1000,
+            'referenceReviewed': true,
+            'modelRevision': 'Qwen3-ForcedAligner-0.6B@revision-test',
+            'runtimeVersion': 'qwen3-asr-rs-test',
+            'referenceSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+            'actualSpans': [
+              {'text': 'hello', 'startMs': 100, 'endMs': 200},
+            ],
+          },
+        ],
+      }),
+    );
+    try {
+      exitCode = 0;
+      await evaluator.main([
+        '--output',
+        report.path,
+        '--require-provenance',
+        corpus.path,
+      ]);
+      expect(exitCode, 0);
+      final decoded = jsonDecode(await report.readAsString()) as Map<String, dynamic>;
+      final provenance = decoded['provenance'] as Map<String, dynamic>;
+      expect(provenance['warnings'], isEmpty);
+    } finally {
+      exitCode = 0;
+      await temp.delete(recursive: true);
+    }
+  });
+
+  test('capture refuses to preserve provenance if audio changes in flight', () async {
+    final temp = await Directory.systemTemp.createTemp('alignment-audio-race-');
+    final audio = File('${temp.path}/song.wav')..writeAsStringSync('audio');
+    final lyrics = File('${temp.path}/lyrics.txt')..writeAsStringSync('hello');
+    final reference = File('${temp.path}/reference.json')
+      ..writeAsStringSync(
+        jsonEncode([
+          {'text': 'hello', 'startMs': 100, 'endMs': 200},
+        ]),
+      );
+    final output = File('${temp.path}/corpus.json');
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final subscription = server.listen((request) async {
+      await utf8.decoder.bind(request).join();
+      await audio.writeAsString('changed audio');
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'items': [
+            {'text': 'hello', 'start_time': 0.1, 'end_time': 0.2},
+          ],
+        }),
+      );
+      await request.response.close();
+    });
+    try {
+      exitCode = 0;
+      await evaluator.main([
+        'capture',
+        '--endpoint',
+        'http://127.0.0.1:${server.port}/v1/align',
+        '--audio',
+        audio.path,
+        '--text-file',
+        lyrics.path,
+        '--reference',
+        reference.path,
+        '--id',
+        'en-audio-race',
+        '--language',
+        'English',
+        '--duration-ms',
+        '1000',
+        '--output',
+        output.path,
+      ]);
+      expect(exitCode, 2);
+      expect(await output.exists(), isFalse);
+    } finally {
+      exitCode = 0;
+      await subscription.cancel();
+      await server.close(force: true);
+      await temp.delete(recursive: true);
+    }
+  });
+
 }
