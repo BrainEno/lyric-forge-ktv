@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-26 21:10] Make V2 lyric audition diagnosable and support timing A/B ([entry](log/entries/2026-10-26-2110-fix-v2-audition-feedback.md))
 - [2026-10-26 20:35] Improve ASR fusion recall and confidence handling ([entry](log/entries/2026-10-26-2035-improve-asr-fusion-recall.md))
 - [2026-10-26 20:00] Disable MPV on-disk packet cache for audio playback ([entry](log/entries/2026-10-26-2000-disable-mpv-disk-cache.md))
 - [2026-10-26 18:20] Avoid unsupported OSC property in audio-only MPV adapter ([entry](log/entries/2026-10-26-1820-avoid-mpv-osc-property.md))
