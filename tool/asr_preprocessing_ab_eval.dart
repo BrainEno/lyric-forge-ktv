@@ -77,7 +77,8 @@ class _Sample {
       throw FormatException('Sample $id must have referenceReviewed: true.');
     }
     final rawSongId = value['songId'];
-    if (rawSongId != null && (rawSongId is! String || rawSongId.trim().isEmpty)) {
+    if (rawSongId != null &&
+        (rawSongId is! String || rawSongId.trim().isEmpty)) {
       throw FormatException('Sample $id has invalid songId.');
     }
     return _Sample(
@@ -121,7 +122,9 @@ class _Configuration {
 
   @override
   bool operator ==(Object other) =>
-      other is _Configuration && other.model == model && other.runtime == runtime;
+      other is _Configuration &&
+      other.model == model &&
+      other.runtime == runtime;
   @override
   int get hashCode => Object.hash(model, runtime);
 }
@@ -151,19 +154,22 @@ class _Pair {
       'baselineWordErrorRate': before.score['wordErrorRate'],
       'sharedWordErrorRate': after.score['wordErrorRate'],
       'wordErrorRateComparable':
-          before.score['wordErrorRate'] is num && after.score['wordErrorRate'] is num,
+          before.score['wordErrorRate'] is num &&
+          after.score['wordErrorRate'] is num,
     };
     for (final metric in _metricFields) {
       result['baseline' + _capitalize(metric)] = before.score[metric];
       result['shared' + _capitalize(metric)] = after.score[metric];
-      result[metric + 'Delta'] = _delta(before.score[metric], after.score[metric]);
+      result[metric + 'Delta'] = _delta(
+        before.score[metric],
+        after.score[metric],
+      );
     }
     return result;
   }
 }
 
-String _capitalize(String value) =>
-    value[0].toUpperCase() + value.substring(1);
+String _capitalize(String value) => value[0].toUpperCase() + value.substring(1);
 
 Object? _delta(dynamic before, dynamic after) =>
     before is num && after is num ? after - before : null;
@@ -192,7 +198,9 @@ Map<String, _Sample> _samples(String source, String label) {
   for (final raw in _list(root['samples'], '$label samples')) {
     final sample = _Sample.parse(raw);
     if (result.containsKey(sample.id)) {
-      throw FormatException('$label corpus repeats sample ID ' + sample.id + '.');
+      throw FormatException(
+        '$label corpus repeats sample ID ' + sample.id + '.',
+      );
     }
     result[sample.id] = sample;
   }
@@ -210,8 +218,9 @@ void _validateSongMetadata(Map<String, _Sample> samples, String label) {
         first.sourceSha != sample.sourceSha ||
         first.durationMs != sample.durationMs) {
       throw FormatException(
-        '$label samples for songId ' + sample.songId +
-        ' disagree on language, reference text, source audio fingerprint, or duration.',
+        '$label samples for songId ' +
+            sample.songId +
+            ' disagree on language, reference text, source audio fingerprint, or duration.',
       );
     }
   }
@@ -227,14 +236,21 @@ Map<String, _Output> _outputs(
     final sampleResult = _map(rawSample, '$label report sample');
     final id = _requiredString(sampleResult, 'id');
     final sample = samples[id];
-    if (sample == null) throw FormatException('$label report has unknown sample $id.');
-    for (final rawCandidate in _list(sampleResult['candidates'], '$label candidates')) {
+    if (sample == null)
+      throw FormatException('$label report has unknown sample $id.');
+    for (final rawCandidate in _list(
+      sampleResult['candidates'],
+      '$label candidates',
+    )) {
       final output = _Output(sample, _map(rawCandidate, '$label candidate'));
       final key = sample.songId + '\u0000' + output.engine;
       if (result.containsKey(key)) {
         throw FormatException(
-          '$label has multiple candidates for songId ' + sample.songId +
-          ' and engine ' + output.engine + '.',
+          '$label has multiple candidates for songId ' +
+              sample.songId +
+              ' and engine ' +
+              output.engine +
+              '.',
         );
       }
       result[key] = output;
@@ -253,7 +269,9 @@ Map<String, _Configuration> _configurations(
     final previous = result[output.engine];
     if (previous != null && previous != config) {
       throw FormatException(
-        '$label engine ' + output.engine + ' uses mixed model/runtime versions.',
+        '$label engine ' +
+            output.engine +
+            ' uses mixed model/runtime versions.',
       );
     }
     result[output.engine] = config;
@@ -275,8 +293,10 @@ Map<String, Object?> evaluateAsrPreprocessingComparison({
 
   final baseline = _outputs(baselineReport, baselineSamples, 'Baseline');
   final shared = _outputs(sharedReport, sharedSamples, 'Shared');
-  final missingShared = baseline.keys.toSet().difference(shared.keys.toSet()).toList()..sort();
-  final missingBaseline = shared.keys.toSet().difference(baseline.keys.toSet()).toList()..sort();
+  final missingShared =
+      baseline.keys.toSet().difference(shared.keys.toSet()).toList()..sort();
+  final missingBaseline =
+      shared.keys.toSet().difference(baseline.keys.toSet()).toList()..sort();
   if (missingShared.isNotEmpty || missingBaseline.isNotEmpty) {
     throw FormatException(
       'Corpora must contain the same songId/engine pairs. Missing from shared: '
@@ -287,8 +307,12 @@ Map<String, Object?> evaluateAsrPreprocessingComparison({
   final baselineConfigs = _configurations(baseline, 'Baseline');
   final sharedConfigs = _configurations(shared, 'Shared');
   if (baselineConfigs.length != sharedConfigs.length ||
-      baselineConfigs.keys.any((engine) => baselineConfigs[engine] != sharedConfigs[engine])) {
-    throw const FormatException('Model revision/runtime differs between A/B corpora.');
+      baselineConfigs.keys.any(
+        (engine) => baselineConfigs[engine] != sharedConfigs[engine],
+      )) {
+    throw const FormatException(
+      'Model revision/runtime differs between A/B corpora.',
+    );
   }
 
   final pairs = <_Pair>[];
@@ -302,8 +326,11 @@ Map<String, Object?> evaluateAsrPreprocessingComparison({
         before.model != after.model ||
         before.runtime != after.runtime) {
       throw FormatException(
-        'Paired candidate ' + before.sample.songId + '/' + before.engine +
-        ' changed source, reference, duration, model, or runtime.',
+        'Paired candidate ' +
+            before.sample.songId +
+            '/' +
+            before.engine +
+            ' changed source, reference, duration, model, or runtime.',
       );
     }
     pairs.add(_Pair(before, after));
@@ -331,24 +358,28 @@ Map<String, Object?> evaluateAsrPreprocessingComparison({
     ],
     'byEngine': {
       for (final engine in engines)
-        engine: _summarize(pairs.where((pair) => pair.engine == engine).toList()),
+        engine: _summarize(
+          pairs.where((pair) => pair.engine == engine).toList(),
+        ),
     },
     'pairs': [for (final pair in pairs) pair.toJson()],
     'interpretation': {
-      'deltaDirection': 'Shared metric minus baseline metric; negative error deltas favor shared normalization.',
-      'sourceAudioSha256': 'Original source-file fingerprint before preprocessing; must match between runs.',
-      'candidateAudioSha256': 'Fingerprint of the exact normalized audio bytes supplied to each candidate.',
-      'limitations': 'Requires real audio, manually reviewed references, actual input hashes, and pinned model/runtime versions. Synthetic tests validate only this evaluator.',
+      'deltaDirection':
+          'Shared metric minus baseline metric; negative error deltas favor shared normalization.',
+      'sourceAudioSha256':
+          'Original source-file fingerprint before preprocessing; must match between runs.',
+      'candidateAudioSha256':
+          'Fingerprint of the exact normalized audio bytes supplied to each candidate.',
+      'limitations':
+          'Requires real audio, manually reviewed references, actual input hashes, and pinned model/runtime versions. Synthetic tests validate only this evaluator.',
     },
   };
 }
 
 Map<String, Object?> _summarize(List<_Pair> pairs) {
   if (pairs.isEmpty) throw const FormatException('Empty engine pair set.');
-  int sumReference(String key) => pairs.fold<int>(
-    0,
-    (sum, pair) => sum + pair.before.integer(key),
-  );
+  int sumReference(String key) =>
+      pairs.fold<int>(0, (sum, pair) => sum + pair.before.integer(key));
   int sumMetric(String field, bool after) => pairs.fold<int>(
     0,
     (sum, pair) => sum + (after ? pair.after : pair.before).integer(field),
@@ -362,7 +393,9 @@ Map<String, Object?> _summarize(List<_Pair> pairs) {
     'referenceCharacterCount': referenceCharacters,
     'referenceTokenCount': referenceTokens,
   };
-  for (final metric in _metricFields.where((field) => !field.startsWith('normalized'))) {
+  for (final metric in _metricFields.where(
+    (field) => !field.startsWith('normalized'),
+  )) {
     final before = sumMetric(metric, false);
     final after = sumMetric(metric, true);
     result['baseline' + _capitalize(metric)] = before;
@@ -374,17 +407,25 @@ Map<String, Object?> _summarize(List<_Pair> pairs) {
   final baselineTokenEdits = sumMetric('tokenEditCount', false);
   final sharedTokenEdits = sumMetric('tokenEditCount', true);
   result.addAll({
-    'baselineNormalizedCharacterErrorRate': baselineCharacterEdits / referenceCharacters,
-    'sharedNormalizedCharacterErrorRate': sharedCharacterEdits / referenceCharacters,
-    'normalizedCharacterErrorRateDelta': (sharedCharacterEdits - baselineCharacterEdits) / referenceCharacters,
+    'baselineNormalizedCharacterErrorRate':
+        baselineCharacterEdits / referenceCharacters,
+    'sharedNormalizedCharacterErrorRate':
+        sharedCharacterEdits / referenceCharacters,
+    'normalizedCharacterErrorRateDelta':
+        (sharedCharacterEdits - baselineCharacterEdits) / referenceCharacters,
     'baselineNormalizedTokenErrorRate': baselineTokenEdits / referenceTokens,
     'sharedNormalizedTokenErrorRate': sharedTokenEdits / referenceTokens,
-    'normalizedTokenErrorRateDelta': (sharedTokenEdits - baselineTokenEdits) / referenceTokens,
+    'normalizedTokenErrorRateDelta':
+        (sharedTokenEdits - baselineTokenEdits) / referenceTokens,
     'baselineWordErrorRate': _wordRate(pairs, false),
     'sharedWordErrorRate': _wordRate(pairs, true),
-    'wordErrorRateComparablePairCount': pairs.where((pair) =>
-      pair.before.score['wordErrorRate'] is num && pair.after.score['wordErrorRate'] is num
-    ).length,
+    'wordErrorRateComparablePairCount': pairs
+        .where(
+          (pair) =>
+              pair.before.score['wordErrorRate'] is num &&
+              pair.after.score['wordErrorRate'] is num,
+        )
+        .length,
   });
   return result;
 }
@@ -410,7 +451,9 @@ Future<void> main(List<String> args) async {
       'Usage: dart run tool/asr_preprocessing_ab_eval.dart '
       '<baseline-corpus.json> <shared-corpus.json> [--output <report.json>]',
     );
-    stdout.writeln('Requires strict candidate provenance and sourceAudioSha256 per sample.');
+    stdout.writeln(
+      'Requires strict candidate provenance and sourceAudioSha256 per sample.',
+    );
     if (args.isEmpty) exitCode = 2;
     return;
   }
@@ -421,7 +464,9 @@ Future<void> main(List<String> args) async {
   for (var index = 0; index < args.length; index++) {
     final argument = args[index];
     if (argument == '--output') {
-      if (outputSeen || index + 1 >= args.length || args[index + 1].startsWith('--')) {
+      if (outputSeen ||
+          index + 1 >= args.length ||
+          args[index + 1].startsWith('--')) {
         stderr.writeln('Invalid --output option. Use --help for usage.');
         exitCode = 2;
         return;
@@ -437,7 +482,9 @@ Future<void> main(List<String> args) async {
     }
   }
   if (positional.length != 2) {
-    stderr.writeln('Provide baseline and shared corpus paths. Use --help for usage.');
+    stderr.writeln(
+      'Provide baseline and shared corpus paths. Use --help for usage.',
+    );
     exitCode = 2;
     return;
   }
@@ -446,7 +493,10 @@ Future<void> main(List<String> args) async {
     final baselineFile = File(positional[0]);
     final sharedFile = File(positional[1]);
     if (!await baselineFile.exists()) {
-      throw FileSystemException('Baseline corpus not found.', baselineFile.path);
+      throw FileSystemException(
+        'Baseline corpus not found.',
+        baselineFile.path,
+      );
     }
     if (!await sharedFile.exists()) {
       throw FileSystemException('Shared corpus not found.', sharedFile.path);
@@ -454,12 +504,17 @@ Future<void> main(List<String> args) async {
     final baselinePath = baselineFile.absolute.path;
     final sharedPath = sharedFile.absolute.path;
     if (baselinePath == sharedPath) {
-      throw ArgumentError('Baseline and shared corpora must be separate files.');
+      throw ArgumentError(
+        'Baseline and shared corpora must be separate files.',
+      );
     }
     if (outputPath != null) {
       final outputPathAbsolute = File(outputPath).absolute.path;
-      if (outputPathAbsolute == baselinePath || outputPathAbsolute == sharedPath) {
-        throw ArgumentError('Report output must not overwrite an input corpus.');
+      if (outputPathAbsolute == baselinePath ||
+          outputPathAbsolute == sharedPath) {
+        throw ArgumentError(
+          'Report output must not overwrite an input corpus.',
+        );
       }
     }
 
@@ -475,13 +530,17 @@ Future<void> main(List<String> args) async {
       stdout.writeln('Wrote ASR preprocessing A/B report: $outputPath');
     }
     if (report['preprocessingEffectTestable'] != true) {
-      stderr.writeln('Warning: candidate input hashes match; preprocessing byte effects cannot be isolated.');
+      stderr.writeln(
+        'Warning: candidate input hashes match; preprocessing byte effects cannot be isolated.',
+      );
     }
   } on FormatException catch (error) {
     stderr.writeln('Invalid ASR preprocessing A/B corpus: ' + error.message);
     exitCode = 2;
   } on ArgumentError catch (error) {
-    stderr.writeln('Invalid ASR preprocessing A/B evaluation: ' + error.toString());
+    stderr.writeln(
+      'Invalid ASR preprocessing A/B evaluation: ' + error.toString(),
+    );
     exitCode = 2;
   } on FileSystemException catch (error) {
     stderr.writeln(error.message);
