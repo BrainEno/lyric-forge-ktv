@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import 'asr_audio_normalization.dart';
 import '../../domain/services/transcription_service.dart';
 
 /// Runs long audio as resumable chunks while keeping the wrapped service's
@@ -304,17 +305,15 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(executable, [
-        '-y',
-        '-ss', (start.inMilliseconds / 1000).toStringAsFixed(3),
-        '-i', inputPath,
-        '-t', (duration.inMilliseconds / 1000).toStringAsFixed(3),
-        '-vn',
-        '-ar', '16000',
-        '-ac', '1',
-        '-c:a', 'pcm_s16le',
-        outputPath,
-      ]);
+      process = await Process.start(
+        executable,
+        AsrAudioNormalization.chunkArguments(
+          inputPath: inputPath,
+          outputPath: outputPath,
+          start: start,
+          duration: duration,
+        ),
+      );
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动 FFmpeg 进行音频分片',
