@@ -84,7 +84,7 @@ class TranscriptionModelIdentity {
   }
 
   static String _basename(String configuredPath, {required String fallback}) {
-    final normalized = configuredPath.trim().replaceAll(r'\\', '/');
+    final normalized = configuredPath.trim().replaceAll(String.fromCharCode(92), '/');
     for (final part in normalized.split('/').reversed) {
       if (part.isNotEmpty) return part;
     }
