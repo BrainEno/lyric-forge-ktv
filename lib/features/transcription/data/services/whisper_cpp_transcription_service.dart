@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
-import 'asr_audio_normalization.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
+import 'asr_audio_normalization.dart';
 
 class WhisperCppTranscriptionService implements TranscriptionService {
   final StreamController<TranscriptionProgress> _progressController =
