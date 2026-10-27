@@ -453,3 +453,24 @@ reference-review status, model revisions, runtime versions, and warnings. Use
 this section to judge whether a comparison is reproducible before making model
 or fusion decisions. A SHA-256 fingerprint identifies exact bytes; it does not
 prove that the reference text itself is correct.
+
+## Strict provenance gate for transcript evaluation
+
+The default evaluator remains backwards-compatible: incomplete provenance is
+reported as warnings so existing schema v1 corpora can still be inspected. For
+a benchmark run intended to support model or fusion decisions, use the strict
+mode and save the report even when its metadata gate fails:
+
+```powershell
+dart run tool/asr_transcript_eval.dart "D:/Evaluation/asr-corpus.json" `
+  --require-provenance `
+  --output "D:/Evaluation/asr-report.json"
+```
+
+Strict mode requires every sample to record its exact audio SHA-256, positive
+duration, and `referenceReviewed: true`; every candidate must record the same
+audio SHA-256, a model revision and a runtime version. A metadata-incomplete run
+still writes the diagnostic report and exits with code 2, allowing scripts to
+stop a benchmark pipeline without losing the list of missing fields. A complete
+run exits successfully. This gate validates declared provenance completeness,
+not the truth of the human review or the recognizer's actual input handling.
