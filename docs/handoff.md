@@ -8,7 +8,7 @@
 - main 基线：`b2fc94c01de14a797b95778cdacc76d5b7393063`（PR #204 合并提交）
 - 分支：`feat/asr-preprocessing-ab-evaluator-20261028`
 - PR：[#205 feat: compare ASR preprocessing paths on paired corpus](https://github.com/BrainEno/lyric-forge-ktv/pull/205)
-- 当前实现/格式修正提交：`7b770def21d4db396d9090157b147bfa56ac94d2`
+- 最新代码/测试 head（CI 已通过）：`2ba8f011be7467c3a2f4b7cec078657ffa3b19ee`
 - 此次收尾修复工作日志 commit-subject 警告，并把测试库前缀调整为 Dart lint 推荐格式。
 - WER 聚合现只使用 baseline/shared 两端都支持 WER 的配对，新增了单侧出现 CJK 字符的回归测试。
 - 这些修复会再触发质量门，最终结果需检查最新 PR head。
@@ -32,9 +32,9 @@
 - 合成测试只验证评测逻辑，不伪造歌曲结果或宣称识别率改进。
 
 ## 检查结果
-- 在代码/格式修正 head `7b770def21d4db396d9090157b147bfa56ac94d2` 上，Flutter Quality Gate run [40562395476](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40562395476) 已通过：工作日志预检、Dart 格式、`flutter analyze lib test` 与仓库质量门通过，`flutter test` 报告 758 tests passed。
-- 该次检查报告一条 work-log 警告：entry 中 Commit 字段与实际 Git commit subject 不一致。本次修改已将它更正为真实的 `feat: add paired ASR preprocessing evaluator`。
-- 新增 WER 配对边界后，最新 head 的格式、lint、分析和测试仍待重新验证。
+- 最新代码/测试 head `2ba8f011be7467c3a2f4b7cec078657ffa3b19ee` 的 Flutter Quality Gate run [40564197582](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40564197582) 已通过：work-log lint 0 错误 / 0 警告；Dart 格式检查 2 个文件、0 处变更；`flutter analyze lib test` 通过；`flutter test` 报告 759 tests passed。
+- A/B 评测涵盖严格来源/参考/模型/runtime 配对；WER 汇总只计入两侧都支持 WER 的配对，新增 CJK 边界测试已纳入完整回归。
+- 初次 CI 格式差异与一次测试期望值错误均已依据日志修复。
 - 本地未运行 Dart/Flutter 命令。
 
 ## 下一步
