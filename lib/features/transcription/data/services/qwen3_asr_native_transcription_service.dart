@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import 'asr_audio_normalization.dart';
 import 'forced_alignment_http_client.dart';
 import '../../domain/services/transcription_service.dart';
 
@@ -299,19 +300,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(executable, [
-        '-y',
-        '-i',
-        inputPath,
-        '-vn',
-        '-ar',
-        '16000',
-        '-ac',
-        '1',
-        '-c:a',
-        'pcm_s16le',
-        outputPath,
-      ]);
+      process = await Process.start(
+        executable,
+        AsrAudioNormalization.ffmpegArguments(
+          inputPath: inputPath,
+          outputPath: outputPath,
+        ),
+      );
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动 FFmpeg',
