@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
+import 'asr_audio_normalization.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 
@@ -139,19 +140,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     final result = await _runProcess(
       executable,
-      [
-        '-y',
-        '-i',
-        inputPath,
-        '-vn',
-        '-ar',
-        '16000',
-        '-ac',
-        '1',
-        '-c:a',
-        'pcm_s16le',
-        outputPath,
-      ],
+      AsrAudioNormalization.ffmpegArguments(
+        inputPath: inputPath,
+        outputPath: outputPath,
+      ),
     );
 
     if (result.exitCode != 0) {
