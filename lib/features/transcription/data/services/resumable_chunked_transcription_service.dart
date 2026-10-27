@@ -4,8 +4,8 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
-import 'asr_audio_normalization.dart';
 import '../../domain/services/transcription_service.dart';
+import 'asr_audio_normalization.dart';
 
 /// Runs long audio as resumable chunks while keeping the wrapped service's
 /// quality policy intact for every chunk.
