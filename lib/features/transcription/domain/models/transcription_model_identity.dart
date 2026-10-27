@@ -7,18 +7,18 @@ class TranscriptionModelIdentity {
   TranscriptionModelIdentity._();
 
   static String qwenAsrEngine(String configuredPath) => _engineKey(
-        configuredPath,
-        prefix: 'qwen3-asr',
-        fallback: 'Qwen3-ASR-1.7B',
-        knownPrefix: 'Qwen3-ASR',
-      );
+    configuredPath,
+    prefix: 'qwen3-asr',
+    fallback: 'Qwen3-ASR-1.7B',
+    knownPrefix: 'Qwen3-ASR',
+  );
 
   static String qwenAlignerEngine(String configuredPath) => _engineKey(
-        configuredPath,
-        prefix: 'qwen3-forced-aligner',
-        fallback: 'Qwen3-ForcedAligner-0.6B',
-        knownPrefix: 'Qwen3-ForcedAligner',
-      );
+    configuredPath,
+    prefix: 'qwen3-forced-aligner',
+    fallback: 'Qwen3-ForcedAligner-0.6B',
+    knownPrefix: 'Qwen3-ForcedAligner',
+  );
 
   static String whisperEngine(String configuredPath) {
     var model = _basename(configuredPath, fallback: 'ggml-large-v3.bin');
