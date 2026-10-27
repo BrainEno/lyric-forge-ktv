@@ -398,3 +398,24 @@ An empty `items` array is preserved as an empty actual result so evaluation can
 report zero recall instead of hiding a failed alignment. Reference intervals
 must be manually checked against the same audio file; this workflow does not
 claim model accuracy until the corpus has been reviewed and evaluated.
+
+## Interpreting transcript edit breakdowns
+
+The paired transcript evaluator reports not only the minimum edit count and
+normalized error rates, but also the operation counts for characters and shared
+lyric tokens. The edit script transforms the reference into a candidate:
+
+- **Insertions** are extra units present only in the candidate. They can signal
+  hallucinated lyrics, repeated syllables, or other excess text.
+- **Deletions** are reference units absent from the candidate. They are an
+  omission signal and should be checked against the audio, including ad-libs
+  and backing vocals where applicable.
+- **Substitutions** are reference units replaced with incorrect candidate units.
+
+Each breakdown is one deterministic minimum-edit path; the three counts sum to
+the corresponding edit count. Per-sample detail helps locate failures, while
+engine/language summaries sum operation counts across samples. These are text
+diagnostics, not a guaranteed semantic classification: an insertion can be a
+legitimate vocalization missing from an incomplete reference, and a deletion can
+reflect a reference transcription mistake. Review the audio before changing
+fusion thresholds.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
 
@@ -101,37 +102,100 @@ class _Sample {
   }
 }
 
-int _editDistance<T>(List<T> left, List<T> right, String context) {
-  if ((left.length + 1) * (right.length + 1) > _maxEditCells) {
+class _EditSummary {
+  const _EditSummary({
+    required this.distance,
+    required this.insertions,
+    required this.deletions,
+    required this.substitutions,
+  });
+
+  final int distance;
+  final int insertions;
+  final int deletions;
+  final int substitutions;
+}
+
+/// Counts a deterministic minimum edit script from reference to candidate.
+///
+/// Insertions are candidate-only units; deletions are reference units omitted
+/// by the candidate; substitutions are incorrect candidate units.
+_EditSummary _editSummary<T>(
+  List<T> reference,
+  List<T> candidate,
+  String context,
+) {
+  final rows = reference;
+  final columns = candidate;
+  final width = columns.length + 1;
+  final height = rows.length + 1;
+  final cellCount = height * width;
+  if (cellCount > _maxEditCells) {
     throw FormatException(
       context + ' exceeds the edit-distance limit; split the clip.',
     );
   }
-  var rows = left;
-  var columns = right;
-  if (columns.length > rows.length) {
-    final swap = rows;
-    rows = columns;
-    columns = swap;
+
+  // Store one direction byte per cell and roll the score rows to keep
+  // backtrace memory bounded.
+  // 0 = diagonal (match/substitution), 1 = delete reference, 2 = insert candidate.
+  final directions = Uint8List(cellCount);
+  for (var j = 1; j < width; j++) {
+    directions[j] = 2;
   }
-  var previous = List<int>.generate(columns.length + 1, (i) => i);
-  var current = List<int>.filled(columns.length + 1, 0);
-  for (var i = 1; i <= rows.length; i++) {
+  var previous = List<int>.generate(width, (index) => index);
+  var current = List<int>.filled(width, 0);
+  for (var i = 1; i < height; i++) {
     current[0] = i;
-    for (var j = 1; j <= columns.length; j++) {
-      final replace = rows[i - 1] == columns[j - 1] ? 0 : 1;
-      current[j] = math
-          .min(
-            math.min(current[j - 1] + 1, previous[j] + 1),
-            previous[j - 1] + replace,
-          )
-          .toInt();
+    directions[i * width] = 1;
+    for (var j = 1; j < width; j++) {
+      final same = rows[i - 1] == columns[j - 1];
+      var best = previous[j - 1] + (same ? 0 : 1);
+      var direction = 0;
+      final deletion = previous[j] + 1;
+      if (deletion < best) {
+        best = deletion;
+        direction = 1;
+      }
+      final insertion = current[j - 1] + 1;
+      if (insertion < best) {
+        best = insertion;
+        direction = 2;
+      }
+      current[j] = best;
+      directions[i * width + j] = direction;
     }
     final swap = previous;
     previous = current;
     current = swap;
   }
-  return previous[columns.length];
+
+  var i = rows.length;
+  var j = columns.length;
+  var insertions = 0;
+  var deletions = 0;
+  var substitutions = 0;
+  while (i > 0 || j > 0) {
+    final direction = directions[i * width + j];
+    if (i > 0 && j > 0 && direction == 0) {
+      if (rows[i - 1] != columns[j - 1]) substitutions++;
+      i--;
+      j--;
+    } else if (i > 0 && (j == 0 || direction == 1)) {
+      deletions++;
+      i--;
+    } else {
+      insertions++;
+      j--;
+    }
+  }
+
+  return _EditSummary(
+    distance: insertions + deletions + substitutions,
+    insertions: insertions,
+    deletions: deletions,
+    substitutions: substitutions,
+  );
 }
 
 bool _containsCjk(List<String> tokens) =>
@@ -140,12 +204,15 @@ bool _containsCjk(List<String> tokens) =>
 class _Score {
   final _Sample sample;
   final _Candidate candidate;
-  final int characterEdits;
-  final int tokenEdits;
+  final _EditSummary characterSummary;
+  final _EditSummary tokenSummary;
   final bool wordComparable;
 
+  int get characterEdits => characterSummary.distance;
+  int get tokenEdits => tokenSummary.distance;
+
   _Score(this.sample, this.candidate)
-    : characterEdits = _editDistance<int>(
+    : characterSummary = _editSummary<int>(
         sample.referenceCharacters,
         candidate.characters,
         'Sample ' +
@@ -154,7 +221,7 @@ class _Score {
             candidate.engine +
             ' character comparison',
       ),
-      tokenEdits = _editDistance<String>(
+      tokenSummary = _editSummary<String>(
         sample.referenceTokens,
         candidate.tokens,
         'Sample ' + sample.id + ' / ' + candidate.engine + ' token comparison',
@@ -175,11 +242,17 @@ class _Score {
       'referenceCharacterCount': sample.referenceCharacters.length,
       'candidateCharacterCount': candidate.characters.length,
       'characterEditCount': characterEdits,
+      'characterInsertions': characterSummary.insertions,
+      'characterDeletions': characterSummary.deletions,
+      'characterSubstitutions': characterSummary.substitutions,
       'normalizedCharacterErrorRate':
           characterEdits / sample.referenceCharacters.length,
       'referenceTokenCount': sample.referenceTokens.length,
       'candidateTokenCount': candidate.tokens.length,
       'tokenEditCount': tokenEdits,
+      'tokenInsertions': tokenSummary.insertions,
+      'tokenDeletions': tokenSummary.deletions,
+      'tokenSubstitutions': tokenSummary.substitutions,
       'normalizedTokenErrorRate': tokenEdits / sample.referenceTokens.length,
       'wordErrorRateAvailable': wordComparable,
       'referenceWordCount': wordComparable
@@ -187,6 +260,9 @@ class _Score {
           : null,
       'candidateWordCount': wordComparable ? candidate.tokens.length : null,
       'wordEditCount': wordComparable ? tokenEdits : null,
+      'wordInsertions': wordComparable ? tokenSummary.insertions : null,
+      'wordDeletions': wordComparable ? tokenSummary.deletions : null,
+      'wordSubstitutions': wordComparable ? tokenSummary.substitutions : null,
       'wordErrorRate': wordRate,
     };
   }
@@ -201,6 +277,18 @@ Map<String, Object?> _summarize(List<_Score> scores) {
     0,
     (sum, score) => sum + score.characterEdits,
   );
+  final characterInsertions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.characterSummary.insertions,
+  );
+  final characterDeletions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.characterSummary.deletions,
+  );
+  final characterSubstitutions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.characterSummary.substitutions,
+  );
   final referenceTokens = scores.fold<int>(
     0,
     (sum, score) => sum + score.sample.referenceTokens.length,
@@ -208,6 +296,18 @@ Map<String, Object?> _summarize(List<_Score> scores) {
   final tokenEdits = scores.fold<int>(
     0,
     (sum, score) => sum + score.tokenEdits,
+  );
+  final tokenInsertions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.insertions,
+  );
+  final tokenDeletions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.deletions,
+  );
+  final tokenSubstitutions = scores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.substitutions,
   );
   final wordScores = scores.where((score) => score.wordComparable).toList();
   final referenceWords = wordScores.fold<int>(
@@ -218,19 +318,40 @@ Map<String, Object?> _summarize(List<_Score> scores) {
     0,
     (sum, score) => sum + score.tokenEdits,
   );
+  final wordInsertions = wordScores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.insertions,
+  );
+  final wordDeletions = wordScores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.deletions,
+  );
+  final wordSubstitutions = wordScores.fold<int>(
+    0,
+    (sum, score) => sum + score.tokenSummary.substitutions,
+  );
   return {
     'candidateCount': scores.length,
     'songCount': scores.map((score) => score.sample.songId).toSet().length,
     'normalizedReferenceCharacterCount': referenceCharacters,
     'characterEditCount': characterEdits,
+    'characterInsertions': characterInsertions,
+    'characterDeletions': characterDeletions,
+    'characterSubstitutions': characterSubstitutions,
     'normalizedCharacterErrorRate': characterEdits / referenceCharacters,
     'referenceTokenCount': referenceTokens,
     'tokenEditCount': tokenEdits,
+    'tokenInsertions': tokenInsertions,
+    'tokenDeletions': tokenDeletions,
+    'tokenSubstitutions': tokenSubstitutions,
     'normalizedTokenErrorRate': tokenEdits / referenceTokens,
     'wordErrorSampleCount': wordScores.length,
     'wordErrorUnavailableSampleCount': scores.length - wordScores.length,
     'referenceWordCount': referenceWords,
     'wordEditCount': wordEdits,
+    'wordInsertions': wordInsertions,
+    'wordDeletions': wordDeletions,
+    'wordSubstitutions': wordSubstitutions,
     'wordErrorRate': wordScores.isEmpty ? null : wordEdits / referenceWords,
   };
 }
@@ -312,6 +433,8 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
     'interpretation': {
       'normalizedCharacterErrorRate':
           'Character edits / reference characters; case, whitespace and punctuation are ignored.',
+      'editBreakdown':
+          'Insertions are candidate-only units, deletions are reference units omitted by the candidate, and substitutions are incorrect candidate units. Counts form one deterministic minimum edit script; their sum equals the edit count.',
       'normalizedTokenErrorRate':
           'Token edits / reference tokens using the shared lyric tokenizer; CJK text is tokenized character by character.',
       'wordErrorRate':

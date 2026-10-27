@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-26 18:20] Avoid unsupported OSC property in audio-only MPV adapter ([entry](log/entries/2026-10-26-1820-avoid-mpv-osc-property.md))
 - [2026-10-26 18:00] Defer route observer notifications until after build ([entry](log/entries/2026-10-26-1800-route-observer-post-frame-sync.md))
 - [2026-10-26 16:50] Capture local ForcedAligner results into evaluation corpus ([entry](log/entries/2026-10-26-1650-forced-align-local-capture.md))
 - [2026-10-26 16:35] Add repeatable ForcedAligner quality evaluation ([entry](log/entries/2026-10-26-1635-forced-align-quality-evaluation.md))
