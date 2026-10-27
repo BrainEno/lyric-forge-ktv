@@ -162,22 +162,35 @@ class LocalProjectTranscriptionWorkflow
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
-              'primaryModel': runtimeConfig.mode == TranscriptionMode.whisperOnly
-                  ? TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath)
-                  : runtimeConfig.engineOrder ==
-                          TranscriptionEngineOrder.qwenPrimary
-                      ? TranscriptionModelIdentity.qwenAsrLabel(runtimeConfig.qwenModelPath)
-                      : TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath),
+              'primaryModel':
+                  runtimeConfig.mode == TranscriptionMode.whisperOnly
+                      ? TranscriptionModelIdentity.whisperLabel(
+                          runtimeConfig.modelPath,
+                        )
+                      : runtimeConfig.engineOrder ==
+                              TranscriptionEngineOrder.qwenPrimary
+                          ? TranscriptionModelIdentity.qwenAsrLabel(
+                              runtimeConfig.qwenModelPath,
+                            )
+                          : TranscriptionModelIdentity.whisperLabel(
+                              runtimeConfig.modelPath,
+                            ),
               'alignmentModel':
                   runtimeConfig.mode == TranscriptionMode.highestQuality
-                      ? TranscriptionModelIdentity.qwenAlignerLabel(runtimeConfig.qwenAlignerModelPath)
+                      ? TranscriptionModelIdentity.qwenAlignerLabel(
+                          runtimeConfig.qwenAlignerModelPath,
+                        )
                       : null,
               'fallbackModel':
                   runtimeConfig.mode == TranscriptionMode.highestQuality
                       ? runtimeConfig.engineOrder ==
                               TranscriptionEngineOrder.qwenPrimary
-                          ? TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath)
-                          : TranscriptionModelIdentity.qwenAsrLabel(runtimeConfig.qwenModelPath)
+                          ? TranscriptionModelIdentity.whisperLabel(
+                              runtimeConfig.modelPath,
+                            )
+                          : TranscriptionModelIdentity.qwenAsrLabel(
+                              runtimeConfig.qwenModelPath,
+                            )
                       : null,
             },
           },
