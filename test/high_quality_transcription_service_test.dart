@@ -181,7 +181,7 @@ void main() {
           tempDirectory.path,
           qwenModelPath: 'Qwen/Qwen3-ASR-0.6B',
           qwenAlignerModelPath: 'Qwen/Qwen3-ForcedAligner-1.5B',
-          whisperModelPath: r'D:\\models\\ggml-medium.bin',
+          whisperModelPath: r'D:\models\ggml-medium.bin',
         ),
       );
 
