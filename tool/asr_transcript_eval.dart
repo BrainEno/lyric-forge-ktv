@@ -632,7 +632,9 @@ Future<void> main(List<String> args) async {
     } else if (inputPath == null) {
       inputPath = argument;
     } else {
-      stderr.writeln('Only one corpus path may be provided. Use --help for usage.');
+      stderr.writeln(
+        'Only one corpus path may be provided. Use --help for usage.',
+      );
       exitCode = 2;
       return;
     }
