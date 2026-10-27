@@ -40,6 +40,22 @@ project audio
   -> editable LyricDocument
 ```
 
+## Shared FFmpeg normalization contract
+
+The Qwen and Whisper adapters both use
+`AsrAudioNormalization.ffmpegArguments` for the same input format: 16 kHz,
+mono, signed 16-bit PCM WAV. The executable, original input path and all
+normalization options are now assembled by one shared helper; only the output
+path differs per engine. Arguments are passed as a process argument vector, not
+as a shell command, so paths containing spaces remain intact.
+
+This intentionally preserves FFmpeg's existing audio-stream selection
+behavior. Explicit multi-track selection is a separate product decision and
+should be validated against real multi-track files before changing the policy.
+Each adapter still performs its own FFmpeg conversion; this change prevents the
+argument sets from drifting but does not introduce a shared one-time converted
+audio artifact.
+
 **Current Windows RTX 5080 profile: Whisper is the primary transcript; Qwen3-ASR
 1.7B CUDA/BF16 is the independent second opinion.** This is a quality-first
 interim default based on the observed Roadhouse Blues end-to-end failure and the

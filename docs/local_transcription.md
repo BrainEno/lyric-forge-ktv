@@ -102,11 +102,18 @@ from the managed-model and batch-queue work described here.
 
 ## FFmpeg preprocessing
 
-The transcription input is normalized with the equivalent of:
+Both Qwen and Whisper use the shared
+`AsrAudioNormalization.ffmpegArguments` contract, which normalizes input with
+the equivalent of:
 
 ```text
 ffmpeg -y -i <input> -vn -ar 16000 -ac 1 -c:a pcm_s16le transcription_input.wav
 ```
+
+The long-audio chunker uses the same output-normalization options and adds
+`-ss` / `-t` for seeking and duration. The output remains 16 kHz mono
+`pcm_s16le`; only the input seek window and destination differ. Qwen and
+Whisper still convert independently, but their FFmpeg option set is shared.
 
 ## Artifacts
 

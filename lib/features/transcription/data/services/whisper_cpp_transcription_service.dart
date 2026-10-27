@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
+import 'asr_audio_normalization.dart';
 
 class WhisperCppTranscriptionService implements TranscriptionService {
   final StreamController<TranscriptionProgress> _progressController =
@@ -37,8 +38,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       final outputDirectory = Directory(request.outputDirectory);
       await outputDirectory.create(recursive: true);
 
-      final normalizedPath = '${outputDirectory.path}${Platform.pathSeparator}transcription_input.wav';
-      final outputBase = '${outputDirectory.path}${Platform.pathSeparator}whisper_result';
+      final normalizedPath =
+          '${outputDirectory.path}${Platform.pathSeparator}transcription_input.wav';
+      final outputBase =
+          '${outputDirectory.path}${Platform.pathSeparator}whisper_result';
       final rawJsonPath = '$outputBase.json';
 
       _emit(TranscriptionStage.preprocessing, 0.08, '正在准备 16 kHz 单声道人声');
@@ -91,14 +94,8 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       throw const TranscriptionException.environment('Whisper 模型文件不存在');
     }
 
-    await _validateExecutable(
-      request.config.whisperExecutable,
-      'whisper-cli',
-    );
-    await _validateExecutable(
-      request.config.ffmpegExecutable,
-      'FFmpeg',
-    );
+    await _validateExecutable(request.config.whisperExecutable, 'whisper-cli');
+    await _validateExecutable(request.config.ffmpegExecutable, 'FFmpeg');
   }
 
   Future<void> _validateExecutable(String executable, String label) async {
@@ -114,8 +111,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     if (!hasExplicitPath) {
       try {
-        final arguments =
-            label == 'FFmpeg' ? const ['-version'] : const ['-h'];
+        final arguments = label == 'FFmpeg' ? const ['-version'] : const ['-h'];
         final result = await Process.run(value, arguments);
         if (result.exitCode != 0) {
           throw TranscriptionException.environment('$label 无法执行');
@@ -139,19 +135,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     final result = await _runProcess(
       executable,
-      [
-        '-y',
-        '-i',
-        inputPath,
-        '-vn',
-        '-ar',
-        '16000',
-        '-ac',
-        '1',
-        '-c:a',
-        'pcm_s16le',
-        outputPath,
-      ],
+      AsrAudioNormalization.ffmpegArguments(
+        inputPath: inputPath,
+        outputPath: outputPath,
+      ),
     );
 
     if (result.exitCode != 0) {
@@ -190,9 +177,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         '-pp',
       ],
       onStderrLine: (line) {
-        final match =
-            RegExp(r'progress\s*=\s*(\d+)%', caseSensitive: false)
-                .firstMatch(line);
+        final match = RegExp(
+          r'progress\s*=\s*(\d+)%',
+          caseSensitive: false,
+        ).firstMatch(line);
         final value = int.tryParse(match?.group(1) ?? '');
         if (value != null) {
           final fraction = value.clamp(0, 100) / 100.0;
@@ -212,9 +200,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       );
     }
     if (!await jsonFile.exists()) {
-      throw const TranscriptionException.environment(
-        'whisper.cpp 未生成 JSON 结果',
-      );
+      throw const TranscriptionException.environment('whisper.cpp 未生成 JSON 结果');
     }
   }
 
@@ -337,10 +323,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(
-        executable,
-        arguments,
-      );
+      process = await Process.start(executable, arguments);
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动本地处理程序',
@@ -359,10 +342,10 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .forEach((line) {
-      if (stderrLines.length >= 30) stderrLines.removeAt(0);
-      stderrLines.add(line);
-      onStderrLine?.call(line);
-    });
+          if (stderrLines.length >= 30) stderrLines.removeAt(0);
+          stderrLines.add(line);
+          onStderrLine?.call(line);
+        });
 
     final exitCode = await process.exitCode;
     await Future.wait([stdoutFuture, stderrFuture]);
@@ -378,11 +361,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     );
   }
 
-  void _emit(
-    TranscriptionStage stage,
-    double progress,
-    String message,
-  ) {
+  void _emit(TranscriptionStage stage, double progress, String message) {
     if (_progressController.isClosed) return;
     _progressController.add(
       TranscriptionProgress(
@@ -415,10 +394,7 @@ class _ProcessResult {
   final int exitCode;
   final String stderrTail;
 
-  const _ProcessResult({
-    required this.exitCode,
-    required this.stderrTail,
-  });
+  const _ProcessResult({required this.exitCode, required this.stderrTail});
 }
 
 class _CancelledException implements Exception {

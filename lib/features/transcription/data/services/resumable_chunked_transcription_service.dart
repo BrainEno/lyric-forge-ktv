@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
+import 'asr_audio_normalization.dart';
 
 /// Runs long audio as resumable chunks while keeping the wrapped service's
 /// quality policy intact for every chunk.
@@ -30,7 +31,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
        assert(maxAttempts > 0);
 
   @override
-  Stream<TranscriptionProgress> get progressStream => _progressController.stream;
+  Stream<TranscriptionProgress> get progressStream =>
+      _progressController.stream;
 
   @override
   bool get isRunning => _running;
@@ -48,7 +50,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         '${request.outputDirectory}${Platform.pathSeparator}chunk_session',
       );
       await root.create(recursive: true);
-      final chunksDir = Directory('${root.path}${Platform.pathSeparator}chunks');
+      final chunksDir = Directory(
+        '${root.path}${Platform.pathSeparator}chunks',
+      );
       await chunksDir.create(recursive: true);
 
       _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频并准备可恢复分片');
@@ -65,9 +69,12 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
       final plan = _buildPlan(duration);
       final fingerprint = await _fingerprint(request.inputAudioPath);
-      final manifestFile = File('${root.path}${Platform.pathSeparator}session.json');
+      final manifestFile = File(
+        '${root.path}${Platform.pathSeparator}session.json',
+      );
       var manifest = await _loadManifest(manifestFile);
-      final compatible = manifest != null &&
+      final compatible =
+          manifest != null &&
           manifest['version'] == 1 &&
           manifest['sourceFingerprint'] == fingerprint &&
           manifest['chunkMs'] == chunkDuration.inMilliseconds &&
@@ -93,9 +100,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final completed = ((manifest['completed'] as List?) ?? const [])
           .map((e) => e.toString())
           .toSet();
-      final restored = completed.where(
-        (id) => File('${chunksDir.path}${Platform.pathSeparator}$id.json').existsSync(),
-      ).length;
+      final restored = completed
+          .where(
+            (id) => File(
+              '${chunksDir.path}${Platform.pathSeparator}$id.json',
+            ).existsSync(),
+          )
+          .length;
       if (restored > 0) {
         _emit(
           TranscriptionStage.transcribing,
@@ -206,11 +217,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final documents = <LyricDocument>[];
       final languages = <String>[];
       for (var index = 0; index < plan.length; index++) {
-        final json = jsonDecode(
-          await File(
-            '${chunksDir.path}${Platform.pathSeparator}${_chunkId(index)}.json',
-          ).readAsString(),
-        ) as Map<String, dynamic>;
+        final json =
+            jsonDecode(
+                  await File(
+                    '${chunksDir.path}${Platform.pathSeparator}${_chunkId(index)}.json',
+                  ).readAsString(),
+                )
+                as Map<String, dynamic>;
         documents.add(
           LyricDocument.fromJson(
             Map<String, dynamic>.from(json['lyrics'] as Map),
@@ -221,7 +234,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       }
 
       final merged = _mergeDocuments(documents);
-      final finalFile = File('${root.path}${Platform.pathSeparator}merged_result.json');
+      final finalFile = File(
+        '${root.path}${Platform.pathSeparator}merged_result.json',
+      );
       await finalFile.writeAsString(
         const JsonEncoder.withIndent('  ').convert(merged.toJson()),
         flush: true,
@@ -229,14 +244,16 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       _emit(TranscriptionStage.completed, 1.0, '全部 ${plan.length} 个分片识别并合并完成');
 
       return TranscriptionResult(
-        lyrics: merged.copyWith(metadata: {
-          ...merged.metadata,
-          'chunked': true,
-          'chunkCount': plan.length,
-          'chunkDurationMs': chunkDuration.inMilliseconds,
-          'chunkOverlapMs': overlap.inMilliseconds,
-          'checkpointDirectory': root.path,
-        }),
+        lyrics: merged.copyWith(
+          metadata: {
+            ...merged.metadata,
+            'chunked': true,
+            'chunkCount': plan.length,
+            'chunkDurationMs': chunkDuration.inMilliseconds,
+            'chunkOverlapMs': overlap.inMilliseconds,
+            'checkpointDirectory': root.path,
+          },
+        ),
         normalizedAudioPath: request.inputAudioPath,
         rawJsonPath: finalFile.path,
         detectedLanguage: _mostCommon(languages),
@@ -282,14 +299,18 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       );
     }
     final text = result.stderr.toString();
-    final match = RegExp(r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)').firstMatch(text);
+    final match = RegExp(
+      r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)',
+    ).firstMatch(text);
     if (match == null) {
       throw const TranscriptionException.input('无法读取音频时长');
     }
     final hours = int.parse(match.group(1)!);
     final minutes = int.parse(match.group(2)!);
     final seconds = double.parse(match.group(3)!);
-    return Duration(milliseconds: (((hours * 3600 + minutes * 60) + seconds) * 1000).round());
+    return Duration(
+      milliseconds: (((hours * 3600 + minutes * 60) + seconds) * 1000).round(),
+    );
   }
 
   Future<void> _extractChunk({
@@ -304,17 +325,15 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
     Process process;
     try {
-      process = await Process.start(executable, [
-        '-y',
-        '-ss', (start.inMilliseconds / 1000).toStringAsFixed(3),
-        '-i', inputPath,
-        '-t', (duration.inMilliseconds / 1000).toStringAsFixed(3),
-        '-vn',
-        '-ar', '16000',
-        '-ac', '1',
-        '-c:a', 'pcm_s16le',
-        outputPath,
-      ]);
+      process = await Process.start(
+        executable,
+        AsrAudioNormalization.chunkArguments(
+          inputPath: inputPath,
+          outputPath: outputPath,
+          start: start,
+          duration: duration,
+        ),
+      );
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动 FFmpeg 进行音频分片',
@@ -359,10 +378,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   LyricDocument _shiftDocument(LyricDocument document, Duration offset) {
     return document.copyWith(
-      lines: document.lines.map((line) => line.copyWith(
-        startTime: line.startTime + offset,
-        endTime: line.endTime + offset,
-      )).toList(growable: false),
+      lines: document.lines
+          .map(
+            (line) => line.copyWith(
+              startTime: line.startTime + offset,
+              endTime: line.endTime + offset,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -373,9 +396,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     final lines = <LyricLine>[];
     for (final document in documents) {
       for (final line in document.lines) {
-        final duplicateIndex = lines.lastIndexWhere((existing) =>
-          _normalize(existing.text) == _normalize(line.text) &&
-          _absoluteDuration(existing.startTime - line.startTime) <= overlap);
+        final duplicateIndex = lines.lastIndexWhere(
+          (existing) =>
+              _normalize(existing.text) == _normalize(line.text) &&
+              _absoluteDuration(existing.startTime - line.startTime) <= overlap,
+        );
         if (duplicateIndex >= 0) {
           if (line.confidence > lines[duplicateIndex].confidence) {
             lines[duplicateIndex] = line;
@@ -396,9 +421,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   Duration _absoluteDuration(Duration value) =>
       value.isNegative ? -value : value;
 
-  String _normalize(String value) => value
-      .toLowerCase()
-      .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), '');
+  String _normalize(String value) => value.toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'),
+    '',
+  );
 
   Future<String> _fingerprint(String path) async {
     final file = File(path);
@@ -409,7 +435,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   Future<Map<String, dynamic>?> _loadManifest(File file) async {
     if (!await file.exists()) return null;
     try {
-      return Map<String, dynamic>.from(jsonDecode(await file.readAsString()) as Map);
+      return Map<String, dynamic>.from(
+        jsonDecode(await file.readAsString()) as Map,
+      );
     } catch (_) {
       return null;
     }
@@ -438,11 +466,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   void _emit(TranscriptionStage stage, double progress, String message) {
     if (!_progressController.isClosed) {
-      _progressController.add(TranscriptionProgress(
-        stage: stage,
-        progress: progress.clamp(0.0, 1.0).toDouble(),
-        message: message,
-      ));
+      _progressController.add(
+        TranscriptionProgress(
+          stage: stage,
+          progress: progress.clamp(0.0, 1.0).toDouble(),
+          message: message,
+        ),
+      );
     }
   }
 
