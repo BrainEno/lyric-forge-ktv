@@ -9,6 +9,7 @@ import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
@@ -162,21 +163,22 @@ class LocalProjectTranscriptionWorkflow
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
               'primaryModel': runtimeConfig.mode == TranscriptionMode.whisperOnly
-                  ? 'Whisper'
+                  ? TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath)
                   : runtimeConfig.engineOrder ==
                           TranscriptionEngineOrder.qwenPrimary
-                      ? 'Qwen3-ASR-1.7B'
-                      : 'Whisper large-v3',
+                      ? TranscriptionModelIdentity.qwenAsrLabel(runtimeConfig.qwenModelPath)
+                      : TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath),
               'alignmentModel':
                   runtimeConfig.mode == TranscriptionMode.highestQuality
-                      ? 'Qwen3-ForcedAligner-0.6B'
+                      ? TranscriptionModelIdentity.qwenAlignerLabel(runtimeConfig.qwenAlignerModelPath)
                       : null,
-              'fallbackModel': runtimeConfig.mode == TranscriptionMode.highestQuality
-                  ? runtimeConfig.engineOrder ==
-                          TranscriptionEngineOrder.qwenPrimary
-                      ? 'Whisper large-v3'
-                      : 'Qwen3-ASR-0.6B'
-                  : null,
+              'fallbackModel':
+                  runtimeConfig.mode == TranscriptionMode.highestQuality
+                      ? runtimeConfig.engineOrder ==
+                              TranscriptionEngineOrder.qwenPrimary
+                          ? TranscriptionModelIdentity.whisperLabel(runtimeConfig.modelPath)
+                          : TranscriptionModelIdentity.qwenAsrLabel(runtimeConfig.qwenModelPath)
+                      : null,
             },
           },
         ),
