@@ -145,51 +145,48 @@ void main() {
     );
   });
 
-  test(
-    'aggregates WER only over pairs where both variants support WER',
-    () {
-      final baseline = _corpus(
-        sourceFingerprint: _hash('f'),
-        qwenInputFingerprint: _hash('a'),
-        whisperInputFingerprint: _hash('b'),
-        qwenText: '你好世界',
-        whisperText: 'hello worl',
-      );
-      final shared = _corpus(
-        sourceFingerprint: _hash('f'),
-        qwenInputFingerprint: _hash('c'),
-        whisperInputFingerprint: _hash('c'),
-        qwenText: 'unused baseline qwen text',
-        sharedQwenText: 'hello world',
-        whisperText: 'hello worl',
-        sharedWhisperText: 'hello world',
-        sharedInput: true,
-      );
+  test('aggregates WER only over pairs where both variants support WER', () {
+    final baseline = _corpus(
+      sourceFingerprint: _hash('f'),
+      qwenInputFingerprint: _hash('a'),
+      whisperInputFingerprint: _hash('b'),
+      qwenText: '你好世界',
+      whisperText: 'hello worl',
+    );
+    final shared = _corpus(
+      sourceFingerprint: _hash('f'),
+      qwenInputFingerprint: _hash('c'),
+      whisperInputFingerprint: _hash('c'),
+      qwenText: 'unused baseline qwen text',
+      sharedQwenText: 'hello world',
+      whisperText: 'hello worl',
+      sharedWhisperText: 'hello world',
+      sharedInput: true,
+    );
 
-      final report = ab_evaluator.evaluateAsrPreprocessingComparison(
-        baselineCorpus: jsonEncode(baseline),
-        sharedCorpus: jsonEncode(shared),
-      );
-      final byEngine = report['byEngine']! as Map<String, dynamic>;
-      final qwen = byEngine['qwen3-asr-1.7b'] as Map<String, dynamic>;
-      final whisper = byEngine['whisper-large-v3'] as Map<String, dynamic>;
+    final report = ab_evaluator.evaluateAsrPreprocessingComparison(
+      baselineCorpus: jsonEncode(baseline),
+      sharedCorpus: jsonEncode(shared),
+    );
+    final byEngine = report['byEngine']! as Map<String, dynamic>;
+    final qwen = byEngine['qwen3-asr-1.7b'] as Map<String, dynamic>;
+    final whisper = byEngine['whisper-large-v3'] as Map<String, dynamic>;
 
-      expect(qwen['wordErrorRateComparablePairCount'], 0);
-      expect(qwen['baselineWordErrorRate'], isNull);
-      expect(qwen['sharedWordErrorRate'], isNull);
-      expect(whisper['wordErrorRateComparablePairCount'], 1);
-      expect(whisper['baselineWordErrorRate'], closeTo(1 / 3, 0.000001));
-      expect(whisper['sharedWordErrorRate'], 0);
+    expect(qwen['wordErrorRateComparablePairCount'], 0);
+    expect(qwen['baselineWordErrorRate'], isNull);
+    expect(qwen['sharedWordErrorRate'], isNull);
+    expect(whisper['wordErrorRateComparablePairCount'], 1);
+    expect(whisper['baselineWordErrorRate'], closeTo(1 / 3, 0.000001));
+    expect(whisper['sharedWordErrorRate'], 0);
 
-      final pairs = report['pairs']! as List;
-      final qwenPair = pairs
-          .cast<Map<String, dynamic>>()
-          .singleWhere((pair) => pair['engine'] == 'qwen3-asr-1.7b');
-      expect(qwenPair['wordErrorRateComparable'], isFalse);
-      expect(qwenPair['baselineWordErrorRate'], isNull);
-      expect(qwenPair['sharedWordErrorRate'], isNull);
-    },
-  );
+    final pairs = report['pairs']! as List;
+    final qwenPair = pairs.cast<Map<String, dynamic>>().singleWhere(
+      (pair) => pair['engine'] == 'qwen3-asr-1.7b',
+    );
+    expect(qwenPair['wordErrorRateComparable'], isFalse);
+    expect(qwenPair['baselineWordErrorRate'], isNull);
+    expect(qwenPair['sharedWordErrorRate'], isNull);
+  });
 
   test('flags unchanged input bytes as unable to isolate preprocessing', () {
     final corpus = _corpus(
