@@ -82,6 +82,18 @@ void main() {
       },
     );
 
+    test('formats subsecond chunk boundaries to millisecond precision', () {
+      final arguments = AsrAudioNormalization.chunkArguments(
+        inputPath: '/music/song.flac',
+        outputPath: '/work/chunk.wav',
+        start: const Duration(milliseconds: 12345),
+        duration: const Duration(milliseconds: 875),
+      );
+
+      expect(arguments[2], '12.345');
+      expect(arguments[6], '0.875');
+    });
+
     test('exposes one canonical target format', () {
       expect(AsrAudioNormalization.sampleRateHz, 16000);
       expect(AsrAudioNormalization.channelCount, 1);
