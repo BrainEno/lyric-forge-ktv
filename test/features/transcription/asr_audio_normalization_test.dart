@@ -5,14 +5,14 @@ void main() {
   group('AsrAudioNormalization', () {
     test('builds stable 16 kHz mono PCM arguments without shell quoting', () {
       final arguments = AsrAudioNormalization.ffmpegArguments(
-        inputPath: r'D:\\Music Library\\recording source.m4a',
-        outputPath: r'D:\\LyricForge\\normalized input.wav',
+        inputPath: r'D:\Music Library\recording source.m4a',
+        outputPath: r'D:\LyricForge\normalized input.wav',
       );
 
       expect(arguments, [
         '-y',
         '-i',
-        r'D:\\Music Library\\recording source.m4a',
+        r'D:\Music Library\recording source.m4a',
         '-vn',
         '-ar',
         '16000',
@@ -20,7 +20,7 @@ void main() {
         '1',
         '-c:a',
         'pcm_s16le',
-        r'D:\\LyricForge\\normalized input.wav',
+        r'D:\LyricForge\normalized input.wav',
       ]);
     });
 
@@ -34,8 +34,10 @@ void main() {
         outputPath: '/work/whisper input.wav',
       );
 
-      expect(qwenArguments.sublist(0, qwenArguments.length - 1),
-          whisperArguments.sublist(0, whisperArguments.length - 1));
+      expect(
+        qwenArguments.sublist(0, qwenArguments.length - 1),
+        whisperArguments.sublist(0, whisperArguments.length - 1),
+      );
       expect(qwenArguments.last, '/work/qwen input.wav');
       expect(whisperArguments.last, '/work/whisper input.wav');
     });
