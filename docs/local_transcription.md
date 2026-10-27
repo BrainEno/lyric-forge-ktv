@@ -112,8 +112,12 @@ ffmpeg -y -i <input> -vn -ar 16000 -ac 1 -c:a pcm_s16le transcription_input.wav
 
 The long-audio chunker uses the same output-normalization options and adds
 `-ss` / `-t` for seeking and duration. The output remains 16 kHz mono
-`pcm_s16le`; only the input seek window and destination differ. Qwen and
-Whisper still convert independently, but their FFmpeg option set is shared.
+`pcm_s16le`; only the input seek window and destination differ. In Highest
+Quality mode, both engines now reuse one `high_quality_shared_input.wav`
+prepared for the job; standalone Qwen/Whisper adapter calls still run FFmpeg
+when no normalized input path is supplied. The shared file is regenerated for
+each job, not cached across runs, and retained on success because transcription
+results refer to it.
 
 ## Artifacts
 

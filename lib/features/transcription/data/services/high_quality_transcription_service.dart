@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
+import 'asr_audio_normalization.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
@@ -18,10 +20,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
   bool _running = false;
   bool _cancelRequested = false;
+  Process? _sharedNormalizationProcess;
+
+  /// Injectable so orchestration tests can verify the shared-input contract
+  /// without depending on an installed FFmpeg executable.
+  final Future<String> Function(TranscriptionRequest request)?
+  sharedAudioPreparer;
 
   HighQualityTranscriptionService({
     required this.primary,
     required this.fallback,
+    this.sharedAudioPreparer,
   });
 
   @override
@@ -51,12 +60,23 @@ class HighQualityTranscriptionService implements TranscriptionService {
         );
       }
 
+      final sharedNormalizedPath =
+          request.normalizedInputAudioPath ??
+          await (sharedAudioPreparer ?? _prepareSharedAudio)(request);
+      final sharedRequest = TranscriptionRequest(
+        inputAudioPath: request.inputAudioPath,
+        normalizedInputAudioPath: sharedNormalizedPath,
+        outputDirectory: request.outputDirectory,
+        config: request.config,
+        context: request.context,
+      );
+
       if (request.config.engineOrder ==
           TranscriptionEngineOrder.whisperPrimary) {
-        return await _transcribeWhisperPrimary(request);
+        return await _transcribeWhisperPrimary(sharedRequest);
       }
 
-      final primaryResult = await _runPrimary(request);
+      final primaryResult = await _runPrimary(sharedRequest);
       _throwIfCancelled();
 
       _emit(TranscriptionStage.fallback, 0.76, 'Whisper large-v3 正在进行全曲第二意见识别');
@@ -71,6 +91,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         fallbackResult = await _runFallbackFullSong(
           TranscriptionRequest(
             inputAudioPath: request.inputAudioPath,
+            normalizedInputAudioPath: sharedRequest.normalizedInputAudioPath,
             outputDirectory: fallbackDirectory.path,
             config: request.config.copyWith(
               mode: TranscriptionMode.whisperOnly,
@@ -182,6 +203,97 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
   }
 
+  Future<String> _prepareSharedAudio(TranscriptionRequest request) async {
+    _throwIfCancelled();
+    if (!await File(request.inputAudioPath).exists()) {
+      throw const TranscriptionException.input('待识别音频文件不存在');
+    }
+
+    final outputDirectory = Directory(request.outputDirectory);
+    await outputDirectory.create(recursive: true);
+    final output = File(
+      '${outputDirectory.path}${Platform.pathSeparator}high_quality_shared_input.wav',
+    );
+    final inputPath = File(request.inputAudioPath).absolute.path;
+    final outputPath = output.absolute.path;
+    final samePath = Platform.isWindows
+        ? inputPath.toLowerCase() == outputPath.toLowerCase()
+        : inputPath == outputPath;
+    if (samePath) {
+      throw const TranscriptionException.input('共享标准化音频输出路径不能覆盖原始音频');
+    }
+    if (await output.exists()) {
+      try {
+        await output.delete();
+      } on FileSystemException catch (error) {
+        throw TranscriptionException.environment(
+          '无法替换上一次双引擎共享音频',
+          details: error.message,
+        );
+      }
+    }
+
+    var succeeded = false;
+    Process? process;
+    try {
+      _throwIfCancelled();
+      _emit(
+        TranscriptionStage.preprocessing,
+        0.01,
+        '正在为双引擎生成一次共享的 16 kHz 单声道输入',
+      );
+
+      try {
+        process = await Process.start(
+          request.config.ffmpegExecutable,
+          AsrAudioNormalization.ffmpegArguments(
+            inputPath: request.inputAudioPath,
+            outputPath: output.path,
+          ),
+        );
+      } on ProcessException catch (error) {
+        throw TranscriptionException.environment(
+          '无法启动 FFmpeg 生成双引擎共享音频',
+          details: error.message,
+        );
+      }
+
+      _sharedNormalizationProcess = process;
+      if (_cancelRequested) process.kill();
+
+      final stdoutFuture = process.stdout.drain<void>();
+      final stderrFuture = utf8.decoder.bind(process.stderr).join();
+      final exitCode = await process.exitCode;
+      await stdoutFuture;
+      final stderrText = await stderrFuture;
+
+      _throwIfCancelled();
+      if (exitCode != 0) {
+        throw TranscriptionException.input(
+          'FFmpeg 双引擎共享音频预处理失败',
+          details: stderrText,
+        );
+      }
+      if (!await output.exists() || await output.length() <= 44) {
+        throw const TranscriptionException.input('FFmpeg 未生成有效的双引擎共享 WAV 文件');
+      }
+
+      succeeded = true;
+      return output.path;
+    } finally {
+      if (identical(_sharedNormalizationProcess, process)) {
+        _sharedNormalizationProcess = null;
+      }
+      if (!succeeded && await output.exists()) {
+        try {
+          await output.delete();
+        } on FileSystemException {
+          // Preserve the original processing error if cleanup also fails.
+        }
+      }
+    }
+  }
+
   Future<TranscriptionResult> _transcribeWhisperPrimary(
     TranscriptionRequest request,
   ) async {
@@ -209,6 +321,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       whisperResult = await fallback.transcribe(
         TranscriptionRequest(
           inputAudioPath: request.inputAudioPath,
+          normalizedInputAudioPath: request.normalizedInputAudioPath,
           outputDirectory:
               '${request.outputDirectory}${Platform.pathSeparator}whisper_primary',
           config: request.config.copyWith(mode: TranscriptionMode.whisperOnly),
@@ -244,6 +357,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         qwenResult = await primary.transcribe(
           TranscriptionRequest(
             inputAudioPath: request.inputAudioPath,
+            normalizedInputAudioPath: request.normalizedInputAudioPath,
             outputDirectory: qwenDirectory.path,
             config: request.config,
             context: request.context,
@@ -1147,12 +1261,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
+    _sharedNormalizationProcess?.kill();
     await Future.wait([primary.cancel(), fallback.cancel()]);
   }
 
   @override
   Future<void> dispose() async {
     _cancelRequested = true;
+    _sharedNormalizationProcess?.kill();
     await primary.dispose();
     await fallback.dispose();
     await _progressController.close();
