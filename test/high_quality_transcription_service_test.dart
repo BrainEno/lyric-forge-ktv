@@ -152,6 +152,49 @@ void main() {
       },
     );
 
+    test('reports configured model identities in fusion metadata', () async {
+      final service = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'hello world',
+              startTime: const Duration(seconds: 1),
+              endTime: const Duration(seconds: 2),
+              confidence: 80,
+            ),
+          ),
+        ),
+        fallback: _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'hello world',
+              startTime: const Duration(seconds: 1),
+              endTime: const Duration(seconds: 2),
+              confidence: 90,
+            ),
+          ),
+        ),
+      );
+
+      final result = await service.transcribe(
+        _request(
+          tempDirectory.path,
+          qwenModelPath: 'Qwen/Qwen3-ASR-0.6B',
+          qwenAlignerModelPath: 'Qwen/Qwen3-ForcedAligner-1.5B',
+          whisperModelPath: r'D:\models\ggml-medium.bin',
+        ),
+      );
+
+      expect(result.lyrics.metadata['primaryEngine'], 'qwen3-asr-0.6b');
+      expect(
+        result.lyrics.metadata['alignmentEngine'],
+        'qwen3-forced-aligner-1.5b',
+      );
+      expect(result.lyrics.metadata['fallbackEngine'], 'whisper.cpp-medium');
+
+      await service.dispose();
+    });
+
     test('keeps Qwen result when Whisper second opinion fails', () async {
       final primaryResult = _result(
         LyricLine(
@@ -427,6 +470,9 @@ void main() {
 TranscriptionRequest _request(
   String outputDirectory, {
   TranscriptionEngineOrder engineOrder = TranscriptionEngineOrder.qwenPrimary,
+  String? qwenModelPath,
+  String? qwenAlignerModelPath,
+  String? whisperModelPath,
 }) {
   return TranscriptionRequest(
     inputAudioPath: 'unused-by-fake.wav',
@@ -435,11 +481,15 @@ TranscriptionRequest _request(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
       qwenExecutable: 'qwen3-asr',
-      qwenModelPath: engineOrder == TranscriptionEngineOrder.whisperPrimary
-          ? 'Qwen/Qwen3-ASR-0.6B'
-          : 'Qwen/Qwen3-ASR-1.7B',
+      qwenModelPath:
+          qwenModelPath ??
+          (engineOrder == TranscriptionEngineOrder.whisperPrimary
+              ? 'Qwen/Qwen3-ASR-0.6B'
+              : 'Qwen/Qwen3-ASR-1.7B'),
+      qwenAlignerModelPath:
+          qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
       whisperExecutable: 'whisper-cli',
-      modelPath: 'ggml-large-v3.bin',
+      modelPath: whisperModelPath ?? 'ggml-large-v3.bin',
     ),
   );
 }

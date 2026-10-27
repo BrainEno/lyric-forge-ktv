@@ -524,3 +524,18 @@ the diagnostic report but exits with code 2. Legacy schema v1 corpora remain
 evaluable without the flag. This gate checks declared metadata completeness and
 capture-time audio identity; it does not verify the truth of a human annotation
 or recover the version of a model used by an old manually assembled corpus.
+
+
+## ASR model identity in saved metadata
+
+Fusion metadata and the project's saved transcription record derive engine/model
+identities from the configured Qwen ASR, Qwen ForcedAligner, and Whisper model
+paths. This avoids reporting a fixed Qwen 0.6B/1.7B or Whisper large-v3 label
+when another variant is configured. The persisted display labels use only the
+final path component, not an absolute local directory.
+
+These identifiers describe the configured model path; they are not a content
+hash and do not prove which weight bytes a runtime actually loaded. For strict
+quality comparisons, retain the exact audio fingerprint and manually reviewed
+reference from the evaluation corpus, and separately record the actual model
+revision and native runtime bundle version.
