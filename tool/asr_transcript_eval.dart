@@ -61,6 +61,7 @@ bool? _optionalBool(dynamic raw, String key) {
   }
   return value as bool?;
 }
+
 List<String> _tokens(String text) => _tokenizer.tokenize(text);
 List<int> _characters(String text) => _tokens(text).join().runes.toList();
 
@@ -451,24 +452,30 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
       .toList(growable: false);
   final candidatesMissingAudioFingerprint = scores
       .where((score) => score.candidate.audioSha256 == null)
-      .map((score) => {
-        'sampleId': score.sample.id,
-        'engine': score.candidate.engine,
-      })
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
       .toList(growable: false);
   final candidatesMissingModelRevision = scores
       .where((score) => score.candidate.modelRevision == null)
-      .map((score) => {
-        'sampleId': score.sample.id,
-        'engine': score.candidate.engine,
-      })
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
       .toList(growable: false);
   final candidatesMissingRuntimeVersion = scores
       .where((score) => score.candidate.runtimeVersion == null)
-      .map((score) => {
-        'sampleId': score.sample.id,
-        'engine': score.candidate.engine,
-      })
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
       .toList(growable: false);
   final provenanceWarnings = <String>[
     if (samplesMissingAudioFingerprint.isNotEmpty)
