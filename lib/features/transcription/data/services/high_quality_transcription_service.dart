@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
-import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_model_identity.dart';
+import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
@@ -263,14 +263,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
             ...whisperResult.lyrics.metadata,
             'qualityMode': 'highestQuality',
             'primaryEngine': TranscriptionModelIdentity.whisperEngine(
-              request.config.modelPath,
-            ),
+          request.config.modelPath,
+        ),
             'alignmentEngine': 'whisper-segment-timestamps',
             'fallbackEngine': qwenModelKey,
             'fallbackAlignmentEngine':
-                TranscriptionModelIdentity.qwenAlignerEngine(
-                  request.config.qwenAlignerModelPath,
-                ),
+            TranscriptionModelIdentity.qwenAlignerEngine(
+          request.config.qwenAlignerModelPath,
+        ),
             'fallbackStatus': 'failed',
             'fallbackError': error.toString(),
             'fallbackCandidateCount': 0,
