@@ -27,7 +27,7 @@
 - 回归测试覆盖完整 provenance 成功和旧语料严格模式失败。
 
 ## 检查结果
-- 新 CLI 集成测试已写入；最新 head 的 GitHub Actions 等待确认。
+- 最新代码 head `94b3e753f793ed4caed7356fd10c3772d6056045` 的 Flutter Quality Gate run `40477102575` 已通过；work-log contract preflight、Dart 格式检查通过，完整测试为 737 项全部通过。之后仅更新了任务验证记录，相关文档 head 的 CI 仍需确认。
 
 ## 下一步
 CI 通过后合并 PR；再使用本地英文、中文、日文音频建立人工复核语料，先运行严格文本评测并对同一音频运行 ForcedAligner 评测，基于真实分项统计决定是否调整融合策略。
@@ -37,4 +37,4 @@ CI 通过后合并 PR；再使用本地英文、中文、日文音频建立人�
 - `referenceReviewed: true` 是人工复核声明，不是机器验证结论。
 - 有意保持严格模式 opt-in，避免旧语料突然无法继续计算历史指标。
 
-最后更新：2026-10-27 16:10（Asia/Taipei）
+最后更新：2026-10-27 16:20（Asia/Taipei）
