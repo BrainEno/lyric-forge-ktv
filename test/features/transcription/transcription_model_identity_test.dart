@@ -38,15 +38,11 @@ void main() {
 
     test('maps the actual Whisper model filename to an engine identity', () {
       expect(
-        TranscriptionModelIdentity.whisperEngine(
-          r'D:\models\ggml-medium.bin',
-        ),
+        TranscriptionModelIdentity.whisperEngine(r'D:\models\ggml-medium.bin'),
         'whisper.cpp-medium',
       );
       expect(
-        TranscriptionModelIdentity.whisperLabel(
-          r'D:\models\ggml-large-v3.bin',
-        ),
+        TranscriptionModelIdentity.whisperLabel(r'D:\models\ggml-large-v3.bin'),
         'Whisper large-v3',
       );
     });
@@ -64,10 +60,7 @@ void main() {
         ),
         'Qwen3-ASR 1.7B',
       );
-      expect(
-        TranscriptionModelIdentity.qwenAsrLabel(''),
-        'Qwen3-ASR 1.7B',
-      );
+      expect(TranscriptionModelIdentity.qwenAsrLabel(''), 'Qwen3-ASR 1.7B');
     });
   });
 }
