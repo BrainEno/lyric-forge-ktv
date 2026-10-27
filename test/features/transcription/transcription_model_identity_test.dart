@@ -21,18 +21,18 @@ void main() {
     test(
       'recognizes configured ForcedAligner revision rather than assuming 0.6B',
       () {
-      expect(
-        TranscriptionModelIdentity.qwenAlignerEngine(
-          'D:\\models\\Qwen3-ForcedAligner-1.5B',
-        ),
-        'qwen3-forced-aligner-1.5b',
-      );
-      expect(
-        TranscriptionModelIdentity.qwenAlignerLabel(
-          'D:\\models\\Qwen3-ForcedAligner-1.5B',
-        ),
-        'Qwen3-ForcedAligner 1.5B',
-      );
+        expect(
+          TranscriptionModelIdentity.qwenAlignerEngine(
+            'D:\\models\\Qwen3-ForcedAligner-1.5B',
+          ),
+          'qwen3-forced-aligner-1.5b',
+        );
+        expect(
+          TranscriptionModelIdentity.qwenAlignerLabel(
+            'D:\\models\\Qwen3-ForcedAligner-1.5B',
+          ),
+          'Qwen3-ForcedAligner 1.5B',
+        );
       },
     );
 
