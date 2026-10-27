@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/services/transcription_service.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
@@ -87,9 +88,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
             metadata: {
               ...primaryResult.lyrics.metadata,
               'qualityMode': 'highestQuality',
-              'primaryEngine': 'qwen3-asr-1.7b',
-              'alignmentEngine': 'qwen3-forced-aligner-0.6b',
-              'fallbackEngine': 'whisper.cpp-large-v3',
+              'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(request.config.qwenModelPath),
+              'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
+              'fallbackEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
               'fallbackStatus': 'failed',
               'fallbackError': error.toString(),
               'fallbackCandidateCount': 0,
@@ -116,9 +117,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
         metadata: {
           ...primaryResult.lyrics.metadata,
           'qualityMode': 'highestQuality',
-          'primaryEngine': 'qwen3-asr-1.7b',
-          'alignmentEngine': 'qwen3-forced-aligner-0.6b',
-          'fallbackEngine': 'whisper.cpp-large-v3',
+          'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(request.config.qwenModelPath),
+          'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
+          'fallbackEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
           'fallbackStrategy': 'fullSongSecondOpinion',
           'fallbackStatus': 'completed',
           'fallbackCandidateCount': merge.candidates.length,
@@ -172,13 +173,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<TranscriptionResult> _transcribeWhisperPrimary(
     TranscriptionRequest request,
   ) async {
-    final qwenModelKey =
-        request.config.qwenModelPath.toLowerCase().contains('0.6b')
-        ? 'qwen3-asr-0.6b'
-        : 'qwen3-asr-1.7b';
-    final qwenModelLabel = qwenModelKey == 'qwen3-asr-0.6b'
-        ? 'Qwen3-ASR 0.6B'
-        : 'Qwen3-ASR 1.7B';
+    final qwenModelKey = TranscriptionModelIdentity.qwenAsrEngine(
+      request.config.qwenModelPath,
+    );
+    final qwenModelLabel = TranscriptionModelIdentity.qwenAsrLabel(
+      request.config.qwenModelPath,
+    );
 
     _emit(TranscriptionStage.transcribing, 0.02, 'Whisper large-v3 正在进行主识别');
 
@@ -253,7 +253,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryEngine': 'whisper.cpp-large-v3',
             'alignmentEngine': 'whisper-segment-timestamps',
             'fallbackEngine': qwenModelKey,
-            'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
+            'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
             'fallbackStatus': 'failed',
             'fallbackError': error.toString(),
             'fallbackCandidateCount': 0,
@@ -284,7 +284,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'primaryEngine': 'whisper.cpp-large-v3',
         'alignmentEngine': 'whisper-segment-timestamps',
         'fallbackEngine': qwenModelKey,
-        'fallbackAlignmentEngine': 'qwen3-forced-aligner-0.6b',
+        'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
         'fallbackStrategy': 'fullSongSecondOpinion',
         'fallbackStatus': 'completed',
         'fallbackCandidateCount': merge.candidates.length,
