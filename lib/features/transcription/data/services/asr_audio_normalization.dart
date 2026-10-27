@@ -17,14 +17,40 @@ class AsrAudioNormalization {
       '-y',
       '-i',
       inputPath,
-      '-vn',
-      '-ar',
-      sampleRateHz.toString(),
-      '-ac',
-      channelCount.toString(),
-      '-c:a',
-      sampleFormat,
+      ..._audioOutputOptions(),
       outputPath,
     ];
   }
+
+  static List<String> chunkArguments({
+    required String inputPath,
+    required String outputPath,
+    required Duration start,
+    required Duration duration,
+  }) {
+    return [
+      '-y',
+      '-ss',
+      _seconds(start),
+      '-i',
+      inputPath,
+      '-t',
+      _seconds(duration),
+      ..._audioOutputOptions(),
+      outputPath,
+    ];
+  }
+
+  static List<String> _audioOutputOptions() => [
+    '-vn',
+    '-ar',
+    sampleRateHz.toString(),
+    '-ac',
+    channelCount.toString(),
+    '-c:a',
+    sampleFormat,
+  ];
+
+  static String _seconds(Duration value) =>
+      (value.inMilliseconds / 1000).toStringAsFixed(3);
 }
