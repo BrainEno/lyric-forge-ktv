@@ -9,7 +9,7 @@
 - [2026-10-27 00:18] Preserve novel secondary ASR lines inside overlapping segments `Preserve novel secondary ASR lines that overlap a primary segment` ([entry](log/entries/2026-10-27-0018-preserve-overlapping-asr-lines.md))
 - [2026-10-26 22:50] Sync V2 audition fix with current mainline `Sync V2 audition fix with current mainline` ([entry](log/entries/2026-10-26-2250-sync-v2-audition-main.md))
 - [2026-10-26 21:30] Clarify ASR smoke-test scope versus lyric accuracy `Clarify that ASR smoke test does not measure lyric accuracy` ([entry](log/entries/2026-10-26-2130-clarify-asr-smoke-test-scope.md))
-- [2026-10-26 21:10] Make V2 audition diagnosable and support timing A/B `Add original and proposed-time audition controls to V2 review` ([entry](log/entries/2026-10-26-2110-fix-v2-audition-feedback.md))
+- [2026-10-26 21:10] Make V2 lyric audition diagnosable and support timing A/B `Add original and proposed-time audition controls to V2 review` ([entry](log/entries/2026-10-26-2110-fix-v2-audition-feedback.md))
 
 <!-- 105 entries total: 8 active, 97 archived. -->
 
