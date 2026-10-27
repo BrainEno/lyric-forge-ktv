@@ -135,22 +135,13 @@ void main() {
     final provenance = report['provenance']! as Map<String, dynamic>;
     expect(provenance['samplesMissingAudioFingerprint'], ['legacy-01']);
     expect(provenance['samplesMissingAudioDuration'], ['legacy-01']);
-    expect(
-      provenance['samplesWithoutConfirmedReferenceReview'],
-      ['legacy-01'],
-    );
+    expect(provenance['samplesWithoutConfirmedReferenceReview'], ['legacy-01']);
     expect(
       (provenance['candidatesMissingAudioFingerprint']! as List).length,
       1,
     );
-    expect(
-      (provenance['candidatesMissingModelRevision']! as List).length,
-      1,
-    );
-    expect(
-      (provenance['candidatesMissingRuntimeVersion']! as List).length,
-      1,
-    );
+    expect((provenance['candidatesMissingModelRevision']! as List).length, 1);
+    expect((provenance['candidatesMissingRuntimeVersion']! as List).length, 1);
     expect((provenance['warnings']! as List).length, 6);
   });
 
@@ -208,9 +199,7 @@ void main() {
       throwsFormatException,
     );
     expect(
-      () => evaluator.evaluateTranscriptCorpus(
-        jsonEncode(corpus(duration: 0)),
-      ),
+      () => evaluator.evaluateTranscriptCorpus(jsonEncode(corpus(duration: 0))),
       throwsFormatException,
     );
     expect(
