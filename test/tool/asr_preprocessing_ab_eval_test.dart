@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../tool/asr_preprocessing_ab_eval.dart' as abEvaluator;
+import '../../tool/asr_preprocessing_ab_eval.dart' as ab_evaluator;
 
 void main() {
   test(
@@ -24,7 +24,7 @@ void main() {
         sharedInput: true,
       );
 
-      final report = abEvaluator.evaluateAsrPreprocessingComparison(
+      final report = ab_evaluator.evaluateAsrPreprocessingComparison(
         baselineCorpus: jsonEncode(baseline),
         sharedCorpus: jsonEncode(shared),
       );
@@ -67,7 +67,7 @@ void main() {
     );
 
     expect(
-      () => abEvaluator.evaluateAsrPreprocessingComparison(
+      () => ab_evaluator.evaluateAsrPreprocessingComparison(
         baselineCorpus: jsonEncode(baseline),
         sharedCorpus: jsonEncode(shared),
       ),
@@ -91,7 +91,7 @@ void main() {
     );
 
     expect(
-      () => abEvaluator.evaluateAsrPreprocessingComparison(
+      () => ab_evaluator.evaluateAsrPreprocessingComparison(
         baselineCorpus: jsonEncode(baseline),
         sharedCorpus: jsonEncode(shared),
       ),
@@ -114,7 +114,7 @@ void main() {
     );
 
     expect(
-      () => abEvaluator.evaluateAsrPreprocessingComparison(
+      () => ab_evaluator.evaluateAsrPreprocessingComparison(
         baselineCorpus: jsonEncode(baseline),
         sharedCorpus: jsonEncode(shared),
       ),
@@ -137,7 +137,7 @@ void main() {
     );
 
     expect(
-      () => abEvaluator.evaluateAsrPreprocessingComparison(
+      () => ab_evaluator.evaluateAsrPreprocessingComparison(
         baselineCorpus: jsonEncode(baseline),
         sharedCorpus: jsonEncode(shared),
       ),
@@ -153,7 +153,7 @@ void main() {
       sharedInput: true,
     );
 
-    final report = abEvaluator.evaluateAsrPreprocessingComparison(
+    final report = ab_evaluator.evaluateAsrPreprocessingComparison(
       baselineCorpus: jsonEncode(corpus),
       sharedCorpus: jsonEncode(corpus),
     );
