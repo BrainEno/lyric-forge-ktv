@@ -383,7 +383,10 @@ reference text/review flag, language or duration changes, a candidate is missing
 strict provenance, or any engine's model revision/runtime version differs. It
 reports character/token edit rates and insertion/deletion/substitution deltas
 per engine and clip. Negative error-rate deltas mean fewer errors in the shared
-run. The report also checks whether the actual normalized WAV hashes changed.
+run. WER is reported only for a paired candidate when both runs support WER;
+for example, if one transcript contains CJK characters and the other does not,
+the pair is excluded from both sides' WER aggregation. The report also checks
+whether the actual normalized WAV hashes changed.
 If they are all identical, `preprocessingEffectTestable` is false and a warning
 explains that the run cannot isolate an audio-byte change.
 

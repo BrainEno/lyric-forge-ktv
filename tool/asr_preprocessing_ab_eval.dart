@@ -151,8 +151,16 @@ class _Pair {
       'runtimeVersion': before.runtime,
       'referenceCharacterCount': before.integer('referenceCharacterCount'),
       'referenceTokenCount': before.integer('referenceTokenCount'),
-      'baselineWordErrorRate': before.score['wordErrorRate'],
-      'sharedWordErrorRate': after.score['wordErrorRate'],
+      'baselineWordErrorRate':
+          before.score['wordErrorRate'] is num &&
+              after.score['wordErrorRate'] is num
+          ? (before.score['wordErrorRate'] as num).toDouble()
+          : null,
+      'sharedWordErrorRate':
+          before.score['wordErrorRate'] is num &&
+              after.score['wordErrorRate'] is num
+          ? (after.score['wordErrorRate'] as num).toDouble()
+          : null,
       'wordErrorRateComparable':
           before.score['wordErrorRate'] is num &&
           after.score['wordErrorRate'] is num,
@@ -434,6 +442,10 @@ double? _wordRate(List<_Pair> pairs, bool after) {
   var edits = 0;
   var referenceWords = 0;
   for (final pair in pairs) {
+    if (pair.before.score['wordErrorRate'] is! num ||
+        pair.after.score['wordErrorRate'] is! num) {
+      continue;
+    }
     final candidate = after ? pair.after.score : pair.before.score;
     final count = candidate['wordEditCount'];
     final referenceCount = candidate['referenceWordCount'];
