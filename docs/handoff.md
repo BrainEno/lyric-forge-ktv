@@ -25,8 +25,8 @@
 - 评测 CLI 支持 `--require-provenance` 和 `--output` 任意顺序组合；来源不完整时先保存报告，再以退出码 2 失败。
 
 ## 检查结果
-- 新增覆盖完整/旧 provenance、严格模式成功/失败、失败报告保留、capture 文件指纹、识别期间音频改变的测试。
-- PR 尚待 CI 验证；创建 PR 后需检查当前 head 的完整 Flutter Quality Gate，再根据结果修复。
+- PR #201 implementation head `0ec5ccd994953561b9ba6ac92039bef952a711ed` 的 Flutter Quality Gate run 40480645675 全部通过：work-log preflight、Dart format、repository quality gate；全量测试 `741 tests passed`。
+- 本次仅更新验证记录/交接文档，产生新 PR head 后仍需确认最新 head 的 CI 结论。
 
 ## 下一步
 CI 通过并合并后，使用本人本地人工复核的英文、中文、日文音频分别记录 transcript 与 ForcedAligner 结果；在真实数据到位前不调整或宣称融合准确率提升。
@@ -36,4 +36,4 @@ CI 通过并合并后，使用本人本地人工复核的英文、中文、日�
 - `referenceReviewed` 仍是人工声明，模型/runtime 字符串也需要填写真实 revision 与 bundle 版本。
 - 合成测试只验证契约与边界，不证明真实歌曲的时间精度或中英日覆盖。
 
-最后更新：2026-10-27 17:07（Asia/Taipei）
+最后更新：2026-10-27 17:28（Asia/Taipei）
