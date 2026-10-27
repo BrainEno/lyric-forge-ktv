@@ -88,9 +88,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
             metadata: {
               ...primaryResult.lyrics.metadata,
               'qualityMode': 'highestQuality',
-              'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(request.config.qwenModelPath),
-              'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
-              'fallbackEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+              'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
+                request.config.qwenModelPath,
+              ),
+              'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+                request.config.qwenAlignerModelPath,
+              ),
+              'fallbackEngine': TranscriptionModelIdentity.whisperEngine(
+                request.config.modelPath,
+              ),
               'fallbackStatus': 'failed',
               'fallbackError': error.toString(),
               'fallbackCandidateCount': 0,
@@ -117,9 +123,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
         metadata: {
           ...primaryResult.lyrics.metadata,
           'qualityMode': 'highestQuality',
-          'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(request.config.qwenModelPath),
-          'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
-          'fallbackEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+          'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
+                request.config.qwenModelPath,
+              ),
+          'alignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+                request.config.qwenAlignerModelPath,
+              ),
+          'fallbackEngine': TranscriptionModelIdentity.whisperEngine(
+                request.config.modelPath,
+              ),
           'fallbackStrategy': 'fullSongSecondOpinion',
           'fallbackStatus': 'completed',
           'fallbackCandidateCount': merge.candidates.length,
@@ -253,7 +265,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
             'alignmentEngine': 'whisper-segment-timestamps',
             'fallbackEngine': qwenModelKey,
-            'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
+            'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+                  request.config.qwenAlignerModelPath,
+                ),
             'fallbackStatus': 'failed',
             'fallbackError': error.toString(),
             'fallbackCandidateCount': 0,
@@ -284,7 +298,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'primaryEngine': TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
         'alignmentEngine': 'whisper-segment-timestamps',
         'fallbackEngine': qwenModelKey,
-        'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(request.config.qwenAlignerModelPath),
+        'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+                  request.config.qwenAlignerModelPath,
+                ),
         'fallbackStrategy': 'fullSongSecondOpinion',
         'fallbackStatus': 'completed',
         'fallbackCandidateCount': merge.candidates.length,
