@@ -481,7 +481,8 @@ TranscriptionRequest _request(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
       qwenExecutable: 'qwen3-asr',
-      qwenModelPath: qwenModelPath ??
+      qwenModelPath:
+          qwenModelPath ??
           (engineOrder == TranscriptionEngineOrder.whisperPrimary
               ? 'Qwen/Qwen3-ASR-0.6B'
               : 'Qwen/Qwen3-ASR-1.7B'),
