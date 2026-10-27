@@ -357,6 +357,42 @@ This transcript tool does not assess timestamps or line segmentation. Use
 measure span recall, unmatched spans, and boundary error separately. No real-song
 accuracy claim should be made from synthetic unit tests alone.
 
+## Paired preprocessing A/B evaluation
+
+Run this comparison to evaluate the previous per-engine conversion path against
+Highest Quality mode's shared normalized WAV, without mixing clips, references,
+or model/runtime versions:
+
+    dart run tool/asr_preprocessing_ab_eval.dart "D:/Evaluation/asr-baseline-corpus.json" "D:/Evaluation/asr-shared-input-corpus.json" --output "D:/Evaluation/asr-preprocessing-ab-report.json"
+
+Both corpora use schema version 1 and must include the strict fields already
+required by the transcript evaluator. Add `sourceAudioSha256` to each sample;
+this is the SHA-256 of the original input file before preprocessing. The
+existing `audioSha256` remains the hash of the exact normalized WAV bytes
+supplied to the candidate engine.
+
+For the baseline, create one sample row per engine when their normalized WAV
+hashes differ. Those rows should share the same `songId`, original source hash,
+duration, reviewed reference text, and language, but each candidate's
+`audioSha256` must match its own sample. In the shared-input corpus, one row
+can contain both Qwen and Whisper candidates because they should use the same
+WAV hash. Use stable engine identifiers across both corpora.
+
+The A/B tool refuses to compare data if the pair sets differ, the source file,
+reference text/review flag, language or duration changes, a candidate is missing
+strict provenance, or any engine's model revision/runtime version differs. It
+reports character/token edit rates and insertion/deletion/substitution deltas
+per engine and clip. Negative error-rate deltas mean fewer errors in the shared
+run. The report also checks whether the actual normalized WAV hashes changed.
+If they are all identical, `preprocessingEffectTestable` is false and a warning
+explains that the run cannot isolate an audio-byte change.
+
+Begin with Qwen and Whisper transcript outputs; do not attribute fusion changes
+to preprocessing unless the baseline fusion candidate has a valid, unambiguous
+input fingerprint. This tool does not read local audio or invent reference
+lyrics. Synthetic tests validate only the comparator; measured results require
+real audio, manually checked lyrics, actual input hashes, and pinned versions.
+
 ## Repeatable ForcedAligner quality evaluation
 
 A small corpus of manually checked token intervals can be used to compare captured `POST /v1/align` spans against reference times. The evaluator reports normalized-text recall/precision, unmatched reference/output spans, mean/median/p95/max absolute boundary error, and the rate of boundaries within a configured tolerance. Results are grouped overall and by language.

@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-27. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-28. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -29,7 +29,7 @@
 - **Lyric review / proofread v2:** PR #189 and #190 are merged. Review displays bounded ForcedAligner coverage diagnostics; `tool/forced_alignment_eval.dart` reports text recall/precision and boundary errors against manual references. Its `capture` subcommand records actual local `/v1/align` responses into a corpus, converts seconds to milliseconds, validates span/audio bounds, and refuses non-loopback endpoints. Use manually checked Chinese/English/Japanese samples on a rebuilt runtime before drawing accuracy conclusions or designing confirmed timestamp repair.
 - **V2 line audition:** The proofread review dialog exposes original-versus-proposed time audition with each document's own global offset, and displays playback failures inline. Widget tests cover callback arguments and visible failure feedback; Windows/MPV seek and sound output still require end-to-end verification.
 - **Highest-quality ASR fusion:** Secondary-only lyric lines are retained even when their timestamps overlap a long primary row, unless text fragments or near-identical segment timing indicate they are already represented. Both engine orders are covered by regression tests; real-song recall/WER still requires a manually checked corpus.
-- **ASR transcript benchmarking:** `tool/asr_transcript_eval.dart` compares paired Whisper/Qwen/fusion outputs, reports weighted error rates and edit breakdowns, audits audio SHA-256/duration/reference review/model/runtime provenance, and offers `--require-provenance` to fail incomplete benchmark runs while preserving their reports. `tool/forced_alignment_eval.dart` separately measures span recall and timestamp boundary error, hashes the exact capture input, records aligner/runtime provenance, and supports the same strict gate. Persisted ASR/ForcedAligner/Whisper identity labels are derived from configured model paths instead of fixed size defaults; they identify the configured path basename, not a verified model-weight hash. Full-audio Qwen/Whisper normalization and long-audio chunk extraction share one 16 kHz mono pcm_s16le option contract. Highest Quality mode now prepares a single shared WAV for both engines per job; standalone adapter calls still normalize when needed. No metric substitutes for a checked real-song corpus.
+- **ASR transcript benchmarking:** `tool/asr_transcript_eval.dart` compares Whisper/Qwen/fusion output against manually checked references and enforces exact input/model/runtime provenance. `tool/asr_preprocessing_ab_eval.dart` compares per-engine normalization with the shared-WAV path, pairing each song/engine while requiring the same original source hash, reviewed reference, duration, model revision, and runtime version; it reports CER/token/edit-operation deltas and whether actual normalized WAV bytes changed. `tool/forced_alignment_eval.dart` separately measures span recall and timestamp boundary error. No metric substitutes for a checked real-song corpus.
 
 ## Follow-up leads — re-check before acting
 

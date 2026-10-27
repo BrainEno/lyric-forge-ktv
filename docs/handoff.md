@@ -1,57 +1,44 @@
 # Handoff
 
 ## 目标
-让最高质量本地 ASR 在单次双引擎识别中只进行一次 FFmpeg 标准化，Qwen 与 Whisper 消费完全相同的 16 kHz、单声道、signed 16-bit PCM WAV；不引入跨任务缓存，并在取消/失败时尽力清理不完整产物。
+在 PR #204 已合并、最高质量模式已改为双引擎共用 WAV 的基础上，为真实歌曲提供严格配对的旧流程/新流程 A/B 评测工具，防止参考文本、原始音源、模型版本或运行时变化混入结论。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`
-- 分支：`feat/shared-normalized-asr-input-20261027`
-- PR：[#204 perf: share normalized audio between ASR engines](https://github.com/BrainEno/lyric-forge-ktv/pull/204)
-- main 基线：`df0d4940cda23151ad3b641e693944d78c4be522`（PR #203 合并后）
-- 已验证实现/主要文档 head：`96e8f2c4c46d8e57262451da0a155be04d245741`
-- 此后本次工作只记录 CI 结果并微调失败清理措辞；最终文档提交之后仍需确认新 head workflow。
-- 当前执行环境没有 Dart/Flutter SDK；验证由 GitHub Actions 执行。
+- main 基线：`b2fc94c01de14a797b95778cdacc76d5b7393063`（PR #204 合并提交）
+- 本轮分支：`feat/asr-preprocessing-ab-evaluator-20261028`
+- 新增工具：`tool/asr_preprocessing_ab_eval.dart`
+- 新增测试：`test/tool/asr_preprocessing_ab_eval_test.dart`
+- 当前执行环境没有 Dart/Flutter SDK；待 GitHub Actions 负责格式、分析与测试验证。
 
 ## 已改文件
-- `lib/features/transcription/domain/models/transcription_models.dart`
-- `lib/features/transcription/data/services/high_quality_transcription_service.dart`
-- `lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart`
-- `lib/features/transcription/data/services/whisper_cpp_transcription_service.dart`
-- `test/high_quality_transcription_service_test.dart`
+- `tool/asr_preprocessing_ab_eval.dart`
+- `test/tool/asr_preprocessing_ab_eval_test.dart`
 - `docs/high_quality_asr.md`
-- `docs/local_transcription.md`
-- `docs/log/entries/2026-10-27-1920-share-normalized-asr-input.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
+- `docs/log/entries/2026-10-28-0235-asr-preprocessing-ab-evaluator.md`
 - `docs/handoff.md`
 
 ## 本轮实现
-- 给 `TranscriptionRequest` 增加可选 `normalizedInputAudioPath`，让上层明确传入已标准化文件。
-- 最高质量模式在任务输出目录创建 `high_quality_shared_input.wav`；每次新任务重建，不做跨任务缓存。
-- 在 Qwen-primary 与 Whisper-primary 两种顺序中，将同一标准化路径传给两个引擎；适配器在拿到该路径时跳过重复 FFmpeg 转换，普通单引擎调用仍沿用既有预处理。
-- 跟踪共享 FFmpeg 进程，使取消可以终止生成；失败/取消时尝试删除不完整 WAV，成功文件则保留以保证 `normalizedAudioPath` 仍然有效。
-- 加入防护：若共享输出路径等于源音频路径，直接报错而不删除输入文件。
-- 为两种引擎顺序新增编排回归测试，验证标准化回调只运行一次，且两个服务拿到同一个路径。
+- 新增旧流程与共享 WAV 流程的 A/B 比较工具，复用现有严格 transcript evaluator 计算的 CER、token error、插入、遗漏和替换指标。
+- 需要样本级 `sourceAudioSha256`（预处理前原始文件哈希），`audioSha256` 记录实际传给候选引擎的标准化 WAV 哈希；基准流程可按引擎拆成多个 sample。
+- 强制两个语料使用相同 songId/engine 配对、同一人工审核参考文本、同一源音频指纹和时长，以及完全相同的模型 revision 与 runtime version。
+- 报告逐歌、逐引擎的错误率/编辑量差值，并检测配对候选的实际 WAV 哈希是否变化；若无变化就明确提示无法把结果归因于预处理字节变化。
+- 合成测试只验证评测逻辑，不伪造歌曲结果或宣称音质/识别率改进。
 
 ## 检查结果
-在实现/主要文档 head `96e8f2c4c46d8e57262451da0a155be04d245741` 上：
-- Flutter Quality Gate run [40496005845](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40496005845)：work-log preflight 和 Dart format check 通过；`flutter analyze lib test` 通过；`flutter test` 报告 752 tests passed；repository quality gate passed。
-- ASR client checks run [40496005889](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40496005889)：通过。
-- Transcription settings validation run [40496005834](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40496005834)：通过，包括 settings/store contract 与完整 Flutter regression suite。
-- Transcription execution failure validation run [40496005839](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40496005839)：通过，包括完整 Flutter regression suite。
-- Transcription queue protective pause validation run [40496006747](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40496006747)：通过，包括完整 Flutter regression suite。
-- 初始 CI 曾报 Dart format 差异，随后根据远端 formatter 的 diff 修正；此后通过的质量门使用干净格式结果。
-- 本地未运行 Dart/Flutter 命令；没有声称真实歌曲识别率获得提升。
+- 本地未运行 `dart format`、`flutter analyze`、`flutter test`；本环境无 Dart/Flutter SDK。
+- GitHub Actions 尚待最新提交检查，不能提前宣称通过。
 
 ## 下一步
-确认本次记录验证结果的文档提交所触发的最新 PR #204 checks 完成。所有代码与完整测试已在前一个实现/主要文档 head 通过；如果只剩文档提交导致的问题，先检查 work-log lint 与 Markdown 文件。
+验证新 A/B 工具的类型/格式、五个配对与混淆条件回归测试、完整 Flutter 质量门。通过后提供在 Windows 上生成 baseline/shared corpus 并对真实中英日样本评测的命令流程。
 
 ## 已知风险
-- 共享 WAV 每任务保留在项目输出目录中，因为识别结果和项目元数据会引用该路径；下一次相同输出目录上的最高质量任务会先删除并重建它。
-- 不完整文件删除是尽力清理；如操作系统或文件占用导致删除失败，可能残留文件。
-- FFmpeg 默认音轨选择策略未改变，多音轨选择仍需实曲验证。
-- 同一输入文件消除了两套引擎预处理不同这一干扰因素，但并不等于歌词召回率、WER 或时间对齐精度必然提高。
-- 真实 Windows + RTX 5080 环境仍需端到端验证取消行为、输出文件生命周期及实曲效果。
+- 本 PR 新增的是严谨的比较工具，不包含真实音频、参考歌词或任何虚构的测量结果。
+- 工具只验证元数据声明和配对关系，不能证明使用者实际提供的参考文本确实准确或哈希来自正确文件。
+- 归一化前原始源文件哈希必须由执行者从真实源文件计算；候选哈希必须来自识别时实际输入的 WAV。
+- 若 baseline 与 shared WAV 哈希完全一致，该轮可以说明输入相同，但无法量化“输入字节发生变化”带来的效果；若文本结果不同还需要检查推理确定性/模型状态。
 
-最后更新：2026-10-27 19:28（Asia/Taipei）
+最后更新：2026-10-28 02:35（Asia/Taipei）
