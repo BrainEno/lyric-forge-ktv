@@ -49,12 +49,20 @@ normalization options are now assembled by one shared helper; only the output
 path differs per engine. Arguments are passed as a process argument vector, not
 as a shell command, so paths containing spaces remain intact.
 
+Highest Quality mode now creates one `high_quality_shared_input.wav` in the
+job output directory and passes that exact file to both engines, regardless of
+which engine runs first. This gives the two recognizers the same decoded,
+resampled audio instead of performing two independent conversions. The file is
+regenerated for each new job (there is no cross-run cache), retained on success
+because the result's `normalizedAudioPath` and project metadata refer to it,
+and removed when preprocessing fails or is cancelled. Standalone adapter calls
+still normalize their own input when no normalized path is supplied.
+
 This intentionally preserves FFmpeg's existing audio-stream selection
 behavior. Explicit multi-track selection is a separate product decision and
 should be validated against real multi-track files before changing the policy.
-Each adapter still performs its own FFmpeg conversion; this change prevents the
-argument sets from drifting but does not introduce a shared one-time converted
-audio artifact.
+Identical shared input removes preprocessing differences as a confounder; it
+does not itself prove improved lyric recall, WER, or timestamp accuracy.
 
 **Current Windows RTX 5080 profile: Whisper is the primary transcript; Qwen3-ASR
 1.7B CUDA/BF16 is the independent second opinion.** This is a quality-first
