@@ -13,10 +13,7 @@ enum TranscriptionStage {
   failed,
 }
 
-enum TranscriptionMode {
-  highestQuality,
-  whisperOnly,
-}
+enum TranscriptionMode { highestQuality, whisperOnly }
 
 enum TranscriptionProfilePreference {
   automatic,
@@ -25,10 +22,7 @@ enum TranscriptionProfilePreference {
   custom,
 }
 
-enum TranscriptionEngineOrder {
-  qwenPrimary,
-  whisperPrimary,
-}
+enum TranscriptionEngineOrder { qwenPrimary, whisperPrimary }
 
 class TranscriptionHardwareInfo {
   final String operatingSystem;
@@ -127,8 +121,7 @@ class TranscriptionConfig {
       qwenModelPath.trim().isNotEmpty &&
       qwenAlignerModelPath.trim().isNotEmpty;
 
-  bool get isHighQualityConfigured =>
-      isQwenConfigured && isWhisperConfigured;
+  bool get isHighQualityConfigured => isQwenConfigured && isWhisperConfigured;
 
   bool get isConfigured {
     return switch (mode) {
@@ -160,8 +153,7 @@ class TranscriptionConfig {
       engineOrder: engineOrder ?? this.engineOrder,
       qwenExecutable: qwenExecutable ?? this.qwenExecutable,
       qwenModelPath: qwenModelPath ?? this.qwenModelPath,
-      qwenAlignerModelPath:
-          qwenAlignerModelPath ?? this.qwenAlignerModelPath,
+      qwenAlignerModelPath: qwenAlignerModelPath ?? this.qwenAlignerModelPath,
       qwenDevice: qwenDevice ?? this.qwenDevice,
       qwenDtype: qwenDtype ?? this.qwenDtype,
       whisperExecutable: whisperExecutable ?? this.whisperExecutable,
@@ -171,8 +163,7 @@ class TranscriptionConfig {
       downloadProxy: downloadProxy ?? this.downloadProxy,
       fallbackConfidenceThreshold:
           fallbackConfidenceThreshold ?? this.fallbackConfidenceThreshold,
-      maxFallbackSegments:
-          maxFallbackSegments ?? this.maxFallbackSegments,
+      maxFallbackSegments: maxFallbackSegments ?? this.maxFallbackSegments,
     );
   }
 
@@ -201,32 +192,31 @@ class TranscriptionConfig {
     final mode = modeName == null
         ? TranscriptionMode.whisperOnly
         : TranscriptionMode.values.asNameMap()[modeName] ??
-            TranscriptionMode.whisperOnly;
+              TranscriptionMode.whisperOnly;
 
     final profileName = json['profilePreference'] as String?;
     final profilePreference = profileName == null
         ? mode == TranscriptionMode.highestQuality
-            ? TranscriptionProfilePreference.automatic
-            : TranscriptionProfilePreference.custom
+              ? TranscriptionProfilePreference.automatic
+              : TranscriptionProfilePreference.custom
         : TranscriptionProfilePreference.values.asNameMap()[profileName] ??
-            TranscriptionProfilePreference.custom;
+              TranscriptionProfilePreference.custom;
 
     final orderName = json['engineOrder'] as String?;
     final engineOrder = orderName == null
         ? TranscriptionEngineOrder.qwenPrimary
         : TranscriptionEngineOrder.values.asNameMap()[orderName] ??
-            TranscriptionEngineOrder.qwenPrimary;
+              TranscriptionEngineOrder.qwenPrimary;
 
     return TranscriptionConfig(
       mode: mode,
       profilePreference: profilePreference,
       engineOrder: engineOrder,
       qwenExecutable: json['qwenExecutable'] as String? ?? '',
-      qwenModelPath:
-          json['qwenModelPath'] as String? ?? 'Qwen/Qwen3-ASR-1.7B',
+      qwenModelPath: json['qwenModelPath'] as String? ?? 'Qwen/Qwen3-ASR-1.7B',
       qwenAlignerModelPath:
           json['qwenAlignerModelPath'] as String? ??
-              'Qwen/Qwen3-ForcedAligner-0.6B',
+          'Qwen/Qwen3-ForcedAligner-0.6B',
       qwenDevice: json['qwenDevice'] as String? ?? 'cuda',
       qwenDtype: json['qwenDtype'] as String? ?? 'bf16',
       whisperExecutable: json['whisperExecutable'] as String? ?? '',
@@ -236,8 +226,7 @@ class TranscriptionConfig {
       downloadProxy: json['downloadProxy'] as String? ?? '',
       fallbackConfidenceThreshold:
           (json['fallbackConfidenceThreshold'] as num?)?.toInt() ?? 70,
-      maxFallbackSegments:
-          (json['maxFallbackSegments'] as num?)?.toInt() ?? 20,
+      maxFallbackSegments: (json['maxFallbackSegments'] as num?)?.toInt() ?? 20,
     );
   }
 }
@@ -288,13 +277,7 @@ class TranscriptionResult {
   });
 }
 
-enum TranscriptionFailureKind {
-  unknown,
-  environment,
-  input,
-  cancelled,
-  busy,
-}
+enum TranscriptionFailureKind { unknown, environment, input, cancelled, busy }
 
 class TranscriptionException implements Exception {
   final String message;
@@ -307,35 +290,23 @@ class TranscriptionException implements Exception {
     this.kind = TranscriptionFailureKind.unknown,
   });
 
-  const TranscriptionException.environment(
-    this.message, {
-    this.details,
-  }) : kind = TranscriptionFailureKind.environment;
+  const TranscriptionException.environment(this.message, {this.details})
+    : kind = TranscriptionFailureKind.environment;
 
-  const TranscriptionException.input(
-    this.message, {
-    this.details,
-  }) : kind = TranscriptionFailureKind.input;
+  const TranscriptionException.input(this.message, {this.details})
+    : kind = TranscriptionFailureKind.input;
 
-  const TranscriptionException.cancelled(
-    this.message, {
-    this.details,
-  }) : kind = TranscriptionFailureKind.cancelled;
+  const TranscriptionException.cancelled(this.message, {this.details})
+    : kind = TranscriptionFailureKind.cancelled;
 
-  const TranscriptionException.busy(
-    this.message, {
-    this.details,
-  }) : kind = TranscriptionFailureKind.busy;
+  const TranscriptionException.busy(this.message, {this.details})
+    : kind = TranscriptionFailureKind.busy;
 
   bool get blocksQueue => kind == TranscriptionFailureKind.environment;
 
   TranscriptionException withKind(TranscriptionFailureKind nextKind) {
     if (kind == nextKind) return this;
-    return TranscriptionException(
-      message,
-      details: details,
-      kind: nextKind,
-    );
+    return TranscriptionException(message, details: details, kind: nextKind);
   }
 
   @override

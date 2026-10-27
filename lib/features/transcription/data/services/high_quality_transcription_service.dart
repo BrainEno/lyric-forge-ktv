@@ -214,6 +214,16 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final output = File(
       '${outputDirectory.path}${Platform.pathSeparator}high_quality_shared_input.wav',
     );
+    final inputPath = File(request.inputAudioPath).absolute.path;
+    final outputPath = output.absolute.path;
+    final samePath = Platform.isWindows
+        ? inputPath.toLowerCase() == outputPath.toLowerCase()
+        : inputPath == outputPath;
+    if (samePath) {
+      throw const TranscriptionException.input(
+        '共享标准化音频输出路径不能覆盖原始音频',
+      );
+    }
     if (await output.exists()) {
       try {
         await output.delete();
@@ -267,9 +277,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         );
       }
       if (!await output.exists() || await output.length() <= 44) {
-        throw const TranscriptionException.input(
-          'FFmpeg 未生成有效的双引擎共享 WAV 文件',
-        );
+        throw const TranscriptionException.input('FFmpeg 未生成有效的双引擎共享 WAV 文件');
       }
 
       succeeded = true;

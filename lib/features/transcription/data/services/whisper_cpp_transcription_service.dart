@@ -53,11 +53,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
           outputPath: normalizedPath,
         );
       } else {
-        _emit(
-          TranscriptionStage.preprocessing,
-          0.18,
-          '复用双引擎共享的标准化音频',
-        );
+        _emit(TranscriptionStage.preprocessing, 0.18, '复用双引擎共享的标准化音频');
       }
       _throwIfCancelled();
 

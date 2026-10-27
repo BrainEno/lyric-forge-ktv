@@ -72,11 +72,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           outputPath: normalizedPath,
         );
       } else {
-        _emit(
-          TranscriptionStage.preprocessing,
-          0.08,
-          '复用双引擎共享的标准化音频',
-        );
+        _emit(TranscriptionStage.preprocessing, 0.08, '复用双引擎共享的标准化音频');
       }
       _throwIfCancelled();
 

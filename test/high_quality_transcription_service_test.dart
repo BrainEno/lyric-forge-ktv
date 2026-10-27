@@ -542,8 +542,9 @@ TranscriptionRequest _request(
 }) {
   return TranscriptionRequest(
     inputAudioPath: 'unused-by-fake.wav',
-    normalizedInputAudioPath:
-        includeNormalizedInput ? 'already-normalized.wav' : null,
+    normalizedInputAudioPath: includeNormalizedInput
+        ? 'already-normalized.wav'
+        : null,
     outputDirectory: outputDirectory,
     config: TranscriptionConfig(
       mode: TranscriptionMode.highestQuality,
