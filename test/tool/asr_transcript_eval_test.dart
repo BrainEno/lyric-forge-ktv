@@ -357,6 +357,86 @@ void main() {
   );
 
   test(
+    'strict provenance CLI succeeds only when report metadata is complete',
+    () async {
+      final temp = await Directory.systemTemp.createTemp(
+        'asr-provenance-strict-',
+      );
+      final completeCorpus = File(temp.path + '/complete.json');
+      final completeReport = File(temp.path + '/complete-report.json');
+      final legacyCorpus = File(temp.path + '/legacy.json');
+      final legacyReport = File(temp.path + '/legacy-report.json');
+      final fingerprint = List<String>.filled(64, 'c').join();
+      await completeCorpus.writeAsString(
+        jsonEncode({
+          'schemaVersion': 1,
+          'samples': [
+            {
+              'id': 'strict-valid',
+              'language': 'English',
+              'audioSha256': fingerprint,
+              'audioDurationMs': 12000,
+              'referenceReviewed': true,
+              'referenceText': 'hello world',
+              'candidates': [
+                {
+                  'engine': 'whisper-large-v3',
+                  'audioSha256': fingerprint,
+                  'modelRevision': 'large-v3@revision-a',
+                  'runtimeVersion': 'whisper.cpp-1.7',
+                  'text': 'hello world',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      await legacyCorpus.writeAsString(
+        jsonEncode({
+          'schemaVersion': 1,
+          'samples': [
+            {
+              'id': 'strict-legacy',
+              'language': 'English',
+              'referenceText': 'hello world',
+              'candidates': [
+                {'engine': 'legacy-engine', 'text': 'hello world'},
+              ],
+            },
+          ],
+        }),
+      );
+
+      try {
+        exitCode = 0;
+        await evaluator.main([
+          '--output',
+          completeReport.path,
+          '--require-provenance',
+          completeCorpus.path,
+        ]);
+        expect(exitCode, 0);
+        final complete = jsonDecode(await completeReport.readAsString()) as Map;
+        expect((complete['provenance'] as Map)['warnings'], isEmpty);
+
+        exitCode = 0;
+        await evaluator.main([
+          legacyCorpus.path,
+          '--require-provenance',
+          '--output',
+          legacyReport.path,
+        ]);
+        expect(exitCode, 2);
+        final legacy = jsonDecode(await legacyReport.readAsString()) as Map;
+        expect((legacy['provenance'] as Map)['warnings'], isNotEmpty);
+      } finally {
+        exitCode = 0;
+        await temp.delete(recursive: true);
+      }
+    },
+  );
+
+  test(
     'CLI writes report separately and refuses to overwrite the corpus',
     () async {
       final temp = await Directory.systemTemp.createTemp(

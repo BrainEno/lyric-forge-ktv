@@ -588,22 +588,66 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.contains('--help')) {
     stdout.writeln(
-      'Usage: dart run tool/asr_transcript_eval.dart <corpus.json> [--output <report.json>]',
+      'Usage: dart run tool/asr_transcript_eval.dart <corpus.json> '
+      '[--output <report.json>] [--require-provenance]',
+    );
+    stdout.writeln(
+      '--require-provenance fails when audio identity, reference review, '
+      'model revision, or runtime version is missing.',
     );
     stdout.writeln('Use a manually checked reference for the same audio clip.');
     if (args.isEmpty) exitCode = 2;
     return;
   }
+
+  String? inputPath;
   String? outputPath;
-  if (args.length == 3 && args[1] == '--output') {
-    outputPath = args[2];
-  } else if (args.length != 1) {
-    stderr.writeln('Invalid arguments. Use --help for usage.');
+  var requireProvenance = false;
+  var outputOptionSeen = false;
+  var strictOptionSeen = false;
+  for (var index = 0; index < args.length; index++) {
+    final argument = args[index];
+    if (argument == '--output') {
+      if (outputOptionSeen ||
+          index + 1 >= args.length ||
+          args[index + 1].startsWith('--')) {
+        stderr.writeln('Invalid --output option. Use --help for usage.');
+        exitCode = 2;
+        return;
+      }
+      outputOptionSeen = true;
+      outputPath = args[++index];
+    } else if (argument == '--require-provenance') {
+      if (strictOptionSeen) {
+        stderr.writeln('Duplicate --require-provenance option.');
+        exitCode = 2;
+        return;
+      }
+      strictOptionSeen = true;
+      requireProvenance = true;
+    } else if (argument.startsWith('--')) {
+      stderr.writeln('Unknown option: ' + argument);
+      exitCode = 2;
+      return;
+    } else if (inputPath == null) {
+      inputPath = argument;
+    } else {
+      stderr.writeln(
+        'Only one corpus path may be provided. Use --help for usage.',
+      );
+      exitCode = 2;
+      return;
+    }
+  }
+
+  if (inputPath == null || inputPath.trim().isEmpty) {
+    stderr.writeln('A corpus path is required. Use --help for usage.');
     exitCode = 2;
     return;
   }
+
   try {
-    final input = File(args.first);
+    final input = File(inputPath);
     if (!await input.exists()) {
       throw FileSystemException('Evaluation corpus not found.', input.path);
     }
@@ -611,6 +655,7 @@ Future<void> main(List<String> args) async {
         File(outputPath).absolute.path == input.absolute.path) {
       throw ArgumentError('Report output must not overwrite the input corpus.');
     }
+
     final report = evaluateTranscriptCorpus(await input.readAsString());
     final encoded = const JsonEncoder.withIndent('  ').convert(report) + '\n';
     if (outputPath == null) {
@@ -618,6 +663,21 @@ Future<void> main(List<String> args) async {
     } else {
       await File(outputPath).writeAsString(encoded);
       stdout.writeln('Wrote ASR transcript evaluation report: ' + outputPath);
+    }
+
+    if (requireProvenance) {
+      final provenance = report['provenance'];
+      final rawWarnings = provenance is Map ? provenance['warnings'] : null;
+      final warnings = rawWarnings is List ? rawWarnings : const <Object?>[];
+      if (rawWarnings is! List || warnings.isNotEmpty) {
+        stderr.writeln(
+          'Strict provenance check failed. See the report provenance section.',
+        );
+        for (final warning in warnings) {
+          stderr.writeln(' - ' + warning.toString());
+        }
+        exitCode = 2;
+      }
     }
   } on FormatException catch (error) {
     stderr.writeln('Invalid ASR transcript corpus: ' + error.message);
