@@ -18,7 +18,9 @@ void main() {
       );
     });
 
-    test('recognizes configured ForcedAligner revision rather than assuming 0.6B', () {
+    test(
+      'recognizes configured ForcedAligner revision rather than assuming 0.6B',
+      () {
       expect(
         TranscriptionModelIdentity.qwenAlignerEngine(
           'D:\\models\\Qwen3-ForcedAligner-1.5B',
@@ -31,18 +33,19 @@ void main() {
         ),
         'Qwen3-ForcedAligner 1.5B',
       );
-    });
+      },
+    );
 
     test('maps the actual Whisper model filename to an engine identity', () {
       expect(
         TranscriptionModelIdentity.whisperEngine(
-          r'D:\\models\\ggml-medium.bin',
+          r'D:\models\ggml-medium.bin',
         ),
         'whisper.cpp-medium',
       );
       expect(
         TranscriptionModelIdentity.whisperLabel(
-          r'D:\\models\\ggml-large-v3.bin',
+          r'D:\models\ggml-large-v3.bin',
         ),
         'Whisper large-v3',
       );
@@ -51,13 +54,13 @@ void main() {
     test('retains custom model names without persisting absolute paths', () {
       expect(
         TranscriptionModelIdentity.qwenAsrEngine(
-          r'C:\\private\\models\\my-custom-qwen',
+          r'C:\private\models\my-custom-qwen',
         ),
         'qwen3-asr-my-custom-qwen',
       );
       expect(
         TranscriptionModelIdentity.qwenAsrLabel(
-          r'C:\\private\\models\\Qwen3-ASR-1.7B',
+          r'C:\private\models\Qwen3-ASR-1.7B',
         ),
         'Qwen3-ASR 1.7B',
       );
