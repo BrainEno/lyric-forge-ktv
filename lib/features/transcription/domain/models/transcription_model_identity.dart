@@ -6,16 +6,14 @@
 class TranscriptionModelIdentity {
   TranscriptionModelIdentity._();
 
-  static String qwenAsrEngine(String configuredPath) =>
-      _engineKey(
+  static String qwenAsrEngine(String configuredPath) => _engineKey(
         configuredPath,
         prefix: 'qwen3-asr',
         fallback: 'Qwen3-ASR-1.7B',
         knownPrefix: 'Qwen3-ASR',
       );
 
-  static String qwenAlignerEngine(String configuredPath) =>
-      _engineKey(
+  static String qwenAlignerEngine(String configuredPath) => _engineKey(
         configuredPath,
         prefix: 'qwen3-forced-aligner',
         fallback: 'Qwen3-ForcedAligner-0.6B',
@@ -84,7 +82,10 @@ class TranscriptionModelIdentity {
   }
 
   static String _basename(String configuredPath, {required String fallback}) {
-    final normalized = configuredPath.trim().replaceAll(String.fromCharCode(92), '/');
+    final normalized = configuredPath.trim().replaceAll(
+      String.fromCharCode(92),
+      '/',
+    );
     for (final part in normalized.split('/').reversed) {
       if (part.isNotEmpty) return part;
     }
