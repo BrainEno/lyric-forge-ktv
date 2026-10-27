@@ -55,20 +55,29 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       await outputDirectory.create(recursive: true);
 
       final normalizedPath =
+          request.normalizedInputAudioPath ??
           '${outputDirectory.path}${Platform.pathSeparator}qwen_transcription_input.wav';
       final rawJsonPath =
           '${outputDirectory.path}${Platform.pathSeparator}qwen3_asr_result.json';
 
-      _emit(
-        TranscriptionStage.preprocessing,
-        0.06,
-        '正在准备 Qwen3-ASR 16 kHz 单声道输入',
-      );
-      await _runFfmpeg(
-        executable: request.config.ffmpegExecutable,
-        inputPath: request.inputAudioPath,
-        outputPath: normalizedPath,
-      );
+      if (request.normalizedInputAudioPath == null) {
+        _emit(
+          TranscriptionStage.preprocessing,
+          0.06,
+          '正在准备 Qwen3-ASR 16 kHz 单声道输入',
+        );
+        await _runFfmpeg(
+          executable: request.config.ffmpegExecutable,
+          inputPath: request.inputAudioPath,
+          outputPath: normalizedPath,
+        );
+      } else {
+        _emit(
+          TranscriptionStage.preprocessing,
+          0.08,
+          '复用双引擎共享的标准化音频',
+        );
+      }
       _throwIfCancelled();
 
       _emit(
@@ -226,6 +235,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> _validateRequest(TranscriptionRequest request) async {
     if (!await File(request.inputAudioPath).exists()) {
       throw const TranscriptionException.input('待识别音频文件不存在');
+    }
+    final normalizedInputPath = request.normalizedInputAudioPath;
+    if (normalizedInputPath != null &&
+        !await File(normalizedInputPath).exists()) {
+      throw const TranscriptionException.input('共享标准化音频文件不存在');
     }
 
     final config = request.config;

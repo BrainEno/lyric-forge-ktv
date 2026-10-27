@@ -22,6 +22,71 @@ void main() {
     });
 
     test(
+      'shares one prepared WAV with both engines in either engine order',
+      () async {
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final primary = _FakeTranscriptionService(
+            result: _result(
+              LyricLine(
+                text: 'primary lyric',
+                startTime: const Duration(seconds: 1),
+                endTime: const Duration(seconds: 2),
+                confidence: 80,
+              ),
+            ),
+          );
+          final fallback = _FakeTranscriptionService(
+            result: _result(
+              LyricLine(
+                text: 'secondary lyric',
+                startTime: const Duration(seconds: 3),
+                endTime: const Duration(seconds: 4),
+                confidence: 90,
+              ),
+            ),
+          );
+          var prepareCount = 0;
+          final service = HighQualityTranscriptionService(
+            primary: primary,
+            fallback: fallback,
+            sharedAudioPreparer: (request) async {
+              prepareCount++;
+              expect(request.inputAudioPath, 'unused-by-fake.wav');
+              return 'generated-shared.wav';
+            },
+          );
+
+          try {
+            await service.transcribe(
+              _request(
+                tempDirectory.path,
+                engineOrder: engineOrder,
+                includeNormalizedInput: false,
+              ),
+            );
+
+            expect(prepareCount, 1, reason: 'engine order: $engineOrder');
+            expect(
+              primary.requests.single.normalizedInputAudioPath,
+              'generated-shared.wav',
+              reason: 'primary engine order: $engineOrder',
+            );
+            expect(
+              fallback.requests.single.normalizedInputAudioPath,
+              'generated-shared.wav',
+              reason: 'fallback engine order: $engineOrder',
+            );
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
       'inserts Whisper-only lines as reviewable rows and remaps candidates',
       () async {
         final primaryResult = _resultLines([
@@ -473,9 +538,12 @@ TranscriptionRequest _request(
   String? qwenModelPath,
   String? qwenAlignerModelPath,
   String? whisperModelPath,
+  bool includeNormalizedInput = true,
 }) {
   return TranscriptionRequest(
     inputAudioPath: 'unused-by-fake.wav',
+    normalizedInputAudioPath:
+        includeNormalizedInput ? 'already-normalized.wav' : null,
     outputDirectory: outputDirectory,
     config: TranscriptionConfig(
       mode: TranscriptionMode.highestQuality,
@@ -512,6 +580,7 @@ TranscriptionResult _resultLines(List<LyricLine> lines) {
 class _FakeTranscriptionService implements TranscriptionService {
   final TranscriptionResult? result;
   final TranscriptionException? error;
+  final List<TranscriptionRequest> requests = [];
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
 
@@ -526,6 +595,7 @@ class _FakeTranscriptionService implements TranscriptionService {
 
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
+    requests.add(request);
     final failure = error;
     if (failure != null) throw failure;
 

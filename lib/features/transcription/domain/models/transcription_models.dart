@@ -244,6 +244,11 @@ class TranscriptionConfig {
 
 class TranscriptionRequest {
   final String inputAudioPath;
+
+  /// Optional canonical 16 kHz mono PCM WAV prepared by a parent workflow.
+  /// Adapters must validate and consume it without running FFmpeg again.
+  final String? normalizedInputAudioPath;
+
   final String outputDirectory;
   final TranscriptionConfig config;
   final String context;
@@ -252,6 +257,7 @@ class TranscriptionRequest {
     required this.inputAudioPath,
     required this.outputDirectory,
     required this.config,
+    this.normalizedInputAudioPath,
     this.context = '',
   });
 }
