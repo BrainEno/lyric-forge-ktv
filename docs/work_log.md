@@ -9,7 +9,7 @@
 - [2026-10-27 02:50] Add a paired transcript evaluator for ASR engines `feat: add paired ASR transcript quality evaluator` ([entry](log/entries/2026-10-27-0250-add-asr-transcript-evaluator.md))
 - [2026-10-27 00:18] Preserve novel secondary ASR lines inside overlapping segments `Preserve novel secondary ASR lines that overlap a primary segment` ([entry](log/entries/2026-10-27-0018-preserve-overlapping-asr-lines.md))
 - [2026-10-26 22:50] Sync V2 audition fix with current mainline `Sync V2 audition fix with current mainline` ([entry](log/entries/2026-10-26-2250-sync-v2-audition-main.md))
-- [2026-10-26 21:30] Clarify ASR smoke-test scope versus lyric accuracy `Clarify ASR smoke-test scope versus lyric accuracy` ([entry](log/entries/2026-10-26-2130-clarify-asr-smoke-test-scope.md))
+- [2026-10-26 21:30] Clarify ASR smoke-test scope versus lyric accuracy `Clarify that ASR smoke test does not measure lyric accuracy` ([entry](log/entries/2026-10-26-2130-clarify-asr-smoke-test-scope.md))
 
 <!-- 106 entries total: 8 active, 98 archived. -->
 
