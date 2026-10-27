@@ -419,3 +419,37 @@ diagnostics, not a guaranteed semantic classification: an insertion can be a
 legitimate vocalization missing from an incomplete reference, and a deletion can
 reflect a reference transcription mistake. Review the audio before changing
 fusion thresholds.
+
+## Paired corpus provenance
+
+Transcript corpus schema version 1 accepts optional provenance fields so older
+corpora remain usable. For new evaluations, record these fields:
+
+- On each sample, `audioSha256` is the SHA-256 of the exact audio bytes passed to
+  the recognizers, `audioDurationMs` is the duration in milliseconds, and
+  `referenceReviewed: true` means a person has checked the reference against
+  the sung audio.
+- On every candidate, `audioSha256` records the actual model input fingerprint.
+  If present, it must match the sample fingerprint; a mismatch stops evaluation.
+- `modelRevision` and `runtimeVersion` identify the model and inference
+  runtime used for that output. Keep the engine name stable across the corpus.
+
+On Windows, compute a fingerprint for the normalized clip you actually pass to
+both engines:
+
+```powershell
+(Get-FileHash -Algorithm SHA256 "D:/Evaluation/clip.wav").Hash.ToLowerInvariant()
+```
+
+Use that same fingerprint on the sample and each candidate only when they
+consumed the exact same file bytes. If preprocessing differs, do not copy the
+fingerprint across those outputs: normalize them to the same input first or
+treat them as separate samples. The evaluator does not hash local audio itself
+and does not upload audio or lyrics.
+
+Legacy corpora without these fields still produce metrics, but the report adds
+a `provenance` section listing missing fingerprints, durations, explicit
+reference-review status, model revisions, runtime versions, and warnings. Use
+this section to judge whether a comparison is reproducible before making model
+or fusion decisions. A SHA-256 fingerprint identifies exact bytes; it does not
+prove that the reference text itself is correct.

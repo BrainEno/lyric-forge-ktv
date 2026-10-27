@@ -75,6 +75,152 @@ void main() {
     },
   );
 
+  test('records audio and runtime provenance for repeatable comparisons', () {
+    final fingerprint = List<String>.filled(64, 'a').join();
+    final report = evaluator.evaluateTranscriptCorpus(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'provenance-01',
+            'songId': 'tracked-song',
+            'language': 'English',
+            'audioSha256': fingerprint,
+            'audioDurationMs': 12345,
+            'referenceReviewed': true,
+            'referenceText': 'hello world',
+            'candidates': [
+              {
+                'engine': 'whisper-large-v3',
+                'audioSha256': fingerprint,
+                'modelRevision': 'large-v3@revision-a',
+                'runtimeVersion': 'whisper.cpp-1.7',
+                'text': 'hello world',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    final provenance = report['provenance']! as Map<String, dynamic>;
+    expect(provenance['warnings'], isEmpty);
+    expect(provenance['samplesWithAudioFingerprint'], 1);
+    expect(provenance['candidatesWithAudioFingerprint'], 1);
+    final sample = (report['samples']! as List).single as Map<String, dynamic>;
+    expect(sample['audioSha256'], fingerprint);
+    expect(sample['audioDurationMs'], 12345);
+    expect(sample['referenceReviewed'], isTrue);
+    final candidate =
+        (sample['candidates']! as List).single as Map<String, dynamic>;
+    expect(candidate['modelRevision'], 'large-v3@revision-a');
+    expect(candidate['runtimeVersion'], 'whisper.cpp-1.7');
+  });
+
+  test('keeps legacy corpus compatible but reports missing provenance', () {
+    final report = evaluator.evaluateTranscriptCorpus(
+      jsonEncode({
+        'schemaVersion': 1,
+        'samples': [
+          {
+            'id': 'legacy-01',
+            'language': 'English',
+            'referenceText': 'hello world',
+            'candidates': [
+              {'engine': 'legacy-engine', 'text': 'hello world'},
+            ],
+          },
+        ],
+      }),
+    );
+    final provenance = report['provenance']! as Map<String, dynamic>;
+    expect(provenance['samplesMissingAudioFingerprint'], ['legacy-01']);
+    expect(provenance['samplesMissingAudioDuration'], ['legacy-01']);
+    expect(
+      provenance['samplesWithoutConfirmedReferenceReview'],
+      ['legacy-01'],
+    );
+    expect(
+      (provenance['candidatesMissingAudioFingerprint']! as List).length,
+      1,
+    );
+    expect(
+      (provenance['candidatesMissingModelRevision']! as List).length,
+      1,
+    );
+    expect(
+      (provenance['candidatesMissingRuntimeVersion']! as List).length,
+      1,
+    );
+    expect((provenance['warnings']! as List).length, 6);
+  });
+
+  test('rejects mismatched candidate audio fingerprints', () {
+    final reportInput = {
+      'schemaVersion': 1,
+      'samples': [
+        {
+          'id': 'mismatch-01',
+          'language': 'English',
+          'audioSha256': List<String>.filled(64, 'a').join(),
+          'referenceText': 'hello world',
+          'candidates': [
+            {
+              'engine': 'qwen',
+              'audioSha256': List<String>.filled(64, 'b').join(),
+              'text': 'hello world',
+            },
+          ],
+        },
+      ],
+    };
+    expect(
+      () => evaluator.evaluateTranscriptCorpus(jsonEncode(reportInput)),
+      throwsFormatException,
+    );
+  });
+
+  test('validates audio fingerprint, duration, and review status fields', () {
+    Map<String, Object?> corpus({
+      Object? fingerprint,
+      Object? duration = 1200,
+      Object? reviewed = true,
+    }) => {
+      'schemaVersion': 1,
+      'samples': [
+        {
+          'id': 'invalid-provenance',
+          'language': 'English',
+          if (fingerprint != null) 'audioSha256': fingerprint,
+          'audioDurationMs': duration,
+          'referenceReviewed': reviewed,
+          'referenceText': 'hello world',
+          'candidates': [
+            {'engine': 'engine-a', 'text': 'hello world'},
+          ],
+        },
+      ],
+    };
+
+    expect(
+      () => evaluator.evaluateTranscriptCorpus(
+        jsonEncode(corpus(fingerprint: 'not-a-sha256')),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => evaluator.evaluateTranscriptCorpus(
+        jsonEncode(corpus(duration: 0)),
+      ),
+      throwsFormatException,
+    );
+    expect(
+      () => evaluator.evaluateTranscriptCorpus(
+        jsonEncode(corpus(reviewed: 'yes')),
+      ),
+      throwsFormatException,
+    );
+  });
+
   test('normalizes full-width Latin and suppresses WER for CJK text', () {
     final report = evaluator.evaluateTranscriptCorpus(
       jsonEncode({
