@@ -55,7 +55,7 @@ which engine runs first. This gives the two recognizers the same decoded,
 resampled audio instead of performing two independent conversions. The file is
 regenerated for each new job (there is no cross-run cache), retained on success
 because the result's `normalizedAudioPath` and project metadata refer to it,
-and removed when preprocessing fails or is cancelled. Standalone adapter calls
+and cleanup is attempted when preprocessing fails or is cancelled. Standalone adapter calls
 still normalize their own input when no normalized path is supplied.
 
 This intentionally preserves FFmpeg's existing audio-stream selection
