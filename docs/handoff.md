@@ -1,40 +1,39 @@
 # Handoff
 
 ## 目标
-让 ASR 评测在需要严谨模型比较时可以 fail closed：缺少可追溯输入、人工参考复核或模型/运行时标识，就拒绝将报告作为完整基准通过，但依然保存诊断报告。
+让 ForcedAligner 的时间精度评测与文本 ASR 评测一样可追溯：同一真实音频、人工复核的时间参考、明确的模型修订与运行时版本；缺少关键来源元数据时可严格失败，但保留诊断报告。
 
 ## Git 现场
 - 仓库：`BrainEno/lyric-forge-ktv`
-- 当前分支：`feat/asr-eval-strict-provenance-20261027`
-- 基线：main 包含 PR #198 与 PR #199；基线 commit 为 `26116b164d6273de412842347c761c864a4c44c5`。
-- 当前执行环境没有本地 Git/Flutter 工作树；通过 GitHub Actions 做格式、分析、完整测试及 work-log contract preflight。
+- 当前分支：`feat/strict-forced-alignment-provenance-20261027`
+- 基线：main commit `4c9a0e703f1821a0e1d3c66ec3c2b81a6168173b`；PR #200 已合并，合并后的 main 质量门通过。
+- 当前执行环境没有本地 Git/Flutter 工作树；使用 GitHub Actions 运行格式、分析、完整测试及 work-log contract preflight。
 
 ## 已改文件
-- `tool/asr_transcript_eval.dart`
-- `test/tool/asr_transcript_eval_test.dart`
+- `tool/forced_alignment_eval.dart`
+- `test/tool/forced_alignment_eval_test.dart`
 - `docs/high_quality_asr.md`
-- `docs/log/entries/2026-10-27-1610-require-strict-asr-provenance.md`
+- `docs/log/entries/2026-10-27-1707-strict-forced-alignment-provenance.md`
 - `docs/work_log.md`
-- `docs/work_log_archive.md`
 - `docs/work_log_index.md`
 - `docs/handoff.md`
 
 ## 本轮实现
-- 新增 CLI 参数 `--require-provenance)，可与 `--output` 按任意顺序组合。
-- 严格模式要求样本声明音频 SHA-256、正数时长和 `referenceReviewed: true`；候选声明匹配的 SHA-256、模型修订与运行时版本。
-- 发现缺项时先写出包含 provenance 缺失清单的报告，再以退出码 2 失败，方便自动化流程停下且保留诊断。
-- 默认模式仍兼容旧语料并报告 warnings。
-- 回归测试覆盖完整 provenance 成功和旧语料严格模式失败。
+- ForcedAligner 评测报告新增 provenance 覆盖率、缺失样本清单与 warnings；默认模式仍兼容旧语料。
+- capture 在本地 `/v1/align` 请求前计算音频 SHA-256，结束后再次计算；文件在识别过程中变化就拒绝保存语料。
+- capture 可显式记录 `referenceReviewed`、`modelRevision` 与 `runtimeVersion`；只有传入 `--reference-reviewed` 才记录人工复核为 true。
+- 评测 CLI 支持 `--require-provenance` 和 `--output` 任意顺序组合；来源不完整时先保存报告，再以退出码 2 失败。
 
 ## 检查结果
-- 最新代码 head `94b3e753f793ed4caed7356fd10c3772d6056045` 的 Flutter Quality Gate run `40477102575` 已通过；work-log contract preflight、Dart 格式检查通过，完整测试为 737 项全部通过。之后仅更新了任务验证记录，相关文档 head 的 CI 仍需确认。
+- 新增覆盖完整/旧 provenance、严格模式成功/失败、失败报告保留、capture 文件指纹、识别期间音频改变的测试。
+- PR 尚待 CI 验证；创建 PR 后需检查当前 head 的完整 Flutter Quality Gate，再根据结果修复。
 
 ## 下一步
-CI 通过后合并 PR；再使用本地英文、中文、日文音频建立人工复核语料，先运行严格文本评测并对同一音频运行 ForcedAligner 评测，基于真实分项统计决定是否调整融合策略。
+CI 通过并合并后，使用本人本地人工复核的英文、中文、日文音频分别记录 transcript 与 ForcedAligner 结果；在真实数据到位前不调整或宣称融合准确率提升。
 
 ## 已知风险
-- 严格 provenance 只检查用户声明的元数据是否完整，不会自动证明参考歌词正确，也不自动 hash 被引擎实际读取的音频文件。
-- `referenceReviewed: true` 是人工复核声明，不是机器验证结论。
-- 有意保持严格模式 opt-in，避免旧语料突然无法继续计算历史指标。
+- SHA-256 可识别音频字节变化，但旧手工语料里的指纹仍是声明值，不能证明过去运行时实际加载了该文件。
+- `referenceReviewed` 仍是人工声明，模型/runtime 字符串也需要填写真实 revision 与 bundle 版本。
+- 合成测试只验证契约与边界，不证明真实歌曲的时间精度或中英日覆盖。
 
-最后更新：2026-10-27 16:20（Asia/Taipei）
+最后更新：2026-10-27 17:07（Asia/Taipei）
