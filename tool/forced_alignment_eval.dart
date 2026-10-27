@@ -1087,9 +1087,7 @@ Future<void> main(List<String> args) async {
     stderr.writeln('Invalid evaluation corpus: ' + error.message);
     exitCode = 2;
   } on ArgumentError catch (error) {
-    stderr.writeln(
-      'Invalid evaluation data: ' + error.toString(),
-    );
+    stderr.writeln('Invalid evaluation data: ' + error.toString());
     exitCode = 2;
   } on FileSystemException catch (error) {
     stderr.writeln(error.message);
