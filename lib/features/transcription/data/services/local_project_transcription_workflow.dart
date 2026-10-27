@@ -39,13 +39,13 @@ class LocalProjectTranscriptionWorkflow
     required AsrRuntimeManager runtimeManager,
     required LocalMediaMetadataRepository mediaMetadataRepository,
     required PlaybackSessionService playbackSession,
-  })  : _projectRepository = projectRepository,
-        _transcriptionService = transcriptionService,
-        _settingsStore = settingsStore,
-        _profileResolver = profileResolver,
-        _runtimeManager = runtimeManager,
-        _mediaMetadataRepository = mediaMetadataRepository,
-        _playbackSession = playbackSession;
+  }) : _projectRepository = projectRepository,
+       _transcriptionService = transcriptionService,
+       _settingsStore = settingsStore,
+       _profileResolver = profileResolver,
+       _runtimeManager = runtimeManager,
+       _mediaMetadataRepository = mediaMetadataRepository,
+       _playbackSession = playbackSession;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -68,9 +68,7 @@ class LocalProjectTranscriptionWorkflow
 
     final config = await _settingsStore.load();
     if (config == null || !config.isConfigured) {
-      throw const TranscriptionException.environment(
-        '请先完成本地歌词识别运行时配置',
-      );
+      throw const TranscriptionException.environment('请先完成本地歌词识别运行时配置');
     }
 
     late final ResolvedTranscriptionProfile resolvedProfile;
@@ -88,8 +86,7 @@ class LocalProjectTranscriptionWorkflow
       if (!runtimeStatus.isReady) {
         final failed = runtimeStatus.components
             .where(
-              (component) =>
-                  component.state != AsrRuntimeComponentState.ready,
+              (component) => component.state != AsrRuntimeComponentState.ready,
             )
             .map((component) => '${component.label}: ${component.detail}')
             .join('; ');
@@ -115,7 +112,8 @@ class LocalProjectTranscriptionWorkflow
     await _projectRepository.updateProject(
       project.copyWith(
         status: ProjectStatus.transcribing,
-        projectDirectory: project.projectDirectory ?? outputDirectory.parent.path,
+        projectDirectory:
+            project.projectDirectory ?? outputDirectory.parent.path,
       ),
     );
 
@@ -154,7 +152,8 @@ class LocalProjectTranscriptionWorkflow
               'hardwareProfileLabel': resolvedProfile.label,
               'hardwareOs': resolvedProfile.hardware.operatingSystem,
               'hardwareArchitecture': resolvedProfile.hardware.architecture,
-              'backend': editableLyrics.metadata['primaryEngine'] ??
+              'backend':
+                  editableLyrics.metadata['primaryEngine'] ??
                   editableLyrics.metadata['generatedBy'] ??
                   'local-asr',
               'generatedAt': DateTime.now().toIso8601String(),
@@ -164,34 +163,34 @@ class LocalProjectTranscriptionWorkflow
               'rawJsonPath': result.rawJsonPath,
               'primaryModel':
                   runtimeConfig.mode == TranscriptionMode.whisperOnly
-                      ? TranscriptionModelIdentity.whisperLabel(
-                          runtimeConfig.modelPath,
-                        )
-                      : runtimeConfig.engineOrder ==
-                              TranscriptionEngineOrder.qwenPrimary
-                          ? TranscriptionModelIdentity.qwenAsrLabel(
-                              runtimeConfig.qwenModelPath,
-                            )
-                          : TranscriptionModelIdentity.whisperLabel(
-                              runtimeConfig.modelPath,
-                            ),
+                  ? TranscriptionModelIdentity.whisperLabel(
+                      runtimeConfig.modelPath,
+                    )
+                  : runtimeConfig.engineOrder ==
+                        TranscriptionEngineOrder.qwenPrimary
+                  ? TranscriptionModelIdentity.qwenAsrLabel(
+                      runtimeConfig.qwenModelPath,
+                    )
+                  : TranscriptionModelIdentity.whisperLabel(
+                      runtimeConfig.modelPath,
+                    ),
               'alignmentModel':
                   runtimeConfig.mode == TranscriptionMode.highestQuality
-                      ? TranscriptionModelIdentity.qwenAlignerLabel(
-                          runtimeConfig.qwenAlignerModelPath,
-                        )
-                      : null,
+                  ? TranscriptionModelIdentity.qwenAlignerLabel(
+                      runtimeConfig.qwenAlignerModelPath,
+                    )
+                  : null,
               'fallbackModel':
                   runtimeConfig.mode == TranscriptionMode.highestQuality
-                      ? runtimeConfig.engineOrder ==
-                              TranscriptionEngineOrder.qwenPrimary
-                          ? TranscriptionModelIdentity.whisperLabel(
-                              runtimeConfig.modelPath,
-                            )
-                          : TranscriptionModelIdentity.qwenAsrLabel(
-                              runtimeConfig.qwenModelPath,
-                            )
-                      : null,
+                  ? runtimeConfig.engineOrder ==
+                            TranscriptionEngineOrder.qwenPrimary
+                        ? TranscriptionModelIdentity.whisperLabel(
+                            runtimeConfig.modelPath,
+                          )
+                        : TranscriptionModelIdentity.qwenAsrLabel(
+                            runtimeConfig.qwenModelPath,
+                          )
+                  : null,
             },
           },
         ),
@@ -258,9 +257,7 @@ class LocalProjectTranscriptionWorkflow
       if (await File(path).exists()) return path;
     }
 
-    throw const TranscriptionException.input(
-      '工程音频文件不可用：人声、标准化音频和原声都不存在',
-    );
+    throw const TranscriptionException.input('工程音频文件不可用：人声、标准化音频和原声都不存在');
   }
 
   Future<Directory> _outputDirectory(ProjectManifest project) async {
@@ -295,7 +292,9 @@ class LocalProjectTranscriptionWorkflow
       '${outputDirectory.path}${Platform.pathSeparator}backups',
     );
     await backupDirectory.create(recursive: true);
-    final timestamp = DateTime.now().toUtc().toIso8601String()
+    final timestamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
         .replaceAll(':', '-')
         .replaceAll('.', '-');
     final backup = File(
