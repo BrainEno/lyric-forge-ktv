@@ -42,6 +42,46 @@ void main() {
       expect(whisperArguments.last, '/work/whisper input.wav');
     });
 
+    test('uses the same PCM output options when extracting long-audio chunks', () {
+      final fullAudio = AsrAudioNormalization.ffmpegArguments(
+        inputPath: '/music/song.flac',
+        outputPath: '/work/full.wav',
+      );
+      final chunk = AsrAudioNormalization.chunkArguments(
+        inputPath: '/music/song.flac',
+        outputPath: '/work/chunk.wav',
+        start: const Duration(seconds: 8),
+        duration: const Duration(minutes: 3),
+      );
+
+      expect(
+        chunk,
+        [
+          '-y',
+          '-ss',
+          '8.000',
+          '-i',
+          '/music/song.flac',
+          '-t',
+          '180.000',
+          '-vn',
+          '-ar',
+          '16000',
+          '-ac',
+          '1',
+          '-c:a',
+          'pcm_s16le',
+          '/work/chunk.wav',
+        ],
+      );
+      final fullAudioOutputIndex = fullAudio.indexOf('-vn');
+      final chunkOutputIndex = chunk.indexOf('-vn');
+      expect(
+        fullAudio.sublist(fullAudioOutputIndex, fullAudio.length - 1),
+        chunk.sublist(chunkOutputIndex, chunk.length - 1),
+      );
+    });
+
     test('exposes one canonical target format', () {
       expect(AsrAudioNormalization.sampleRateHz, 16000);
       expect(AsrAudioNormalization.channelCount, 1);
