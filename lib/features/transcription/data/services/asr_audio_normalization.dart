@@ -13,13 +13,7 @@ class AsrAudioNormalization {
     required String inputPath,
     required String outputPath,
   }) {
-    return [
-      '-y',
-      '-i',
-      inputPath,
-      ..._audioOutputOptions(),
-      outputPath,
-    ];
+    return ['-y', '-i', inputPath, ..._audioOutputOptions(), outputPath];
   }
 
   static List<String> chunkArguments({
