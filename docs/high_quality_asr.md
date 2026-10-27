@@ -474,3 +474,53 @@ still writes the diagnostic report and exits with code 2, allowing scripts to
 stop a benchmark pipeline without losing the list of missing fields. A complete
 run exits successfully. This gate validates declared provenance completeness,
 not the truth of the human review or the recognizer's actual input handling.
+
+## Strict provenance gate for ForcedAligner evaluation
+
+ForcedAligner benchmarking uses a paired reference-span corpus: its reference
+spans must be checked against the original audio, while the actual spans must
+come from the exact audio file being identified. The capture command computes
+the input file's SHA-256 before sending its path to the local `/v1/align`
+endpoint and checks the hash again after the response; if the bytes change
+during alignment, it refuses to write the sample. Use explicit model and runtime
+identifiers so timing results can be reproduced and compared meaningfully.
+
+Example capture command in PowerShell:
+
+```powershell
+dart run tool/forced_alignment_eval.dart capture `
+  --endpoint "http://127.0.0.1:8080/v1/align" `
+  --audio "D:/Evaluation/clip.wav" `
+  --text-file "D:/Evaluation/reference-lyrics.txt" `
+  --reference "D:/Evaluation/reference-spans.json" `
+  --id "song-en-01" `
+  --language English `
+  --duration-ms 184320 `
+  --reference-reviewed `
+  --model-revision "Qwen3-ForcedAligner-0.6B@<revision>" `
+  --runtime-version "qwen3-asr-rs@<version>" `
+  --output "D:/Evaluation/alignment-corpus.json"
+```
+
+Only pass `--reference-reviewed` after a person has checked the lyric text
+and reference timestamps against the same audio. If it is omitted, capture
+records the status as unreviewed. The model/runtime values are declarations;
+record the real model commit or release and runtime bundle version, not labels
+chosen merely to make the gate pass.
+
+Run the evaluator with the strict gate for results used to compare models or
+decide ASR/fusion changes:
+
+```powershell
+dart run tool/forced_alignment_eval.dart "D:/Evaluation/alignment-corpus.json" `
+  --require-provenance `
+  --output "D:/Evaluation/alignment-report.json"
+```
+
+The report always contains a `provenance` section listing missing audio
+fingerprints, durations, reference review confirmations, model revisions,
+runtime versions, and warnings. In strict mode, missing metadata still produces
+the diagnostic report but exits with code 2. Legacy schema v1 corpora remain
+evaluable without the flag. This gate checks declared metadata completeness and
+capture-time audio identity; it does not verify the truth of a human annotation
+or recover the version of a model used by an old manually assembled corpus.

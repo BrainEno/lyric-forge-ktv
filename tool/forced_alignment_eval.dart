@@ -3,12 +3,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart';
+
 import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
 
 const _maxSpans = 1000;
 const _maxCells = 1000000;
 const _maxGroup = 8;
 const _tokenizer = LyricTokenizer();
+final _sha256Pattern = RegExp(r'^[0-9a-fA-F]{64}$');
+
+bool _isSha256(String value) => _sha256Pattern.hasMatch(value.trim());
 
 class _Span {
   final String text;
@@ -42,6 +47,10 @@ class _Sample {
   final String id;
   final String language;
   final int? duration;
+  final String? audioSha256;
+  final bool? referenceReviewed;
+  final String? modelRevision;
+  final String? runtimeVersion;
   final List<_Span> reference;
   final List<_Span> actual;
 
@@ -49,6 +58,10 @@ class _Sample {
     : id = _requiredString(raw, 'id'),
       language = _requiredString(raw, 'language'),
       duration = _optionalInt(raw, 'audioDurationMs'),
+      audioSha256 = _optionalSha256(raw, 'audioSha256'),
+      referenceReviewed = _optionalBool(raw, 'referenceReviewed'),
+      modelRevision = _optionalString(raw, 'modelRevision'),
+      runtimeVersion = _optionalString(raw, 'runtimeVersion'),
       reference = _parseSpans(raw, 'referenceSpans'),
       actual = _parseSpans(raw, 'actualSpans') {
     if (duration != null && duration! <= 0) {
@@ -79,6 +92,28 @@ class _Sample {
       throw FormatException('$key must be an integer when present.');
     }
     return value as int?;
+  }
+
+  static String? _optionalString(dynamic raw, String key) {
+    if (raw is! Map<String, dynamic> || raw[key] == null) return null;
+    return _requiredString(raw, key);
+  }
+
+  static String? _optionalSha256(dynamic raw, String key) {
+    if (raw is! Map<String, dynamic> || raw[key] == null) return null;
+    final value = raw[key];
+    if (value is! String || !_isSha256(value)) {
+      throw FormatException('$key must be a 64-character hexadecimal SHA-256.');
+    }
+    return value.trim().toLowerCase();
+  }
+
+  static bool? _optionalBool(dynamic raw, String key) {
+    final value = raw is Map<String, dynamic> ? raw[key] : null;
+    if (value != null && value is! bool) {
+      throw FormatException('$key must be a boolean when present.');
+    }
+    return value as bool?;
   }
 
   static List<_Span> _parseSpans(dynamic raw, String key) {
@@ -147,6 +182,11 @@ class _Score {
   Map<String, Object?> toJson() => {
     'sampleId': sample.id,
     'language': sample.language,
+    'audioSha256': sample.audioSha256,
+    'audioDurationMs': sample.duration,
+    'referenceReviewed': sample.referenceReviewed,
+    'modelRevision': sample.modelRevision,
+    'runtimeVersion': sample.runtimeVersion,
     'expectedSpanCount': sample.reference.length,
     'actualSpanCount': sample.actual.length,
     'matchedGroups': groups.length,
@@ -388,6 +428,57 @@ Map<String, Object?> _summarize(List<_Score> scores) {
   };
 }
 
+Map<String, Object?> _buildProvenance(List<_Sample> samples) {
+  final missingAudioFingerprint = [
+    for (final sample in samples)
+      if (sample.audioSha256 == null) sample.id,
+  ];
+  final missingAudioDuration = [
+    for (final sample in samples)
+      if (sample.duration == null) sample.id,
+  ];
+  final unreviewedReferences = [
+    for (final sample in samples)
+      if (sample.referenceReviewed != true) sample.id,
+  ];
+  final missingModelRevision = [
+    for (final sample in samples)
+      if (sample.modelRevision == null) sample.id,
+  ];
+  final missingRuntimeVersion = [
+    for (final sample in samples)
+      if (sample.runtimeVersion == null) sample.id,
+  ];
+  final warnings = <String>[
+    if (missingAudioFingerprint.isNotEmpty)
+      'Some samples do not record audioSha256.',
+    if (missingAudioDuration.isNotEmpty)
+      'Some samples do not record audioDurationMs.',
+    if (unreviewedReferences.isNotEmpty)
+      'Some samples do not declare referenceReviewed: true.',
+    if (missingModelRevision.isNotEmpty)
+      'Some samples do not record modelRevision.',
+    if (missingRuntimeVersion.isNotEmpty)
+      'Some samples do not record runtimeVersion.',
+  ];
+  return {
+    'sampleCount': samples.length,
+    'samplesWithAudioFingerprint':
+        samples.length - missingAudioFingerprint.length,
+    'samplesMissingAudioFingerprint': missingAudioFingerprint,
+    'samplesWithAudioDuration': samples.length - missingAudioDuration.length,
+    'samplesMissingAudioDuration': missingAudioDuration,
+    'samplesWithConfirmedReferenceReview':
+        samples.length - unreviewedReferences.length,
+    'samplesWithoutConfirmedReferenceReview': unreviewedReferences,
+    'samplesWithModelRevision': samples.length - missingModelRevision.length,
+    'samplesMissingModelRevision': missingModelRevision,
+    'samplesWithRuntimeVersion': samples.length - missingRuntimeVersion.length,
+    'samplesMissingRuntimeVersion': missingRuntimeVersion,
+    'warnings': warnings,
+  };
+}
+
 Map<String, Object?> evaluateForcedAlignmentCorpus(String source) {
   final root = jsonDecode(source);
   if (root is! Map<String, dynamic> || root['schemaVersion'] != 1) {
@@ -425,6 +516,7 @@ Map<String, Object?> evaluateForcedAlignmentCorpus(String source) {
     'toleranceMs': tolerance,
     'maxGroupSpans': maxGroup,
     'sampleCount': scores.length,
+    'provenance': _buildProvenance(samples),
     'overall': _summarize(scores),
     'byLanguage': {
       for (final language in languages)
@@ -558,6 +650,9 @@ List<Map<String, Object?>> _parseActualSpans(
   return spans;
 }
 
+Future<String> _sha256File(File file) async =>
+    (await sha256.bind(file.openRead()).first).toString();
+
 /// Captures a local /v1/align response and converts its timestamps to ms.
 ///
 /// Only loopback endpoints are accepted so lyric text and local audio paths
@@ -570,6 +665,10 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   required String sampleId,
   required String referenceSpansJson,
   required int audioDurationMs,
+  String? audioSha256,
+  bool? referenceReviewed,
+  String? modelRevision,
+  String? runtimeVersion,
   Duration requestTimeout = const Duration(minutes: 5),
 }) async {
   if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
@@ -603,6 +702,27 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   if (audioDurationMs <= 0 || requestTimeout <= Duration.zero) {
     throw ArgumentError('Audio duration and request timeout must be positive.');
   }
+  if (audioSha256 != null && !_isSha256(audioSha256)) {
+    throw ArgumentError.value(
+      audioSha256,
+      'audioSha256',
+      'Must be a 64-character hexadecimal SHA-256.',
+    );
+  }
+  if (modelRevision != null && modelRevision.trim().isEmpty) {
+    throw ArgumentError.value(
+      modelRevision,
+      'modelRevision',
+      'Must not be empty.',
+    );
+  }
+  if (runtimeVersion != null && runtimeVersion.trim().isEmpty) {
+    throw ArgumentError.value(
+      runtimeVersion,
+      'runtimeVersion',
+      'Must not be empty.',
+    );
+  }
   final referenceSpans = _parseReferenceSpans(
     referenceSpansJson,
     sampleId,
@@ -628,13 +748,26 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
       );
     }
     final actualSpans = _parseActualSpans(body, sampleId, audioDurationMs);
-    return {
+    final sample = <String, Object?>{
       'id': sampleId,
       'language': language,
       'audioDurationMs': audioDurationMs,
       'referenceSpans': referenceSpans,
       'actualSpans': actualSpans,
     };
+    if (audioSha256 != null) {
+      sample['audioSha256'] = audioSha256.trim().toLowerCase();
+    }
+    if (referenceReviewed != null) {
+      sample['referenceReviewed'] = referenceReviewed;
+    }
+    if (modelRevision != null) {
+      sample['modelRevision'] = modelRevision.trim();
+    }
+    if (runtimeVersion != null) {
+      sample['runtimeVersion'] = runtimeVersion.trim();
+    }
+    return sample;
   } finally {
     client.close(force: true);
   }
@@ -645,12 +778,13 @@ Future<void> _runCaptureCommand(List<String> args) async {
     _writeCaptureUsage();
     return;
   }
-  if (args.isEmpty || args.length.isOdd) {
+  if (args.isEmpty) {
     _writeCaptureUsage();
     exitCode = 2;
     return;
   }
-  const allowed = {
+  const flags = {'--reference-reviewed'};
+  const allowedValues = {
     '--endpoint',
     '--audio',
     '--text-file',
@@ -658,16 +792,30 @@ Future<void> _runCaptureCommand(List<String> args) async {
     '--id',
     '--language',
     '--duration-ms',
+    '--model-revision',
+    '--runtime-version',
     '--output',
     '--append-to',
   };
   final options = <String, String>{};
-  for (var index = 0; index < args.length; index += 2) {
+  for (var index = 0; index < args.length;) {
     final key = args[index];
-    if (!allowed.contains(key) || options.containsKey(key)) {
+    if (flags.contains(key)) {
+      if (options.containsKey(key)) {
+        throw ArgumentError('Repeated option: $key');
+      }
+      options[key] = 'true';
+      index++;
+      continue;
+    }
+    if (!allowedValues.contains(key) || options.containsKey(key)) {
       throw ArgumentError('Unknown or repeated option: $key');
     }
+    if (index + 1 >= args.length || args[index + 1].startsWith('--')) {
+      throw ArgumentError('Missing value for option: $key');
+    }
     options[key] = args[index + 1];
+    index += 2;
   }
   const required = [
     '--endpoint',
@@ -712,6 +860,8 @@ Future<void> _runCaptureCommand(List<String> args) async {
   }
   final lyricText = await File(textPath).readAsString();
   final referenceJson = await File(referencePath).readAsString();
+  final audioFile = File(audioPath);
+  final audioSha256 = await _sha256File(audioFile);
 
   Map<String, dynamic>? existingCorpus;
   String? existingCorpusSource;
@@ -753,7 +903,18 @@ Future<void> _runCaptureCommand(List<String> args) async {
     sampleId: options['--id']!,
     referenceSpansJson: referenceJson,
     audioDurationMs: durationMs,
+    audioSha256: audioSha256,
+    referenceReviewed: options.containsKey('--reference-reviewed'),
+    modelRevision: options['--model-revision'],
+    runtimeVersion: options['--runtime-version'],
   );
+  final finalAudioSha256 = await _sha256File(audioFile);
+  if (finalAudioSha256 != audioSha256) {
+    throw FileSystemException(
+      'Audio file changed during alignment; refusing to record stale provenance.',
+      audioPath,
+    );
+  }
 
   Map<String, Object?> corpus;
   if (existingCorpus != null) {
@@ -799,6 +960,8 @@ void _writeCaptureUsage() {
   stdout.writeln(
     '  --duration-ms <duration> (--output <new-corpus.json> | --append-to <corpus.json>)',
   );
+  stdout.writeln('  [--reference-reviewed] [--model-revision <revision>]');
+  stdout.writeln('  [--runtime-version <version>]');
 }
 
 Future<void> main(List<String> args) async {
@@ -828,44 +991,103 @@ Future<void> main(List<String> args) async {
   }
   if (args.isEmpty || args.contains('--help')) {
     stdout.writeln(
-      'Usage: dart run tool/forced_alignment_eval.dart '
-      '<corpus.json> [--output <report.json>]',
+      'Usage: dart run tool/forced_alignment_eval.dart <corpus.json> '
+      '[--output <report.json>] [--require-provenance]',
     );
     stdout.writeln(
-      'Reference times must be manually checked against the original audio.',
+      '--require-provenance fails when audio identity, reference review, '
+      'model revision, or runtime version is missing.',
+    );
+    stdout.writeln(
+      'Reference time spans must be manually checked against the original audio.',
     );
     if (args.isEmpty) exitCode = 2;
     return;
   }
-  String? output;
-  if (args.length == 3 && args[1] == '--output') {
-    output = args[2];
-  } else if (args.length != 1) {
-    stderr.writeln('Invalid arguments. Use --help for usage.');
+
+  String? inputPath;
+  String? outputPath;
+  var requireProvenance = false;
+  var outputOptionSeen = false;
+  var strictOptionSeen = false;
+  for (var index = 0; index < args.length; index++) {
+    final argument = args[index];
+    if (argument == '--output') {
+      if (outputOptionSeen ||
+          index + 1 >= args.length ||
+          args[index + 1].startsWith('--')) {
+        stderr.writeln('Invalid --output option. Use --help for usage.');
+        exitCode = 2;
+        return;
+      }
+      outputOptionSeen = true;
+      outputPath = args[++index];
+    } else if (argument == '--require-provenance') {
+      if (strictOptionSeen) {
+        stderr.writeln('Duplicate --require-provenance option.');
+        exitCode = 2;
+        return;
+      }
+      strictOptionSeen = true;
+      requireProvenance = true;
+    } else if (argument.startsWith('--')) {
+      stderr.writeln('Unknown option: ' + argument);
+      exitCode = 2;
+      return;
+    } else if (inputPath == null) {
+      inputPath = argument;
+    } else {
+      stderr.writeln(
+        'Only one corpus path may be provided. Use --help for usage.',
+      );
+      exitCode = 2;
+      return;
+    }
+  }
+
+  if (inputPath == null || inputPath.trim().isEmpty) {
+    stderr.writeln('A corpus path is required. Use --help for usage.');
     exitCode = 2;
     return;
   }
+
   try {
-    final input = File(args.first);
+    final input = File(inputPath);
     if (!await input.exists()) {
       throw FileSystemException('Evaluation corpus not found.', input.path);
     }
-    if (output != null && File(output).absolute.path == input.absolute.path) {
+    if (outputPath != null &&
+        File(outputPath).absolute.path == input.absolute.path) {
       throw ArgumentError('Report output must not overwrite the corpus input.');
     }
     final report = evaluateForcedAlignmentCorpus(await input.readAsString());
     final encoded = '${const JsonEncoder.withIndent('  ').convert(report)}\n';
-    if (output == null) {
+    if (outputPath == null) {
       stdout.write(encoded);
     } else {
-      await File(output).writeAsString(encoded);
-      stdout.writeln('Wrote evaluation report: $output');
+      await File(outputPath).writeAsString(encoded);
+      stdout.writeln('Wrote ForcedAligner evaluation report: ' + outputPath);
+    }
+
+    if (requireProvenance) {
+      final provenance = report['provenance'];
+      final rawWarnings = provenance is Map ? provenance['warnings'] : null;
+      final warnings = rawWarnings is List ? rawWarnings : const <Object?>[];
+      if (rawWarnings is! List || warnings.isNotEmpty) {
+        stderr.writeln(
+          'Strict provenance check failed. See the report provenance section.',
+        );
+        for (final warning in warnings) {
+          stderr.writeln(' - ' + warning.toString());
+        }
+        exitCode = 2;
+      }
     }
   } on FormatException catch (error) {
-    stderr.writeln('Invalid evaluation corpus: ${error.message}');
+    stderr.writeln('Invalid evaluation corpus: ' + error.message);
     exitCode = 2;
   } on ArgumentError catch (error) {
-    stderr.writeln('Invalid evaluation data: $error');
+    stderr.writeln('Invalid evaluation data: ' + error.toString());
     exitCode = 2;
   } on FileSystemException catch (error) {
     stderr.writeln(error.message);
