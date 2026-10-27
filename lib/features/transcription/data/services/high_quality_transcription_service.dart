@@ -220,9 +220,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         ? inputPath.toLowerCase() == outputPath.toLowerCase()
         : inputPath == outputPath;
     if (samePath) {
-      throw const TranscriptionException.input(
-        '共享标准化音频输出路径不能覆盖原始音频',
-      );
+      throw const TranscriptionException.input('共享标准化音频输出路径不能覆盖原始音频');
     }
     if (await output.exists()) {
       try {
