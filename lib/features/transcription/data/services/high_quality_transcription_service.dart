@@ -299,14 +299,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
         ...whisperResult.lyrics.metadata,
         'qualityMode': 'highestQuality',
         'primaryEngine': TranscriptionModelIdentity.whisperEngine(
-              request.config.modelPath,
-            ),
+          request.config.modelPath,
+        ),
         'alignmentEngine': 'whisper-segment-timestamps',
         'fallbackEngine': qwenModelKey,
-        'fallbackAlignmentEngine':
-                TranscriptionModelIdentity.qwenAlignerEngine(
-                  request.config.qwenAlignerModelPath,
-                ),
+        'fallbackAlignmentEngine': TranscriptionModelIdentity.qwenAlignerEngine(
+          request.config.qwenAlignerModelPath,
+        ),
         'fallbackStrategy': 'fullSongSecondOpinion',
         'fallbackStatus': 'completed',
         'fallbackCandidateCount': merge.candidates.length,
