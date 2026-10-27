@@ -152,7 +152,7 @@ void main() {
       },
     );
 
-    test('reports the configured model revisions in fusion metadata', () async {
+    test('reports configured model identities in fusion metadata', () async {
       final service = HighQualityTranscriptionService(
         primary: _FakeTranscriptionService(
           result: _result(
