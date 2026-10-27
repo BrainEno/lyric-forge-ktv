@@ -83,8 +83,8 @@
 - [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
-- [2026-10-26 20:35] Improve ASR fusion recall and confidence handling ([entry](log/entries/2026-10-26-2035-improve-asr-fusion-recall.md))
 ## Additional archived entries (auto-generated)
+- [2026-10-26 20:35] Improve ASR fusion recall and confidence handling ([entry](log/entries/2026-10-26-2035-improve-asr-fusion-recall.md))
 - [2026-10-26 20:00] Disable MPV on-disk packet cache for audio playback ([entry](log/entries/2026-10-26-2000-disable-mpv-disk-cache.md))
 - [2026-10-26 18:20] Avoid unsupported OSC property in audio-only MPV adapter ([entry](log/entries/2026-10-26-1820-avoid-mpv-osc-property.md))
 - [2026-10-26 18:00] Defer route observer notifications until after build ([entry](log/entries/2026-10-26-1800-route-observer-post-frame-sync.md))
