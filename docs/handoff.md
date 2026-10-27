@@ -28,7 +28,7 @@
 
 ## 检查结果
 - 新增完整 provenance、旧语料告警、音频指纹不匹配和非法元数据测试。
-- 当前 PR head 的格式、分析、测试和 work-log 检查等待 GitHub Actions 确认。
+- 代码 head `b2b80ab056bc4b620d91e3b7284e48dc6f2e6373` 的 Flutter Quality Gate run `40470097830` 已通过；work-log preflight、Dart 格式检查通过，完整测试为 736 项全部通过。
 - 没有真实人工标注歌曲语料，尚不能评估模型优劣或声称准确率提升。
 
 ## 下一步
@@ -39,4 +39,4 @@ CI 通过后，合并本 PR；然后用人工核验的英文、中文、日文�
 - `referenceReviewed: true` 是人工声明，不是工具自动听音验证。
 - 旧语料可继续运行，但只有 provenance 字段完整时，比较才具备可审计的来源记录。
 
-最后更新：2026-10-27 15:46（Asia/Taipei）
+最后更新：2026-10-27 15:59（Asia/Taipei）
