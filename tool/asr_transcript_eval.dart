@@ -35,16 +35,49 @@ String? _optionalString(dynamic raw, String key) {
   return _requiredString(raw, key);
 }
 
+const _sha256Pattern = r'^[0-9a-fA-F]{64}$';
+
+String? _optionalSha256(dynamic raw, String key) {
+  final value = raw is Map<String, dynamic> ? raw[key] : null;
+  if (value == null) return null;
+  if (value is! String || !RegExp(_sha256Pattern).hasMatch(value.trim())) {
+    throw FormatException(key + ' must be a 64-character hexadecimal SHA-256.');
+  }
+  return value.trim().toLowerCase();
+}
+
+int? _optionalInt(dynamic raw, String key) {
+  final value = raw is Map<String, dynamic> ? raw[key] : null;
+  if (value != null && value is! int) {
+    throw FormatException(key + ' must be an integer when present.');
+  }
+  return value as int?;
+}
+
+bool? _optionalBool(dynamic raw, String key) {
+  final value = raw is Map<String, dynamic> ? raw[key] : null;
+  if (value != null && value is! bool) {
+    throw FormatException(key + ' must be a boolean when present.');
+  }
+  return value as bool?;
+}
+
 List<String> _tokens(String text) => _tokenizer.tokenize(text);
 List<int> _characters(String text) => _tokens(text).join().runes.toList();
 
 class _Candidate {
   final String engine;
+  final String? audioSha256;
+  final String? modelRevision;
+  final String? runtimeVersion;
   final List<String> tokens;
   final List<int> characters;
 
   _Candidate.parse(dynamic raw, String sampleId)
     : engine = _requiredString(raw, 'engine'),
+      audioSha256 = _optionalSha256(raw, 'audioSha256'),
+      modelRevision = _optionalString(raw, 'modelRevision'),
+      runtimeVersion = _optionalString(raw, 'runtimeVersion'),
       tokens = _tokens(_requiredText(raw, 'text')),
       characters = _characters(_requiredText(raw, 'text')) {
     if (engine.isEmpty) {
@@ -57,6 +90,9 @@ class _Sample {
   final String id;
   final String songId;
   final String language;
+  final String? audioSha256;
+  final int? audioDurationMs;
+  final bool? referenceReviewed;
   final List<String> referenceTokens;
   final List<int> referenceCharacters;
   final List<_Candidate> candidates;
@@ -65,6 +101,9 @@ class _Sample {
     : id = _requiredString(raw, 'id'),
       songId = _optionalString(raw, 'songId') ?? _requiredString(raw, 'id'),
       language = _requiredString(raw, 'language'),
+      audioSha256 = _optionalSha256(raw, 'audioSha256'),
+      audioDurationMs = _optionalInt(raw, 'audioDurationMs'),
+      referenceReviewed = _optionalBool(raw, 'referenceReviewed'),
       referenceTokens = _tokens(_requiredText(raw, 'referenceText')),
       referenceCharacters = _characters(_requiredText(raw, 'referenceText')),
       candidates = _parseCandidates(raw) {
@@ -84,9 +123,24 @@ class _Sample {
             ' candidates.',
       );
     }
+    if (audioDurationMs != null && audioDurationMs! <= 0) {
+      throw FormatException('Sample ' + id + ' has invalid audioDurationMs.');
+    }
     final names = candidates.map((candidate) => candidate.engine).toSet();
     if (names.length != candidates.length) {
       throw FormatException('Duplicate engine name in sample ' + id);
+    }
+    for (final candidate in candidates) {
+      if (candidate.audioSha256 != null &&
+          candidate.audioSha256 != audioSha256) {
+        throw FormatException(
+          'Candidate ' +
+              candidate.engine +
+              ' in sample ' +
+              id +
+              ' has an audioSha256 that does not match the sample input.',
+        );
+      }
     }
   }
 
@@ -238,6 +292,9 @@ class _Score {
       'songId': sample.songId,
       'language': sample.language,
       'engine': candidate.engine,
+      'audioSha256': candidate.audioSha256,
+      'modelRevision': candidate.modelRevision,
+      'runtimeVersion': candidate.runtimeVersion,
       'referenceCharacterCount': sample.referenceCharacters.length,
       'candidateCharacterCount': candidate.characters.length,
       'characterEditCount': characterEdits,
@@ -381,12 +438,89 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
     ..sort();
   final languages = samples.map((sample) => sample.language).toSet().toList()
     ..sort();
+  final samplesMissingAudioFingerprint = samples
+      .where((sample) => sample.audioSha256 == null)
+      .map((sample) => sample.id)
+      .toList(growable: false);
+  final samplesMissingAudioDuration = samples
+      .where((sample) => sample.audioDurationMs == null)
+      .map((sample) => sample.id)
+      .toList(growable: false);
+  final samplesWithoutConfirmedReferenceReview = samples
+      .where((sample) => sample.referenceReviewed != true)
+      .map((sample) => sample.id)
+      .toList(growable: false);
+  final candidatesMissingAudioFingerprint = scores
+      .where((score) => score.candidate.audioSha256 == null)
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
+      .toList(growable: false);
+  final candidatesMissingModelRevision = scores
+      .where((score) => score.candidate.modelRevision == null)
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
+      .toList(growable: false);
+  final candidatesMissingRuntimeVersion = scores
+      .where((score) => score.candidate.runtimeVersion == null)
+      .map(
+        (score) => {
+          'sampleId': score.sample.id,
+          'engine': score.candidate.engine,
+        },
+      )
+      .toList(growable: false);
+  final provenanceWarnings = <String>[
+    if (samplesMissingAudioFingerprint.isNotEmpty)
+      'Some samples do not record audioSha256; exact input identity cannot be audited.',
+    if (samplesMissingAudioDuration.isNotEmpty)
+      'Some samples do not record audioDurationMs.',
+    if (samplesWithoutConfirmedReferenceReview.isNotEmpty)
+      'Some references are not explicitly marked referenceReviewed: true.',
+    if (candidatesMissingAudioFingerprint.isNotEmpty)
+      'Some candidates do not record audioSha256.',
+    if (candidatesMissingModelRevision.isNotEmpty)
+      'Some candidates do not record modelRevision.',
+    if (candidatesMissingRuntimeVersion.isNotEmpty)
+      'Some candidates do not record runtimeVersion.',
+  ];
 
   return {
     'schemaVersion': 1,
     'evaluator': 'asr-transcript-quality-evaluator-v1',
     'sampleCount': samples.length,
     'candidateCount': scores.length,
+    'provenance': {
+      'sampleCount': samples.length,
+      'samplesWithAudioFingerprint':
+          samples.length - samplesMissingAudioFingerprint.length,
+      'samplesMissingAudioFingerprint': samplesMissingAudioFingerprint,
+      'samplesWithAudioDuration':
+          samples.length - samplesMissingAudioDuration.length,
+      'samplesMissingAudioDuration': samplesMissingAudioDuration,
+      'samplesWithConfirmedReferenceReview':
+          samples.length - samplesWithoutConfirmedReferenceReview.length,
+      'samplesWithoutConfirmedReferenceReview':
+          samplesWithoutConfirmedReferenceReview,
+      'candidateCount': scores.length,
+      'candidatesWithAudioFingerprint':
+          scores.length - candidatesMissingAudioFingerprint.length,
+      'candidatesMissingAudioFingerprint': candidatesMissingAudioFingerprint,
+      'candidatesWithModelRevision':
+          scores.length - candidatesMissingModelRevision.length,
+      'candidatesMissingModelRevision': candidatesMissingModelRevision,
+      'candidatesWithRuntimeVersion':
+          scores.length - candidatesMissingRuntimeVersion.length,
+      'candidatesMissingRuntimeVersion': candidatesMissingRuntimeVersion,
+      'warnings': provenanceWarnings,
+    },
     'overallByEngine': {
       for (final engine in engines)
         engine: _summarize(
@@ -419,6 +553,9 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
           'id': sample.id,
           'songId': sample.songId,
           'language': sample.language,
+          'audioSha256': sample.audioSha256,
+          'audioDurationMs': sample.audioDurationMs,
+          'referenceReviewed': sample.referenceReviewed,
           'referenceCharacterCount': sample.referenceCharacters.length,
           'referenceTokenCount': sample.referenceTokens.length,
           'candidates': [
@@ -432,6 +569,10 @@ Map<String, Object?> evaluateTranscriptCorpus(String source) {
     'interpretation': {
       'normalizedCharacterErrorRate':
           'Character edits / reference characters; case, whitespace and punctuation are ignored.',
+      'audioSha256':
+          'SHA-256 of the exact audio bytes supplied to the recognizer; candidate fingerprints, when present, must match the sample fingerprint.',
+      'referenceReviewed':
+          'True only after a person has checked the reference against the sung audio; missing or false status is reported as a provenance warning.',
       'editBreakdown':
           'Insertions are candidate-only units, deletions are reference units omitted by the candidate, and substitutions are incorrect candidate units. Counts form one deterministic minimum edit script; their sum equals the edit count.',
       'normalizedTokenErrorRate':
