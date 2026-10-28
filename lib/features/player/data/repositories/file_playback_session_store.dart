@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/playback_session_snapshot.dart';
 import '../../domain/repositories/playback_session_store.dart';
@@ -15,7 +15,9 @@ import '../../domain/services/playback_session_service.dart';
 /// leave a half-written queue document behind.
 class FilePlaybackSessionStore implements PlaybackSessionStore {
   static bool _isValidStoreJson(Object? decoded) =>
-      decoded is Map && decoded['queue'] is List && decoded['version'] is num;
+      decoded is Map &&
+      decoded['queue'] is List &&
+      (decoded['version'] as num?)?.toInt() == 1;
 
   final Directory? rootDirectory;
 

@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/repositories/play_history_repository.dart';
 

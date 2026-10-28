@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 

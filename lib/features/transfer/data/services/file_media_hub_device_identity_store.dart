@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/media_hub_device_identity.dart';
 import '../../domain/services/media_hub_device_identity_store.dart';
 
