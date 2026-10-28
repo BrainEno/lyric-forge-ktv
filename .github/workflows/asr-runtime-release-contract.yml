@@ -7,8 +7,6 @@ on:
       - '.fvmrc'
       - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/build-asr-runtime.yml'
-      - '.fvmrc'
-      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/asr-runtime-release-contract.yml'
       - 'test/asr_runtime_release_workflow_contract_test.dart'
   workflow_dispatch:
