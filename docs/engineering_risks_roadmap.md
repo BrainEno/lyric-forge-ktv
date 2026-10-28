@@ -38,16 +38,18 @@ The review claim that the application has *no* process management or health chec
 - The repository already has managed-runtime readiness/health code, including `local_asr_runtime_health_checker.dart` and runtime-manager abstractions.
 - Highest-quality transcription already coordinates the selected engine order, second-opinion results, conservative fusion/review candidates, and shared normalized audio in its applicable path.
 
-The real gap found in the inspected CLI adapter is narrower: `_runProcess` awaits `process.exitCode` without an operation timeout. A child process that remains alive but stops making progress can therefore hold the job open. The current architecture launches CLI processes rather than keeping a persistent ASR daemon; that is not inherently a defect, and a heartbeat is not meaningful for a short-lived CLI unless a supervised long-running worker is introduced.
+The initial CLI gap was that `WhisperCppTranscriptionService._runProcess` awaited `process.exitCode` with no operation deadline. PR #211 now routes Whisper's executable probe, FFmpeg normalization, and whisper.cpp inference through `AsrProcessSupervisor`. It bounds process exit and pipe-drain waits, keeps bounded stdout/stderr tails, escalates from normal termination to force-kill, maps timeout to an explicit environment failure, and removes partial normalized WAV/JSON outputs after failure. Budgets are operation-specific: 10 seconds for executable probes, 5–60 minutes for FFmpeg based on source size, and 5–120 minutes for Whisper based on normalized WAV duration.
+
+This is one implementation tranche rather than completion of the full risk. The Qwen adapter's FFmpeg and HTTP request paths, Qwen server shutdown/startup, resumable chunking's duration probe and chunk extraction, and high-quality shared audio preparation still need equivalent lifecycle guarantees. The supervisor currently manages the direct child; complete process-tree cleanup and real Windows/macOS behavior need platform-specific verification. The CLI architecture remains appropriate unless measurements show startup or repeated model initialization is materially costly.
 
 **Required follow-up**
 
-1. Define timeout budgets per operation (environment probe, FFmpeg preprocessing, and ASR inference); avoid one arbitrary timeout for all song lengths.
-2. On timeout/cancel, stop waiting, terminate the process, use a platform-appropriate escalation where available, drain/close streams, clear lifecycle state, and preserve completed resumable checkpoints.
-3. Make the timeout distinguishable from ordinary recognition failure in diagnostics and queue recovery.
-4. Add regression coverage for a hung process, cancellation during startup/run, stderr flooding, non-zero exit, and cleanup of partial outputs.
+1. Apply operation-specific budgets and cancellation escalation to the remaining Qwen server/request, resumable FFprobe/FFmpeg, and highest-quality shared-normalization paths.
+2. Preserve completed chunk checkpoints and distinguish cancellation/timeouts from ordinary input/runtime failures; ensure retry and protective-pause behavior remains deterministic.
+3. Add tests for cancellation during startup/run, stderr flooding, non-zero exits, partial-output cleanup, and descendants that retain inherited pipes; run real-child smoke tests on Windows and macOS.
+4. Verify which process-tree guarantees are available on each supported OS before claiming full descendant cleanup.
 
-**Acceptance:** a deliberately stalled child cannot leave the queue busy forever; the UI/queue receives a deterministic timeout or cancellation state; subsequent jobs can run; already completed checkpoints are retained. Evaluate a persistent worker/IPC design only if measurements show process startup or repeated initialization is a material cost.
+**Acceptance:** the Whisper CLI path now has bounded waits and automated fake-process coverage. The broader lifecycle risk stays open until the remaining adapters are migrated and platform-level checks show a timed-out/cancelled job releases the queue while completed checkpoints remain usable. Evaluate a persistent worker/IPC design only if measurements show process startup or repeated initialization is a material cost.
 
 ## Priority 2 — Measure JSON-store scaling before migrating storage engines
 
