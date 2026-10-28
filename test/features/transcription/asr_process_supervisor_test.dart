@@ -99,10 +99,7 @@ void main() {
     test(
       'explicit cancellation terminates and escalates a stuck process',
       () async {
-        final process = _FakeProcess(
-          killOnSigterm: false,
-          killOnSigkill: true,
-        );
+        final process = _FakeProcess(killOnSigterm: false, killOnSigkill: true);
         final supervisor = AsrProcessSupervisor(
           startProcess: (_, __) async => process,
           terminationGrace: const Duration(milliseconds: 10),
