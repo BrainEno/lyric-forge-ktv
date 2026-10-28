@@ -24,11 +24,9 @@ typedef AtomicJsonWriteHook = Future<void> Function(AtomicJsonWriteStage stage);
 /// filesystem. If a process stops after removing the canonical file, startup
 /// can restore the flushed temporary document or the last valid backup.
 abstract final class AtomicJsonFile {
-  static File temporaryFor(File destination) =>
-      File('${destination.path}.tmp');
+  static File temporaryFor(File destination) => File('${destination.path}.tmp');
 
-  static File backupFor(File destination) =>
-      File('${destination.path}.bak');
+  static File backupFor(File destination) => File('${destination.path}.bak');
 
   static File backupTemporaryFor(File destination) =>
       File('${destination.path}.bak.tmp');
@@ -75,11 +73,7 @@ abstract final class AtomicJsonFile {
 
     for (final candidate in candidates) {
       if (!await isValidJsonFile(candidate.file, validate: validate)) continue;
-      await _restoreCandidate(
-        candidate.file,
-        destination,
-        validate: validate,
-      );
+      await _restoreCandidate(candidate.file, destination, validate: validate);
       if (candidate.file.path == temporaryFor(destination).path ||
           candidate.file.path == backupTemporaryFor(destination).path) {
         try {
@@ -157,11 +151,7 @@ abstract final class AtomicJsonFile {
       try {
         if (!await isValidJsonFile(destination, validate: validate) &&
             await isValidJsonFile(backup, validate: validate)) {
-          await _restoreCandidate(
-            backup,
-            destination,
-            validate: validate,
-          );
+          await _restoreCandidate(backup, destination, validate: validate);
         }
       } catch (_) {
         // Preserve the original error; the backup remains for startup recovery.

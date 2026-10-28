@@ -15,7 +15,8 @@ import '../../domain/repositories/play_history_repository.dart';
 /// from normal recent-history reads but retained so a moved file can be relinked
 /// without losing its resume position or last-played timestamp.
 class FilePlayHistoryRepository implements PlayHistoryRepository {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['histories'] is List;
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map && decoded['histories'] is List;
 
   final Directory? rootDirectory;
 
@@ -60,8 +61,13 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
-      throw FormatException('The play history is invalid and no recoverable copy is available. ${file.path}');
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The play history is invalid and no recoverable copy is available. ${file.path}',
+      );
     }
     if (!await file.exists()) return;
     if (!await file.exists()) return;
@@ -114,11 +120,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
       } catch (_) {}
 
       final file = await _storeFile();
-      await AtomicJsonFile.write(
-        file,
-        payload,
-        validate: _isValidStoreJson,
-      );
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;

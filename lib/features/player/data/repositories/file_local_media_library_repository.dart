@@ -11,7 +11,10 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/services/embedded_audio_metadata_reader.dart';
 
 class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['entries'] is List && (decoded['roots'] == null || decoded['roots'] is List);
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map &&
+      decoded['entries'] is List &&
+      (decoded['roots'] == null || decoded['roots'] is List);
 
   static const _defaultAudioExtensions = <String>{
     'mp3',
@@ -29,10 +32,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   Future<void>? _loadFuture;
   Future<void> _writeChain = Future<void>.value();
 
-  FileLocalMediaLibraryRepository({
-    this.rootDirectory,
-    this.metadataReader,
-  });
+  FileLocalMediaLibraryRepository({this.rootDirectory, this.metadataReader});
 
   Future<void> _ensureLoaded() => _loadFuture ??= _load();
 
@@ -74,8 +74,13 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
-      throw FormatException('The local media library is invalid and no recoverable copy is available. ${file.path}');
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The local media library is invalid and no recoverable copy is available. ${file.path}',
+      );
     }
     if (!await file.exists()) return;
 
@@ -127,7 +132,9 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     final payload = const JsonEncoder.withIndent('  ').convert({
       'version': 3,
       'roots': _roots,
-      'entries': _entries.map((entry) => entry.toJson()).toList(growable: false),
+      'entries': _entries
+          .map((entry) => entry.toJson())
+          .toList(growable: false),
     });
 
     final previous = _writeChain;
@@ -136,11 +143,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      await AtomicJsonFile.write(
-        file,
-        payload,
-        validate: _isValidStoreJson,
-      );
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;
@@ -241,7 +244,8 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     final file = File(entry.sourcePath);
     if (!await file.exists()) return entry.copyWith(isMissing: true);
     final stat = await file.stat();
-    final unchanged = entry.metadataScannedAt != null &&
+    final unchanged =
+        entry.metadataScannedAt != null &&
         entry.sourceSizeBytes == stat.size &&
         entry.sourceModifiedAt?.millisecondsSinceEpoch ==
             stat.modified.millisecondsSinceEpoch;
@@ -312,7 +316,9 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     Iterable<String> supportedExtensions,
   ) async {
     await _ensureLoaded();
-    final extensions = supportedExtensions.map((value) => value.toLowerCase()).toSet();
+    final extensions = supportedExtensions
+        .map((value) => value.toLowerCase())
+        .toSet();
     await _discoverFromRoots(extensions);
     return _refreshKnownAvailability();
   }
@@ -324,7 +330,10 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
       final root = Directory(rootPath);
       if (!await root.exists()) continue;
       try {
-        await for (final entity in root.list(recursive: true, followLinks: false)) {
+        await for (final entity in root.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File && extensions.contains(_formatOf(entity.path))) {
             discovered.add(entity.path);
           }
@@ -364,7 +373,9 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   }
 
   @override
-  Future<List<LocalMediaLibraryEntry>> refreshMetadata({bool force = false}) async {
+  Future<List<LocalMediaLibraryEntry>> refreshMetadata({
+    bool force = false,
+  }) async {
     await _ensureLoaded();
     var changed = false;
     for (var i = 0; i < _entries.length; i++) {

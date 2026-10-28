@@ -14,7 +14,8 @@ import '../../domain/services/playback_session_service.dart';
 /// directory. Writes are atomic and serialized so a process interruption cannot
 /// leave a half-written queue document behind.
 class FilePlaybackSessionStore implements PlaybackSessionStore {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['queue'] is List && decoded['version'] is num;
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map && decoded['queue'] is List && decoded['version'] is num;
 
   final Directory? rootDirectory;
 
@@ -48,8 +49,13 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
-      throw FormatException('The playback session is invalid and no recoverable copy is available. ${file.path}');
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The playback session is invalid and no recoverable copy is available. ${file.path}',
+      );
     }
     if (!await file.exists()) return null;
     if (!await file.exists()) return null;
@@ -89,7 +95,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       final savedAt = savedAtRaw == null
           ? DateTime.fromMillisecondsSinceEpoch(0)
           : DateTime.tryParse(savedAtRaw) ??
-              DateTime.fromMillisecondsSinceEpoch(0);
+                DateTime.fromMillisecondsSinceEpoch(0);
 
       return PlaybackSessionSnapshot(
         state: PlaybackSessionState(
@@ -141,11 +147,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       } catch (_) {}
 
       final file = await _storeFile();
-      await AtomicJsonFile.write(
-        file,
-        payload,
-        validate: _isValidStoreJson,
-      );
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;
