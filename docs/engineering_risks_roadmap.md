@@ -13,17 +13,16 @@
 Evidence reviewed:
 
 - `macos/Runner/DebugProfile.entitlements` sets `com.apple.security.network.server` to `true`.
-- `macos/Runner/Release.entitlements` does not declare `com.apple.security.network.server`.
+- The reviewed `main` baseline lacked `com.apple.security.network.server` in `macos/Runner/Release.entitlements`; this implementation adds it for the supported Media Hub listener.
 - `lib/features/transfer/data/services/http_media_hub_service.dart` starts an `HttpServer` listener for the Media Hub.
-- `.github/workflows/macos-network-entitlements-validation.yml` checks `com.apple.security.network.client` in both source plists and built Debug/Release apps, but does not assert the server entitlement.
+- This implementation extends `.github/workflows/macos-network-entitlements-validation.yml` to assert both client and server entitlements in source plists and in codesign-extracted Debug/Release app artifacts. CI results and packaged-device smoke tests are still pending.
 
 Apple defines `com.apple.security.network.server` as the entitlement that allows a sandboxed app to listen for incoming network connections. Flutter's macOS build guidance also warns that the server entitlement is enabled by default for Debug/Profile and must be present in Release when the app accepts incoming connections.
 
 **Required follow-up**
 
-1. Add the server entitlement to the Release configuration if Media Hub sharing remains a supported Release feature.
-2. Extend CI to validate the source Release plist and the built/signed Release app for both the client and server entitlements. Keep Debug/Profile checks explicit as well.
-3. Smoke-test the packaged Release app: start sharing, connect from a second device over LAN and the supported Tailscale path, verify health/list/Range streaming, then stop sharing and confirm the listener is closed.
+1. Verify the macOS entitlement workflow succeeds on the exact implementation PR head, including source plists and codesign-extracted Debug/Release app artifacts.
+2. Smoke-test the packaged Release app: start sharing, connect from a second device over LAN and the supported Tailscale path, verify health/list/Range streaming, then stop sharing and confirm the listener is closed.
 
 **Acceptance:** CI fails if the built Release artifact is missing the server entitlement, and the packaged Release app can accept an authorized inbound Media Hub connection. A passing Debug run alone is not sufficient.
 

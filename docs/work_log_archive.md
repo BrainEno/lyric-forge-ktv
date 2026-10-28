@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-27 17:07] Require reproducible ForcedAligner evaluation provenance ([entry](log/entries/2026-10-27-1707-strict-forced-alignment-provenance.md))
 - [2026-10-27 16:10] Require complete provenance for auditable ASR evaluation ([entry](log/entries/2026-10-27-1610-require-strict-asr-provenance.md))
 - [2026-10-27 15:46] Track provenance for paired ASR evaluation ([entry](log/entries/2026-10-27-1546-track-asr-evaluation-provenance.md))
 - [2026-10-27 12:06] Report ASR insertions, omissions, and substitutions ([entry](log/entries/2026-10-27-1206-report-asr-edit-breakdown.md))
