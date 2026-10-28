@@ -35,7 +35,8 @@
 
 - **Open-source product-quality roadmap:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) prioritizes persistence recovery, ASR lifecycle, Media Hub upload limits, FFmpeg integrity, separation/MVP scope, installable app packages, and real-song/mix quality gates. Third-party provenance/notices are scoped to artifacts actually bundled; they are not a general development or monetization gate.
 
-- **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) distinguishes the confirmed macOS Release listener-entitlement gap from conditional risks around ASR process timeouts, JSON-store scale, audio-clock alignment, and Media Hub token/range validation.
+- **macOS Media Hub Release entitlement:** the implementation adds the inbound-network entitlement to Release and checks both client/server entitlements in the source plists and signed Debug/Release artifacts. The CI result and packaged LAN/Tailscale smoke test must still be confirmed before claiming end-to-end release readiness.
+- **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.
 
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
 - A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.

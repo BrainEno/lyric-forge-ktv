@@ -1,47 +1,45 @@
 # Handoff
 
 ## 目标
-Maintain a source-verified, prioritized engineering roadmap for open-source, local-first KTV software. “Commercial-grade” means mature functionality, reliability, audio quality, installation/upgrade behavior, and maintainability; it does not assume monetization or a commercial distribution model.
+Maintain open-source, local-first KTV software with dependable product functionality, audio quality, recovery, security, installation and maintainability.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Source baseline for review findings: e8ea44ee4baa3da1709c9f5a665d0c01926e9e99
-- Main baseline before this documentation series: 5d7a6ff2179765399f5ed66fb1d01c9a6852076a
-- Branch: docs/second-review-commercial-readiness-20261028
-- PR: [#207 docs: prioritize open-source product quality roadmap](https://github.com/BrainEno/lyric-forge-ktv/pull/207)
-- Scope is documentation only; application code and runtime binaries are unchanged.
-- Previous CI attempts exposed work-log summary drift and are now corrected. The latest quality-gate status must be checked against the final PR head.
-- Local Dart/Flutter SDKs are unavailable in this execution environment; GitHub Actions is the validation gate.
+- Main baseline: e2ceb554e3c2e291d602969841d725dd02438e0f
+- Branch: fix/macos-release-network-server-entitlement-20261028
+- PR: pending creation for the macOS Release Media Hub entitlement fix.
+- Scope: Release entitlement + macOS CI enforcement, with work-log and roadmap updates.
+- Local Flutter/macOS signing SDKs are unavailable in this execution environment; GitHub Actions is the validation gate.
 
 ## 已改文件
+- macos/Runner/Release.entitlements
+- .github/workflows/macos-network-entitlements-validation.yml
 - docs/engineering_risks_roadmap.md
 - docs/work_log_index.md
 - docs/work_log.md
 - docs/work_log_archive.md
-- docs/log/entries/2026-10-28-1339-reframe-product-quality-roadmap.md
+- docs/log/entries/2026-10-28-1345-fix-macos-release-network-entitlement.md
 - docs/handoff.md
 
 ## 本轮实现
-- Reframed the roadmap from “commercial readiness” to open-source product quality and install/upgrade maturity.
-- Demoted the Qwen runtime's missing upstream notice from a P0 commercial-redistribution blocker to a narrowly scoped provenance/notice task for any future bundled artifact. It does not block local testing, prototyping, or unrelated implementation work.
-- Kept actual product/reliability risks: JSON replacement failure window, macOS Media Hub Release entitlement, ASR process timeouts, upload limits and safe temporary files, FFmpeg integrity, vocal/accompaniment separation, real-song evaluation, mix peak behavior, app packaging, and hardware support matrix.
-- Removed generic legal-review/commercial-use approval language. Keep only the third-party attribution/redistribution requirements that apply to artifacts actually included in an open-source bundle.
+- Added `com.apple.security.network.server=true` to macOS Release entitlements to support the Media Hub inbound HTTP listener.
+- Updated CI to check both client and server permissions in Debug/Profile and Release source plists and in codesign-extracted Debug/Release app artifacts.
+- Updated the verified engineering-risk roadmap and work-log navigation; no change is made to Media Hub authentication/range handling.
 
 ## 检查结果
-- Documentation and navigation changes only; no app source or model/runtime binary modified.
-- The work-log summary and archive links were updated for the new entry and the shifted active/archive boundary.
-- Dart/Flutter checks were not run locally because the SDKs are unavailable; verify the final GitHub Actions run before merging.
+- The source and built-artifact checks are added but still require a successful GitHub Actions run on the final PR head.
+- No local Flutter analysis/tests or macOS packaged-app smoke test was run from this environment.
+- LAN/Tailscale streaming, health/list/Range behavior and listener shutdown must be verified with the packaged Release app before end-to-end support is claimed.
 
 ## 下一步
-1. Check the final PR CI and review the resulting diff.
-2. Start implementation with the JSON delete-before-rename recovery window and fault-injection tests, alongside the ASR stuck-process timeout contract.
-3. Continue Media Hub upload resource limits, FFmpeg hash pinning, and real-song/mix-quality evaluation.
-4. Prototype and measure desktop vocal/accompaniment separation locally; check redistribution terms only when choosing a model/runtime for bundling, not as a reason to delay local experiments.
-5. Complete actual application packaging and stable install/upgrade behavior for the platforms that are genuinely tested.
+1. Review the final PR diff and confirm the macOS entitlement workflow and Flutter quality gate pass on the current head.
+2. Run packaged Release smoke tests from a second device over LAN and supported Tailscale, then verify stop/dispose closes the listener.
+3. Continue the highest-priority JSON persistence delete-before-rename recovery window and fault-injection tests.
+4. Harden ASR CLI operation timeout/cancellation cleanup so stalled child processes cannot block the queue indefinitely.
 
 ## 已知风险
-- The reviewed Qwen Rust source revision has no LICENSE/COPYING/NOTICE path, and the current build workflow suppresses failure to copy licence files. This matters if that specific runtime is redistributed as a bundled artifact; it is not a monetization or general development gate. Select a clear-provenance bundle or make the distribution behavior explicit before publishing it.
-- No crash-injection, malicious-upload, real-song, hardware compatibility, or actual mix-peak test was executed in this documentation task.
-- Existing main source still has the observed engineering gaps until follow-up implementation PRs merge.
+- Entitlements allow the sandbox to listen but do not independently validate network binding, firewall reachability, authentication, or file streaming.
+- No packaged Release device test has yet been executed.
+- JSON persistence replacement recovery and ASR process timeout remain separate prioritized engineering tasks.
 
-最后更新：2026-10-28 13:39（Asia/Taipei）
+最后更新：2026-10-28 13:45（Asia/Taipei）
