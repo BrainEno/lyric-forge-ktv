@@ -1,53 +1,49 @@
 # Handoff
 
 ## 目标
-Build dependable open-source, local-first KTV software with safe persistence/recovery, high-quality local ASR, and reliable editing/playback workflows.
+Harden local ASR subprocess lifecycle so stalled or cancelled jobs cannot hold the transcription queue indefinitely, while preserving resumable artifacts and existing dual-engine quality behavior.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: 47f954bf7506c0d67fa83e4ad3f6f263118c8519
-- Branch: docs/fix-persistence-worklog-squash-subject-20261028
-- PR: [#210 — align work-log commit subject after squash merge](https://github.com/BrainEno/lyric-forge-ktv/pull/210) (documentation-only follow-up).
-- Scope: correct the active work-log commit subject to the actual squash-merge subject from PR #209, removing the repository quality-gate's non-blocking commit-subject warning.
+- Main baseline: 7e3a929ae3af279bb9182246db51a82d3964836a
+- Branch: fix/whisper-cli-process-timeouts-20261028
+- PR: [#211 — bound Whisper CLI process lifetimes](https://github.com/BrainEno/lyric-forge-ktv/pull/211).
+- Scope: shared process supervisor + Whisper CLI timeout/cancellation integration; no UI changes.
 - Local Dart/Flutter SDKs are unavailable in this environment; GitHub Actions is the validation gate.
 
 ## 已改文件
-- lib/core/persistence/atomic_json_file.dart
-- test/core/persistence/atomic_json_file_test.dart
-- test/file_project_repository_test.dart
-- lib/features/project/data/repositories/file_project_repository.dart
-- lib/features/transcription/data/services/file_batch_transcription_queue.dart
-- lib/features/player/data/repositories/file_local_media_library_repository.dart
-- lib/features/player/data/repositories/file_local_media_collection_repository.dart
-- lib/features/player/data/repositories/file_local_media_metadata_repository.dart
-- lib/features/player/data/repositories/file_play_history_repository.dart
-- lib/features/player/data/repositories/file_playback_session_store.dart
-- lib/features/transfer/data/services/file_media_hub_connection_store.dart
-- lib/features/transfer/data/services/file_media_hub_device_identity_store.dart
-- lib/features/transfer/data/services/file_media_transfer_queue_service.dart
+- lib/features/transcription/data/services/asr_process_supervisor.dart
+- lib/features/transcription/data/services/whisper_cpp_transcription_service.dart
+- test/features/transcription/asr_process_supervisor_test.dart
 - docs/engineering_risks_roadmap.md
-- docs/work_log_index.md
+- docs/log/entries/2026-10-28-1745-bound-whisper-cli-process-lifetimes.md
 - docs/work_log.md
 - docs/work_log_archive.md
-- docs/log/entries/2026-10-28-1640-recoverable-json-persistence.md
 - docs/handoff.md
 
 ## 本轮实现
-- Corrected the active entry and generated work-log summary to use the real squash-merge subject: `fix: preserve recoverable snapshots for JSON persistence (#209)`.
-- No application code or persistence behavior changes are included in this follow-up.
+- Introduced bounded subprocess execution, bounded stdout/stderr tails and stream draining, timeout diagnostics, graceful termination, and force-kill escalation.
+- Added operation-specific budgets: 10-second executable probe, source-size-aware 5–60-minute FFmpeg normalization, and normalized-WAV-duration-aware 5–120-minute whisper.cpp inference.
+- Routed Whisper cancellation through the same bounded termination escalation rather than issuing a single kill signal.
+- Deletes partial normalized WAV and Whisper JSON outputs on failure/timeout.
+- Explicitly leaves Qwen server/request, resumable FFprobe/FFmpeg, and high-quality shared normalization for a separate follow-up phase.
 
 ## 检查结果
-- Code has been pushed to the feature branch; final PR-head formatting, analyzer, and regression results must be checked in GitHub Actions.
-- Local Dart/Flutter checks were not run because the SDKs are unavailable in this environment.
-- The recovery protocol keeps one previous valid generation; it is not a database-grade transaction and does not claim tested power-loss durability across all filesystems.
+- Flutter Quality Gate passed: `01:13 +773: All tests passed!`; work-log lint 0 errors / 0 warnings.
+- ASR client checks passed.
+- Transcription settings validation passed.
+- Transcription execution failure validation passed.
+- The above results were on the application-code head before this documentation update; the docs-only commit will trigger the quality gate again.
+- Local Dart/Flutter commands were not run because the SDKs are unavailable in this environment.
 
 ## 下一步
-1. Verify the docs-only PR removes the work-log commit-subject warning in the quality gate.
-2. Continue with ASR CLI timeout/cancellation lifecycle hardening and Media Hub upload resource limits.
+1. Verify CI on the final PR head and correct any documentation-contract failures.
+2. Apply the same supervised timeout/cancellation mechanism to Qwen FFmpeg/request/server shutdown, resumable duration probing/chunk extraction, and high-quality shared normalization.
+3. Verify real-child timeout/cancellation behavior on Windows and macOS.
 
 ## 已知风险
-- If the canonical file and all sidecars are corrupted, manual recovery may still be required.
-- Validators check each store's top-level data shape; existing per-row decoding rules remain.
-- Cross-platform replacement/durability semantics must be verified before claiming filesystem-level atomicity.
+- Current integration covers the whisper.cpp adapter; other process paths can still wait without operation-specific deadlines.
+- The timeout budgets are heuristics and need real-song benchmarking on supported hardware.
+- The supervisor terminates the direct child; complete descendant/process-tree cleanup is not claimed across all supported operating systems.
 
-最后更新：2026-10-28 17:12（Asia/Taipei）
+最后更新：2026-10-28 17:45（Asia/Taipei）
