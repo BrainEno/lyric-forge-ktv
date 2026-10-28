@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-27 15:46] Track provenance for paired ASR evaluation ([entry](log/entries/2026-10-27-1546-track-asr-evaluation-provenance.md))
 - [2026-10-27 12:06] Report ASR insertions, omissions, and substitutions ([entry](log/entries/2026-10-27-1206-report-asr-edit-breakdown.md))
 - [2026-10-27 00:18] Preserve novel secondary ASR lines inside overlapping segments ([entry](log/entries/2026-10-27-0018-preserve-overlapping-asr-lines.md))
 - [2026-10-27 02:50] Add a paired transcript evaluator for ASR engines ([entry](log/entries/2026-10-27-0250-add-asr-transcript-evaluator.md))

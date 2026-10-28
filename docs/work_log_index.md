@@ -33,6 +33,8 @@
 
 ## Follow-up leads — re-check before acting
 
+- **Commercial-readiness blockers:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) now records the delete-before-rename data-loss window, unlicensed-source runtime distribution question, bounded Media Hub uploads, FFmpeg integrity, separation/MVP scope, app packaging/signing and real-song/mix quality gates.
+
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) distinguishes the confirmed macOS Release listener-entitlement gap from conditional risks around ASR process timeouts, JSON-store scale, audio-clock alignment, and Media Hub token/range validation.
 
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
