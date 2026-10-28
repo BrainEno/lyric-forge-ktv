@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import 'ffmpeg_runtime_release.dart';
+import 'runtime_sha256.dart';
+
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
@@ -563,6 +566,22 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     Directory root, {
     required String proxyOverride,
   }) async {
+    final ffmpegRoot = Directory(_join(root.path, ['ffmpeg']));
+    final staging = Directory(_join(root.path, ['ffmpeg-staging']));
+    final backup = Directory(_join(root.path, ['ffmpeg-backup']));
+
+    // Recover a previously interrupted swap before starting another install.
+    if (await backup.exists()) {
+      if (await ffmpegRoot.exists()) {
+        await backup.delete(recursive: true);
+      } else {
+        await backup.rename(ffmpegRoot.path);
+      }
+    }
+    if (await staging.exists()) {
+      await staging.delete(recursive: true);
+    }
+
     _emit(
       AsrRuntimeComponent.ffmpeg,
       0.25,
@@ -571,15 +590,22 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['ffmpeg.zip']));
-    final uri = Platform.isWindows
-        ? Uri.parse(
-            'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/'
-            'ffmpeg-master-latest-win64-lgpl.zip',
-          )
-        : Uri.parse('https://evermeet.cx/ffmpeg/getrelease/zip');
+    final platform = Platform.isWindows
+        ? 'windows'
+        : Platform.isMacOS
+            ? 'macos'
+            : Platform.isLinux
+                ? 'linux'
+                : 'unsupported';
+    final architecture =
+        Platform.isWindows ? 'x64' : await _runtimeArchitecture();
+    final release = FfmpegRuntimeRelease.forTarget(
+      platform: platform,
+      architecture: architecture,
+    );
 
     await _download(
-      uri,
+      release.downloadUri,
       archive,
       component: AsrRuntimeComponent.ffmpeg,
       startProgress: 0.25,
@@ -587,37 +613,92 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       proxyOverride: proxyOverride,
     );
 
-    final ffmpegRoot = Directory(_join(root.path, ['ffmpeg']));
-    if (await ffmpegRoot.exists()) {
-      await ffmpegRoot.delete(recursive: true);
-    }
-    await ffmpegRoot.create(recursive: true);
-
-    await _extractZip(archive.path, ffmpegRoot.path);
-    final ffmpeg = await _findFile(ffmpegRoot, _ffmpegName);
-    if (ffmpeg == null) {
-      throw const TranscriptionException('FFmpeg 安装包中没有找到可执行文件');
-    }
-
-    if (!Platform.isWindows) {
-      await _makeExecutable(ffmpeg.path);
+    if (!await _verifySha256(archive.path, release.sha256)) {
+      try {
+        if (await archive.exists()) await archive.delete();
+      } catch (_) {
+        // Preserve the integrity error as the primary diagnostic.
+      }
+      throw TranscriptionException(
+        'FFmpeg 安装包 SHA-256 校验失败，已拒绝安装。',
+        details: '目标版本：${release.version}\n期望摘要：${release.sha256}',
+      );
     }
 
-    await _verifyExecutable(
-      ffmpeg.path,
-      const ['-version'],
-      'FFmpeg',
+    await staging.create(recursive: true);
+    try {
+      await _extractZip(archive.path, staging.path);
+      final ffmpeg = await _findFile(staging, _ffmpegName);
+      if (ffmpeg == null) {
+        throw const TranscriptionException('FFmpeg 安装包中没有找到可执行文件');
+      }
+
+      final managedBin = Directory(_join(staging.path, ['bin']));
+      await managedBin.create(recursive: true);
+      final stagedExecutable = File(
+        _join(managedBin.path, [_ffmpegName]),
+      );
+      if (ffmpeg.path != stagedExecutable.path) {
+        await ffmpeg.copy(stagedExecutable.path);
+      }
+      if (!Platform.isWindows) {
+        await _makeExecutable(stagedExecutable.path);
+      }
+      await _verifyExecutable(
+        stagedExecutable.path,
+        const ['-version'],
+        'FFmpeg',
+      );
+
+      // Keep the old working installation until the candidate is verified.
+      if (await ffmpegRoot.exists()) {
+        await ffmpegRoot.rename(backup.path);
+      }
+      try {
+        await staging.rename(ffmpegRoot.path);
+      } catch (_) {
+        if (!await ffmpegRoot.exists() && await backup.exists()) {
+          await backup.rename(ffmpegRoot.path);
+        }
+        rethrow;
+      }
+
+      if (await backup.exists()) {
+        try {
+          await backup.delete(recursive: true);
+        } catch (_) {
+          // The valid new install is active; retry cleanup on the next run.
+        }
+      }
+      return _join(ffmpegRoot.path, ['bin', _ffmpegName]);
+    } finally {
+      if (await staging.exists()) {
+        try {
+          await staging.delete(recursive: true);
+        } catch (_) {
+          // A staging remnant is cleaned up on the next installation attempt.
+        }
+      }
+    }
+  }
+
+  Future<String> _runtimeArchitecture() async {
+    final executable = Platform.isMacOS ? '/usr/bin/uname' : 'uname';
+    final result = await Process.run(executable, const ['-m']);
+    if (result.exitCode != 0) {
+      throw TranscriptionException(
+        '无法检测 FFmpeg 运行时架构',
+        details: result.stderr.toString(),
+      );
+    }
+
+    final machine = result.stdout.toString().trim().toLowerCase();
+    if (machine == 'x86_64' || machine == 'amd64') return 'x64';
+    if (machine == 'arm64' || machine == 'aarch64') return 'arm64';
+    throw TranscriptionException(
+      '当前设备架构没有受支持的 FFmpeg 运行时',
+      details: machine,
     );
-
-    final managedBin = Directory(_join(ffmpegRoot.path, ['bin']));
-    await managedBin.create(recursive: true);
-    final target = File(_join(managedBin.path, [_ffmpegName]));
-    if (ffmpeg.path != target.path) {
-      await ffmpeg.copy(target.path);
-      if (!Platform.isWindows) await _makeExecutable(target.path);
-    }
-
-    return target.path;
   }
 
   Future<void> _installWhisperModel(
@@ -999,27 +1080,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     String path,
     String expected,
   ) async {
-    try {
-      if (Platform.isWindows) {
-        final result = await Process.run(
-          'certutil',
-          ['-hashfile', path, 'SHA256'],
-        );
-        if (result.exitCode != 0) return false;
-        final text = result.stdout.toString().toLowerCase();
-        return text.contains(expected.toLowerCase());
-      }
-
-      final result = await Process.run(
-        '/usr/bin/shasum',
-        ['-a', '256', path],
-      );
-      if (result.exitCode != 0) return false;
-      final actual = result.stdout.toString().trim().split(' ').first;
-      return actual.toLowerCase() == expected.toLowerCase();
-    } catch (_) {
-      return false;
-    }
+    return verifyFileSha256(File(path), expected);
   }
 
   Future<bool> _validWhisperModel(String path) async {

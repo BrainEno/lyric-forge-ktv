@@ -1,45 +1,41 @@
 # Handoff
 
 ## 目标
-Continue hardening the local ASR lifecycle while keeping cancellation typed, partial artifacts clean, and completed chunk checkpoints resumable.
+Continue the audit-driven issue queue in risk order, one issue per branch/PR. Current active item is #217: make managed FFmpeg installs reproducible and fail closed on integrity mismatch.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: `981db7324b1a975ac827e170fb8dc5418151ca3f`
-- Active PR: [#214 — supervise resumable audio chunk processes](https://github.com/BrainEno/lyric-forge-ktv/pull/214)
-- Branch: `fix/supervise-resumable-chunk-processes-20261028`
+- Main baseline: `e975aa4349317e82accdd8253fbf7d76cb42fcd1`
+- Branch: `fix/pin-verify-ffmpeg-20261028`
+- PR compare view: https://github.com/BrainEno/lyric-forge-ktv/compare/main...fix/pin-verify-ffmpeg-20261028
 - Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
 
 ## 已改文件
-- `lib/features/transcription/data/services/resumable_chunked_transcription_service.dart`
-- `test/resumable_chunked_transcription_service_test.dart`
-- `test/features/transcription/transcription_execution_failure_kind_test.dart`
+- `lib/features/transcription/data/services/managed_asr_runtime_manager.dart`
+- `lib/features/transcription/data/services/ffmpeg_runtime_release.dart`
+- `lib/features/transcription/data/services/runtime_sha256.dart`
+- `test/runtime_integrity_install_contract_test.dart`
+- `test/ffmpeg_runtime_release_test.dart`
+- `test/runtime_sha256_test.dart`
 - `docs/engineering_risks_roadmap.md`
-- `docs/log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md`
+- `docs/log/entries/2026-10-28-2215-pin-and-verify-managed-ffmpeg.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
+- `docs/work_log_index.md`
 - `docs/handoff.md`
 
-## 本轮实现
-- Replace the unbounded FFmpeg duration probe with a supervised process and a 45-second deadline; use `-t 0` to avoid decoding the full source merely to obtain its duration.
-- Route chunk extraction through `AsrProcessSupervisor` with a source-size-aware 5–60-minute budget, bounded output tails, and bounded termination escalation.
-- Map cancelled operations to the existing typed cancelled failure; classify timeouts/process-launch problems as environment failures and invalid media/extraction output as input failures.
-- Remove incomplete chunk WAVs on timeout/cancellation/failure, without deleting completed chunk JSON checkpoints or discarding the manifest's completed IDs.
-- Add fake-process regression tests for probe timeout, cancellation escalation, and checkpoint preservation after an unsuccessful chunk extraction.
-
 ## 检查结果
-- Code/test head `4abb4411f443072c38753b765c4fd14a5f451227` passed all four PR workflows: Flutter Quality Gate (780 tests, work-log lint 0 errors/0 warnings), ASR client checks, transcription settings validation, and transcription execution failure validation. The documentation-refresh commit triggers new checks; verify the latest PR head before merging.
+- Release asset URLs, names, and SHA-256 values were checked against the upstream GitHub release API.
 - Local Dart/Flutter commands were not run because SDKs are unavailable in this environment.
-- Existing platform/process-tree limitation remains: the supervisor bounds direct-child termination, but descendant cleanup is not claimed across all supported OSes.
+- GitHub Actions on the resulting PR head is the required validation gate; do not merge until it passes.
 
 ## 下一步
-1. Review PR #214 final-head formatting, analyzer, focused test and full Flutter Quality Gate.
-2. Apply equivalent lifecycle bounds to high-quality shared audio preparation and verify partial-output cleanup.
-3. Add real-child smoke tests on Windows and macOS for direct-child/process-tree behavior.
+1. Check the final #217 PR head and repair any test, format, analyzer or work-log gate failures.
+2. After #217 passes, address #218 (Media Hub cleartext HTTP/security scope) in its own PR.
+3. Continue through remaining open issues in descending security/data-integrity priority; do not batch unrelated fixes.
 
 ## 已知风险
-- Timeout budgets are heuristics and need real-song benchmarking on supported hardware.
-- `-t 0` duration probing should be verified against the FFmpeg builds supported by Windows/macOS package paths; local SDK/runtime testing is unavailable here.
-- `AsrProcessSupervisor` guarantees bounded direct-child termination only; descendant cleanup remains platform-dependent and unverified.
+- The archive pins are reproducible, but they do not replace end-to-end execution on each supported OS/architecture.
+- Real download/proxy behavior and directory-swap rollback still require platform verification.
 
-最后更新：2026-10-28 19:45（Asia/Taipei）
+最后更新：2026-10-28 22:15（Asia/Taipei）

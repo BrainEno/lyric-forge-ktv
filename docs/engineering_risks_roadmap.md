@@ -183,9 +183,9 @@ Evidence: [Media Hub listener/upload/auth code at the fixed commit](https://gith
 
 ### P1 — Pin and verify the FFmpeg artifacts the application installs
 
-**Status: confirmed reproducibility/integrity gap in the managed FFmpeg install path.**
+**Status: implementation added for issue #217; verify the final PR head in CI before closing the finding.**
 
-The reviewed code downloads Windows FFmpeg from a floating releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip URL and macOS FFmpeg from a getrelease/zip endpoint. It extracts the archive and runs ffmpeg -version, but does not compare the archive against a trusted, release-pinned SHA-256 before extraction. That confirms the executable runs; it does not confirm that the downloaded bytes match the intended release. The separate FFmpeg path is weaker than the repository's more explicit model/runtime integrity handling.
+The managed installer now uses fixed release-asset URLs and hard-coded SHA-256 values for Windows x64 (BtbN's versioned LGPL build) and macOS/Linux x64/arm64 (FFmpeg 9.0.2 release assets). The archive must match the pinned digest before extraction. The candidate executable is staged and must pass `-version` before directory activation; an invalid digest is deleted, and a failed directory swap restores the previous installation. The digest helper uses the project's existing `crypto` dependency rather than shell-specific hashing tools.
 
 **Required action**
 

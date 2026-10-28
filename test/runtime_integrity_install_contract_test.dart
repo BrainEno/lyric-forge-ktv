@@ -59,4 +59,33 @@ void main() {
     },
   );
 
+
+  test(
+    'managed FFmpeg assets are pinned and verified before staging or activation',
+    () async {
+      final source = await File(
+        'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
+      ).readAsString();
+
+      expect(source, contains('FfmpegRuntimeRelease.forTarget'));
+      expect(source, contains('_verifySha256(archive.path, release.sha256)'));
+      expect(source, contains('await archive.delete();'));
+      expect(source, contains("['ffmpeg-staging']"));
+      expect(source, contains("['ffmpeg-backup']"));
+
+      final verifyIndex = source.indexOf(
+        '_verifySha256(archive.path, release.sha256)',
+      );
+      final extractionIndex = source.indexOf(
+        'await _extractZip(archive.path, staging.path)',
+      );
+      final activationIndex = source.indexOf(
+        'await staging.rename(ffmpegRoot.path)',
+      );
+      expect(verifyIndex, greaterThanOrEqualTo(0));
+      expect(extractionIndex, greaterThan(verifyIndex));
+      expect(activationIndex, greaterThan(extractionIndex));
+    },
+  );
+
 }
