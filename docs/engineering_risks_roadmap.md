@@ -1,6 +1,8 @@
-# Engineering Review Findings and Deferred-Risk Roadmap
+# Engineering Review Findings and Product-Quality Roadmap
 
-> Review date: 2026-10-28. Scope: verify findings against the current `main` source, not accept model-generated review summaries at face value.
+> Review date: 2026-10-28. Scope: verify findings against a fixed source snapshot rather than accepting model-generated review summaries at face value.
+>
+> Product direction: this is open-source, local-first KTV software. “Commercial-grade” means dependable core workflows, audio quality, recovery, security, installation and maintainability; it does **not** imply a monetization plan or a commercial-release deadline. Prioritize product correctness and user value. Keep third-party provenance and required notices scoped to artifacts that are actually redistributed; do not turn hypothetical legal review or commercial-use approval into a blocker for local experiments or unrelated engineering work.
 >
 > This document records evidence-backed risks and follow-up acceptance criteria. “Confirmed gap” means the source configuration is demonstrably incomplete; “conditional risk” means the design has a real limit whose user impact still needs measurement. It does not assert unmeasured performance or audio-quality failures.
 
@@ -112,20 +114,20 @@ The current service implements authorized requests, session-scoped tokens, full 
 
 > Source baseline for implementation claims: [e8ea44ee4baa3da1709c9f5a665d0c01926e9e99](https://github.com/BrainEno/lyric-forge-ktv/tree/e8ea44ee4baa3da1709c9f5a665d0c01926e9e99). The prior roadmap commit changes documentation only; the source findings below refer to that fixed code snapshot. Static findings are not claims of device reproduction.
 
-### P0 — Resolve the Qwen Rust runtime redistribution licence before shipping that runtime
+### P2 — Keep bundled-runtime provenance and notices lightweight and scoped
 
-**Status: confirmed provenance gap; legal conclusion not made.**
+**Status: confirmed provenance gap for one pinned source; this is a packaging-scope task, not a product-development blocker.**
 
-The pinned runtime source is lumosimmo/qwen3-asr-rs at commit 7984967e8701cc90bb17d06453901036e36ca578. The tree at that exact commit contains no LICENSE, COPYING, or NOTICE path. The managed-runtime build workflow downloads and patches that source, builds executable binaries, and attempts to copy LICENSE files while explicitly ignoring copy failure (|| true). The Qwen model weights' licence does not automatically grant rights to redistribute the separate Rust runtime source or its patched binary.
+The pinned `lumosimmo/qwen3-asr-rs` source at commit `7984967e8701cc90bb17d06453901036e36ca578` contains no LICENSE, COPYING, or NOTICE path. The managed-runtime workflow builds a patched executable and attempts to copy licence files while suppressing copy failure. This deserves a bounded check before publishing that particular runtime as a downloadable, bundled artifact, regardless of whether the app earns money. It does not justify stopping local evaluation, ASR feature development, or unrelated product-quality work.
 
-**Required action**
+**Practical follow-up**
 
-1. Obtain a clear licence or written permission covering the exact upstream revision, the local patches, binary redistribution, and commercial use; record the response and permitted scope.
-2. Until that is resolved, do not publish the affected Qwen runtime binary as a downloadable release asset. Keep the already available Whisper path where supported, or prepare a separately licensed replacement/runtime route.
-3. Make the build fail closed when a required third-party licence file/manifest is absent. A manually copied notice is not a substitute for permission from the code owner.
-4. Generate a per-release dependency/asset manifest containing exact source revision, patch IDs, binary hashes, model revision, licence text, and redistribution notes.
+1. Keep the exact source revision, patches, model/runtime revisions and binary hashes recorded so the bundle is reproducible.
+2. When deciding to redistribute this specific runtime, identify the applicable upstream terms and include notices/attribution that those terms require. If the terms cannot be established, use a runtime with clear redistribution terms or keep this bundle out of that particular packaged release; continue development and local testing in parallel.
+3. Remove the workflow's silent assumption that a missing notice file is equivalent to a verified notice. Make the build output clearly report whether the expected provenance/notice files were found.
+4. Do not require a generic legal consultation or separate “commercial-use” approval merely because the target is commercial-grade software. Revisit this item when the runtime is actually selected for redistribution, not as a gate for unrelated milestones.
 
-**Acceptance:** the release pipeline verifies the runtime's licence/provenance record and refuses to publish a Qwen runtime with unresolved redistribution rights. Have the licence decision reviewed by a qualified professional if commercial distribution is planned; this document is not legal advice.
+**Acceptance:** anyone building or distributing a runtime bundle can identify its source revision and required notices; missing provenance is visible instead of silently ignored. This item is deliberately scoped to the affected bundled artifact and does not block the rest of the roadmap.
 
 Evidence: [runtime build workflow at the fixed commit](https://github.com/BrainEno/lyric-forge-ktv/blob/e8ea44ee4baa3da1709c9f5a665d0c01926e9e99/.github/workflows/build-asr-runtime.yml) · [pinned upstream source tree](https://github.com/lumosimmo/qwen3-asr-rs/tree/7984967e8701cc90bb17d06453901036e36ca578).
 
@@ -204,14 +206,14 @@ The PRD calls desktop vocal/accompaniment separation mandatory and describes the
 
 1. Decide whether vocal/accompaniment separation remains a release-blocking MVP requirement or whether the first distributable product explicitly supports user-supplied stems/伴奏 only.
 2. If the PRD remains unchanged, treat separation as a required product milestone: choose a backend only after validating model/weight licence, actual audio quality, memory/VRAM requirements, cancellation, progress, resumability, outputs and cache identity.
-3. Do not integrate Demucs solely because the code licence is MIT: the upstream repository is archived, and code licensing must not be assumed to settle model-weight/data licensing. Do not assume another model's licence without checking its exact weights and distribution terms.
+3. Evaluate Demucs or alternatives on actual separation quality, hardware/memory use, cancellation, progress, and output integrity. The upstream repository is archived, so do not assume it is the best technical fit. Check model/weight redistribution terms when selecting an artifact for bundling; that check should not prevent local prototypes or quality comparisons.
 4. Keep mobile separation out of scope unless product requirements change; the desktop pipeline should produce and persist stems that can be previewed and reused.
 
 **Acceptance:** the app never reports separation complete before usable stems exist; outputs are linked to the correct source/project and can be regenerated safely. Product copy, README and PRD agree on whether separation is included.
 
 Evidence: [PRD at the fixed commit](https://github.com/BrainEno/lyric-forge-ktv/blob/e8ea44ee4baa3da1709c9f5a665d0c01926e9e99/docs/prd.md) · [audio asset model](https://github.com/BrainEno/lyric-forge-ktv/blob/e8ea44ee4baa3da1709c9f5a665d0c01926e9e99/lib/features/project/domain/models/audio_asset.dart) · [upstream Demucs repository (archived)](https://github.com/facebookresearch/demucs).
 
-### P1 — Complete actual application packaging and signing, not just runtime publishing
+### P1 — Deliver installable application artifacts with stable upgrade behavior
 
 **Status: confirmed distribution gap in the reviewed snapshot.**
 
@@ -222,7 +224,7 @@ The repository's GitHub Releases contain ASR runtime ZIPs, not a user-facing Win
 1. Add a reproducible packaging workflow for the platforms actually supported and smoke-tested: start with Windows portable ZIP and Android APK; add macOS package only after Release entitlements and a packaged app pass the Media Hub/permissions tests. Keep unsigned/ad-hoc macOS constraints explicit if paid notarisation is outside budget.
 2. Configure an independent Android release key, kept outside the repository and provided via local/CI secrets. Fail the release build if production signing is requested but the key is absent; never fall back silently to the debug key.
 3. Decide the stable Android application ID before distributing a public build; verify installation and upgrade with the same signing identity and user-data preservation.
-4. Attach checksums, runtime compatibility metadata, licences/notices and platform/resource requirements to each release. Publish application artifacts separately from native ASR runtime bundles.
+4. Attach checksums, runtime compatibility metadata, required third-party notices, and platform/resource requirements to each release. Publish application artifacts separately from native ASR runtime bundles.
 
 **Acceptance:** a clean release workflow produces a downloadable app artifact for each claimed platform, verifies signatures/checksums, and documents install/upgrade limitations. Do not advertise a platform on the basis of a runtime ZIP or a local developer script alone.
 
@@ -284,17 +286,18 @@ Evidence: [build runtime workflow](https://github.com/BrainEno/lyric-forge-ktv/b
 ### Review claims deliberately not accepted as written
 
 - **SoLoud licence:** the report's “GPL” claim is not supported by the package/source checked. flutter_soloud 4.1.7 publishes an MIT licence; the underlying SoLoud engine documents ZLib/LibPNG licensing. Keep these separate in the SBOM and validate the exact distributed dependency tree instead of registering a false GPL blocker. [flutter_soloud 4.1.7 licence](https://pub.dev/packages/flutter_soloud/license) · [SoLoud legal information](https://solhsa.com/soloud/legal.html).
-- **Demucs integration:** do not treat “code is MIT” as sufficient clearance for packaged weights; the upstream repository is archived. Weight/source and redistribution terms need their own review before it becomes a bundled product dependency. [official Demucs repository](https://github.com/facebookresearch/demucs).
+- **Demucs integration:** the archived upstream repository is a maintenance and technical-fit consideration. Evaluate real separation quality and runtime cost first; review artifact redistribution terms when a specific model/weight bundle is chosen, rather than making speculative license analysis a blocker for local prototyping. [official Demucs repository](https://github.com/facebookresearch/demucs).
 - **No tests / no reliability controls:** too broad. The project already has extensive tests for recovery, locks, WAV storage, transcription, runtime readiness and Media Hub paths. The actionable gaps are specific coverage for UI workflows, failure windows, upload resource limits, real-song quality, and actual audio output—not a wholesale dismissal of existing tests.
 - **CI workflow count:** workflow count alone does not prove that CI is unmaintainable. Measure run time and duplicated work before consolidation.
 - **Telemetry:** absence of default telemetry is not automatically a defect for a local-first music tool; any future operational diagnostics must be optional and privacy-preserving.
 
 ## Updated implementation order after the second review
 
-1. Resolve Qwen runtime redistribution rights and stop publishing that runtime if rights remain unresolved.
-2. Fix the delete-before-rename persistence window across the identified stores; add crash/failure recovery tests. Also close the existing macOS Release incoming-network entitlement gap before claiming Release Media Hub support.
+1. Close the confirmed delete-before-rename persistence window and add failure/recovery tests; also assert the macOS Release incoming-network entitlement before claiming packaged Media Hub support.
+2. Add ASR process timeout/cancellation lifecycle tests so a stuck child process cannot block an unattended job forever.
 3. Harden Media Hub upload byte/time/concurrency limits and same-name file allocation; document LAN/Tailscale security boundaries and token lifetime.
 4. Pin and hash managed FFmpeg artifacts; ensure failed upgrades preserve the old working binary.
-5. Decide and implement the separation requirement against the PRD; complete app artifact packaging and stable Android signing for the platforms actually supported.
-6. Build the private legal audio corpus, baseline the existing evaluation tools, and add measured peak/clipping tests for mixed output.
-7. Expand runtime target coverage based on supported hardware, then incrementally add core-screen tests, improve README, and maintain the dependency pin/fork ledger.
+5. Implement the PRD's desktop vocal/accompaniment separation requirement (or explicitly amend the product scope) and build/install/test actual application packages with stable app identity and safe upgrade behavior.
+6. Establish a provenance-matched real-song baseline and rendered-mix peak/clipping tests.
+7. Track runtime source revisions, binary hashes and required third-party notices for the specific artifacts that will actually be bundled. Keep this as a scoped packaging task; it must not block local evaluation, feature work, or unrelated reliability fixes.
+8. Expand runtime targets based on real hardware validation, then incrementally add core-screen tests, improve README, and maintain the dependency pin/fork ledger.
