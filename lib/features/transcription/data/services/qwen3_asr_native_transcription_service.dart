@@ -211,12 +211,20 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         endpoint: Uri.parse('http://127.0.0.1:$port/v1/align'),
       );
       try {
-        return await client.align(
-          audioPath: normalizedPath,
-          text: text,
-          language: language,
-          audioDuration: audioDuration,
-        );
+        _throwIfCancelled();
+        try {
+          final spans = await client.align(
+            audioPath: normalizedPath,
+            text: text,
+            language: language,
+            audioDuration: audioDuration,
+          );
+          _throwIfCancelled();
+          return spans;
+        } catch (_) {
+          _throwIfCancelled();
+          rethrow;
+        }
       } finally {
         client.close(force: true);
       }
