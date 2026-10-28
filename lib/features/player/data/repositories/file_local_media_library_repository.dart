@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/models/embedded_audio_metadata.dart';
@@ -9,6 +11,8 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/services/embedded_audio_metadata_reader.dart';
 
 class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['entries'] is List && (decoded['roots'] == null || decoded['roots'] is List);
+
   static const _defaultAudioExtensions = <String>{
     'mp3',
     'flac',
@@ -68,6 +72,11 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException('The local media library is invalid and no recoverable copy is available. ${file.path}');
+    }
     if (!await file.exists()) return;
 
     try {
@@ -127,10 +136,11 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;

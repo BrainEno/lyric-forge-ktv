@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
@@ -16,6 +18,8 @@ import '../../domain/repositories/project_repository.dart';
 /// rewrites it through a temporary file after every mutation. This keeps the
 /// existing repository contract while making projects survive app restarts.
 class FileProjectRepository implements ProjectRepository {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['projects'] is List;
+
   final Directory? rootDirectory;
   final LocalMediaMetadataRepository? _mediaMetadataRepository;
   final PlaybackSessionService? _playbackSession;
@@ -53,6 +57,11 @@ class FileProjectRepository implements ProjectRepository {
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException('The local project store is invalid and no recoverable copy is available. ${file.path}');
+    }
     if (!await file.exists()) return;
 
     try {
@@ -92,10 +101,11 @@ class FileProjectRepository implements ProjectRepository {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;

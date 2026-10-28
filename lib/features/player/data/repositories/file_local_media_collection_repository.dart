@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/models/local_playlist.dart';
@@ -9,6 +11,8 @@ import '../../domain/repositories/local_media_collection_repository.dart';
 
 class FileLocalMediaCollectionRepository
     implements LocalMediaCollectionRepository {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['favorites'] is List && decoded['playlists'] is List;
+
   final Directory? rootDirectory;
 
   final List<String> _favoritePaths = <String>[];
@@ -55,6 +59,11 @@ class FileLocalMediaCollectionRepository
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException('The local media collections are invalid and no recoverable copy is available. ${file.path}');
+    }
     if (!await file.exists()) return;
 
     try {
@@ -134,10 +143,11 @@ class FileLocalMediaCollectionRepository
         // A failed earlier write must not poison all future writes.
       }
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;
