@@ -25,6 +25,7 @@ class ForcedAlignmentHttpClient {
   final Uri endpoint;
   final HttpClient _httpClient;
   final Duration requestTimeout;
+  HttpClientRequest? _activeRequest;
 
   ForcedAlignmentHttpClient({
     required this.endpoint,
@@ -32,7 +33,11 @@ class ForcedAlignmentHttpClient {
     this.requestTimeout = const Duration(minutes: 5),
   }) : _httpClient = httpClient ?? HttpClient() {
     if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
-      throw ArgumentError.value(endpoint, 'endpoint', 'Must be an HTTP(S) URI.');
+      throw ArgumentError.value(
+        endpoint,
+        'endpoint',
+        'Must be an HTTP(S) URI.',
+      );
     }
     if (endpoint.host.isEmpty) {
       throw ArgumentError.value(endpoint, 'endpoint', 'Must include a host.');
@@ -44,6 +49,7 @@ class ForcedAlignmentHttpClient {
         'Must be positive.',
       );
     }
+    _httpClient.connectionTimeout = requestTimeout;
   }
 
   /// Aligns [text] against [audioPath], validating all returned spans.
@@ -75,77 +81,117 @@ class ForcedAlignmentHttpClient {
       );
     }
 
-    final request = await _httpClient.postUrl(endpoint).timeout(requestTimeout);
-    request.headers.contentType = ContentType.json;
-    request.write(jsonEncode({
-      'audio': audioPath,
-      'text': text,
-      'language': language,
-    }));
-
-    final response = await request.close().timeout(requestTimeout);
-    final body = await utf8.decoder.bind(response).join().timeout(requestTimeout);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ForcedAlignmentException(
-        'Forced-alignment endpoint returned HTTP ${response.statusCode}.',
-      );
-    }
-
-    dynamic decoded;
+    final stopwatch = Stopwatch()..start();
+    HttpClientRequest? request;
     try {
-      decoded = jsonDecode(body);
-    } on FormatException {
-      throw const ForcedAlignmentException(
-        'Forced-alignment endpoint returned invalid JSON.',
+      request = await _httpClient
+          .postUrl(endpoint)
+          .timeout(_remainingTimeout(stopwatch));
+      _activeRequest = request;
+      request.headers.contentType = ContentType.json;
+      request.write(
+        jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
+      );
+
+      final response = await request.close().timeout(
+        _remainingTimeout(stopwatch),
+      );
+      final body = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(_remainingTimeout(stopwatch));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ForcedAlignmentException(
+          'Forced-alignment endpoint returned HTTP ${response.statusCode}.',
+        );
+      }
+
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(body);
+      } on FormatException {
+        throw const ForcedAlignmentException(
+          'Forced-alignment endpoint returned invalid JSON.',
+        );
+      }
+
+      final items = _extractItems(decoded);
+      if (items.isEmpty) {
+        throw const ForcedAlignmentException(
+          'Forced-alignment endpoint returned no aligned spans.',
+        );
+      }
+
+      final spans = <ForcedAlignedSpan>[];
+      var previousStart = Duration.zero;
+      for (var index = 0; index < items.length; index++) {
+        final item = items[index];
+        if (item is! Map<String, dynamic>) {
+          throw ForcedAlignmentException(
+            'Aligned span $index is not an object.',
+          );
+        }
+        final spanText = item['text'];
+        final startSeconds = _seconds(item['start_time'] ?? item['start']);
+        final endSeconds = _seconds(item['end_time'] ?? item['end']);
+        if (spanText is! String || spanText.trim().isEmpty) {
+          throw ForcedAlignmentException('Aligned span $index has empty text.');
+        }
+        if (startSeconds == null || endSeconds == null) {
+          throw ForcedAlignmentException(
+            'Aligned span $index has invalid timestamps.',
+          );
+        }
+        if (startSeconds < 0 || endSeconds <= startSeconds) {
+          throw ForcedAlignmentException(
+            'Aligned span $index has a negative or empty interval.',
+          );
+        }
+        final start = Duration(microseconds: (startSeconds * 1000000).round());
+        final end = Duration(microseconds: (endSeconds * 1000000).round());
+        if (start < previousStart) {
+          throw ForcedAlignmentException(
+            'Aligned spans are not ordered by start time at index $index.',
+          );
+        }
+        if (end > audioDuration) {
+          throw ForcedAlignmentException(
+            'Aligned span $index exceeds the audio duration.',
+          );
+        }
+        spans.add(ForcedAlignedSpan(text: spanText, start: start, end: end));
+        previousStart = start;
+      }
+      return List.unmodifiable(spans);
+    } on TimeoutException catch (error) {
+      final activeRequest = _activeRequest;
+      if (activeRequest != null) {
+        activeRequest.abort(error, StackTrace.current);
+      }
+      _httpClient.close(force: true);
+      throw ForcedAlignmentException(
+        'Forced-alignment request timed out after '
+        '${requestTimeout.inSeconds} seconds.',
+      );
+    } on IOException catch (error) {
+      request?.abort(error, StackTrace.current);
+      throw ForcedAlignmentException(
+        'Forced-alignment HTTP request was interrupted: $error',
+      );
+    } finally {
+      if (identical(_activeRequest, request)) _activeRequest = null;
+    }
+  }
+
+  Duration _remainingTimeout(Stopwatch stopwatch) {
+    final remaining = requestTimeout - stopwatch.elapsed;
+    if (remaining <= Duration.zero) {
+      throw TimeoutException(
+        'Forced-alignment request exceeded its overall deadline.',
+        requestTimeout,
       );
     }
-
-    final items = _extractItems(decoded);
-    if (items.isEmpty) {
-      throw const ForcedAlignmentException(
-        'Forced-alignment endpoint returned no aligned spans.',
-      );
-    }
-
-    final spans = <ForcedAlignedSpan>[];
-    var previousStart = Duration.zero;
-    for (var index = 0; index < items.length; index++) {
-      final item = items[index];
-      if (item is! Map<String, dynamic>) {
-        throw ForcedAlignmentException('Aligned span $index is not an object.');
-      }
-      final spanText = item['text'];
-      final startSeconds = _seconds(item['start_time'] ?? item['start']);
-      final endSeconds = _seconds(item['end_time'] ?? item['end']);
-      if (spanText is! String || spanText.trim().isEmpty) {
-        throw ForcedAlignmentException('Aligned span $index has empty text.');
-      }
-      if (startSeconds == null || endSeconds == null) {
-        throw ForcedAlignmentException(
-          'Aligned span $index has invalid timestamps.',
-        );
-      }
-      if (startSeconds < 0 || endSeconds <= startSeconds) {
-        throw ForcedAlignmentException(
-          'Aligned span $index has a negative or empty interval.',
-        );
-      }
-      final start = Duration(microseconds: (startSeconds * 1000000).round());
-      final end = Duration(microseconds: (endSeconds * 1000000).round());
-      if (start < previousStart) {
-        throw ForcedAlignmentException(
-          'Aligned spans are not ordered by start time at index $index.',
-        );
-      }
-      if (end > audioDuration) {
-        throw ForcedAlignmentException(
-          'Aligned span $index exceeds the audio duration.',
-        );
-      }
-      spans.add(ForcedAlignedSpan(text: spanText, start: start, end: end));
-      previousStart = start;
-    }
-    return List.unmodifiable(spans);
+    return remaining;
   }
 
   List<dynamic> _extractItems(dynamic decoded) {
@@ -176,6 +222,11 @@ class ForcedAlignmentHttpClient {
   }
 
   void close({bool force = false}) {
+    if (force) {
+      final request = _activeRequest;
+      _activeRequest = null;
+      request?.abort();
+    }
     _httpClient.close(force: force);
   }
 }

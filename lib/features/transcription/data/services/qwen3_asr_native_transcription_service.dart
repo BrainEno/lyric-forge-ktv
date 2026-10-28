@@ -23,6 +23,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   StreamSubscription<String>? _stdoutSubscription;
   StreamSubscription<String>? _stderrSubscription;
   HttpClientRequest? _activeRequest;
+  ForcedAlignmentHttpClient? _activeAlignmentClient;
   Process? _activeToolProcess;
   Timer? _idleShutdownTimer;
 
@@ -210,6 +211,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final client = ForcedAlignmentHttpClient(
         endpoint: Uri.parse('http://127.0.0.1:$port/v1/align'),
       );
+      _activeAlignmentClient = client;
       try {
         _throwIfCancelled();
         try {
@@ -227,6 +229,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         }
       } finally {
         client.close(force: true);
+        if (identical(_activeAlignmentClient, client)) {
+          _activeAlignmentClient = null;
+        }
       }
     } on _QwenCancelledException {
       throw const TranscriptionException.cancelled('歌词对齐已取消');
@@ -1008,6 +1013,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _cancelRequested = true;
     _idleShutdownTimer?.cancel();
     _idleShutdownTimer = null;
+    _activeAlignmentClient?.close(force: true);
     _activeRequest?.abort();
     final process = _activeToolProcess;
     if (process != null) {
@@ -1040,6 +1046,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   @override
   Future<void> dispose() async {
     _cancelRequested = true;
+    _activeAlignmentClient?.close(force: true);
     _activeRequest?.abort();
     final process = _activeToolProcess;
     if (process != null) {
