@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-27 12:06] Report ASR insertions, omissions, and substitutions ([entry](log/entries/2026-10-27-1206-report-asr-edit-breakdown.md))
 - [2026-10-27 00:18] Preserve novel secondary ASR lines inside overlapping segments ([entry](log/entries/2026-10-27-0018-preserve-overlapping-asr-lines.md))
 - [2026-10-27 02:50] Add a paired transcript evaluator for ASR engines ([entry](log/entries/2026-10-27-0250-add-asr-transcript-evaluator.md))
 - [2026-10-26 22:50] Sync V2 audition fix with current mainline ([entry](log/entries/2026-10-26-2250-sync-v2-audition-main.md))
