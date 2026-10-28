@@ -1,7 +1,0 @@
-# [2026-10-26 14:00] Wire ForcedAligner into the visible proofreading flow
-
-- Scope: Add an opt-in ForcedAligner control to the ASR-first proofreading dialog, reuse the managed Qwen native runtime, normalize audio through FFmpeg, and surface coverage/runtime warnings in the review explanation.
-- Files: lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart, lib/features/transcription/data/services/forced_alignment_proofread_service.dart, lib/core/services/service_locator.dart, lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart, lib/features/lyrics/presentation/screens/lyric_editor_screen.dart, test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart, test/features/transcription/forced_alignment_proofread_service_test.dart, docs/high_quality_asr.md, docs/handoff.md, docs/work_log.md, docs/work_log_archive.md, docs/work_log_index.md, this entry.
-- Validation: Added widget coverage for the opt-in control and service coverage for the managed-runner path and fallback. Remote Flutter Quality Gate is required; no local Dart/Flutter SDK is available in this execution environment.
-- Notes: Alignment remains opt-in and review-only. The Qwen runtime is checked before use, input audio is normalized to 16 kHz mono WAV in a temporary directory, and temporary files are cleaned up. No source lyric text or line timestamps are automatically changed. Real-song accuracy remains unverified.
-- Commit: `feat: show per-line forced alignment evidence`

@@ -33,7 +33,11 @@ class ForcedAlignmentHttpClient {
     this.requestTimeout = const Duration(minutes: 5),
   }) : _httpClient = httpClient ?? HttpClient() {
     if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
-      throw ArgumentError.value(endpoint, 'endpoint', 'Must be an HTTP(S) URI.');
+      throw ArgumentError.value(
+        endpoint,
+        'endpoint',
+        'Must be an HTTP(S) URI.',
+      );
     }
     if (endpoint.host.isEmpty) {
       throw ArgumentError.value(endpoint, 'endpoint', 'Must include a host.');
@@ -85,15 +89,13 @@ class ForcedAlignmentHttpClient {
           .timeout(_remainingTimeout(stopwatch));
       _activeRequest = request;
       request.headers.contentType = ContentType.json;
-      request.write(jsonEncode({
-        'audio': audioPath,
-        'text': text,
-        'language': language,
-      }));
+      request.write(
+        jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
+      );
 
-      final response = await request
-          .close()
-          .timeout(_remainingTimeout(stopwatch));
+      final response = await request.close().timeout(
+        _remainingTimeout(stopwatch),
+      );
       final body = await utf8.decoder
           .bind(response)
           .join()
@@ -145,9 +147,7 @@ class ForcedAlignmentHttpClient {
             'Aligned span $index has a negative or empty interval.',
           );
         }
-        final start = Duration(
-          microseconds: (startSeconds * 1000000).round(),
-        );
+        final start = Duration(microseconds: (startSeconds * 1000000).round());
         final end = Duration(microseconds: (endSeconds * 1000000).round());
         if (start < previousStart) {
           throw ForcedAlignmentException(
