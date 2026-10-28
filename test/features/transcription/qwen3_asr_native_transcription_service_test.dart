@@ -22,15 +22,21 @@ void main() {
       }
     });
 
+    Future<File> touch(String name) async {
+      final file = File('${tempDirectory.path}/$name');
+      await file.writeAsBytes([1]);
+      return file;
+    }
+
     test(
       'cancellation escalates through the supervised FFmpeg process',
       () async {
         final input = File('${tempDirectory.path}/input.mp3');
         await input.writeAsBytes([1, 2, 3]);
-        final qwenExecutable = await _touch('qwen-runtime');
-        final ffmpegExecutable = await _touch('ffmpeg');
-        final qwenModel = await _touch('qwen-model.bin');
-        final alignerModel = await _touch('aligner-model.bin');
+        final qwenExecutable = await touch('qwen-runtime');
+        final ffmpegExecutable = await touch('ffmpeg');
+        final qwenModel = await touch('qwen-model.bin');
+        final alignerModel = await touch('aligner-model.bin');
         final process = _FakeProcess(
           killOnSigterm: false,
           killOnSigkill: true,
@@ -111,11 +117,6 @@ void main() {
       expect(veryLong, const Duration(minutes: 120));
     });
 
-    Future<File> _touch(String name) async {
-      final file = File('${tempDirectory.path}/$name');
-      await file.writeAsBytes([1]);
-      return file;
-    }
   });
 }
 
