@@ -9,7 +9,7 @@ Convert the second external review into a source-verified commercial-readiness r
 - Main baseline for this documentation change: 5d7a6ff2179765399f5ed66fb1d01c9a6852076a
 - Branch: docs/second-review-commercial-readiness-20261028
 - PR: [#207 docs: extend engineering roadmap with release blockers](https://github.com/BrainEno/lyric-forge-ktv/pull/207)
-- The first Flutter Quality Gate run (40638304303) failed at the work-log preflight because the manually reconstructed summary had one extra blank line; the generated summary has now been corrected to match the generator's exact output.
+- The first two Flutter Quality Gate runs failed at the work-log preflight. The first exposed an extra blank line; the second exposed a stale commit subject for the 2026-10-27 16:10 entry. Both are now corrected to match the generator's title/commit extraction and exact spacing.
 - Local Dart/Flutter SDK is unavailable in this execution environment; the newest PR Quality Gate must still be checked after this commit.
 
 ## 已改文件
@@ -31,7 +31,7 @@ Convert the second external review into a source-verified commercial-readiness r
 ## 检查结果
 - Source-level findings were cross-checked at the fixed commit; runtime release assets and workflow targets were inspected.
 - No application code was changed.
-- The initial CI run failed only because docs/work_log.md did not exactly match generated summary formatting. That formatting mismatch has been corrected; final status depends on the latest run.
+- The initial CI runs failed only because docs/work_log.md differed from generated output (blank line and one stale commit subject). Both are corrected; final status depends on the latest run.
 - dart tool/work_log.dart check, flutter analyze, and flutter test were not run locally because Dart/Flutter SDKs are unavailable.
 
 ## 下一步
