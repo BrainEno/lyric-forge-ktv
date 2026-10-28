@@ -1,0 +1,11 @@
+# [2026-10-28 16:40] Add recoverable atomic JSON persistence
+
+- Scope: Close the delete-before-rename data-loss window shared by file-backed JSON stores without changing repository contracts or migrating the stored data format.
+- Files: `lib/core/persistence/atomic_json_file.dart`, `test/core/persistence/atomic_json_file_test.dart`, `test/file_project_repository_test.dart`, `lib/features/project/data/repositories/file_project_repository.dart`, `lib/features/transcription/data/services/file_batch_transcription_queue.dart`, `lib/features/player/data/repositories/file_local_media_library_repository.dart`, `lib/features/player/data/repositories/file_local_media_collection_repository.dart`, `lib/features/player/data/repositories/file_local_media_metadata_repository.dart`, `lib/features/player/data/repositories/file_play_history_repository.dart`, `lib/features/player/data/repositories/file_playback_session_store.dart`, `lib/features/transfer/data/services/file_media_hub_connection_store.dart`, `lib/features/transfer/data/services/file_media_hub_device_identity_store.dart`, `lib/features/transfer/data/services/file_media_transfer_queue_service.dart`, and the roadmap/work-log/handoff files.
+- Validation:
+  - Added recovery-aware JSON replacement with schema validation, a flushed temporary document, a validated previous-generation backup, rollback on replacement failure, and startup recovery from temp/backup sidecars.
+  - Added fault-injection tests for replacement failure after canonical removal, recovery from a complete temp file, recovery from a valid backup, refusal to overwrite an unrecoverable malformed store, and preservation of the previous generation.
+  - Added a project-store integration regression that corrupts canonical JSON after two saves and verifies the prior valid generation is restored.
+  - GitHub Actions must verify formatting, analysis, and targeted/full Flutter tests on the PR head. Local Dart/Flutter SDKs are unavailable in this execution environment.
+- Notes: Recovery validates the required top-level store shape; existing per-row decoding behavior remains. This is not a claim of database-grade multi-file transactions or verified power-loss durability.
+- Commit: `fix: add recoverable atomic JSON persistence`

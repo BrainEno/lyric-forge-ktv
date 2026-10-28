@@ -35,7 +35,8 @@
 
 - **Open-source product-quality roadmap:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) prioritizes persistence recovery, ASR lifecycle, Media Hub upload limits, FFmpeg integrity, separation/MVP scope, installable app packages, and real-song/mix quality gates. Third-party provenance/notices are scoped to artifacts actually bundled; they are not a general development or monetization gate.
 
-- **macOS Media Hub Release entitlement:** [PR #208](https://github.com/BrainEno/lyric-forge-ktv/pull/208) adds the inbound-network entitlement to Release and checks both client/server entitlements in source plists and signed Debug/Release artifacts. CI and packaged LAN/Tailscale smoke tests must pass before claiming end-to-end release readiness.
+- **Recoverable JSON persistence:** `lib/core/persistence/atomic_json_file.dart` keeps a validated previous generation before replacement and restores invalid/missing canonical stores from valid temp/backup sidecars. See the newest work-log entry and verify all migrated stores in CI.
+- **macOS Media Hub Release entitlement:** [PR #208](https://github.com/BrainEno/lyric-forge-ktv/pull/208) adds and CI-validates client/server entitlements in source plists and signed Debug/Release artifacts. LAN/Tailscale device smoke tests remain a separate end-to-end check.
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.
 
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.

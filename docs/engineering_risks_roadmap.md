@@ -132,7 +132,9 @@ Evidence: [runtime build workflow at the fixed commit](https://github.com/BrainE
 
 ### P0 — Close the delete-before-rename window in JSON persistence
 
-**Status: confirmed code pattern; data loss has not been dynamically reproduced.**
+**Status: implementation added on a dedicated branch; CI and cross-platform fault-injection results are pending.**
+
+Implementation update (2026-10-28): the shared `AtomicJsonFile` helper writes and validates the temporary document, preserves a validated previous generation before replacement, rolls back if replacement fails, and restores a valid temp/backup candidate when startup finds a missing or invalid canonical document. Ten file-backed stores now use the helper. This is a recoverable replacement protocol, not a claim of database-grade transactionality or verified filesystem durability.
 
 At least ten file-backed stores in the reviewed tree use this order: write a temporary JSON file with flush enabled, delete the current canonical file if it exists, then rename the temporary file to the canonical path. Examples include:
 
@@ -151,12 +153,12 @@ Serializing writes prevents concurrent writers from colliding with each other, a
 
 **Required action**
 
-1. Inventory all file-backed stores and centralize a replacement primitive with documented Windows/macOS semantics. Preserve the last valid snapshot or implement a same-filesystem replacement strategy that does not delete the old canonical file before the new one can safely take its place.
-2. Add recovery rules for canonical, backup, and stale temporary files; validate schema/version/checksum before selecting a candidate. A malformed or missing canonical file must not silently become an empty store followed by a destructive save.
-3. Add fault-injection tests at temp write, flush, replacement, and recovery boundaries. Test replacement failures as well as process interruption; retain the previous valid version whenever possible.
+1. Verify the shared replacement helper and migrated stores on the final PR head; ensure a valid previous document remains available before canonical removal.
+2. Preserve startup recovery for canonical, backup, and temporary candidates. The helper validates each store's required top-level shape; add per-store schema/version checks when needed for format migrations.
+3. Keep fault-injection coverage for temporary write/flush, replacement failure, and recovery; add Windows/macOS validation where possible and report filesystem-specific limits honestly.
 4. Treat SQLite as a possible medium-term transaction solution for related project/index records, not as a prerequisite for fixing independent JSON stores.
 
-**Acceptance:** on Windows and macOS, repeated injected failures leave a recoverable valid old or new state; tests demonstrate no successful-write path deletes the only valid copy before replacement succeeds. Do not claim cross-platform atomicity until the exact implementation semantics are verified.
+**Acceptance:** an injected replacement failure restores the previous valid generation; a missing/corrupt canonical file is recovered from a schema-valid temp/backup when available; an unrecoverable malformed store is not silently overwritten with a new empty store. Cross-platform filesystem behavior and durability still require validation before claiming atomicity.
 
 ### P1 — Define the Media Hub threat model and enforce upload resource budgets
 
