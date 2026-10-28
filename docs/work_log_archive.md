@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-27 19:20] Share one normalized audio input across ASR engines ([entry](log/entries/2026-10-27-1920-share-normalized-asr-input.md))
 - [2026-10-27 18:54] Unify audio normalization across local ASR paths ([entry](log/entries/2026-10-27-1854-unify-asr-audio-normalization.md))
 - [2026-10-27 17:54] Derive ASR model identities from runtime configuration ([entry](log/entries/2026-10-27-1754-derive-asr-model-identities.md))
 - [2026-10-27 17:07] Require reproducible ForcedAligner evaluation provenance ([entry](log/entries/2026-10-27-1707-strict-forced-alignment-provenance.md))
