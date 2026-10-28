@@ -17,7 +17,7 @@ void main() {
       expect(action, contains('with open(".fvmrc"'));
       expect(
         action,
-        contains('flutter-version: ${{ steps.flutter-version.outputs.version }}'),
+        contains('flutter-version: \${{ steps.flutter-version.outputs.version }}'),
       );
       expect(action, contains('subosito/flutter-action@v2'));
 
