@@ -7,7 +7,7 @@ Build dependable open-source, local-first KTV software with safe persistence/rec
 - Repository: BrainEno/lyric-forge-ktv
 - Main baseline: 00c8aef7beb535e13541a1865e54f1af187109a1
 - Branch: fix/json-persistence-recovery-20261028
-- PR: pending creation for shared recoverable JSON persistence.
+- PR: [#209 — preserve recoverable JSON persistence snapshots](https://github.com/BrainEno/lyric-forge-ktv/pull/209).
 - Scope: add a shared recoverable JSON replacement helper and migrate the file-backed stores that previously deleted canonical files before renaming temporary files.
 - Local Dart/Flutter SDKs are unavailable in this environment; GitHub Actions is the validation gate.
 
@@ -54,4 +54,4 @@ Build dependable open-source, local-first KTV software with safe persistence/rec
 - Validators check each store's top-level data shape; existing per-row decoding rules remain.
 - Cross-platform replacement/durability semantics must be verified before claiming filesystem-level atomicity.
 
-最后更新：2026-10-28 16:40（Asia/Taipei）
+最后更新：2026-10-28 17:04（Asia/Taipei）
