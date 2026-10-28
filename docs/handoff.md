@@ -25,9 +25,9 @@ Continue the audit-driven issue queue in risk order, one issue per branch/PR. Cu
 - `docs/handoff.md`
 
 ## 检查结果
-- Release asset URLs, names, and SHA-256 values were checked against the upstream GitHub release API.
-- Local Dart/Flutter commands were not run because SDKs are unavailable in this environment.
-- GitHub Actions on the resulting PR head is the required validation gate; do not merge until it passes.
+- Initial PR checks exposed two root causes: Dart 3.13 formatting drift in the touched legacy manager file, and a contract test whose source-wide index lookup matched the Qwen extraction before the FFmpeg extraction.
+- Format the affected Dart files with the CI-pinned Dart formatter; scope ordering assertions to the FFmpeg installer function. Do not skip format or weaken the contract.
+- Local Dart/Flutter commands were not run because SDKs are unavailable in this environment. Re-run all PR workflows and inspect any remaining failure logs before considering this task complete.
 
 ## 下一步
 1. Check the final #217 PR head and repair any test, format, analyzer or work-log gate failures.

@@ -30,9 +30,18 @@ void main() {
         '79e8ff30c01ac58a2bc4e820c86be81d426ea0bee10df8030fc6ac3c72fe785c',
       );
       expect(FfmpegRuntimeRelease.macosX64.downloadUrl, contains('/v9.0.2/'));
-      expect(FfmpegRuntimeRelease.macosArm64.downloadUrl, contains('arm64.zip'));
-      expect(FfmpegRuntimeRelease.linuxX64.downloadUrl, contains('linux-x64.zip'));
-      expect(FfmpegRuntimeRelease.linuxArm64.downloadUrl, contains('linux-arm64.zip'));
+      expect(
+        FfmpegRuntimeRelease.macosArm64.downloadUrl,
+        contains('arm64.zip'),
+      );
+      expect(
+        FfmpegRuntimeRelease.linuxX64.downloadUrl,
+        contains('linux-x64.zip'),
+      );
+      expect(
+        FfmpegRuntimeRelease.linuxArm64.downloadUrl,
+        contains('linux-arm64.zip'),
+      );
     });
 
     test('rejects unsupported platform and architecture pairs', () {

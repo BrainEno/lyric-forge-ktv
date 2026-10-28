@@ -5,6 +5,7 @@
 - Validation:
   - Release asset URLs, names, and SHA-256 values were checked against the upstream GitHub release API.
   - Local Dart/Flutter commands were not run because the SDKs are unavailable in this environment.
-  - GitHub Actions on the final PR head must pass before this issue is considered complete.
-- Notes: The installer now pins Windows x64 to a versioned BtbN LGPL build and macOS/Linux x64/arm64 to v9.0.2 release assets. It hashes the archive before extraction, rejects and deletes mismatches, validates the staged executable, and rolls back if directory activation fails. No claim is made about real-device runtime validation yet.
+  - Initial CI found two actionable issues: the changed legacy manager file was not formatted with CI's Dart formatter, and the new contract test compared offsets across the entire manager file, accidentally matching Qwen's earlier extraction first. The follow-up aligns changed Dart files with the CI formatter and scopes the ordering assertion to `_installFfmpeg`.
+  - Re-run all affected workflow gates on the follow-up commit; this entry does not claim they passed.
+- Notes: The installer now pins Windows x64 to a versioned BtbN LGPL build and macOS/Linux x64/arm64 to v9.0.2 release assets. It hashes the archive before extraction, rejects and deletes mismatches, validates the staged executable, and rolls back if directory activation fails. No claim is made about real-device runtime validation yet. Recovery now validates an activated FFmpeg executable before discarding a backup left by an interrupted directory swap.
 - Commit: `fix: pin and verify managed FFmpeg downloads`

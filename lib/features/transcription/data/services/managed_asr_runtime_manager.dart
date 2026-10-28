@@ -80,31 +80,36 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       commandName: _qwenName,
     );
 
-    final qwenUsesManagedBundle =
-        _isManagedRuntimeExecutable(qwen, root, _qwenName);
+    final qwenUsesManagedBundle = _isManagedRuntimeExecutable(
+      qwen,
+      root,
+      _qwenName,
+    );
     final managedRuntimeCurrent = await _managedRuntimeBuildIsCurrent(root);
-    final qwenRuntimeReady = qwen != null &&
-        (!qwenUsesManagedBundle || managedRuntimeCurrent);
+    final qwenRuntimeReady =
+        qwen != null && (!qwenUsesManagedBundle || managedRuntimeCurrent);
 
-    final managedWhisperModel =
-        _join(root.path, ['models', 'whisper', _whisperModelName]);
+    final managedWhisperModel = _join(root.path, [
+      'models',
+      'whisper',
+      _whisperModelName,
+    ]);
     final whisperModel = await _resolveFile(
       repaired.modelPath,
       managedWhisperModel,
     );
-    final whisperModelReady = whisperModel != null &&
-        await _validWhisperModel(whisperModel);
+    final whisperModelReady =
+        whisperModel != null && await _validWhisperModel(whisperModel);
 
     final qwenMarker = _qwenReadyMarker(root, profile.profile);
     final markerReady = await _qwenMarkerMatches(qwenMarker, repaired);
-    final qwenModelLocal = await _modelReferenceExists(
-      repaired.qwenModelPath,
-    );
+    final qwenModelLocal = await _modelReferenceExists(repaired.qwenModelPath);
     final alignerLocal = await _modelReferenceExists(
       repaired.qwenAlignerModelPath,
     );
-    final requiresManagedModelHealth =
-        _profileSupportsManagedRuntime(profile.profile);
+    final requiresManagedModelHealth = _profileSupportsManagedRuntime(
+      profile.profile,
+    );
     final qwenModelReady =
         markerReady || (qwenModelLocal && !requiresManagedModelHealth);
     final alignerReady =
@@ -153,9 +158,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           AsrRuntimeComponent.qwenModel,
           _qwenModelLabel(repaired.qwenModelPath),
           qwenModelReady,
-          readyDetail: markerReady
-              ? 'Qwen 模型已下载并通过启动检查'
-              : '已找到本地 Qwen 模型',
+          readyDetail: markerReady ? 'Qwen 模型已下载并通过启动检查' : '已找到本地 Qwen 模型',
           missingDetail: qwenModelLocal
               ? '模型路径已存在，但还没有通过当前 runtime 启动检查'
               : '首次安装时会自动下载并缓存',
@@ -182,9 +185,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   @override
-  Future<TranscriptionConfig> repair(
-    TranscriptionConfig config,
-  ) async {
+  Future<TranscriptionConfig> repair(TranscriptionConfig config) async {
     final profile = await profileResolver.resolve(config);
     final root = await _managedRoot();
     return _repairPaths(profile.config, root);
@@ -216,10 +217,15 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       commandName: _qwenName,
     );
 
-    final managedWhisperModel =
-        _join(root.path, ['models', 'whisper', _whisperModelName]);
-    final whisperModel =
-        await _resolveFile(config.modelPath, managedWhisperModel);
+    final managedWhisperModel = _join(root.path, [
+      'models',
+      'whisper',
+      _whisperModelName,
+    ]);
+    final whisperModel = await _resolveFile(
+      config.modelPath,
+      managedWhisperModel,
+    );
 
     return config.copyWith(
       ffmpegExecutable: ffmpeg ?? config.ffmpegExecutable,
@@ -272,15 +278,16 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
 
       final needsQwen = repaired.mode == TranscriptionMode.highestQuality;
-      final qwenUsesManagedBundle =
-          _isManagedRuntimeExecutable(qwenPath, root, _qwenName);
+      final qwenUsesManagedBundle = _isManagedRuntimeExecutable(
+        qwenPath,
+        root,
+        _qwenName,
+      );
       final managedRuntimeCurrent = await _managedRuntimeBuildIsCurrent(root);
-      final needsManagedRuntimeRefresh = needsQwen &&
-          qwenUsesManagedBundle &&
-          !managedRuntimeCurrent;
+      final needsManagedRuntimeRefresh =
+          needsQwen && qwenUsesManagedBundle && !managedRuntimeCurrent;
       if (whisperPath == null ||
-          (needsQwen &&
-              (qwenPath == null || needsManagedRuntimeRefresh))) {
+          (needsQwen && (qwenPath == null || needsManagedRuntimeRefresh))) {
         final installed = await _installManagedRuntimeBundle(
           root,
           profile.profile,
@@ -300,14 +307,17 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         commandName: _ffmpegName,
       );
       ffmpegPath ??= await _installFfmpeg(
-          root,
-          proxyOverride: config.downloadProxy,
-        );
+        root,
+        proxyOverride: config.downloadProxy,
+      );
 
       _throwIfCancelled();
 
-      final whisperModelPath =
-          _join(root.path, ['models', 'whisper', _whisperModelName]);
+      final whisperModelPath = _join(root.path, [
+        'models',
+        'whisper',
+        _whisperModelName,
+      ]);
       if (!await _validWhisperModel(whisperModelPath)) {
         await _installWhisperModel(
           root,
@@ -331,9 +341,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         if (!markerReady) {
           final executable = qwenPath;
           if (executable == null) {
-            throw const TranscriptionException(
-              'Qwen runtime 安装失败，请重新安装识别环境',
-            );
+            throw const TranscriptionException('Qwen runtime 安装失败，请重新安装识别环境');
           }
           await _prepareQwenModels(
             root: root,
@@ -346,9 +354,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
       final finalStatus = await inspect(repaired);
       if (!finalStatus.isReady) {
-        throw const TranscriptionException(
-          '自动安装已结束，但仍有组件未通过检查，请点击“重新检测”或“修复”',
-        );
+        throw const TranscriptionException('自动安装已结束，但仍有组件未通过检查，请点击“重新检测”或“修复”');
       }
 
       _emit(null, 1.0, '本地歌词识别环境已准备完成');
@@ -366,11 +372,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     TranscriptionProfilePreference profile, {
     required String proxyOverride,
   }) async {
-    _emit(
-      AsrRuntimeComponent.qwenRuntime,
-      0.05,
-      '正在下载 LyricForge 识别引擎',
-    );
+    _emit(AsrRuntimeComponent.qwenRuntime, 0.05, '正在下载 LyricForge 识别引擎');
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['asr-runtime.zip']));
@@ -398,11 +400,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     }
 
     _throwIfCancelled();
-    _emit(
-      AsrRuntimeComponent.qwenRuntime,
-      0.225,
-      '正在校验 LyricForge 识别引擎完整性',
-    );
+    _emit(AsrRuntimeComponent.qwenRuntime, 0.225, '正在校验 LyricForge 识别引擎完整性');
 
     final actualSize = await archive.length();
     if (actualSize != metadata.sizeBytes) {
@@ -413,15 +411,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
     }
 
-    final checksumValid = await _verifySha256(
-      archive.path,
-      metadata.sha256,
-    );
+    final checksumValid = await _verifySha256(archive.path, metadata.sha256);
     if (!checksumValid) {
       await archive.delete();
-      throw const TranscriptionException(
-        '识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装',
-      );
+      throw const TranscriptionException('识别引擎安装包 SHA-256 校验失败，已删除损坏文件，请重新安装');
     }
 
     final bundle = Directory(_join(root.path, ['bundle']));
@@ -433,18 +426,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     await staging.create(recursive: true);
 
     try {
-      _emit(
-        AsrRuntimeComponent.qwenRuntime,
-        0.23,
-        '正在安装本地识别引擎',
-      );
+      _emit(AsrRuntimeComponent.qwenRuntime, 0.23, '正在安装本地识别引擎');
       await _extractZip(archive.path, staging.path);
 
       final manifest = await _findFile(staging, 'runtime-manifest.json');
       if (manifest == null) {
-        throw const TranscriptionException(
-          '识别引擎安装包缺少运行时清单，已保留现有 runtime',
-        );
+        throw const TranscriptionException('识别引擎安装包缺少运行时清单，已保留现有 runtime');
       }
       String? actualPatchRevision;
       try {
@@ -466,9 +453,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       final qwen = await _findFile(staging, _qwenName);
       final whisper = await _findFile(staging, _whisperName);
       if (qwen == null || whisper == null) {
-        throw const TranscriptionException(
-          '识别引擎安装包不完整，已保留现有 runtime',
-        );
+        throw const TranscriptionException('识别引擎安装包不完整，已保留现有 runtime');
       }
 
       if (!Platform.isWindows) {
@@ -476,16 +461,10 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         await _makeExecutable(whisper.path);
       }
 
-      await _verifyExecutable(
-        qwen.path,
-        const ['--help'],
-        'Qwen3-ASR runtime',
-      );
-      await _verifyExecutable(
-        whisper.path,
-        const ['--help'],
-        'Whisper runtime',
-      );
+      await _verifyExecutable(qwen.path, const ['--help'], 'Qwen3-ASR runtime');
+      await _verifyExecutable(whisper.path, const [
+        '--help',
+      ], 'Whisper runtime');
 
       final bin = Directory(_join(staging.path, ['bin']));
       await bin.create(recursive: true);
@@ -500,16 +479,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         if (!Platform.isWindows) await _makeExecutable(whisperTarget.path);
       }
 
-      await _verifyExecutable(
-        qwenTarget.path,
-        const ['--help'],
-        '已安装的 Qwen3-ASR runtime',
-      );
-      await _verifyExecutable(
-        whisperTarget.path,
-        const ['--help'],
-        '已安装的 Whisper runtime',
-      );
+      await _verifyExecutable(qwenTarget.path, const [
+        '--help',
+      ], '已安装的 Qwen3-ASR runtime');
+      await _verifyExecutable(whisperTarget.path, const [
+        '--help',
+      ], '已安装的 Whisper runtime');
 
       if (await backup.exists()) {
         await backup.delete(recursive: true);
@@ -573,7 +548,28 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     // Recover a previously interrupted swap before starting another install.
     if (await backup.exists()) {
       if (await ffmpegRoot.exists()) {
-        await backup.delete(recursive: true);
+        final currentExecutable = File(
+          _join(ffmpegRoot.path, ['bin', _ffmpegName]),
+        );
+        var currentInstallValid = await currentExecutable.exists();
+        if (currentInstallValid) {
+          try {
+            await _verifyExecutable(
+              currentExecutable.path,
+              const ['-version'],
+              'FFmpeg',
+            );
+          } catch (_) {
+            currentInstallValid = false;
+          }
+        }
+
+        if (currentInstallValid) {
+          await backup.delete(recursive: true);
+        } else {
+          await ffmpegRoot.delete(recursive: true);
+          await backup.rename(ffmpegRoot.path);
+        }
       } else {
         await backup.rename(ffmpegRoot.path);
       }
@@ -582,23 +578,20 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       await staging.delete(recursive: true);
     }
 
-    _emit(
-      AsrRuntimeComponent.ffmpeg,
-      0.25,
-      '正在下载 FFmpeg 音频处理组件',
-    );
+    _emit(AsrRuntimeComponent.ffmpeg, 0.25, '正在下载 FFmpeg 音频处理组件');
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['ffmpeg.zip']));
     final platform = Platform.isWindows
         ? 'windows'
         : Platform.isMacOS
-            ? 'macos'
-            : Platform.isLinux
-                ? 'linux'
-                : 'unsupported';
-    final architecture =
-        Platform.isWindows ? 'x64' : await _runtimeArchitecture();
+        ? 'macos'
+        : Platform.isLinux
+        ? 'linux'
+        : 'unsupported';
+    final architecture = Platform.isWindows
+        ? 'x64'
+        : await _runtimeArchitecture();
     final release = FfmpegRuntimeRelease.forTarget(
       platform: platform,
       architecture: architecture,
@@ -635,20 +628,16 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
       final managedBin = Directory(_join(staging.path, ['bin']));
       await managedBin.create(recursive: true);
-      final stagedExecutable = File(
-        _join(managedBin.path, [_ffmpegName]),
-      );
+      final stagedExecutable = File(_join(managedBin.path, [_ffmpegName]));
       if (ffmpeg.path != stagedExecutable.path) {
         await ffmpeg.copy(stagedExecutable.path);
       }
       if (!Platform.isWindows) {
         await _makeExecutable(stagedExecutable.path);
       }
-      await _verifyExecutable(
-        stagedExecutable.path,
-        const ['-version'],
-        'FFmpeg',
-      );
+      await _verifyExecutable(stagedExecutable.path, const [
+        '-version',
+      ], 'FFmpeg');
 
       // Keep the old working installation until the candidate is verified.
       if (await ffmpegRoot.exists()) {
@@ -695,10 +684,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     final machine = result.stdout.toString().trim().toLowerCase();
     if (machine == 'x86_64' || machine == 'amd64') return 'x64';
     if (machine == 'arm64' || machine == 'aarch64') return 'arm64';
-    throw TranscriptionException(
-      '当前设备架构没有受支持的 FFmpeg 运行时',
-      details: machine,
-    );
+    throw TranscriptionException('当前设备架构没有受支持的 FFmpeg 运行时', details: machine);
   }
 
   Future<void> _installWhisperModel(
@@ -725,21 +711,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       proxyOverride: proxyOverride,
     );
 
-    _emit(
-      AsrRuntimeComponent.whisperModel,
-      0.69,
-      '正在校验 Whisper large-v3 文件',
-    );
+    _emit(AsrRuntimeComponent.whisperModel, 0.69, '正在校验 Whisper large-v3 文件');
 
-    final valid = await _verifySha256(
-      target.path,
-      _whisperModelSha256,
-    );
+    final valid = await _verifySha256(target.path, _whisperModelSha256);
     if (!valid) {
       await target.delete();
-      throw const TranscriptionException(
-        'Whisper 模型校验失败，已删除损坏文件，请重新安装',
-      );
+      throw const TranscriptionException('Whisper 模型校验失败，已删除损坏文件，请重新安装');
     }
   }
 
@@ -749,11 +726,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required TranscriptionConfig config,
     required TranscriptionProfilePreference profile,
   }) async {
-    _emit(
-      AsrRuntimeComponent.qwenModel,
-      0.72,
-      '正在下载并准备 Qwen 模型；首次安装可能需要较长时间',
-    );
+    _emit(AsrRuntimeComponent.qwenModel, 0.72, '正在下载并准备 Qwen 模型；首次安装可能需要较长时间');
 
     final port = await _reservePort();
     final args = [
@@ -780,10 +753,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         workingDirectory: File(executable).parent.path,
       );
     } on ProcessException catch (error) {
-      throw TranscriptionException(
-        '无法启动 Qwen 模型准备程序',
-        details: error.message,
-      );
+      throw TranscriptionException('无法启动 Qwen 模型准备程序', details: error.message);
     }
 
     _activeProcess = process;
@@ -796,11 +766,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       if (lower.contains('download') ||
           lower.contains('fetch') ||
           lower.contains('loading')) {
-        _emit(
-          AsrRuntimeComponent.qwenModel,
-          0.78,
-          '正在下载 / 加载 Qwen 模型，请保持网络连接',
-        );
+        _emit(AsrRuntimeComponent.qwenModel, 0.78, '正在下载 / 加载 Qwen 模型，请保持网络连接');
       }
     }
 
@@ -853,10 +819,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         await Future<void>.delayed(const Duration(seconds: 1));
       }
 
-      throw TranscriptionException(
-        'Qwen 模型准备超时',
-        details: logTail.join('\n'),
-      );
+      throw TranscriptionException('Qwen 模型准备超时', details: logTail.join('\n'));
     } finally {
       process.kill();
       _activeProcess = null;
@@ -884,9 +847,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       await part.delete();
     }
 
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
 
     try {
@@ -1031,20 +992,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
     ProcessResult result;
     if (Platform.isWindows) {
-      result = await Process.run(
-        'powershell',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          'Expand-Archive -LiteralPath ${_psQuote(archive)} -DestinationPath ${_psQuote(destination)} -Force',
-        ],
-      );
+      result = await Process.run('powershell', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'Expand-Archive -LiteralPath ${_psQuote(archive)} -DestinationPath ${_psQuote(destination)} -Force',
+      ]);
     } else {
-      result = await Process.run(
-        '/usr/bin/unzip',
-        ['-o', archive, '-d', destination],
-      );
+      result = await Process.run('/usr/bin/unzip', [
+        '-o',
+        archive,
+        '-d',
+        destination,
+      ]);
     }
 
     if (result.exitCode != 0) {
@@ -1069,17 +1029,11 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         );
       }
     } on ProcessException catch (error) {
-      throw TranscriptionException(
-        '$label 安装后无法启动',
-        details: error.message,
-      );
+      throw TranscriptionException('$label 安装后无法启动', details: error.message);
     }
   }
 
-  Future<bool> _verifySha256(
-    String path,
-    String expected,
-  ) async {
+  Future<bool> _verifySha256(String path, String expected) async {
     return verifyFileSha256(File(path), expected);
   }
 
@@ -1096,8 +1050,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       final request = await client
           .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
           .timeout(const Duration(seconds: 2));
-      final response =
-          await request.close().timeout(const Duration(seconds: 2));
+      final response = await request.close().timeout(
+        const Duration(seconds: 2),
+      );
       await response.drain<void>().timeout(const Duration(seconds: 2));
       return response.statusCode == HttpStatus.ok;
     } catch (_) {
@@ -1108,10 +1063,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<int> _reservePort() async {
-    final socket = await ServerSocket.bind(
-      InternetAddress.loopbackIPv4,
-      0,
-    );
+    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final port = socket.port;
     await socket.close();
     return port;
@@ -1125,9 +1077,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       return root;
     }
     final support = await getApplicationSupportDirectory();
-    final root = Directory(
-      _join(support.path, ['LyricForge', 'ASRRuntime']),
-    );
+    final root = Directory(_join(support.path, ['LyricForge', 'ASRRuntime']));
     await root.create(recursive: true);
     return root;
   }
@@ -1189,20 +1139,14 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
           .toString()
           .split(RegExp(r'[\r\n]+'))
           .map((value) => value.trim())
-          .firstWhere(
-            (value) => value.isNotEmpty,
-            orElse: () => '',
-          );
+          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
       return line.isEmpty ? null : line;
     } catch (_) {
       return null;
     }
   }
 
-  Future<File?> _findFile(
-    Directory root,
-    String fileName,
-  ) async {
+  Future<File?> _findFile(Directory root, String fileName) async {
     if (!await root.exists()) return null;
     await for (final entity in root.list(recursive: true)) {
       if (entity is! File) continue;
@@ -1237,8 +1181,8 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       state: unavailable && !ready
           ? AsrRuntimeComponentState.unavailable
           : ready
-              ? AsrRuntimeComponentState.ready
-              : AsrRuntimeComponentState.missing,
+          ? AsrRuntimeComponentState.ready
+          : AsrRuntimeComponentState.missing,
       label: label,
       detail: ready ? readyDetail : missingDetail,
       resolvedPath: path,
@@ -1264,9 +1208,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   File _managedRuntimeBuildMarker(Directory root) {
-    return File(
-      _join(root.path, ['state', 'runtime-build-revision.txt']),
-    );
+    return File(_join(root.path, ['state', 'runtime-build-revision.txt']));
   }
 
   Future<bool> _managedRuntimeBuildIsCurrent(Directory root) async {
@@ -1299,46 +1241,34 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     Directory root,
     TranscriptionProfilePreference profile,
   ) {
-    return File(
-      _join(root.path, ['state', 'qwen_${profile.name}.ready.json']),
-    );
+    return File(_join(root.path, ['state', 'qwen_${profile.name}.ready.json']));
   }
 
-  bool _profileSupportsManagedRuntime(
-    TranscriptionProfilePreference profile,
-  ) {
+  bool _profileSupportsManagedRuntime(TranscriptionProfilePreference profile) {
     return profile == TranscriptionProfilePreference.rtx5080HighQuality ||
         profile == TranscriptionProfilePreference.intelMacHighQuality;
   }
 
-  String _runtimeAssetName(
-    TranscriptionProfilePreference profile,
-  ) {
+  String _runtimeAssetName(TranscriptionProfilePreference profile) {
     return switch (profile) {
       TranscriptionProfilePreference.rtx5080HighQuality =>
         'lyricforge-asr-runtime-windows-x64-cuda.zip',
       TranscriptionProfilePreference.intelMacHighQuality =>
         'lyricforge-asr-runtime-macos-x64.zip',
-      _ => throw const TranscriptionException(
-          '当前 Profile 没有自动安装包',
-        ),
+      _ => throw const TranscriptionException('当前 Profile 没有自动安装包'),
     };
   }
 
   Future<RuntimeReleaseAssetMetadata> _fetchRuntimeReleaseAssetMetadata(
-    TranscriptionProfilePreference profile,
-    {
-      required String proxyOverride,
-    }
-  ) async {
+    TranscriptionProfilePreference profile, {
+    required String proxyOverride,
+  }) async {
     final assetName = _runtimeAssetName(profile);
     final uri = Uri.parse(
       'https://api.github.com/repos/BrainEno/lyric-forge-ktv/releases/tags/'
       '$_runtimeReleaseTag',
     );
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
 
     try {
