@@ -1,0 +1,41 @@
+name: Transcription readiness validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/core/navigation/app_router.dart'
+      - 'lib/features/import/presentation/screens/**'
+      - 'lib/features/transcription/domain/services/transcription_environment_preflight.dart'
+      - 'lib/features/transcription/data/services/file_batch_transcription_queue.dart'
+      - 'test/features/import/transcription_ready_import_contract_test.dart'
+      - 'test/features/transcription/transcription_environment_preflight_test.dart'
+      - '.github/workflows/transcription-readiness-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  readiness-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze readiness integration
+        run: >-
+          flutter analyze
+          lib/core/navigation/app_router.dart
+          lib/features/import/presentation/screens/transcription_ready_import_screen.dart
+          lib/features/transcription/domain/services/transcription_environment_preflight.dart
+          test/features/import/transcription_ready_import_contract_test.dart
+          test/features/transcription/transcription_environment_preflight_test.dart
+      - name: Test readiness preflight
+        run: flutter test test/features/transcription/transcription_environment_preflight_test.dart
+      - name: Test import readiness contract
+        run: flutter test test/features/import/transcription_ready_import_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

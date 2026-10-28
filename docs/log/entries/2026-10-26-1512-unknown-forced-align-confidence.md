@@ -1,0 +1,7 @@
+# [2026-10-26 15:12] Represent unavailable ForcedAligner confidence honestly
+
+- Scope: Keep ForcedAligner word-level timings useful for review without presenting an arbitrary placeholder as model confidence; represent missing calibrated confidence explicitly and explain it in the review UI.
+- Files: lib/features/lyrics/domain/proofreading/proofread_result.dart, lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart, lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart, test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart, test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart, docs/high_quality_asr.md, docs/work_log.md, docs/work_log_archive.md, docs/handoff.md, this entry.
+- Validation: Added regression assertions that ForcedAligner tokens have unknown confidence, that an explicit "置信度未提供" label is rendered, and that a provided confidence value is still shown. The remote Flutter Quality Gate is required for analyzer/test validation; this environment has no local Dart/Flutter SDK, so no local command result is claimed.
+- Notes: The current /v1/align contract returns token text and start/end times but no calibrated confidence score. Real-song timing accuracy and Chinese/English/Japanese coverage remain unverified and require a rebuilt runtime bundle plus real audio.
+- Commit: `Stop inventing ForcedAligner token confidence`

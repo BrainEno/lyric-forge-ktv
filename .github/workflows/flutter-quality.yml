@@ -1,0 +1,76 @@
+name: Flutter Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flutter-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: format-analyze-test-worklog
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+
+      # Catch missing work-log fields and generated-file drift before dependency
+      # resolution, analysis, or the full test suite. The scripts also preflight
+      # for local invocation outside this workflow.
+      - name: Work-log contract preflight
+        run: dart tool/work_log.dart check
+
+      - name: Resolve Flutter packages
+        run: flutter pub get
+
+      # Check all Dart files touched by this diff. Formatting is blocking, while
+      # the file list stays scoped to avoid unrelated historical formatter debt.
+      - name: Format check for changed Dart files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$BASE_SHA" && "$BASE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "${GITHUB_SHA}^" "$GITHUB_SHA" -- '*.dart')
+          else
+            dart_files=()
+          fi
+
+          if (( ${#dart_files[@]} == 0 )); then
+            echo "No changed Dart files to format-check."
+            exit 0
+          fi
+
+          printf 'Checking %s changed Dart file(s).\n' "${#dart_files[@]}"
+          if dart format --output=none --set-exit-if-changed "${dart_files[@]}"; then
+            exit 0
+          fi
+
+          echo "Formatter differences follow; apply them to the changed Dart files."
+          dart format "${dart_files[@]}"
+          git --no-pager diff -- "${dart_files[@]}"
+          exit 1
+
+      - name: Run repository quality gate
+        run: bash scripts/quality_gate.sh --skip-pub-get

@@ -1,0 +1,45 @@
+name: Queue inline environment repair validation
+
+on:
+  pull_request:
+    paths:
+      - "lib/features/transcription/domain/services/transcription_queue_environment_recovery.dart"
+      - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
+      - "test/features/transcription/transcription_queue_environment_recovery_test.dart"
+      - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - ".github/workflows/queue-inline-environment-repair-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "lib/features/transcription/domain/services/transcription_queue_environment_recovery.dart"
+      - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
+      - "test/features/transcription/transcription_queue_environment_recovery_test.dart"
+      - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - ".github/workflows/queue-inline-environment-repair-validation.yml"
+
+jobs:
+  queue-inline-repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze queue recovery changes
+        run: >-
+          flutter analyze --no-fatal-infos
+          lib/features/transcription/domain/services/transcription_queue_environment_recovery.dart
+          lib/features/transcription/presentation/widgets/transcription_queue_panel.dart
+          test/features/transcription/transcription_queue_environment_recovery_test.dart
+          test/features/transcription/transcription_queue_protective_pause_contract_test.dart
+      - name: Test queue recovery behavior
+        run: >-
+          flutter test
+          test/features/transcription/transcription_queue_environment_recovery_test.dart
+          test/features/transcription/transcription_queue_protective_pause_contract_test.dart
+          test/file_batch_transcription_queue_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

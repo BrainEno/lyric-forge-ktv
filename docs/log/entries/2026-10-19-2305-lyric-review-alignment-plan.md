@@ -1,0 +1,7 @@
+# [2026-10-19 23:05] Lyric Review Alignment Development Plan
+
+- Scope: Turn user feedback (reference-lyric correction of fuzzy ASR words, non-draggable progress bar without time labels, pause-at-time lyric line insertion) into a phased, committable development plan with confirmed product decisions.
+- Files: `docs/lyric_review_alignment_plan.md` (new), `docs/work_log_index.md` (one Recent work areas line).
+- Validation: exploration only — codebase facts verified against `lyric_editor_screen.dart`, `player_screen.dart`, `immersive_ktv_screen.dart`, `now_playing_screen.dart`, `quick_play_screen.dart`, `local_lyric_file_import_service.dart`, `pubspec.yaml`; no Dart changes, so `flutter analyze` / `flutter test` were not run.
+- Notes: Product decisions confirmed with user: paste/import reference lyrics first (online search deferred to optional phase D behind a provider interface); per-line confirm with batch apply of high-confidence matches; untimed reference mapped onto ASR timestamps with estimated times flagged for missing lines. Key root cause found: `player_screen.dart` `_ProgressBar` calls `onSeek` on every `onChanged` tick and is rebuilt by the position stream, so the thumb snaps back mid-drag. Deferred: unifying duplicated confidence thresholds (65 vs 70), global player bar seekability, editor monolith refactor beyond extracting the new toolbar widget.
+- Commit: Add lyric review alignment development plan
