@@ -12,6 +12,33 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
+  test(
+    'recovers the previous valid project store after canonical corruption',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-project-recovery-',
+      );
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+
+      final repository = FileProjectRepository(rootDirectory: root);
+      final first = await repository.createProject(name: 'First project');
+      await repository.createProject(name: 'Second project');
+
+      final store = File('${root.path}${Platform.pathSeparator}projects.json');
+      await store.writeAsString('{corrupted');
+
+      final recovered = FileProjectRepository(rootDirectory: root);
+      final projects = await recovered.getAllProjects();
+
+      expect(projects, hasLength(1));
+      expect(projects.single.id, first.id);
+      expect(projects.single.name, 'First project');
+      expect(await store.readAsString(), contains('First project'));
+    },
+  );
+
   test('projects survive repository recreation', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-projects-');
     addTearDown(() async {

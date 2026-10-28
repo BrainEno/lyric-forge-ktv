@@ -3,10 +3,14 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 
 class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map && decoded['items'] is List;
+
   final Directory? rootDirectory;
 
   final Map<String, LocalMediaMetadata> _entries = {};
@@ -32,7 +36,9 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
 
   Future<File> _storeFile() async {
     final directory = await _dataDirectory();
-    return File('${directory.path}${Platform.pathSeparator}media_metadata.json');
+    return File(
+      '${directory.path}${Platform.pathSeparator}media_metadata.json',
+    );
   }
 
   Future<Directory> _artworkDirectory() async {
@@ -53,6 +59,16 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The local media metadata is invalid and no recoverable copy is available. ${file.path}',
+      );
+    }
     if (!await file.exists()) return;
 
     try {
@@ -89,10 +105,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, encoding: utf8, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;

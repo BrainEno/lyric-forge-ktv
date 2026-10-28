@@ -4,11 +4,18 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 
 class FileLocalMediaCollectionRepository
     implements LocalMediaCollectionRepository {
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map &&
+      (decoded['favorites'] is List || decoded['playlists'] is List) &&
+      (decoded['favorites'] == null || decoded['favorites'] is List) &&
+      (decoded['playlists'] == null || decoded['playlists'] is List);
+
   final Directory? rootDirectory;
 
   final List<String> _favoritePaths = <String>[];
@@ -55,6 +62,16 @@ class FileLocalMediaCollectionRepository
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The local media collections are invalid and no recoverable copy is available. ${file.path}',
+      );
+    }
     if (!await file.exists()) return;
 
     try {
@@ -97,7 +114,9 @@ class FileLocalMediaCollectionRepository
               }
             }
             _playlists.add(
-              parsed.copyWith(sourcePaths: List<String>.unmodifiable(canonicalPaths)),
+              parsed.copyWith(
+                sourcePaths: List<String>.unmodifiable(canonicalPaths),
+              ),
             );
           } catch (_) {
             // Keep the rest of the collection file usable when one row is bad.
@@ -123,7 +142,9 @@ class FileLocalMediaCollectionRepository
     final payload = const JsonEncoder.withIndent('  ').convert({
       'version': 1,
       'favorites': _favoritePaths,
-      'playlists': _playlists.map((item) => item.toJson()).toList(growable: false),
+      'playlists': _playlists
+          .map((item) => item.toJson())
+          .toList(growable: false),
     });
 
     final previous = _writeChain;
@@ -134,10 +155,7 @@ class FileLocalMediaCollectionRepository
         // A failed earlier write must not poison all future writes.
       }
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;
@@ -227,7 +245,9 @@ class FileLocalMediaCollectionRepository
     final playlist = LocalPlaylist(
       id: id,
       name: trimmed,
-      description: trimmedDescription?.isEmpty == true ? null : trimmedDescription,
+      description: trimmedDescription?.isEmpty == true
+          ? null
+          : trimmedDescription,
       sourcePaths: const [],
       createdAt: now,
       updatedAt: now,

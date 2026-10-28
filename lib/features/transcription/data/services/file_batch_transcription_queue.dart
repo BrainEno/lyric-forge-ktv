@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
@@ -13,6 +14,9 @@ import '../../domain/services/batch_transcription_queue.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 
 class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map && decoded['items'] is List;
+
   static const _supportedExtensions = <String>{
     'mp3',
     'flac',
@@ -50,12 +54,12 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
   @override
   TranscriptionQueueSnapshot get current => TranscriptionQueueSnapshot(
-        items: List<TranscriptionQueueItem>.unmodifiable(_items),
-        isPaused: _paused,
-        isProcessing: _processing,
-        pauseReason: _pauseReason,
-        pauseMessage: _pauseMessage,
-      );
+    items: List<TranscriptionQueueItem>.unmodifiable(_items),
+    isPaused: _paused,
+    isProcessing: _processing,
+    pauseReason: _pauseReason,
+    pauseMessage: _pauseMessage,
+  );
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -80,9 +84,18 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   @override
   Future<void> initialize() async {
     if (_initialized) return;
-    _initialized = true;
 
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
+      throw FormatException(
+        'The batch transcription queue is invalid and no recoverable copy is available. ${file.path}',
+      );
+    }
     var recoveredInterruptedItem = false;
     if (await file.exists()) {
       try {
@@ -133,6 +146,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       }
     }
 
+    _initialized = true;
     if (recoveredInterruptedItem) await _persist();
     _emit();
     if (!_paused && _items.any(_isQueued)) unawaited(_pump());
@@ -480,10 +494,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;
