@@ -1,44 +1,47 @@
 # Handoff
 
 ## 目标
-Verify a pair of external engineering reviews against the current LyricForge source and preserve only substantiated issues and measurable follow-ups in the development roadmap.
+Maintain a source-verified, prioritized engineering roadmap for open-source, local-first KTV software. “Commercial-grade” means mature functionality, reliability, audio quality, installation/upgrade behavior, and maintainability; it does not assume monetization or a commercial distribution model.
 
 ## Git 现场
-- Repository: `BrainEno/lyric-forge-ktv`
-- Main baseline reviewed: `e8ea44ee4baa3da1709c9f5a665d0c01926e9e99` (`feat: compare ASR preprocessing paths on paired corpus (#205)`)
-- Branch: `docs/engineering-risks-roadmap-20261028`
-- PR: [#206 docs: record verified engineering risks roadmap](https://github.com/BrainEno/lyric-forge-ktv/pull/206)
-- First documentation commit: `0feb3625b40f736009524356bad44855bfa123dd`; follow-up commit repairs the generated-summary spacing and refreshes this handoff.
-- Local Dart/Flutter SDK is unavailable in this execution environment; GitHub Actions is the validation path.
+- Repository: BrainEno/lyric-forge-ktv
+- Source baseline for review findings: e8ea44ee4baa3da1709c9f5a665d0c01926e9e99
+- Main baseline before this documentation series: 5d7a6ff2179765399f5ed66fb1d01c9a6852076a
+- Branch: docs/second-review-commercial-readiness-20261028
+- PR: [#207 docs: prioritize open-source product quality roadmap](https://github.com/BrainEno/lyric-forge-ktv/pull/207)
+- Scope is documentation only; application code and runtime binaries are unchanged.
+- Previous CI attempts exposed work-log summary drift and are now corrected. The latest quality-gate status must be checked against the final PR head.
+- Local Dart/Flutter SDKs are unavailable in this execution environment; GitHub Actions is the validation gate.
 
 ## 已改文件
-- `docs/engineering_risks_roadmap.md`
-- `docs/work_log_index.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/log/entries/2026-10-28-1235-verify-engineering-review-risks.md`
-- `docs/handoff.md`
+- docs/engineering_risks_roadmap.md
+- docs/work_log_index.md
+- docs/work_log.md
+- docs/work_log_archive.md
+- docs/log/entries/2026-10-28-1339-reframe-product-quality-roadmap.md
+- docs/handoff.md
 
 ## 本轮实现
-- Confirmed the macOS Release entitlement gap: Release lacks `com.apple.security.network.server`, while Debug has it; the current workflow checks only `com.apple.security.network.client`.
-- Corrected the claim that ASR has no process/health management: cancellation, stderr capture, CLI process handling, and runtime readiness checks already exist, but the Whisper process wait lacks an explicit operation timeout.
-- Classified full-document JSON persistence and the separate playback/capture/monitor audio paths as risks requiring benchmarks or hardware measurements, not proven severe failures.
-- Recorded existing Media Hub single-range/206/416/token functionality and prioritized boundary tests, query-token review, and Release smoke testing instead of rewriting working code.
+- Reframed the roadmap from “commercial readiness” to open-source product quality and install/upgrade maturity.
+- Demoted the Qwen runtime's missing upstream notice from a P0 commercial-redistribution blocker to a narrowly scoped provenance/notice task for any future bundled artifact. It does not block local testing, prototyping, or unrelated implementation work.
+- Kept actual product/reliability risks: JSON replacement failure window, macOS Media Hub Release entitlement, ASR process timeouts, upload limits and safe temporary files, FFmpeg integrity, vocal/accompaniment separation, real-song evaluation, mix peak behavior, app packaging, and hardware support matrix.
+- Removed generic legal-review/commercial-use approval language. Keep only the third-party attribution/redistribution requirements that apply to artifacts actually included in an open-source bundle.
 
 ## 检查结果
-- Reviewed ASR adapter/orchestration, JSON repositories, Media Hub HTTP/token handling, macOS entitlement plists, and the entitlement-validation workflow.
-- Verified the entitlement meaning against Apple's current documentation and Flutter's macOS Release guidance.
-- The PR's first Flutter Quality Gate run (`40633713454`) was in progress at the first push; a newer run is expected after the follow-up commit. Check the latest head/run before concluding CI status.
-- `dart tool/work_log.dart check`, `flutter analyze`, and `flutter test` were not run locally because Dart/Flutter SDKs are not installed.
+- Documentation and navigation changes only; no app source or model/runtime binary modified.
+- The work-log summary and archive links were updated for the new entry and the shifted active/archive boundary.
+- Dart/Flutter checks were not run locally because the SDKs are unavailable; verify the final GitHub Actions run before merging.
 
 ## 下一步
-Check the latest head of PR #206 and its Flutter Quality Gate, especially the generated work-log preflight. Do not merge on the basis of the earlier head's status. The Release entitlement itself remains a separate code/configuration fix to complete before a macOS Release advertises Media Hub sharing.
+1. Check the final PR CI and review the resulting diff.
+2. Start implementation with the JSON delete-before-rename recovery window and fault-injection tests, alongside the ASR stuck-process timeout contract.
+3. Continue Media Hub upload resource limits, FFmpeg hash pinning, and real-song/mix-quality evaluation.
+4. Prototype and measure desktop vocal/accompaniment separation locally; check redistribution terms only when choosing a model/runtime for bundling, not as a reason to delay local experiments.
+5. Complete actual application packaging and stable install/upgrade behavior for the platforms that are genuinely tested.
 
 ## 已知风险
-- This PR is documentation-only; it records but does not fix the missing Release server entitlement.
-- ASR timeout policy must account for long songs and platform process termination behavior; avoid one universal timeout.
-- JSON scaling needs measured cold-load/search/write/memory data before deciding on SQLite migration.
-- Audio monitoring delay and long-take drift require physical-device loopback tests; no zero-latency promise is justified.
-- No real-song recognition accuracy result was produced by this review.
+- The reviewed Qwen Rust source revision has no LICENSE/COPYING/NOTICE path, and the current build workflow suppresses failure to copy licence files. This matters if that specific runtime is redistributed as a bundled artifact; it is not a monetization or general development gate. Select a clear-provenance bundle or make the distribution behavior explicit before publishing it.
+- No crash-injection, malicious-upload, real-song, hardware compatibility, or actual mix-peak test was executed in this documentation task.
+- Existing main source still has the observed engineering gaps until follow-up implementation PRs merge.
 
-最后更新：2026-10-28 12:35（Asia/Taipei）
+最后更新：2026-10-28 13:39（Asia/Taipei）
