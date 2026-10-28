@@ -1,7 +1,0 @@
-# [2026-10-24 17:50] Add official ModelScope fallback for managed Qwen model downloads
-
-- Scope: Add a verified official ModelScope alternate for managed Qwen model files, use its manifest SHA-256 and file size, retain resumable downloads only when source identity is compatible, and probe both official Qwen sources using the configured proxy.
-- Files: lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart, lib/features/transcription/data/services/hugging_face_file_metadata.dart, lib/features/transcription/data/services/asr_download_connection_checker.dart, lib/features/transcription/presentation/widgets/transcription_config_dialog.dart, metadata/install contract tests, docs/asr_runtime_installation.md, work-log navigation.
-- Validation: Added manifest parsing and source-compatibility regression tests plus connection/setup contracts. GitHub Actions on this branch must confirm analysis, the full Flutter suite, and ASR-specific validations; a complete Windows RTX 5080 model download and native dual-engine recognition remain manual acceptance items.
-- Notes: The official Qwen3-ASR instructions recommend ModelScope for mainland China users. The integration uses ModelScope's published repository-file manifest and `resolve/master` download route, not an unverified third-party mirror. Fallback only occurs after Hugging Face metadata/download trouble, and known checksum or size disagreement blocks cross-source continuation.
-- Commit: `fix: add verified ModelScope fallback for Qwen downloads`

@@ -230,7 +230,14 @@ abstract final class AsrProcessTimeoutPolicy {
   }
 
   /// ASR input is normalized to 16 kHz, mono, signed 16-bit PCM WAV.
-  static Duration whisperInferenceForPcmWavBytes(int wavBytes) {
+  static Duration whisperInferenceForPcmWavBytes(int wavBytes) =>
+      _inferenceForPcmWavBytes(wavBytes);
+
+  /// Uses the normalized WAV duration to bound Qwen server requests as well.
+  static Duration qwenInferenceForPcmWavBytes(int wavBytes) =>
+      _inferenceForPcmWavBytes(wavBytes);
+
+  static Duration _inferenceForPcmWavBytes(int wavBytes) {
     final payloadBytes = wavBytes > _pcmWavHeaderBytes
         ? wavBytes - _pcmWavHeaderBytes
         : 0;
@@ -246,6 +253,14 @@ abstract final class AsrProcessTimeoutPolicy {
   static Future<Duration> whisperInferenceForPcmWav(String path) async {
     try {
       return whisperInferenceForPcmWavBytes(await File(path).length());
+    } catch (_) {
+      return const Duration(minutes: 30);
+    }
+  }
+
+  static Future<Duration> qwenInferenceForPcmWav(String path) async {
+    try {
+      return qwenInferenceForPcmWavBytes(await File(path).length());
     } catch (_) {
       return const Duration(minutes: 30);
     }

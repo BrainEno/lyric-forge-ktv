@@ -1,7 +1,0 @@
-# [2026-10-21 00:35] 对齐服务区分匹配/自动替换阈值并引入低置信与歧义状态（E3.1）
-
-- Scope: 阶段 E3 时间轴正确性加固的域层部分。在 `LyricAlignmentService` 中明确"匹配阈值"（minimumPairSimilarity，决定是否配对）与"自动替换阈值"（autoReplaceThreshold，决定是否自动采纳）两种阈值的不同用途；引入低置信度（lowConfidence）和歧义匹配（ambiguous）两种匹配状态，低置信与歧义行不自动替换，需用户定点确认；相应更新 `ReferenceAlignmentApplier`，使其不自动采纳低置信/歧义行，但支持显式采纳。
-- Files: 修改 `lib/features/lyrics/domain/services/lyric_alignment_service.dart`（`ReferenceLineAlignmentStatus`/`AsrLineAlignmentStatus` 新增 lowConfidence、ambiguous；`LyricAlignmentEntry`/`AsrLineAlignment` 新增 ambiguous 字段；`align()` 新增 autoReplaceThreshold、ambiguityMargin 参数；按两阈值与歧义边际计算状态）；修改 `lib/features/lyrics/domain/services/reference_alignment_applier.dart`（不自动采纳低置信/歧义行，仅显式采纳；保留既有 skip 语义）；新增/扩展 `test/features/lyrics/domain/services/lyric_alignment_service_test.dart`（低置信/自动替换阈值/歧义匹配 6 例）；`test/features/lyrics/domain/services/reference_alignment_applier_test.dart`（低置信不自动/可显式采纳、歧义不自动/可显式采纳 3 例）；`docs/log/entries/2026-10-21-0035-e3-alignment-threshold-states.md`、`docs/work_log.md`。
-- Validation: `dart format` 4 个文件；`flutter analyze --no-pub` 域层 2 个文件 → No issues found；`flutter test --no-pub test/features/lyrics/domain/services/lyric_alignment_service_test.dart` → 18/18 通过；`flutter test --no-pub test/features/lyrics/domain/services/reference_alignment_applier_test.dart` → 28/28 通过。
-- Notes: 审核界面的"替换 vs 插入漏行"判断（E3.3）及可重复运行的歌词样本测试集（E3.4）尚未实现，属于阶段 E3 的后续子任务。现有审核 UI 对 lowConfidence/ambiguous 入口尚未新增可视化区分，后续 E3.3 补齐。
-- Commit: Clarify alignment thresholds and add low-confidence/ambiguous match states
