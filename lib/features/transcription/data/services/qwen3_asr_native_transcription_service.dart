@@ -6,12 +6,18 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_process_supervisor.dart';
 import 'forced_alignment_http_client.dart';
 
 class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
+  Qwen3AsrNativeTranscriptionService({AsrProcessSupervisor? processSupervisor})
+    : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
+
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
-  final HttpClient _httpClient = HttpClient();
+  final AsrProcessSupervisor _processSupervisor;
+  final HttpClient _httpClient = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 10);
 
   Process? _serverProcess;
   StreamSubscription<String>? _stdoutSubscription;
@@ -214,6 +220,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       } finally {
         client.close(force: true);
       }
+    } on _QwenCancelledException {
+      throw const TranscriptionException.cancelled('歌词对齐已取消');
     } finally {
       if (temporaryDirectory != null && await temporaryDirectory.exists()) {
         try {
@@ -288,14 +296,26 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     }
 
     try {
-      final result = await Process.run(value, const ['--help']);
+      final result = await _runToolProcess(
+        value,
+        const ['--help'],
+        operation: '$label 启动自检',
+        timeout: AsrProcessTimeoutPolicy.executableProbe,
+      );
       if (result.exitCode != 0) {
-        throw TranscriptionException.environment('$label 无法执行');
+        throw TranscriptionException.environment(
+          '$label 无法执行',
+          details: result.stderrTail.join('\n'),
+        );
       }
-    } on ProcessException catch (error) {
+    } on TranscriptionException {
+      rethrow;
+    } on _QwenCancelledException {
+      rethrow;
+    } catch (error) {
       throw TranscriptionException.environment(
         '$label 无法执行',
-        details: error.message,
+        details: error.toString(),
       );
     }
   }
@@ -308,42 +328,76 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     final output = File(outputPath);
     if (await output.exists()) await output.delete();
 
-    Process process;
+    var succeeded = false;
     try {
-      process = await Process.start(
+      final result = await _runToolProcess(
         executable,
         AsrAudioNormalization.ffmpegArguments(
           inputPath: inputPath,
           outputPath: outputPath,
         ),
+        operation: 'Qwen FFmpeg 音频预处理',
+        timeout: await AsrProcessTimeoutPolicy.ffmpegPreprocessingForFile(
+          inputPath,
+        ),
       );
+      if (result.exitCode != 0) {
+        throw TranscriptionException.input(
+          'FFmpeg 音频预处理失败',
+          details: result.stderrTail.join('\n'),
+        );
+      }
+      if (!await output.exists()) {
+        throw const TranscriptionException.input('FFmpeg 未生成 Qwen3-ASR 输入文件');
+      }
+      succeeded = true;
+    } finally {
+      if (!succeeded && await output.exists()) {
+        try {
+          await output.delete();
+        } on FileSystemException {
+          // Preserve the original failure if cleanup also fails.
+        }
+      }
+    }
+  }
+
+  Future<AsrProcessResult> _runToolProcess(
+    String executable,
+    List<String> arguments, {
+    required String operation,
+    required Duration timeout,
+  }) async {
+    _throwIfCancelled();
+    try {
+      final result = await _processSupervisor.run(
+        executable,
+        arguments,
+        operation: operation,
+        timeout: timeout,
+        onProcessChanged: (process) {
+          _activeToolProcess = process;
+          if (process != null && _cancelRequested) {
+            unawaited(_processSupervisor.terminate(process));
+          }
+        },
+      );
+      _throwIfCancelled();
+      return result;
     } on ProcessException catch (error) {
+      _throwIfCancelled();
       throw TranscriptionException.environment(
-        '无法启动 FFmpeg',
+        '无法启动本地处理程序',
         details: error.message,
       );
-    }
-
-    _activeToolProcess = process;
-    if (_cancelRequested) process.kill();
-
-    final stdoutFuture = process.stdout.drain<void>();
-    final stderrFuture = utf8.decoder.bind(process.stderr).join();
-    final exitCode = await process.exitCode;
-    await stdoutFuture;
-    final stderrText = await stderrFuture;
-
-    if (identical(_activeToolProcess, process)) {
+    } on AsrProcessTimeoutException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        '$operation 超时',
+        details: error.toString(),
+      );
+    } finally {
       _activeToolProcess = null;
-    }
-
-    _throwIfCancelled();
-
-    if (exitCode != 0) {
-      throw TranscriptionException.input('FFmpeg 音频预处理失败', details: stderrText);
-    }
-    if (!await output.exists()) {
-      throw const TranscriptionException.input('FFmpeg 未生成 Qwen3-ASR 输入文件');
     }
   }
 
@@ -413,9 +467,14 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       }),
     );
 
-    const attempts = 240;
-    for (var attempt = 0; attempt < attempts; attempt++) {
-      _throwIfCancelled();
+    const startupTimeout = Duration(minutes: 2);
+    const pollInterval = Duration(milliseconds: 500);
+    final startupStopwatch = Stopwatch()..start();
+    while (startupStopwatch.elapsed < startupTimeout) {
+      if (_cancelRequested) {
+        await _stopServer();
+        _throwIfCancelled();
+      }
 
       if (_serverExited) {
         final details = _serverLogTail.join('\n');
@@ -427,7 +486,12 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       }
 
       if (await _isServerHealthy()) return;
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final remaining = startupTimeout - startupStopwatch.elapsed;
+      if (remaining > Duration.zero) {
+        await Future<void>.delayed(
+          remaining < pollInterval ? remaining : pollInterval,
+        );
+      }
     }
 
     final details = _serverLogTail.join('\n');
@@ -463,7 +527,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final response = await request.close().timeout(
         const Duration(seconds: 2),
       );
-      await response.drain<void>();
+      await response.drain<void>().timeout(const Duration(seconds: 2));
       return response.statusCode == HttpStatus.ok;
     } catch (_) {
       return false;
@@ -480,65 +544,104 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       throw const TranscriptionException.environment('Qwen3-ASR 服务尚未启动');
     }
 
-    final request = await _httpClient.postUrl(
-      Uri.parse('http://127.0.0.1:$port/v1/transcribe'),
-    );
-    _activeRequest = request;
-    request.headers.contentType = ContentType.json;
-
-    final language = _qwenLanguage(config.language);
-    final body = <String, dynamic>{
-      'audio': audioPath,
-      'return_timestamps': true,
-      'max_new_tokens': 1024,
-      'max_batch_size': 4,
-      'bucket_by_length': true,
-      if (context.trim().isNotEmpty) 'context': context.trim(),
-      'language': ?language,
-    };
-    request.add(utf8.encode(jsonEncode(body)));
-
-    HttpClientResponse response;
+    final endpoint = Uri.parse('http://127.0.0.1:$port/v1/transcribe');
+    late final HttpClientRequest request;
     try {
-      response = await request.close();
+      request = await _httpClient
+          .postUrl(endpoint)
+          .timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        'Qwen3-ASR 本地服务连接超时',
+        details: error.toString(),
+      );
     } catch (error) {
       _throwIfCancelled();
       throw TranscriptionException.environment(
         'Qwen3-ASR 本地服务连接中断',
         details: error.toString(),
       );
-    } finally {
-      _activeRequest = null;
     }
 
-    final text = await utf8.decoder.bind(response).join();
-    if (response.statusCode != HttpStatus.ok) {
-      final environmentFailure = response.statusCode >= 500;
-      throw TranscriptionException(
-        'Qwen3-ASR 返回 HTTP ${response.statusCode}',
-        details: text,
-        kind: environmentFailure
-            ? TranscriptionFailureKind.environment
-            : TranscriptionFailureKind.input,
+    _activeRequest = request;
+    final timeout = await AsrProcessTimeoutPolicy.qwenInferenceForPcmWav(
+      audioPath,
+    );
+    try {
+      _throwIfCancelled();
+      request.headers.contentType = ContentType.json;
+
+      final language = _qwenLanguage(config.language);
+      final body = <String, dynamic>{
+        'audio': audioPath,
+        'return_timestamps': true,
+        'max_new_tokens': 1024,
+        'max_batch_size': 4,
+        'bucket_by_length': true,
+        if (context.trim().isNotEmpty) 'context': context.trim(),
+        'language': ?language,
+      };
+      request.add(utf8.encode(jsonEncode(body)));
+
+      HttpClientResponse? receivedResponse;
+      final text = await (() async {
+        receivedResponse = await request.close();
+        return await utf8.decoder.bind(receivedResponse!).join();
+      })().timeout(timeout);
+      _throwIfCancelled();
+
+      final response = receivedResponse;
+      if (response == null) {
+        throw const TranscriptionException.environment('Qwen3-ASR 未返回 HTTP 响应');
+      }
+      if (response.statusCode != HttpStatus.ok) {
+        final environmentFailure = response.statusCode >= 500;
+        throw TranscriptionException(
+          'Qwen3-ASR 返回 HTTP ${response.statusCode}',
+          details: text,
+          kind: environmentFailure
+              ? TranscriptionFailureKind.environment
+              : TranscriptionFailureKind.input,
+        );
+      }
+
+      final decoded = jsonDecode(text);
+      if (decoded is! Map) {
+        throw const TranscriptionException.environment('Qwen3-ASR 返回了无效 JSON');
+      }
+
+      final envelope = Map<String, dynamic>.from(decoded);
+      final results = envelope['results'];
+      if (results is List && results.isNotEmpty && results.first is Map) {
+        return Map<String, dynamic>.from(results.first as Map);
+      }
+
+      if (envelope['text'] != null || envelope['timestamps'] != null) {
+        return envelope;
+      }
+
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 响应缺少 results[0]',
       );
+    } on TimeoutException catch (error) {
+      request.abort(error, StackTrace.current);
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        'Qwen3-ASR 本地识别请求超时',
+        details: '识别预算 ${timeout.inMinutes} 分钟已耗尽: ${error.toString()}',
+      );
+    } on TranscriptionException {
+      rethrow;
+    } catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        'Qwen3-ASR 本地服务请求失败',
+        details: error.toString(),
+      );
+    } finally {
+      if (identical(_activeRequest, request)) _activeRequest = null;
     }
-
-    final decoded = jsonDecode(text);
-    if (decoded is! Map) {
-      throw const TranscriptionException.environment('Qwen3-ASR 返回了无效 JSON');
-    }
-
-    final envelope = Map<String, dynamic>.from(decoded);
-    final results = envelope['results'];
-    if (results is List && results.isNotEmpty && results.first is Map) {
-      return Map<String, dynamic>.from(results.first as Map);
-    }
-
-    if (envelope['text'] != null || envelope['timestamps'] != null) {
-      return envelope;
-    }
-
-    throw const TranscriptionException.environment('Qwen3-ASR 响应缺少 results[0]');
   }
 
   String? _qwenLanguage(String value) {
@@ -898,8 +1001,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _idleShutdownTimer?.cancel();
     _idleShutdownTimer = null;
     _activeRequest?.abort();
-    _activeToolProcess?.kill();
-    _activeToolProcess = null;
+    final process = _activeToolProcess;
+    if (process != null) {
+      await _processSupervisor.terminate(process);
+      if (identical(_activeToolProcess, process)) _activeToolProcess = null;
+    }
     await _stopServer();
   }
 
@@ -914,7 +1020,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _serverExited = false;
 
     if (process != null) {
-      process.kill();
+      await _processSupervisor.terminate(process);
     }
 
     await _stdoutSubscription?.cancel();
@@ -927,8 +1033,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> dispose() async {
     _cancelRequested = true;
     _activeRequest?.abort();
-    _activeToolProcess?.kill();
-    _activeToolProcess = null;
+    final process = _activeToolProcess;
+    if (process != null) {
+      await _processSupervisor.terminate(process);
+      if (identical(_activeToolProcess, process)) _activeToolProcess = null;
+    }
     await _stopServer();
     _httpClient.close(force: true);
     await _progressController.close();

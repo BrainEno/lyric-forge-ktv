@@ -37,10 +37,7 @@ void main() {
         final ffmpegExecutable = await touch('ffmpeg');
         final qwenModel = await touch('qwen-model.bin');
         final alignerModel = await touch('aligner-model.bin');
-        final process = _FakeProcess(
-          killOnSigterm: false,
-          killOnSigkill: true,
-        );
+        final process = _FakeProcess(killOnSigterm: false, killOnSigkill: true);
         final processStarted = Completer<void>();
         final supervisor = AsrProcessSupervisor(
           startProcess: (_, __) async {
