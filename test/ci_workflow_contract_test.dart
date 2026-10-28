@@ -87,6 +87,31 @@ void main() {
       },
     );
 
+    test(
+      'managed CMake validation intentionally exercises the CocoaPods path',
+      () async {
+        final workflow = await File(
+          '.github/workflows/macos-managed-cmake-validation.yml',
+        ).readAsString();
+        expect(
+          workflow,
+          contains('flutter config --no-enable-swift-package-manager'),
+        );
+        expect(
+          workflow,
+          contains('LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"'),
+        );
+        expect(
+          workflow,
+          contains('Verify managed CMake was actually used'),
+        );
+        expect(
+          workflow,
+          contains('grep -q "LyricForge managed CMake PATH"'),
+        );
+      },
+    );
+
     test('stale KTV feature-branch-only trigger names are gone', () async {
       final directory = Directory('.github/workflows');
       final workflows = await directory
