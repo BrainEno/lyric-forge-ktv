@@ -4,10 +4,18 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/build-asr-runtime.yml'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/asr-runtime-release-contract.yml'
       - 'test/asr_runtime_release_workflow_contract_test.dart'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release-contract:
@@ -15,11 +23,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.9'
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Validate partial release contract
         run: flutter test test/asr_runtime_release_workflow_contract_test.dart

@@ -6,6 +6,8 @@ on:
       - "lib/features/player/data/services/local_ktv_recording_service.dart"
       - "lib/features/player/presentation/screens/player_screen.dart"
       - "test/features/player/ktv_take_operation_lock_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/ktv-take-operation-lock-validation.yml"
   push:
     branches: [main]
@@ -13,7 +15,13 @@ on:
       - "lib/features/player/data/services/local_ktv_recording_service.dart"
       - "lib/features/player/presentation/screens/player_screen.dart"
       - "test/features/player/ktv_take_operation_lock_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/ktv-take-operation-lock-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ktv-take-locks:
@@ -21,10 +29,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze KTV take operation changes
         run: >-
@@ -39,8 +44,6 @@ jobs:
           test/features/player/ktv_recording_storage_contract_test.dart
           test/features/player/ktv_take_history_store_test.dart
           test/features/player/ktv_take_mix_path_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test
 
 # Locking is validated both at service level and against the existing history
 # suite because mix export and take metadata share the same session manifest.

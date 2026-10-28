@@ -8,19 +8,21 @@ on:
       - 'pubspec.lock'
       - 'windows/**'
       - 'test/windows_native_plugin_build_config_test.dart'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/windows-native-build-validation.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows-debug:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.9'
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - run: flutter test test/windows_native_plugin_build_config_test.dart
       - run: flutter build windows --debug

@@ -7,6 +7,8 @@ on:
       - "lib/features/transcription/data/services/whisper_cpp_transcription_service.dart"
       - "lib/features/transcription/data/services/resumable_chunked_transcription_service.dart"
       - "test/features/transcription/transcription_execution_failure_kind_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/transcription-execution-failure-validation.yml"
   push:
     branches: [main]
@@ -15,7 +17,13 @@ on:
       - "lib/features/transcription/data/services/whisper_cpp_transcription_service.dart"
       - "lib/features/transcription/data/services/resumable_chunked_transcription_service.dart"
       - "test/features/transcription/transcription_execution_failure_kind_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/transcription-execution-failure-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   execution-failure-kinds:
@@ -23,10 +31,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze execution failure classification
         run: >-
@@ -39,8 +44,6 @@ jobs:
         run: flutter test test/features/transcription/transcription_execution_failure_kind_test.dart
       - name: Regression high-quality fallback semantics
         run: flutter test test/high_quality_transcription_service_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test
 
-# This workflow intentionally runs both focused semantics and the full suite:
-# queue recovery decisions depend on preserving failure kinds end to end.
+# Full regression coverage is provided by the universal Flutter Quality Gate.
+# This workflow keeps the failure-kind and fallback checks close to their owner code.

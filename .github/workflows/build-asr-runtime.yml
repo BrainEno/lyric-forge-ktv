@@ -5,11 +5,15 @@ on:
   # change. Dart-side transcription changes are covered by Flutter/ASR client CI.
   pull_request:
     paths:
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/build-asr-runtime.yml"
       - "tool/patches/**"
   push:
     branches: [main]
     paths:
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/build-asr-runtime.yml"
       - "tool/patches/**"
   # Keep an explicit escape hatch for intentional runtime validation/release.
@@ -40,19 +44,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
+        uses: ./.github/actions/setup-flutter
       - name: Resolve dependencies
         run: flutter pub get
 
       - name: Analyze blocking errors
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      - name: Test
-        run: flutter test
+      - name: Test managed runtime contracts
+        run: >-
+          flutter test
+          test/asr_runtime_release_workflow_contract_test.dart
+          test/runtime_release_asset_metadata_test.dart
+          test/runtime_integrity_install_contract_test.dart
 
   windows-cuda:
     name: Windows x64 CUDA runtime
