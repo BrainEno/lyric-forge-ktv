@@ -158,6 +158,10 @@ class AsrProcessSupervisor {
     }
   }
 
+  /// Terminates an active process with bounded graceful and force-kill waits.
+  Future<void> terminate(Process process) =>
+      _terminate(process, process.exitCode);
+
   Future<void> _terminate(Process process, Future<int> exitCode) async {
     try {
       process.kill();

@@ -97,6 +97,34 @@ void main() {
     });
 
     test(
+      'explicit cancellation terminates and escalates a stuck process',
+      () async {
+        final process = _FakeProcess(
+          killOnSigterm: false,
+          killOnSigkill: true,
+        );
+        final supervisor = AsrProcessSupervisor(
+          startProcess: (_, __) async => process,
+          terminationGrace: const Duration(milliseconds: 10),
+          streamDrainGrace: const Duration(milliseconds: 10),
+        );
+        final running = supervisor.run(
+          'cancelled-asr',
+          const [],
+          timeout: const Duration(minutes: 10),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        await supervisor.terminate(process);
+        final result = await running;
+
+        expect(result.exitCode, 137);
+        expect(process.killSignals, contains(ProcessSignal.sigterm));
+        expect(process.killSignals, contains(ProcessSignal.sigkill));
+      },
+    );
+
+    test(
       'does not wait forever for pipes inherited after child exit',
       () async {
         final process = _FakeProcess();

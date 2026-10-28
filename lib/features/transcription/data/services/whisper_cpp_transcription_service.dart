@@ -382,7 +382,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         onStderrLine: onStderrLine,
         onProcessChanged: (process) {
           _activeProcess = process;
-          if (process != null && _cancelRequested) process.kill();
+          if (process != null && _cancelRequested) {\n            unawaited(_processSupervisor.terminate(process));\n          }
         },
       );
 
@@ -424,7 +424,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
-    _activeProcess?.kill();
+    final process = _activeProcess;\n    if (process != null) {\n      await _processSupervisor.terminate(process);\n    }
   }
 
   @override
