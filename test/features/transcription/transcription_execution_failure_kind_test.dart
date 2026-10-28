@@ -10,7 +10,9 @@ import 'package:lyric_forge_ktv/features/transcription/domain/services/transcrip
 
 void main() {
   test('Whisper treats missing source as input failure', () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-whisper-input-');
+    final root = await Directory.systemTemp.createTemp(
+      'lyricforge-whisper-input-',
+    );
     addTearDown(() => root.delete(recursive: true));
     final service = WhisperCppTranscriptionService();
     addTearDown(service.dispose);
@@ -33,59 +35,63 @@ void main() {
     );
   });
 
-  test('Whisper treats missing managed model and executable as environment',
-      () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-whisper-env-');
-    addTearDown(() => root.delete(recursive: true));
-    final input = File('${root.path}${Platform.pathSeparator}song.wav');
-    await input.writeAsBytes([1, 2, 3]);
+  test(
+    'Whisper treats missing managed model and executable as environment',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-whisper-env-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final input = File('${root.path}${Platform.pathSeparator}song.wav');
+      await input.writeAsBytes([1, 2, 3]);
 
-    final missingModelService = WhisperCppTranscriptionService();
-    addTearDown(missingModelService.dispose);
-    await expectLater(
-      missingModelService.transcribe(
-        _request(
-          input: input.path,
-          output: root.path,
-          config: _whisperConfig(
-            modelPath: '${root.path}${Platform.pathSeparator}missing.bin',
+      final missingModelService = WhisperCppTranscriptionService();
+      addTearDown(missingModelService.dispose);
+      await expectLater(
+        missingModelService.transcribe(
+          _request(
+            input: input.path,
+            output: root.path,
+            config: _whisperConfig(
+              modelPath: '${root.path}${Platform.pathSeparator}missing.bin',
+            ),
           ),
         ),
-      ),
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.kind,
-          'kind',
-          TranscriptionFailureKind.environment,
-        ),
-      ),
-    );
-
-    final model = File('${root.path}${Platform.pathSeparator}model.bin');
-    await model.writeAsBytes([4]);
-    final missingExecutableService = WhisperCppTranscriptionService();
-    addTearDown(missingExecutableService.dispose);
-    await expectLater(
-      missingExecutableService.transcribe(
-        _request(
-          input: input.path,
-          output: root.path,
-          config: _whisperConfig(
-            modelPath: model.path,
-            whisperExecutable:
-                '${root.path}${Platform.pathSeparator}missing-whisper',
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.environment,
           ),
         ),
-      ),
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.kind,
-          'kind',
-          TranscriptionFailureKind.environment,
+      );
+
+      final model = File('${root.path}${Platform.pathSeparator}model.bin');
+      await model.writeAsBytes([4]);
+      final missingExecutableService = WhisperCppTranscriptionService();
+      addTearDown(missingExecutableService.dispose);
+      await expectLater(
+        missingExecutableService.transcribe(
+          _request(
+            input: input.path,
+            output: root.path,
+            config: _whisperConfig(
+              modelPath: model.path,
+              whisperExecutable:
+                  '${root.path}${Platform.pathSeparator}missing-whisper',
+            ),
+          ),
         ),
-      ),
-    );
-  });
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.environment,
+          ),
+        ),
+      );
+    },
+  );
 
   test('Qwen separates missing source from missing runtime', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-qwen-kind-');
@@ -137,7 +143,9 @@ void main() {
   test(
     'chunking immediately propagates environment failures without retrying',
     () async {
-      final root = await Directory.systemTemp.createTemp('lyricforge-chunk-env-');
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-chunk-env-',
+      );
       addTearDown(() => root.delete(recursive: true));
       final fakeFfmpeg = await _fakeFfmpeg(root);
       final input = File('${root.path}${Platform.pathSeparator}long.wav');
@@ -175,43 +183,48 @@ void main() {
     skip: Platform.isWindows,
   );
 
-  test('chunking preserves input kind after normal retry budget is exhausted',
-      () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-chunk-input-');
-    addTearDown(() => root.delete(recursive: true));
-    final fakeFfmpeg = await _fakeFfmpeg(root);
-    final input = File('${root.path}${Platform.pathSeparator}long.wav');
-    await input.writeAsBytes([1, 2, 3]);
-    final delegate = _ThrowingService(TranscriptionFailureKind.input);
-    final service = ResumableChunkedTranscriptionService(
-      delegate: delegate,
-      chunkDuration: const Duration(seconds: 3),
-      overlap: const Duration(seconds: 1),
-      maxAttempts: 3,
-    );
-    addTearDown(service.dispose);
+  test(
+    'chunking preserves input kind after normal retry budget is exhausted',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-chunk-input-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final fakeFfmpeg = await _fakeFfmpeg(root);
+      final input = File('${root.path}${Platform.pathSeparator}long.wav');
+      await input.writeAsBytes([1, 2, 3]);
+      final delegate = _ThrowingService(TranscriptionFailureKind.input);
+      final service = ResumableChunkedTranscriptionService(
+        delegate: delegate,
+        chunkDuration: const Duration(seconds: 3),
+        overlap: const Duration(seconds: 1),
+        maxAttempts: 3,
+      );
+      addTearDown(service.dispose);
 
-    await expectLater(
-      service.transcribe(
-        _request(
-          input: input.path,
-          output: root.path,
-          config: _whisperConfig(
-            modelPath: 'unused.bin',
-            ffmpegExecutable: fakeFfmpeg,
+      await expectLater(
+        service.transcribe(
+          _request(
+            input: input.path,
+            output: root.path,
+            config: _whisperConfig(
+              modelPath: 'unused.bin',
+              ffmpegExecutable: fakeFfmpeg,
+            ),
           ),
         ),
-      ),
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.kind,
-          'kind',
-          TranscriptionFailureKind.input,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.input,
+          ),
         ),
-      ),
-    );
-    expect(delegate.calls, 3);
-  }, skip: Platform.isWindows);
+      );
+      expect(delegate.calls, 3);
+    },
+    skip: Platform.isWindows,
+  );
 }
 
 TranscriptionRequest _request({
@@ -253,7 +266,8 @@ TranscriptionConfig _qwenConfig({required String qwenExecutable}) {
 
 Future<String> _fakeFfmpeg(Directory root) async {
   final script = File('${root.path}${Platform.pathSeparator}fake_ffmpeg.sh');
-  await script.writeAsString(r'''#!/bin/sh
+  await script.writeAsString(
+    r'''#!/bin/sh
 last=""
 for arg in "$@"; do
   last="$arg"
@@ -268,7 +282,9 @@ case " $* " in
     exit 0
     ;;
 esac
-'''.replaceAll(r'\"', '"'));
+'''
+        .replaceAll(r'\"', '"'),
+  );
   final chmod = await Process.run('chmod', ['+x', script.path]);
   if (chmod.exitCode != 0) {
     throw StateError('chmod failed: ${chmod.stderr}');
