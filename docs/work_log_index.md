@@ -33,6 +33,8 @@
 
 ## Follow-up leads — re-check before acting
 
+- **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) distinguishes the confirmed macOS Release listener-entitlement gap from conditional risks around ASR process timeouts, JSON-store scale, audio-clock alignment, and Media Hub token/range validation.
+
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
 - A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
