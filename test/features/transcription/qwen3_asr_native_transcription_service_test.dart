@@ -22,7 +22,9 @@ void main() {
       }
     });
 
-    test('cancellation escalates through the supervised FFmpeg process', () async {
+    test(
+      'cancellation escalates through the supervised FFmpeg process',
+      () async {
       final input = File('${tempDirectory.path}/input.mp3');
       await input.writeAsBytes([1, 2, 3]);
       final qwenExecutable = await _touch('qwen-runtime');
@@ -62,6 +64,7 @@ void main() {
       try {
         final running = service.transcribe(request);
         await processStarted.future.timeout(const Duration(seconds: 2));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
         await service.cancel();
 
         await expectLater(
@@ -87,7 +90,8 @@ void main() {
       } finally {
         await service.dispose();
       }
-    });
+      },
+    );
 
     test('Qwen request budget scales with normalized WAV duration', () {
       const bytesPerSecond = 16000 * 2;

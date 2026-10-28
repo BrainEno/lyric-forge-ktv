@@ -371,7 +371,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }) async {
     _throwIfCancelled();
     try {
-      return await _processSupervisor.run(
+      final result = await _processSupervisor.run(
         executable,
         arguments,
         operation: operation,
@@ -383,6 +383,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           }
         },
       );
+      _throwIfCancelled();
+      return result;
     } on ProcessException catch (error) {
       _throwIfCancelled();
       throw TranscriptionException.environment(
