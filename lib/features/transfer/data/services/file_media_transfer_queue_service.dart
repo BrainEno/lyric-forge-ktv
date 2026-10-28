@@ -15,7 +15,8 @@ import '../../domain/services/media_transfer_queue_service.dart';
 import '../../domain/services/media_transfer_service.dart';
 
 class FileMediaTransferQueueService implements MediaTransferQueueService {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['items'] is List;
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map && decoded['items'] is List;
 
   final MediaTransferService transfers;
   final MediaHubClientService client;
@@ -70,7 +71,10 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
       throw FormatException(
         'The Media Hub transfer queue is invalid and no recoverable copy is available. ${file.path}',
       );
@@ -256,19 +260,17 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
       if (initial.direction == MediaTransferDirection.downloadFromDesktop) {
         final track = initial.remoteTrack;
         if (track == null) throw StateError('下载任务缺少远程歌曲信息');
-        result = await transfers.downloadRemoteTracks(
-          [track],
-          onProgress: (progress) => _applyProgress(initial.id, progress),
-        );
+        result = await transfers.downloadRemoteTracks([
+          track,
+        ], onProgress: (progress) => _applyProgress(initial.id, progress));
       } else {
         final path = initial.sourcePath;
         if (path == null || path.isEmpty) {
           throw StateError('上传任务缺少本地文件路径');
         }
-        result = await transfers.uploadLocalFiles(
-          [path],
-          onProgress: (progress) => _applyProgress(initial.id, progress),
-        );
+        result = await transfers.uploadLocalFiles([
+          path,
+        ], onProgress: (progress) => _applyProgress(initial.id, progress));
       }
     } catch (error) {
       _markFailed(initial.id, error.toString());
@@ -348,10 +350,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
   @override
   Future<void> resume() async {
     await _ensureInitialized();
-    _state = _state.copyWith(
-      isPaused: false,
-      clearPauseReason: true,
-    );
+    _state = _state.copyWith(isPaused: false, clearPauseReason: true);
     await _persistAndEmit();
     unawaited(processPending());
   }
@@ -453,11 +452,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      await AtomicJsonFile.write(
-        file,
-        payload,
-        validate: _isValidStoreJson,
-      );
+      await AtomicJsonFile.write(file, payload, validate: _isValidStoreJson);
     }();
     _writeChain = operation;
     return operation;

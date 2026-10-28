@@ -9,7 +9,13 @@ import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
 class FileMediaHubConnectionStore implements MediaHubConnectionStore {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['host'] is String && decoded['host'].toString().isNotEmpty && decoded['port'] is num && decoded['token'] is String && decoded['token'].toString().isNotEmpty;
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map &&
+      decoded['host'] is String &&
+      decoded['host'].toString().isNotEmpty &&
+      decoded['port'] is num &&
+      decoded['token'] is String &&
+      decoded['token'].toString().isNotEmpty;
 
   static const String _fileName = 'media_hub_connection.json';
 
@@ -18,9 +24,7 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
   Future<File> _file() async {
     final directory = await getApplicationSupportDirectory();
     await directory.create(recursive: true);
-    return File(
-      directory.path + Platform.pathSeparator + _fileName,
-    );
+    return File(directory.path + Platform.pathSeparator + _fileName);
   }
 
   @override
@@ -29,7 +33,10 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
     final file = await _file();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
       throw FormatException(
         'The saved Media Hub connection is invalid and no recoverable copy is available. ${file.path}',
       );

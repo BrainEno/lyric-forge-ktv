@@ -10,17 +10,20 @@ import '../../domain/models/media_hub_device_identity.dart';
 import '../../domain/services/media_hub_device_identity_store.dart';
 
 class FileMediaHubDeviceIdentityStore implements MediaHubDeviceIdentityStore {
-  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['deviceId'] is String && decoded['deviceId'].toString().trim().isNotEmpty && decoded['discoveryKey'] is String && decoded['discoveryKey'].toString().trim().isNotEmpty;
+  static bool _isValidStoreJson(Object? decoded) =>
+      decoded is Map &&
+      decoded['deviceId'] is String &&
+      decoded['deviceId'].toString().trim().isNotEmpty &&
+      decoded['discoveryKey'] is String &&
+      decoded['discoveryKey'].toString().trim().isNotEmpty;
 
   static const String _fileName = 'media_hub_device_identity.json';
 
   final Directory? rootDirectory;
   final Uuid _uuid;
 
-  FileMediaHubDeviceIdentityStore({
-    this.rootDirectory,
-    Uuid? uuid,
-  }) : _uuid = uuid ?? const Uuid();
+  FileMediaHubDeviceIdentityStore({this.rootDirectory, Uuid? uuid})
+    : _uuid = uuid ?? const Uuid();
 
   Future<File> _file() async {
     final directory = rootDirectory ?? await getApplicationSupportDirectory();
@@ -33,7 +36,10 @@ class FileMediaHubDeviceIdentityStore implements MediaHubDeviceIdentityStore {
     final file = await _file();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&
-        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+        !await AtomicJsonFile.isValidJsonFile(
+          file,
+          validate: _isValidStoreJson,
+        )) {
       throw FormatException(
         'The Media Hub device identity is invalid and no recoverable copy is available. ${file.path}',
       );
