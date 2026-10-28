@@ -8,8 +8,9 @@ Convert the second external review into a source-verified commercial-readiness r
 - Source baseline for findings: e8ea44ee4baa3da1709c9f5a665d0c01926e9e99
 - Main baseline for this documentation change: 5d7a6ff2179765399f5ed66fb1d01c9a6852076a
 - Branch: docs/second-review-commercial-readiness-20261028
-- The previously merged PR #206 established docs/engineering_risks_roadmap.md; this task extends that roadmap with the second review's additional findings.
-- Local Dart/Flutter SDK is unavailable in this execution environment; PR CI is required.
+- PR: [#207 docs: extend engineering roadmap with release blockers](https://github.com/BrainEno/lyric-forge-ktv/pull/207)
+- The first Flutter Quality Gate run (40638304303) failed at the work-log preflight because the manually reconstructed summary had one extra blank line; the generated summary has now been corrected to match the generator's exact output.
+- Local Dart/Flutter SDK is unavailable in this execution environment; the newest PR Quality Gate must still be checked after this commit.
 
 ## 已改文件
 - docs/engineering_risks_roadmap.md
@@ -30,7 +31,8 @@ Convert the second external review into a source-verified commercial-readiness r
 ## 检查结果
 - Source-level findings were cross-checked at the fixed commit; runtime release assets and workflow targets were inspected.
 - No application code was changed.
-- dart tool/work_log.dart check, flutter analyze, and flutter test were not run locally because Dart/Flutter SDKs are unavailable. Wait for the latest PR Quality Gate before treating documentation lint as passed.
+- The initial CI run failed only because docs/work_log.md did not exactly match generated summary formatting. That formatting mismatch has been corrected; final status depends on the latest run.
+- dart tool/work_log.dart check, flutter analyze, and flutter test were not run locally because Dart/Flutter SDKs are unavailable.
 
 ## 下一步
 Check the latest PR CI result and review the roadmap diff. Implementation should start with (1) Qwen runtime licence/redistribution decision, (2) delete-before-rename data safety and recovery, then (3) bounded upload handling and FFmpeg artifact integrity. These items are recorded, not fixed, in this documentation-only PR.
