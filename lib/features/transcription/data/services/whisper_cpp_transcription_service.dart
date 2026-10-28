@@ -6,10 +6,16 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_process_supervisor.dart';
 
 class WhisperCppTranscriptionService implements TranscriptionService {
+  WhisperCppTranscriptionService({
+    AsrProcessSupervisor? processSupervisor,
+  }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
+
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
+  final AsrProcessSupervisor _processSupervisor;
 
   Process? _activeProcess;
   bool _cancelRequested = false;
@@ -114,28 +120,29 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       throw TranscriptionException.environment('$label 路径未配置');
     }
 
-    final hasExplicitPath = value.contains('/') || value.contains('\\');
+    final hasExplicitPath = value.contains('/') || value.contains('\\\\');
     if (hasExplicitPath && !await File(value).exists()) {
       throw TranscriptionException.environment('$label 可执行文件不存在');
     }
 
     if (!hasExplicitPath) {
-      try {
-        final arguments = label == 'FFmpeg' ? const ['-version'] : const ['-h'];
-        final result = await Process.run(value, arguments);
-        if (result.exitCode != 0) {
-          throw TranscriptionException.environment('$label 无法执行');
-        }
-      } on ProcessException catch (error) {
+      final arguments = label == 'FFmpeg' ? const ['-version'] : const ['-h'];
+      final result = await _runProcess(
+        value,
+        arguments,
+        operation: '$label 启动自检',
+        timeout: AsrProcessTimeoutPolicy.executableProbe,
+      );
+      if (result.exitCode != 0) {
         throw TranscriptionException.environment(
           '$label 无法执行',
-          details: error.message,
+          details: result.stderrTail,
         );
       }
     }
   }
 
-  Future<void> _runFfmpeg({
+    Future<void> _runFfmpeg({
     required String executable,
     required String inputPath,
     required String outputPath,
@@ -143,28 +150,44 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     final file = File(outputPath);
     if (await file.exists()) await file.delete();
 
-    final result = await _runProcess(
-      executable,
-      AsrAudioNormalization.ffmpegArguments(
-        inputPath: inputPath,
-        outputPath: outputPath,
-      ),
-    );
-
-    if (result.exitCode != 0) {
-      throw TranscriptionException.input(
-        'FFmpeg 音频预处理失败',
-        details: result.stderrTail,
+    var succeeded = false;
+    try {
+      final result = await _runProcess(
+        executable,
+        AsrAudioNormalization.ffmpegArguments(
+          inputPath: inputPath,
+          outputPath: outputPath,
+        ),
+        operation: 'FFmpeg 音频预处理',
+        timeout: await AsrProcessTimeoutPolicy.ffmpegPreprocessingForFile(
+          inputPath,
+        ),
       );
-    }
-    if (!await file.exists()) {
-      throw const TranscriptionException.input('FFmpeg 未生成识别输入文件');
-    }
 
-    _emit(TranscriptionStage.preprocessing, 0.18, '音频预处理完成');
+      if (result.exitCode != 0) {
+        throw TranscriptionException.input(
+          'FFmpeg 音频预处理失败',
+          details: result.stderrTail,
+        );
+      }
+      if (!await file.exists()) {
+        throw const TranscriptionException.input('FFmpeg 未生成识别输入文件');
+      }
+
+      succeeded = true;
+      _emit(TranscriptionStage.preprocessing, 0.18, '音频预处理完成');
+    } finally {
+      if (!succeeded && await file.exists()) {
+        try {
+          await file.delete();
+        } on FileSystemException {
+          // Preserve the original process failure if cleanup also fails.
+        }
+      }
+    }
   }
 
-  Future<void> _runWhisper({
+    Future<void> _runWhisper({
     required TranscriptionConfig config,
     required String inputPath,
     required String outputBase,
@@ -172,49 +195,67 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     final jsonFile = File('$outputBase.json');
     if (await jsonFile.exists()) await jsonFile.delete();
 
-    final result = await _runProcess(
-      config.whisperExecutable,
-      [
-        '-m',
-        config.modelPath,
-        '-f',
-        inputPath,
-        '-l',
-        config.language,
-        '-ojf',
-        '-of',
-        outputBase,
-        '-pp',
-      ],
-      onStderrLine: (line) {
-        final match = RegExp(
-          r'progress\s*=\s*(\d+)%',
-          caseSensitive: false,
-        ).firstMatch(line);
-        final value = int.tryParse(match?.group(1) ?? '');
-        if (value != null) {
-          final fraction = value.clamp(0, 100) / 100.0;
-          _emit(
-            TranscriptionStage.transcribing,
-            0.20 + fraction * 0.72,
-            'Whisper 正在识别 · $value%',
-          );
-        }
-      },
-    );
-
-    if (result.exitCode != 0) {
-      throw TranscriptionException.environment(
-        'whisper.cpp 识别进程失败',
-        details: result.stderrTail,
+    var succeeded = false;
+    try {
+      final result = await _runProcess(
+        config.whisperExecutable,
+        [
+          '-m',
+          config.modelPath,
+          '-f',
+          inputPath,
+          '-l',
+          config.language,
+          '-ojf',
+          '-of',
+          outputBase,
+          '-pp',
+        ],
+        operation: 'whisper.cpp 歌词识别',
+        timeout: await AsrProcessTimeoutPolicy.whisperInferenceForPcmWav(
+          inputPath,
+        ),
+        onStderrLine: (line) {
+          final match = RegExp(
+            r'progress\\s*=\\s*(\\d+)%',
+            caseSensitive: false,
+          ).firstMatch(line);
+          final value = int.tryParse(match?.group(1) ?? '');
+          if (value != null) {
+            final fraction = value.clamp(0, 100) / 100.0;
+            _emit(
+              TranscriptionStage.transcribing,
+              0.20 + fraction * 0.72,
+              'Whisper 正在识别 · $value%',
+            );
+          }
+        },
       );
-    }
-    if (!await jsonFile.exists()) {
-      throw const TranscriptionException.environment('whisper.cpp 未生成 JSON 结果');
+
+      if (result.exitCode != 0) {
+        throw TranscriptionException.environment(
+          'whisper.cpp 识别进程失败',
+          details: result.stderrTail,
+        );
+      }
+      if (!await jsonFile.exists()) {
+        throw const TranscriptionException.environment(
+          'whisper.cpp 未生成 JSON 结果',
+        );
+      }
+      succeeded = true;
+    } finally {
+      if (!succeeded && await jsonFile.exists()) {
+        try {
+          await jsonFile.delete();
+        } on FileSystemException {
+          // Do not replace the recognition failure with a cleanup failure.
+        }
+      }
     }
   }
 
-  Future<TranscriptionResult> _parseResult({
+    Future<TranscriptionResult> _parseResult({
     required String rawJsonPath,
     required String normalizedAudioPath,
   }) async {
@@ -327,48 +368,42 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<_ProcessResult> _runProcess(
     String executable,
     List<String> arguments, {
+    required String operation,
+    required Duration timeout,
     void Function(String line)? onStderrLine,
   }) async {
     _throwIfCancelled();
 
-    Process process;
     try {
-      process = await Process.start(executable, arguments);
+      final result = await _processSupervisor.run(
+        executable,
+        arguments,
+        timeout: timeout,
+        operation: operation,
+        onStderrLine: onStderrLine,
+        onProcessChanged: (process) {
+          _activeProcess = process;
+          if (process != null && _cancelRequested) process.kill();
+        },
+      );
+
+      _throwIfCancelled();
+      return _ProcessResult(
+        exitCode: result.exitCode,
+        stderrTail: result.stderrTail.join('\\n'),
+      );
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
         '无法启动本地处理程序',
         details: error.message,
       );
+    } on AsrProcessTimeoutException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        '$operation 超时',
+        details: error.toString(),
+      );
     }
-
-    _activeProcess = process;
-    if (_cancelRequested) {
-      process.kill();
-    }
-    final stderrLines = <String>[];
-
-    final stdoutFuture = process.stdout.drain<void>();
-    final stderrFuture = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .forEach((line) {
-          if (stderrLines.length >= 30) stderrLines.removeAt(0);
-          stderrLines.add(line);
-          onStderrLine?.call(line);
-        });
-
-    final exitCode = await process.exitCode;
-    await Future.wait([stdoutFuture, stderrFuture]);
-
-    if (identical(_activeProcess, process)) {
-      _activeProcess = null;
-    }
-    _throwIfCancelled();
-
-    return _ProcessResult(
-      exitCode: exitCode,
-      stderrTail: stderrLines.join('\n'),
-    );
   }
 
   void _emit(TranscriptionStage stage, double progress, String message) {
