@@ -33,7 +33,7 @@
 
 ## Follow-up leads — re-check before acting
 
-- **Commercial-readiness blockers:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) now records the delete-before-rename data-loss window, unlicensed-source runtime distribution question, bounded Media Hub uploads, FFmpeg integrity, separation/MVP scope, app packaging/signing and real-song/mix quality gates.
+- **Open-source product-quality roadmap:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) prioritizes persistence recovery, ASR lifecycle, Media Hub upload limits, FFmpeg integrity, separation/MVP scope, installable app packages, and real-song/mix quality gates. Third-party provenance/notices are scoped to artifacts actually bundled; they are not a general development or monetization gate.
 
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) distinguishes the confirmed macOS Release listener-entitlement gap from conditional risks around ASR process timeouts, JSON-store scale, audio-clock alignment, and Media Hub token/range validation.
 
