@@ -126,10 +126,7 @@ abstract final class AtomicJsonFile {
       await onStage?.call(AtomicJsonWriteStage.temporaryFlushed);
 
       if (await destination.exists()) {
-        await backupTemporary.writeAsBytes(
-          await destination.readAsBytes(),
-          flush: true,
-        );
+        await _copyAndFlush(destination, backupTemporary);
         if (!await isValidJsonFile(backupTemporary, validate: validate)) {
           throw FileSystemException(
             'The previous JSON document could not be backed up safely.',
@@ -169,16 +166,27 @@ abstract final class AtomicJsonFile {
     }
   }
 
+  /// Streams a copy to avoid loading large JSON stores entirely into memory.
+  static Future<void> _copyAndFlush(File source, File destination) async {
+    if (await destination.exists()) await destination.delete();
+    final sink = destination.openWrite();
+    try {
+      await for (final chunk in source.openRead()) {
+        sink.add(chunk);
+      }
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
+  }
+
   static Future<void> _restoreCandidate(
     File source,
     File destination, {
     required AtomicJsonValidator validate,
   }) async {
     final recoveryTemporary = recoveryTemporaryFor(destination);
-    await recoveryTemporary.writeAsBytes(
-      await source.readAsBytes(),
-      flush: true,
-    );
+    await _copyAndFlush(source, recoveryTemporary);
     if (!await isValidJsonFile(recoveryTemporary, validate: validate)) {
       throw FileSystemException(
         'A recovery candidate failed validation.',
