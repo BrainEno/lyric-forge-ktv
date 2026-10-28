@@ -8,4 +8,4 @@
   - Added a project-store integration regression that corrupts canonical JSON after two saves and verifies the prior valid generation is restored.
   - GitHub Actions must verify formatting, analysis, and targeted/full Flutter tests on the PR head. Local Dart/Flutter SDKs are unavailable in this execution environment.
 - Notes: Recovery validates the required top-level store shape; existing per-row decoding behavior remains. This is not a claim of database-grade multi-file transactions or verified power-loss durability.
-- Commit: `fix: add recoverable atomic JSON persistence`
+- Commit: `fix: preserve recoverable snapshots for JSON persistence (#209)`

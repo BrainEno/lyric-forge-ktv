@@ -5,10 +5,10 @@ Build dependable open-source, local-first KTV software with safe persistence/rec
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: 00c8aef7beb535e13541a1865e54f1af187109a1
-- Branch: fix/json-persistence-recovery-20261028
-- PR: [#209 — preserve recoverable JSON persistence snapshots](https://github.com/BrainEno/lyric-forge-ktv/pull/209).
-- Scope: add a shared recoverable JSON replacement helper and migrate the file-backed stores that previously deleted canonical files before renaming temporary files.
+- Main baseline: 47f954bf7506c0d67fa83e4ad3f6f263118c8519
+- Branch: docs/fix-persistence-worklog-squash-subject-20261028
+- PR: [#210 — align work-log commit subject after squash merge](https://github.com/BrainEno/lyric-forge-ktv/pull/210) (documentation-only follow-up).
+- Scope: correct the active work-log commit subject to the actual squash-merge subject from PR #209, removing the repository quality-gate's non-blocking commit-subject warning.
 - Local Dart/Flutter SDKs are unavailable in this environment; GitHub Actions is the validation gate.
 
 ## 已改文件
@@ -33,11 +33,8 @@ Build dependable open-source, local-first KTV software with safe persistence/rec
 - docs/handoff.md
 
 ## 本轮实现
-- Added `AtomicJsonFile` with JSON/schema validation, flush-before-replacement, a previous-generation backup, rollback on replacement failure, and startup recovery from valid temporary/backup candidates.
-- Migrated project persistence, batch transcription queue, local media library/collections/metadata, play history, playback session, Media Hub connection/device identity, and Media Hub transfer queue.
-- Explicitly remove recovery sidecars when clearing saved Media Hub connection or playback session state, avoiding restoration of intentionally cleared state.
-- Added fault-injection unit tests and a project-store integration regression.
-- Updated the product-quality roadmap and work-log navigation.
+- Corrected the active entry and generated work-log summary to use the real squash-merge subject: `fix: preserve recoverable snapshots for JSON persistence (#209)`.
+- No application code or persistence behavior changes are included in this follow-up.
 
 ## 检查结果
 - Code has been pushed to the feature branch; final PR-head formatting, analyzer, and regression results must be checked in GitHub Actions.
@@ -45,13 +42,12 @@ Build dependable open-source, local-first KTV software with safe persistence/rec
 - The recovery protocol keeps one previous valid generation; it is not a database-grade transaction and does not claim tested power-loss durability across all filesystems.
 
 ## 下一步
-1. Review the complete PR diff and fix any formatting, analysis, or regression failures.
-2. Confirm CI covers replacement failure after canonical removal, temporary/backup recovery, and refusing to overwrite an unrecoverable malformed store.
-3. Follow up with Windows/macOS fault-injection validation and ASR CLI timeout/cancellation lifecycle hardening.
+1. Verify the docs-only PR removes the work-log commit-subject warning in the quality gate.
+2. Continue with ASR CLI timeout/cancellation lifecycle hardening and Media Hub upload resource limits.
 
 ## 已知风险
 - If the canonical file and all sidecars are corrupted, manual recovery may still be required.
 - Validators check each store's top-level data shape; existing per-row decoding rules remain.
 - Cross-platform replacement/durability semantics must be verified before claiming filesystem-level atomicity.
 
-最后更新：2026-10-28 17:04（Asia/Taipei）
+最后更新：2026-10-28 17:12（Asia/Taipei）
