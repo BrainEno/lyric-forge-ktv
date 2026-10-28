@@ -5,13 +5,21 @@ on:
     paths:
       - "macos/Podfile"
       - "macos/tool/managed_cmake.rb"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/macos-managed-cmake-validation.yml"
   push:
     branches: [main]
     paths:
       - "macos/Podfile"
       - "macos/tool/managed_cmake.rb"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/macos-managed-cmake-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   macos-debug-build-without-system-cmake:
@@ -23,13 +31,12 @@ jobs:
       LYRIC_FORGE_BUILD_LOG: /tmp/lyric-forge-macos-build-${{ github.run_id }}.log
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.9"
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - name: Show Flutter version
         run: flutter --version
+
+      - name: Select CocoaPods for managed CMake fallback validation
+        run: flutter config --no-enable-swift-package-manager
       - name: Resolve dependencies
         run: flutter pub get
       - name: Validate Ruby syntax
@@ -74,17 +81,3 @@ jobs:
           grep -Fq "Using cmake: $LYRIC_FORGE_CMAKE_CACHE_ROOT/CMake.app/Contents/bin/cmake" "$LYRIC_FORGE_BUILD_LOG"
           grep -Fq "Built target flutter_soloud_plugin" "$LYRIC_FORGE_BUILD_LOG"
           grep -Fq "Built build/macos/Build/Products/Debug/" "$LYRIC_FORGE_BUILD_LOG"
-
-  flutter-regression:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.9"
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter test

@@ -1,0 +1,29 @@
+name: Set up pinned Flutter SDK
+description: Install the repository's single Flutter SDK version from .fvmrc.
+runs:
+  using: composite
+  steps:
+    - name: Read configured Flutter SDK version
+      id: flutter-version
+      shell: bash
+      run: |
+        python - <<'PY'
+        import json
+        import os
+        import re
+        import sys
+
+        with open(".fvmrc", encoding="utf-8") as file:
+            config = json.load(file)
+        version = config.get("flutter")
+        if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
+            sys.exit(".fvmrc must contain a stable Flutter version such as 3.47.7")
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write(f"version={version}\n")
+        PY
+    - name: Install Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ steps.flutter-version.outputs.version }}
+        channel: stable
+        cache: true

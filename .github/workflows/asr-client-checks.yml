@@ -6,6 +6,8 @@ on:
       - 'lib/features/transcription/**'
       - 'lib/core/services/service_locator.dart'
       - 'test/features/transcription/**'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/asr-client-checks.yml'
   push:
     branches:
@@ -14,10 +16,16 @@ on:
       - 'lib/features/transcription/**'
       - 'lib/core/services/service_locator.dart'
       - 'test/features/transcription/**'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/asr-client-checks.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-asr-client:
@@ -26,11 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
+      - uses: ./.github/actions/setup-flutter
       - name: Resolve Flutter packages
         run: flutter pub get
 

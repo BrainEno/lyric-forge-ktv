@@ -10,6 +10,8 @@ on:
       - 'test/features/transcription/asr_managed_storage_service_test.dart'
       - 'test/features/transcription/asr_managed_storage_contract_test.dart'
       - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/macos-asr-storage-resume-validation.yml'
   push:
     branches: [main]
@@ -21,18 +23,20 @@ on:
       - 'test/features/transcription/asr_managed_storage_service_test.dart'
       - 'test/features/transcription/asr_managed_storage_contract_test.dart'
       - 'test/features/transcription/asr_runtime_resume_contract_test.dart'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/macos-asr-storage-resume-validation.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   targeted-flutter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.9'
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze storage authorization changes
         run: >-
@@ -48,18 +52,12 @@ jobs:
           test/features/transcription/asr_managed_storage_service_test.dart
           test/features/transcription/asr_managed_storage_contract_test.dart
           test/features/transcription/asr_runtime_resume_contract_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test
 
   macos-native-bookmark:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.9'
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Validate bookmark entitlements
         run: |

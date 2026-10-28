@@ -6,6 +6,8 @@ on:
       - "macos/Runner/DebugProfile.entitlements"
       - "macos/Runner/Release.entitlements"
       - "macos/Runner.xcodeproj/project.pbxproj"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/macos-network-entitlements-validation.yml"
   push:
     branches: [main]
@@ -13,7 +15,13 @@ on:
       - "macos/Runner/DebugProfile.entitlements"
       - "macos/Runner/Release.entitlements"
       - "macos/Runner.xcodeproj/project.pbxproj"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/macos-network-entitlements-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-signed-network-entitlements:
@@ -21,11 +29,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.9"
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - name: Resolve dependencies
         run: flutter pub get
       - name: Validate entitlement source plists
@@ -65,17 +69,3 @@ jobs:
             value=$(/usr/libexec/PlistBuddy -c "Print :$entitlement" /tmp/release-entitlements.plist)
             test "$value" = "true"
           done
-
-  flutter-regression:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.9"
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter test

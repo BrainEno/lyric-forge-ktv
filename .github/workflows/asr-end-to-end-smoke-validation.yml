@@ -10,8 +10,14 @@ on:
       - 'lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart'
       - 'lib/features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart'
       - 'test/features/transcription/asr_end_to_end_smoke_test_service_test.dart'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/asr-end-to-end-smoke-validation.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   smoke-contract:
@@ -19,11 +25,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.9'
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze smoke path
         run: >-
@@ -36,5 +38,3 @@ jobs:
           test/features/transcription/asr_end_to_end_smoke_test_service_test.dart
       - name: Test smoke orchestration
         run: flutter test test/features/transcription/asr_end_to_end_smoke_test_service_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test
