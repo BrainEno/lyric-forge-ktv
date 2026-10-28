@@ -6,6 +6,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_process_supervisor.dart';
 
 /// Runs long audio as resumable chunks while keeping the wrapped service's
 /// quality policy intact for every chunk.
@@ -14,6 +15,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   final Duration chunkDuration;
   final Duration overlap;
   final int maxAttempts;
+  final AsrProcessSupervisor _processSupervisor;
+  final Duration durationProbeTimeout;
 
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
@@ -27,8 +30,12 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     this.chunkDuration = const Duration(minutes: 3),
     this.overlap = const Duration(seconds: 8),
     this.maxAttempts = 3,
-  }) : assert(chunkDuration > overlap),
-       assert(maxAttempts > 0);
+    AsrProcessSupervisor? processSupervisor,
+    this.durationProbeTimeout = const Duration(seconds: 45),
+  }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor(),
+       assert(chunkDuration > overlap),
+       assert(maxAttempts > 0),
+       assert(durationProbeTimeout > Duration.zero);
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -282,35 +289,91 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     return result;
   }
 
-  Future<Duration> _probeDuration(String executable, String input) async {
-    ProcessResult result;
+  Future<AsrProcessResult> _runFfmpeg({
+    required String executable,
+    required List<String> arguments,
+    required Duration timeout,
+    required String operation,
+  }) async {
+    _throwIfCancelled();
     try {
-      result = await Process.run(executable, [
-        '-i',
-        input,
-        '-f',
-        'null',
-        Platform.isWindows ? 'NUL' : '/dev/null',
-      ]);
-    } on ProcessException catch (error) {
+      final result = await _processSupervisor.run(
+        executable,
+        arguments,
+        timeout: timeout,
+        operation: 'FFmpeg $operation',
+        maxOutputLines: 80,
+        maxLineLength: 2048,
+        onProcessChanged: (process) {
+          _activeFfmpeg = process;
+          if (process != null && _cancelRequested) {
+            unawaited(_processSupervisor.terminate(process));
+          }
+        },
+      );
+      _throwIfCancelled();
+      return result;
+    } on AsrProcessTimeoutException catch (error) {
+      _throwIfCancelled();
       throw TranscriptionException.environment(
-        '无法启动 FFmpeg 读取音频时长',
+        'FFmpeg $operation 超时',
+        details: error.toString(),
+      );
+    } on ProcessException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        '无法启动 FFmpeg 执行$operation',
         details: error.message,
       );
+    } finally {
+      _activeFfmpeg = null;
     }
-    final text = result.stderr.toString();
+  }
+
+  Future<Duration> _probeDuration(String executable, String input) async {
+    // Asking FFmpeg to write zero seconds of output reads container metadata
+    // without decoding the entire source just to discover its duration.
+    final result = await _runFfmpeg(
+      executable: executable,
+      arguments: [
+        '-hide_banner',
+        '-i',
+        input,
+        '-t',
+        '0',
+        '-f',
+        'null',
+        Platform.isWindows ? 'NUL' : '-',
+      ],
+      timeout: durationProbeTimeout,
+      operation: '读取音频时长',
+    );
+    final diagnostic = result.stderrTail.join('\n');
+    if (result.exitCode != 0) {
+      throw TranscriptionException.input(
+        '无法读取音频时长',
+        details: diagnostic,
+      );
+    }
     final match = RegExp(
       r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)',
-    ).firstMatch(text);
+    ).firstMatch(diagnostic);
     if (match == null) {
-      throw const TranscriptionException.input('无法读取音频时长');
+      throw TranscriptionException.input(
+        '无法读取音频时长',
+        details: diagnostic.isEmpty ? null : diagnostic,
+      );
     }
     final hours = int.parse(match.group(1)!);
     final minutes = int.parse(match.group(2)!);
     final seconds = double.parse(match.group(3)!);
-    return Duration(
+    final duration = Duration(
       milliseconds: (((hours * 3600 + minutes * 60) + seconds) * 1000).round(),
     );
+    if (duration <= Duration.zero) {
+      throw const TranscriptionException.input('音频时长必须大于零');
+    }
+    return duration;
   }
 
   Future<void> _extractChunk({
@@ -321,37 +384,46 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     required Duration duration,
   }) async {
     final file = File(outputPath);
-    if (await file.exists()) await file.delete();
-
-    Process process;
+    var outputComplete = false;
     try {
-      process = await Process.start(
-        executable,
-        AsrAudioNormalization.chunkArguments(
+      if (await file.exists()) await file.delete();
+      final timeout = await AsrProcessTimeoutPolicy.ffmpegPreprocessingForFile(
+        inputPath,
+      );
+      final result = await _runFfmpeg(
+        executable: executable,
+        arguments: AsrAudioNormalization.chunkArguments(
           inputPath: inputPath,
           outputPath: outputPath,
           start: start,
           duration: duration,
         ),
+        timeout: timeout,
+        operation: '音频分片',
       );
-    } on ProcessException catch (error) {
-      throw TranscriptionException.environment(
-        '无法启动 FFmpeg 进行音频分片',
-        details: error.message,
-      );
-    }
-
-    _activeFfmpeg = process;
-    if (_cancelRequested) process.kill();
-    final stderr = utf8.decoder.bind(process.stderr).join();
-    final stdoutDrain = process.stdout.drain<void>();
-    final code = await process.exitCode;
-    await stdoutDrain;
-    final error = await stderr;
-    if (identical(_activeFfmpeg, process)) _activeFfmpeg = null;
-    _throwIfCancelled();
-    if (code != 0 || !await file.exists()) {
-      throw TranscriptionException.input('音频分片失败', details: error);
+      final diagnostic = result.stderrTail.join('\n');
+      if (result.exitCode != 0) {
+        throw TranscriptionException.input(
+          '音频分片失败',
+          details: diagnostic,
+        );
+      }
+      if (!await file.exists() || await file.length() <= 44) {
+        throw TranscriptionException.input(
+          'FFmpeg 未生成有效的音频分片',
+          details: diagnostic.isEmpty ? null : diagnostic,
+        );
+      }
+      outputComplete = true;
+    } finally {
+      // WAV chunks can be regenerated. Do not touch successful JSON checkpoints.
+      if (!outputComplete) {
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          // Preserve the original timeout, cancellation, or extraction error.
+        }
+      }
     }
   }
 
@@ -484,14 +556,16 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
-    _activeFfmpeg?.kill();
+    final process = _activeFfmpeg;
+    if (process != null) await _processSupervisor.terminate(process);
     await delegate.cancel();
   }
 
   @override
   Future<void> dispose() async {
     _cancelRequested = true;
-    _activeFfmpeg?.kill();
+    final process = _activeFfmpeg;
+    if (process != null) await _processSupervisor.terminate(process);
     await delegate.dispose();
     await _progressController.close();
   }
