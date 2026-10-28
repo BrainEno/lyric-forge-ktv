@@ -113,7 +113,6 @@ void main() {
       expect(long, greaterThan(short));
       expect(veryLong, const Duration(minutes: 120));
     });
-
   });
 }
 
