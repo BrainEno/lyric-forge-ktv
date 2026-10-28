@@ -142,7 +142,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
   }
 
-    Future<void> _runFfmpeg({
+  Future<void> _runFfmpeg({
     required String executable,
     required String inputPath,
     required String outputPath,
@@ -187,7 +187,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
   }
 
-    Future<void> _runWhisper({
+  Future<void> _runWhisper({
     required TranscriptionConfig config,
     required String inputPath,
     required String outputBase,
@@ -255,7 +255,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
   }
 
-    Future<TranscriptionResult> _parseResult({
+  Future<TranscriptionResult> _parseResult({
     required String rawJsonPath,
     required String normalizedAudioPath,
   }) async {
