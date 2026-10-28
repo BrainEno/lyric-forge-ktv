@@ -13,6 +13,7 @@ Continue hardening the local ASR lifecycle while keeping cancellation typed, par
 ## 已改文件
 - `lib/features/transcription/data/services/resumable_chunked_transcription_service.dart`
 - `test/resumable_chunked_transcription_service_test.dart`
+- `test/features/transcription/transcription_execution_failure_kind_test.dart`
 - `docs/engineering_risks_roadmap.md`
 - `docs/log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md`
 - `docs/work_log.md`

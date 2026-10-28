@@ -264,7 +264,7 @@ case " $* " in
     exit 0
     ;;
   *)
-    : > "$last"
+    dd if=/dev/zero of="$last" bs=128 count=1 2>/dev/null
     exit 0
     ;;
 esac
