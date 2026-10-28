@@ -25,71 +25,71 @@ void main() {
     test(
       'cancellation escalates through the supervised FFmpeg process',
       () async {
-      final input = File('${tempDirectory.path}/input.mp3');
-      await input.writeAsBytes([1, 2, 3]);
-      final qwenExecutable = await _touch('qwen-runtime');
-      final ffmpegExecutable = await _touch('ffmpeg');
-      final qwenModel = await _touch('qwen-model.bin');
-      final alignerModel = await _touch('aligner-model.bin');
-      final process = _FakeProcess(
-        killOnSigterm: false,
-        killOnSigkill: true,
-      );
-      final processStarted = Completer<void>();
-      final supervisor = AsrProcessSupervisor(
-        startProcess: (_, __) async {
-          if (!processStarted.isCompleted) processStarted.complete();
-          return process;
-        },
-        terminationGrace: const Duration(milliseconds: 10),
-        streamDrainGrace: const Duration(milliseconds: 10),
-      );
-      final service = Qwen3AsrNativeTranscriptionService(
-        processSupervisor: supervisor,
-      );
-      final outputDirectory = Directory('${tempDirectory.path}/output');
-      final request = TranscriptionRequest(
-        inputAudioPath: input.path,
-        outputDirectory: outputDirectory.path,
-        config: TranscriptionConfig(
-          qwenExecutable: qwenExecutable.path,
-          qwenModelPath: qwenModel.path,
-          qwenAlignerModelPath: alignerModel.path,
-          ffmpegExecutable: ffmpegExecutable.path,
-          whisperExecutable: 'unused-whisper',
-          modelPath: 'unused-whisper-model',
-        ),
-      );
-
-      try {
-        final running = service.transcribe(request);
-        await processStarted.future.timeout(const Duration(seconds: 2));
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await service.cancel();
-
-        await expectLater(
-          running,
-          throwsA(
-            isA<TranscriptionException>().having(
-              (error) => error.kind,
-              'failure kind',
-              TranscriptionFailureKind.cancelled,
-            ),
+        final input = File('${tempDirectory.path}/input.mp3');
+        await input.writeAsBytes([1, 2, 3]);
+        final qwenExecutable = await _touch('qwen-runtime');
+        final ffmpegExecutable = await _touch('ffmpeg');
+        final qwenModel = await _touch('qwen-model.bin');
+        final alignerModel = await _touch('aligner-model.bin');
+        final process = _FakeProcess(
+          killOnSigterm: false,
+          killOnSigkill: true,
+        );
+        final processStarted = Completer<void>();
+        final supervisor = AsrProcessSupervisor(
+          startProcess: (_, __) async {
+            if (!processStarted.isCompleted) processStarted.complete();
+            return process;
+          },
+          terminationGrace: const Duration(milliseconds: 10),
+          streamDrainGrace: const Duration(milliseconds: 10),
+        );
+        final service = Qwen3AsrNativeTranscriptionService(
+          processSupervisor: supervisor,
+        );
+        final outputDirectory = Directory('${tempDirectory.path}/output');
+        final request = TranscriptionRequest(
+          inputAudioPath: input.path,
+          outputDirectory: outputDirectory.path,
+          config: TranscriptionConfig(
+            qwenExecutable: qwenExecutable.path,
+            qwenModelPath: qwenModel.path,
+            qwenAlignerModelPath: alignerModel.path,
+            ffmpegExecutable: ffmpegExecutable.path,
+            whisperExecutable: 'unused-whisper',
+            modelPath: 'unused-whisper-model',
           ),
         );
-        expect(process.killSignals, contains(ProcessSignal.sigterm));
-        expect(process.killSignals, contains(ProcessSignal.sigkill));
-        expect(
-          await File(
-            '${outputDirectory.path}${Platform.pathSeparator}'
-            'qwen_transcription_input.wav',
-          ).exists(),
-          isFalse,
-          reason: 'cancelled preprocessing must not leave a partial WAV',
-        );
-      } finally {
-        await service.dispose();
-      }
+
+        try {
+          final running = service.transcribe(request);
+          await processStarted.future.timeout(const Duration(seconds: 2));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await service.cancel();
+
+          await expectLater(
+            running,
+            throwsA(
+              isA<TranscriptionException>().having(
+                (error) => error.kind,
+                'failure kind',
+                TranscriptionFailureKind.cancelled,
+              ),
+            ),
+          );
+          expect(process.killSignals, contains(ProcessSignal.sigterm));
+          expect(process.killSignals, contains(ProcessSignal.sigkill));
+          expect(
+            await File(
+              '${outputDirectory.path}${Platform.pathSeparator}'
+              'qwen_transcription_input.wav',
+            ).exists(),
+            isFalse,
+            reason: 'cancelled preprocessing must not leave a partial WAV',
+          );
+        } finally {
+          await service.dispose();
+        }
       },
     );
 

@@ -311,6 +311,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       }
     } on TranscriptionException {
       rethrow;
+    } on _QwenCancelledException {
+      rethrow;
     } catch (error) {
       throw TranscriptionException.environment(
         '$label 无法执行',
@@ -634,8 +636,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       _throwIfCancelled();
       throw TranscriptionException.environment(
         'Qwen3-ASR 本地识别请求超时',
-        details:
-            '识别预算 ${timeout.inMinutes} 分钟已耗尽: ${error.toString()}',
+        details: '识别预算 ${timeout.inMinutes} 分钟已耗尽: ${error.toString()}',
       );
     } on TranscriptionException {
       rethrow;
