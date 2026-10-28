@@ -188,7 +188,7 @@ The reviewed code downloads Windows FFmpeg from a floating releases/download/lat
 
 **Required action**
 
-1. Replace floating download endpoints with per-platform release metadata: fixed version/revision, exact URL, expected archive digest, source/build provenance, and licence/build configuration.
+1. Replace floating download endpoints with per-platform release metadata: fixed version/revision, exact URL, expected archive digest, source/build provenance, and any required third-party notices.
 2. Verify the downloaded archive hash before extraction; fail closed and preserve the previous working installation if verification or smoke checks fail.
 3. Record the installed FFmpeg version, binary digest and build configuration in diagnostics. Keep user-supplied executables supported, but distinguish verified managed binaries from arbitrary paths.
 
@@ -205,7 +205,7 @@ The PRD calls desktop vocal/accompaniment separation mandatory and describes the
 **Required action**
 
 1. Decide whether vocal/accompaniment separation remains a release-blocking MVP requirement or whether the first distributable product explicitly supports user-supplied stems/伴奏 only.
-2. If the PRD remains unchanged, treat separation as a required product milestone: choose a backend only after validating model/weight licence, actual audio quality, memory/VRAM requirements, cancellation, progress, resumability, outputs and cache identity.
+2. If the PRD remains unchanged, treat separation as a required product milestone. Start by prototyping candidate backends locally and compare actual separation quality, memory/VRAM requirements, cancellation, progress, resumability, outputs and cache identity. Check model/weight redistribution terms when choosing an artifact to bundle, not before starting local evaluation.
 3. Evaluate Demucs or alternatives on actual separation quality, hardware/memory use, cancellation, progress, and output integrity. The upstream repository is archived, so do not assume it is the best technical fit. Check model/weight redistribution terms when selecting an artifact for bundling; that check should not prevent local prototypes or quality comparisons.
 4. Keep mobile separation out of scope unless product requirements change; the desktop pipeline should produce and persist stems that can be previewed and reused.
 
@@ -241,7 +241,7 @@ The repository already has transcript, forced-alignment and preprocessing A/B ev
 1. Start with 10–20 legally testable songs in a private/local corpus: Chinese, English, mixed-language, repeated chorus, fast singing, weak vocals, long instrumental gaps, and tracks with/without a vocal stem. Expand the corpus after the harness is stable.
 2. Freeze source-audio SHA-256, manually reviewed reference text/timestamps, model revision, runtime revision, engine order, preprocessing and platform/hardware for each comparison.
 3. Report CER and applicable-language WER, omitted/repeated lines, line-boundary errors, human correction time, runtime/real-time factor and peak memory. Keep failures visible and stratify by language/condition.
-4. Require an evaluation delta for quality-relevant ASR, alignment and preprocessing changes. A self-hosted runner can be optional; never upload private user music to a public runner/dashboard. Publish aggregate metrics only for a corpus with clear redistribution rights.
+4. Require an evaluation delta for quality-relevant ASR, alignment and preprocessing changes. A self-hosted runner can be optional; never upload private user music to a public runner/dashboard. Keep restricted audio/reference assets local when necessary; publish aggregate metrics and methodology without redistributing those assets.
 
 **Acceptance:** changes to the quality pipeline can be compared with the prior baseline using identical inputs/configuration, and the report includes regressions and failure samples rather than only one overall average.
 
