@@ -554,11 +554,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         var currentInstallValid = await currentExecutable.exists();
         if (currentInstallValid) {
           try {
-            await _verifyExecutable(
-              currentExecutable.path,
-              const ['-version'],
-              'FFmpeg',
-            );
+            await _verifyExecutable(currentExecutable.path, const [
+              '-version',
+            ], 'FFmpeg');
           } catch (_) {
             currentInstallValid = false;
           }
