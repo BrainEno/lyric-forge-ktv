@@ -19,7 +19,7 @@ void main() {
         const [],
         timeout: const Duration(seconds: 1),
         maxOutputLines: 2,
-        maxLineLength: 12,
+        maxLineLength: 32,
         onStderrLine: progressLines.add,
       );
       await Future<void>.delayed(Duration.zero);
@@ -55,6 +55,24 @@ void main() {
 
       expect(process.killSignals, contains(ProcessSignal.sigterm));
       expect(active, [process, null]);
+    });
+
+    test('preserves a non-zero process exit code for the caller', () async {
+      final process = _FakeProcess();
+      final supervisor = AsrProcessSupervisor(
+        startProcess: (_, __) async => process,
+      );
+      final future = supervisor.run(
+        'failed-asr',
+        const [],
+        timeout: const Duration(seconds: 1),
+      );
+      await Future<void>.delayed(Duration.zero);
+      process.finish(23);
+
+      final result = await future;
+
+      expect(result.exitCode, 23);
     });
 
     test('escalates when normal termination does not stop the child', () async {
@@ -95,7 +113,7 @@ void main() {
       final result = await future;
 
       expect(result.exitCode, 0);
-      await process.closeStreams();
+      unawaited(process.closeStreams());
     });
   });
 
