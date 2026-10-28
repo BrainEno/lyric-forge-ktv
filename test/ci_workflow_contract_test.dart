@@ -97,18 +97,9 @@ void main() {
           workflow,
           contains('flutter config --no-enable-swift-package-manager'),
         );
-        expect(
-          workflow,
-          contains('LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"'),
-        );
-        expect(
-          workflow,
-          contains('Verify managed CMake was actually used'),
-        );
-        expect(
-          workflow,
-          contains('grep -q "LyricForge managed CMake PATH"'),
-        );
+        expect(workflow, contains('LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"'));
+        expect(workflow, contains('Verify managed CMake was actually used'));
+        expect(workflow, contains('grep -q "LyricForge managed CMake PATH"'));
       },
     );
 
