@@ -59,7 +59,6 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       );
     }
     if (!await file.exists()) return null;
-    if (!await file.exists()) return null;
 
     try {
       final decoded = jsonDecode(await file.readAsString());

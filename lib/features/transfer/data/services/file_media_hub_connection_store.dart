@@ -28,7 +28,9 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<MediaHubConnection?> loadLastConnection() async {
-    await _writeChain;
+    try {
+      await _writeChain;
+    } catch (_) {}
     final file = await _file();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&

@@ -69,7 +69,6 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
       );
     }
     if (!await file.exists()) return;
-    if (!await file.exists()) return;
 
     try {
       final decoded = jsonDecode(await file.readAsString());
