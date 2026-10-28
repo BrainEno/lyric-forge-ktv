@@ -28,7 +28,7 @@ Continue hardening the local ASR lifecycle while keeping cancellation typed, par
 - Add fake-process regression tests for probe timeout, cancellation escalation, and checkpoint preservation after an unsuccessful chunk extraction.
 
 ## 检查结果
-- GitHub Actions checks for PR #214 are pending at handoff creation; verify all final-head workflows before merging.
+- Code/test head `4abb4411f443072c38753b765c4fd14a5f451227` passed all four PR workflows: Flutter Quality Gate (780 tests, work-log lint 0 errors/0 warnings), ASR client checks, transcription settings validation, and transcription execution failure validation. The documentation-refresh commit triggers new checks; verify the latest PR head before merging.
 - Local Dart/Flutter commands were not run because SDKs are unavailable in this environment.
 - Existing platform/process-tree limitation remains: the supervisor bounds direct-child termination, but descendant cleanup is not claimed across all supported OSes.
 
