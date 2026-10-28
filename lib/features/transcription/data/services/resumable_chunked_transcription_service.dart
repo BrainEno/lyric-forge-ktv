@@ -350,10 +350,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     );
     final diagnostic = result.stderrTail.join('\n');
     if (result.exitCode != 0) {
-      throw TranscriptionException.input(
-        '无法读取音频时长',
-        details: diagnostic,
-      );
+      throw TranscriptionException.input('无法读取音频时长', details: diagnostic);
     }
     final match = RegExp(
       r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)',
@@ -403,10 +400,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       );
       final diagnostic = result.stderrTail.join('\n');
       if (result.exitCode != 0) {
-        throw TranscriptionException.input(
-          '音频分片失败',
-          details: diagnostic,
-        );
+        throw TranscriptionException.input('音频分片失败', details: diagnostic);
       }
       if (!await file.exists() || await file.length() <= 44) {
         throw TranscriptionException.input(
