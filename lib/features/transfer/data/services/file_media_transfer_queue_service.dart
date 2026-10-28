@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,6 +15,8 @@ import '../../domain/services/media_transfer_queue_service.dart';
 import '../../domain/services/media_transfer_service.dart';
 
 class FileMediaTransferQueueService implements MediaTransferQueueService {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['items'] is List;
+
   final MediaTransferService transfers;
   final MediaHubClientService client;
   final Directory? rootDirectory;
@@ -63,8 +67,14 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
   @override
   Future<void> initialize() async {
     if (_initialized) return;
-    _initialized = true;
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException(
+        'The Media Hub transfer queue is invalid and no recoverable copy is available. ${file.path}',
+      );
+    }
     var recoveredInterrupted = false;
 
     if (await file.exists()) {
@@ -108,6 +118,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
     }
 
     _emit();
+    _initialized = true;
     if (recoveredInterrupted) await _persist();
     if (!_state.isPaused && client.isConnected && _items.any(_isQueued)) {
       unawaited(processPending());
@@ -442,10 +453,11 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;

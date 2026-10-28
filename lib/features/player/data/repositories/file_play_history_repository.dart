@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/models/play_history.dart';
@@ -13,6 +15,8 @@ import '../../domain/repositories/play_history_repository.dart';
 /// from normal recent-history reads but retained so a moved file can be relinked
 /// without losing its resume position or last-played timestamp.
 class FilePlayHistoryRepository implements PlayHistoryRepository {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['histories'] is List;
+
   final Directory? rootDirectory;
 
   final List<PlayHistory> _histories = <PlayHistory>[];
@@ -54,6 +58,12 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
   Future<void> _load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException('The play history is invalid and no recoverable copy is available. ${file.path}');
+    }
+    if (!await file.exists()) return;
     if (!await file.exists()) return;
 
     try {
@@ -104,10 +114,11 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;

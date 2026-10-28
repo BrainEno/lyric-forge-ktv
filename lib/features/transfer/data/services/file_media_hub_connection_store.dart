@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
 class FileMediaHubConnectionStore implements MediaHubConnectionStore {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['host'] is String && decoded['host'].toString().isNotEmpty && decoded['port'] is num && decoded['token'] is String && decoded['token'].toString().isNotEmpty;
+
   static const String _fileName = 'media_hub_connection.json';
 
   Future<void> _writeChain = Future<void>.value();
@@ -21,11 +25,18 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
   @override
   Future<MediaHubConnection?> loadLastConnection() async {
-    try {
-      await _writeChain;
-      final file = await _file();
-      if (!await file.exists()) return null;
+    await _writeChain;
+    final file = await _file();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException(
+        'The saved Media Hub connection is invalid and no recoverable copy is available. ${file.path}',
+      );
+    }
+    if (!await file.exists()) return null;
 
+    try {
       final raw = await file.readAsString();
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) return null;
@@ -44,13 +55,11 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
       } catch (_) {}
 
       final file = await _file();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(
+      await AtomicJsonFile.write(
+        file,
         jsonEncode(connection.toJson()),
-        flush: true,
+        validate: _isValidStoreJson,
       );
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
     }();
     _writeChain = operation;
     return operation;
@@ -66,9 +75,15 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
 
       try {
         final file = await _file();
-        if (await file.exists()) await file.delete();
-        final temporary = File('${file.path}.tmp');
-        if (await temporary.exists()) await temporary.delete();
+        for (final sidecar in <File>[
+          file,
+          AtomicJsonFile.temporaryFor(file),
+          AtomicJsonFile.backupFor(file),
+          AtomicJsonFile.backupTemporaryFor(file),
+          AtomicJsonFile.recoveryTemporaryFor(file),
+        ]) {
+          if (await sidecar.exists()) await sidecar.delete();
+        }
       } catch (_) {
         // Forget is best-effort; a missing/unavailable cache should not block UI.
       }

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../../core/persistence/atomic_json_file.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 import '../../../project/domain/models/audio_asset.dart';
@@ -12,6 +14,8 @@ import '../../domain/services/playback_session_service.dart';
 /// directory. Writes are atomic and serialized so a process interruption cannot
 /// leave a half-written queue document behind.
 class FilePlaybackSessionStore implements PlaybackSessionStore {
+  static bool _isValidStoreJson(Object? decoded) => decoded is Map && decoded['queue'] is List && decoded['version'] is num;
+
   final Directory? rootDirectory;
 
   Future<void> _writeChain = Future<void>.value();
@@ -42,6 +46,12 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
   @override
   Future<PlaybackSessionSnapshot?> load() async {
     final file = await _storeFile();
+    await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
+    if (await file.exists() &&
+        !await AtomicJsonFile.isValidJsonFile(file, validate: _isValidStoreJson)) {
+      throw FormatException('The playback session is invalid and no recoverable copy is available. ${file.path}');
+    }
+    if (!await file.exists()) return null;
     if (!await file.exists()) return null;
 
     try {
@@ -131,10 +141,11 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       } catch (_) {}
 
       final file = await _storeFile();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(payload, flush: true);
-      if (await file.exists()) await file.delete();
-      await temporary.rename(file.path);
+      await AtomicJsonFile.write(
+        file,
+        payload,
+        validate: _isValidStoreJson,
+      );
     }();
     _writeChain = operation;
     return operation;
@@ -148,9 +159,15 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
         await previous;
       } catch (_) {}
       final file = await _storeFile();
-      if (await file.exists()) await file.delete();
-      final temporary = File('${file.path}.tmp');
-      if (await temporary.exists()) await temporary.delete();
+      for (final sidecar in <File>[
+        file,
+        AtomicJsonFile.temporaryFor(file),
+        AtomicJsonFile.backupFor(file),
+        AtomicJsonFile.backupTemporaryFor(file),
+        AtomicJsonFile.recoveryTemporaryFor(file),
+      ]) {
+        if (await sidecar.exists()) await sidecar.delete();
+      }
     }();
     _writeChain = operation;
     return operation;
