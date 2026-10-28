@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -131,6 +132,83 @@ void main() {
         audioDuration: const Duration(seconds: 3),
       ),
       throwsA(isA<ForcedAlignmentException>()),
+    );
+    await responseFuture;
+  });
+
+  test('enforces one deadline across response headers and body', () async {
+    client.close(force: true);
+    client = ForcedAlignmentHttpClient(
+      endpoint: endpoint,
+      requestTimeout: const Duration(milliseconds: 500),
+    );
+    final responseStarted = Completer<void>();
+    final received = server.first;
+    final responseFuture = received.then((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.json
+        ..write('{"items":');
+      await request.response.flush();
+      if (!responseStarted.isCompleted) responseStarted.complete();
+    });
+
+    final pending = client.align(
+      audioPath: '/tmp/song.wav',
+      text: 'lyric',
+      language: 'English',
+      audioDuration: const Duration(seconds: 3),
+    );
+    await responseStarted.future.timeout(const Duration(seconds: 2));
+    await expectLater(
+      pending,
+      throwsA(
+        isA<ForcedAlignmentException>().having(
+          (error) => error.message,
+          'message',
+          contains('timed out'),
+        ),
+      ),
+    );
+    await responseFuture;
+  });
+
+  test('force close aborts an active alignment response', () async {
+    client.close(force: true);
+    client = ForcedAlignmentHttpClient(
+      endpoint: endpoint,
+      requestTimeout: const Duration(minutes: 1),
+    );
+    final responseStarted = Completer<void>();
+    final received = server.first;
+    final responseFuture = received.then((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.json
+        ..write('{"items":');
+      await request.response.flush();
+      if (!responseStarted.isCompleted) responseStarted.complete();
+    });
+
+    final pending = client.align(
+      audioPath: '/tmp/song.wav',
+      text: 'lyric',
+      language: 'English',
+      audioDuration: const Duration(seconds: 3),
+    );
+    await responseStarted.future.timeout(const Duration(seconds: 2));
+    client.close(force: true);
+    await expectLater(
+      pending,
+      throwsA(
+        isA<ForcedAlignmentException>().having(
+          (error) => error.message,
+          'message',
+          contains('interrupted'),
+        ),
+      ),
     );
     await responseFuture;
   });
