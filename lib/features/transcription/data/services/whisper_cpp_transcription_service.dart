@@ -217,7 +217,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         ),
         onStderrLine: (line) {
           final match = RegExp(
-            r'progress\\s*=\\s*(\\d+)%',
+            r'progress\s*=\s*(\d+)%',
             caseSensitive: false,
           ).firstMatch(line);
           final value = int.tryParse(match?.group(1) ?? '');
@@ -390,7 +390,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       _throwIfCancelled();
       return _ProcessResult(
         exitCode: result.exitCode,
-        stderrTail: result.stderrTail.join('\\n'),
+        stderrTail: result.stderrTail.join('\n'),
       );
     } on ProcessException catch (error) {
       throw TranscriptionException.environment(
