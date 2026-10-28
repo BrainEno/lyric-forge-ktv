@@ -163,11 +163,11 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       } catch (_) {}
       final file = await _storeFile();
       for (final sidecar in <File>[
-        file,
         AtomicJsonFile.temporaryFor(file),
         AtomicJsonFile.backupFor(file),
         AtomicJsonFile.backupTemporaryFor(file),
         AtomicJsonFile.recoveryTemporaryFor(file),
+        file,
       ]) {
         if (await sidecar.exists()) await sidecar.delete();
       }
