@@ -7,7 +7,7 @@ Maintain open-source, local-first KTV software with dependable product functiona
 - Repository: BrainEno/lyric-forge-ktv
 - Main baseline: e2ceb554e3c2e291d602969841d725dd02438e0f
 - Branch: fix/macos-release-network-server-entitlement-20261028
-- PR: pending creation for the macOS Release Media Hub entitlement fix.
+- PR: [#208 — fix macOS Release Media Hub network entitlement](https://github.com/BrainEno/lyric-forge-ktv/pull/208).
 - Scope: Release entitlement + macOS CI enforcement, with work-log and roadmap updates.
 - Local Flutter/macOS signing SDKs are unavailable in this execution environment; GitHub Actions is the validation gate.
 
@@ -42,4 +42,4 @@ Maintain open-source, local-first KTV software with dependable product functiona
 - No packaged Release device test has yet been executed.
 - JSON persistence replacement recovery and ASR process timeout remain separate prioritized engineering tasks.
 
-最后更新：2026-10-28 13:45（Asia/Taipei）
+最后更新：2026-10-28 13:48（Asia/Taipei）
