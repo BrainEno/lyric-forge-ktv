@@ -1,52 +1,33 @@
 # Handoff
 
 ## 目标
-Harden local ASR process lifetimes so stalled or cancelled jobs release the transcription queue predictably, without discarding completed resumable work or weakening dual-engine quality behavior.
+Continue hardening the local ASR lifecycle without dropping completed resumable work or weakening dual-engine quality behavior.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: `c9ebf6041264ff990db2d8fc7443158629c78ffc`
-- Branch: `fix/qwen-process-lifetimes-20261028`
-- PR: [#212 — bound Qwen transcription request and child process lifetimes](https://github.com/BrainEno/lyric-forge-ktv/pull/212)
-- Code-only head validated before this documentation refresh: `f992af3050cb34a0ecbefca9292706b7b7c09218`
-- Scope: Qwen executable probes, FFmpeg preprocessing, `/v1/transcribe` HTTP body wait, model-server startup/shutdown, and cancellation semantics; no UI changes.
-- Local Dart/Flutter SDKs are unavailable in this environment; use GitHub Actions for validation.
-
-## 已改文件
-- `lib/features/transcription/data/services/asr_process_supervisor.dart`
-- `lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart`
-- `test/features/transcription/qwen3_asr_native_transcription_service_test.dart`
-- `docs/engineering_risks_roadmap.md`
-- `docs/log/entries/2026-10-28-1818-bound-qwen-transcription-lifetimes.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/handoff.md`
+- Main baseline: `341a8d7a244f388527066a0479ba107aac7a2d12`
+- Active PR: [#213 — bound forced-alignment HTTP request lifetimes](https://github.com/BrainEno/lyric-forge-ktv/pull/213)
+- Code-only head: `ed7111b01f7b47cb057d122d9093f37cef6ce607`
+- The code-only head passed Flutter Quality Gate and all three ASR validation workflows. A documentation-refresh commit is being added; re-check Actions on the final PR head before merge.
+- Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
 
 ## 本轮实现
-- Route Qwen executable probes and FFmpeg preprocessing through `AsrProcessSupervisor`, with a 10-second executable-probe budget and source-size-aware 5–60-minute FFmpeg budget.
-- Bound the full Qwen `/v1/transcribe` response-body wait to a normalized-WAV-duration budget (5–120 minutes), while preserving the active request for cancellation until the body has completed.
-- Use a two-minute elapsed-time deadline for model-server startup and bounded termination escalation for cancellation, disposal, and server shutdown.
-- Map forced-alignment cancellation back to a typed cancelled result; remove incomplete Qwen FFmpeg output on failure.
-- Add fake-process regression coverage for cancellation escalation, cancelled failure classification, partial-WAV cleanup, and Qwen timeout-budget scaling.
-
-## 检查结果
-- Flutter Quality Gate passed on the code-only head: `01:21 +775: All tests passed!` (run [40670616029](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40670616029)).
-- ASR client checks passed (run [40670616102](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40670616102)).
-- Transcription settings validation passed (run [40670615909](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40670615909)).
-- Transcription execution failure validation passed (run [40670615863](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/40670615863)).
-- This documentation refresh creates a new PR head; check the latest PR Actions before merge.
-- Local Dart/Flutter commands were not run because the SDKs are unavailable in this environment.
+- Apply one overall deadline to forced-alignment HTTP connect, request completion, and response-body reads.
+- Abort the active request and close the HTTP client on timeout; force-closing the client aborts in-flight work and maps interruptions to `ForcedAlignmentException`.
+- Track the active alignment client in the Qwen service so cancel/dispose aborts the alignment request before stopping the local server.
+- Add loopback HTTP regression tests for a response body that stalls after headers and explicit force-close of a pending response.
+- Repair the PR tree after discovering the formatter commit had accidentally replaced the full repository tree: the repaired PR now changes only the intended client, Qwen call-site, and corresponding test files.
 
 ## 下一步
-1. Add a request deadline and reliable abort/cancellation behavior to `ForcedAlignmentHttpClient` `/v1/align`, with a regression test for a stalled response.
-2. Supervise resumable chunking's FFprobe duration probing and FFmpeg chunk extraction while preserving completed checkpoints.
-3. Bound high-quality shared audio preparation and test partial-artifact cleanup.
-4. Run real-child process smoke tests on Windows and macOS, including validation of direct-child and process-tree termination behavior.
+1. Migrate resumable chunking's FFmpeg duration probe and chunk extraction to `AsrProcessSupervisor`, with bounded waits, cancellation escalation, bounded diagnostics, and cleanup of incomplete WAV files.
+2. Preserve completed chunk JSON/manifest checkpoints across timeout or cancellation; add fault-injection coverage for these boundaries.
+3. Bound high-quality shared audio preparation and remove only partial artifacts on failure.
+4. Add real-child smoke checks for Windows and macOS; document direct-child versus process-tree guarantees rather than assuming identical behavior.
 
 ## 已知风险
+- The code-only PR head has CI coverage, but the documentation-refresh head still needs checks before merge.
+- Forced-alignment regression tests use a loopback HTTP server; full native Qwen/model integration has not been exercised here.
 - Timeout budgets are heuristics and need real-song benchmarking on supported hardware.
-- `/v1/align` is separate from the newly bounded `/v1/transcribe` request and remains without its own explicit deadline.
-- Resumable FFprobe/FFmpeg and high-quality shared normalization have not yet migrated to the shared supervisor.
-- The supervisor provides bounded direct-child termination; complete descendant/process-tree cleanup is not claimed across every supported OS.
+- `AsrProcessSupervisor` guarantees bounded direct-child termination only; complete descendant cleanup remains unverified across supported OSes.
 
-最后更新：2026-10-28 18:18（Asia/Taipei）
+最后更新：2026-10-28 19:40（Asia/Taipei）
