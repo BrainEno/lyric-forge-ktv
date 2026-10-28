@@ -1,0 +1,50 @@
+name: Transcription settings validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/features/settings/**'
+      - 'lib/features/player/presentation/screens/local_music_library_shell.dart'
+      - 'lib/features/project/presentation/screens/project_detail_screen.dart'
+      - 'lib/features/transcription/**'
+      - 'lib/core/services/service_locator.dart'
+      - 'test/features/settings/**'
+      - '.github/workflows/transcription-settings-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/features/settings/**'
+      - 'lib/features/player/presentation/screens/local_music_library_shell.dart'
+      - 'lib/features/project/presentation/screens/project_detail_screen.dart'
+      - 'lib/features/transcription/**'
+      - 'lib/core/services/service_locator.dart'
+      - 'test/features/settings/**'
+      - '.github/workflows/transcription-settings-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  settings-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Analyze settings integration
+        run: >-
+          flutter analyze
+          lib/features/settings/presentation/screens/settings_screen.dart
+          lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
+          lib/features/player/presentation/screens/local_music_library_shell.dart
+          test/features/settings/transcription_settings_contract_test.dart
+      - name: Test settings/store integration contract
+        run: flutter test test/features/settings/transcription_settings_contract_test.dart
+      - name: Full Flutter regression suite
+        run: flutter test

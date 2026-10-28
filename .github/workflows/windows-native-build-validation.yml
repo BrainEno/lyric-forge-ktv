@@ -1,0 +1,26 @@
+name: Windows native build validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'windows/**'
+      - 'test/windows_native_plugin_build_config_test.dart'
+      - '.github/workflows/windows-native-build-validation.yml'
+  workflow_dispatch:
+
+jobs:
+  windows-debug:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test test/windows_native_plugin_build_config_test.dart
+      - run: flutter build windows --debug

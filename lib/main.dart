@@ -1,0 +1,125 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import 'core/layout/app_responsive.dart';
+import 'core/navigation/app_chrome_controller.dart';
+import 'core/navigation/app_router.dart';
+import 'core/navigation/current_route_observer.dart';
+import 'core/services/service_locator.dart';
+import 'core/theme/app_theme.dart';
+import 'features/player/data/services/mobile_system_media_session.dart';
+import 'features/player/presentation/widgets/global_player_bar.dart';
+import 'features/player/presentation/widgets/mobile_global_player_bar.dart';
+import 'features/player/presentation/widgets/playback_lyrics_availability_sync.dart';
+import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
+
+final _appRouteObserver = CurrentRouteObserver();
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final services = ServiceLocatorGlobal.I;
+  services.initialize();
+
+  // The first Flutter frame must never depend on an optional native media
+  // integration. AudioService/AVAudioSession can take time to initialise on a
+  // physical iPhone (or fail because of a transient platform-channel issue).
+  // Waiting here used to leave iOS sitting on the native white launch view with
+  // no Flutter frame. Render the app first, then attach lock-screen/background
+  // controls as a best-effort enhancement.
+  runApp(const ElysiumPlayerApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_initializeMobileMediaSessionAfterLaunch());
+  });
+}
+
+Future<void> _initializeMobileMediaSessionAfterLaunch() async {
+  final services = ServiceLocatorGlobal.I;
+  try {
+    await initializeMobileSystemMediaSession(
+      playbackSession: services.playbackSessionService,
+      audioPlayer: services.audioPlayerService,
+    );
+  } catch (error, stackTrace) {
+    // Playback itself continues to work through just_audio. Failing to attach
+    // system media controls must not blank or terminate the whole application.
+    debugPrint('Mobile system media session initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+}
+
+class ElysiumPlayerApp extends StatelessWidget {
+  final bool? desktopChromeOverride;
+
+  const ElysiumPlayerApp({super.key, this.desktopChromeOverride});
+
+  @override
+  Widget build(BuildContext context) {
+    final desktopChrome =
+        desktopChromeOverride ?? AppResponsive.isDesktopTarget();
+
+    return MaterialApp(
+      title: 'Elysium Player',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      navigatorObservers: <NavigatorObserver>[_appRouteObserver],
+      onGenerateRoute: AppRouter.onGenerateRoute,
+      initialRoute: Routes.home,
+      builder: (context, child) {
+        // Keep the queue's lyric flag aligned with the resolved lyric project
+        // for the current song, whichever route is visible.
+        final syncedShell = PlaybackLyricsAvailabilitySync(
+          child: child ?? const SizedBox.shrink(),
+        );
+        return ValueListenableBuilder<String?>(
+          valueListenable: _appRouteObserver.routeName,
+          builder: (context, routeName, _) {
+            final suppressPlayerBar = routeName == Routes.nowPlaying;
+
+            if (!desktopChrome) {
+              return ValueListenableBuilder<bool>(
+                valueListenable: AppChromeController.immersive,
+                builder: (context, immersive, _) {
+                  final keyboardVisible =
+                      MediaQuery.viewInsetsOf(context).bottom > 0;
+                  return Column(
+                    children: [
+                      Expanded(child: syncedShell),
+                      if (!immersive && !keyboardVisible && !suppressPlayerBar)
+                        const MobileGlobalPlayerBar(),
+                    ],
+                  );
+                },
+              );
+            }
+
+            return Overlay(
+              clipBehavior: Clip.none,
+              initialEntries: [
+                OverlayEntry(
+                  builder: (overlayContext) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: AppChromeController.immersive,
+                      builder: (context, immersive, _) {
+                        return Column(
+                          children: [
+                            Expanded(child: syncedShell),
+                            if (!immersive) ...[
+                              const GlobalTranscriptionQueueBar(),
+                              if (!suppressPlayerBar) const GlobalPlayerBar(),
+                            ],
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+      Media Hub uses HTTP only inside the user's private LAN or Tailscale tunnel.
+      Tailscale provides the encrypted network transport; LyricForge still
+      requires its session token at the application layer.
+    -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

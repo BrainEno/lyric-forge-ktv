@@ -1,0 +1,506 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import '../../../project/domain/models/audio_asset.dart';
+import '../../../project/domain/models/project_manifest.dart';
+import '../../../transcription/domain/services/transcription_settings_store.dart';
+import '../../domain/models/ktv_recording_session.dart';
+import '../../domain/models/playback_state.dart';
+import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/ktv_microphone_service.dart';
+import '../../domain/services/ktv_recording_service.dart';
+import 'ktv_project_storage.dart';
+import 'pcm16_wav_writer.dart';
+
+class LocalKtvRecordingService implements KtvRecordingService {
+  final AudioPlayerService _audioService;
+  final KtvMicrophoneService _microphoneService;
+  final TranscriptionSettingsStore _settingsStore;
+  final Future<Directory> Function(ProjectManifest) _projectDirectoryResolver;
+  final Future<ProcessResult> Function(String, List<String>) _processRunner;
+  final StreamController<KtvRecordingState> _stateController =
+      StreamController<KtvRecordingState>.broadcast();
+
+  KtvRecordingState _state = const KtvRecordingState();
+  StreamSubscription<Uint8List>? _pcmSubscription;
+  StreamSubscription<PlaybackState>? _playbackSubscription;
+  Pcm16WavWriter? _writer;
+  Stopwatch? _recordingClock;
+  int _lastDurationEmitMs = 0;
+  bool _alignmentReliable = true;
+  String? _alignmentIssue;
+
+  LocalKtvRecordingService({
+    required AudioPlayerService audioService,
+    required KtvMicrophoneService microphoneService,
+    required TranscriptionSettingsStore settingsStore,
+    Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
+    Future<ProcessResult> Function(String, List<String>)? processRunner,
+  })  : _audioService = audioService,
+        _microphoneService = microphoneService,
+        _settingsStore = settingsStore,
+        _projectDirectoryResolver = projectDirectoryResolver ??
+            ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
+        _processRunner = processRunner ??
+            ((executable, arguments) =>
+                Process.run(executable, arguments, runInShell: false));
+
+  @override
+  Stream<KtvRecordingState> get stateStream => _stateController.stream;
+
+  @override
+  KtvRecordingState get currentState => _state;
+
+  @override
+  Future<void> startRecording(ProjectManifest project) async {
+    if (_state.isRecording) {
+      throw const KtvRecordingException('已经在录音中');
+    }
+    if (_state.isExporting) {
+      throw const KtvRecordingException('混音正在导出，请等待导出完成后再开始录音');
+    }
+    final audioAsset = project.audioAsset;
+    if (audioAsset == null) {
+      throw const KtvRecordingException('当前工程没有可录制的歌曲音频');
+    }
+
+    final initialPlayback = _audioService.currentState;
+    if (!initialPlayback.isPlaying ||
+        initialPlayback.isBuffering ||
+        initialPlayback.isLoading) {
+      throw const KtvRecordingException('请先播放歌曲，确认伴唱音轨后再开始录音');
+    }
+
+    if (!_microphoneService.currentState.isMonitoring) {
+      await _microphoneService.startMonitoring();
+      if (!_microphoneService.currentState.isMonitoring) {
+        throw KtvRecordingException(
+          _microphoneService.currentState.error ?? '无法启动麦克风，请检查系统权限和输入设备',
+        );
+      }
+    }
+
+    // Re-check playback after microphone setup before creating any take files.
+    // This keeps a failed start from leaving empty take_* directories behind.
+    final playback = _audioService.currentState;
+    if (!playback.isPlaying || playback.isBuffering || playback.isLoading) {
+      throw const KtvRecordingException('麦克风准备期间歌曲停止了播放，请重新开始录音');
+    }
+    final backingSource = playback.currentSource;
+    if (backingSource == null || backingSource == AudioSourceType.vocals) {
+      throw const KtvRecordingException('KTV 录音只支持原唱伴唱或纯伴奏音轨');
+    }
+    final backingPath = audioAsset.getPathForSource(backingSource);
+    if (backingPath == null || backingPath.trim().isEmpty) {
+      throw const KtvRecordingException('当前伴唱音轨文件不可用');
+    }
+
+    final directory = await _createSessionDirectory(project);
+    final micStemPath = _join(directory.path, 'voice.wav');
+    final manifestPath = _join(directory.path, 'session.json');
+    final writer = Pcm16WavWriter();
+    try {
+      await writer.open(micStemPath);
+    } catch (error) {
+      await _deleteFailedTake(directory);
+      throw KtvRecordingException('无法创建人声录音文件：$error');
+    }
+
+    final now = DateTime.now();
+    final session = KtvRecordingSession(
+      id: directory.uri.pathSegments
+          .where((segment) => segment.isNotEmpty)
+          .last,
+      projectId: project.id,
+      startedAt: now,
+      backingSource: backingSource,
+      backingPath: backingPath,
+      startPosition: playback.position,
+      duration: Duration.zero,
+      micStemPath: micStemPath,
+      manifestPath: manifestPath,
+      backingVolume: playback.volume.clamp(0.0, 1.0).toDouble(),
+      monitorMicGain: _microphoneService.currentState.micGain,
+    );
+
+    _writer = writer;
+    _alignmentReliable = true;
+    _alignmentIssue = null;
+    _recordingClock = Stopwatch()..start();
+    _lastDurationEmitMs = 0;
+
+    _pcmSubscription = _microphoneService.rawPcm16Stream.listen(
+      _handlePcmFrame,
+      onError: (Object error, StackTrace stackTrace) {
+        _markAlignmentIssue('麦克风输入在录音中断开：$error');
+      },
+    );
+    _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
+
+    _emit(
+      _state.copyWith(
+        isRecording: true,
+        recordedDuration: Duration.zero,
+        currentSession: session,
+        clearError: true,
+      ),
+    );
+
+    // Start capture immediately for alignment accuracy, but roll the entire
+    // start back if the recoverable session descriptor cannot be persisted.
+    try {
+      await _writeManifest(session);
+    } catch (error) {
+      await _rollbackFailedStart(writer, directory);
+      throw KtvRecordingException('无法创建录音记录：$error');
+    }
+  }
+
+  void _handlePcmFrame(Uint8List bytes) {
+    final writer = _writer;
+    if (!_state.isRecording || writer == null) return;
+    try {
+      writer.addPcm16(bytes);
+    } catch (error) {
+      _markAlignmentIssue('写入人声录音失败：$error');
+      return;
+    }
+
+    final duration = writer.duration;
+    final durationMs = duration.inMilliseconds;
+    if (durationMs - _lastDurationEmitMs >= 100) {
+      _lastDurationEmitMs = durationMs;
+      _emit(_state.copyWith(recordedDuration: duration));
+    }
+  }
+
+  void _handlePlaybackState(PlaybackState playback) {
+    final session = _state.currentSession;
+    final clock = _recordingClock;
+    if (!_state.isRecording || session == null || clock == null) return;
+
+    if (playback.currentSource != session.backingSource) {
+      _markAlignmentIssue('录音过程中切换了伴唱音轨');
+      return;
+    }
+    if (!playback.isPlaying && clock.elapsed > const Duration(milliseconds: 350)) {
+      _markAlignmentIssue('录音过程中歌曲被暂停或停止');
+      return;
+    }
+
+    if (clock.elapsed < const Duration(seconds: 1)) return;
+    final expected = session.startPosition + clock.elapsed;
+    final drift = (playback.position - expected).abs();
+    if (drift > const Duration(milliseconds: 900)) {
+      _markAlignmentIssue('录音过程中播放位置发生跳变，无法保证混音对齐');
+    }
+  }
+
+  void _markAlignmentIssue(String issue) {
+    if (!_alignmentReliable) return;
+    _alignmentReliable = false;
+    _alignmentIssue = issue;
+    final current = _state.currentSession;
+    if (current != null) {
+      _emit(
+        _state.copyWith(
+          currentSession: current.copyWith(
+            alignmentReliable: false,
+            alignmentIssue: issue,
+          ),
+          error: issue,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<KtvRecordingSession?> stopRecording() async {
+    if (!_state.isRecording) return _state.lastCompletedSession;
+
+    final current = _state.currentSession;
+    final writer = _writer;
+    _writer = null;
+    _recordingClock?.stop();
+    _recordingClock = null;
+
+    final pcmSubscription = _pcmSubscription;
+    _pcmSubscription = null;
+    if (pcmSubscription != null) await pcmSubscription.cancel();
+    final playbackSubscription = _playbackSubscription;
+    _playbackSubscription = null;
+    if (playbackSubscription != null) await playbackSubscription.cancel();
+
+    if (current == null || writer == null) {
+      _emit(
+        _state.copyWith(
+          isRecording: false,
+          recordedDuration: Duration.zero,
+          clearCurrentSession: true,
+        ),
+      );
+      return null;
+    }
+
+    final duration = await writer.close();
+    final completed = current.copyWith(
+      completedAt: DateTime.now(),
+      duration: duration,
+      alignmentReliable: _alignmentReliable,
+      alignmentIssue: _alignmentIssue,
+    );
+    await _writeManifest(completed);
+
+    _emit(
+      _state.copyWith(
+        isRecording: false,
+        recordedDuration: duration,
+        clearCurrentSession: true,
+        lastCompletedSession: completed,
+        error: _alignmentIssue,
+        clearError: _alignmentIssue == null,
+      ),
+    );
+    return completed;
+  }
+
+  @override
+  Future<KtvRecordingSession> exportMix(
+    KtvRecordingSession session, {
+    double voiceVolume = 1.0,
+    double? backingVolume,
+  }) async {
+    if (_state.isRecording) {
+      throw const KtvRecordingException('请先停止录音再导出混音');
+    }
+    if (_state.isExporting) {
+      throw const KtvRecordingException('已有混音正在导出，请等待完成后再试');
+    }
+    if (!session.alignmentReliable) {
+      throw KtvRecordingException(
+        session.alignmentIssue ?? '本次录音的播放时间轴发生变化，无法安全生成自动混音',
+      );
+    }
+    if (session.duration <= Duration.zero) {
+      throw const KtvRecordingException('录音内容为空，无法导出');
+    }
+    if (!Platform.isWindows && !Platform.isMacOS && !Platform.isLinux) {
+      throw const KtvRecordingException('当前版本的自动混音导出仅支持桌面端');
+    }
+    if (!await File(session.micStemPath).exists()) {
+      throw const KtvRecordingException('人声录音文件不存在');
+    }
+    if (!await File(session.backingPath).exists()) {
+      throw const KtvRecordingException('伴唱音轨文件不存在');
+    }
+
+    _emit(_state.copyWith(isExporting: true, clearError: true));
+    try {
+      final settings = await _settingsStore.load();
+      final ffmpeg = settings?.ffmpegExecutable.trim().isNotEmpty == true
+          ? settings!.ffmpegExecutable.trim()
+          : 'ffmpeg';
+      final outputPath = _join(File(session.manifestPath).parent.path, 'mix.wav');
+      final args = buildKtvMixFfmpegArguments(
+        session,
+        outputPath: outputPath,
+        voiceVolume: voiceVolume,
+        backingVolume: backingVolume ?? session.backingVolume,
+      );
+
+      ProcessResult result;
+      try {
+        result = await _processRunner(ffmpeg, args);
+      } on ProcessException catch (error) {
+        throw KtvRecordingException(
+          '无法启动 FFmpeg。人声录音已安全保存，可在配置本地 FFmpeg 后重新导出。\n$error',
+        );
+      }
+      if (result.exitCode != 0 || !await File(outputPath).exists()) {
+        final stderr = result.stderr.toString().trim();
+        throw KtvRecordingException(
+          'FFmpeg 混音失败${stderr.isEmpty ? '' : '：$stderr'}',
+        );
+      }
+
+      final latest = await _readLatestSessionForExport(session);
+      final exported = latest.copyWith(mixedOutputPath: outputPath);
+      await _writeManifest(exported);
+      _emit(
+        _state.copyWith(
+          isExporting: false,
+          lastCompletedSession: exported,
+          clearError: true,
+        ),
+      );
+      return exported;
+    } catch (error) {
+      _emit(_state.copyWith(isExporting: false, error: error.toString()));
+      rethrow;
+    }
+  }
+
+  Future<KtvRecordingSession> _readLatestSessionForExport(
+    KtvRecordingSession expected,
+  ) async {
+    final manifest = File(expected.manifestPath);
+    if (await FileSystemEntity.type(manifest.path, followLinks: false) !=
+        FileSystemEntityType.file) {
+      throw const KtvRecordingException('录音记录已被移动或删除，无法完成混音导出');
+    }
+    try {
+      final decoded = jsonDecode(await manifest.readAsString());
+      if (decoded is! Map<String, dynamic>) {
+        throw const FormatException('session manifest is not an object');
+      }
+      final latest = KtvRecordingSession.fromJson(decoded);
+      if (latest.id != expected.id ||
+          latest.projectId != expected.projectId ||
+          !_samePath(latest.manifestPath, expected.manifestPath) ||
+          !_samePath(latest.micStemPath, expected.micStemPath) ||
+          !_samePath(latest.backingPath, expected.backingPath)) {
+        throw const KtvRecordingException('录音记录在导出期间发生了身份变化，已取消写入');
+      }
+      return latest;
+    } on KtvRecordingException {
+      rethrow;
+    } catch (error) {
+      throw KtvRecordingException('读取最新录音记录失败，已取消写入：$error');
+    }
+  }
+
+  bool _samePath(String left, String right) {
+    final leftPath = File(left).absolute.path;
+    final rightPath = File(right).absolute.path;
+    return Platform.isWindows
+        ? leftPath.toLowerCase() == rightPath.toLowerCase()
+        : leftPath == rightPath;
+  }
+
+  Future<Directory> _createSessionDirectory(ProjectManifest project) async {
+    final projectDirectory = await _projectDirectoryResolver(project);
+    final recordings = Directory(_join(projectDirectory.path, 'recordings'));
+    await recordings.create(recursive: true);
+    final stamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .replaceAll('.', '-');
+    final directory = Directory(_join(recordings.path, 'take_$stamp'));
+    await directory.create(recursive: true);
+    return directory;
+  }
+
+  Future<void> _rollbackFailedStart(
+    Pcm16WavWriter writer,
+    Directory directory,
+  ) async {
+    final pcmSubscription = _pcmSubscription;
+    _pcmSubscription = null;
+    try {
+      await pcmSubscription?.cancel();
+    } catch (_) {}
+
+    final playbackSubscription = _playbackSubscription;
+    _playbackSubscription = null;
+    try {
+      await playbackSubscription?.cancel();
+    } catch (_) {}
+
+    _writer = null;
+    _recordingClock?.stop();
+    _recordingClock = null;
+    try {
+      await writer.close();
+    } catch (_) {}
+
+    _emit(
+      _state.copyWith(
+        isRecording: false,
+        recordedDuration: Duration.zero,
+        clearCurrentSession: true,
+        clearError: true,
+      ),
+    );
+    await _deleteFailedTake(directory);
+  }
+
+  Future<void> _deleteFailedTake(Directory directory) async {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    } catch (_) {
+      // The start failure remains primary. History scanning ignores incomplete
+      // directories, and a later cleanup can safely remove any residual files.
+    }
+  }
+
+  Future<void> _writeManifest(KtvRecordingSession session) async {
+    final file = File(session.manifestPath);
+    await file.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(session.toJson()),
+      flush: true,
+    );
+  }
+
+  void _emit(KtvRecordingState next) {
+    _state = next;
+    if (!_stateController.isClosed) _stateController.add(next);
+  }
+
+  @override
+  Future<void> dispose() async {
+    await stopRecording();
+    await _stateController.close();
+  }
+}
+
+List<String> buildKtvMixFfmpegArguments(
+  KtvRecordingSession session, {
+  required String outputPath,
+  double voiceVolume = 1.0,
+  double? backingVolume,
+}) {
+  final voice = voiceVolume.clamp(0.0, 2.0).toDouble();
+  final backing =
+      (backingVolume ?? session.backingVolume).clamp(0.0, 1.0).toDouble();
+  final startSeconds =
+      (session.startPosition.inMicroseconds / Duration.microsecondsPerSecond)
+          .toStringAsFixed(6);
+  final durationSeconds =
+      (session.duration.inMicroseconds / Duration.microsecondsPerSecond)
+          .toStringAsFixed(6);
+  final filter =
+      '[0:a]atrim=start=$startSeconds:duration=$durationSeconds,'
+      'asetpts=PTS-STARTPTS,volume=${backing.toStringAsFixed(4)}[b];'
+      '[1:a]atrim=duration=$durationSeconds,asetpts=PTS-STARTPTS,'
+      'volume=${voice.toStringAsFixed(4)}[v];'
+      '[b][v]amix=inputs=2:duration=shortest:dropout_transition=0:'
+      'normalize=0[m]';
+
+  return <String>[
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-y',
+    '-i',
+    session.backingPath,
+    '-i',
+    session.micStemPath,
+    '-filter_complex',
+    filter,
+    '-map',
+    '[m]',
+    '-c:a',
+    'pcm_s16le',
+    outputPath,
+  ];
+}
+
+String _join(String left, String right) =>
+    left.endsWith(Platform.pathSeparator)
+        ? '$left$right'
+        : '$left${Platform.pathSeparator}$right';
