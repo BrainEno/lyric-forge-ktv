@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-28 12:35] Verify engineering review findings and record deferred risks ([entry](log/entries/2026-10-28-1235-verify-engineering-review-risks.md))
 - [2026-10-28 02:35] Add paired A/B evaluation for shared ASR preprocessing ([entry](log/entries/2026-10-28-0235-asr-preprocessing-ab-evaluator.md))
 - [2026-10-27 19:20] Share one normalized audio input across ASR engines ([entry](log/entries/2026-10-27-1920-share-normalized-asr-input.md))
 - [2026-10-27 18:54] Unify audio normalization across local ASR paths ([entry](log/entries/2026-10-27-1854-unify-asr-audio-normalization.md))
