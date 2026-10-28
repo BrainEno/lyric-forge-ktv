@@ -9,9 +9,8 @@ import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
 
 class WhisperCppTranscriptionService implements TranscriptionService {
-  WhisperCppTranscriptionService({
-    AsrProcessSupervisor? processSupervisor,
-  }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
+  WhisperCppTranscriptionService({AsrProcessSupervisor? processSupervisor})
+    : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
 
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();

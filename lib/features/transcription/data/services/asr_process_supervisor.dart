@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-typedef AsrProcessStarter = Future<Process> Function(
-  String executable,
-  List<String> arguments,
-);
+typedef AsrProcessStarter =
+    Future<Process> Function(String executable, List<String> arguments);
 typedef ActiveAsrProcessChanged = void Function(Process? process);
 
 class AsrProcessResult {

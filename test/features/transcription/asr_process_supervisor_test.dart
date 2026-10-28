@@ -96,40 +96,46 @@ void main() {
       expect(process.killSignals, contains(ProcessSignal.sigkill));
     });
 
-    test('does not wait forever for pipes inherited after child exit', () async {
-      final process = _FakeProcess();
-      final supervisor = AsrProcessSupervisor(
-        startProcess: (_, __) async => process,
-        streamDrainGrace: const Duration(milliseconds: 10),
-      );
-      final future = supervisor.run(
-        'child-with-inherited-pipes',
-        const [],
-        timeout: const Duration(seconds: 1),
-      );
-      await Future<void>.delayed(Duration.zero);
-      process.finish(0, closeStreams: false);
+    test(
+      'does not wait forever for pipes inherited after child exit',
+      () async {
+        final process = _FakeProcess();
+        final supervisor = AsrProcessSupervisor(
+          startProcess: (_, __) async => process,
+          streamDrainGrace: const Duration(milliseconds: 10),
+        );
+        final future = supervisor.run(
+          'child-with-inherited-pipes',
+          const [],
+          timeout: const Duration(seconds: 1),
+        );
+        await Future<void>.delayed(Duration.zero);
+        process.finish(0, closeStreams: false);
 
-      final result = await future;
+        final result = await future;
 
-      expect(result.exitCode, 0);
-      unawaited(process.closeStreams());
-    });
+        expect(result.exitCode, 0);
+        unawaited(process.closeStreams());
+      },
+    );
   });
 
   group('AsrProcessTimeoutPolicy', () {
-    test('FFmpeg budget grows with larger source files and remains bounded', () {
-      final small = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(1024);
-      final larger = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(
-        80 * 1024 * 1024,
-      );
-      final huge = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(
-        2 * 1024 * 1024 * 1024,
-      );
+    test(
+      'FFmpeg budget grows with larger source files and remains bounded',
+      () {
+        final small = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(1024);
+        final larger = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(
+          80 * 1024 * 1024,
+        );
+        final huge = AsrProcessTimeoutPolicy.ffmpegPreprocessingForBytes(
+          2 * 1024 * 1024 * 1024,
+        );
 
-      expect(larger, greaterThan(small));
-      expect(huge, const Duration(minutes: 60));
-    });
+        expect(larger, greaterThan(small));
+        expect(huge, const Duration(minutes: 60));
+      },
+    );
 
     test('Whisper budget scales with normalized WAV duration', () {
       const bytesPerSecond = 16000 * 2;
@@ -164,10 +170,7 @@ class _FakeProcess implements Process {
   final bool killOnSigterm;
   final bool killOnSigkill;
 
-  _FakeProcess({
-    this.killOnSigterm = true,
-    this.killOnSigkill = true,
-  });
+  _FakeProcess({this.killOnSigterm = true, this.killOnSigkill = true});
 
   @override
   IOSink get stdin => _stdin;
