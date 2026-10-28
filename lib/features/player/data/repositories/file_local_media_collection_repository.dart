@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 
@@ -13,8 +13,9 @@ class FileLocalMediaCollectionRepository
     implements LocalMediaCollectionRepository {
   static bool _isValidStoreJson(Object? decoded) =>
       decoded is Map &&
-      decoded['favorites'] is List &&
-      decoded['playlists'] is List;
+      (decoded['favorites'] is List || decoded['playlists'] is List) &&
+      (decoded['favorites'] == null || decoded['favorites'] is List) &&
+      (decoded['playlists'] == null || decoded['playlists'] is List);
 
   final Directory? rootDirectory;
 

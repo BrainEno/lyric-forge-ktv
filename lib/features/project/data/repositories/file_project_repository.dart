@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../../../../core/persistence/atomic_json_file.dart';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
 import '../../../player/domain/services/playback_session_service.dart';
