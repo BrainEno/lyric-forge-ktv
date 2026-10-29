@@ -76,7 +76,7 @@ void main() {
       final request = await client.postUrl(uri);
       request.headers.set(
         HttpHeaders.authorizationHeader,
-        'Bearer ' + session.token,
+        'Bearer ${session.token},
       );
       final bytes = utf8.encode('fake mp3 bytes');
       request.contentLength = bytes.length;
@@ -353,7 +353,7 @@ void main() {
     );
     rejectedRequest.headers.set(
       HttpHeaders.authorizationHeader,
-      'Bearer ' + session.token,
+      'Bearer ${session.token},
     );
     rejectedRequest.contentLength = 0;
     final rejectedResponse = await rejectedRequest.close();
@@ -378,7 +378,7 @@ void main() {
     );
     retryRequest.headers.set(
       HttpHeaders.authorizationHeader,
-      'Bearer ' + session.token,
+      'Bearer ${session.token},
     );
     retryRequest.contentLength = 1;
     retryRequest.add(const [1]);
@@ -401,6 +401,7 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) {
 
 Future<String> _readRawResponse(SecureSocket socket) {
   return socket
+      .cast<List<int>>()
       .transform(utf8.decoder)
       .join()
       .timeout(const Duration(seconds: 5));
@@ -411,25 +412,19 @@ String _rawContentLengthHeaders(
   String filename,
   int length,
 ) {
-  return 'POST /v1/incoming/audio?filename=' +
-      Uri.encodeQueryComponent(filename) +
-      ' HTTP/1.1\r\nHost: 127.0.0.1:' +
-      session.port.toString() +
-      '\r\nAuthorization: Bearer ' +
-      session.token +
-      '\r\nContent-Length: ' +
-      length.toString() +
-      '\r\nConnection: close\r\n\r\n';
+  return 'POST /v1/incoming/audio?filename=${Uri.encodeQueryComponent(filename)} HTTP/1.1\r\n'
+      'Host: 127.0.0.1:${session.port}\r\n'
+      'Authorization: Bearer ${session.token}\r\n'
+      'Content-Length: $length\r\n'
+      'Connection: close\r\n\r\n';
 }
 
 String _rawChunkedHeaders(MediaHubSession session, String filename) {
-  return 'POST /v1/incoming/audio?filename=' +
-      Uri.encodeQueryComponent(filename) +
-      ' HTTP/1.1\r\nHost: 127.0.0.1:' +
-      session.port.toString() +
-      '\r\nAuthorization: Bearer ' +
-      session.token +
-      '\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n';
+  return 'POST /v1/incoming/audio?filename=${Uri.encodeQueryComponent(filename)} HTTP/1.1\r\n'
+      'Host: 127.0.0.1:${session.port}\r\n'
+      'Authorization: Bearer ${session.token}\r\n'
+      'Transfer-Encoding: chunked\r\n'
+      'Connection: close\r\n\r\n';
 }
 
 HttpClient _pinnedHttpClient(String fingerprint) {
