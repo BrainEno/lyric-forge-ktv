@@ -280,7 +280,7 @@ class HttpMediaHubService implements MediaHubService {
           segments[1] == 'health') {
         await _writeJson(request.response, HttpStatus.ok, {
           'status': 'ok',
-          'protocolVersion': 1,
+          'protocolVersion': 2,
           'startedAt': session.startedAt.toIso8601String(),
           'trackCount': _tracks.length,
           'acceptsUploads': true,
