@@ -5,10 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('Media Hub insecure transport consent contracts', () {
     late String source;
+    late String serverSource;
 
     setUpAll(() async {
       source = await File(
         'lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart',
+      ).readAsString();
+      serverSource = await File(
+        'lib/features/transfer/data/services/http_media_hub_service.dart',
       ).readAsString();
     });
 
@@ -21,6 +25,14 @@ void main() {
 
       expect(prepare, isNot(contains('_hub.startSharing(')));
       expect(prepare, contains('_catalog.build()'));
+    });
+
+    test('HTTP service does not bind wildcard/public interfaces', () {
+      expect(serverSource, isNot(contains('InternetAddress.anyIPv4')));
+      expect(serverSource, contains('_bindWithPortFallback(host)'));
+      expect(serverSource, contains('_isTailscaleIpv4(value)'));
+      expect(serverSource, contains('_isPrivateLanIpv4(value)'));
+      expect(serverSource, isNot(contains('otherHosts.add(value)')));
     });
 
     test('starting sharing requires affirmative risk consent', () {
