@@ -153,7 +153,9 @@ void main() {
     expect(imported, isEmpty);
   });
 
-  test('enforces upload byte cap on chunked requests and removes partial data', () async {
+  test(
+    'enforces upload byte cap on chunked requests and removes partial data',
+    () async {
     await service.stopSharing();
     service = HttpMediaHubService(
       incomingDirectory: incomingDirectory,
@@ -195,7 +197,9 @@ void main() {
     expect(await incomingDirectory.list().toList(), isEmpty);
   });
 
-  test('rejects uploads above the configured concurrent request limit', () async {
+  test(
+    'rejects uploads above the configured concurrent request limit',
+    () async {
     await service.stopSharing();
     service = HttpMediaHubService(
       incomingDirectory: incomingDirectory,
