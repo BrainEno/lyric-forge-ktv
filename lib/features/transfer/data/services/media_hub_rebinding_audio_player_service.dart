@@ -30,7 +30,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   HttpServer? _proxyServer;
   final Map<String, _MediaHubProxyTarget> _proxyTargets =
       <String, _MediaHubProxyTarget>{};
-  String? _activeProxyPath;
 
   MediaHubRebindingAudioPlayerService({
     required this.delegate,
@@ -60,7 +59,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       preferredSource: preferredSource,
     );
     _proxyTargets.clear();
-    _activeProxyPath = null;
   }
 
   @override
@@ -84,7 +82,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       );
       try {
         await delegate.loadAudioUri(uri: proxyUri, source: source);
-        _activeProxyPath = proxyPath;
         _proxyTargets.removeWhere((path, _) => path != proxyPath);
       } catch (_) {
         _proxyTargets.remove(proxyPath);
@@ -94,7 +91,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     }
     await delegate.loadAudioUri(uri: resolved, source: source);
     _proxyTargets.clear();
-    _activeProxyPath = null;
   }
 
   Future<String> _registerProxyTarget(
@@ -137,7 +133,10 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   }
 
   bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host && a.port == b.port && a.token == b.token;
+      a.host == b.host &&
+      a.port == b.port &&
+      a.token == b.token &&
+      a.tlsFingerprint == b.tlsFingerprint;
 
   bool _looksLikeMediaHubAudio(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
@@ -150,12 +149,11 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
 
   Uri _rebase(Uri original, MediaHubConnection connection) {
     final rebased = connection.resolve(original.path);
-    return rebased.replace(
-      queryParameters: {
-        ...original.queryParameters,
-        'token': connection.token,
-      },
-    );
+    final queryParameters = Map<String, String>.from(original.queryParameters)
+      ..remove('token');
+    return queryParameters.isEmpty
+        ? rebased
+        : rebased.replace(queryParameters: queryParameters);
   }
 
   @override
