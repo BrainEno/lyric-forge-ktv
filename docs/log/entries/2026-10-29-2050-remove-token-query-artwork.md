@@ -1,0 +1,7 @@
+# [2026-10-29 20:50] Remove Media Hub session tokens from artwork URLs
+
+- Scope: Close the remaining issue #222 credential leak in mobile remote artwork. `remoteArtworkUriFor` no longer appends the session token to URL query parameters and strips legacy `token` parameters; the artwork widget retrieves bytes through `MediaHubClientService.fetchArtwork`, which uses the pinned HTTPS client and Authorization header.
+- Files: `lib/features/transfer/presentation/screens/remote_catalog_utils.dart`, `lib/features/transfer/presentation/widgets/remote_media_artwork.dart`, `test/features/transfer/media_hub_security_consent_contract_test.dart`, this entry, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, and `docs/handoff.md`.
+- Validation: Added source-contract checks for the remaining artwork URL helper and widget, including requiring authenticated artwork fetching and prohibiting `Image.network` in the remote artwork widget. Final-head Flutter Quality Gate must pass; local Flutter/Dart SDKs are unavailable here.
+- Notes: The server already rejects query-token authentication and the audio rebinding proxy already uses Authorization headers; this patch removes the remaining artwork-specific query-token path and protects the UI fetch from falling back to URL credentials. The current playback resolver separately caches artwork through the authenticated client.
+- Commit: `security: remove session tokens from Media Hub artwork URLs`

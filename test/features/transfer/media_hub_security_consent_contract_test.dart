@@ -74,17 +74,36 @@ void main() {
       expect(manifest, contains('android:usesCleartextTraffic="false"'));
     });
 
-    test(
-      'audio and artwork metadata no longer carry session tokens in URLs',
-      () async {
-        expect(clientSource, isNot(contains("'token': connection.token")));
-        final proxySource = await File(
-          'lib/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart',
-        ).readAsString();
-        expect(proxySource, contains('InternetAddress.loopbackIPv4'));
-        expect(proxySource, contains('HttpHeaders.authorizationHeader'));
-      },
-    );
+    test('audio and artwork metadata never carry session tokens in URLs', () async {
+      expect(clientSource, isNot(contains("'token': connection.token")));
+      expect(
+        serverSource,
+        isNot(contains("request.uri.queryParameters['token']")),
+      );
+
+      final proxySource = await File(
+        'lib/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart',
+      ).readAsString();
+      expect(proxySource, contains('InternetAddress.loopbackIPv4'));
+      expect(proxySource, contains('HttpHeaders.authorizationHeader'));
+      expect(proxySource, contains("..remove('token')"));
+
+      final catalogSource = await File(
+        'lib/features/transfer/presentation/screens/remote_catalog_utils.dart',
+      ).readAsString();
+      expect(catalogSource, isNot(contains("'token': connection.token")));
+      expect(catalogSource, contains("..remove('token')"));
+
+      final artworkWidgetSource = await File(
+        'lib/features/transfer/presentation/widgets/remote_media_artwork.dart',
+      ).readAsString();
+      expect(
+        artworkWidgetSource,
+        contains('widget.client.fetchArtwork(widget.track)'),
+      );
+      expect(artworkWidgetSource, isNot(contains('Image.network(')));
+      expect(artworkWidgetSource, contains('Image.memory('));
+    });
     test('starting sharing requires explicit scope consent', () {
       final start = source.indexOf('Future<void> _start()');
       final end = source.indexOf('Future<bool> _confirmMediaSharing()', start);

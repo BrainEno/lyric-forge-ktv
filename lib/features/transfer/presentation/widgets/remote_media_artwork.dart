@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -6,9 +7,8 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
-import '../screens/remote_catalog_utils.dart';
 
-class RemoteMediaArtwork extends StatelessWidget {
+class RemoteMediaArtwork extends StatefulWidget {
   final RemoteAudioTrack track;
   final MediaHubClientService client;
   final String? localPath;
@@ -27,45 +27,114 @@ class RemoteMediaArtwork extends StatelessWidget {
   });
 
   @override
+  State<RemoteMediaArtwork> createState() => _RemoteMediaArtworkState();
+}
+
+class _RemoteMediaArtworkState extends State<RemoteMediaArtwork> {
+  Future<List<int>>? _artworkFuture;
+  String? _connectionKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshArtworkFuture();
+  }
+
+  @override
+  void didUpdateWidget(covariant RemoteMediaArtwork oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.track.id != widget.track.id ||
+        oldWidget.track.artworkPath != widget.track.artworkPath ||
+        oldWidget.track.hasArtwork != widget.track.hasArtwork ||
+        oldWidget.client != widget.client ||
+        oldWidget.localPath != widget.localPath ||
+        _connectionKey != _currentConnectionKey()) {
+      _refreshArtworkFuture();
+    }
+  }
+
+  String? _currentConnectionKey() {
+    final connection = widget.client.currentConnection;
+    if (connection == null) return null;
+    return '${connection.host}:${connection.port}:'
+        '${connection.token}:${connection.tlsFingerprint}';
+  }
+
+  void _refreshArtworkFuture() {
+    _connectionKey = _currentConnectionKey();
+    final localPath = widget.localPath;
+    final artworkPath = widget.track.artworkPath?.trim();
+    if ((localPath != null && File(localPath).existsSync()) ||
+        !widget.track.hasArtwork ||
+        artworkPath == null ||
+        artworkPath.isEmpty ||
+        widget.client.currentConnection == null) {
+      _artworkFuture = null;
+      return;
+    }
+
+    // The client fetches bytes through the certificate-pinned HTTPS channel
+    // and supplies the Bearer token in a request header, never in the URL.
+    _artworkFuture = widget.client.fetchArtwork(widget.track);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final local = localPath == null ? null : File(localPath!);
+    final local = widget.localPath == null ? null : File(widget.localPath!);
     final localExists = local != null && local.existsSync();
-    final remoteUri = localExists ? null : remoteArtworkUriFor(client, track);
-    final radius = borderRadius ?? BorderRadius.circular(AppSpacing.radiusSmall);
+    final radius =
+        widget.borderRadius ?? BorderRadius.circular(AppSpacing.radiusSmall);
 
     return ClipRRect(
       borderRadius: radius,
       child: Container(
-        width: extent,
-        height: extent,
+        width: widget.extent,
+        height: widget.extent,
         color: AppColors.bgSurface,
         child: localExists
             ? Image.file(local, fit: BoxFit.cover)
-            : remoteUri == null
-                ? _Fallback(icon: fallbackIcon)
-                : Image.network(
-                    remoteUri.toString(),
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (_, _, _) => _Fallback(icon: fallbackIcon),
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          _Fallback(icon: fallbackIcon),
-                          const Center(
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+            : _remoteImage(),
       ),
+    );
+  }
+
+  Widget _remoteImage() {
+    final future = _artworkFuture;
+    if (future == null) return _Fallback(icon: widget.fallbackIcon);
+
+    return FutureBuilder<List<int>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _Fallback(icon: widget.fallbackIcon);
+        }
+        final bytes = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.done) {
+          if (bytes == null || bytes.isEmpty) {
+            return _Fallback(icon: widget.fallbackIcon);
+          }
+          return Image.memory(
+            Uint8List.fromList(bytes),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (_, _, _) => _Fallback(icon: widget.fallbackIcon),
+          );
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            _Fallback(icon: widget.fallbackIcon),
+            const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -77,8 +146,6 @@ class _Fallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Icon(icon, color: AppColors.textSecondary),
-    );
+    return Center(child: Icon(icon, color: AppColors.textSecondary));
   }
 }
