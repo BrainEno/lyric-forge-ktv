@@ -34,7 +34,8 @@ void main() {
       incomingUploadIdleTimeout: idleTimeout,
       incomingUploadTotalTimeout: totalTimeout,
       minimumFreeSpaceBytes: minimumFreeSpaceBytes,
-      diskSpaceProbe: diskSpaceProbe ?? (Directory _) async => 8 * 1024 * 1024 * 1024,
+      diskSpaceProbe:
+          diskSpaceProbe ?? (Directory _) async => 8 * 1024 * 1024 * 1024,
       onIncomingFile:
           onIncomingFile ??
           (path) async {
