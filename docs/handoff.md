@@ -7,7 +7,8 @@ Address issue #221's POSIX atomic replacement gap and improve fault-injection co
 - Repository: `BrainEno/lyric-forge-ktv`
 - Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
 - Branch: `fix/atomic-json-platform-replacement-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/242.
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/242
+- Validated implementation head: `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`
 - Local Dart/Flutter SDKs are unavailable in this environment; validate on GitHub Actions.
 
 ## 已改文件
@@ -20,20 +21,20 @@ Address issue #221's POSIX atomic replacement gap and improve fault-injection co
 - `docs/handoff.md`
 
 ## 检查结果
+- Flutter Quality Gate passed on implementation head `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`: work-log preflight, changed-Dart formatting, analysis, and full tests all passed.
 - POSIX replacement now renames the validated temporary file directly over the current canonical file, with no explicit delete before rename.
-- Windows keeps the backup-protected delete/rename fallback; recovery now uses the same platform-aware behavior.
+- Windows keeps the backup-protected delete/rename fallback; recovery uses the same platform-aware behavior.
 - Added failure injection after temporary flush, immediately before replacement (platform-specific stage), and after canonical replacement.
-- Final-head Flutter Quality Gate must pass before treating this code change as validated. Windows/macOS runtime behavior still needs platform-specific CI/device confirmation.
+- A documentation-only handoff refresh follows the validated code head; verify final-head CI before merge.
 
 ## 下一步
-1. Open a separate PR for this issue and review the exact diff.
-2. Verify work-log preflight, Dart formatting, analysis, and the full test suite on the final PR head.
-3. Run Windows-specific validation for the fallback path.
-4. Keep #221 open until the schemaVersion/migration contract is separately decided and validated.
+1. Verify CI on the final PR head after documentation refresh.
+2. Run Windows-specific validation for the fallback path.
+3. Keep #221 open until the schemaVersion/migration contract is separately decided and validated.
 
 ## 已知风险
 - On Windows the delete/rename gap remains, protected by the validated backup and startup restoration path; this is not a database transaction or a guarantee against filesystem/hardware failure.
 - This change does not add schemaVersion to the ten stores using AtomicJsonFile; broad migration changes are intentionally out of scope.
 - Failure hooks simulate interrupted stages inside the writer, but do not kill a process or validate power-loss durability on a physical filesystem.
 
-最后更新：2026-10-29 16:54（Asia/Taipei）
+最后更新：2026-10-29 17:04（Asia/Taipei）
