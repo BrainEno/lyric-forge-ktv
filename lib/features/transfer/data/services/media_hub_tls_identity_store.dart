@@ -60,33 +60,11 @@ class MediaHubTlsIdentityStore {
       }
     }
 
-    final pair = CryptoUtils.generateRSAKeyPair(keySize: 2048);
-    final privateKey = pair.privateKey as RSAPrivateKey;
-    final publicKey = pair.publicKey as RSAPublicKey;
-    const distinguishedName = <String, String>{
-      'CN': 'lyricforge.local',
-      'O': 'LyricForge',
-    };
-    const sans = <String>['lyricforge.local'];
-    final csr = X509Utils.generateRsaCsrPem(
-      distinguishedName,
-      privateKey,
-      publicKey,
-      san: sans,
-    );
-    final certificatePem = X509Utils.generateSelfSignedCertificate(
-      privateKey,
-      csr,
-      3650,
-      sans: sans,
-      extKeyUsage: <ExtendedKeyUsage>[ExtendedKeyUsage.SERVER_AUTH],
-    );
-    final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
-
+    final identity = await _generateValidIdentity();
     final certificateTemporary = File('${certificateFile.path}.tmp');
     final keyTemporary = File('${privateKeyFile.path}.tmp');
-    await certificateTemporary.writeAsString(certificatePem, flush: true);
-    await keyTemporary.writeAsString(privateKeyPem, flush: true);
+    await certificateTemporary.writeAsString(identity.certificatePem, flush: true);
+    await keyTemporary.writeAsString(identity.privateKeyPem, flush: true);
 
     // Do not leave a mismatched pair if either rename fails. The next startup
     // detects the incomplete pair and regenerates it.
@@ -97,10 +75,55 @@ class MediaHubTlsIdentityStore {
       await keyTemporary.rename(privateKeyFile.path);
     } catch (_) {
       if (await certificateFile.exists()) await certificateFile.delete();
+      if (await keyTemporary.exists()) await keyTemporary.delete();
       rethrow;
     }
 
-    return _identity(certificatePem, privateKeyPem);
+    return identity;
+  }
+
+  Future<MediaHubTlsIdentity> _generateValidIdentity() async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final pair = CryptoUtils.generateRSAKeyPair(keySize: 2048);
+        final privateKey = pair.privateKey as RSAPrivateKey;
+        final publicKey = pair.publicKey as RSAPublicKey;
+        const distinguishedName = <String, String>{
+          'CN': 'lyricforge.local',
+          'O': 'LyricForge',
+        };
+        const sans = <String>['lyricforge.local'];
+        final csr = X509Utils.generateRsaCsrPem(
+          distinguishedName,
+          privateKey,
+          publicKey,
+          san: sans,
+        );
+        final certificatePem = X509Utils.generateSelfSignedCertificate(
+          privateKey,
+          csr,
+          3650,
+          sans: sans,
+          extKeyUsage: <ExtendedKeyUsage>[ExtendedKeyUsage.SERVER_AUTH],
+        );
+        final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
+
+        // Validate the certificate and private key before replacing any
+        // persisted identity. A failed attempt must never leave bad PEM on disk.
+        return _identity(certificatePem, privateKeyPem);
+      } catch (error) {
+        lastError = error;
+        // Yield so the native TLS stack can release per-call state before a new
+        // keypair/certificate is generated on the next attempt.
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    throw StateError(
+      'Unable to generate a valid Media Hub TLS identity after 3 attempts: '
+      '$lastError',
+    );
   }
 
   Future<Directory> _resolveRootDirectory() async {
