@@ -92,7 +92,14 @@ class HttpMediaHubClientService implements MediaHubClientService {
   Future<void> _connectExact(MediaHubConnection connection) async {
     final fingerprint = connection.tlsFingerprint;
     if (fingerprint == null ||
-        !RegExp(r'^[0-9a-fA-F]{64}
+        !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(fingerprint)) {
+      throw const MediaHubClientException(
+        '当前连接没有有效的 TLS 证书指纹，请重新配对。',
+      );
+    }
+    _pinnedTlsFingerprint = fingerprint.toLowerCase();
+
+    final response = await _authorizedGet(
       connection,
       connection.resolve('/v1/health'),
     );
@@ -127,7 +134,6 @@ class HttpMediaHubClientService implements MediaHubClientService {
       throw MediaHubClientException('无法解析桌面端响应: $error');
     }
   }
-
   @override
   Future<void> disconnect() async {
     _connection = null;
