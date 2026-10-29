@@ -7,7 +7,7 @@ Resolve issue #219 by replacing Flutter template application identities with a s
 - Repository: `BrainEno/lyric-forge-ktv`
 - Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
 - Branch: `fix/platform-app-identifiers-20261029`
-- PR: to be added after the complete change is reviewed and submitted.
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/243.
 - Canonical application identifier: `io.github.braineno.lyricforge`
 
 ## 已改文件
@@ -40,4 +40,4 @@ Resolve issue #219 by replacing Flutter template application identities with a s
 - Changing an application identifier after publication creates a distinct app identity. The repository issue states that no user-facing app build has been distributed, so this early change avoids future rename/data-migration cost.
 - Windows `Runner.rc` supplies company/copyright version-resource metadata rather than a package bundle ID; no Store/MSIX package identity is currently defined here.
 
-最后更新：2026-10-29 17:08（Asia/Taipei）
+最后更新：2026-10-29 17:09（Asia/Taipei）
