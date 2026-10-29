@@ -265,6 +265,9 @@ class _FakeClient implements MediaHubClientService {
   @override
   Uri playbackUriFor(RemoteAudioTrack track) => throw UnimplementedError();
   @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[];
+
+  @override
   Future<void> uploadFile({
     required String sourcePath,
     String? remoteFileName,
