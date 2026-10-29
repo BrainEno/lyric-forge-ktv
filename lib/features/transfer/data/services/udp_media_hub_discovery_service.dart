@@ -111,29 +111,33 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 body['requestId'] != requestId) {
               continue;
             }
+
             final port = body['port'];
             final token = body['token'];
-            final tlsFingerprint = body['tlsFingerprint'];
+            final fingerprint = body['tlsFingerprint'];
             final proof = body['proof'];
             if (port is! num ||
                 port.toInt() <= 0 ||
                 token is! String ||
                 token.trim().isEmpty ||
-                tlsFingerprint is! String ||
-                !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(tlsFingerprint) ||
+                fingerprint is! String ||
+                !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(fingerprint) ||
                 proof is! String ||
                 proof.trim().isEmpty) {
               continue;
             }
+
             final expectedProof = mediaHubDiscoveryOfferProof(
               key: discoveryKey,
               deviceId: deviceId,
               requestId: requestId,
               port: port.toInt(),
               token: token.trim(),
-              tlsFingerprint: tlsFingerprint,
+              tlsFingerprint: fingerprint.toLowerCase(),
             );
-            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) continue;
+            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) {
+              continue;
+            }
 
             finish(
               MediaHubDiscoveryResult(
@@ -141,59 +145,12 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 host: currentDatagram.address.address,
                 port: port.toInt(),
                 token: token.trim(),
-                tlsFingerprint: tlsFingerprint.toLowerCase(),
+                tlsFingerprint: fingerprint.toLowerCase(),
               ),
             );
             break;
           } catch (_) {
-            // Ignore unrelated/malformed UDP traffic.
-          }
-        }
-      });
-
-      await sendProbe();
-      retryTimer = Timer.periodic(
-        const Duration(milliseconds: 400),
-        (_) => unawaited(sendProbe()),
-      );
-      timeoutTimer = Timer(timeout, () => finish(null));
-      return await completer.future;
-    } catch (_) {
-      return null;
-    } finally {
-      retryTimer?.cancel();
-      timeoutTimer?.cancel();
-      await subscription?.cancel();
-      socket?.close();
-    }
-  }
-}
-).hasMatch(tlsFingerprint) ||
-                proof is! String ||
-                proof.trim().isEmpty) {
-              continue;
-            }
-            final expectedProof = mediaHubDiscoveryOfferProof(
-              key: discoveryKey,
-              deviceId: deviceId,
-              requestId: requestId,
-              port: port.toInt(),
-              token: token.trim(),
-            );
-            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) continue;
-
-            finish(
-              MediaHubDiscoveryResult(
-                deviceId: deviceId,
-                host: currentDatagram.address.address,
-                port: port.toInt(),
-                token: token.trim(),
-                tlsFingerprint: tlsFingerprint.toLowerCase(),
-              ),
-            );
-            break;
-          } catch (_) {
-            // Ignore unrelated/malformed UDP traffic.
+            // Ignore unrelated or malformed UDP traffic.
           }
         }
       });
