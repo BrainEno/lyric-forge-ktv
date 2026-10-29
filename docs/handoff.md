@@ -36,7 +36,7 @@ Resolve issue #219 by replacing Flutter template application identities with a s
 2. Verify the new CI contract and Android/desktop build workflows on the final PR head.
 3. Keep issue #219 open until the PR is merged and builds are confirmed.
 
-## 风险
+## 已知风险
 - Changing an application identifier after publication creates a distinct app identity. The repository issue states that no user-facing app build has been distributed, so this early change avoids future rename/data-migration cost.
 - Windows `Runner.rc` supplies company/copyright version-resource metadata rather than a package bundle ID; no Store/MSIX package identity is currently defined here.
 
