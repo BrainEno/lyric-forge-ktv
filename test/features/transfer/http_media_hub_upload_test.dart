@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 
 void main() {
   late Directory temp;
@@ -16,6 +17,9 @@ void main() {
     imported.clear();
     service = HttpMediaHubService(
       incomingDirectory: temp,
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+      ),
       onIncomingFile: (path) async {
         imported.add(path);
       },
@@ -31,10 +35,10 @@ void main() {
     final session = await service.startSharing(const []);
     expect(session.trackCount, 0);
 
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final uri = Uri(
-      scheme: 'http',
+      scheme: 'https',
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
       path: '/v1/incoming/audio',
@@ -78,6 +82,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         token: session.token,
+        tlsFingerprint: session.tlsFingerprint,
         transport: MediaHubTransport.lan,
       ),
     );
@@ -154,4 +159,12 @@ void main() {
     expect(response.statusCode, HttpStatus.internalServerError);
     expect(await temp.list().toList(), isEmpty);
   });
+}
+
+
+HttpClient _pinnedHttpClient(String fingerprint) {
+  final client = HttpClient(context: SecurityContext(withTrustedRoots: false));
+  client.badCertificateCallback = (certificate, host, port) =>
+      mediaHubTlsFingerprint(certificate.der) == fingerprint.toLowerCase();
+  return client;
 }
