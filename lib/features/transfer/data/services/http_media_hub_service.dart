@@ -26,8 +26,13 @@ class HttpMediaHubService implements MediaHubService {
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
 
-  HttpMediaHubService({Uuid? uuid, this.incomingDirectory, this.onIncomingFile})
-    : _uuid = uuid ?? const Uuid();
+  HttpMediaHubService({
+    Uuid? uuid,
+    MediaHubTlsIdentityStore? tlsIdentityStore,
+    this.incomingDirectory,
+    this.onIncomingFile,
+  })  : _uuid = uuid ?? const Uuid(),
+        _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
