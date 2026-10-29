@@ -1,3 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/models/remote_audio_track.dart';
 import '../../domain/services/media_hub_client_service.dart';
@@ -60,7 +66,7 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
             '桌面音乐库中已找不到“${item.title}”，请刷新音乐库后重试。',
           );
         }
-        return _rebind(item, track, resolvedConnection);
+        return await _rebind(item, track, resolvedConnection);
       } catch (error) {
         lastError = error;
         _invalidateCatalog();
@@ -125,30 +131,28 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
     _catalog = null;
   }
 
-  PlaybackItem _rebind(
+  Future<PlaybackItem> _rebind(
     PlaybackItem item,
     RemoteAudioTrack track,
     MediaHubConnection connection,
-  ) {
+  ) async {
     final playbackUri = client.playbackUriFor(track);
-    final artworkUri = _artworkUri(track, connection);
+    final artworkPath = await _cacheArtwork(track);
     final metadata = <String, dynamic>{
       ...item.audioAsset.metadata,
       'transferSource': 'media-hub-stream',
       'remoteTrackId': track.id,
-      if (track.album?.trim().isNotEmpty == true)
-        'album': track.album!.trim(),
-      if (artworkUri != null) 'remoteArtworkUri': artworkUri.toString(),
+      if (track.album?.trim().isNotEmpty == true) 'album': track.album!.trim(),
     };
-    if (track.album?.trim().isNotEmpty != true) {
-      metadata.remove('album');
-    }
-    if (artworkUri == null) metadata.remove('remoteArtworkUri');
+    metadata.remove('remoteArtworkUri');
+    if (track.album?.trim().isNotEmpty != true) metadata.remove('album');
 
     return item.copyWith(
       title: track.title,
       artist: track.artist,
       clearArtist: track.artist?.trim().isNotEmpty != true,
+      artworkPath: artworkPath,
+      clearArtwork: artworkPath == null,
       hasLyrics: track.hasLyrics,
       streamUri: playbackUri,
       audioAsset: item.audioAsset.copyWith(
@@ -160,18 +164,37 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
     );
   }
 
-  Uri? _artworkUri(
-    RemoteAudioTrack track,
-    MediaHubConnection connection,
-  ) {
-    final path = track.artworkPath;
-    if (!track.hasArtwork || path == null || path.trim().isEmpty) return null;
-    final uri = connection.resolve(path.trim());
-    return uri.replace(
-      queryParameters: {
-        ...uri.queryParameters,
-        'token': connection.token,
-      },
-    );
+  Future<String?> _cacheArtwork(RemoteAudioTrack track) async {
+    if (!track.hasArtwork || track.artworkPath == null) return null;
+    try {
+      final bytes = await client.fetchArtwork(track);
+      if (bytes.isEmpty) return null;
+      final root = await _artworkCacheDirectory();
+      await root.create(recursive: true);
+      final name = sha256.convert(utf8.encode(track.id)).toString();
+      final file = File('${root.path}${Platform.pathSeparator}$name.image');
+      await file.writeAsBytes(bytes, flush: true);
+      return file.path;
+    } catch (_) {
+      // Remote artwork is optional: never make audio playback fail solely
+      // because a cover could not be fetched or cached.
+      return null;
+    }
+  }
+
+  static Future<Directory>? _fallbackArtworkCache;
+
+  Future<Directory> _artworkCacheDirectory() async {
+    try {
+      final support = await getApplicationSupportDirectory();
+      return Directory(
+        '${support.path}${Platform.pathSeparator}LyricForge'
+        '${Platform.pathSeparator}RemoteArtwork',
+      );
+    } catch (_) {
+      return _fallbackArtworkCache ??= Directory.systemTemp.createTemp(
+        'lyricforge-remote-artwork-',
+      );
+    }
   }
 }
