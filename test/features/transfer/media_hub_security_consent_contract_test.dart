@@ -25,7 +25,10 @@ void main() {
 
     test('starting sharing requires affirmative risk consent', () {
       final start = source.indexOf('Future<void> _start()');
-      final end = source.indexOf('Future<bool> _confirmInsecureSharing()', start);
+      final end = source.indexOf(
+        'Future<bool> _confirmInsecureSharing()',
+        start,
+      );
       expect(start, greaterThanOrEqualTo(0));
       expect(end, greaterThan(start));
       final method = source.substring(start, end);
