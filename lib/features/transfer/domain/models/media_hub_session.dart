@@ -1,8 +1,4 @@
-enum MediaHubEndpointKind {
-  tailscale,
-  lan,
-  other,
-}
+enum MediaHubEndpointKind { tailscale, lan, other }
 
 class MediaHubEndpoint {
   final String host;
@@ -17,11 +13,7 @@ class MediaHubEndpoint {
 
   bool get isRemoteCapable => kind == MediaHubEndpointKind.tailscale;
 
-  Uri get baseUri => Uri(
-        scheme: 'https',
-        host: host,
-        port: port,
-      );
+  Uri get baseUri => Uri(scheme: 'https', host: host, port: port);
 
   Map<String, dynamic> toJson() {
     return {
@@ -64,10 +56,10 @@ class MediaHubSession {
   });
 
   Uri get baseUri => Uri(
-        scheme: tlsFingerprint == null ? 'http' : 'https',
-        host: host,
-        port: port,
-      );
+    scheme: tlsFingerprint == null ? 'http' : 'https',
+    host: host,
+    port: port,
+  );
 
   MediaHubEndpoint? get tailscaleEndpoint {
     for (final endpoint in endpoints) {
@@ -81,45 +73,36 @@ class MediaHubSession {
   bool get remoteAccessAvailable => tailscaleEndpoint != null;
 
   Uri get pairingUri => Uri(
-        scheme: 'lyricforge',
-        host: 'media-hub',
-        path: '/connect',
-        queryParameters: {
-          'v': tlsFingerprint == null ? '1' : '2',
-          'host': host,
-          'port': port.toString(),
-          'token': token,
-          if (tlsFingerprint != null) 'tlsFingerprint': tlsFingerprint,
-          'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
-          if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
-          if (discoveryKey?.trim().isNotEmpty == true)
-            'discoveryKey': discoveryKey!.trim(),
-        },
-      );
+    scheme: 'lyricforge',
+    host: 'media-hub',
+    path: '/connect',
+    queryParameters: {
+      'v': tlsFingerprint == null ? '1' : '2',
+      'host': host,
+      'port': port.toString(),
+      'token': token,
+      if (tlsFingerprint != null) 'tlsFingerprint': tlsFingerprint,
+      'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
+      if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
+      if (discoveryKey?.trim().isNotEmpty == true)
+        'discoveryKey': discoveryKey!.trim(),
+    },
+  );
 }
 
-enum MediaHubStatus {
-  stopped,
-  starting,
-  running,
-  failed,
-}
+enum MediaHubStatus { stopped, starting, running, failed }
 
 class MediaHubState {
   final MediaHubStatus status;
   final MediaHubSession? session;
   final String? error;
 
-  const MediaHubState({
-    required this.status,
-    this.session,
-    this.error,
-  });
+  const MediaHubState({required this.status, this.session, this.error});
 
   const MediaHubState.stopped()
-      : status = MediaHubStatus.stopped,
-        session = null,
-        error = null;
+    : status = MediaHubStatus.stopped,
+      session = null,
+      error = null;
 
   bool get isRunning => status == MediaHubStatus.running && session != null;
 }
