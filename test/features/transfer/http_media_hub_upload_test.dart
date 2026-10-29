@@ -144,8 +144,9 @@ void main() {
     request.add(const [1, 2, 3, 4, 5]);
 
     final response = await request.close();
-    final body = jsonDecode(await utf8.decoder.bind(response).join())
-        as Map<String, dynamic>;
+    final body =
+        jsonDecode(await utf8.decoder.bind(response).join())
+            as Map<String, dynamic>;
 
     expect(response.statusCode, HttpStatus.requestEntityTooLarge);
     expect(body['maxBytes'], 4);
@@ -156,109 +157,113 @@ void main() {
   test(
     'enforces upload byte cap on chunked requests and removes partial data',
     () async {
-    await service.stopSharing();
-    service = HttpMediaHubService(
-      incomingDirectory: incomingDirectory,
-      maxIncomingUploadBytes: 4,
-      tlsIdentityStore: MediaHubTlsIdentityStore(
-        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
-      ),
-      onIncomingFile: (path) async {
-        imported.add(path);
-      },
-    );
-    final session = await service.startSharing(const []);
-    final client = _pinnedHttpClient(session.tlsFingerprint!);
-    addTearDown(() => client.close(force: true));
+      await service.stopSharing();
+      service = HttpMediaHubService(
+        incomingDirectory: incomingDirectory,
+        maxIncomingUploadBytes: 4,
+        tlsIdentityStore: MediaHubTlsIdentityStore(
+          rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+        ),
+        onIncomingFile: (path) async {
+          imported.add(path);
+        },
+      );
+      final session = await service.startSharing(const []);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
 
-    final request = await client.postUrl(
-      Uri(
-        scheme: 'https',
-        host: InternetAddress.loopbackIPv4.address,
-        port: session.port,
-        path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'chunked-too-large.mp3'},
-      ),
-    );
-    request.headers.set(
-      HttpHeaders.authorizationHeader,
-      'Bearer ${session.token}',
-    );
-    request.chunkedTransferEncoding = true;
-    request.add(const [1, 2, 3, 4, 5]);
+      final request = await client.postUrl(
+        Uri(
+          scheme: 'https',
+          host: InternetAddress.loopbackIPv4.address,
+          port: session.port,
+          path: '/v1/incoming/audio',
+          queryParameters: const {'filename': 'chunked-too-large.mp3'},
+        ),
+      );
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${session.token}',
+      );
+      request.chunkedTransferEncoding = true;
+      request.add(const [1, 2, 3, 4, 5]);
 
-    final response = await request.close();
-    final body = jsonDecode(await utf8.decoder.bind(response).join())
-        as Map<String, dynamic>;
+      final response = await request.close();
+      final body =
+          jsonDecode(await utf8.decoder.bind(response).join())
+              as Map<String, dynamic>;
 
-    expect(response.statusCode, HttpStatus.requestEntityTooLarge);
-    expect(body['maxBytes'], 4);
-    expect(imported, isEmpty);
-    expect(await incomingDirectory.list().toList(), isEmpty);
-  });
+      expect(response.statusCode, HttpStatus.requestEntityTooLarge);
+      expect(body['maxBytes'], 4);
+      expect(imported, isEmpty);
+      expect(await incomingDirectory.list().toList(), isEmpty);
+    },
+  );
 
   test(
     'rejects uploads above the configured concurrent request limit',
     () async {
-    await service.stopSharing();
-    service = HttpMediaHubService(
-      incomingDirectory: incomingDirectory,
-      maxConcurrentIncomingUploads: 1,
-      incomingUploadIdleTimeout: const Duration(seconds: 3),
-      tlsIdentityStore: MediaHubTlsIdentityStore(
-        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
-      ),
-      onIncomingFile: (path) async {
-        imported.add(path);
-      },
-    );
-    final session = await service.startSharing(const []);
-    final client = _pinnedHttpClient(session.tlsFingerprint!);
-    addTearDown(() => client.close(force: true));
+      await service.stopSharing();
+      service = HttpMediaHubService(
+        incomingDirectory: incomingDirectory,
+        maxConcurrentIncomingUploads: 1,
+        incomingUploadIdleTimeout: const Duration(seconds: 3),
+        tlsIdentityStore: MediaHubTlsIdentityStore(
+          rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+        ),
+        onIncomingFile: (path) async {
+          imported.add(path);
+        },
+      );
+      final session = await service.startSharing(const []);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
 
-    final first = await client.postUrl(
-      Uri(
-        scheme: 'https',
-        host: InternetAddress.loopbackIPv4.address,
-        port: session.port,
-        path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'first.mp3'},
-      ),
-    );
-    first.headers.set(
-      HttpHeaders.authorizationHeader,
-      'Bearer ${session.token}',
-    );
-    first.chunkedTransferEncoding = true;
-    first.add(const [1]);
-    await first.flush();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+      final first = await client.postUrl(
+        Uri(
+          scheme: 'https',
+          host: InternetAddress.loopbackIPv4.address,
+          port: session.port,
+          path: '/v1/incoming/audio',
+          queryParameters: const {'filename': 'first.mp3'},
+        ),
+      );
+      first.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${session.token}',
+      );
+      first.chunkedTransferEncoding = true;
+      first.add(const [1]);
+      await first.flush();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
-    final second = await client.postUrl(
-      Uri(
-        scheme: 'https',
-        host: InternetAddress.loopbackIPv4.address,
-        port: session.port,
-        path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'second.mp3'},
-      ),
-    );
-    second.headers.set(
-      HttpHeaders.authorizationHeader,
-      'Bearer ${session.token}',
-    );
-    second.contentLength = 1;
-    second.add(const [2]);
-    final response = await second.close();
-    final body = jsonDecode(await utf8.decoder.bind(response).join())
-        as Map<String, dynamic>;
+      final second = await client.postUrl(
+        Uri(
+          scheme: 'https',
+          host: InternetAddress.loopbackIPv4.address,
+          port: session.port,
+          path: '/v1/incoming/audio',
+          queryParameters: const {'filename': 'second.mp3'},
+        ),
+      );
+      second.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${session.token}',
+      );
+      second.contentLength = 1;
+      second.add(const [2]);
+      final response = await second.close();
+      final body =
+          jsonDecode(await utf8.decoder.bind(response).join())
+              as Map<String, dynamic>;
 
-    expect(response.statusCode, HttpStatus.tooManyRequests);
-    expect(body['error'], 'upload_capacity_exceeded');
-    expect(response.headers.value('Retry-After'), '1');
+      expect(response.statusCode, HttpStatus.tooManyRequests);
+      expect(body['error'], 'upload_capacity_exceeded');
+      expect(response.headers.value('Retry-After'), '1');
 
-    first.abort();
-  });
+      first.abort();
+    },
+  );
 
   test('unauthorized upload is rejected before a file is created', () async {
     final session = await service.startSharing(const []);
