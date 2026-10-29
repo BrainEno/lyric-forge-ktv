@@ -31,43 +31,48 @@ void main() {
     if (await temp.exists()) await temp.delete(recursive: true);
   });
 
-  test('empty share list starts receive-only hub and imports complete upload', () async {
-    final session = await service.startSharing(const []);
-    expect(session.trackCount, 0);
+  test(
+    'empty share list starts receive-only hub and imports complete upload',
+    () async {
+      final session = await service.startSharing(const []);
+      expect(session.trackCount, 0);
 
-    final client = _pinnedHttpClient(session.tlsFingerprint!);
-    addTearDown(() => client.close(force: true));
-    final uri = Uri(
-      scheme: 'https',
-      host: InternetAddress.loopbackIPv4.address,
-      port: session.port,
-      path: '/v1/incoming/audio',
-      queryParameters: const {'filename': '测试歌曲.mp3'},
-    );
-    final request = await client.postUrl(uri);
-    request.headers.set(
-      HttpHeaders.authorizationHeader,
-      'Bearer ${session.token}',
-    );
-    final bytes = utf8.encode('fake mp3 bytes');
-    request.contentLength = bytes.length;
-    request.add(bytes);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
+      final uri = Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        path: '/v1/incoming/audio',
+        queryParameters: const {'filename': '测试歌曲.mp3'},
+      );
+      final request = await client.postUrl(uri);
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        '***',
+      );
+      final bytes = utf8.encode('fake mp3 bytes');
+      request.contentLength = bytes.length;
+      request.add(bytes);
 
-    final response = await request.close();
-    final body = await utf8.decoder.bind(response).join();
+      final response = await request.close();
+      final body = await utf8.decoder.bind(response).join();
 
-    expect(response.statusCode, HttpStatus.created);
-    expect(body, contains('测试歌曲.mp3'));
-    expect(imported, hasLength(1));
-    final received = File(imported.single);
-    expect(await received.exists(), isTrue);
-    expect(await received.readAsBytes(), bytes);
-    expect(await File('${received.path}.part').exists(), isFalse);
-  });
+      expect(response.statusCode, HttpStatus.created);
+      expect(body, contains('测试歌曲.mp3'));
+      expect(imported, hasLength(1));
+      final received = File(imported.single);
+      expect(await received.exists(), isTrue);
+      expect(await received.readAsBytes(), bytes);
+      expect(await File('${received.path}.part').exists(), isFalse);
+    },
+  );
 
   test('real client uploads a local file to receive-only hub', () async {
     final session = await service.startSharing(const []);
-    final sourceDir = await Directory.systemTemp.createTemp('lyricforge-upload-source-');
+    final sourceDir = await Directory.systemTemp.createTemp(
+      'lyricforge-upload-source-',
+    );
     addTearDown(() async {
       if (await sourceDir.exists()) await sourceDir.delete(recursive: true);
     });
@@ -160,7 +165,6 @@ void main() {
     expect(await temp.list().toList(), isEmpty);
   });
 }
-
 
 HttpClient _pinnedHttpClient(String fingerprint) {
   final client = HttpClient(context: SecurityContext(withTrustedRoots: false));
