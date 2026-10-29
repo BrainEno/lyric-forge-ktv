@@ -1,8 +1,4 @@
-enum MediaHubTransport {
-  tailscale,
-  lan,
-  unknown,
-}
+enum MediaHubTransport { tailscale, lan, unknown }
 
 class MediaHubConnection {
   final String host;
@@ -33,11 +29,11 @@ class MediaHubConnection {
       discoveryKey?.trim().isNotEmpty == true;
 
   Uri get baseUri => Uri(
-        scheme: tlsFingerprint == null ? 'http' : 'https',
-        host: host,
-        port: port,
-        path: '/',
-      );
+    scheme: tlsFingerprint == null ? 'http' : 'https',
+    host: host,
+    port: port,
+    path: '/',
+  );
 
   MediaHubConnection copyWith({
     String? host,
@@ -110,7 +106,11 @@ class MediaHubConnection {
     final token = json['token'] as String?;
     final tlsFingerprint = json['tlsFingerprint'] as String?;
 
-    if (host == null || host.isEmpty || port is! num || token == null || token.isEmpty) {
+    if (host == null ||
+        host.isEmpty ||
+        port is! num ||
+        token == null ||
+        token.isEmpty) {
       throw const FormatException('保存的桌面连接信息无效');
     }
 
