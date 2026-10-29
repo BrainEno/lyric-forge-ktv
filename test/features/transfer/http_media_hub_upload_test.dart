@@ -134,6 +134,33 @@ void main() {
     expect(await incomingDirectory.exists(), isFalse);
   });
 
+  test('browser preflight is not granted cross-origin access', () async {
+    final session = await service.startSharing(const []);
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
+    addTearDown(() => client.close(force: true));
+
+    final request = await client.openUrl(
+      'OPTIONS',
+      Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        path: '/v1/health',
+      ),
+    );
+    request.headers.set('Origin', 'https://attacker.example');
+    request.headers.set('Access-Control-Request-Method', 'GET');
+    request.headers.set('Access-Control-Request-Headers', 'Authorization');
+
+    final response = await request.close();
+    await response.drain<void>();
+
+    expect(response.statusCode, HttpStatus.methodNotAllowed);
+    expect(response.headers.value('Access-Control-Allow-Origin'), isNull);
+    expect(response.headers.value('Access-Control-Allow-Headers'), isNull);
+    expect(response.headers.value('Access-Control-Allow-Methods'), isNull);
+  });
+
   test('failed library import removes the completed incoming file', () async {
     await service.stopSharing();
     service = HttpMediaHubService(
