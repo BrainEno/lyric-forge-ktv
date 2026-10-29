@@ -18,7 +18,7 @@ import '../../domain/services/media_hub_service.dart';
 /// Desktop-first transfer center for an explicitly started Media Hub.
 ///
 /// Opening this screen loads the local Library preview but does not expose the
-/// network service until the user reviews and accepts the HTTP transport risk.
+/// network service until the user reviews and accepts the HTTPS sharing scope.
 class DesktopMediaTransferHubV2Screen extends StatefulWidget {
   const DesktopMediaTransferHubV2Screen({super.key});
 
@@ -82,7 +82,7 @@ class _DesktopMediaTransferHubV2ScreenState
 
       // Merely opening the transfer screen must never expose a network
       // listener. Starting Media Hub requires an explicit user action and
-      // confirmation of the plaintext HTTP risk.
+      // confirmation of the media-sharing scope.
     } catch (error) {
       if (mounted) {
         setState(() => _error = '读取电脑音乐库失败：$error');
@@ -98,7 +98,7 @@ class _DesktopMediaTransferHubV2ScreenState
     // Refreshing a stopped service must not start listening as a side effect.
     // If the service is already running, require fresh consent before replacing
     // its session and invalidating the current pairing token.
-    if (_hub.isRunning && !await _confirmInsecureSharing()) return;
+    if (_hub.isRunning && !await _confirmMediaSharing()) return;
     if (!mounted) return;
 
     setState(() {
@@ -125,7 +125,7 @@ class _DesktopMediaTransferHubV2ScreenState
 
   Future<void> _start() async {
     if (_busy || _hub.isRunning) return;
-    if (!await _confirmInsecureSharing() || !mounted) return;
+    if (!await _confirmMediaSharing() || !mounted) return;
 
     setState(() {
       _busy = true;
@@ -142,19 +142,18 @@ class _DesktopMediaTransferHubV2ScreenState
     }
   }
 
-  Future<bool> _confirmInsecureSharing() async {
+  Future<bool> _confirmMediaSharing() async {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.warning_amber_rounded),
-        title: const Text('开启未加密的网络共享？'),
+        title: const Text('开启加密的网络共享？'),
         content: const Text(
-          'Media Hub 目前使用明文 HTTP。通过普通局域网连接时，'
-          '网络中的其他设备可能截获配对令牌、歌曲、歌词和封面内容。'
-          '请只在可信的私人网络中启用；不要在公共 Wi-Fi 或访客网络中使用。'
-          '通过 Tailscale 地址连接时，流量由 Tailscale 隧道加密，'
-          '但应用协议本身仍不是 HTTPS。',
+          'Media Hub 通过证书指纹固定的 HTTPS 加密普通局域网和 Tailscale 连接。'
+          '配对二维码会把桌面端证书指纹交给手机验证，避免仅凭网络地址信任服务器。'
+          '启动后，已配对设备可以读取共享歌曲、歌词和封面，也可以向电脑上传音频。'
+          '请只与可信设备配对；停止共享会关闭当前服务。',
         ),
         actions: [
           TextButton(
@@ -163,7 +162,7 @@ class _DesktopMediaTransferHubV2ScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('我了解风险，继续'),
+            child: const Text('我了解共享范围，继续'),
           ),
         ],
       ),
@@ -296,9 +295,9 @@ class _MediaHubSecurityNotice extends StatelessWidget {
         leading: const Icon(Icons.shield_outlined, color: AppColors.warning),
         title: const Text('网络安全提示'),
         subtitle: const Text(
-          'Media Hub 使用明文 HTTP。普通局域网内的配对令牌和媒体内容'
-          '没有应用层加密；启动服务前必须确认风险。'
-          'Tailscale 隧道会加密隧道流量，但不会把应用协议变成 HTTPS。',
+          'Media Hub 使用证书指纹固定的 HTTPS 加密普通局域网和 Tailscale 连接。'
+          '仅在你主动启动并完成扫码配对后，共享歌曲、歌词和封面才会开放给配对设备；'
+          '配对设备也可以向电脑上传音频。请只与可信设备配对。',
         ),
       ),
     );

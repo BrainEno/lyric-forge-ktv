@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('Media Hub insecure transport consent contracts', () {
+  group('Media Hub transport security contracts', () {
     late String source;
     late String serverSource;
     late String clientSource;
@@ -39,7 +39,7 @@ void main() {
       expect(prepare, contains('_catalog.build()'));
     });
 
-    test('HTTP service does not bind wildcard/public interfaces', () {
+    test('Media Hub does not bind wildcard/public interfaces', () {
       expect(serverSource, isNot(contains('InternetAddress.anyIPv4')));
       expect(
         serverSource,
@@ -97,17 +97,17 @@ void main() {
 
       expect(
         method,
-        contains('if (!await _confirmInsecureSharing() || !mounted) return;'),
+        contains('if (!await _confirmMediaSharing() || !mounted) return;'),
       );
       expect(method, contains('await _hub.startSharing(tracks)'));
     });
 
-    test('HTTP warning covers LAN exposure and Tailscale boundary', () {
-      expect(source, contains('明文 HTTP'));
-      expect(source, contains('截获配对令牌'));
-      expect(source, contains('公共 Wi-Fi'));
-      expect(source, contains('Tailscale 隧道加密'));
-      expect(source, contains('我了解风险，继续'));
+    test('HTTPS notice explains pinning and sharing scope', () {
+      expect(source, contains('证书指纹固定的 HTTPS'));
+      expect(source, contains('桌面端证书指纹'));
+      expect(source, contains('Tailscale'));
+      expect(source, contains('可信设备'));
+      expect(source, contains('我了解共享范围，继续'));
     });
 
     test('refreshing while stopped does not open the listener', () {

@@ -47,7 +47,6 @@ class HttpMediaHubClientService implements MediaHubClientService {
   }
 
   @override
-  @override
   Future<void> connectTo(MediaHubConnection connection) async {
     final fingerprint = connection.tlsFingerprint;
     if (fingerprint == null ||
@@ -175,7 +174,6 @@ class HttpMediaHubClientService implements MediaHubClientService {
   }
 
   @override
-  @override
   Uri playbackUriFor(RemoteAudioTrack track) {
     final connection = _requireConnection();
     return connection.resolve(track.streamPath);
@@ -216,7 +214,6 @@ class HttpMediaHubClientService implements MediaHubClientService {
     }
   }
 
-  @override
   @override
   Future<List<int>> fetchArtwork(RemoteAudioTrack track) async {
     if (!track.hasArtwork || track.artworkPath == null) return <int>[];
