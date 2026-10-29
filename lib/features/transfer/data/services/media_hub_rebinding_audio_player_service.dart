@@ -11,23 +11,31 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 import 'media_hub_tls_identity_store.dart';
 
-/// Guarantees that every Media Hub audio load uses the latest usable connection
-/// known to the app, including loads triggered internally by automatic queue
-/// advance.
-///
-/// Non-Media-Hub HTTP audio and local/project audio pass through unchanged.
+/// A short-lived local URL bound to one certificate-pinned Media Hub target.
+/// Native audio engines use the loopback URL, while credentials stay in the
+/// Authorization header on the HTTPS hop.
 class _MediaHubProxyTarget {
   final MediaHubConnection connection;
   final Uri remoteUri;
 
-  const _MediaHubProxyTarget({required this.connection, required this.remoteUri});
+  const _MediaHubProxyTarget({
+    required this.connection,
+    required this.remoteUri,
+  });
 }
 
+/// Rebinds restored Media Hub stream URLs to the current connection.
+///
+/// Media Hub audio is proxied through loopback because native audio playback
+/// adapters cannot be configured with this app's per-connection certificate
+/// pin. The proxy is loopback-only, strips query credentials and preserves
+/// HTTP Range semantics while authenticating the upstream HTTPS request.
 class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   final AudioPlayerService delegate;
   final MediaHubClientService client;
   final MediaHubConnectionStore connectionStore;
   final Uuid _uuid = const Uuid();
+
   HttpServer? _proxyServer;
   bool _proxyListening = false;
   final Map<String, _MediaHubProxyTarget> _proxyTargets =
@@ -79,116 +87,32 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     if (connection == null) {
       throw StateError('Media Hub 未连接，无法安全播放远程音频');
     }
-    final proxyPath = await _registerProxyTarget(resolved, connection);
-    final server = _proxyServer!;
-    final proxyUri = Uri(
+
+    final path = await _registerProxyTarget(resolved, connection);
+    final proxy = _proxyServer!;
+    final localUri = Uri(
       scheme: 'http',
       host: InternetAddress.loopbackIPv4.address,
-      port: server.port,
-      path: proxyPath,
+      port: proxy.port,
+      path: path,
     );
+
     try {
-      await delegate.loadAudioUri(uri: proxyUri, source: source);
-      _proxyTargets.removeWhere((path, _) => path != proxyPath);
+      await delegate.loadAudioUri(uri: localUri, source: source);
+      _proxyTargets.removeWhere((key, _) => key != path);
     } catch (_) {
-      _proxyTargets.remove(proxyPath);
+      _proxyTargets.remove(path);
       rethrow;
     }
   }
 
   Future<String> _registerProxyTarget(
-    Uri uri,
+    Uri remoteUri,
     MediaHubConnection connection,
   ) async {
     final fingerprint = connection.tlsFingerprint;
     if (fingerprint == null ||
-        !RegExp(r'^[0-9a-fA-F]{64}
-    if (!_looksLikeMediaHubAudio(original)) return original;
-
-    final active = client.currentConnection;
-    final saved = await connectionStore.loadLastConnection();
-    final candidates = <MediaHubConnection>[];
-    if (active != null) candidates.add(active);
-    if (saved != null &&
-        (active == null || !_sameConnection(active, saved))) {
-      candidates.add(saved);
-    }
-
-    if (candidates.isEmpty) return original;
-
-    Object? lastError;
-    for (final connection in candidates) {
-      try {
-        // connectTo may transparently replace a stale endpoint through the UDP
-        // device discovery flow. Always rebase with the connection it actually
-        // resolved, not the stale candidate passed into this call.
-        await client.connectTo(connection);
-        final resolvedConnection = client.currentConnection ?? connection;
-        return _rebase(original, resolvedConnection);
-      } catch (error) {
-        lastError = error;
-      }
-    }
-
-    if (lastError != null) throw lastError;
-    return original;
-  }
-
-  bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host &&
-      a.port == b.port &&
-      a.token == b.token &&
-      a.tlsFingerprint == b.tlsFingerprint;
-
-  bool _looksLikeMediaHubAudio(Uri uri) {
-    if (uri.scheme != 'http' && uri.scheme != 'https') return false;
-    final segments = uri.pathSegments;
-    return segments.length >= 4 &&
-        segments[0] == 'v1' &&
-        segments[1] == 'tracks' &&
-        segments.last == 'audio';
-  }
-
-  Uri _rebase(Uri original, MediaHubConnection connection) {
-    final rebased = connection.resolve(original.path);
-    final query = Map<String, String>.from(original.queryParameters)
-      ..remove('token');
-    return query.isEmpty ? rebased : rebased.replace(queryParameters: query);
-  }
-
-  @override
-  Future<void> play() => delegate.play();
-
-  @override
-  Future<void> pause() => delegate.pause();
-
-  @override
-  Future<void> stop() => delegate.stop();
-
-  @override
-  Future<void> seek(Duration position) => delegate.seek(position);
-
-  @override
-  Future<void> switchSource(AudioSourceType source) =>
-      delegate.switchSource(source);
-
-  @override
-  Future<void> setSpeed(double speed) => delegate.setSpeed(speed);
-
-  @override
-  Future<void> setVolume(double volume) => delegate.setVolume(volume);
-
-  @override
-  @override
-  Future<void> dispose() async {
-    _proxyTargets.clear();
-    await _proxyServer?.close(force: true);
-    _proxyServer = null;
-    _proxyListening = false;
-    await delegate.dispose();
-  }
-}
-).hasMatch(fingerprint)) {
+        !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(fingerprint)) {
       throw StateError('Media Hub 连接缺少有效 TLS 指纹，请重新配对');
     }
 
@@ -197,13 +121,15 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       0,
     );
     final path = '/play/${_uuid.v4()}';
-    final query = Map<String, String>.from(uri.queryParameters)..remove('token');
-    final remoteUri = query.isEmpty
-        ? uri.replace(queryParameters: <String, String>{})
-        : uri.replace(queryParameters: query);
+    final query = Map<String, String>.from(remoteUri.queryParameters)
+      ..remove('token');
+    final upstreamUri = query.isEmpty
+        ? remoteUri.replace(queryParameters: <String, String>{})
+        : remoteUri.replace(queryParameters: query);
+
     _proxyTargets[path] = _MediaHubProxyTarget(
       connection: connection,
-      remoteUri: remoteUri,
+      remoteUri: upstreamUri,
     );
 
     if (!_proxyListening) {
@@ -222,30 +148,46 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       return;
     }
 
-    final pin = target.connection.tlsFingerprint!.toLowerCase();
-    final httpClient = HttpClient(
+    final fingerprint = target.connection.tlsFingerprint;
+    if (fingerprint == null) {
+      request.response.statusCode = HttpStatus.badGateway;
+      await request.response.close();
+      return;
+    }
+
+    final upstreamClient = HttpClient(
       context: SecurityContext(withTrustedRoots: false),
     );
-    httpClient.badCertificateCallback = (certificate, host, port) =>
-        mediaHubTlsFingerprint(certificate.der) == pin;
+    upstreamClient.badCertificateCallback = (certificate, host, port) =>
+        mediaHubTlsFingerprint(certificate.der) == fingerprint.toLowerCase();
+
     try {
-      final upstream = await httpClient.openUrl(request.method, target.remoteUri);
-      upstream.headers.set(
+      final upstreamRequest =
+          await upstreamClient.openUrl(request.method, target.remoteUri);
+      upstreamRequest.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer ${target.connection.token}',
       );
-      final range = request.headers.value(HttpHeaders.rangeHeader);
-      if (range != null) upstream.headers.set(HttpHeaders.rangeHeader, range);
-      final ifRange = request.headers.value(HttpHeaders.ifRangeHeader);
-      if (ifRange != null) upstream.headers.set(HttpHeaders.ifRangeHeader, ifRange);
 
-      final response = await upstream.close();
-      request.response.statusCode = response.statusCode;
-      final contentType = response.headers.contentType;
-      if (contentType != null) request.response.headers.contentType = contentType;
-      if (response.contentLength >= 0) {
-        request.response.contentLength = response.contentLength;
+      final range = request.headers.value(HttpHeaders.rangeHeader);
+      if (range != null) {
+        upstreamRequest.headers.set(HttpHeaders.rangeHeader, range);
       }
+      final ifRange = request.headers.value(HttpHeaders.ifRangeHeader);
+      if (ifRange != null) {
+        upstreamRequest.headers.set(HttpHeaders.ifRangeHeader, ifRange);
+      }
+
+      final upstreamResponse = await upstreamRequest.close();
+      request.response.statusCode = upstreamResponse.statusCode;
+      final contentType = upstreamResponse.headers.contentType;
+      if (contentType != null) {
+        request.response.headers.contentType = contentType;
+      }
+      if (upstreamResponse.contentLength >= 0) {
+        request.response.contentLength = upstreamResponse.contentLength;
+      }
+
       for (final header in <String>[
         HttpHeaders.acceptRangesHeader,
         HttpHeaders.cacheControlHeader,
@@ -253,24 +195,28 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
         HttpHeaders.etagHeader,
         HttpHeaders.lastModifiedHeader,
       ]) {
-        final value = response.headers.value(header);
+        final value = upstreamResponse.headers.value(header);
         if (value != null) request.response.headers.set(header, value);
       }
+
       if (request.method == 'HEAD') {
-        await response.drain<void>();
+        await upstreamResponse.drain<void>();
       } else {
-        await request.response.addStream(response);
+        await request.response.addStream(upstreamResponse);
       }
       await request.response.close();
     } catch (_) {
       try {
         request.response.statusCode = HttpStatus.badGateway;
         await request.response.close();
-      } catch (_) {}
+      } catch (_) {
+        // A client may have disconnected while the upstream request failed.
+      }
     } finally {
-      httpClient.close(force: true);
+      upstreamClient.close(force: true);
     }
   }
+
   Future<Uri> _latestMediaHubUri(Uri original) async {
     if (!_looksLikeMediaHubAudio(original)) return original;
 
@@ -283,28 +229,32 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       candidates.add(saved);
     }
 
-    if (candidates.isEmpty) return original;
+    if (candidates.isEmpty) {
+      throw StateError('没有已配对的 Media Hub 连接，请重新扫码');
+    }
 
     Object? lastError;
     for (final connection in candidates) {
       try {
-        // connectTo may transparently replace a stale endpoint through the UDP
-        // device discovery flow. Always rebase with the connection it actually
-        // resolved, not the stale candidate passed into this call.
         await client.connectTo(connection);
-        final resolvedConnection = client.currentConnection ?? connection;
-        return _rebase(original, resolvedConnection);
+        final current = client.currentConnection;
+        if (current == null) {
+          throw StateError('Media Hub 未返回有效连接');
+        }
+        return _rebase(original, current);
       } catch (error) {
         lastError = error;
       }
     }
 
-    if (lastError != null) throw lastError;
-    return original;
+    throw StateError('无法安全重新连接 Media Hub：$lastError');
   }
 
   bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host && a.port == b.port && a.token == b.token;
+      a.host == b.host &&
+      a.port == b.port &&
+      a.token == b.token &&
+      a.tlsFingerprint == b.tlsFingerprint;
 
   bool _looksLikeMediaHubAudio(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
@@ -316,13 +266,10 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   }
 
   Uri _rebase(Uri original, MediaHubConnection connection) {
-    final rebased = connection.resolve(original.path);
-    return rebased.replace(
-      queryParameters: {
-        ...original.queryParameters,
-        'token': connection.token,
-      },
-    );
+    final query = Map<String, String>.from(original.queryParameters)
+      ..remove('token');
+    final target = connection.resolve(original.path);
+    return query.isEmpty ? target : target.replace(queryParameters: query);
   }
 
   @override
@@ -348,5 +295,11 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   Future<void> setVolume(double volume) => delegate.setVolume(volume);
 
   @override
-  Future<void> dispose() => delegate.dispose();
+  Future<void> dispose() async {
+    _proxyTargets.clear();
+    await _proxyServer?.close(force: true);
+    _proxyServer = null;
+    _proxyListening = false;
+    await delegate.dispose();
+  }
 }
