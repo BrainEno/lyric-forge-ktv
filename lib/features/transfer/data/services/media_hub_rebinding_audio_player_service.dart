@@ -54,11 +54,14 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   Future<void> loadProjectAudio({
     required AudioAsset audioAsset,
     AudioSourceType preferredSource = AudioSourceType.instrumental,
-  }) =>
-      delegate.loadProjectAudio(
-        audioAsset: audioAsset,
-        preferredSource: preferredSource,
-      );
+  }) async {
+    await delegate.loadProjectAudio(
+      audioAsset: audioAsset,
+      preferredSource: preferredSource,
+    );
+    _proxyTargets.clear();
+    _activeProxyPath = null;
+  }
 
   @override
   Future<void> loadAudioUri({
