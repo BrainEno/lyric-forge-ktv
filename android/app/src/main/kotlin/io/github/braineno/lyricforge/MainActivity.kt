@@ -1,4 +1,4 @@
-package com.example.lyric_forge_ktv
+package io.github.braineno.lyricforge
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

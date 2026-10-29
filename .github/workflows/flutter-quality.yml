@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check platform app identifiers
+        run: bash scripts/check_app_identifiers.sh
+
       - name: Set up Flutter
         uses: ./.github/actions/setup-flutter
       # Catch missing work-log fields and generated-file drift before dependency
