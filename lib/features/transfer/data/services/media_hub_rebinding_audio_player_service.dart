@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:uuid/uuid.dart';
+
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../project/domain/models/audio_asset.dart';
-import 'package:uuid/uuid.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
@@ -155,7 +156,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
         ? rebased
         : rebased.replace(queryParameters: queryParameters);
   }
-
   @override
   Future<void> play() => delegate.play();
 
@@ -181,8 +181,7 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   @override
   Future<void> dispose() async {
     _proxyTargets.clear();
-    _activeProxyPath = null;
-    await _proxyServer?.close(force: true);
+        await _proxyServer?.close(force: true);
     _proxyServer = null;
     _proxyListening = false;
     await delegate.dispose();
@@ -307,7 +306,10 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   }
 
   bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host && a.port == b.port && a.token == b.token;
+      a.host == b.host &&
+      a.port == b.port &&
+      a.token == b.token &&
+      a.tlsFingerprint == b.tlsFingerprint;
 
   bool _looksLikeMediaHubAudio(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
