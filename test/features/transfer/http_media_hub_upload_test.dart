@@ -18,8 +18,7 @@ void main() {
   HttpMediaHubService createService({
     int maxIncomingAudioBytes =
         HttpMediaHubService.defaultMaxIncomingAudioBytes,
-    Duration idleTimeout =
-        HttpMediaHubService.defaultIncomingUploadIdleTimeout,
+    Duration idleTimeout = HttpMediaHubService.defaultIncomingUploadIdleTimeout,
     Duration totalTimeout =
         HttpMediaHubService.defaultIncomingUploadTotalTimeout,
     int minimumFreeSpaceBytes = 0,
@@ -35,9 +34,7 @@ void main() {
       incomingUploadIdleTimeout: idleTimeout,
       incomingUploadTotalTimeout: totalTimeout,
       minimumFreeSpaceBytes: minimumFreeSpaceBytes,
-      diskSpaceProbe:
-          diskSpaceProbe ??
-          (Directory _) async => 8 * 1024 * 1024 * 1024,
+      diskSpaceProbe: diskSpaceProbe ?? (Directory _) async => 8 * 1024 * 1024 * 1024,
       onIncomingFile:
           onIncomingFile ??
           (path) async {
@@ -285,43 +282,46 @@ void main() {
     expect(await incomingDirectory.list().toList(), isEmpty);
   });
 
-  test('total upload deadline applies while chunks continue arriving', () async {
-    service = createService(
-      maxIncomingAudioBytes: 1024,
-      idleTimeout: const Duration(seconds: 2),
-      totalTimeout: const Duration(milliseconds: 250),
-    );
-    final session = await service.startSharing(const []);
-    final socket = await _openPinnedSocket(session);
-    addTearDown(socket.destroy);
-    socket.write(
-      _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
-    );
-    await socket.flush();
-    var responseFinished = false;
-    final responseFuture = _readRawResponse(socket).then((response) {
-      responseFinished = true;
-      return response;
-    });
+  test(
+    'total upload deadline applies while chunks continue arriving',
+    () async {
+      service = createService(
+        maxIncomingAudioBytes: 1024,
+        idleTimeout: const Duration(seconds: 2),
+        totalTimeout: const Duration(milliseconds: 250),
+      );
+      final session = await service.startSharing(const []);
+      final socket = await _openPinnedSocket(session);
+      addTearDown(socket.destroy);
+      socket.write(
+        _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
+      );
+      await socket.flush();
+      var responseFinished = false;
+      final responseFuture = _readRawResponse(socket).then((response) {
+        responseFinished = true;
+        return response;
+      });
 
-    for (var index = 0; index < 20 && !responseFinished; index++) {
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      if (responseFinished) break;
-      try {
-        socket.write('1\r\nx\r\n');
-        await socket.flush();
-      } on SocketException {
-        break;
-      } on TlsException {
-        break;
+      for (var index = 0; index < 20 && !responseFinished; index++) {
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        if (responseFinished) break;
+        try {
+          socket.write('1\r\nx\r\n');
+          await socket.flush();
+        } on SocketException {
+          break;
+        } on TlsException {
+          break;
+        }
       }
-    }
 
-    final response = await responseFuture;
-    expect(response, startsWith('HTTP/1.1 408'));
-    expect(response, contains('upload_total_timeout'));
-    expect(await incomingDirectory.list().toList(), isEmpty);
-  });
+      final response = await responseFuture;
+      expect(response, startsWith('HTTP/1.1 408'));
+      expect(response, contains('upload_total_timeout'));
+      expect(await incomingDirectory.list().toList(), isEmpty);
+    },
+  );
 
   test('rejects a second simultaneous upload for the same session', () async {
     final probeStarted = Completer<void>();

@@ -658,10 +658,7 @@ class HttpMediaHubService implements MediaHubService {
   }) async {
     request.response.persistentConnection = false;
     if (retryAfterSeconds != null) {
-      request.response.headers.set(
-        'Retry-After',
-        retryAfterSeconds.toString(),
-      );
+      request.response.headers.set('Retry-After', retryAfterSeconds.toString());
     }
     await _writeJson(request.response, statusCode, {
       'error': errorCode,
