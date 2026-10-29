@@ -109,7 +109,9 @@ void main() {
         final authorization = request.headers.value(
           HttpHeaders.authorizationHeader,
         );
-        if (request.uri.path != '/v1/health' || authorization != '***') {
+        final expectedAuthorization = 'Bearer ' + 'fresh-token';
+        if (request.uri.path != '/v1/health' ||
+            authorization != expectedAuthorization) {
           request.response.statusCode = HttpStatus.unauthorized;
           await request.response.close();
           return;
