@@ -2,10 +2,8 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../models/media_hub_connection.dart';
 import '../models/remote_audio_track.dart';
 
-typedef TransferProgressCallback = void Function(
-  int bytesTransferred,
-  int? totalBytes,
-);
+typedef TransferProgressCallback =
+    void Function(int bytesTransferred, int? totalBytes);
 
 abstract class MediaHubClientService {
   MediaHubConnection? get currentConnection;
