@@ -76,7 +76,7 @@ void main() {
       final request = await client.postUrl(uri);
       request.headers.set(
         HttpHeaders.authorizationHeader,
-        'Bearer ${session.token},
+        'Bearer ${session.token}',
       );
       final bytes = utf8.encode('fake mp3 bytes');
       request.contentLength = bytes.length;
@@ -353,7 +353,7 @@ void main() {
     );
     rejectedRequest.headers.set(
       HttpHeaders.authorizationHeader,
-      'Bearer ${session.token},
+      'Bearer ${session.token}',
     );
     rejectedRequest.contentLength = 0;
     final rejectedResponse = await rejectedRequest.close();
@@ -378,7 +378,7 @@ void main() {
     );
     retryRequest.headers.set(
       HttpHeaders.authorizationHeader,
-      'Bearer ${session.token},
+      'Bearer ${session.token}',
     );
     retryRequest.contentLength = 1;
     retryRequest.add(const [1]);
