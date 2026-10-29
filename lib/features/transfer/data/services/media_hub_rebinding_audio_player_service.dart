@@ -29,6 +29,7 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   final MediaHubConnectionStore connectionStore;
   final Uuid _uuid = const Uuid();
   HttpServer? _proxyServer;
+  bool _proxyListening = false;
   final Map<String, _MediaHubProxyTarget> _proxyTargets =
       <String, _MediaHubProxyTarget>{};
 
@@ -68,40 +69,40 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     AudioSourceType source = AudioSourceType.original,
   }) async {
     final resolved = await _latestMediaHubUri(uri);
-    if (_looksLikeMediaHubAudio(resolved)) {
-      final connection = client.currentConnection;
-      if (connection == null) {
-        throw StateError('Media Hub 未连接，无法安全播放远程音频');
-      }
-      final proxyPath = await _registerProxyTarget(resolved, connection);
-      final server = _proxyServer!;
-      final proxyUri = Uri(
-        scheme: 'http',
-        host: InternetAddress.loopbackIPv4.address,
-        port: server.port,
-        path: proxyPath,
-      );
-      try {
-        await delegate.loadAudioUri(uri: proxyUri, source: source);
-        _proxyTargets.removeWhere((path, _) => path != proxyPath);
-      } catch (_) {
-        _proxyTargets.remove(proxyPath);
-        rethrow;
-      }
+    if (!_looksLikeMediaHubAudio(resolved)) {
+      await delegate.loadAudioUri(uri: resolved, source: source);
+      _proxyTargets.clear();
       return;
     }
-    await delegate.loadAudioUri(uri: resolved, source: source);
-    _proxyTargets.clear();
+
+    final connection = client.currentConnection;
+    if (connection == null) {
+      throw StateError('Media Hub 未连接，无法安全播放远程音频');
+    }
+    final proxyPath = await _registerProxyTarget(resolved, connection);
+    final server = _proxyServer!;
+    final proxyUri = Uri(
+      scheme: 'http',
+      host: InternetAddress.loopbackIPv4.address,
+      port: server.port,
+      path: proxyPath,
+    );
+    try {
+      await delegate.loadAudioUri(uri: proxyUri, source: source);
+      _proxyTargets.removeWhere((path, _) => path != proxyPath);
+    } catch (_) {
+      _proxyTargets.remove(proxyPath);
+      rethrow;
+    }
   }
 
   Future<String> _registerProxyTarget(
     Uri uri,
     MediaHubConnection connection,
   ) async {
-    if (connection.tlsFingerprint == null ||
+    final fingerprint = connection.tlsFingerprint;
+    if (fingerprint == null ||
         !RegExp(r'^[0-9a-fA-F]{64}
-
-  Future<Uri> _latestMediaHubUri(Uri original) async {
     if (!_looksLikeMediaHubAudio(original)) return original;
 
     final active = client.currentConnection;
@@ -150,12 +151,11 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
 
   Uri _rebase(Uri original, MediaHubConnection connection) {
     final rebased = connection.resolve(original.path);
-    final queryParameters = Map<String, String>.from(original.queryParameters)
+    final query = Map<String, String>.from(original.queryParameters)
       ..remove('token');
-    return queryParameters.isEmpty
-        ? rebased
-        : rebased.replace(queryParameters: queryParameters);
+    return query.isEmpty ? rebased : rebased.replace(queryParameters: query);
   }
+
   @override
   Future<void> play() => delegate.play();
 
@@ -179,39 +179,38 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   Future<void> setVolume(double volume) => delegate.setVolume(volume);
 
   @override
+  @override
   Future<void> dispose() async {
     _proxyTargets.clear();
-        await _proxyServer?.close(force: true);
+    await _proxyServer?.close(force: true);
     _proxyServer = null;
     _proxyListening = false;
     await delegate.dispose();
   }
 }
-).hasMatch(connection.tlsFingerprint!)) {
+).hasMatch(fingerprint)) {
       throw StateError('Media Hub 连接缺少有效 TLS 指纹，请重新配对');
     }
+
     final server = _proxyServer ??= await HttpServer.bind(
       InternetAddress.loopbackIPv4,
       0,
     );
     final path = '/play/${_uuid.v4()}';
+    final query = Map<String, String>.from(uri.queryParameters)..remove('token');
+    final remoteUri = query.isEmpty
+        ? uri.replace(queryParameters: <String, String>{})
+        : uri.replace(queryParameters: query);
     _proxyTargets[path] = _MediaHubProxyTarget(
       connection: connection,
-      remoteUri: uri.replace(queryParameters: _withoutToken(uri.queryParameters)),
+      remoteUri: remoteUri,
     );
-    // Start the loopback handler once; it forwards only opaque, per-load paths.
+
     if (!_proxyListening) {
       _proxyListening = true;
       server.listen((request) => unawaited(_handleProxyRequest(request)));
     }
     return path;
-  }
-
-  bool _proxyListening = false;
-
-  Map<String, String> _withoutToken(Map<String, String> parameters) {
-    final result = Map<String, String>.from(parameters)..remove('token');
-    return result;
   }
 
   Future<void> _handleProxyRequest(HttpRequest request) async {
@@ -272,7 +271,6 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
       httpClient.close(force: true);
     }
   }
-
   Future<Uri> _latestMediaHubUri(Uri original) async {
     if (!_looksLikeMediaHubAudio(original)) return original;
 
@@ -306,10 +304,7 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   }
 
   bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host &&
-      a.port == b.port &&
-      a.token == b.token &&
-      a.tlsFingerprint == b.tlsFingerprint;
+      a.host == b.host && a.port == b.port && a.token == b.token;
 
   bool _looksLikeMediaHubAudio(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
