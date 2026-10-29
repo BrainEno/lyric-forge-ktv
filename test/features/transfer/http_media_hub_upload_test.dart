@@ -131,7 +131,7 @@ void main() {
 
     expect(response.statusCode, HttpStatus.unauthorized);
     expect(imported, isEmpty);
-    expect(await incomingDirectory.list().toList(), isEmpty);
+    expect(await incomingDirectory.exists(), isFalse);
   });
 
   test('failed library import removes the completed incoming file', () async {
