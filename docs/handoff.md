@@ -7,7 +7,7 @@ Address issue #221's POSIX atomic replacement gap and improve fault-injection co
 - Repository: `BrainEno/lyric-forge-ktv`
 - Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
 - Branch: `fix/atomic-json-platform-replacement-20261029`
-- PR: to be opened after the implementation and work-log updates are complete.
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/242.
 - Local Dart/Flutter SDKs are unavailable in this environment; validate on GitHub Actions.
 
 ## 已改文件
@@ -36,4 +36,4 @@ Address issue #221's POSIX atomic replacement gap and improve fault-injection co
 - This change does not add schemaVersion to the ten stores using AtomicJsonFile; broad migration changes are intentionally out of scope.
 - Failure hooks simulate interrupted stages inside the writer, but do not kill a process or validate power-loss durability on a physical filesystem.
 
-最后更新：2026-10-29 16:50（Asia/Taipei）
+最后更新：2026-10-29 16:54（Asia/Taipei）
