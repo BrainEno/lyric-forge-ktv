@@ -63,7 +63,10 @@ class MediaHubTlsIdentityStore {
     final identity = await _generateValidIdentity();
     final certificateTemporary = File('${certificateFile.path}.tmp');
     final keyTemporary = File('${privateKeyFile.path}.tmp');
-    await certificateTemporary.writeAsString(identity.certificatePem, flush: true);
+    await certificateTemporary.writeAsString(
+      identity.certificatePem,
+      flush: true,
+    );
     await keyTemporary.writeAsString(identity.privateKeyPem, flush: true);
 
     // Do not leave a mismatched pair if either rename fails. The next startup
