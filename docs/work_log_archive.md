@@ -83,6 +83,7 @@
 - [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
+- [2026-10-28 13:45] Fix macOS Release Media Hub network entitlement `fix: enforce macOS Release Media Hub network entitlement` ([entry](log/entries/2026-10-28-1345-fix-macos-release-network-entitlement.md))
 ## Additional archived entries (auto-generated)
 - [2026-10-28 13:39] Reframe roadmap around open-source product quality ([entry](log/entries/2026-10-28-1339-reframe-product-quality-roadmap.md))
 - [2026-10-28 13:30] Incorporate second engineering review into readiness roadmap ([entry](log/entries/2026-10-28-1330-second-review-commercial-readiness.md))
