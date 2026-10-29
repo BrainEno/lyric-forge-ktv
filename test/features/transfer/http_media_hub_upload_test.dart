@@ -9,14 +9,18 @@ import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_id
 
 void main() {
   late Directory temp;
+  late Directory incomingDirectory;
   late HttpMediaHubService service;
   final imported = <String>[];
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('lyricforge-incoming-');
+    incomingDirectory = Directory(
+      '${temp.path}${Platform.pathSeparator}incoming',
+    );
     imported.clear();
     service = HttpMediaHubService(
-      incomingDirectory: temp,
+      incomingDirectory: incomingDirectory,
       tlsIdentityStore: MediaHubTlsIdentityStore(
         rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
       ),
@@ -47,7 +51,10 @@ void main() {
         queryParameters: const {'filename': '测试歌曲.mp3'},
       );
       final request = await client.postUrl(uri);
-      request.headers.set(HttpHeaders.authorizationHeader, '***');
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ' + session.token,
+      );
       final bytes = utf8.encode('fake mp3 bytes');
       request.contentLength = bytes.length;
       request.add(bytes);
@@ -124,13 +131,18 @@ void main() {
 
     expect(response.statusCode, HttpStatus.unauthorized);
     expect(imported, isEmpty);
-    expect(await temp.list().toList(), isEmpty);
+    expect(await incomingDirectory.list().toList(), isEmpty);
   });
 
   test('failed library import removes the completed incoming file', () async {
     await service.stopSharing();
     service = HttpMediaHubService(
-      incomingDirectory: temp,
+      incomingDirectory: incomingDirectory,
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory(
+          '${temp.path}${Platform.pathSeparator}tls',
+        ),
+      ),
       onIncomingFile: (_) async {
         throw UnsupportedError('unsupported audio');
       },
@@ -141,7 +153,7 @@ void main() {
     addTearDown(() => client.close(force: true));
     final request = await client.postUrl(
       Uri(
-        scheme: 'http',
+        scheme: 'https',
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/incoming/audio',
@@ -159,7 +171,7 @@ void main() {
     await response.drain<void>();
 
     expect(response.statusCode, HttpStatus.internalServerError);
-    expect(await temp.list().toList(), isEmpty);
+    expect(await incomingDirectory.list().toList(), isEmpty);
   });
 }
 
