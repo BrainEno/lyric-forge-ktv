@@ -150,12 +150,7 @@ class MediaHubConnection {
   }
 
   static bool _isValidTlsFingerprint(String? value) =>
-      value != null && RegExp(r'^[0-9a-fA-F]{64}
-    final normalized = location.startsWith('/') ? location : '/$location';
-    return baseUri.resolveUri(Uri.parse(normalized));
-  }
-}
-).hasMatch(value);
+      value != null && RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(value);
 
   Uri resolve(String location) {
     final normalized = location.startsWith('/') ? location : '/$location';
