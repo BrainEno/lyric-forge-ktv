@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!--
-      Media Hub uses HTTP only inside the user's private LAN or Tailscale tunnel.
-      Tailscale provides the encrypted network transport; LyricForge still
-      requires its session token at the application layer.
-    -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- All remote Media Hub connections use fingerprint-pinned HTTPS.
+         Cleartext is allowed only for the loopback proxy used by native audio
+         playback, never for LAN or Tailscale destinations. -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
 </network-security-config>
