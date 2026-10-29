@@ -22,6 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Validate partial release contract
         run: flutter test test/asr_runtime_release_workflow_contract_test.dart

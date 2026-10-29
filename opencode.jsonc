@@ -33,6 +33,8 @@
     "bash": {
       "*": "ask",
       "flutter pub get*": "allow",
+      "bash scripts/resolve_flutter_dependencies.sh*": "allow",
+      "pwsh -File scripts/resolve_flutter_dependencies.ps1*": "allow",
       "flutter analyze*": "allow",
       "flutter test*": "allow",
       "dart format*": "allow",

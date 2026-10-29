@@ -111,7 +111,8 @@ if [[ "$mode" == "all" && "$skip_docs" != true ]]; then
 fi
 
 if [[ "$skip_pub_get" != true ]]; then
-  run_step "flutter pub get" flutter pub get
+  run_step "reproducible Flutter dependency resolution" \
+    bash scripts/resolve_flutter_dependencies.sh
 fi
 
 # Analyze the application and its test surface. packages/desktop_multi_window is a

@@ -3,10 +3,9 @@ require 'fileutils'
 
 # Provides a project-managed CMake fallback for flutter_soloud 4.1.7.
 #
-# Flutter 3.41.9 cannot resolve flutter_soloud 5.x because the Flutter SDK pins
-# package:meta to 1.17.0 while native_toolchain_c used by flutter_soloud 5.x
-# requires meta ^1.19.0. flutter_soloud 4.1.7 therefore remains pinned, but its
-# CocoaPods build phase requires a `cmake` executable on PATH.
+# Keep flutter_soloud 4.1.7 while its 5.x migration is evaluated against the
+# repository-pinned Flutter 3.47.7 SDK and existing KTV buffer-stream APIs.
+# This release's CocoaPods build phase requires a `cmake` executable on PATH.
 #
 # We prefer an existing system CMake. If none is available, a SHA-256 pinned
 # official Kitware universal macOS archive is downloaded into the user's cache.

@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Analyze Qwen model integrity changes
         run: >-
           flutter analyze --no-fatal-infos

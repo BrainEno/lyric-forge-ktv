@@ -23,6 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - run: flutter test test/windows_native_plugin_build_config_test.dart
       - run: flutter build windows --debug

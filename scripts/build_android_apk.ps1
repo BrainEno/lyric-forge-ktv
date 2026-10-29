@@ -32,6 +32,8 @@ if ($Clean) {
     if ($LASTEXITCODE -ne 0) { throw '错误：flutter clean 失败。' }
 }
 
+& (Join-Path $PSScriptRoot 'resolve_flutter_dependencies.ps1') -Flutter $Flutter
+
 $arguments = @('build', 'apk', "--$Mode")
 if (-not [string]::IsNullOrWhiteSpace($BuildName)) { $arguments += "--build-name=$BuildName" }
 if (-not [string]::IsNullOrWhiteSpace($BuildNumber)) { $arguments += "--build-number=$BuildNumber" }
