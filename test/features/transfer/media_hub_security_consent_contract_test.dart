@@ -41,7 +41,10 @@ void main() {
 
     test('HTTP service does not bind wildcard/public interfaces', () {
       expect(serverSource, isNot(contains('InternetAddress.anyIPv4')));
-      expect(serverSource, contains('_bindWithPortFallback(host, tlsIdentity)'));
+      expect(
+        serverSource,
+        contains('_bindWithPortFallback(host, tlsIdentity)'),
+      );
       expect(serverSource, contains('_isTailscaleIpv4(value)'));
       expect(serverSource, contains('_isPrivateLanIpv4(value)'));
       expect(serverSource, isNot(contains('otherHosts.add(value)')));
