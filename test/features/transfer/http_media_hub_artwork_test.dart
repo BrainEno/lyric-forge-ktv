@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/shared_audio_track.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 
 void main() {
   late Directory temp;
@@ -11,7 +12,11 @@ void main() {
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('elysium-media-hub-artwork-');
-    service = HttpMediaHubService();
+    service = HttpMediaHubService(
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+      ),
+    );
   });
 
   tearDown(() async {
@@ -37,16 +42,20 @@ void main() {
       ),
     ]);
 
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final base = Uri(
-      scheme: 'http',
+      scheme: 'https',
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
     );
 
     final tracksRequest = await client.getUrl(
-      base.replace(path: '/v1/tracks', queryParameters: {'token': session.token}),
+      base.replace(path: '/v1/tracks'),
+    );
+    tracksRequest.headers.set(
+      HttpHeaders.authorizationHeader,
+      'Bearer ${session.token}',
     );
     final tracksResponse = await tracksRequest.close();
     final decoded = jsonDecode(await utf8.decoder.bind(tracksResponse).join())
@@ -58,10 +67,11 @@ void main() {
     expect(track['artworkPath'], '/v1/tracks/track-1/artwork');
 
     final artworkRequest = await client.getUrl(
-      base.replace(
-        path: track['artworkPath'] as String,
-        queryParameters: {'token': session.token},
-      ),
+      base.replace(path: track['artworkPath'] as String),
+    );
+    artworkRequest.headers.set(
+      HttpHeaders.authorizationHeader,
+      'Bearer ${session.token}',
     );
     final artworkResponse = await artworkRequest.close();
     final received = await artworkResponse.fold<List<int>>(
@@ -106,4 +116,12 @@ void main() {
 
     expect(response.statusCode, HttpStatus.unauthorized);
   });
+}
+
+
+HttpClient _pinnedHttpClient(String fingerprint) {
+  final client = HttpClient(context: SecurityContext(withTrustedRoots: false));
+  client.badCertificateCallback = (certificate, host, port) =>
+      mediaHubTlsFingerprint(certificate.der) == fingerprint.toLowerCase();
+  return client;
 }
