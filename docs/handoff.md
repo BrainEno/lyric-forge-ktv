@@ -7,7 +7,7 @@ Address the highest-priority open Media Hub upload resource-exhaustion findings 
 - Repository: `BrainEno/lyric-forge-ktv`
 - Base: `0e62beafe36c807b31297454c87311bb465bf8ed`
 - Branch: `fix/media-hub-upload-resource-limits-20261029`
-- PR: to be opened after code and work-log updates are complete; verify the latest head before review.
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/241; verify the latest head before review.
 - Upload defaults: 2 GiB per file, 30 seconds idle, 30 minutes total, two concurrent uploads.
 
 ## 已改文件
@@ -35,4 +35,4 @@ Address the highest-priority open Media Hub upload resource-exhaustion findings 
 - Issue #234's independent same-name temporary-file race remains intentionally separate.
 - This PR only bounds the receive endpoint; it does not claim to resolve every finding in issue #224.
 
-最后更新：2026-10-29 16:37（Asia/Taipei）
+最后更新：2026-10-29 16:43（Asia/Taipei）
