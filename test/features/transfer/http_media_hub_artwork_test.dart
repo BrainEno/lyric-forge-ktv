@@ -50,16 +50,15 @@ void main() {
       port: session.port,
     );
 
-    final tracksRequest = await client.getUrl(
-      base.replace(path: '/v1/tracks'),
-    );
+    final tracksRequest = await client.getUrl(base.replace(path: '/v1/tracks'));
     tracksRequest.headers.set(
       HttpHeaders.authorizationHeader,
       'Bearer ${session.token}',
     );
     final tracksResponse = await tracksRequest.close();
-    final decoded = jsonDecode(await utf8.decoder.bind(tracksResponse).join())
-        as Map<String, dynamic>;
+    final decoded =
+        jsonDecode(await utf8.decoder.bind(tracksResponse).join())
+            as Map<String, dynamic>;
     final tracks = decoded['tracks'] as List<dynamic>;
     final track = Map<String, dynamic>.from(tracks.single as Map);
 
@@ -117,7 +116,6 @@ void main() {
     expect(response.statusCode, HttpStatus.unauthorized);
   });
 }
-
 
 HttpClient _pinnedHttpClient(String fingerprint) {
   final client = HttpClient(context: SecurityContext(withTrustedRoots: false));
