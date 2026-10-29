@@ -120,7 +120,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 token is! String ||
                 token.trim().isEmpty ||
                 tlsFingerprint is! String ||
-                !RegExp(r'^[0-9a-fA-F]{64}
+                !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(tlsFingerprint) ||
                 proof is! String ||
                 proof.trim().isEmpty) {
               continue;
@@ -188,6 +188,7 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 host: currentDatagram.address.address,
                 port: port.toInt(),
                 token: token.trim(),
+                tlsFingerprint: tlsFingerprint.toLowerCase(),
               ),
             );
             break;
