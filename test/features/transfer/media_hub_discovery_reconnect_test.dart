@@ -109,8 +109,7 @@ void main() {
         final authorization = request.headers.value(
           HttpHeaders.authorizationHeader,
         );
-        if (request.uri.path != '/v1/health' ||
-            authorization != '***') {
+        if (request.uri.path != '/v1/health' || authorization != '***') {
           request.response.statusCode = HttpStatus.unauthorized;
           await request.response.close();
           return;
