@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
+import 'media_hub_tls_identity_store.dart';
 
 typedef IncomingMediaCallback = Future<void> Function(String path);
 
@@ -15,20 +16,23 @@ class HttpMediaHubService implements MediaHubService {
   static const int preferredPort = 48517;
 
   final Uuid _uuid;
+  final MediaHubTlsIdentityStore _tlsIdentityStore;
   final Directory? incomingDirectory;
   final IncomingMediaCallback? onIncomingFile;
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
 
-  HttpServer? _server;
+  final List<HttpServer> _servers = <HttpServer>[];
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
 
   HttpMediaHubService({
     Uuid? uuid,
+    MediaHubTlsIdentityStore? tlsIdentityStore,
     this.incomingDirectory,
     this.onIncomingFile,
-  }) : _uuid = uuid ?? const Uuid();
+  }) : _uuid = uuid ?? const Uuid(),
+       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -40,7 +44,7 @@ class HttpMediaHubService implements MediaHubService {
   MediaHubSession? get currentSession => _state.session;
 
   @override
-  bool get isRunning => _server != null && _state.isRunning;
+  bool get isRunning => _servers.isNotEmpty && _state.isRunning;
 
   @override
   Future<MediaHubSession> startSharing(List<SharedAudioTrack> tracks) async {
@@ -81,41 +85,37 @@ class HttpMediaHubService implements MediaHubService {
         );
       }
 
-      final server = await _bindServer();
-      final endpoints = await _resolveReachableEndpoints(server.port);
+      final tlsIdentity = await _tlsIdentityStore.loadOrCreate();
+      final bound = await _bindServers(tlsIdentity);
+      _servers.addAll(bound.servers);
+      final endpoints = bound.endpoints;
       final preferredEndpoint = endpoints.first;
       final session = MediaHubSession(
         host: preferredEndpoint.host,
-        port: server.port,
+        port: preferredEndpoint.port,
         token: _uuid.v4().replaceAll('-', ''),
         startedAt: DateTime.now(),
         trackCount: validated.length,
         endpoints: endpoints,
+        tlsFingerprint: tlsIdentity.fingerprint,
       );
 
       _tracks = Map.unmodifiable(validated);
-      _server = server;
-      _emit(
-        MediaHubState(
-          status: MediaHubStatus.running,
-          session: session,
-        ),
-      );
+      _emit(MediaHubState(status: MediaHubStatus.running, session: session));
 
-      server.listen((request) {
-        unawaited(_handleRequest(request, session));
-      });
+      for (final server in _servers) {
+        server.listen((request) {
+          unawaited(_handleRequest(request, session));
+        });
+      }
 
       return session;
     } catch (error) {
-      await _server?.close(force: true);
-      _server = null;
+      await Future.wait(_servers.map((server) => server.close(force: true)));
+      _servers.clear();
       _tracks = const {};
       _emit(
-        MediaHubState(
-          status: MediaHubStatus.failed,
-          error: error.toString(),
-        ),
+        MediaHubState(status: MediaHubStatus.failed, error: error.toString()),
       );
       rethrow;
     }
@@ -123,12 +123,10 @@ class HttpMediaHubService implements MediaHubService {
 
   @override
   Future<void> stopSharing() async {
-    final server = _server;
-    _server = null;
+    final servers = List<HttpServer>.from(_servers);
+    _servers.clear();
     _tracks = const {};
-    if (server != null) {
-      await server.close(force: true);
-    }
+    await Future.wait(servers.map((server) => server.close(force: true)));
     _emit(const MediaHubState.stopped());
   }
 
@@ -137,76 +135,126 @@ class HttpMediaHubService implements MediaHubService {
     await _stateController.close();
   }
 
-  Future<HttpServer> _bindServer() async {
+  Future<_BoundMediaHubServers> _bindServers(
+    MediaHubTlsIdentity tlsIdentity,
+  ) async {
+    final servers = <HttpServer>[];
+    final endpoints = <MediaHubEndpoint>[];
+
     try {
-      return await HttpServer.bind(
-        InternetAddress.anyIPv4,
-        preferredPort,
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+        includeLinkLocal: false,
       );
-    } on SocketException {
-      return HttpServer.bind(InternetAddress.anyIPv4, 0);
+
+      final tailscaleHosts = <String>{};
+      final lanHosts = <String>{};
+      for (final interface in interfaces) {
+        for (final address in interface.addresses) {
+          final value = address.address;
+          if (_isTailscaleIpv4(value)) {
+            tailscaleHosts.add(value);
+          } else if (_isPrivateLanIpv4(value)) {
+            lanHosts.add(value);
+          }
+          // Do not bind to public or otherwise unclassified interfaces.
+        }
+      }
+
+      for (final host in tailscaleHosts) {
+        await _tryBindEndpoint(
+          host,
+          MediaHubEndpointKind.tailscale,
+          servers,
+          endpoints,
+          tlsIdentity,
+        );
+      }
+      for (final host in lanHosts) {
+        await _tryBindEndpoint(
+          host,
+          MediaHubEndpointKind.lan,
+          servers,
+          endpoints,
+          tlsIdentity,
+        );
+      }
+
+      if (endpoints.isEmpty) {
+        final loopback = await _bindWithPortFallback(
+          InternetAddress.loopbackIPv4.address,
+          tlsIdentity,
+        );
+        servers.add(loopback);
+        endpoints.add(
+          MediaHubEndpoint(
+            host: InternetAddress.loopbackIPv4.address,
+            port: loopback.port,
+            kind: MediaHubEndpointKind.other,
+          ),
+        );
+      } else {
+        // Preserve local-loopback access for desktop callers and tests without
+        // exposing the listener on arbitrary network interfaces.
+        final primary = endpoints.first;
+        try {
+          servers.add(
+            await HttpServer.bindSecure(
+              InternetAddress.loopbackIPv4,
+              primary.port,
+              tlsIdentity.createServerContext(),
+            ),
+          );
+        } on SocketException {
+          // The advertised LAN/Tailscale endpoint remains usable if loopback
+          // is unavailable or that local port is occupied.
+        }
+      }
+
+      return _BoundMediaHubServers(
+        servers: List<HttpServer>.unmodifiable(servers),
+        endpoints: List<MediaHubEndpoint>.unmodifiable(endpoints),
+      );
+    } catch (_) {
+      await Future.wait(servers.map((server) => server.close(force: true)));
+      rethrow;
     }
   }
 
-  Future<List<MediaHubEndpoint>> _resolveReachableEndpoints(int port) async {
-    final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-      includeLinkLocal: false,
+  Future<void> _tryBindEndpoint(
+    String host,
+    MediaHubEndpointKind kind,
+    List<HttpServer> servers,
+    List<MediaHubEndpoint> endpoints,
+    MediaHubTlsIdentity tlsIdentity,
+  ) async {
+    try {
+      final server = await _bindWithPortFallback(host, tlsIdentity);
+      servers.add(server);
+      endpoints.add(
+        MediaHubEndpoint(host: host, port: server.port, kind: kind),
+      );
+    } on SocketException {
+      // Skip an unavailable interface; keep successfully bound endpoints.
+    }
+  }
+
+  Future<HttpServer> _bindWithPortFallback(
+    String host,
+    MediaHubTlsIdentity tlsIdentity,
+  ) async {
+    Future<HttpServer> bind(int port) => HttpServer.bindSecure(
+      InternetAddress(host),
+      port,
+      tlsIdentity.createServerContext(),
     );
 
-    final tailscaleHosts = <String>{};
-    final lanHosts = <String>{};
-    final otherHosts = <String>{};
-
-    for (final interface in interfaces) {
-      for (final address in interface.addresses) {
-        final value = address.address;
-        if (_isTailscaleIpv4(value)) {
-          tailscaleHosts.add(value);
-        } else if (_isPrivateLanIpv4(value)) {
-          lanHosts.add(value);
-        } else {
-          otherHosts.add(value);
-        }
-      }
+    try {
+      return await bind(preferredPort);
+    } on SocketException {
+      return bind(0);
     }
-
-    final endpoints = <MediaHubEndpoint>[
-      ...tailscaleHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.tailscale,
-        ),
-      ),
-      ...lanHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.lan,
-        ),
-      ),
-      ...otherHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.other,
-        ),
-      ),
-    ];
-
-    if (endpoints.isEmpty) {
-      endpoints.add(
-        MediaHubEndpoint(
-          host: InternetAddress.loopbackIPv4.address,
-          port: port,
-          kind: MediaHubEndpointKind.other,
-        ),
-      );
-    }
-
-    return List.unmodifiable(endpoints);
   }
 
   Future<void> _handleRequest(
@@ -223,11 +271,9 @@ class HttpMediaHubService implements MediaHubService {
 
     try {
       if (!_isAuthorized(request, session.token)) {
-        await _writeJson(
-          request.response,
-          HttpStatus.unauthorized,
-          {'error': 'unauthorized'},
-        );
+        await _writeJson(request.response, HttpStatus.unauthorized, {
+          'error': 'unauthorized',
+        });
         return;
       }
 
@@ -237,20 +283,17 @@ class HttpMediaHubService implements MediaHubService {
           segments.length == 2 &&
           segments[0] == 'v1' &&
           segments[1] == 'health') {
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {
-            'status': 'ok',
-            'protocolVersion': 1,
-            'startedAt': session.startedAt.toIso8601String(),
-            'trackCount': _tracks.length,
-            'acceptsUploads': true,
-            'remoteAccessAvailable': session.remoteAccessAvailable,
-            'endpoints':
-                session.endpoints.map((endpoint) => endpoint.toJson()).toList(),
-          },
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'status': 'ok',
+          'protocolVersion': 2,
+          'startedAt': session.startedAt.toIso8601String(),
+          'trackCount': _tracks.length,
+          'acceptsUploads': true,
+          'remoteAccessAvailable': session.remoteAccessAvailable,
+          'endpoints': session.endpoints
+              .map((endpoint) => endpoint.toJson())
+              .toList(),
+        });
         return;
       }
 
@@ -258,17 +301,14 @@ class HttpMediaHubService implements MediaHubService {
           segments.length == 2 &&
           segments[0] == 'v1' &&
           segments[1] == 'tracks') {
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {
-            'tracks': _tracks.values.map(_trackPublicJson).toList(),
-          },
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'tracks': _tracks.values.map(_trackPublicJson).toList(),
+        });
         return;
       }
 
-      final isIncomingAudio = request.method == 'POST' &&
+      final isIncomingAudio =
+          request.method == 'POST' &&
           segments.length == 3 &&
           segments[0] == 'v1' &&
           segments[1] == 'incoming' &&
@@ -278,7 +318,8 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
-      final isLyricsRequest = request.method == 'GET' &&
+      final isLyricsRequest =
+          request.method == 'GET' &&
           segments.length == 4 &&
           segments[0] == 'v1' &&
           segments[1] == 'tracks' &&
@@ -287,47 +328,39 @@ class HttpMediaHubService implements MediaHubService {
       if (isLyricsRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
 
         final lyrics = track.lyrics;
         if (lyrics == null || lyrics.lines.isEmpty) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'lyrics_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'lyrics_not_found',
+          });
           return;
         }
 
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {'lyrics': lyrics.toJson()},
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'lyrics': lyrics.toJson(),
+        });
         return;
       }
 
       final isArtworkRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
-              segments.length == 4 &&
-              segments[0] == 'v1' &&
-              segments[1] == 'tracks' &&
-              segments[3] == 'artwork';
+          segments.length == 4 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'tracks' &&
+          segments[3] == 'artwork';
 
       if (isArtworkRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
         await _serveArtwork(request, track);
@@ -336,19 +369,17 @@ class HttpMediaHubService implements MediaHubService {
 
       final isAudioRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
-              segments.length == 4 &&
-              segments[0] == 'v1' &&
-              segments[1] == 'tracks' &&
-              segments[3] == 'audio';
+          segments.length == 4 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'tracks' &&
+          segments[3] == 'audio';
 
       if (isAudioRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
 
@@ -356,18 +387,15 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
-      await _writeJson(
-        request.response,
-        HttpStatus.notFound,
-        {'error': 'not_found'},
-      );
+      await _writeJson(request.response, HttpStatus.notFound, {
+        'error': 'not_found',
+      });
     } catch (error) {
       try {
-        await _writeJson(
-          request.response,
-          HttpStatus.internalServerError,
-          {'error': 'internal_error', 'message': error.toString()},
-        );
+        await _writeJson(request.response, HttpStatus.internalServerError, {
+          'error': 'internal_error',
+          'message': error.toString(),
+        });
       } catch (_) {
         await request.response.close();
       }
@@ -377,11 +405,9 @@ class HttpMediaHubService implements MediaHubService {
   Future<void> _receiveIncomingAudio(HttpRequest request) async {
     final rawName = request.uri.queryParameters['filename']?.trim();
     if (rawName == null || rawName.isEmpty) {
-      await _writeJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'error': 'missing_filename'},
-      );
+      await _writeJson(request.response, HttpStatus.badRequest, {
+        'error': 'missing_filename',
+      });
       return;
     }
 
@@ -407,15 +433,11 @@ class HttpMediaHubService implements MediaHubService {
 
       if (expected != null && received != expected) {
         if (await partial.exists()) await partial.delete();
-        await _writeJson(
-          request.response,
-          HttpStatus.badRequest,
-          {
-            'error': 'length_mismatch',
-            'expected': expected,
-            'received': received,
-          },
-        );
+        await _writeJson(request.response, HttpStatus.badRequest, {
+          'error': 'length_mismatch',
+          'expected': expected,
+          'received': received,
+        });
         return;
       }
 
@@ -426,25 +448,20 @@ class HttpMediaHubService implements MediaHubService {
           await callback(destination.path);
         } catch (error) {
           if (await destination.exists()) await destination.delete();
-          await _writeJson(
-            request.response,
-            HttpStatus.internalServerError,
-            {'error': 'library_import_failed', 'message': error.toString()},
-          );
+          await _writeJson(request.response, HttpStatus.internalServerError, {
+            'error': 'library_import_failed',
+            'message': error.toString(),
+          });
           return;
         }
       }
 
-      await _writeJson(
-        request.response,
-        HttpStatus.created,
-        {
-          'status': 'ok',
-          'filename': destination.uri.pathSegments.last,
-          'byteLength': received,
-          'imported': callback != null,
-        },
-      );
+      await _writeJson(request.response, HttpStatus.created, {
+        'status': 'ok',
+        'filename': destination.uri.pathSegments.last,
+        'byteLength': received,
+        'imported': callback != null,
+      });
     } catch (error) {
       try {
         await sink.close();
@@ -469,7 +486,8 @@ class HttpMediaHubService implements MediaHubService {
     final extension = dot > 0 ? fileName.substring(dot) : '';
     var candidate = File('${directory.path}${Platform.pathSeparator}$fileName');
     var suffix = 1;
-    while (await candidate.exists() || await File('${candidate.path}.part').exists()) {
+    while (await candidate.exists() ||
+        await File('${candidate.path}.part').exists()) {
       candidate = File(
         '${directory.path}${Platform.pathSeparator}${stem}_$suffix$extension',
       );
@@ -492,27 +510,24 @@ class HttpMediaHubService implements MediaHubService {
   ) async {
     final path = track.artworkPath;
     if (path == null || path.trim().isEmpty) {
-      await _writeJson(
-        request.response,
-        HttpStatus.notFound,
-        {'error': 'artwork_not_found'},
-      );
+      await _writeJson(request.response, HttpStatus.notFound, {
+        'error': 'artwork_not_found',
+      });
       return;
     }
 
     final file = File(path);
     if (!await file.exists()) {
-      await _writeJson(
-        request.response,
-        HttpStatus.gone,
-        {'error': 'artwork_missing'},
-      );
+      await _writeJson(request.response, HttpStatus.gone, {
+        'error': 'artwork_missing',
+      });
       return;
     }
 
     request.response.statusCode = HttpStatus.ok;
-    request.response.headers.contentType =
-        ContentType.parse(_imageMimeTypeFor(path));
+    request.response.headers.contentType = ContentType.parse(
+      _imageMimeTypeFor(path),
+    );
     request.response.headers.set(
       HttpHeaders.cacheControlHeader,
       'private, max-age=3600',
@@ -526,17 +541,12 @@ class HttpMediaHubService implements MediaHubService {
     await request.response.close();
   }
 
-  Future<void> _serveAudio(
-    HttpRequest request,
-    SharedAudioTrack track,
-  ) async {
+  Future<void> _serveAudio(HttpRequest request, SharedAudioTrack track) async {
     final file = File(track.localPath);
     if (!await file.exists()) {
-      await _writeJson(
-        request.response,
-        HttpStatus.gone,
-        {'error': 'source_file_missing'},
-      );
+      await _writeJson(request.response, HttpStatus.gone, {
+        'error': 'source_file_missing',
+      });
       return;
     }
 
@@ -547,8 +557,9 @@ class HttpMediaHubService implements MediaHubService {
     );
 
     request.response.headers.set(HttpHeaders.acceptRangesHeader, 'bytes');
-    request.response.headers.contentType =
-        ContentType.parse(_mimeTypeFor(track.format));
+    request.response.headers.contentType = ContentType.parse(
+      _mimeTypeFor(track.format),
+    );
     request.response.headers.set(
       HttpHeaders.cacheControlHeader,
       'private, no-store',
@@ -609,11 +620,9 @@ class HttpMediaHubService implements MediaHubService {
   }
 
   bool _isAuthorized(HttpRequest request, String token) {
-    final queryToken = request.uri.queryParameters['token'];
-    if (queryToken == token) return true;
-
-    final authorization =
-        request.headers.value(HttpHeaders.authorizationHeader);
+    final authorization = request.headers.value(
+      HttpHeaders.authorizationHeader,
+    );
     if (authorization == null) return false;
 
     const prefix = 'Bearer ';
@@ -709,9 +718,7 @@ class HttpMediaHubService implements MediaHubService {
       }
 
       final clamped = suffixLength > length ? length : suffixLength;
-      return _ParsedRange.valid(
-        _ByteRange(length - clamped, length - 1),
-      );
+      return _ParsedRange.valid(_ByteRange(length - clamped, length - 1));
     }
 
     final start = int.tryParse(startText);
@@ -763,6 +770,13 @@ class HttpMediaHubService implements MediaHubService {
   }
 }
 
+class _BoundMediaHubServers {
+  final List<HttpServer> servers;
+  final List<MediaHubEndpoint> endpoints;
+
+  const _BoundMediaHubServers({required this.servers, required this.endpoints});
+}
+
 class MediaHubException implements Exception {
   final String message;
 
@@ -785,13 +799,9 @@ class _ParsedRange {
   final bool isValid;
   final _ByteRange? range;
 
-  const _ParsedRange.none()
-      : isValid = true,
-        range = null;
+  const _ParsedRange.none() : isValid = true, range = null;
 
-  const _ParsedRange.invalid()
-      : isValid = false,
-        range = null;
+  const _ParsedRange.invalid() : isValid = false, range = null;
 
   const _ParsedRange.valid(this.range) : isValid = true;
 }

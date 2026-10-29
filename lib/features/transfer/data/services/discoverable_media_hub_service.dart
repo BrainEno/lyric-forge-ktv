@@ -63,14 +63,10 @@ class DiscoverableMediaHubService implements MediaHubService {
         endpoints: raw.endpoints,
         deviceId: identity.deviceId,
         discoveryKey: identity.discoveryKey,
+        tlsFingerprint: raw.tlsFingerprint,
       );
       await _startDiscoveryResponder(session, identity);
-      _emit(
-        MediaHubState(
-          status: MediaHubStatus.running,
-          session: session,
-        ),
-      );
+      _emit(MediaHubState(status: MediaHubStatus.running, session: session));
       return session;
     } catch (error) {
       await _stopDiscoveryResponder();
@@ -78,10 +74,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         await delegate.stopSharing();
       } catch (_) {}
       _emit(
-        MediaHubState(
-          status: MediaHubStatus.failed,
-          error: error.toString(),
-        ),
+        MediaHubState(status: MediaHubStatus.failed, error: error.toString()),
       );
       rethrow;
     }
@@ -103,12 +96,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         if (event != RawSocketEvent.read) return;
         Datagram? datagram;
         while ((datagram = socket.receive()) != null) {
-          _handleDiscoveryDatagram(
-            socket,
-            datagram!,
-            session,
-            identity,
-          );
+          _handleDiscoveryDatagram(socket, datagram!, session, identity);
         }
       });
     } catch (_) {
@@ -156,6 +144,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         requestId: normalizedRequestId,
         port: session.port,
         token: session.token,
+        tlsFingerprint: session.tlsFingerprint ?? '',
       );
       final payload = utf8.encode(
         jsonEncode({
@@ -166,6 +155,7 @@ class DiscoverableMediaHubService implements MediaHubService {
           'requestId': normalizedRequestId,
           'port': session.port,
           'token': session.token,
+          'tlsFingerprint': session.tlsFingerprint,
           'proof': offerProof,
           'deviceName': Platform.localHostname,
         }),

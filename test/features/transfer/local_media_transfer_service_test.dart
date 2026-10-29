@@ -24,28 +24,31 @@ void main() {
     if (await temp.exists()) await temp.delete(recursive: true);
   });
 
-  test('downloads multiple tracks and imports every success into Library', () async {
-    client.payloads['a'] = List<int>.filled(12, 1);
-    client.payloads['b'] = List<int>.filled(8, 2);
-    final service = LocalMediaTransferService(
-      client: client,
-      libraryRepository: library,
-      downloadDirectory: temp,
-    );
+  test(
+    'downloads multiple tracks and imports every success into Library',
+    () async {
+      client.payloads['a'] = List<int>.filled(12, 1);
+      client.payloads['b'] = List<int>.filled(8, 2);
+      final service = LocalMediaTransferService(
+        client: client,
+        libraryRepository: library,
+        downloadDirectory: temp,
+      );
 
-    final result = await service.downloadRemoteTracks([
-      _track('a', 'A', 12),
-      _track('b', 'B', 8),
-    ]);
+      final result = await service.downloadRemoteTracks([
+        _track('a', 'A', 12),
+        _track('b', 'B', 8),
+      ]);
 
-    expect(result.completed.length, 2);
-    expect(result.failed, isEmpty);
-    expect(client.downloadedIds, ['a', 'b']);
-    expect(library.addedPaths.length, 2);
-    for (final path in library.addedPaths) {
-      expect(await File(path).exists(), isTrue);
-    }
-  });
+      expect(result.completed.length, 2);
+      expect(result.failed, isEmpty);
+      expect(client.downloadedIds, ['a', 'b']);
+      expect(library.addedPaths.length, 2);
+      for (final path in library.addedPaths) {
+        expect(await File(path).exists(), isTrue);
+      }
+    },
+  );
 
   test('one failed download does not stop remaining tracks', () async {
     client.payloads['a'] = List<int>.filled(4, 1);
@@ -71,7 +74,9 @@ void main() {
 
   test('reuses an existing same-size download but still imports it', () async {
     final track = _track('reuse1234', 'Reusable', 10);
-    final existing = File('${temp.path}${Platform.pathSeparator}Reusable_reuse123.mp3');
+    final existing = File(
+      '${temp.path}${Platform.pathSeparator}Reusable_reuse123.mp3',
+    );
     await existing.writeAsBytes(List<int>.filled(10, 7));
     final service = LocalMediaTransferService(
       client: client,
@@ -100,11 +105,7 @@ void main() {
       downloadDirectory: temp,
     );
 
-    final result = await service.uploadLocalFiles([
-      a.path,
-      b.path,
-      c.path,
-    ]);
+    final result = await service.uploadLocalFiles([a.path, b.path, c.path]);
 
     expect(result.completed.map((item) => item.title), ['A', 'C']);
     expect(result.failed.single.title, 'B');
@@ -128,13 +129,13 @@ void main() {
 }
 
 RemoteAudioTrack _track(String id, String title, int bytes) => RemoteAudioTrack(
-      id: id,
-      title: title,
-      format: 'mp3',
-      byteLength: bytes,
-      streamPath: '/v1/tracks/$id/audio',
-      downloadPath: '/v1/tracks/$id/audio?download=1',
-    );
+  id: id,
+  title: title,
+  format: 'mp3',
+  byteLength: bytes,
+  streamPath: '/v1/tracks/$id/audio',
+  downloadPath: '/v1/tracks/$id/audio?download=1',
+);
 
 class _FakeMediaHubClient implements MediaHubClientService {
   final Map<String, List<int>> payloads = {};
@@ -167,6 +168,9 @@ class _FakeMediaHubClient implements MediaHubClientService {
   }
 
   @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[];
+
+  @override
   Future<void> uploadFile({
     required String sourcePath,
     String? remoteFileName,
@@ -182,9 +186,11 @@ class _FakeMediaHubClient implements MediaHubClientService {
   }
 
   @override
-  Future<MediaHubConnection> connect(Uri pairingUri) => throw UnimplementedError();
+  Future<MediaHubConnection> connect(Uri pairingUri) =>
+      throw UnimplementedError();
   @override
-  Future<void> connectTo(MediaHubConnection connection) => throw UnimplementedError();
+  Future<void> connectTo(MediaHubConnection connection) =>
+      throw UnimplementedError();
   @override
   Future<void> disconnect() async {}
   @override
@@ -192,7 +198,8 @@ class _FakeMediaHubClient implements MediaHubClientService {
   @override
   Future<List<RemoteAudioTrack>> fetchTracks() => throw UnimplementedError();
   @override
-  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) => throw UnimplementedError();
+  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) =>
+      throw UnimplementedError();
   @override
   Uri playbackUriFor(RemoteAudioTrack track) => throw UnimplementedError();
 }
@@ -225,5 +232,7 @@ class _FakeLibraryRepository implements LocalMediaLibraryRepository {
     Iterable<String> supportedExtensions,
   ) async => const [];
   @override
-  Future<List<LocalMediaLibraryEntry>> refreshMetadata({bool force = false}) async => const [];
+  Future<List<LocalMediaLibraryEntry>> refreshMetadata({
+    bool force = false,
+  }) async => const [];
 }

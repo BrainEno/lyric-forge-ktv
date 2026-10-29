@@ -35,7 +35,9 @@ void main() {
 
   test('restart recovers transferring item back to queued', () async {
     final now = DateTime.now();
-    final file = File('${temp.path}${Platform.pathSeparator}media_transfer_queue.json');
+    final file = File(
+      '${temp.path}${Platform.pathSeparator}media_transfer_queue.json',
+    );
     await file.writeAsString(
       jsonEncode({
         'version': 1,
@@ -159,13 +161,13 @@ void main() {
 }
 
 RemoteAudioTrack _track(String id, String title) => RemoteAudioTrack(
-      id: id,
-      title: title,
-      format: 'mp3',
-      byteLength: 10,
-      streamPath: '/v1/tracks/$id/audio',
-      downloadPath: '/v1/tracks/$id/audio?download=1',
-    );
+  id: id,
+  title: title,
+  format: 'mp3',
+  byteLength: 10,
+  streamPath: '/v1/tracks/$id/audio',
+  downloadPath: '/v1/tracks/$id/audio?download=1',
+);
 
 class _FakeTransfers implements MediaTransferService {
   int uploadCalls = 0;
@@ -245,9 +247,11 @@ class _FakeClient implements MediaHubClientService {
   bool get isConnected => connected;
 
   @override
-  Future<MediaHubConnection> connect(Uri pairingUri) => throw UnimplementedError();
+  Future<MediaHubConnection> connect(Uri pairingUri) =>
+      throw UnimplementedError();
   @override
-  Future<void> connectTo(MediaHubConnection connection) async => connected = true;
+  Future<void> connectTo(MediaHubConnection connection) async =>
+      connected = true;
   @override
   Future<void> disconnect() async => connected = false;
   @override
@@ -261,9 +265,13 @@ class _FakeClient implements MediaHubClientService {
   @override
   Future<List<RemoteAudioTrack>> fetchTracks() => throw UnimplementedError();
   @override
-  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) => throw UnimplementedError();
+  Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) =>
+      throw UnimplementedError();
   @override
   Uri playbackUriFor(RemoteAudioTrack track) => throw UnimplementedError();
+  @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[];
+
   @override
   Future<void> uploadFile({
     required String sourcePath,

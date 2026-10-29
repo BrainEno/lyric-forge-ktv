@@ -2,10 +2,8 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../models/media_hub_connection.dart';
 import '../models/remote_audio_track.dart';
 
-typedef TransferProgressCallback = void Function(
-  int bytesTransferred,
-  int? totalBytes,
-);
+typedef TransferProgressCallback =
+    void Function(int bytesTransferred, int? totalBytes);
 
 abstract class MediaHubClientService {
   MediaHubConnection? get currentConnection;
@@ -23,6 +21,9 @@ abstract class MediaHubClientService {
   Uri playbackUriFor(RemoteAudioTrack track);
 
   Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track);
+
+  /// Downloads artwork through the authenticated, certificate-pinned channel.
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track);
 
   Future<void> downloadTrack({
     required RemoteAudioTrack track,

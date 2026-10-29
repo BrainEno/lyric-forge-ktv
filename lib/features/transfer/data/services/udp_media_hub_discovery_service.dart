@@ -11,7 +11,7 @@ import 'media_hub_discovery_auth.dart';
 
 class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
   static const int discoveryPort = 48518;
-  static const int protocolVersion = 1;
+  static const int protocolVersion = 2;
   static const String serviceName = 'elysium-player-media-hub';
 
   final Uuid _uuid;
@@ -111,25 +111,33 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 body['requestId'] != requestId) {
               continue;
             }
+
             final port = body['port'];
             final token = body['token'];
+            final fingerprint = body['tlsFingerprint'];
             final proof = body['proof'];
             if (port is! num ||
                 port.toInt() <= 0 ||
                 token is! String ||
                 token.trim().isEmpty ||
+                fingerprint is! String ||
+                !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(fingerprint) ||
                 proof is! String ||
                 proof.trim().isEmpty) {
               continue;
             }
+
             final expectedProof = mediaHubDiscoveryOfferProof(
               key: discoveryKey,
               deviceId: deviceId,
               requestId: requestId,
               port: port.toInt(),
               token: token.trim(),
+              tlsFingerprint: fingerprint.toLowerCase(),
             );
-            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) continue;
+            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) {
+              continue;
+            }
 
             finish(
               MediaHubDiscoveryResult(
@@ -137,11 +145,12 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
                 host: currentDatagram.address.address,
                 port: port.toInt(),
                 token: token.trim(),
+                tlsFingerprint: fingerprint.toLowerCase(),
               ),
             );
             break;
           } catch (_) {
-            // Ignore unrelated/malformed UDP traffic.
+            // Ignore unrelated or malformed UDP traffic.
           }
         }
       });

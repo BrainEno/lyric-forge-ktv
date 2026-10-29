@@ -15,11 +15,10 @@ import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
 
-/// Desktop-first transfer center that makes pairing a one-step operation.
+/// Desktop-first transfer center for an explicitly started Media Hub.
 ///
-/// Opening this screen automatically exposes the existing desktop Library to
-/// the phone and starts the Media Hub if needed, so the QR code is immediately
-/// visible instead of requiring a separate "start service" step first.
+/// Opening this screen loads the local Library preview but does not expose the
+/// network service until the user reviews and accepts the HTTPS sharing scope.
 class DesktopMediaTransferHubV2Screen extends StatefulWidget {
   const DesktopMediaTransferHubV2Screen({super.key});
 
@@ -81,14 +80,12 @@ class _DesktopMediaTransferHubV2ScreenState
       if (!mounted) return;
       setState(() => _tracks = tracks);
 
-      final session = _hub.currentSession;
-      final needsRestart = !_hub.isRunning || session?.trackCount != tracks.length;
-      if (needsRestart) {
-        await _hub.startSharing(tracks);
-      }
+      // Merely opening the transfer screen must never expose a network
+      // listener. Starting Media Hub requires an explicit user action and
+      // confirmation of the media-sharing scope.
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '启动跨设备传输失败：$error');
+        setState(() => _error = '读取电脑音乐库失败：$error');
       }
     } finally {
       if (mounted) setState(() => _initializing = false);
@@ -97,16 +94,28 @@ class _DesktopMediaTransferHubV2ScreenState
 
   Future<void> _refreshAndRestart() async {
     if (_busy) return;
+
+    // Refreshing a stopped service must not start listening as a side effect.
+    // If the service is already running, require fresh consent before replacing
+    // its session and invalidating the current pairing token.
+    if (_hub.isRunning && !await _confirmMediaSharing()) return;
+    if (!mounted) return;
+
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       final tracks = await _catalog.build();
-      await _hub.startSharing(tracks);
+      final wasRunning = _hub.isRunning;
+      if (wasRunning) {
+        await _hub.startSharing(tracks);
+      }
       if (!mounted) return;
       setState(() => _tracks = tracks);
-      _showMessage('电脑音乐库已刷新；二维码已更新，请让手机重新扫码。');
+      _showMessage(
+        wasRunning ? '电脑音乐库已刷新；二维码已更新，请让手机重新扫码。' : '电脑音乐库已刷新；传输服务仍保持关闭。',
+      );
     } catch (error) {
       if (mounted) setState(() => _error = '刷新共享音乐库失败：$error');
     } finally {
@@ -116,6 +125,8 @@ class _DesktopMediaTransferHubV2ScreenState
 
   Future<void> _start() async {
     if (_busy || _hub.isRunning) return;
+    if (!await _confirmMediaSharing() || !mounted) return;
+
     setState(() {
       _busy = true;
       _error = null;
@@ -131,6 +142,34 @@ class _DesktopMediaTransferHubV2ScreenState
     }
   }
 
+  Future<bool> _confirmMediaSharing() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded),
+        title: const Text('开启加密的网络共享？'),
+        content: const Text(
+          'Media Hub 通过证书指纹固定的 HTTPS 加密普通局域网和 Tailscale 连接。'
+          '配对二维码会把桌面端证书指纹交给手机验证，避免仅凭网络地址信任服务器。'
+          '启动后，已配对设备可以读取共享歌曲、歌词和封面，也可以向电脑上传音频。'
+          '请只与可信设备配对；停止共享会关闭当前服务。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('暂不启用'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('我了解共享范围，继续'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _stop() async {
     if (_busy || !_hub.isRunning) return;
     setState(() => _busy = true);
@@ -144,9 +183,7 @@ class _DesktopMediaTransferHubV2ScreenState
   }
 
   Future<void> _copyPairing(MediaHubSession session) async {
-    await Clipboard.setData(
-      ClipboardData(text: session.pairingUri.toString()),
-    );
+    await Clipboard.setData(ClipboardData(text: session.pairingUri.toString()));
     _showMessage('配对信息已复制，可以粘贴到手机端。');
   }
 
@@ -193,6 +230,8 @@ class _DesktopMediaTransferHubV2ScreenState
             child: ListView(
               padding: EdgeInsets.all(layout.pageGutter),
               children: [
+                const _MediaHubSecurityNotice(),
+                const SizedBox(height: AppSpacing.md),
                 _OverviewCard(
                   running: running,
                   initializing: _initializing,
@@ -214,7 +253,8 @@ class _DesktopMediaTransferHubV2ScreenState
                   )
                 else
                   _WaitingForPairingCard(
-                    initializing: _initializing ||
+                    initializing:
+                        _initializing ||
                         _hubState.status == MediaHubStatus.starting,
                     onStart: _start,
                   ),
@@ -239,6 +279,25 @@ class _DesktopMediaTransferHubV2ScreenState
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaHubSecurityNotice extends StatelessWidget {
+  const _MediaHubSecurityNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.shield_outlined, color: AppColors.warning),
+        title: const Text('网络安全提示'),
+        subtitle: const Text(
+          'Media Hub 使用证书指纹固定的 HTTPS 加密普通局域网和 Tailscale 连接。'
+          '仅在你主动启动并完成扫码配对后，共享歌曲、歌词和封面才会开放给配对设备；'
+          '配对设备也可以向电脑上传音频。请只与可信设备配对。',
         ),
       ),
     );
@@ -281,7 +340,9 @@ class _OverviewCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: (running ? AppColors.success : AppColors.accent)
                         .withAlpha(20),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                   ),
                   child: Icon(
                     running ? Icons.sync_alt_rounded : Icons.devices_rounded,
@@ -296,19 +357,19 @@ class _OverviewCard extends StatelessWidget {
                       Text(
                         running ? '电脑端已准备好配对' : '跨设备传输尚未启动',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         initializing
-                            ? '正在读取电脑音乐库并启动传输服务…'
+                            ? '正在读取电脑本地音乐库…'
                             : running
-                                ? '二维码就在下方。当前自动共享 $trackCount 首电脑本地音乐。'
-                                : '启动后会立即生成二维码，并自动共享电脑本地音乐库。',
+                            ? '二维码就在下方。当前自动共享 $trackCount 首电脑本地音乐。'
+                            : '电脑音乐库已读取；点击“启动传输服务”并确认网络风险后才会开放连接。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -324,15 +385,19 @@ class _OverviewCard extends StatelessWidget {
                   onPressed: busy || initializing
                       ? null
                       : running
-                          ? onStop
-                          : onStart,
+                      ? onStop
+                      : onStart,
                   icon: busy || initializing
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(running ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                      : Icon(
+                          running
+                              ? Icons.stop_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
                   label: Text(running ? '停止传输服务' : '启动传输服务'),
                 ),
                 OutlinedButton.icon(
@@ -376,23 +441,23 @@ class _PairingCard extends StatelessWidget {
       children: [
         Text(
           '1. 用手机扫描这个二维码',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           '手机端：跨设备传输 → 连接电脑 → 扫描桌面二维码。',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
           '2. 或复制下面的配对码',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Container(
@@ -421,9 +486,9 @@ class _PairingCard extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 3),
             child: Text(
               '${endpoint.kind.name}: ${endpoint.host}:${endpoint.port}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),
       ],
@@ -473,9 +538,13 @@ class _WaitingForPairingCard extends StatelessWidget {
             if (initializing)
               const CircularProgressIndicator()
             else
-              const Icon(Icons.qr_code_2_rounded, size: 56, color: AppColors.accent),
+              const Icon(
+                Icons.qr_code_2_rounded,
+                size: 56,
+                color: AppColors.accent,
+              ),
             const SizedBox(height: AppSpacing.md),
-            Text(initializing ? '正在生成配对二维码…' : '启动服务后显示配对二维码'),
+            Text(initializing ? '正在读取电脑音乐库…' : '传输服务默认关闭；确认网络风险后才会显示配对二维码'),
             if (!initializing) ...[
               const SizedBox(height: AppSpacing.md),
               FilledButton.icon(
@@ -547,8 +616,8 @@ class _SharedTracksCard extends StatelessWidget {
                   child: Text(
                     '电脑共享音乐 · ${tracks.length} 首',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 Chip(label: Text(running ? '手机可访问' : '服务已停止')),
@@ -557,9 +626,9 @@ class _SharedTracksCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '这里直接来自电脑本地音乐库，不需要再重复选择文件。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             if (tracks.isEmpty)
@@ -592,8 +661,8 @@ class _SharedTracksCard extends StatelessWidget {
                   child: Text(
                     '另有 ${tracks.length - visible.length} 首未在此预览；手机端会看到完整列表。',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
             ],
@@ -620,7 +689,10 @@ class _ErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.error_outline_rounded, color: AppColors.error),
+        leading: const Icon(
+          Icons.error_outline_rounded,
+          color: AppColors.error,
+        ),
         title: const Text('跨设备传输暂时不可用'),
         subtitle: Text(message),
       ),

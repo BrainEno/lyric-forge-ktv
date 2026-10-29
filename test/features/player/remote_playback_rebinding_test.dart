@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/remote_rebinding_playback_session_service.dart';
@@ -8,121 +9,215 @@ import 'package:lyric_forge_ktv/features/player/domain/services/playback_session
 import 'package:lyric_forge_ktv/features/player/domain/services/remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/remote_audio_track.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/models/shared_audio_track.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_connection_store.dart';
 
 void main() {
-  test('resolver rebinds stale stream and artwork URLs using saved connection',
-      () async {
-    const latest = MediaHubConnection(
-      host: '10.0.0.8',
-      port: 8844,
-      token: 'new-token',
-    );
-    final client = _FakeMediaHubClient(
-      tracks: const [
-        RemoteAudioTrack(
-          id: 'track-1',
-          title: 'Fresh Title',
-          artist: 'Fresh Artist',
-          album: 'Fresh Album',
-          format: 'flac',
-          byteLength: 100,
-          streamPath: '/v1/tracks/track-1/audio',
-          downloadPath: '/v1/tracks/track-1/download',
-          hasArtwork: true,
-          artworkPath: '/v1/tracks/track-1/artwork',
+  test(
+    'resolver rebinds stale stream and artwork URLs using saved connection',
+    () async {
+      const latest = MediaHubConnection(
+        host: '10.0.0.8',
+        port: 8844,
+        token: 'new-token',
+        tlsFingerprint:
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      final client = _FakeMediaHubClient(
+        tracks: const [
+          RemoteAudioTrack(
+            id: 'track-1',
+            title: 'Fresh Title',
+            artist: 'Fresh Artist',
+            album: 'Fresh Album',
+            format: 'flac',
+            byteLength: 100,
+            streamPath: '/v1/tracks/track-1/audio',
+            downloadPath: '/v1/tracks/track-1/download',
+            hasArtwork: true,
+            artworkPath: '/v1/tracks/track-1/artwork',
+          ),
+        ],
+      );
+      final resolver = MediaHubRemotePlaybackItemResolver(
+        client: client,
+        connectionStore: _MemoryConnectionStore(latest),
+      );
+      final stale = _remoteItem(
+        Uri.parse('http://192.168.1.4:4545/v1/tracks/track-1/audio?token=old'),
+      );
+
+      final resolved = await resolver.resolveForPlayback(stale);
+
+      expect(client.connectCalls, 1);
+      expect(
+        resolved.id,
+        stale.id,
+        reason: 'queue identity must remain stable',
+      );
+      expect(resolved.title, 'Fresh Title');
+      expect(resolved.artist, 'Fresh Artist');
+      expect(resolved.streamUri?.host, '10.0.0.8');
+      expect(resolved.streamUri?.port, 8844);
+      expect(resolved.streamUri?.scheme, 'https');
+      expect(resolved.streamUri?.queryParameters.containsKey('token'), isFalse);
+      expect(
+        resolved.audioAsset.metadata.containsKey('remoteArtworkUri'),
+        isFalse,
+      );
+      expect(resolved.artworkPath, isNotNull);
+      expect(File(resolved.artworkPath!).existsSync(), isTrue);
+      expect(resolved.audioAsset.metadata['album'], 'Fresh Album');
+    },
+  );
+
+  test(
+    'audio rebinder rewrites Media Hub URL even for internal queue loads',
+    () async {
+      const latest = MediaHubConnection(
+        host: '172.16.0.9',
+        port: 7788,
+        token: 'current-token',
+        tlsFingerprint:
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      );
+      final client = _FakeMediaHubClient(tracks: const [])..connection = latest;
+      final raw = _FakeAudioPlayer();
+      final audio = MediaHubRebindingAudioPlayerService(
+        delegate: raw,
+        client: client,
+        connectionStore: _MemoryConnectionStore(null),
+      );
+      addTearDown(audio.dispose);
+
+      await audio.loadAudioUri(
+        uri: Uri.parse(
+          'http://old-host:4000/v1/tracks/abc/audio?token=expired&quality=full',
         ),
-      ],
-    );
-    final resolver = MediaHubRemotePlaybackItemResolver(
-      client: client,
-      connectionStore: _MemoryConnectionStore(latest),
-    );
-    final stale = _remoteItem(
-      Uri.parse('http://192.168.1.4:4545/v1/tracks/track-1/audio?token=old'),
-    );
+      );
 
-    final resolved = await resolver.resolveForPlayback(stale);
+      expect(raw.lastLoadedUri?.host, InternetAddress.loopbackIPv4.address);
+      expect(raw.lastLoadedUri?.scheme, 'http');
+      expect(raw.lastLoadedUri?.port, greaterThan(0));
+      expect(raw.lastLoadedUri?.path, startsWith('/play/'));
+      expect(raw.lastLoadedUri?.queryParameters.containsKey('token'), isFalse);
+    },
+  );
 
-    expect(client.connectCalls, 1);
-    expect(resolved.id, stale.id, reason: 'queue identity must remain stable');
-    expect(resolved.title, 'Fresh Title');
-    expect(resolved.artist, 'Fresh Artist');
-    expect(resolved.streamUri?.host, '10.0.0.8');
-    expect(resolved.streamUri?.port, 8844);
-    expect(resolved.streamUri?.queryParameters['token'], 'new-token');
-    final artwork = Uri.parse(
-      resolved.audioAsset.metadata['remoteArtworkUri'] as String,
-    );
-    expect(artwork.host, '10.0.0.8');
-    expect(artwork.queryParameters['token'], 'new-token');
-    expect(resolved.audioAsset.metadata['album'], 'Fresh Album');
-  });
+  test(
+    'loopback audio proxy preserves TLS-pinned HTTP Range responses',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-proxy-test-',
+      );
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final song = File('${root.path}${Platform.pathSeparator}song.mp3');
+      final songBytes = List<int>.generate(16, (index) => index);
+      await song.writeAsBytes(songBytes, flush: true);
 
-  test('audio rebinder rewrites Media Hub URL even for internal queue loads',
-      () async {
-    const latest = MediaHubConnection(
-      host: '172.16.0.9',
-      port: 7788,
-      token: 'current-token',
-    );
-    final client = _FakeMediaHubClient(tracks: const [])..connection = latest;
-    final raw = _FakeAudioPlayer();
-    final audio = MediaHubRebindingAudioPlayerService(
-      delegate: raw,
-      client: client,
-      connectionStore: _MemoryConnectionStore(null),
-    );
+      final hub = HttpMediaHubService(
+        tlsIdentityStore: MediaHubTlsIdentityStore(
+          rootDirectory: Directory('${root.path}${Platform.pathSeparator}tls'),
+        ),
+      );
+      addTearDown(hub.dispose);
+      final session = await hub.startSharing([
+        SharedAudioTrack(
+          id: 'proxy-track',
+          title: 'Proxy Track',
+          localPath: song.path,
+          format: 'mp3',
+          byteLength: songBytes.length,
+        ),
+      ]);
 
-    await audio.loadAudioUri(
-      uri: Uri.parse(
-        'http://old-host:4000/v1/tracks/abc/audio?token=expired&quality=full',
-      ),
-    );
+      final client = HttpMediaHubClientService();
+      addTearDown(client.dispose);
+      final connection = MediaHubConnection(
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        token: session.token,
+        tlsFingerprint: session.tlsFingerprint,
+      );
+      await client.connectTo(connection);
 
-    expect(raw.lastLoadedUri?.host, '172.16.0.9');
-    expect(raw.lastLoadedUri?.port, 7788);
-    expect(raw.lastLoadedUri?.queryParameters['token'], 'current-token');
-    expect(raw.lastLoadedUri?.queryParameters['quality'], 'full');
-  });
+      final raw = _FakeAudioPlayer();
+      final player = MediaHubRebindingAudioPlayerService(
+        delegate: raw,
+        client: client,
+        connectionStore: _MemoryConnectionStore(connection),
+      );
+      addTearDown(player.dispose);
+      await player.loadAudioUri(
+        uri: Uri.parse('https://old-host:4000/v1/tracks/proxy-track/audio'),
+      );
 
-  test('restored remote session stays offline until explicit playback action',
-      () async {
-    final stale = _remoteItem(
-      Uri.parse('http://old-host:4000/v1/tracks/track-1/audio?token=old'),
-    );
-    final fresh = stale.copyWith(
-      streamUri: Uri.parse(
-        'http://new-host:5000/v1/tracks/track-1/audio?token=new',
-      ),
-      audioAsset: stale.audioAsset.copyWith(
-        originalPath:
-            'http://new-host:5000/v1/tracks/track-1/audio?token=new',
-      ),
-    );
-    final delegate = _FakePlaybackSession(stale);
-    final resolver = _FakeResolver(fresh);
-    final session = RemoteRebindingPlaybackSessionService(
-      delegate: delegate,
-      resolver: resolver,
-    );
-    addTearDown(session.dispose);
+      final localClient = HttpClient();
+      addTearDown(() => localClient.close(force: true));
+      final request = await localClient.getUrl(raw.lastLoadedUri!);
+      request.headers.set(HttpHeaders.rangeHeader, 'bytes=2-4');
+      final response = await request.close();
+      final bytes = await response.fold<List<int>>(
+        <int>[],
+        (buffer, chunk) => buffer..addAll(chunk),
+      );
 
-    await Future<void>.delayed(Duration.zero);
-    expect(resolver.calls, 0, reason: 'construction/restore must not network');
+      expect(response.statusCode, HttpStatus.partialContent);
+      expect(
+        response.headers.value(HttpHeaders.contentRangeHeader),
+        'bytes 2-4/16',
+      );
+      expect(bytes, [2, 3, 4]);
+    },
+  );
+  test(
+    'restored remote session stays offline until explicit playback action',
+    () async {
+      final stale = _remoteItem(
+        Uri.parse('http://old-host:4000/v1/tracks/track-1/audio?token=old'),
+      );
+      final fresh = stale.copyWith(
+        streamUri: Uri.parse(
+          'http://new-host:5000/v1/tracks/track-1/audio?token=new',
+        ),
+        audioAsset: stale.audioAsset.copyWith(
+          originalPath:
+              'http://new-host:5000/v1/tracks/track-1/audio?token=new',
+        ),
+      );
+      final delegate = _FakePlaybackSession(stale);
+      final resolver = _FakeResolver(fresh);
+      final session = RemoteRebindingPlaybackSessionService(
+        delegate: delegate,
+        resolver: resolver,
+      );
+      addTearDown(session.dispose);
 
-    await session.togglePlayPause();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        resolver.calls,
+        0,
+        reason: 'construction/restore must not network',
+      );
 
-    expect(resolver.calls, 1);
-    expect(delegate.updatedItems.single.id, stale.id);
-    expect(delegate.currentState.currentItem?.streamUri, fresh.streamUri);
-    expect(delegate.toggleCalls, 1);
-  });
+      await session.togglePlayPause();
+
+      expect(resolver.calls, 1);
+      expect(delegate.updatedItems.single.id, stale.id);
+      expect(delegate.currentState.currentItem?.streamUri, fresh.streamUri);
+      expect(delegate.toggleCalls, 1);
+    },
+  );
 
   test('resolver failure keeps the restored queue untouched', () async {
     final stale = _remoteItem(
@@ -221,9 +316,7 @@ class _FakeMediaHubClient implements MediaHubClientService {
   @override
   Uri playbackUriFor(RemoteAudioTrack track) {
     final current = connection!;
-    return current.resolve(track.streamPath).replace(
-      queryParameters: {'token': current.token},
-    );
+    return current.resolve(track.streamPath);
   }
 
   @override
@@ -235,6 +328,22 @@ class _FakeMediaHubClient implements MediaHubClientService {
     required String destinationPath,
     TransferProgressCallback? onProgress,
   }) async {}
+
+  @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[
+    137,
+    80,
+    78,
+    71,
+    13,
+    10,
+    26,
+    10,
+    1,
+    2,
+    3,
+    4,
+  ];
 
   @override
   Future<void> uploadFile({
@@ -343,7 +452,7 @@ class _FakePlaybackSession implements PlaybackSessionService {
   int toggleCalls = 0;
 
   _FakePlaybackSession(PlaybackItem item)
-      : _state = PlaybackSessionState(queue: [item], currentIndex: 0);
+    : _state = PlaybackSessionState(queue: [item], currentIndex: 0);
 
   @override
   Stream<PlaybackSessionState> get stateStream => _stateController.stream;

@@ -5,17 +5,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 
 void main() {
   late Directory temp;
+  late Directory incomingDirectory;
   late HttpMediaHubService service;
   final imported = <String>[];
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('lyricforge-incoming-');
+    incomingDirectory = Directory(
+      '${temp.path}${Platform.pathSeparator}incoming',
+    );
     imported.clear();
     service = HttpMediaHubService(
-      incomingDirectory: temp,
+      incomingDirectory: incomingDirectory,
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+      ),
       onIncomingFile: (path) async {
         imported.add(path);
       },
@@ -27,43 +35,48 @@ void main() {
     if (await temp.exists()) await temp.delete(recursive: true);
   });
 
-  test('empty share list starts receive-only hub and imports complete upload', () async {
-    final session = await service.startSharing(const []);
-    expect(session.trackCount, 0);
+  test(
+    'empty share list starts receive-only hub and imports complete upload',
+    () async {
+      final session = await service.startSharing(const []);
+      expect(session.trackCount, 0);
 
-    final client = HttpClient();
-    addTearDown(() => client.close(force: true));
-    final uri = Uri(
-      scheme: 'http',
-      host: InternetAddress.loopbackIPv4.address,
-      port: session.port,
-      path: '/v1/incoming/audio',
-      queryParameters: const {'filename': '测试歌曲.mp3'},
-    );
-    final request = await client.postUrl(uri);
-    request.headers.set(
-      HttpHeaders.authorizationHeader,
-      'Bearer ${session.token}',
-    );
-    final bytes = utf8.encode('fake mp3 bytes');
-    request.contentLength = bytes.length;
-    request.add(bytes);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
+      final uri = Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        path: '/v1/incoming/audio',
+        queryParameters: const {'filename': '测试歌曲.mp3'},
+      );
+      final request = await client.postUrl(uri);
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ' + session.token,
+      );
+      final bytes = utf8.encode('fake mp3 bytes');
+      request.contentLength = bytes.length;
+      request.add(bytes);
 
-    final response = await request.close();
-    final body = await utf8.decoder.bind(response).join();
+      final response = await request.close();
+      final body = await utf8.decoder.bind(response).join();
 
-    expect(response.statusCode, HttpStatus.created);
-    expect(body, contains('测试歌曲.mp3'));
-    expect(imported, hasLength(1));
-    final received = File(imported.single);
-    expect(await received.exists(), isTrue);
-    expect(await received.readAsBytes(), bytes);
-    expect(await File('${received.path}.part').exists(), isFalse);
-  });
+      expect(response.statusCode, HttpStatus.created);
+      expect(body, contains('测试歌曲.mp3'));
+      expect(imported, hasLength(1));
+      final received = File(imported.single);
+      expect(await received.exists(), isTrue);
+      expect(await received.readAsBytes(), bytes);
+      expect(await File('${received.path}.part').exists(), isFalse);
+    },
+  );
 
   test('real client uploads a local file to receive-only hub', () async {
     final session = await service.startSharing(const []);
-    final sourceDir = await Directory.systemTemp.createTemp('lyricforge-upload-source-');
+    final sourceDir = await Directory.systemTemp.createTemp(
+      'lyricforge-upload-source-',
+    );
     addTearDown(() async {
       if (await sourceDir.exists()) await sourceDir.delete(recursive: true);
     });
@@ -78,6 +91,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         token: session.token,
+        tlsFingerprint: session.tlsFingerprint,
         transport: MediaHubTransport.lan,
       ),
     );
@@ -99,10 +113,10 @@ void main() {
 
   test('unauthorized upload is rejected before a file is created', () async {
     final session = await service.startSharing(const []);
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final uri = Uri(
-      scheme: 'http',
+      scheme: 'https',
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
       path: '/v1/incoming/audio',
@@ -117,24 +131,27 @@ void main() {
 
     expect(response.statusCode, HttpStatus.unauthorized);
     expect(imported, isEmpty);
-    expect(await temp.list().toList(), isEmpty);
+    expect(await incomingDirectory.exists(), isFalse);
   });
 
   test('failed library import removes the completed incoming file', () async {
     await service.stopSharing();
     service = HttpMediaHubService(
-      incomingDirectory: temp,
+      incomingDirectory: incomingDirectory,
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
+      ),
       onIncomingFile: (_) async {
         throw UnsupportedError('unsupported audio');
       },
     );
     final session = await service.startSharing(const []);
 
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final request = await client.postUrl(
       Uri(
-        scheme: 'http',
+        scheme: 'https',
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/incoming/audio',
@@ -152,6 +169,13 @@ void main() {
     await response.drain<void>();
 
     expect(response.statusCode, HttpStatus.internalServerError);
-    expect(await temp.list().toList(), isEmpty);
+    expect(await incomingDirectory.list().toList(), isEmpty);
   });
+}
+
+HttpClient _pinnedHttpClient(String fingerprint) {
+  final client = HttpClient(context: SecurityContext(withTrustedRoots: false));
+  client.badCertificateCallback = (certificate, host, port) =>
+      mediaHubTlsFingerprint(certificate.der) == fingerprint.toLowerCase();
+  return client;
 }
