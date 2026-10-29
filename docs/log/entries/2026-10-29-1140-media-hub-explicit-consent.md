@@ -5,7 +5,7 @@
 - Validation:
   - Commit `3c264855420dd65f31492e2295cd079220f5c4b4`: Flutter Quality Gate passed, KTV history/recovery validation passed, and Windows Debug native build passed.
   - UI-copy/test/doc cleanup commit `bd5a5008cf142c8a2ae66e4449b68da975469669`: Work-log preflight exposed missing required entry fields and handoff headings; corrected in the next commit.
-  - Commit `12310ebb2f73e7722c79538fb5748732c9613034`: work-log preflight/formatter passed; full suite caught a stale test delimiter after the dialog method rename. This commit corrects that assertion. Complete final-head CI is still required before merge.
+  - Commit `12310ebb2f73e7722c79538fb5748732c9613034`: work-log preflight/formatter passed; full suite caught a stale test delimiter after the dialog method rename; fixed the marker, and this follow-up applies the repository formatter output. Complete final-head CI is still required before merge.
   - Physical Android ↔ desktop pairing and real audio playback still need a device-level smoke test.
 - Notes: Require protocol version 2, use bearer headers instead of session tokens in URLs, proxy native audio through loopback with pinned HTTPS upstream and Range semantics, and deny Android cleartext except the loopback audio proxy. Legacy protocol-v1 saved connections must pair again; IPv4 is currently supported.
-- Commit: `docs: sync Media Hub work log after test update`
+- Commit: `style: format Media Hub consent contract test`

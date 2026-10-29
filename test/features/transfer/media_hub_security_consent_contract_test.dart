@@ -87,10 +87,7 @@ void main() {
     );
     test('starting sharing requires explicit scope consent', () {
       final start = source.indexOf('Future<void> _start()');
-      final end = source.indexOf(
-        'Future<bool> _confirmMediaSharing()',
-        start,
-      );
+      final end = source.indexOf('Future<bool> _confirmMediaSharing()', start);
       expect(start, greaterThanOrEqualTo(0));
       expect(end, greaterThan(start));
       final method = source.substring(start, end);
