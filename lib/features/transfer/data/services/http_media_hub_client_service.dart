@@ -236,6 +236,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     return bytes;
   }
 
+  @override
   Future<void> downloadTrack({
     required RemoteAudioTrack track,
     required String destinationPath,
