@@ -22,10 +22,11 @@ String mediaHubDiscoveryOfferProof({
   required String requestId,
   required int port,
   required String token,
+  required String tlsFingerprint,
 }) {
   return _hmac(
     key,
-    'offer\n$deviceId\n$requestId\n$port\n$token',
+    'offer\n$deviceId\n$requestId\n$port\n$token\n$tlsFingerprint',
   );
 }
 
