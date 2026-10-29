@@ -1,56 +1,32 @@
 # Handoff
 
 ## 目标
-Resolve the critical Media Hub transport risk in issue #218. This branch replaces the former plaintext LAN protocol with fingerprint-pinned HTTPS, keeps sharing off until explicit user consent, and restricts listeners to detected private-LAN/Tailscale IPv4 addresses plus loopback for local playback.
+Start issue #223 with a small, independently testable home-screen coverage slice: verify dashboard empty states and the recoverable recent-project load error.
 
 ## Git 现场
-- Repository: BrainEno/lyric-forge-ktv
-- Base: `f711ebe48002089ec110c05703b3c5975bb82e20`
-- Branch: `security/explicit-media-hub-consent-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/239
-- Current branch head must be checked before further edits.
-- Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
+- Repository: `BrainEno/lyric-forge-ktv`
+- Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
+- Branch: `test/dashboard-empty-and-retry-states-20261029`
+- PR: to be opened after final work-log and source review.
 
 ## 已改文件
-- `lib/features/transfer/data/services/http_media_hub_service.dart`
-- `lib/features/transfer/data/services/http_media_hub_client_service.dart`
-- `lib/features/transfer/data/services/media_hub_tls_identity_store.dart`
-- `lib/features/transfer/data/services/media_hub_discovery_auth.dart`
-- `lib/features/transfer/data/services/udp_media_hub_discovery_service.dart`
-- `lib/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart`
-- `lib/features/transfer/domain/models/media_hub_connection.dart`
-- `lib/features/transfer/domain/models/media_hub_discovery.dart`
-- `lib/features/transfer/domain/models/media_hub_session.dart`
-- `lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart`
-- `android/app/src/main/AndroidManifest.xml`
-- `android/app/src/main/res/xml/network_security_config.xml`
-- Media Hub TLS, pairing/discovery, artwork, upload, and audio playback regression tests
-- Work-log entry, active summary, handoff, and index
-
-## Security implementation
-- Generate and persist a per-installation self-signed certificate/key pair; pin its SHA-256 DER fingerprint from the QR pairing flow.
-- Require HTTPS protocol version 2 and fingerprint matching for Media Hub client requests.
-- Bind server listeners only to detected private-LAN/Tailscale IPv4 addresses; retain loopback-only access for local playback, never wildcard bind.
-- Require bearer authorization headers; keep session tokens out of audio URLs and route native playback via a loopback proxy that forwards pinned HTTPS with Range/If-Range semantics.
-- Disable Android cleartext globally; allow it only for the loopback native-audio proxy.
-- Keep sharing stopped by default and require affirmative consent before starting or replacing the active session.
-- Update UI wording to describe HTTPS certificate pinning and the actual sharing scope, not the superseded plaintext-HTTP risk.
+- `lib/features/home/presentation/screens/dashboard_screen.dart` — constructor accepts optional repository/playback/queue collaborators; production defaults still use `ServiceLocatorGlobal.I`.
+- `test/features/home/presentation/screens/dashboard_screen_test.dart` — empty playback/history/project state plus failed project loading and retry to empty state.
+- `docs/log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`.
 
 ## 检查结果
-- Latest validated commit before the current follow-up edits: Flutter Quality Gate passed, KTV history/recovery validation passed, and Windows Debug native build passed on `3c264855420dd65f31492e2295cd079220f5c4b4`.
-- The final head after UI/docs cleanup must trigger and pass the same complete validation again.
-- Existing TLS identity, pinned client, upload rejection, discovery recovery, playback Range, and consent contract tests are included; no tests were removed or skipped.
-- Do not close #218 or merge until the latest head's complete CI is green.
+- Test fixtures inject all five collaborators so the tests do not initialize native audio or ASR runtimes.
+- The retry regression asserts the first project request fails, the error UI appears, the user taps `重试`, a second request succeeds, and the empty state replaces the error.
+- Final-head Flutter Quality Gate must pass work-log preflight, changed-Dart formatting, analyzer, and the full test suite. Local Flutter/Dart SDKs are unavailable.
 
 ## 下一步
-1. Re-run the full CI set after the UI wording, contract tests, docs, and code-cleanup commit.
-2. Review any new CI failures from exact logs, without weakening tests.
-3. Once validation is green, update PR metadata to accurately reflect the TLS fix and close #218 via merge.
-4. Continue with remaining open issues in severity order; issue #222 is substantially covered by token removal from playback URLs, while upload resource limits (#224) and CORS/constant-time comparison (#227) remain separate follow-ups.
+1. Run the final-head Flutter Quality Gate; fix format/analyzer/runtime errors from the exact CI output.
+2. If this slice passes, open a focused PR against `main` and keep #223 open because transfer/player coverage and coverage-report policy remain unresolved.
+3. Then add the next highest-value transfer integration case not already covered by #240/#242/#245/#246/#248/#252, rather than adding a percentage threshold before a stable baseline.
 
 ## 已知风险
-- TLS is self-signed and trusted by exact SHA-256 certificate pinning during pairing; legacy protocol-v1 connections must pair again.
-- Listener discovery and binding currently target IPv4.
-- Physical phone/desktop pairing and real audio playback still need a real pairing and playback smoke test.
+- This slice covers home empty/retry states only; it does not yet test a populated dashboard or visual layout at multiple breakpoints.
+- Local Flutter/Dart SDKs are unavailable, so the widgets have not been run locally.
+- Issue #223's original feature line ratios are a snapshot; do not treat this small test change as resolving all of the broader distribution gap.
 
-最后更新：2026-10-29 16:05（Asia/Taipei）
+最后更新：2026-10-29 21:10（Asia/Taipei）
