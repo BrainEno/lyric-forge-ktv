@@ -386,9 +386,7 @@ void main() {
     await retryResponse.drain<void>();
     expect(retryResponse.statusCode, HttpStatus.created);
   });
-
 }
-
 
 Future<SecureSocket> _openPinnedSocket(MediaHubSession session) {
   return SecureSocket.connect(

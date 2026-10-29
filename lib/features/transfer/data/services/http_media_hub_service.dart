@@ -452,9 +452,11 @@ class HttpMediaHubService implements MediaHubService {
   ) async {
     final rawName = request.uri.queryParameters['filename']?.trim();
     if (rawName == null || rawName.isEmpty) {
-      await _writeJson(request.response, HttpStatus.badRequest, {
-        'error': 'missing_filename',
-      });
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.badRequest,
+        'missing_filename',
+      );
       return;
     }
 
@@ -525,7 +527,7 @@ class HttpMediaHubService implements MediaHubService {
             throw const _IncomingUploadInsufficientSpace();
           }
           nextDiskSpaceCheckAt =
-              received + _incomingUploadDiskSpaceCheckIntervalBytes;
+              received + chunk.length + _incomingUploadDiskSpaceCheckIntervalBytes;
         }
 
         sink.add(chunk);
