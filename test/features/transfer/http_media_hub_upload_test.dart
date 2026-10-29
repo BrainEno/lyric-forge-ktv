@@ -139,9 +139,7 @@ void main() {
     service = HttpMediaHubService(
       incomingDirectory: incomingDirectory,
       tlsIdentityStore: MediaHubTlsIdentityStore(
-        rootDirectory: Directory(
-          '${temp.path}${Platform.pathSeparator}tls',
-        ),
+        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
       ),
       onIncomingFile: (_) async {
         throw UnsupportedError('unsupported audio');
