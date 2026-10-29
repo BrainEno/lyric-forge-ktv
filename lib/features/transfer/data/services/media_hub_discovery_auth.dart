@@ -10,10 +10,7 @@ String mediaHubDiscoveryRequestProof({
   required String deviceId,
   required String requestId,
 }) {
-  return _hmac(
-    key,
-    'discover\n$deviceId\n$requestId',
-  );
+  return _hmac(key, 'discover\n$deviceId\n$requestId');
 }
 
 String mediaHubDiscoveryOfferProof({
