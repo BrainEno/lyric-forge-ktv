@@ -47,10 +47,7 @@ void main() {
         queryParameters: const {'filename': '测试歌曲.mp3'},
       );
       final request = await client.postUrl(uri);
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        '***',
-      );
+      request.headers.set(HttpHeaders.authorizationHeader, '***');
       final bytes = utf8.encode('fake mp3 bytes');
       request.contentLength = bytes.length;
       request.add(bytes);
