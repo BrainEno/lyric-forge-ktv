@@ -587,7 +587,7 @@ class HttpMediaHubService implements MediaHubService {
       }
       idleTimer?.cancel();
       idleTimer = null;
-      totalTimer?.cancel();
+      totalTimer.cancel();
       totalTimer = null;
 
       await sink.flush();
