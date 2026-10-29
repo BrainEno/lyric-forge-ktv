@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
+import 'media_hub_tls_identity_store.dart';
 
 typedef IncomingMediaCallback = Future<void> Function(String path);
 
@@ -15,6 +16,7 @@ class HttpMediaHubService implements MediaHubService {
   static const int preferredPort = 48517;
 
   final Uuid _uuid;
+  final MediaHubTlsIdentityStore _tlsIdentityStore;
   final Directory? incomingDirectory;
   final IncomingMediaCallback? onIncomingFile;
   final StreamController<MediaHubState> _stateController =
@@ -78,7 +80,8 @@ class HttpMediaHubService implements MediaHubService {
         );
       }
 
-      final bound = await _bindServers();
+      final tlsIdentity = await _tlsIdentityStore.loadOrCreate();
+      final bound = await _bindServers(tlsIdentity);
       _servers.addAll(bound.servers);
       final endpoints = bound.endpoints;
       final preferredEndpoint = endpoints.first;
@@ -89,6 +92,7 @@ class HttpMediaHubService implements MediaHubService {
         startedAt: DateTime.now(),
         trackCount: validated.length,
         endpoints: endpoints,
+        tlsFingerprint: tlsIdentity.fingerprint,
       );
 
       _tracks = Map.unmodifiable(validated);
@@ -126,7 +130,9 @@ class HttpMediaHubService implements MediaHubService {
     await _stateController.close();
   }
 
-  Future<_BoundMediaHubServers> _bindServers() async {
+  Future<_BoundMediaHubServers> _bindServers(
+    MediaHubTlsIdentity tlsIdentity,
+  ) async {
     final servers = <HttpServer>[];
     final endpoints = <MediaHubEndpoint>[];
 
@@ -157,6 +163,7 @@ class HttpMediaHubService implements MediaHubService {
           MediaHubEndpointKind.tailscale,
           servers,
           endpoints,
+          tlsIdentity,
         );
       }
       for (final host in lanHosts) {
@@ -171,6 +178,7 @@ class HttpMediaHubService implements MediaHubService {
       if (endpoints.isEmpty) {
         final loopback = await _bindWithPortFallback(
           InternetAddress.loopbackIPv4.address,
+          tlsIdentity,
         );
         servers.add(loopback);
         endpoints.add(
@@ -186,7 +194,11 @@ class HttpMediaHubService implements MediaHubService {
         final primary = endpoints.first;
         try {
           servers.add(
-            await HttpServer.bind(InternetAddress.loopbackIPv4, primary.port),
+            await HttpServer.bindSecure(
+              InternetAddress.loopbackIPv4,
+              primary.port,
+              tlsIdentity.createServerContext(),
+            ),
           );
         } on SocketException {
           // The advertised LAN/Tailscale endpoint remains usable if loopback
@@ -209,9 +221,10 @@ class HttpMediaHubService implements MediaHubService {
     MediaHubEndpointKind kind,
     List<HttpServer> servers,
     List<MediaHubEndpoint> endpoints,
+    MediaHubTlsIdentity tlsIdentity,
   ) async {
     try {
-      final server = await _bindWithPortFallback(host);
+      final server = await _bindWithPortFallback(host, tlsIdentity);
       servers.add(server);
       endpoints.add(
         MediaHubEndpoint(host: host, port: server.port, kind: kind),
@@ -221,11 +234,20 @@ class HttpMediaHubService implements MediaHubService {
     }
   }
 
-  Future<HttpServer> _bindWithPortFallback(String host) async {
+  Future<HttpServer> _bindWithPortFallback(
+    String host,
+    MediaHubTlsIdentity tlsIdentity,
+  ) async {
+    Future<HttpServer> bind(int port) => HttpServer.bindSecure(
+          InternetAddress(host),
+          port,
+          tlsIdentity.createServerContext(),
+        );
+
     try {
-      return await HttpServer.bind(InternetAddress(host), preferredPort);
+      return await bind(preferredPort);
     } on SocketException {
-      return HttpServer.bind(InternetAddress(host), 0);
+      return bind(0);
     }
   }
 
