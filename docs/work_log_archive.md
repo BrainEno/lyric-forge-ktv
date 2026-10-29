@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-28 17:45] Bound Whisper CLI process lifetimes `fix: bound Whisper CLI process lifetimes (#211)` ([entry](log/entries/2026-10-28-1745-bound-whisper-cli-process-lifetimes.md))
 - [2026-10-28 16:40] Add recoverable atomic JSON persistence ([entry](log/entries/2026-10-28-1640-recoverable-json-persistence.md))
 - [2026-10-28 13:45] Fix macOS Release Media Hub network entitlement `fix: enforce macOS Release Media Hub network entitlement` ([entry](log/entries/2026-10-28-1345-fix-macos-release-network-entitlement.md))
 - [2026-10-28 13:39] Reframe roadmap around open-source product quality ([entry](log/entries/2026-10-28-1339-reframe-product-quality-roadmap.md))
@@ -143,4 +144,5 @@
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
+
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
