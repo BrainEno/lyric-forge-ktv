@@ -85,10 +85,10 @@ void main() {
         expect(proxySource, contains('HttpHeaders.authorizationHeader'));
       },
     );
-    test('starting sharing requires affirmative risk consent', () {
+    test('starting sharing requires explicit scope consent', () {
       final start = source.indexOf('Future<void> _start()');
       final end = source.indexOf(
-        'Future<bool> _confirmInsecureSharing()',
+        'Future<bool> _confirmMediaSharing()',
         start,
       );
       expect(start, greaterThanOrEqualTo(0));
