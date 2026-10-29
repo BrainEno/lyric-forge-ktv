@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/remote_rebinding_playback_session_service.dart';
@@ -22,6 +23,7 @@ void main() {
       host: '10.0.0.8',
       port: 8844,
       token: 'new-token',
+      tlsFingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     );
     final client = _FakeMediaHubClient(
       tracks: const [
@@ -55,12 +57,11 @@ void main() {
     expect(resolved.artist, 'Fresh Artist');
     expect(resolved.streamUri?.host, '10.0.0.8');
     expect(resolved.streamUri?.port, 8844);
-    expect(resolved.streamUri?.queryParameters['token'], 'new-token');
-    final artwork = Uri.parse(
-      resolved.audioAsset.metadata['remoteArtworkUri'] as String,
-    );
-    expect(artwork.host, '10.0.0.8');
-    expect(artwork.queryParameters['token'], 'new-token');
+    expect(resolved.streamUri?.scheme, 'https');
+    expect(resolved.streamUri?.queryParameters.containsKey('token'), isFalse);
+    expect(resolved.audioAsset.metadata.containsKey('remoteArtworkUri'), isFalse);
+    expect(resolved.artworkPath, isNotNull);
+    expect(File(resolved.artworkPath!).existsSync(), isTrue);
     expect(resolved.audioAsset.metadata['album'], 'Fresh Album');
   });
 
@@ -70,6 +71,7 @@ void main() {
       host: '172.16.0.9',
       port: 7788,
       token: 'current-token',
+      tlsFingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     );
     final client = _FakeMediaHubClient(tracks: const [])..connection = latest;
     final raw = _FakeAudioPlayer();
@@ -78,6 +80,7 @@ void main() {
       client: client,
       connectionStore: _MemoryConnectionStore(null),
     );
+    addTearDown(audio.dispose);
 
     await audio.loadAudioUri(
       uri: Uri.parse(
@@ -85,10 +88,11 @@ void main() {
       ),
     );
 
-    expect(raw.lastLoadedUri?.host, '172.16.0.9');
-    expect(raw.lastLoadedUri?.port, 7788);
-    expect(raw.lastLoadedUri?.queryParameters['token'], 'current-token');
-    expect(raw.lastLoadedUri?.queryParameters['quality'], 'full');
+    expect(raw.lastLoadedUri?.host, InternetAddress.loopbackIPv4.address);
+    expect(raw.lastLoadedUri?.scheme, 'http');
+    expect(raw.lastLoadedUri?.port, greaterThan(0));
+    expect(raw.lastLoadedUri?.path, startsWith('/play/'));
+    expect(raw.lastLoadedUri?.queryParameters.containsKey('token'), isFalse);
   });
 
   test('restored remote session stays offline until explicit playback action',
@@ -237,7 +241,8 @@ class _FakeMediaHubClient implements MediaHubClientService {
   }) async {}
 
   @override
-  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[];
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async =>
+      <int>[137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4];
 
   @override
   Future<void> uploadFile({
