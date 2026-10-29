@@ -33,7 +33,10 @@ void main() {
       expect(end, greaterThan(start));
       final method = source.substring(start, end);
 
-      expect(method, contains('if (!await _confirmInsecureSharing()) return;'));
+      expect(
+        method,
+        contains('if (!await _confirmInsecureSharing() || !mounted) return;'),
+      );
       expect(method, contains('await _hub.startSharing(tracks)'));
     });
 
