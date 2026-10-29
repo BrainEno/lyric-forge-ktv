@@ -24,11 +24,8 @@ class HttpMediaHubService implements MediaHubService {
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
 
-  HttpMediaHubService({
-    Uuid? uuid,
-    this.incomingDirectory,
-    this.onIncomingFile,
-  }) : _uuid = uuid ?? const Uuid();
+  HttpMediaHubService({Uuid? uuid, this.incomingDirectory, this.onIncomingFile})
+    : _uuid = uuid ?? const Uuid();
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -95,12 +92,7 @@ class HttpMediaHubService implements MediaHubService {
       );
 
       _tracks = Map.unmodifiable(validated);
-      _emit(
-        MediaHubState(
-          status: MediaHubStatus.running,
-          session: session,
-        ),
-      );
+      _emit(MediaHubState(status: MediaHubStatus.running, session: session));
 
       for (final server in _servers) {
         server.listen((request) {
@@ -110,16 +102,11 @@ class HttpMediaHubService implements MediaHubService {
 
       return session;
     } catch (error) {
-      await Future.wait(
-        _servers.map((server) => server.close(force: true)),
-      );
+      await Future.wait(_servers.map((server) => server.close(force: true)));
       _servers.clear();
       _tracks = const {};
       _emit(
-        MediaHubState(
-          status: MediaHubStatus.failed,
-          error: error.toString(),
-        ),
+        MediaHubState(status: MediaHubStatus.failed, error: error.toString()),
       );
       rethrow;
     }
@@ -199,10 +186,7 @@ class HttpMediaHubService implements MediaHubService {
         final primary = endpoints.first;
         try {
           servers.add(
-            await HttpServer.bind(
-              InternetAddress.loopbackIPv4,
-              primary.port,
-            ),
+            await HttpServer.bind(InternetAddress.loopbackIPv4, primary.port),
           );
         } on SocketException {
           // The advertised LAN/Tailscale endpoint remains usable if loopback
@@ -259,11 +243,9 @@ class HttpMediaHubService implements MediaHubService {
 
     try {
       if (!_isAuthorized(request, session.token)) {
-        await _writeJson(
-          request.response,
-          HttpStatus.unauthorized,
-          {'error': 'unauthorized'},
-        );
+        await _writeJson(request.response, HttpStatus.unauthorized, {
+          'error': 'unauthorized',
+        });
         return;
       }
 
@@ -273,20 +255,17 @@ class HttpMediaHubService implements MediaHubService {
           segments.length == 2 &&
           segments[0] == 'v1' &&
           segments[1] == 'health') {
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {
-            'status': 'ok',
-            'protocolVersion': 1,
-            'startedAt': session.startedAt.toIso8601String(),
-            'trackCount': _tracks.length,
-            'acceptsUploads': true,
-            'remoteAccessAvailable': session.remoteAccessAvailable,
-            'endpoints':
-                session.endpoints.map((endpoint) => endpoint.toJson()).toList(),
-          },
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'status': 'ok',
+          'protocolVersion': 1,
+          'startedAt': session.startedAt.toIso8601String(),
+          'trackCount': _tracks.length,
+          'acceptsUploads': true,
+          'remoteAccessAvailable': session.remoteAccessAvailable,
+          'endpoints': session.endpoints
+              .map((endpoint) => endpoint.toJson())
+              .toList(),
+        });
         return;
       }
 
@@ -294,17 +273,14 @@ class HttpMediaHubService implements MediaHubService {
           segments.length == 2 &&
           segments[0] == 'v1' &&
           segments[1] == 'tracks') {
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {
-            'tracks': _tracks.values.map(_trackPublicJson).toList(),
-          },
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'tracks': _tracks.values.map(_trackPublicJson).toList(),
+        });
         return;
       }
 
-      final isIncomingAudio = request.method == 'POST' &&
+      final isIncomingAudio =
+          request.method == 'POST' &&
           segments.length == 3 &&
           segments[0] == 'v1' &&
           segments[1] == 'incoming' &&
@@ -314,7 +290,8 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
-      final isLyricsRequest = request.method == 'GET' &&
+      final isLyricsRequest =
+          request.method == 'GET' &&
           segments.length == 4 &&
           segments[0] == 'v1' &&
           segments[1] == 'tracks' &&
@@ -323,47 +300,39 @@ class HttpMediaHubService implements MediaHubService {
       if (isLyricsRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
 
         final lyrics = track.lyrics;
         if (lyrics == null || lyrics.lines.isEmpty) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'lyrics_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'lyrics_not_found',
+          });
           return;
         }
 
-        await _writeJson(
-          request.response,
-          HttpStatus.ok,
-          {'lyrics': lyrics.toJson()},
-        );
+        await _writeJson(request.response, HttpStatus.ok, {
+          'lyrics': lyrics.toJson(),
+        });
         return;
       }
 
       final isArtworkRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
-              segments.length == 4 &&
-              segments[0] == 'v1' &&
-              segments[1] == 'tracks' &&
-              segments[3] == 'artwork';
+          segments.length == 4 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'tracks' &&
+          segments[3] == 'artwork';
 
       if (isArtworkRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
         await _serveArtwork(request, track);
@@ -372,19 +341,17 @@ class HttpMediaHubService implements MediaHubService {
 
       final isAudioRequest =
           (request.method == 'GET' || request.method == 'HEAD') &&
-              segments.length == 4 &&
-              segments[0] == 'v1' &&
-              segments[1] == 'tracks' &&
-              segments[3] == 'audio';
+          segments.length == 4 &&
+          segments[0] == 'v1' &&
+          segments[1] == 'tracks' &&
+          segments[3] == 'audio';
 
       if (isAudioRequest) {
         final track = _tracks[segments[2]];
         if (track == null) {
-          await _writeJson(
-            request.response,
-            HttpStatus.notFound,
-            {'error': 'track_not_found'},
-          );
+          await _writeJson(request.response, HttpStatus.notFound, {
+            'error': 'track_not_found',
+          });
           return;
         }
 
@@ -392,18 +359,15 @@ class HttpMediaHubService implements MediaHubService {
         return;
       }
 
-      await _writeJson(
-        request.response,
-        HttpStatus.notFound,
-        {'error': 'not_found'},
-      );
+      await _writeJson(request.response, HttpStatus.notFound, {
+        'error': 'not_found',
+      });
     } catch (error) {
       try {
-        await _writeJson(
-          request.response,
-          HttpStatus.internalServerError,
-          {'error': 'internal_error', 'message': error.toString()},
-        );
+        await _writeJson(request.response, HttpStatus.internalServerError, {
+          'error': 'internal_error',
+          'message': error.toString(),
+        });
       } catch (_) {
         await request.response.close();
       }
@@ -413,11 +377,9 @@ class HttpMediaHubService implements MediaHubService {
   Future<void> _receiveIncomingAudio(HttpRequest request) async {
     final rawName = request.uri.queryParameters['filename']?.trim();
     if (rawName == null || rawName.isEmpty) {
-      await _writeJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'error': 'missing_filename'},
-      );
+      await _writeJson(request.response, HttpStatus.badRequest, {
+        'error': 'missing_filename',
+      });
       return;
     }
 
@@ -443,15 +405,11 @@ class HttpMediaHubService implements MediaHubService {
 
       if (expected != null && received != expected) {
         if (await partial.exists()) await partial.delete();
-        await _writeJson(
-          request.response,
-          HttpStatus.badRequest,
-          {
-            'error': 'length_mismatch',
-            'expected': expected,
-            'received': received,
-          },
-        );
+        await _writeJson(request.response, HttpStatus.badRequest, {
+          'error': 'length_mismatch',
+          'expected': expected,
+          'received': received,
+        });
         return;
       }
 
@@ -462,25 +420,20 @@ class HttpMediaHubService implements MediaHubService {
           await callback(destination.path);
         } catch (error) {
           if (await destination.exists()) await destination.delete();
-          await _writeJson(
-            request.response,
-            HttpStatus.internalServerError,
-            {'error': 'library_import_failed', 'message': error.toString()},
-          );
+          await _writeJson(request.response, HttpStatus.internalServerError, {
+            'error': 'library_import_failed',
+            'message': error.toString(),
+          });
           return;
         }
       }
 
-      await _writeJson(
-        request.response,
-        HttpStatus.created,
-        {
-          'status': 'ok',
-          'filename': destination.uri.pathSegments.last,
-          'byteLength': received,
-          'imported': callback != null,
-        },
-      );
+      await _writeJson(request.response, HttpStatus.created, {
+        'status': 'ok',
+        'filename': destination.uri.pathSegments.last,
+        'byteLength': received,
+        'imported': callback != null,
+      });
     } catch (error) {
       try {
         await sink.close();
@@ -505,7 +458,8 @@ class HttpMediaHubService implements MediaHubService {
     final extension = dot > 0 ? fileName.substring(dot) : '';
     var candidate = File('${directory.path}${Platform.pathSeparator}$fileName');
     var suffix = 1;
-    while (await candidate.exists() || await File('${candidate.path}.part').exists()) {
+    while (await candidate.exists() ||
+        await File('${candidate.path}.part').exists()) {
       candidate = File(
         '${directory.path}${Platform.pathSeparator}${stem}_$suffix$extension',
       );
@@ -528,27 +482,24 @@ class HttpMediaHubService implements MediaHubService {
   ) async {
     final path = track.artworkPath;
     if (path == null || path.trim().isEmpty) {
-      await _writeJson(
-        request.response,
-        HttpStatus.notFound,
-        {'error': 'artwork_not_found'},
-      );
+      await _writeJson(request.response, HttpStatus.notFound, {
+        'error': 'artwork_not_found',
+      });
       return;
     }
 
     final file = File(path);
     if (!await file.exists()) {
-      await _writeJson(
-        request.response,
-        HttpStatus.gone,
-        {'error': 'artwork_missing'},
-      );
+      await _writeJson(request.response, HttpStatus.gone, {
+        'error': 'artwork_missing',
+      });
       return;
     }
 
     request.response.statusCode = HttpStatus.ok;
-    request.response.headers.contentType =
-        ContentType.parse(_imageMimeTypeFor(path));
+    request.response.headers.contentType = ContentType.parse(
+      _imageMimeTypeFor(path),
+    );
     request.response.headers.set(
       HttpHeaders.cacheControlHeader,
       'private, max-age=3600',
@@ -562,17 +513,12 @@ class HttpMediaHubService implements MediaHubService {
     await request.response.close();
   }
 
-  Future<void> _serveAudio(
-    HttpRequest request,
-    SharedAudioTrack track,
-  ) async {
+  Future<void> _serveAudio(HttpRequest request, SharedAudioTrack track) async {
     final file = File(track.localPath);
     if (!await file.exists()) {
-      await _writeJson(
-        request.response,
-        HttpStatus.gone,
-        {'error': 'source_file_missing'},
-      );
+      await _writeJson(request.response, HttpStatus.gone, {
+        'error': 'source_file_missing',
+      });
       return;
     }
 
@@ -583,8 +529,9 @@ class HttpMediaHubService implements MediaHubService {
     );
 
     request.response.headers.set(HttpHeaders.acceptRangesHeader, 'bytes');
-    request.response.headers.contentType =
-        ContentType.parse(_mimeTypeFor(track.format));
+    request.response.headers.contentType = ContentType.parse(
+      _mimeTypeFor(track.format),
+    );
     request.response.headers.set(
       HttpHeaders.cacheControlHeader,
       'private, no-store',
@@ -648,8 +595,9 @@ class HttpMediaHubService implements MediaHubService {
     final queryToken = request.uri.queryParameters['token'];
     if (queryToken == token) return true;
 
-    final authorization =
-        request.headers.value(HttpHeaders.authorizationHeader);
+    final authorization = request.headers.value(
+      HttpHeaders.authorizationHeader,
+    );
     if (authorization == null) return false;
 
     const prefix = 'Bearer ';
@@ -745,9 +693,7 @@ class HttpMediaHubService implements MediaHubService {
       }
 
       final clamped = suffixLength > length ? length : suffixLength;
-      return _ParsedRange.valid(
-        _ByteRange(length - clamped, length - 1),
-      );
+      return _ParsedRange.valid(_ByteRange(length - clamped, length - 1));
     }
 
     final start = int.tryParse(startText);
@@ -799,15 +745,11 @@ class HttpMediaHubService implements MediaHubService {
   }
 }
 
-
 class _BoundMediaHubServers {
   final List<HttpServer> servers;
   final List<MediaHubEndpoint> endpoints;
 
-  const _BoundMediaHubServers({
-    required this.servers,
-    required this.endpoints,
-  });
+  const _BoundMediaHubServers({required this.servers, required this.endpoints});
 }
 
 class MediaHubException implements Exception {
@@ -832,13 +774,9 @@ class _ParsedRange {
   final bool isValid;
   final _ByteRange? range;
 
-  const _ParsedRange.none()
-      : isValid = true,
-        range = null;
+  const _ParsedRange.none() : isValid = true, range = null;
 
-  const _ParsedRange.invalid()
-      : isValid = false,
-        range = null;
+  const _ParsedRange.invalid() : isValid = false, range = null;
 
   const _ParsedRange.valid(this.range) : isValid = true;
 }
