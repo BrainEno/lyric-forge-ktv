@@ -101,11 +101,11 @@ void main() {
       ),
     ]);
 
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final request = await client.getUrl(
       Uri(
-        scheme: 'http',
+        scheme: 'https',
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/tracks/secure-track/artwork',
