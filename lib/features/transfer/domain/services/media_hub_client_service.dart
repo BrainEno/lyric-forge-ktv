@@ -24,6 +24,9 @@ abstract class MediaHubClientService {
 
   Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track);
 
+  /// Downloads artwork through the authenticated, certificate-pinned channel.
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track);
+
   Future<void> downloadTrack({
     required RemoteAudioTrack track,
     required String destinationPath,
