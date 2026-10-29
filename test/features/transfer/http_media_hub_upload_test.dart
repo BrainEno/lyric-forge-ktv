@@ -199,7 +199,9 @@ void main() {
       final socket = await _openPinnedSocket(session);
       addTearDown(socket.destroy);
       final responseFuture = _readRawResponse(socket);
-      socket.write(_rawContentLengthHeaders(session, 'too-big.bin', 5));
+      socket.write(
+        _rawContentLengthHeaders(session, 'too-big.bin', 5) + '12345',
+      );
       await socket.flush();
 
       final response = await responseFuture;
@@ -218,7 +220,8 @@ void main() {
       addTearDown(socket.destroy);
       final responseFuture = _readRawResponse(socket);
       socket.write(
-        _rawChunkedHeaders(session, 'chunked-too-big.bin') + '5\r\n12345\r\n',
+        _rawChunkedHeaders(session, 'chunked-too-big.bin') +
+            '5\r\n12345\r\n0\r\n\r\n',
       );
       await socket.flush();
 
@@ -238,7 +241,9 @@ void main() {
     final socket = await _openPinnedSocket(session);
     addTearDown(socket.destroy);
     final responseFuture = _readRawResponse(socket);
-    socket.write(_rawContentLengthHeaders(session, 'low-space.bin', 4));
+    socket.write(
+      _rawContentLengthHeaders(session, 'low-space.bin', 4) + 'data',
+    );
     await socket.flush();
 
     final response = await responseFuture;
@@ -253,7 +258,9 @@ void main() {
     final socket = await _openPinnedSocket(session);
     addTearDown(socket.destroy);
     final responseFuture = _readRawResponse(socket);
-    socket.write(_rawContentLengthHeaders(session, 'unknown-space.bin', 4));
+    socket.write(
+      _rawContentLengthHeaders(session, 'unknown-space.bin', 4) + 'data',
+    );
     await socket.flush();
 
     final response = await responseFuture;
