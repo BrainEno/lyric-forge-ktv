@@ -620,12 +620,8 @@ class HttpMediaHubService implements MediaHubService {
   }
 
   bool _isAuthorized(HttpRequest request, String token) {
-    final queryToken = request.uri.queryParameters['token'];
-    if (queryToken == token) return true;
-
-    final authorization = request.headers.value(
-      HttpHeaders.authorizationHeader,
-    );
+    final authorization =
+        request.headers.value(HttpHeaders.authorizationHeader);
     if (authorization == null) return false;
 
     const prefix = 'Bearer ';
