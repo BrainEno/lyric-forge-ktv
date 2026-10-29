@@ -162,8 +162,10 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
         mediaHubTlsFingerprint(certificate.der) == fingerprint.toLowerCase();
 
     try {
-      final upstreamRequest =
-          await upstreamClient.openUrl(request.method, target.remoteUri);
+      final upstreamRequest = await upstreamClient.openUrl(
+        request.method,
+        target.remoteUri,
+      );
       upstreamRequest.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer ${target.connection.token}',
@@ -224,8 +226,7 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     final saved = await connectionStore.loadLastConnection();
     final candidates = <MediaHubConnection>[];
     if (active != null) candidates.add(active);
-    if (saved != null &&
-        (active == null || !_sameConnection(active, saved))) {
+    if (saved != null && (active == null || !_sameConnection(active, saved))) {
       candidates.add(saved);
     }
 
