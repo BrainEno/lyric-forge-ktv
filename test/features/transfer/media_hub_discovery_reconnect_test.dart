@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/discoverable_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/file_media_hub_device_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_device_identity.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_discovery.dart';
@@ -69,6 +70,7 @@ void main() {
       trackCount: 3,
       deviceId: 'desktop-device-1',
       discoveryKey: 'paired-discovery-key',
+      tlsFingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     );
 
     final parsed = MediaHubConnection.fromPairingUri(session.pairingUri);
@@ -79,10 +81,23 @@ void main() {
     expect(parsed.supportsDiscovery, isTrue);
     expect(restored.deviceId, parsed.deviceId);
     expect(restored.discoveryKey, parsed.discoveryKey);
+    expect(restored.tlsFingerprint, parsed.tlsFingerprint);
   });
 
-  test('stale token is recovered through paired device discovery', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  test('stale token is recovered over pinned TLS using authenticated discovery',
+      () async {
+    final root = await Directory.systemTemp.createTemp('media-hub-tls-test-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final identity = await MediaHubTlsIdentityStore(
+      rootDirectory: Directory('${root.path}${Platform.pathSeparator}tls'),
+    ).loadOrCreate();
+    final server = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      identity.createServerContext(),
+    );
     addTearDown(() async {
       await server.close(force: true);
     });
@@ -100,7 +115,7 @@ void main() {
       request.response.write(
         jsonEncode({
           'status': 'ok',
-          'protocolVersion': 1,
+          'protocolVersion': 2,
         }),
       );
       await request.response.close();
@@ -112,6 +127,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: server.port,
         token: 'fresh-token',
+        tlsFingerprint: identity.fingerprint,
       ),
     );
     MediaHubConnection? persisted;
@@ -127,6 +143,7 @@ void main() {
       host: InternetAddress.loopbackIPv4.address,
       port: server.port,
       token: 'expired-token',
+      tlsFingerprint: identity.fingerprint,
       deviceId: 'desktop-device-1',
       discoveryKey: 'paired-discovery-key',
     );
@@ -137,12 +154,12 @@ void main() {
     expect(client.currentConnection?.host, InternetAddress.loopbackIPv4.address);
     expect(client.currentConnection?.port, server.port);
     expect(client.currentConnection?.token, 'fresh-token');
+    expect(client.currentConnection?.tlsFingerprint, identity.fingerprint);
     expect(client.currentConnection?.deviceId, 'desktop-device-1');
     expect(client.currentConnection?.discoveryKey, 'paired-discovery-key');
     expect(persisted?.port, server.port);
     expect(persisted?.token, 'fresh-token');
   });
-
   test('legacy connection without device identity does not invoke discovery',
       () async {
     final discovery = _FakeDiscoveryService(null);
