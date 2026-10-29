@@ -18,7 +18,7 @@ class MediaHubEndpoint {
   bool get isRemoteCapable => kind == MediaHubEndpointKind.tailscale;
 
   Uri get baseUri => Uri(
-        scheme: 'http',
+        scheme: tlsFingerprint == null ? 'http' : 'https',
         host: host,
         port: port,
       );
@@ -40,6 +40,7 @@ class MediaHubSession {
   final DateTime startedAt;
   final int trackCount;
   final List<MediaHubEndpoint> endpoints;
+  final String? tlsFingerprint;
 
   /// Stable identity of this desktop installation. Older sessions can leave it
   /// null; once present it lets paired clients recognize the same computer even
@@ -57,6 +58,7 @@ class MediaHubSession {
     required this.startedAt,
     required this.trackCount,
     this.endpoints = const [],
+    this.tlsFingerprint,
     this.deviceId,
     this.discoveryKey,
   });
@@ -83,10 +85,11 @@ class MediaHubSession {
         host: 'media-hub',
         path: '/connect',
         queryParameters: {
-          'v': '1',
+          'v': tlsFingerprint == null ? '1' : '2',
           'host': host,
           'port': port.toString(),
           'token': token,
+          if (tlsFingerprint != null) 'tlsFingerprint': tlsFingerprint,
           'transport': remoteAccessAvailable ? 'tailscale' : 'lan',
           if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
           if (discoveryKey?.trim().isNotEmpty == true)
