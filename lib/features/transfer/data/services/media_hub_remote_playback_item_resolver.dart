@@ -66,7 +66,7 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
             '桌面音乐库中已找不到“${item.title}”，请刷新音乐库后重试。',
           );
         }
-        return await _rebind(item, track, resolvedConnection);
+        return await _rebind(item, track);
       } catch (error) {
         lastError = error;
         _invalidateCatalog();
@@ -94,10 +94,13 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
   }
 
   bool _sameConnection(MediaHubConnection a, MediaHubConnection b) =>
-      a.host == b.host && a.port == b.port && a.token == b.token;
+      a.host == b.host &&
+      a.port == b.port &&
+      a.token == b.token &&
+      a.tlsFingerprint == b.tlsFingerprint;
 
   String _connectionKey(MediaHubConnection connection) =>
-      '${connection.host}:${connection.port}:${connection.token}';
+      '${connection.host}:${connection.port}:${connection.token}:${connection.tlsFingerprint}';
 
   bool _catalogIsFresh(MediaHubConnection connection) {
     final loadedAt = _catalogLoadedAt;
@@ -134,7 +137,6 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
   Future<PlaybackItem> _rebind(
     PlaybackItem item,
     RemoteAudioTrack track,
-    MediaHubConnection connection,
   ) async {
     final playbackUri = client.playbackUriFor(track);
     final artworkPath = await _cacheArtwork(track);
