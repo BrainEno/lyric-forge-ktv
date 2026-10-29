@@ -8,6 +8,7 @@ class MediaHubConnection {
   final String host;
   final int port;
   final String token;
+  final String? tlsFingerprint;
   final MediaHubTransport transport;
 
   /// Stable desktop installation identity. Null for legacy saved connections.
@@ -21,6 +22,7 @@ class MediaHubConnection {
     required this.host,
     required this.port,
     required this.token,
+    this.tlsFingerprint,
     this.transport = MediaHubTransport.unknown,
     this.deviceId,
     this.discoveryKey,
@@ -31,7 +33,7 @@ class MediaHubConnection {
       discoveryKey?.trim().isNotEmpty == true;
 
   Uri get baseUri => Uri(
-        scheme: 'http',
+        scheme: tlsFingerprint == null ? 'http' : 'https',
         host: host,
         port: port,
         path: '/',
@@ -41,6 +43,7 @@ class MediaHubConnection {
     String? host,
     int? port,
     String? token,
+    String? tlsFingerprint,
     MediaHubTransport? transport,
     String? deviceId,
     String? discoveryKey,
@@ -49,6 +52,7 @@ class MediaHubConnection {
       host: host ?? this.host,
       port: port ?? this.port,
       token: token ?? this.token,
+      tlsFingerprint: tlsFingerprint ?? this.tlsFingerprint,
       transport: transport ?? this.transport,
       deviceId: deviceId ?? this.deviceId,
       discoveryKey: discoveryKey ?? this.discoveryKey,
@@ -61,19 +65,23 @@ class MediaHubConnection {
     }
 
     final version = uri.queryParameters['v'];
-    if (version != '1') {
+    if (version != '1' && version != '2') {
       throw const FormatException('不支持的 Media Hub 协议版本');
     }
 
     final host = uri.queryParameters['host']?.trim();
     final port = int.tryParse(uri.queryParameters['port'] ?? '');
     final token = uri.queryParameters['token']?.trim();
+    final tlsFingerprint = uri.queryParameters['tlsFingerprint']?.trim();
 
     if (host == null || host.isEmpty || port == null || port <= 0) {
       throw const FormatException('配对地址缺少有效的 host 或 port');
     }
     if (token == null || token.isEmpty) {
       throw const FormatException('配对地址缺少访问 token');
+    }
+    if (version == '2' && !_isValidTlsFingerprint(tlsFingerprint)) {
+      throw const FormatException('配对地址缺少有效的 TLS 证书指纹，请重新扫码');
     }
 
     final transportName = uri.queryParameters['transport'];
@@ -89,6 +97,7 @@ class MediaHubConnection {
       host: host,
       port: port,
       token: token,
+      tlsFingerprint: tlsFingerprint,
       transport: transport,
       deviceId: deviceId?.isNotEmpty == true ? deviceId : null,
       discoveryKey: discoveryKey?.isNotEmpty == true ? discoveryKey : null,
@@ -99,6 +108,7 @@ class MediaHubConnection {
     final host = json['host'] as String?;
     final port = json['port'];
     final token = json['token'] as String?;
+    final tlsFingerprint = json['tlsFingerprint'] as String?;
 
     if (host == null || host.isEmpty || port is! num || token == null || token.isEmpty) {
       throw const FormatException('保存的桌面连接信息无效');
@@ -117,6 +127,7 @@ class MediaHubConnection {
       host: host,
       port: port.toInt(),
       token: token,
+      tlsFingerprint: tlsFingerprint,
       transport: transport,
       deviceId: deviceId?.trim().isNotEmpty == true ? deviceId!.trim() : null,
       discoveryKey: discoveryKey?.trim().isNotEmpty == true
@@ -130,12 +141,21 @@ class MediaHubConnection {
       'host': host,
       'port': port,
       'token': token,
+      if (tlsFingerprint != null) 'tlsFingerprint': tlsFingerprint,
       'transport': transport.name,
       if (deviceId?.trim().isNotEmpty == true) 'deviceId': deviceId!.trim(),
       if (discoveryKey?.trim().isNotEmpty == true)
         'discoveryKey': discoveryKey!.trim(),
     };
   }
+
+  static bool _isValidTlsFingerprint(String? value) =>
+      value != null && RegExp(r'^[0-9a-fA-F]{64}
+    final normalized = location.startsWith('/') ? location : '/$location';
+    return baseUri.resolveUri(Uri.parse(normalized));
+  }
+}
+).hasMatch(value);
 
   Uri resolve(String location) {
     final normalized = location.startsWith('/') ? location : '/$location';
