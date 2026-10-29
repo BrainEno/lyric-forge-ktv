@@ -184,13 +184,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
   @override
   Uri playbackUriFor(RemoteAudioTrack track) {
     final connection = _requireConnection();
-    final uri = connection.resolve(track.streamPath);
-    return uri.replace(
-      queryParameters: {
-        ...uri.queryParameters,
-        'token': connection.token,
-      },
-    );
+    return connection.resolve(track.streamPath);
   }
 
   @override
