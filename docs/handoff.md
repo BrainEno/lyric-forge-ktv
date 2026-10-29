@@ -1,40 +1,39 @@
 # Handoff
 
 ## 目标
-Stabilize the repository CI architecture under issue #225, then continue with the next independently prioritized issue. The current branch unifies Flutter SDK selection and removes duplicate full-suite CI work without weakening the universal test gate.
+Address Media Hub issue #218 in risk order. This branch implements the first risk-reduction stage: explicit opt-in before the current plaintext HTTP listener is exposed.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: `ee42fffec5edf0d86a0a258c97b23b573090b6ba` (includes merged PR #237)
-- Branch: `ci/unify-flutter-workflows-20261028`
-- Conflict resolution retains PR #237's managed FFmpeg/runtime integrity changes while layering PR #238's CI changes on the current main tree.
-- Compare view: https://github.com/BrainEno/lyric-forge-ktv/compare/main...ci/unify-flutter-workflows-20261028
+- Base: `f711ebe48002089ec110c05703b3c5975bb82e20`
+- Branch: `security/explicit-media-hub-consent-20261029`
+- PR: pending creation after source/doc contract and CI validation.
 - Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
 
 ## 已改文件
-- `.fvmrc`
-- `.github/actions/setup-flutter/action.yml`
-- `.github/workflows/*.yml` (centralized SDK setup, focused tests, concurrency, dead KTV triggers)
-- `test/ci_workflow_contract_test.dart`
-- `docs/log/entries/2026-10-28-2310-unify-flutter-ci-workflows.md`
+- `lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart`
+- `test/features/transfer/media_hub_security_consent_contract_test.dart`
+- `docs/log/entries/2026-10-29-1140-media-hub-explicit-consent.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
 - `docs/handoff.md`
 
 ## 检查结果
-- The changes preserve the universal quality gate as the only workflow entrypoint responsible for the full Flutter suite.
-- Added CI contract tests that inspect every workflow for shared SDK setup and for accidental duplicate full-suite commands; they also verify the KTV recovery/WAV focused-test ownership and absence of dead branch-only triggers.
-- Earlier validation on the pre-conflict head passed Flutter Quality Gate and most specialist workflows; the latest merge commit must be revalidated because its tree now includes current main plus the conflict-resolved CI changes. No final-head green result is claimed until that run completes.
-- Local Dart/Flutter commands were not run because the SDKs are unavailable in this environment.
+- Opening the transfer page now only reads the local-library catalog; it no longer starts a listener implicitly.
+- Starting a stopped listener requires explicit confirmation describing plaintext LAN exposure and the Tailscale transport boundary.
+- Refreshing the catalog while the service is stopped no longer starts sharing; restarting an active session also requires confirmation.
+- Added a source contract test for those guarantees. GitHub Actions must validate the final PR head; no CI success is claimed yet.
+- This branch is a security mitigation, not a complete fix for #218: Media Hub still uses HTTP on ordinary LAN connections, so the issue must remain open until protocol-level encryption is implemented and verified.
 
 ## 下一步
-1. Inspect the new merge commit's CI runs, including Ubuntu full-suite, Windows native build, macOS native builds, and managed ASR runtime compilation.
-2. Fix actual test/toolchain/platform failures; do not weaken assertions or skip native builds.
-3. After CI architecture is green, separately address issue #220 by making dependency-lock resolution explicit and detecting tool-generated tracked-file changes.
+1. Run Flutter Quality Gate on this PR head; fix real failures without weakening tests.
+2. Design and implement authenticated TLS or a reviewed equivalent for Media Hub, covering server certificate/key lifecycle, QR pairing/pinning, stream requests and upload requests, then close #218 only when validated.
+3. Continue with remaining open issues in risk order after the #218 security boundary is resolved.
 
 ## 已知风险
-- Unifying to the SDK used by the universal quality gate can expose native plugin/build incompatibilities previously hidden by specialist workflows pinned to older Flutter versions; platform jobs must be allowed to reveal these, not skipped.
-- The repository's lockfile/analysis-options reproducibility problem in issue #220 remains a separate follow-up and is not considered resolved by changing the SDK pin.
+- Users must consciously acknowledge the current unencrypted HTTP protocol; consent is not encryption and does not prevent passive LAN interception.
+- Android's blanket cleartext policy and dynamic IP endpoints require a protocol/client design change, not a static XML hostname allowlist.
+- Local Dart/Flutter tests were not run because the SDKs are unavailable in this environment.
 
-最后更新：2026-10-28 23:53（Asia/Taipei）
+最后更新：2026-10-29 11:40（Asia/Taipei）
