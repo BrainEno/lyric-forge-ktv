@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a reproducible problem with playback, lyrics, KTV, Media Hub, or runtime setup.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues first. Do not upload copyrighted audio, private data, model weights, tokens, or unredacted personal paths.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and why it is a problem.
+      placeholder: A short, concrete description.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: List the smallest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behavior
+      description: What should have happened, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+        - iOS
+        - Multiple platforms
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LyricForge version or commit
+      placeholder: Commit SHA, tag, or local build
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant environment
+      description: Include Flutter version, CPU/GPU, audio backend, ASR runtime/model, or device details when relevant.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove tokens, personal paths, private metadata, and copyrighted media. Attach only material you are permitted to share.
+      render: text
