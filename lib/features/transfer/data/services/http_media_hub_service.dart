@@ -172,6 +172,7 @@ class HttpMediaHubService implements MediaHubService {
           MediaHubEndpointKind.lan,
           servers,
           endpoints,
+          tlsIdentity,
         );
       }
 
