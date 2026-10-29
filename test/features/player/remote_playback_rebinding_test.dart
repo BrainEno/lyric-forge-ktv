@@ -225,9 +225,7 @@ class _FakeMediaHubClient implements MediaHubClientService {
   @override
   Uri playbackUriFor(RemoteAudioTrack track) {
     final current = connection!;
-    return current.resolve(track.streamPath).replace(
-      queryParameters: {'token': current.token},
-    );
+    return current.resolve(track.streamPath);
   }
 
   @override
