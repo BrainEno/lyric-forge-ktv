@@ -9,9 +9,8 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_discovery_service.dart';
 import 'media_hub_tls_identity_store.dart';
 
-typedef MediaHubConnectionResolvedCallback = FutureOr<void> Function(
-  MediaHubConnection connection,
-);
+typedef MediaHubConnectionResolvedCallback =
+    FutureOr<void> Function(MediaHubConnection connection);
 
 class HttpMediaHubClientService implements MediaHubClientService {
   final HttpClient _httpClient;
@@ -25,7 +24,8 @@ class HttpMediaHubClientService implements MediaHubClientService {
     this.discoveryService,
     this.onConnectionResolved,
   }) : _httpClient =
-            httpClient ?? HttpClient(context: SecurityContext(withTrustedRoots: false)) {
+           httpClient ??
+           HttpClient(context: SecurityContext(withTrustedRoots: false)) {
     _httpClient.badCertificateCallback = (certificate, host, port) {
       final expected = _pinnedTlsFingerprint;
       return expected != null &&
@@ -88,13 +88,12 @@ class HttpMediaHubClientService implements MediaHubClientService {
     if (directError is MediaHubClientException) throw directError;
     throw MediaHubClientException('连接桌面端失败: $directError');
   }
+
   Future<void> _connectExact(MediaHubConnection connection) async {
     final fingerprint = connection.tlsFingerprint;
     if (fingerprint == null ||
         !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(fingerprint)) {
-      throw const MediaHubClientException(
-        '当前连接没有有效的 TLS 证书指纹，请重新配对。',
-      );
+      throw const MediaHubClientException('当前连接没有有效的 TLS 证书指纹，请重新配对。');
     }
     _pinnedTlsFingerprint = fingerprint.toLowerCase();
 
@@ -105,9 +104,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
 
     try {
       if (response.statusCode != HttpStatus.ok) {
-        throw MediaHubClientException(
-          '连接桌面端失败，HTTP ${response.statusCode}',
-        );
+        throw MediaHubClientException('连接桌面端失败，HTTP ${response.statusCode}');
       }
 
       final body = await utf8.decoder.bind(response).join();
@@ -133,6 +130,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
       throw MediaHubClientException('无法解析桌面端响应: $error');
     }
   }
+
   @override
   Future<void> disconnect() async {
     _connection = null;
@@ -148,9 +146,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
 
     if (response.statusCode != HttpStatus.ok) {
       await response.drain<void>();
-      throw MediaHubClientException(
-        '获取桌面曲目失败，HTTP ${response.statusCode}',
-      );
+      throw MediaHubClientException('获取桌面曲目失败，HTTP ${response.statusCode}');
     }
 
     try {
@@ -170,9 +166,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
             if (item is! Map) {
               throw const FormatException('曲目数据格式无效');
             }
-            return RemoteAudioTrack.fromJson(
-              Map<String, dynamic>.from(item),
-            );
+            return RemoteAudioTrack.fromJson(Map<String, dynamic>.from(item));
           })
           .toList(growable: false);
     } on FormatException catch (error) {
@@ -186,6 +180,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     final connection = _requireConnection();
     return connection.resolve(track.streamPath);
   }
+
   @override
   Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) async {
     if (!track.hasLyrics || track.lyricsPath == null) return null;
@@ -202,9 +197,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     }
     if (response.statusCode != HttpStatus.ok) {
       await response.drain<void>();
-      throw MediaHubClientException(
-        '获取远程歌词失败，HTTP ${response.statusCode}',
-      );
+      throw MediaHubClientException('获取远程歌词失败，HTTP ${response.statusCode}');
     }
 
     try {
@@ -234,9 +227,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     );
     if (response.statusCode != HttpStatus.ok) {
       await response.drain<void>();
-      throw MediaHubClientException(
-        '下载远程封面失败，HTTP ${response.statusCode}',
-      );
+      throw MediaHubClientException('下载远程封面失败，HTTP ${response.statusCode}');
     }
     final bytes = <int>[];
     await for (final chunk in response) {
@@ -244,6 +235,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     }
     return bytes;
   }
+
   Future<void> downloadTrack({
     required RemoteAudioTrack track,
     required String destinationPath,
@@ -256,9 +248,7 @@ class HttpMediaHubClientService implements MediaHubClientService {
     if (response.statusCode != HttpStatus.ok &&
         response.statusCode != HttpStatus.partialContent) {
       await response.drain<void>();
-      throw MediaHubClientException(
-        '下载音频失败，HTTP ${response.statusCode}',
-      );
+      throw MediaHubClientException('下载音频失败，HTTP ${response.statusCode}');
     }
 
     final destination = File(destinationPath);
@@ -311,13 +301,15 @@ class HttpMediaHubClientService implements MediaHubClientService {
     final fallbackName = file.uri.pathSegments.isEmpty
         ? 'audio'
         : file.uri.pathSegments.last;
-    final uri = connection.resolve('/v1/incoming/audio').replace(
-      queryParameters: {
-        'filename': remoteFileName?.trim().isNotEmpty == true
-            ? remoteFileName!.trim()
-            : fallbackName,
-      },
-    );
+    final uri = connection
+        .resolve('/v1/incoming/audio')
+        .replace(
+          queryParameters: {
+            'filename': remoteFileName?.trim().isNotEmpty == true
+                ? remoteFileName!.trim()
+                : fallbackName,
+          },
+        );
 
     try {
       final request = await _httpClient.postUrl(uri);
