@@ -27,14 +27,23 @@ String mediaHubDiscoveryOfferProof({
   );
 }
 
-bool mediaHubDiscoveryProofMatches(String actual, String expected) {
-  if (actual.length != expected.length) return false;
-  var difference = 0;
-  for (var index = 0; index < actual.length; index++) {
-    difference |= actual.codeUnitAt(index) ^ expected.codeUnitAt(index);
+bool mediaHubConstantTimeEquals(String actual, String expected) {
+  var difference = actual.length ^ expected.length;
+  final length = actual.length > expected.length
+      ? actual.length
+      : expected.length;
+  for (var index = 0; index < length; index++) {
+    final actualCodeUnit = index < actual.length ? actual.codeUnitAt(index) : 0;
+    final expectedCodeUnit = index < expected.length
+        ? expected.codeUnitAt(index)
+        : 0;
+    difference |= actualCodeUnit ^ expectedCodeUnit;
   }
   return difference == 0;
 }
+
+bool mediaHubDiscoveryProofMatches(String actual, String expected) =>
+    mediaHubConstantTimeEquals(actual, expected);
 
 String _hmac(String key, String message) {
   final mac = Hmac(sha256, utf8.encode(key));
