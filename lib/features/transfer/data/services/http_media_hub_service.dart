@@ -1197,6 +1197,18 @@ $drive = New-Object System.IO.DriveInfo -ArgumentList $root
   }
 }
 
+class _IncomingUploadReservation {
+  const _IncomingUploadReservation({
+    required this.destination,
+    required this.partial,
+    required this.reservationFile,
+  });
+
+  final File destination;
+  final File partial;
+  final File reservationFile;
+}
+
 class _IncomingUploadChunkSignal {
   const _IncomingUploadChunkSignal(this.hasNext);
 
