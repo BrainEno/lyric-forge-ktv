@@ -18,7 +18,7 @@ class MediaHubEndpoint {
   bool get isRemoteCapable => kind == MediaHubEndpointKind.tailscale;
 
   Uri get baseUri => Uri(
-        scheme: tlsFingerprint == null ? 'http' : 'https',
+        scheme: 'https',
         host: host,
         port: port,
       );
@@ -64,7 +64,7 @@ class MediaHubSession {
   });
 
   Uri get baseUri => Uri(
-        scheme: 'http',
+        scheme: tlsFingerprint == null ? 'http' : 'https',
         host: host,
         port: port,
       );
