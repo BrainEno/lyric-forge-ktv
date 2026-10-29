@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pointycastle/asymmetric/api.dart';
 
 /// Persistent self-signed TLS identity for a desktop Media Hub.
 ///
