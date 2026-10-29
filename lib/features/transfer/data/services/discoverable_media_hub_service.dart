@@ -63,6 +63,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         endpoints: raw.endpoints,
         deviceId: identity.deviceId,
         discoveryKey: identity.discoveryKey,
+        tlsFingerprint: raw.tlsFingerprint,
       );
       await _startDiscoveryResponder(session, identity);
       _emit(
@@ -166,6 +167,7 @@ class DiscoverableMediaHubService implements MediaHubService {
           'requestId': normalizedRequestId,
           'port': session.port,
           'token': session.token,
+          'tlsFingerprint': session.tlsFingerprint,
           'proof': offerProof,
           'deviceName': Platform.localHostname,
         }),
