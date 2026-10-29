@@ -167,6 +167,9 @@ class _FakeMediaHubClient implements MediaHubClientService {
   }
 
   @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async => <int>[];
+
+  @override
   Future<void> uploadFile({
     required String sourcePath,
     String? remoteFileName,
