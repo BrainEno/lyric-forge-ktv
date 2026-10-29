@@ -36,30 +36,32 @@ void main() {
     expect(first.discoveryKey.length, greaterThanOrEqualTo(32));
   });
 
-  test('discoverable hub decorates each session with stable pairing identity',
-      () async {
-    const identity = MediaHubDeviceIdentity(
-      deviceId: 'desktop-device-1',
-      discoveryKey: 'paired-discovery-key',
-    );
-    final rawHub = _FakeMediaHubService();
-    final hub = DiscoverableMediaHubService(
-      delegate: rawHub,
-      identityStore: const _FixedIdentityStore(identity),
-    );
-    addTearDown(hub.dispose);
+  test(
+    'discoverable hub decorates each session with stable pairing identity',
+    () async {
+      const identity = MediaHubDeviceIdentity(
+        deviceId: 'desktop-device-1',
+        discoveryKey: 'paired-discovery-key',
+      );
+      final rawHub = _FakeMediaHubService();
+      final hub = DiscoverableMediaHubService(
+        delegate: rawHub,
+        identityStore: const _FixedIdentityStore(identity),
+      );
+      addTearDown(hub.dispose);
 
-    final session = await hub.startSharing(const <SharedAudioTrack>[]);
+      final session = await hub.startSharing(const <SharedAudioTrack>[]);
 
-    expect(session.deviceId, identity.deviceId);
-    expect(session.discoveryKey, identity.discoveryKey);
-    expect(session.pairingUri.queryParameters['deviceId'], identity.deviceId);
-    expect(
-      session.pairingUri.queryParameters['discoveryKey'],
-      identity.discoveryKey,
-    );
-    expect(rawHub.startCalls, 1);
-  });
+      expect(session.deviceId, identity.deviceId);
+      expect(session.discoveryKey, identity.discoveryKey);
+      expect(session.pairingUri.queryParameters['deviceId'], identity.deviceId);
+      expect(
+        session.pairingUri.queryParameters['discoveryKey'],
+        identity.discoveryKey,
+      );
+      expect(rawHub.startCalls, 1);
+    },
+  );
 
   test('pairing URI and saved connection round-trip discovery identity', () {
     final session = MediaHubSession(
@@ -70,7 +72,8 @@ void main() {
       trackCount: 3,
       deviceId: 'desktop-device-1',
       discoveryKey: 'paired-discovery-key',
-      tlsFingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      tlsFingerprint:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     );
 
     final parsed = MediaHubConnection.fromPairingUri(session.pairingUri);
@@ -84,100 +87,105 @@ void main() {
     expect(restored.tlsFingerprint, parsed.tlsFingerprint);
   });
 
-  test('stale token is recovered over pinned TLS using authenticated discovery',
-      () async {
-    final root = await Directory.systemTemp.createTemp('media-hub-tls-test-');
-    addTearDown(() async {
-      if (await root.exists()) await root.delete(recursive: true);
-    });
-    final identity = await MediaHubTlsIdentityStore(
-      rootDirectory: Directory('${root.path}${Platform.pathSeparator}tls'),
-    ).loadOrCreate();
-    final server = await HttpServer.bindSecure(
-      InternetAddress.loopbackIPv4,
-      0,
-      identity.createServerContext(),
-    );
-    addTearDown(() async {
-      await server.close(force: true);
-    });
-    server.listen((request) async {
-      final authorization =
-          request.headers.value(HttpHeaders.authorizationHeader);
-      if (request.uri.path != '/v1/health' ||
-          authorization != 'Bearer fresh-token') {
-        request.response.statusCode = HttpStatus.unauthorized;
-        await request.response.close();
-        return;
-      }
-      request.response.statusCode = HttpStatus.ok;
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(
-        jsonEncode({
-          'status': 'ok',
-          'protocolVersion': 2,
-        }),
+  test(
+    'stale token is recovered over pinned TLS using authenticated discovery',
+    () async {
+      final root = await Directory.systemTemp.createTemp('media-hub-tls-test-');
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final identity = await MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${root.path}${Platform.pathSeparator}tls'),
+      ).loadOrCreate();
+      final server = await HttpServer.bindSecure(
+        InternetAddress.loopbackIPv4,
+        0,
+        identity.createServerContext(),
       );
-      await request.response.close();
-    });
+      addTearDown(() async {
+        await server.close(force: true);
+      });
+      server.listen((request) async {
+        final authorization = request.headers.value(
+          HttpHeaders.authorizationHeader,
+        );
+        if (request.uri.path != '/v1/health' ||
+            authorization != '***') {
+          request.response.statusCode = HttpStatus.unauthorized;
+          await request.response.close();
+          return;
+        }
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({'status': 'ok', 'protocolVersion': 2}),
+        );
+        await request.response.close();
+      });
 
-    final discovery = _FakeDiscoveryService(
-      MediaHubDiscoveryResult(
-        deviceId: 'desktop-device-1',
+      final discovery = _FakeDiscoveryService(
+        MediaHubDiscoveryResult(
+          deviceId: 'desktop-device-1',
+          host: InternetAddress.loopbackIPv4.address,
+          port: server.port,
+          token: 'fresh-token',
+          tlsFingerprint: identity.fingerprint,
+        ),
+      );
+      MediaHubConnection? persisted;
+      final client = HttpMediaHubClientService(
+        discoveryService: discovery,
+        onConnectionResolved: (connection) {
+          persisted = connection;
+        },
+      );
+      addTearDown(client.dispose);
+
+      final stale = MediaHubConnection(
         host: InternetAddress.loopbackIPv4.address,
         port: server.port,
-        token: 'fresh-token',
+        token: 'expired-token',
         tlsFingerprint: identity.fingerprint,
-      ),
-    );
-    MediaHubConnection? persisted;
-    final client = HttpMediaHubClientService(
-      discoveryService: discovery,
-      onConnectionResolved: (connection) {
-        persisted = connection;
-      },
-    );
-    addTearDown(client.dispose);
+        deviceId: 'desktop-device-1',
+        discoveryKey: 'paired-discovery-key',
+      );
 
-    final stale = MediaHubConnection(
-      host: InternetAddress.loopbackIPv4.address,
-      port: server.port,
-      token: 'expired-token',
-      tlsFingerprint: identity.fingerprint,
-      deviceId: 'desktop-device-1',
-      discoveryKey: 'paired-discovery-key',
-    );
+      await client.connectTo(stale);
 
-    await client.connectTo(stale);
+      expect(discovery.calls, 1);
+      expect(
+        client.currentConnection?.host,
+        InternetAddress.loopbackIPv4.address,
+      );
+      expect(client.currentConnection?.port, server.port);
+      expect(client.currentConnection?.token, 'fresh-token');
+      expect(client.currentConnection?.tlsFingerprint, identity.fingerprint);
+      expect(client.currentConnection?.deviceId, 'desktop-device-1');
+      expect(client.currentConnection?.discoveryKey, 'paired-discovery-key');
+      expect(persisted?.port, server.port);
+      expect(persisted?.token, 'fresh-token');
+    },
+  );
+  test(
+    'legacy connection without device identity does not invoke discovery',
+    () async {
+      final discovery = _FakeDiscoveryService(null);
+      final client = HttpMediaHubClientService(discoveryService: discovery);
+      addTearDown(client.dispose);
 
-    expect(discovery.calls, 1);
-    expect(client.currentConnection?.host, InternetAddress.loopbackIPv4.address);
-    expect(client.currentConnection?.port, server.port);
-    expect(client.currentConnection?.token, 'fresh-token');
-    expect(client.currentConnection?.tlsFingerprint, identity.fingerprint);
-    expect(client.currentConnection?.deviceId, 'desktop-device-1');
-    expect(client.currentConnection?.discoveryKey, 'paired-discovery-key');
-    expect(persisted?.port, server.port);
-    expect(persisted?.token, 'fresh-token');
-  });
-  test('legacy connection without device identity does not invoke discovery',
-      () async {
-    final discovery = _FakeDiscoveryService(null);
-    final client = HttpMediaHubClientService(discoveryService: discovery);
-    addTearDown(client.dispose);
+      const legacy = MediaHubConnection(
+        host: '127.0.0.1',
+        port: 1,
+        token: 'legacy-token',
+      );
 
-    const legacy = MediaHubConnection(
-      host: '127.0.0.1',
-      port: 1,
-      token: 'legacy-token',
-    );
-
-    await expectLater(
-      client.connectTo(legacy),
-      throwsA(isA<MediaHubClientException>()),
-    );
-    expect(discovery.calls, 0);
-  });
+      await expectLater(
+        client.connectTo(legacy),
+        throwsA(isA<MediaHubClientException>()),
+      );
+      expect(discovery.calls, 0);
+    },
+  );
 }
 
 class _FakeDiscoveryService implements MediaHubDiscoveryService {
@@ -235,10 +243,7 @@ class _FakeMediaHubService implements MediaHubService {
       startedAt: DateTime.utc(2026, 10, 8),
       trackCount: tracks.length,
     );
-    _state = MediaHubState(
-      status: MediaHubStatus.running,
-      session: session,
-    );
+    _state = MediaHubState(status: MediaHubStatus.running, session: session);
     _controller.add(_state);
     return session;
   }
