@@ -31,8 +31,8 @@ class HttpMediaHubService implements MediaHubService {
     MediaHubTlsIdentityStore? tlsIdentityStore,
     this.incomingDirectory,
     this.onIncomingFile,
-  })  : _uuid = uuid ?? const Uuid(),
-        _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
+  }) : _uuid = uuid ?? const Uuid(),
+       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -245,10 +245,10 @@ class HttpMediaHubService implements MediaHubService {
     MediaHubTlsIdentity tlsIdentity,
   ) async {
     Future<HttpServer> bind(int port) => HttpServer.bindSecure(
-          InternetAddress(host),
-          port,
-          tlsIdentity.createServerContext(),
-        );
+      InternetAddress(host),
+      port,
+      tlsIdentity.createServerContext(),
+    );
 
     try {
       return await bind(preferredPort);
@@ -620,8 +620,9 @@ class HttpMediaHubService implements MediaHubService {
   }
 
   bool _isAuthorized(HttpRequest request, String token) {
-    final authorization =
-        request.headers.value(HttpHeaders.authorizationHeader);
+    final authorization = request.headers.value(
+      HttpHeaders.authorizationHeader,
+    );
     if (authorization == null) return false;
 
     const prefix = 'Bearer ';
