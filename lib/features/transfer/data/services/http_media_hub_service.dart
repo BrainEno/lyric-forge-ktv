@@ -485,6 +485,9 @@ class HttpMediaHubService implements MediaHubService {
 
     File? partialFile;
     IOSink? uploadSink;
+    StreamIterator<List<int>>? uploadIterator;
+    Timer? idleTimer;
+    Timer? totalTimer;
     try {
       final directory = await _resolveIncomingDirectory();
       await directory.create(recursive: true);
@@ -509,17 +512,64 @@ class HttpMediaHubService implements MediaHubService {
       uploadSink = sink;
       var received = 0;
       var nextDiskSpaceCheckAt = _incomingUploadDiskSpaceCheckIntervalBytes;
+      final iterator = StreamIterator<List<int>>(request);
+      uploadIterator = iterator;
+      final timeoutSignal = Completer<String>();
 
-      await for (final chunk in _incomingUploadWithTotalTimeout(
-        request.timeout(incomingUploadIdleTimeout),
+      void reportTimeout(String reason) {
+        if (!timeoutSignal.isCompleted) timeoutSignal.complete(reason);
+      }
+
+      void resetIdleTimer() {
+        idleTimer?.cancel();
+        idleTimer = Timer(
+          incomingUploadIdleTimeout,
+          () => reportTimeout('idle'),
+        );
+      }
+
+      Never throwUploadTimeout(String reason) {
+        if (reason == 'idle') {
+          throw TimeoutException('Incoming audio upload was idle.');
+        }
+        throw const _IncomingUploadTotalTimeout();
+      }
+
+      resetIdleTimer();
+      totalTimer = Timer(
         incomingUploadTotalTimeout,
-      )) {
+        () => reportTimeout('total'),
+      );
+
+      while (true) {
+        final event = await Future.any<Object>([
+          iterator.moveNext().then(
+            (hasNext) => _IncomingUploadChunkSignal(hasNext),
+          ),
+          timeoutSignal.future.then(
+            (reason) => _IncomingUploadTimeoutSignal(reason),
+          ),
+        ]);
+        if (event is _IncomingUploadTimeoutSignal) {
+          throwUploadTimeout(event.reason);
+        }
+        if (timeoutSignal.isCompleted) {
+          throwUploadTimeout(await timeoutSignal.future);
+        }
+
+        final chunkEvent = event as _IncomingUploadChunkSignal;
+        if (!chunkEvent.hasNext) break;
+        resetIdleTimer();
+        final chunk = iterator.current;
         if (chunk.length > maxIncomingAudioBytes - received) {
           throw const _IncomingUploadTooLarge();
         }
 
         if (received + chunk.length >= nextDiskSpaceCheckAt) {
           final latestFreeBytes = await _availableDiskSpace(directory);
+          if (timeoutSignal.isCompleted) {
+            throwUploadTimeout(await timeoutSignal.future);
+          }
           if (latestFreeBytes == null) {
             throw const _IncomingUploadStorageCheckUnavailable();
           }
@@ -535,6 +585,10 @@ class HttpMediaHubService implements MediaHubService {
         sink.add(chunk);
         received += chunk.length;
       }
+      idleTimer?.cancel();
+      idleTimer = null;
+      totalTimer?.cancel();
+      totalTimer = null;
 
       await sink.flush();
       await sink.close();
@@ -621,6 +675,13 @@ class HttpMediaHubService implements MediaHubService {
       await _discardPartialUpload(uploadSink, partialFile);
       rethrow;
     } finally {
+      idleTimer?.cancel();
+      totalTimer?.cancel();
+      try {
+        await uploadIterator?.cancel();
+      } catch (_) {
+        // The request may already have been closed by the client.
+      }
       _releaseIncomingUpload(session.token);
     }
   }
@@ -1065,51 +1126,16 @@ $drive = New-Object System.IO.DriveInfo -ArgumentList $root
   }
 }
 
-Stream<List<int>> _incomingUploadWithTotalTimeout(
-  Stream<List<int>> source,
-  Duration timeout,
-) {
-  late final StreamController<List<int>> controller;
-  StreamSubscription<List<int>>? subscription;
-  Timer? timer;
-  var finished = false;
+class _IncomingUploadChunkSignal {
+  const _IncomingUploadChunkSignal(this.hasNext);
 
-  controller = StreamController<List<int>>(
-    sync: true,
-    onListen: () {
-      timer = Timer(timeout, () {
-        if (finished) return;
-        finished = true;
-        controller.addError(const _IncomingUploadTotalTimeout());
-        unawaited(subscription?.cancel());
-        unawaited(controller.close());
-      });
-      subscription = source.listen(
-        (chunk) {
-          if (!finished) controller.add(chunk);
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          if (!finished) controller.addError(error, stackTrace);
-        },
-        onDone: () {
-          if (finished) return;
-          finished = true;
-          timer?.cancel();
-          unawaited(controller.close());
-        },
-        cancelOnError: false,
-      );
-    },
-    onPause: () => subscription?.pause(),
-    onResume: () => subscription?.resume(),
-    onCancel: () async {
-      finished = true;
-      timer?.cancel();
-      await subscription?.cancel();
-    },
-  );
+  final bool hasNext;
+}
 
-  return controller.stream;
+class _IncomingUploadTimeoutSignal {
+  const _IncomingUploadTimeoutSignal(this.reason);
+
+  final String reason;
 }
 
 class _IncomingUploadTooLarge implements Exception {
