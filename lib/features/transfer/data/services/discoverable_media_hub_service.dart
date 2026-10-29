@@ -157,6 +157,7 @@ class DiscoverableMediaHubService implements MediaHubService {
         requestId: normalizedRequestId,
         port: session.port,
         token: session.token,
+        tlsFingerprint: session.tlsFingerprint ?? '',
       );
       final payload = utf8.encode(
         jsonEncode({
