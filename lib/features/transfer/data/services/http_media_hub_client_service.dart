@@ -231,6 +231,25 @@ class HttpMediaHubClientService implements MediaHubClientService {
   }
 
   @override
+  Future<List<int>> fetchArtwork(RemoteAudioTrack track) async {
+    if (!track.hasArtwork || track.artworkPath == null) return <int>[];
+    final connection = _requireConnection();
+    final uri = connection.resolve(track.artworkPath!);
+    final response = await _authorizedGet(connection, uri);
+
+    if (response.statusCode != HttpStatus.ok) {
+      await response.drain<void>();
+      throw MediaHubClientException(
+        '下载远程封面失败，HTTP ${response.statusCode}',
+      );
+    }
+    final bytes = <int>[];
+    await for (final chunk in response) {
+      bytes.addAll(chunk);
+    }
+    return bytes;
+  }
+  @override
   Future<void> downloadTrack({
     required RemoteAudioTrack track,
     required String destinationPath,
