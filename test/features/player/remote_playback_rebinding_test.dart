@@ -9,10 +9,14 @@ import 'package:lyric_forge_ktv/features/player/domain/services/playback_session
 import 'package:lyric_forge_ktv/features/player/domain/services/remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
+import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/remote_audio_track.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/models/shared_audio_track.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/services/media_hub_connection_store.dart';
 
@@ -95,6 +99,66 @@ void main() {
     expect(raw.lastLoadedUri?.queryParameters.containsKey('token'), isFalse);
   });
 
+  test('loopback audio proxy preserves TLS-pinned HTTP Range responses', () async {
+    final root = await Directory.systemTemp.createTemp('lyricforge-proxy-test-');
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+    final song = File('${root.path}${Platform.pathSeparator}song.mp3');
+    final songBytes = List<int>.generate(16, (index) => index);
+    await song.writeAsBytes(songBytes, flush: true);
+
+    final hub = HttpMediaHubService(
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory('${root.path}${Platform.pathSeparator}tls'),
+      ),
+    );
+    addTearDown(hub.dispose);
+    final session = await hub.startSharing([
+      SharedAudioTrack(
+        id: 'proxy-track',
+        title: 'Proxy Track',
+        localPath: song.path,
+        format: 'mp3',
+        byteLength: songBytes.length,
+      ),
+    ]);
+
+    final client = HttpMediaHubClientService();
+    addTearDown(client.dispose);
+    final connection = MediaHubConnection(
+      host: InternetAddress.loopbackIPv4.address,
+      port: session.port,
+      token: session.token,
+      tlsFingerprint: session.tlsFingerprint,
+    );
+    await client.connectTo(connection);
+
+    final raw = _FakeAudioPlayer();
+    final player = MediaHubRebindingAudioPlayerService(
+      delegate: raw,
+      client: client,
+      connectionStore: _MemoryConnectionStore(connection),
+    );
+    addTearDown(player.dispose);
+    await player.loadAudioUri(
+      uri: Uri.parse('https://old-host:4000/v1/tracks/proxy-track/audio'),
+    );
+
+    final localClient = HttpClient();
+    addTearDown(() => localClient.close(force: true));
+    final request = await localClient.getUrl(raw.lastLoadedUri!);
+    request.headers.set(HttpHeaders.rangeHeader, 'bytes=2-4');
+    final response = await request.close();
+    final bytes = await response.fold<List<int>>(
+      <int>[],
+      (buffer, chunk) => buffer..addAll(chunk),
+    );
+
+    expect(response.statusCode, HttpStatus.partialContent);
+    expect(response.headers.value(HttpHeaders.contentRangeHeader), 'bytes 2-4/16');
+    expect(bytes, [2, 3, 4]);
+  });
   test('restored remote session stays offline until explicit playback action',
       () async {
     final stale = _remoteItem(
