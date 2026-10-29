@@ -42,13 +42,13 @@ Resolve the critical Media Hub transport risk in issue #218. This branch replace
 - Existing TLS identity, pinned client, upload rejection, discovery recovery, playback Range, and consent contract tests are included; no tests were removed or skipped.
 - Do not close #218 or merge until the latest head's complete CI is green.
 
-## 后续工作
+## 下一步
 1. Re-run the full CI set after the UI wording, contract tests, docs, and code-cleanup commit.
 2. Review any new CI failures from exact logs, without weakening tests.
 3. Once validation is green, update PR metadata to accurately reflect the TLS fix and close #218 via merge.
 4. Continue with remaining open issues in severity order; issue #222 is substantially covered by token removal from playback URLs, while upload resource limits (#224) and CORS/constant-time comparison (#227) remain separate follow-ups.
 
-## 已知边界
+## 已知风险
 - TLS is self-signed and trusted by exact SHA-256 certificate pinning during pairing; legacy protocol-v1 connections must pair again.
 - Listener discovery and binding currently target IPv4.
 - Physical phone/desktop pairing and real audio playback still need a real pairing and playback smoke test.

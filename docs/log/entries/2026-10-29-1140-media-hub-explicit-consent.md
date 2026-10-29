@@ -1,9 +1,10 @@
 # [2026-10-29 11:40] Secure Media Hub with fingerprint-pinned HTTPS
 
 - Scope: Resolve the critical transport problem in issue #218 by replacing plaintext LAN Media Hub traffic with HTTPS using a persisted per-installation certificate/key pair and SHA-256 certificate pinning delivered through the pairing QR code and authenticated discovery. Keep sharing off by default, require explicit scope consent, and restrict listener binding to private-LAN/Tailscale IPv4 and loopback.
-- Protocol and playback: require protocol version 2, move session-token auth to the Authorization bearer header, remove tokens from playback URLs, and proxy native audio through loopback while preserving HTTP Range semantics on the pinned HTTPS hop. HTTPS also protects track metadata, lyrics, artwork, and uploads.
-- Android: deny cleartext traffic globally; allow only the loopback native-audio proxy to use HTTP.
-- UI: describe the real HTTPS trust model and what paired devices can access; do not continue warning that the updated Media Hub still uses plaintext HTTP.
-- Validation on commit `3c264855420dd65f31492e2295cd079220f5c4b4`: Flutter Quality Gate passed, KTV history/recovery validation passed, and Windows Debug native build passed. A final run is required after the current copy/test cleanup.
-- Boundaries: legacy v1 saved connections must pair again; IPv4 is currently supported; physical devices still need a real pairing and playback smoke test.
-- Commit currently validated: `3c264855420dd65f31492e2295cd079220f5c4b4`.
+- Files: `lib/features/transfer/data/services/http_media_hub_service.dart`, `lib/features/transfer/data/services/http_media_hub_client_service.dart`, `lib/features/transfer/data/services/media_hub_tls_identity_store.dart`, `lib/features/transfer/data/services/media_hub_discovery_auth.dart`, `lib/features/transfer/data/services/udp_media_hub_discovery_service.dart`, `lib/features/transfer/data/services/media_hub_rebinding_audio_player_service.dart`, `lib/features/transfer/domain/models/media_hub_connection.dart`, `lib/features/transfer/domain/models/media_hub_discovery.dart`, `lib/features/transfer/domain/models/media_hub_session.dart`, `lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart`, Android network security config/manifest, Media Hub regression tests, and work-log documents.
+- Validation:
+  - Commit `3c264855420dd65f31492e2295cd079220f5c4b4`: Flutter Quality Gate passed, KTV history/recovery validation passed, and Windows Debug native build passed.
+  - UI-copy/test/doc cleanup commit `bd5a5008cf142c8a2ae66e4449b68da975469669`: Work-log preflight exposed missing required entry fields and handoff headings; corrected in this commit. All CI must pass on the final head before merge.
+  - Physical Android ↔ desktop pairing and real audio playback still need a device-level smoke test.
+- Notes: Require protocol version 2, use bearer headers instead of session tokens in URLs, proxy native audio through loopback with pinned HTTPS upstream and Range semantics, and deny Android cleartext except the loopback audio proxy. Legacy protocol-v1 saved connections must pair again; IPv4 is currently supported.
+- Commit: `security: align Media Hub consent UI with pinned HTTPS`
