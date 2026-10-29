@@ -104,10 +104,10 @@ void main() {
 
   test('unauthorized upload is rejected before a file is created', () async {
     final session = await service.startSharing(const []);
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final uri = Uri(
-      scheme: 'http',
+      scheme: 'https',
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
       path: '/v1/incoming/audio',
@@ -135,7 +135,7 @@ void main() {
     );
     final session = await service.startSharing(const []);
 
-    final client = HttpClient();
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
     final request = await client.postUrl(
       Uri(
