@@ -27,12 +27,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.7'
-          channel: stable
-          cache: true
-
+        uses: ./.github/actions/setup-flutter
       # Catch missing work-log fields and generated-file drift before dependency
       # resolution, analysis, or the full test suite. The scripts also preflight
       # for local invocation outside this workflow.

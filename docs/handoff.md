@@ -1,42 +1,40 @@
 # Handoff
 
 ## 目标
-Continue the audit-driven issue queue in risk order, one issue per branch/PR. Current active item is #217: make managed FFmpeg installs reproducible and fail closed on integrity mismatch.
+Stabilize the repository CI architecture under issue #225, then continue with the next independently prioritized issue. The current branch unifies Flutter SDK selection and removes duplicate full-suite CI work without weakening the universal test gate.
 
 ## Git 现场
 - Repository: BrainEno/lyric-forge-ktv
-- Main baseline: `e975aa4349317e82accdd8253fbf7d76cb42fcd1`
-- Branch: `fix/pin-verify-ffmpeg-20261028`
-- PR compare view: https://github.com/BrainEno/lyric-forge-ktv/compare/main...fix/pin-verify-ffmpeg-20261028
+- Main baseline: `ee42fffec5edf0d86a0a258c97b23b573090b6ba` (includes merged PR #237)
+- Branch: `ci/unify-flutter-workflows-20261028`
+- Conflict resolution retains PR #237's managed FFmpeg/runtime integrity changes while layering PR #238's CI changes on the current main tree.
+- Compare view: https://github.com/BrainEno/lyric-forge-ktv/compare/main...ci/unify-flutter-workflows-20261028
 - Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
-- Code/test head `dc53fca810663679fd2bb6e56e3ef4ecdd9b518e` has all six relevant workflows green.
 
 ## 已改文件
-- `lib/features/transcription/data/services/managed_asr_runtime_manager.dart`
-- `lib/features/transcription/data/services/ffmpeg_runtime_release.dart`
-- `lib/features/transcription/data/services/runtime_sha256.dart`
-- `test/runtime_integrity_install_contract_test.dart`
-- `test/ffmpeg_runtime_release_test.dart`
-- `test/runtime_sha256_test.dart`
-- `docs/engineering_risks_roadmap.md`
-- `docs/log/entries/2026-10-28-2215-pin-and-verify-managed-ffmpeg.md`
+- `.fvmrc`
+- `.github/actions/setup-flutter/action.yml`
+- `.github/workflows/*.yml` (centralized SDK setup, focused tests, concurrency, dead KTV triggers)
+- `test/ci_workflow_contract_test.dart`
+- `docs/log/entries/2026-10-28-2310-unify-flutter-ci-workflows.md`
 - `docs/work_log.md`
 - `docs/work_log_archive.md`
 - `docs/work_log_index.md`
 - `docs/handoff.md`
 
 ## 检查结果
-- Code/test head `dc53fca810663679fd2bb6e56e3ef4ecdd9b518e`: all six relevant workflows passed. Flutter Quality Gate and the three relevant full-regression workflows each reported 784 tests passed; ASR client checks passed.
-- Initial PR checks exposed two root causes: Dart 3.13 formatting drift in the touched legacy manager file, and a contract test whose source-wide index lookup matched the Qwen extraction before the FFmpeg extraction. Both are repaired; no check was bypassed or weakened.
-- Local Dart/Flutter commands were not run because SDKs are unavailable in this environment.
+- The changes preserve the universal quality gate as the only workflow entrypoint responsible for the full Flutter suite.
+- Added CI contract tests that inspect every workflow for shared SDK setup and for accidental duplicate full-suite commands; they also verify the KTV recovery/WAV focused-test ownership and absence of dead branch-only triggers.
+- Earlier validation on the pre-conflict head passed Flutter Quality Gate and most specialist workflows; the latest merge commit must be revalidated because its tree now includes current main plus the conflict-resolved CI changes. No final-head green result is claimed until that run completes.
+- Local Dart/Flutter commands were not run because the SDKs are unavailable in this environment.
 
 ## 下一步
-1. Finish the documentation-only validation refresh for PR #237 and keep the issue open until review/merge.
-2. Address CI issue #225 in its own PR: unify workflow SDK setup, stop duplicate full-suite runs in specialist jobs, and remove stale branch-specific triggers while retaining the universal full-suite gate.
-3. Then address #218 (Media Hub cleartext HTTP/security scope) in its own PR.
+1. Inspect the new merge commit's CI runs, including Ubuntu full-suite, Windows native build, macOS native builds, and managed ASR runtime compilation.
+2. Fix actual test/toolchain/platform failures; do not weaken assertions or skip native builds.
+3. After CI architecture is green, separately address issue #220 by making dependency-lock resolution explicit and detecting tool-generated tracked-file changes.
 
 ## 已知风险
-- The archive pins are reproducible, but they do not replace end-to-end execution on each supported OS/architecture.
-- Real download/proxy behavior and directory-swap rollback still require platform verification.
+- Unifying to the SDK used by the universal quality gate can expose native plugin/build incompatibilities previously hidden by specialist workflows pinned to older Flutter versions; platform jobs must be allowed to reveal these, not skipped.
+- The repository's lockfile/analysis-options reproducibility problem in issue #220 remains a separate follow-up and is not considered resolved by changing the SDK pin.
 
-最后更新：2026-10-28 22:15（Asia/Taipei）
+最后更新：2026-10-28 23:53（Asia/Taipei）

@@ -1,4 +1,4 @@
-name: KTV history validation
+name: KTV history and recovery validation
 
 on:
   pull_request:
@@ -7,20 +7,37 @@ on:
       - 'lib/features/player/**'
       - 'lib/features/project/domain/models/project_manifest.dart'
       - 'test/features/player/**'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
+      - '.github/workflows/ktv-history-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/features/player/**'
+      - 'lib/features/project/domain/models/project_manifest.dart'
+      - 'test/features/player/**'
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/ktv-history-validation.yml'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   flutter:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
-      - run: flutter test test/features/player/ktv_project_storage_test.dart
-      - run: flutter test test/features/player/ktv_take_history_store_test.dart
-      - run: flutter test test/features/player/ktv_take_mix_path_test.dart
-      - run: flutter test
+      - name: Test KTV history, take recovery and WAV recovery contracts
+        run: >-
+          flutter test
+          test/features/player/ktv_project_storage_test.dart
+          test/features/player/ktv_take_history_store_test.dart
+          test/features/player/ktv_take_mix_path_test.dart
+          test/features/player/pcm16_wav_recovery_test.dart

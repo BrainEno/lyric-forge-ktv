@@ -7,6 +7,8 @@ on:
       - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
       - "test/features/transcription/transcription_queue_environment_recovery_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/queue-inline-environment-repair-validation.yml"
   push:
     branches: [main]
@@ -15,7 +17,13 @@ on:
       - "lib/features/transcription/presentation/widgets/transcription_queue_panel.dart"
       - "test/features/transcription/transcription_queue_environment_recovery_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/queue-inline-environment-repair-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   queue-inline-repair:
@@ -23,10 +31,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze queue recovery changes
         run: >-
@@ -41,5 +46,3 @@ jobs:
           test/features/transcription/transcription_queue_environment_recovery_test.dart
           test/features/transcription/transcription_queue_protective_pause_contract_test.dart
           test/file_batch_transcription_queue_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test

@@ -13,6 +13,8 @@ on:
       - "test/file_batch_transcription_queue_test.dart"
       - "test/features/import/transcription_ready_import_contract_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/transcription-queue-protective-pause-validation.yml"
   push:
     branches: [main]
@@ -27,7 +29,13 @@ on:
       - "test/file_batch_transcription_queue_test.dart"
       - "test/features/import/transcription_ready_import_contract_test.dart"
       - "test/features/transcription/transcription_queue_protective_pause_contract_test.dart"
+      - '.fvmrc'
+      - '.github/actions/setup-flutter/action.yml'
       - ".github/workflows/transcription-queue-protective-pause-validation.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   protective-pause:
@@ -35,10 +43,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - uses: ./.github/actions/setup-flutter
       - run: flutter pub get
       - name: Analyze protective pause changes
         run: >-
@@ -59,5 +64,3 @@ jobs:
           test/file_batch_transcription_queue_test.dart
           test/features/import/transcription_ready_import_contract_test.dart
           test/features/transcription/transcription_queue_protective_pause_contract_test.dart
-      - name: Full Flutter regression suite
-        run: flutter test
