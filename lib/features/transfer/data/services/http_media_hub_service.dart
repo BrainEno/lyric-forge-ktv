@@ -413,23 +413,25 @@ class HttpMediaHubService implements MediaHubService {
 
     final directory = await _resolveIncomingDirectory();
     await directory.create(recursive: true);
-    final destination = await _uniqueDestination(
+    final expected = request.contentLength >= 0 ? request.contentLength : null;
+    final reservation = await _reserveIncomingDestination(
       directory,
       _safeIncomingName(rawName),
     );
-    final partial = File('${destination.path}.part');
-    if (await partial.exists()) await partial.delete();
-
-    final expected = request.contentLength >= 0 ? request.contentLength : null;
-    final sink = partial.openWrite();
+    final destination = reservation.destination;
+    final partial = reservation.partial;
+    IOSink? uploadSink;
     var received = 0;
     try {
+      final sink = partial.openWrite();
+      uploadSink = sink;
       await for (final chunk in request) {
         sink.add(chunk);
         received += chunk.length;
       }
       await sink.flush();
       await sink.close();
+      uploadSink = null;
 
       if (expected != null && received != expected) {
         if (await partial.exists()) await partial.delete();
@@ -464,10 +466,12 @@ class HttpMediaHubService implements MediaHubService {
       });
     } catch (error) {
       try {
-        await sink.close();
+        await uploadSink?.close();
       } catch (_) {}
       if (await partial.exists()) await partial.delete();
       rethrow;
+    } finally {
+      await _releaseIncomingDestinationReservation(reservation);
     }
   }
 
@@ -480,20 +484,82 @@ class HttpMediaHubService implements MediaHubService {
     );
   }
 
-  Future<File> _uniqueDestination(Directory directory, String fileName) async {
+  Future<_IncomingUploadReservation> _reserveIncomingDestination(
+    Directory directory,
+    String fileName,
+  ) async {
     final dot = fileName.lastIndexOf('.');
     final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
     final extension = dot > 0 ? fileName.substring(dot) : '';
-    var candidate = File('${directory.path}${Platform.pathSeparator}$fileName');
-    var suffix = 1;
-    while (await candidate.exists() ||
-        await File('${candidate.path}.part').exists()) {
-      candidate = File(
-        '${directory.path}${Platform.pathSeparator}${stem}_$suffix$extension',
+    var suffix = 0;
+
+    while (true) {
+      final candidateName = suffix == 0
+          ? fileName
+          : '${stem}_$suffix$extension';
+      final candidate = File(
+        '${directory.path}${Platform.pathSeparator}$candidateName',
       );
       suffix++;
+
+      if (await candidate.exists()) continue;
+
+      // Exclusive marker creation serializes destination selection for
+      // concurrent uploads without relying on a process-local lock.
+      final reservation = File('${candidate.path}.reserve');
+      try {
+        await reservation.create(exclusive: true);
+      } on FileSystemException {
+        if (await reservation.exists()) continue;
+        rethrow;
+      }
+
+      try {
+        if (await candidate.exists()) {
+          await _releaseReservationFile(reservation);
+          continue;
+        }
+        final partial = await _createUniqueIncomingPartial(directory);
+        return _IncomingUploadReservation(
+          destination: candidate,
+          partial: partial,
+          reservationFile: reservation,
+        );
+      } catch (_) {
+        await _releaseReservationFile(reservation);
+        rethrow;
+      }
     }
-    return candidate;
+  }
+
+  Future<File> _createUniqueIncomingPartial(Directory directory) async {
+    while (true) {
+      final partial = File(
+        '${directory.path}${Platform.pathSeparator}.lyricforge-${_uuid.v4()}.part',
+      );
+      try {
+        await partial.create(exclusive: true);
+        return partial;
+      } on FileSystemException {
+        if (await partial.exists()) continue;
+        rethrow;
+      }
+    }
+  }
+
+  Future<void> _releaseIncomingDestinationReservation(
+    _IncomingUploadReservation reservation,
+  ) async {
+    await _releaseReservationFile(reservation.reservationFile);
+  }
+
+  Future<void> _releaseReservationFile(File file) async {
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // A stale marker is safer than allowing another upload to reuse a name
+      // that may still be in the process of being committed.
+    }
   }
 
   String _safeIncomingName(String value) {
@@ -768,6 +834,18 @@ class HttpMediaHubService implements MediaHubService {
       _stateController.add(state);
     }
   }
+}
+
+class _IncomingUploadReservation {
+  const _IncomingUploadReservation({
+    required this.destination,
+    required this.partial,
+    required this.reservationFile,
+  });
+
+  final File destination;
+  final File partial;
+  final File reservationFile;
 }
 
 class _BoundMediaHubServers {
