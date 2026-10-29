@@ -1,40 +1,41 @@
 # Handoff
 
 ## 目标
-Resolve high-priority Issue #224 by bounding Media Hub incoming audio uploads in size, duration, storage consumption, and concurrency, while preserving the HTTPS certificate pinning and successful upload/import contract.
+Resolve issue #234 by preventing concurrent uploads with the same filename from sharing/deleting each other's temporary file or overwriting each other's completed content.
 
 ## Git 现场
-- Repository: BrainEno/lyric-forge-ktv
-- Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
-- Branch: `security/media-hub-upload-guardrails-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/240
-- Current implementation head: `6f23b50f37c9cf2f513aef0da60925487985a21a`
-- Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
+- Repository: `BrainEno/lyric-forge-ktv`
+- Base dependency: PR #240 branch `security/media-hub-upload-guardrails-20261029` (upload size/time/disk/concurrency guardrails)
+- Branch: `security/atomic-upload-reservations-20261029`
+- PR: to be opened against the PR #240 branch, not `main`, so the follow-up stays narrowly scoped.
+- After #240 merges, retarget/rebase this PR onto `main` and rerun all checks before merge.
 
 ## 已改文件
 - `lib/features/transfer/data/services/http_media_hub_service.dart`
 - `test/features/transfer/http_media_hub_upload_test.dart`
-- `docs/log/entries/2026-10-29-1620-media-hub-upload-guardrails.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/work_log_index.md`
+- `docs/log/entries/2026-10-29-1815-atomic-upload-reservations.md`
+- `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`
+
+## 实现
+- `_reserveIncomingDestination` uses `File.create(exclusive: true)` on a destination-specific `.reserve` marker. Contenders that cannot claim a name advance to the next suffix instead of deleting/using the same staging path.
+- Temporary upload bodies are written into exclusive `.lyricforge-<uuid>.part` files, independent of the final filename.
+- The destination marker remains claimed until the complete temporary file is renamed into place; it is then released. Error paths delete their own temporary file and the `finally` block releases the marker.
+- The test gates both uploads at a shared disk-space probe so both same-name requests overlap, sends two different 128 KiB payloads, verifies both HTTP 201 results and distinct names, compares both SHA-256 hashes, and ensures no staging/marker files remain.
 
 ## 检查结果
-- Flutter Quality Gate passed on implementation head `6f23b50f37c9cf2f513aef0da60925487985a21a`: work-log preflight, changed-Dart formatting, analysis, and full tests all passed.
-- Added pre-rejection for oversized declared Content-Length, in-stream byte counting for chunked uploads, HTTP 413 overflow rejection, idle/total deadlines, partial-file cleanup, HTTP 507 storage rejection, and HTTP 429 concurrency backoff.
-- Added a 256 MiB free-space reserve plus periodic checks during large streams, with deterministic probe injection for tests.
-- Timeout handling now manually arbitrates the request iterator against idle and total timers, allowing the 408 response to be written before the request-body subscription is cancelled.
-- A documentation-only handoff refresh follows the validated code head; check final-head CI before merge.
+- Source and regression test have been committed to the stacked branch.
+- GitHub Actions final-head formatting, analyzer, and full tests must pass; local Flutter/Dart commands are unavailable here.
+- PR #240's existing CI passed the upload guardrail implementation head, but this PR still needs its own CI after creation.
 
 ## 下一步
-1. Verify CI on the final PR head after the documentation refresh.
-2. Ensure KTV history/recovery and Windows Debug checks are green if triggered by the applicable CI configuration; the Flutter Quality Gate includes full tests.
-3. Keep #224 open until the PR is merged; physically test upload/timeout behavior on at least one device.
-4. Continue with #227 (constant-time token comparison/CORS origin policy) and #234 (atomic .part name reservation) as the next Media Hub security fixes.
+1. Open the stacked PR against `security/media-hub-upload-guardrails-20261029`.
+2. Fix any Dart formatter/analyzer/test findings from the final head; do not weaken the barrier test or digest assertions.
+3. Keep #234 open until #240 is merged, this branch is rebased to `main`, and the concurrent-upload test passes on the rebased final head.
+4. Revisit stale `.reserve` markers after crash as separate cleanup policy only if needed; avoid silently deleting markers owned by in-flight uploads.
 
 ## 已知风险
-- Disk-space probing uses PowerShell/.NET DriveInfo on Windows and `df -Pk` on Linux/macOS. If the OS or filesystem cannot provide a reliable estimate, uploads fail closed with 507.
-- Free-space probes run at upload start and every 64 MiB during large streaming uploads; unrelated writes between probes can still affect the available-space estimate.
-- The existing `.part` name-reservation race is tracked separately in #234. Physical-device upload behavior still requires a smoke test.
+- If the process is terminated mid-upload, the unique `.part` file and reservation marker may remain. This fails safe by forcing the next upload to another name, but orphan cleanup is not yet implemented.
+- The exclusive marker protects cooperating Media Hub writers. An unrelated external process writing directly into the incoming directory can ignore this protocol.
+- This PR is intentionally based on PR #240 because both issues modify the same upload handler. Do not merge/retarget it before the parent branch is incorporated.
 
-最后更新：2026-10-29 17:03（Asia/Taipei）
+最后更新：2026-10-29 18:15（Asia/Taipei）
