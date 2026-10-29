@@ -182,11 +182,11 @@ class HttpMediaHubClientService implements MediaHubClientService {
   }
 
   @override
+  @override
   Uri playbackUriFor(RemoteAudioTrack track) {
     final connection = _requireConnection();
     return connection.resolve(track.streamPath);
   }
-
   @override
   Future<LyricDocument?> fetchLyrics(RemoteAudioTrack track) async {
     if (!track.hasLyrics || track.lyricsPath == null) return null;
