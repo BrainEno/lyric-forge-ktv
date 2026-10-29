@@ -527,7 +527,9 @@ class HttpMediaHubService implements MediaHubService {
             throw const _IncomingUploadInsufficientSpace();
           }
           nextDiskSpaceCheckAt =
-              received + chunk.length + _incomingUploadDiskSpaceCheckIntervalBytes;
+              received +
+              chunk.length +
+              _incomingUploadDiskSpaceCheckIntervalBytes;
         }
 
         sink.add(chunk);
