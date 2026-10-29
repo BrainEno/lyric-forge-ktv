@@ -11,7 +11,7 @@ import 'media_hub_discovery_auth.dart';
 
 class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
   static const int discoveryPort = 48518;
-  static const int protocolVersion = 1;
+  static const int protocolVersion = 2;
   static const String serviceName = 'elysium-player-media-hub';
 
   final Uuid _uuid;
@@ -113,11 +113,62 @@ class UdpMediaHubDiscoveryService implements MediaHubDiscoveryService {
             }
             final port = body['port'];
             final token = body['token'];
+            final tlsFingerprint = body['tlsFingerprint'];
             final proof = body['proof'];
             if (port is! num ||
                 port.toInt() <= 0 ||
                 token is! String ||
                 token.trim().isEmpty ||
+                tlsFingerprint is! String ||
+                !RegExp(r'^[0-9a-fA-F]{64}
+                proof is! String ||
+                proof.trim().isEmpty) {
+              continue;
+            }
+            final expectedProof = mediaHubDiscoveryOfferProof(
+              key: discoveryKey,
+              deviceId: deviceId,
+              requestId: requestId,
+              port: port.toInt(),
+              token: token.trim(),
+              tlsFingerprint: tlsFingerprint,
+            );
+            if (!mediaHubDiscoveryProofMatches(proof, expectedProof)) continue;
+
+            finish(
+              MediaHubDiscoveryResult(
+                deviceId: deviceId,
+                host: currentDatagram.address.address,
+                port: port.toInt(),
+                token: token.trim(),
+                tlsFingerprint: tlsFingerprint.toLowerCase(),
+              ),
+            );
+            break;
+          } catch (_) {
+            // Ignore unrelated/malformed UDP traffic.
+          }
+        }
+      });
+
+      await sendProbe();
+      retryTimer = Timer.periodic(
+        const Duration(milliseconds: 400),
+        (_) => unawaited(sendProbe()),
+      );
+      timeoutTimer = Timer(timeout, () => finish(null));
+      return await completer.future;
+    } catch (_) {
+      return null;
+    } finally {
+      retryTimer?.cancel();
+      timeoutTimer?.cancel();
+      await subscription?.cancel();
+      socket?.close();
+    }
+  }
+}
+).hasMatch(tlsFingerprint) ||
                 proof is! String ||
                 proof.trim().isEmpty) {
               continue;
