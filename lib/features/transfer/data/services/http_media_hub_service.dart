@@ -20,7 +20,7 @@ class HttpMediaHubService implements MediaHubService {
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
 
-  HttpServer? _server;
+  final List<HttpServer> _servers = <HttpServer>[];
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
 
@@ -40,7 +40,7 @@ class HttpMediaHubService implements MediaHubService {
   MediaHubSession? get currentSession => _state.session;
 
   @override
-  bool get isRunning => _server != null && _state.isRunning;
+  bool get isRunning => _servers.isNotEmpty && _state.isRunning;
 
   @override
   Future<MediaHubSession> startSharing(List<SharedAudioTrack> tracks) async {
@@ -81,12 +81,13 @@ class HttpMediaHubService implements MediaHubService {
         );
       }
 
-      final server = await _bindServer();
-      final endpoints = await _resolveReachableEndpoints(server.port);
+      final bound = await _bindServers();
+      _servers.addAll(bound.servers);
+      final endpoints = bound.endpoints;
       final preferredEndpoint = endpoints.first;
       final session = MediaHubSession(
         host: preferredEndpoint.host,
-        port: server.port,
+        port: preferredEndpoint.port,
         token: _uuid.v4().replaceAll('-', ''),
         startedAt: DateTime.now(),
         trackCount: validated.length,
@@ -94,7 +95,6 @@ class HttpMediaHubService implements MediaHubService {
       );
 
       _tracks = Map.unmodifiable(validated);
-      _server = server;
       _emit(
         MediaHubState(
           status: MediaHubStatus.running,
@@ -102,14 +102,18 @@ class HttpMediaHubService implements MediaHubService {
         ),
       );
 
-      server.listen((request) {
-        unawaited(_handleRequest(request, session));
-      });
+      for (final server in _servers) {
+        server.listen((request) {
+          unawaited(_handleRequest(request, session));
+        });
+      }
 
       return session;
     } catch (error) {
-      await _server?.close(force: true);
-      _server = null;
+      await Future.wait(
+        _servers.map((server) => server.close(force: true)),
+      );
+      _servers.clear();
       _tracks = const {};
       _emit(
         MediaHubState(
@@ -123,12 +127,10 @@ class HttpMediaHubService implements MediaHubService {
 
   @override
   Future<void> stopSharing() async {
-    final server = _server;
-    _server = null;
+    final servers = List<HttpServer>.from(_servers);
+    _servers.clear();
     _tracks = const {};
-    if (server != null) {
-      await server.close(force: true);
-    }
+    await Future.wait(servers.map((server) => server.close(force: true)));
     _emit(const MediaHubState.stopped());
   }
 
@@ -137,76 +139,110 @@ class HttpMediaHubService implements MediaHubService {
     await _stateController.close();
   }
 
-  Future<HttpServer> _bindServer() async {
+  Future<_BoundMediaHubServers> _bindServers() async {
+    final servers = <HttpServer>[];
+    final endpoints = <MediaHubEndpoint>[];
+
     try {
-      return await HttpServer.bind(
-        InternetAddress.anyIPv4,
-        preferredPort,
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+        includeLinkLocal: false,
       );
-    } on SocketException {
-      return HttpServer.bind(InternetAddress.anyIPv4, 0);
+
+      final tailscaleHosts = <String>{};
+      final lanHosts = <String>{};
+      for (final interface in interfaces) {
+        for (final address in interface.addresses) {
+          final value = address.address;
+          if (_isTailscaleIpv4(value)) {
+            tailscaleHosts.add(value);
+          } else if (_isPrivateLanIpv4(value)) {
+            lanHosts.add(value);
+          }
+          // Do not bind to public or otherwise unclassified interfaces.
+        }
+      }
+
+      for (final host in tailscaleHosts) {
+        await _tryBindEndpoint(
+          host,
+          MediaHubEndpointKind.tailscale,
+          servers,
+          endpoints,
+        );
+      }
+      for (final host in lanHosts) {
+        await _tryBindEndpoint(
+          host,
+          MediaHubEndpointKind.lan,
+          servers,
+          endpoints,
+        );
+      }
+
+      if (endpoints.isEmpty) {
+        final loopback = await _bindWithPortFallback(
+          InternetAddress.loopbackIPv4.address,
+        );
+        servers.add(loopback);
+        endpoints.add(
+          MediaHubEndpoint(
+            host: InternetAddress.loopbackIPv4.address,
+            port: loopback.port,
+            kind: MediaHubEndpointKind.other,
+          ),
+        );
+      } else {
+        // Preserve local-loopback access for desktop callers and tests without
+        // exposing the listener on arbitrary network interfaces.
+        final primary = endpoints.first;
+        try {
+          servers.add(
+            await HttpServer.bind(
+              InternetAddress.loopbackIPv4,
+              primary.port,
+            ),
+          );
+        } on SocketException {
+          // The advertised LAN/Tailscale endpoint remains usable if loopback
+          // is unavailable or that local port is occupied.
+        }
+      }
+
+      return _BoundMediaHubServers(
+        servers: List<HttpServer>.unmodifiable(servers),
+        endpoints: List<MediaHubEndpoint>.unmodifiable(endpoints),
+      );
+    } catch (_) {
+      await Future.wait(servers.map((server) => server.close(force: true)));
+      rethrow;
     }
   }
 
-  Future<List<MediaHubEndpoint>> _resolveReachableEndpoints(int port) async {
-    final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-      includeLinkLocal: false,
-    );
-
-    final tailscaleHosts = <String>{};
-    final lanHosts = <String>{};
-    final otherHosts = <String>{};
-
-    for (final interface in interfaces) {
-      for (final address in interface.addresses) {
-        final value = address.address;
-        if (_isTailscaleIpv4(value)) {
-          tailscaleHosts.add(value);
-        } else if (_isPrivateLanIpv4(value)) {
-          lanHosts.add(value);
-        } else {
-          otherHosts.add(value);
-        }
-      }
-    }
-
-    final endpoints = <MediaHubEndpoint>[
-      ...tailscaleHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.tailscale,
-        ),
-      ),
-      ...lanHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.lan,
-        ),
-      ),
-      ...otherHosts.map(
-        (host) => MediaHubEndpoint(
-          host: host,
-          port: port,
-          kind: MediaHubEndpointKind.other,
-        ),
-      ),
-    ];
-
-    if (endpoints.isEmpty) {
+  Future<void> _tryBindEndpoint(
+    String host,
+    MediaHubEndpointKind kind,
+    List<HttpServer> servers,
+    List<MediaHubEndpoint> endpoints,
+  ) async {
+    try {
+      final server = await _bindWithPortFallback(host);
+      servers.add(server);
       endpoints.add(
-        MediaHubEndpoint(
-          host: InternetAddress.loopbackIPv4.address,
-          port: port,
-          kind: MediaHubEndpointKind.other,
-        ),
+        MediaHubEndpoint(host: host, port: server.port, kind: kind),
       );
+    } on SocketException {
+      // Skip an unavailable interface; keep successfully bound endpoints.
     }
+  }
 
-    return List.unmodifiable(endpoints);
+  Future<HttpServer> _bindWithPortFallback(String host) async {
+    try {
+      return await HttpServer.bind(InternetAddress(host), preferredPort);
+    } on SocketException {
+      return HttpServer.bind(InternetAddress(host), 0);
+    }
   }
 
   Future<void> _handleRequest(
@@ -761,6 +797,17 @@ class HttpMediaHubService implements MediaHubService {
       _stateController.add(state);
     }
   }
+}
+
+
+class _BoundMediaHubServers {
+  final List<HttpServer> servers;
+  final List<MediaHubEndpoint> endpoints;
+
+  const _BoundMediaHubServers({
+    required this.servers,
+    required this.endpoints,
+  });
 }
 
 class MediaHubException implements Exception {
