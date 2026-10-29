@@ -84,7 +84,9 @@ void main() {
             validate: _isCounterDocument,
             onStage: (stage) async {
               if (stage == AtomicJsonWriteStage.canonicalReplaced) {
-                throw StateError('injected failure after canonical replacement');
+                throw StateError(
+                  'injected failure after canonical replacement',
+                );
               }
             },
           ),
