@@ -53,7 +53,6 @@ class MediaHubRemotePlaybackItemResolver implements RemotePlaybackItemResolver {
     for (final connection in _connectionCandidates(active, saved)) {
       try {
         final catalog = await _catalogFor(connection);
-        final resolvedConnection = client.currentConnection ?? connection;
         RemoteAudioTrack? track;
         for (final candidate in catalog) {
           if (candidate.id == trackId) {
