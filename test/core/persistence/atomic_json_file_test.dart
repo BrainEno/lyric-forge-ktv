@@ -32,7 +32,10 @@ void main() {
           _document(2),
           validate: _isCounterDocument,
           onStage: (stage) async {
-            if (stage == AtomicJsonWriteStage.canonicalRemoved) {
+            final failureStage = Platform.isWindows
+                ? AtomicJsonWriteStage.canonicalRemoved
+                : AtomicJsonWriteStage.backupPrepared;
+            if (stage == failureStage) {
               throw StateError('injected replacement failure');
             }
           },
@@ -47,6 +50,63 @@ void main() {
       );
       expect(await destination.exists(), isTrue);
     });
+
+    test('failure after the temp flush keeps the previous document', () async {
+      await destination.writeAsString(_document(1), flush: true);
+
+      await expectLater(
+        AtomicJsonFile.write(
+          destination,
+          _document(2),
+          validate: _isCounterDocument,
+          onStage: (stage) async {
+            if (stage == AtomicJsonWriteStage.temporaryFlushed) {
+              throw StateError('injected failure after temporary flush');
+            }
+          },
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(jsonDecode(await destination.readAsString()), {'counter': 1});
+      expect(await AtomicJsonFile.temporaryFor(destination).exists(), isFalse);
+    });
+
+    test(
+      'failure after replacement leaves the new document and valid backup',
+      () async {
+        await destination.writeAsString(_document(1), flush: true);
+
+        await expectLater(
+          AtomicJsonFile.write(
+            destination,
+            _document(2),
+            validate: _isCounterDocument,
+            onStage: (stage) async {
+              if (stage == AtomicJsonWriteStage.canonicalReplaced) {
+                throw StateError('injected failure after canonical replacement');
+              }
+            },
+          ),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(jsonDecode(await destination.readAsString()), {'counter': 2});
+        expect(
+          jsonDecode(
+            await AtomicJsonFile.backupFor(destination).readAsString(),
+          ),
+          {'counter': 1},
+        );
+        expect(
+          await AtomicJsonFile.isValidJsonFile(
+            destination,
+            validate: _isCounterDocument,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test(
       'restores a flushed temporary document when canonical is missing',
