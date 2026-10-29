@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 mode="all"
 skip_pub_get=false
 skip_docs=false
@@ -102,6 +104,11 @@ print_provenance() {
 }
 
 print_provenance
+
+# A formatter is bundled with its Dart SDK. Reject a global Flutter/Dart
+# mismatch before running format-related checks or tests.
+run_step "verify pinned Flutter/Dart SDK" \
+  bash "$SCRIPT_DIR/check_flutter_sdk.sh" "${FLUTTER_BIN:-flutter}"
 
 # Fail fast on documentation-contract errors before running the full analyzer
 # and test suite. This avoids spending a minute or more on tests when the log is

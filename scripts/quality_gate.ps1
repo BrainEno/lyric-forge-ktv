@@ -49,6 +49,10 @@ function Get-QualityGateBranch {
     }
 }
 
+Invoke-CheckedStep -Name 'verify pinned Flutter/Dart SDK' -Command {
+    & (Join-Path $PSScriptRoot 'check_flutter_sdk.ps1')
+}
+
 $branch = Get-QualityGateBranch
 $commit = 'unknown'
 try {

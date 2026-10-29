@@ -562,6 +562,7 @@ is_repairable_pods_failure() {
 [[ "$(uname -s)" == "Darwin" ]] || die "iOS 构建只能在 macOS 上执行"
 [[ -n "$FLUTTER_BIN" && -x "$FLUTTER_BIN" ]] || \
   die "找不到 Flutter；请设置 FLUTTER_BIN 或使用 --flutter"
+bash "$SCRIPT_DIR/check_flutter_sdk.sh" "$FLUTTER_BIN"
 command -v xcodebuild >/dev/null 2>&1 || die "找不到 Xcode command line tools"
 command -v pod >/dev/null 2>&1 || die "找不到 CocoaPods；请先安装 CocoaPods"
 [[ -f "$PROJECT_ROOT/pubspec.lock" ]] || die "缺少 pubspec.lock"
