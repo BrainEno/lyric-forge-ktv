@@ -14,25 +14,40 @@ typedef IncomingMediaCallback = Future<void> Function(String path);
 
 class HttpMediaHubService implements MediaHubService {
   static const int preferredPort = 48517;
+  static const int defaultMaxIncomingUploadBytes = 2 * 1024 * 1024 * 1024;
+  static const int defaultMaxConcurrentIncomingUploads = 2;
 
   final Uuid _uuid;
   final MediaHubTlsIdentityStore _tlsIdentityStore;
   final Directory? incomingDirectory;
   final IncomingMediaCallback? onIncomingFile;
+  final int maxIncomingUploadBytes;
+  final int maxConcurrentIncomingUploads;
+  final Duration incomingUploadIdleTimeout;
+  final Duration incomingUploadTimeout;
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
 
   final List<HttpServer> _servers = <HttpServer>[];
   Map<String, SharedAudioTrack> _tracks = const {};
   MediaHubState _state = const MediaHubState.stopped();
+  int _activeIncomingUploads = 0;
 
   HttpMediaHubService({
     Uuid? uuid,
     MediaHubTlsIdentityStore? tlsIdentityStore,
     this.incomingDirectory,
     this.onIncomingFile,
+    this.maxIncomingUploadBytes = defaultMaxIncomingUploadBytes,
+    this.maxConcurrentIncomingUploads = defaultMaxConcurrentIncomingUploads,
+    this.incomingUploadIdleTimeout = const Duration(seconds: 30),
+    this.incomingUploadTimeout = const Duration(minutes: 30),
   }) : _uuid = uuid ?? const Uuid(),
-       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
+       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore(),
+       assert(maxIncomingUploadBytes > 0),
+       assert(maxConcurrentIncomingUploads > 0),
+       assert(incomingUploadIdleTimeout > Duration.zero),
+       assert(incomingUploadTimeout > Duration.zero);
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -314,7 +329,21 @@ class HttpMediaHubService implements MediaHubService {
           segments[1] == 'incoming' &&
           segments[2] == 'audio';
       if (isIncomingAudio) {
-        await _receiveIncomingAudio(request);
+        if (_activeIncomingUploads >= maxConcurrentIncomingUploads) {
+          request.response.headers.set('Retry-After', '1');
+          await _writeJson(request.response, HttpStatus.tooManyRequests, {
+            'error': 'upload_capacity_exceeded',
+            'retryAfterSeconds': 1,
+          });
+          return;
+        }
+
+        _activeIncomingUploads++;
+        try {
+          await _receiveIncomingAudio(request);
+        } finally {
+          _activeIncomingUploads--;
+        }
         return;
       }
 
@@ -411,6 +440,16 @@ class HttpMediaHubService implements MediaHubService {
       return;
     }
 
+    final expected = request.contentLength >= 0 ? request.contentLength : null;
+    if (expected != null && expected > maxIncomingUploadBytes) {
+      request.response.headers.set(HttpHeaders.connectionHeader, 'close');
+      await _writeJson(request.response, HttpStatus.requestEntityTooLarge, {
+        'error': 'upload_too_large',
+        'maxBytes': maxIncomingUploadBytes,
+      });
+      return;
+    }
+
     final directory = await _resolveIncomingDirectory();
     await directory.create(recursive: true);
     final destination = await _uniqueDestination(
@@ -420,55 +459,90 @@ class HttpMediaHubService implements MediaHubService {
     final partial = File('${destination.path}.part');
     if (await partial.exists()) await partial.delete();
 
-    final expected = request.contentLength >= 0 ? request.contentLength : null;
     final sink = partial.openWrite();
+    final stopwatch = Stopwatch()..start();
     var received = 0;
     try {
-      await for (final chunk in request) {
+      await for (final chunk in request.timeout(incomingUploadIdleTimeout)) {
+        if (stopwatch.elapsed >= incomingUploadTimeout) {
+          throw const _IncomingUploadTimedOut();
+        }
+        if (chunk.length > maxIncomingUploadBytes - received) {
+          throw const _IncomingUploadTooLarge();
+        }
         sink.add(chunk);
         received += chunk.length;
       }
+      if (stopwatch.elapsed >= incomingUploadTimeout) {
+        throw const _IncomingUploadTimedOut();
+      }
       await sink.flush();
       await sink.close();
+    } on _IncomingUploadTooLarge {
+      request.response.headers.set(HttpHeaders.connectionHeader, 'close');
+      await _discardPartial(partial, sink);
+      await _writeJson(request.response, HttpStatus.requestEntityTooLarge, {
+        'error': 'upload_too_large',
+        'maxBytes': maxIncomingUploadBytes,
+      });
+      return;
+    } on TimeoutException {
+      request.response.headers.set(HttpHeaders.connectionHeader, 'close');
+      await _discardPartial(partial, sink);
+      await _writeJson(request.response, HttpStatus.requestTimeout, {
+        'error': 'upload_idle_timeout',
+      });
+      return;
+    } on _IncomingUploadTimedOut {
+      request.response.headers.set(HttpHeaders.connectionHeader, 'close');
+      await _discardPartial(partial, sink);
+      await _writeJson(request.response, HttpStatus.requestTimeout, {
+        'error': 'upload_total_timeout',
+      });
+      return;
+    } catch (_) {
+      await _discardPartial(partial, sink);
+      rethrow;
+    }
 
-      if (expected != null && received != expected) {
-        if (await partial.exists()) await partial.delete();
-        await _writeJson(request.response, HttpStatus.badRequest, {
-          'error': 'length_mismatch',
-          'expected': expected,
-          'received': received,
+    if (expected != null && received != expected) {
+      if (await partial.exists()) await partial.delete();
+      await _writeJson(request.response, HttpStatus.badRequest, {
+        'error': 'length_mismatch',
+        'expected': expected,
+        'received': received,
+      });
+      return;
+    }
+
+    await partial.rename(destination.path);
+    final callback = onIncomingFile;
+    if (callback != null) {
+      try {
+        await callback(destination.path);
+      } catch (error) {
+        if (await destination.exists()) await destination.delete();
+        await _writeJson(request.response, HttpStatus.internalServerError, {
+          'error': 'library_import_failed',
+          'message': error.toString(),
         });
         return;
       }
-
-      await partial.rename(destination.path);
-      final callback = onIncomingFile;
-      if (callback != null) {
-        try {
-          await callback(destination.path);
-        } catch (error) {
-          if (await destination.exists()) await destination.delete();
-          await _writeJson(request.response, HttpStatus.internalServerError, {
-            'error': 'library_import_failed',
-            'message': error.toString(),
-          });
-          return;
-        }
-      }
-
-      await _writeJson(request.response, HttpStatus.created, {
-        'status': 'ok',
-        'filename': destination.uri.pathSegments.last,
-        'byteLength': received,
-        'imported': callback != null,
-      });
-    } catch (error) {
-      try {
-        await sink.close();
-      } catch (_) {}
-      if (await partial.exists()) await partial.delete();
-      rethrow;
     }
+
+    await _writeJson(request.response, HttpStatus.created, {
+      'status': 'ok',
+      'filename': destination.uri.pathSegments.last,
+      'byteLength': received,
+      'imported': callback != null,
+    });
+  }
+
+  Future<void> _discardPartial(File partial, IOSink sink) async {
+    try {
+      await sink.close();
+    } catch (_) {}
+    if (await partial.exists()) await partial.delete();
   }
 
   Future<Directory> _resolveIncomingDirectory() async {
@@ -804,4 +878,12 @@ class _ParsedRange {
   const _ParsedRange.invalid() : isValid = false, range = null;
 
   const _ParsedRange.valid(this.range) : isValid = true;
+}
+
+class _IncomingUploadTooLarge implements Exception {
+  const _IncomingUploadTooLarge();
+}
+
+class _IncomingUploadTimedOut implements Exception {
+  const _IncomingUploadTimedOut();
 }
