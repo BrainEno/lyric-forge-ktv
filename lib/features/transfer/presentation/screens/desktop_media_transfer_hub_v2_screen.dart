@@ -99,6 +99,7 @@ class _DesktopMediaTransferHubV2ScreenState
     // If the service is already running, require fresh consent before replacing
     // its session and invalidating the current pairing token.
     if (_hub.isRunning && !await _confirmInsecureSharing()) return;
+    if (!mounted) return;
 
     setState(() {
       _busy = true;
@@ -126,7 +127,7 @@ class _DesktopMediaTransferHubV2ScreenState
 
   Future<void> _start() async {
     if (_busy || _hub.isRunning) return;
-    if (!await _confirmInsecureSharing()) return;
+    if (!await _confirmInsecureSharing() || !mounted) return;
 
     setState(() {
       _busy = true;
