@@ -54,7 +54,7 @@ jobs:
           test/features/transcription/asr_runtime_resume_contract_test.dart
 
   macos-native-bookmark:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
