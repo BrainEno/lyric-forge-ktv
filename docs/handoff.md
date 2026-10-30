@@ -1,42 +1,40 @@
 # Handoff
 
 ## 目标
-Resolve issue #234 by preventing concurrent uploads with the same filename from sharing/deleting each other's temporary file or overwriting completed content.
+Address issue #221's POSIX atomic replacement gap and improve fault-injection coverage for JSON persistence without bundling broad schema migrations into the same PR.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@5d011ac4a51c3c04a714297916e5b8c6683b7fff`
-- Branch: `security/atomic-upload-reservations-main-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/248.
-- The upload size/time/disk/concurrency guardrails are in PR #240; this issue's branch is intentionally kept standalone to permit separate review and CI.
+- Base: `main@7e0fbacd485a5546c2588c3b0ab2b3db823533b2`
+- Branch: `fix/atomic-json-platform-replacement-20261029`
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/242
+- Validated implementation head before main sync: `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`
+- Local Dart/Flutter SDKs are unavailable in this environment; validate on GitHub Actions.
 
 ## 已改文件
-- `lib/features/transfer/data/services/http_media_hub_service.dart`
-- `test/features/transfer/http_media_hub_upload_test.dart`
-- `docs/log/entries/2026-10-29-1815-atomic-upload-reservations.md`
-- `docs/work_log.md`, `docs/work_log_index.md`, `docs/handoff.md`
-
-## 实现
-- `_reserveIncomingDestination` claims a destination-specific `.reserve` marker using `File.create(exclusive: true)`, so concurrent upload contenders select different names without a check-then-create window.
-- Temporary upload bodies go to exclusive UUID-named `.lyricforge-<uuid>.part` files, independent of the target filename.
-- The marker stays held through upload, rename, and library import, and is released from `finally`. Error paths discard only the current request's temp file.
-- Added a concurrent same-name test with two different 256 KiB payloads across two independent active session tokens sharing one incoming directory. This respects the one-upload-per-session guard while asserting HTTP 201, distinct returned names, both exact SHA-256 hashes, and no remaining `.part` or `.reserve` files.
+- `lib/core/persistence/atomic_json_file.dart`
+- `test/core/persistence/atomic_json_file_test.dart`
+- `docs/log/entries/2026-10-29-1650-atomic-json-posix-replacement.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/work_log_index.md`
+- `docs/handoff.md`
 
 ## 检查结果
-- Source and regression test committed on the issue-specific branch.
-- Final-head Flutter Quality Gate must pass work-log checks, changed-Dart formatting, analysis, and the full test suite; local Dart/Flutter SDKs are unavailable.
-- The test uses two independent active session tokens and two service instances sharing the same incoming directory, so it does not bypass the one-upload-per-session limit. It exercises two concurrent upload requests against the same filename and checks both payload hashes.
-- The test uses concurrent requests but doesn't force a deterministic interleaving at the filesystem syscall boundary; the exclusive-create invariant is also reviewed directly in the implementation.
+- Flutter Quality Gate passed on implementation head `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`: work-log preflight, changed-Dart formatting, analysis, and full tests all passed.
+- POSIX replacement now renames the validated temporary file directly over the current canonical file, with no explicit delete before rename.
+- Windows keeps the backup-protected delete/rename fallback; recovery uses the same platform-aware behavior.
+- Added failure injection after temporary flush, immediately before replacement (platform-specific stage), and after canonical replacement.
+- A documentation-only handoff refresh follows the validated code head; verify final-head CI before merge.
 
 ## 下一步
-1. Open a standalone PR against `main` and verify the final-head quality gate.
-2. Fix any formatting/analyzer/test failures from CI without weakening the two-payload hash assertions.
-3. Keep #234 open until the fix is validated and merged.
-4. Track the cleanup policy for abandoned UUID files and `.reserve` markers separately if crash recovery requirements warrant it.
+1. Verify CI on the final PR head after documentation refresh.
+2. Run Windows-specific validation for the fallback path.
+3. Keep #221 open until the schemaVersion/migration contract is separately decided and validated.
 
 ## 已知风险
-- A process crash can leave a staging file and reservation marker. The marker fails safe by preventing a later upload from reusing the same name, but orphan cleanup is not part of this fix.
-- The reservation coordinates Media Hub uploads. An unrelated process writing directly into the incoming directory does not honor the marker protocol.
-- Physical phone/desktop upload smoke testing remains a separate check.
+- On Windows the delete/rename gap remains, protected by the validated backup and startup restoration path; this is not a database transaction or a guarantee against filesystem/hardware failure.
+- This change does not add schemaVersion to the ten stores using AtomicJsonFile; broad migration changes are intentionally out of scope.
+- Failure hooks simulate interrupted stages inside the writer, but do not kill a process or validate power-loss durability on a physical filesystem.
 
-最后更新：2026-10-29 18:18（Asia/Taipei）
+最后更新：2026-10-29 17:04（Asia/Taipei）

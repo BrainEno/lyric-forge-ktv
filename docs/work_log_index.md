@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Recoverable JSON persistence (#221):** `AtomicJsonFile` keeps validated temp/backup sidecars and restores missing/invalid canonical stores. This branch uses direct POSIX rename for atomic replacement and retains Windows' recoverable delete/rename fallback; schemaVersion migration remains separate. Verify platform-specific behavior and all store consumers before closing the issue.
+
 - **Media Hub upload reservation (#234):** Incoming uploads claim a final filename through an exclusive `.reserve` marker and write to a unique `.lyricforge-<uuid>.part` file. A concurrent same-name regression test validates distinct output names, both SHA-256 digests, and cleanup of temporary files.
 
 - **Media Hub browser isolation (#227):** The native pinned-HTTPS service no longer sends wildcard CORS headers and rejects browser `OPTIONS` preflights. Native Media Hub clients do not require CORS; bearer auth and TLS pinning remain mandatory. See `http_media_hub_upload_test.dart` and the 2026-10-29 CORS hardening entry.

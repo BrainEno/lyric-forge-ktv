@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 11:40] Secure Media Hub with fingerprint-pinned HTTPS `style: format Media Hub consent contract test` ([entry](log/entries/2026-10-29-1140-media-hub-explicit-consent.md))
 - [2026-10-28 23:10] Unify Flutter CI version and focused workflow gates `ci: unify Flutter SDK and focus specialist workflows` ([entry](log/entries/2026-10-28-2310-unify-flutter-ci-workflows.md))
 - [2026-10-28 22:15] Pin and verify managed FFmpeg downloads `fix: pin and verify managed FFmpeg downloads` ([entry](log/entries/2026-10-28-2215-pin-and-verify-managed-ffmpeg.md))
 - [2026-10-28 19:45] Supervise resumable audio chunk processes `fix: supervise resumable audio chunk processes (#214)` ([entry](log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md))

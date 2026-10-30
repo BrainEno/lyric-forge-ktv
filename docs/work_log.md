@@ -8,10 +8,10 @@
 - [2026-10-29 18:15] Reserve upload destination names and UUID temporary files `security: reserve upload names and UUID temp files atomically` ([entry](log/entries/2026-10-29-1815-atomic-upload-reservations.md))
 - [2026-10-29 17:50] Disable wildcard CORS for native Media Hub `security: remove wildcard CORS from native Media Hub` ([entry](log/entries/2026-10-29-1750-disable-wildcard-cors-media-hub.md))
 - [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits `security: compare Media Hub bearer tokens in constant time` ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
+- [2026-10-29 16:50] Atomically replace JSON stores on POSIX `fix: replace atomic JSON stores without POSIX delete window` ([entry](log/entries/2026-10-29-1650-atomic-json-posix-replacement.md))
 - [2026-10-29 16:20] Bound Media Hub incoming upload resources `security: add Media Hub upload resource guardrails` ([entry](log/entries/2026-10-29-1620-media-hub-upload-guardrails.md))
-- [2026-10-29 11:40] Secure Media Hub with fingerprint-pinned HTTPS `style: format Media Hub consent contract test` ([entry](log/entries/2026-10-29-1140-media-hub-explicit-consent.md))
 
-<!-- 129 entries total: 8 active, 121 archived. -->
+<!-- 130 entries total: 8 active, 122 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
