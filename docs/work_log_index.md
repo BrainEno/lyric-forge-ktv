@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Media Hub upload reservation (#234):** Incoming uploads claim a final filename through an exclusive `.reserve` marker and write to a unique `.lyricforge-<uuid>.part` file. A concurrent same-name regression test validates distinct output names, both SHA-256 digests, and cleanup of temporary files.
+
 - **Media Hub browser isolation (#227):** The native pinned-HTTPS service no longer sends wildcard CORS headers and rejects browser `OPTIONS` preflights. Native Media Hub clients do not require CORS; bearer auth and TLS pinning remain mandatory. See `http_media_hub_upload_test.dart` and the 2026-10-29 CORS hardening entry.
 
 - **Media Hub bearer authentication (#222):** HTTP authorization requires a Bearer header; URL token parameters are stripped from remote-player proxy/rebase URLs and must not authorize requests. `mediaHubConstantTimeEquals` is shared by HTTP token validation and discovery proof checks; see `media_hub_discovery_auth_test.dart` and the #222 follow-up entry. Full timing guarantees remain bounded by Dart runtime behavior.
