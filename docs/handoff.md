@@ -29,7 +29,7 @@ Address issue #221's POSIX atomic replacement gap and improve fault-injection co
 
 ## 下一步
 1. Verify CI on the final PR head after documentation refresh.
-2. Run Windows-specific validation for the fallback path.
+2. The Windows native validation workflow now runs `test/core/persistence/atomic_json_file_test.dart` on Windows before the native build, exercising the delete/rename fallback and recovery branches.
 3. Keep #221 open until the schemaVersion/migration contract is separately decided and validated.
 
 ## 已知风险
