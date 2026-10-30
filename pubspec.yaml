@@ -1,8 +1,9 @@
 name: lyric_forge_ktv
-description: "A new Flutter project."
+description: "Local-first music playback, lyric editing, and KTV production toolkit."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+repository: https://github.com/BrainEno/lyric-forge-ktv
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -64,9 +65,9 @@ dependencies:
   audio_service: ^0.18.19
   audio_session: ^0.2.4
   record: 6.2.1
-  # Keep flutter_soloud 4.1.7 until the 5.x migration is tested against the
-  # pinned Flutter 3.47.7 SDK, macOS CMake build, and KTV buffer-stream APIs.
-  # Treat output-latency reporting as unavailable unless the plugin reports it.
+  # flutter_soloud 5.x pulls native_toolchain_c, whose meta constraint does not
+  # resolve with Flutter 3.41.9. 4.1.7 keeps the buffer-stream APIs used by KTV
+  # monitoring; output-latency reporting is treated as unavailable rather than guessed.
   flutter_soloud: 4.1.7
 
   # UUID generation
