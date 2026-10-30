@@ -20,7 +20,7 @@ Resolve issue #234 by preventing concurrent uploads with the same filename from 
 - `_reserveIncomingDestination` claims a destination-specific `.reserve` marker using `File.create(exclusive: true)`, so concurrent upload contenders select different names without a check-then-create window.
 - Temporary upload bodies go to exclusive UUID-named `.lyricforge-<uuid>.part` files, independent of the target filename.
 - The marker stays held through upload, rename, and library import, and is released from `finally`. Error paths discard only the current request's temp file.
-- Added a concurrent same-name test with two different 256 KiB payloads. It asserts HTTP 201, distinct returned names, both exact SHA-256 hashes, and no remaining `.part` or `.reserve` files.
+- Added a concurrent same-name test with two different 256 KiB payloads across two independent active session tokens sharing one incoming directory. This respects the one-upload-per-session guard while asserting HTTP 201, distinct returned names, both exact SHA-256 hashes, and no remaining `.part` or `.reserve` files.
 
 ## 检查结果
 - Source and regression test committed on the issue-specific branch.

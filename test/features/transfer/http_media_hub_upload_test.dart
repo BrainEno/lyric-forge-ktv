@@ -189,9 +189,14 @@ void main() {
   test(
     'concurrent same-name uploads preserve both complete file hashes',
     () async {
-      final session = await service.startSharing(const []);
-      final clientA = _pinnedHttpClient(session.tlsFingerprint!);
-      final clientB = _pinnedHttpClient(session.tlsFingerprint!);
+      final secondService = createService();
+      addTearDown(secondService.stopSharing);
+      final sessionA = await service.startSharing(const []);
+      final sessionB = await secondService.startSharing(const []);
+      expect(sessionA.token, isNot(sessionB.token));
+
+      final clientA = _pinnedHttpClient(sessionA.tlsFingerprint!);
+      final clientB = _pinnedHttpClient(sessionB.tlsFingerprint!);
       addTearDown(() => clientA.close(force: true));
       addTearDown(() => clientB.close(force: true));
 
@@ -206,6 +211,7 @@ void main() {
 
       Future<Map<String, dynamic>> upload(
         HttpClient client,
+        MediaHubSession session,
         List<int> bytes,
       ) async {
         final request = await client.postUrl(
@@ -235,8 +241,8 @@ void main() {
       }
 
       final bodies = await Future.wait([
-        upload(clientA, bytesA),
-        upload(clientB, bytesB),
+        upload(clientA, sessionA, bytesA),
+        upload(clientB, sessionB, bytesB),
       ]);
       expect(bodies.map((body) => body['filename']).toSet(), {
         'same-name.mp3',
@@ -265,6 +271,7 @@ void main() {
           )
           .toList();
       expect(leftovers, isEmpty);
+      await secondService.stopSharing();
     },
   );
 
