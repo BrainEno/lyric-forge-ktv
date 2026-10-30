@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 20:00] Document LyricForge product and source-build setup ([entry](log/entries/2026-10-29-2000-replace-flutter-template-readme.md))
 - [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally ([entry](log/entries/2026-10-29-1925-enforce-pinned-flutter-sdk-local-gates.md))
 - [2026-10-29 18:15] Reserve upload destination names and UUID temporary files ([entry](log/entries/2026-10-29-1815-atomic-upload-reservations.md))
 - [2026-10-29 17:50] Disable wildcard CORS for native Media Hub ([entry](log/entries/2026-10-29-1750-disable-wildcard-cors-media-hub.md))
