@@ -1,0 +1,35 @@
+name: TEMP format oracle (delete after use)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
+      - name: Emit formatter diff as annotations
+        shell: bash
+        run: |
+          files=(
+            lib/features/transfer/data/services/http_media_hub_service.dart
+            lib/features/transcription/data/services/high_quality_transcription_service.dart
+            test/high_quality_transcription_service_test.dart
+            test/features/transfer/media_hub_disk_space_probe_contract_test.dart
+            test/documentation_references_contract_test.dart
+          )
+          for f in "${files[@]}"; do
+            out=$(dart format --output=show "$f" | diff -u "$f" - | tail -n +3 | head -60)
+            if [ -n "$out" ]; then
+              esc=$(printf '%s' "$out" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"}{print}')
+              echo "::error file=${f}::FORMAT-DIFF-BEGIN ${esc} FORMAT-DIFF-END"
+            else
+              echo "::notice file=${f}::FORMAT-CLEAN"
+            fi
+          done
