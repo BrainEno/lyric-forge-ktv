@@ -19,6 +19,7 @@
 - 决定：改用 `record 6.2.1` 采集麦克风 PCM16、`flutter_soloud 5.1.2` 做低延迟输出，不降级扫码功能。
 - 影响：保住 `mobile_scanner`；监听延迟只能"额外增加"补偿硬件既有延迟，UI 需如实展示 SoLoud 报告的输出延迟。
 - 状态：生效
+- 后续修订（2026-10-31）：实际锁定为 `flutter_soloud 4.1.7`（见 `pubspec.yaml` 中带原因的 pin 注释）：5.x 引入的 `native_toolchain_c` 的 `meta` 约束曾与当时的 Flutter 版本冲突，4.1.7 已覆盖 KTV 监听所需的 buffer-stream API。是否升级 5.x 由 issue #228 跟踪；`record 6.2.1` 部分不变。
 - 来源：[2026-10-09 12:36 条目](log/entries/2026-10-09-1236-low-latency-ktv-microphone-monitoring.md)
 
 ## D-003 ASR 下载代理只用手动/环境/系统静态配置

@@ -9,6 +9,8 @@ on:
       - 'windows/**'
       - 'test/windows_native_plugin_build_config_test.dart'
       - 'test/core/persistence/atomic_json_file_test.dart'
+      - 'lib/features/transfer/data/services/http_media_hub_service.dart'
+      - 'test/features/transfer/media_hub_disk_space_probe_contract_test.dart'
       - '.fvmrc'
       - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/windows-native-build-validation.yml'
@@ -27,4 +29,5 @@ jobs:
       - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - run: flutter test test/windows_native_plugin_build_config_test.dart
       - run: flutter test test/core/persistence/atomic_json_file_test.dart
+      - run: flutter test test/features/transfer/media_hub_disk_space_probe_contract_test.dart
       - run: flutter build windows --debug

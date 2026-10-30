@@ -1,0 +1,7 @@
+# [2026-10-31 01:50] Run AtomicJsonFile fault-injection tests on macOS CI
+
+- Scope: Continue issue #221's cross-platform fault-injection requirement. The stage-injection tests in `test/core/persistence/atomic_json_file_test.dart` (failures at `temporaryFlushed`, at `backupPrepared`/`canonicalRemoved`, and after `canonicalReplaced`) already run on Ubuntu through the universal gate and on Windows through `windows-native-build-validation`, but no macOS runner executed them on a real APFS filesystem. A path-scoped `macos-persistence-validation` workflow now runs exactly that test file on `macos-14` for persistence changes.
+- Files: `.github/workflows/macos-persistence-validation.yml`, and this work-log entry plus generated navigation.
+- Validation: The workflow uses the shared pinned Flutter setup and the enforce-lockfile check like the other specialist workflows, then runs only the targeted persistence test, satisfying the CI workflow contracts (shared SDK pin, no duplicated full-suite run). The final PR head must pass this new workflow and the Flutter Quality Gate before merge; local Flutter/Dart SDKs are unavailable here.
+- Notes: This does not close issue #221. The remaining work there is the per-store `schemaVersion` field/migration story and any real process-kill/power-loss injection beyond the deterministic stage hooks; Windows keeps its recoverable delete/rename fallback because its rename cannot overwrite an existing file.
+- Commit: `ci: run atomic JSON fault-injection tests on macOS`

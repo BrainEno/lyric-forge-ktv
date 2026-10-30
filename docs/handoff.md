@@ -1,32 +1,33 @@
 # Handoff
 
 ## 目标
-Finish the final reviewed PR queue after dependency reproducibility, dashboard coverage and contributor onboarding have landed.
+Land the follow-up queue from the merged full-codebase review (#254): repair the Windows Media Hub disk-space probe (#255), supervise high-quality shared audio preparation, run the AtomicJsonFile stage fault-injection tests on macOS (#221), and align the architecture/AI documentation with the implemented stack (#229).
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@6b66a80488f0c0255b486401d9629b15388add61`
-- Merged: PR #244 (strict dependency resolution/toolchain checks), #253 (dashboard empty/retry coverage), and #251 (contribution guide and GitHub templates).
-- PR #250 is synchronized to this base and is the final reviewed PR in the queue.
+- Base: `main@afeb3bb` (review report PR #254 squash-merged).
+- This branch carries four task commits (one work-log entry each, 2026-10-31 01:20–02:05). It should be merged with a **merge commit** (not squash) so each entry's `Commit` subject keeps matching git history.
 
 ## 已改文件
-- `README.md` — local-first product overview, platform matrix, source-build instructions, ASR/runtime caveats, Media Hub security, project layout and license.
-- `pubspec.yaml` — accurate package description and repository metadata.
-- `docs/log/entries/2026-10-29-2000-replace-flutter-template-readme.md` and generated work-log navigation.
+- `lib/features/transfer/data/services/http_media_hub_service.dart` — restored the corrupted PowerShell probe as the named constant `mediaHubWindowsDiskSpaceProbeScript`; `test/features/transfer/media_hub_disk_space_probe_contract_test.dart` pins and (on Windows) executes it; `.github/workflows/windows-native-build-validation.yml` runs that test.
+- `lib/features/transcription/data/services/high_quality_transcription_service.dart` — shared-audio FFmpeg normalization now runs through `AsrProcessSupervisor` with the shared size-aware timeout policy; timeout/cancellation tests in `test/high_quality_transcription_service_test.dart`.
+- `.github/workflows/macos-persistence-validation.yml` — new macos-14 leg for `test/core/persistence/atomic_json_file_test.dart`.
+- `docs/architecture_player.md`, `docs/decisions.md` (D-002 revision note), `opencode.jsonc` — documentation aligned with the implemented stack; guarded by `test/documentation_references_contract_test.dart`.
+- Work-log entries 2026-10-31 (01:20/01:35/01:50/02:05) and generated navigation.
 
 ## 检查结果
-- PR #244 final CI passed on attempt 2, including Windows CUDA and macOS Intel Qwen/Whisper runtime builds and smoke checks.
-- PR #253 final-head Flutter Quality Gate passed on attempt 2; the transient loopback TLS test failure did not recur.
-- PR #251 final-head Flutter Quality Gate passed; the README's `CONTRIBUTING.md` link target is now present on main.
-- #250's README/package metadata changes do not modify dependency constraints or runtime code; final-head CI is still required.
+- Local environment has no Flutter/Dart SDK (same constraint as previous sessions). Work-log generated files were reproduced with a line-for-line local replica of `tool/work_log.dart` semantics; its lint replica reports 0 errors / 0 warnings, but the authoritative `dart tool/work_log.dart check` runs in PR CI.
+- Required before merge: Flutter Quality Gate (format of changed Dart files, analyze, full suite), Windows native validation (real PowerShell probe), and the new macOS persistence validation, all green on the final PR head. No local pass is claimed.
 
 ## 下一步
-1. Run #250's final-head Flutter Quality Gate and relevant Windows validation.
-2. If all checks pass, merge #250.
-3. Recheck the repository's open PR list, merge statuses, main SHA and latest main checks.
+1. Confirm all PR checks are green on the final head; fix any format/analyze findings in the touched Dart files if CI reports them.
+2. Merge with a merge commit; then delete the now-ported stranded branch `fix/supervise-high-quality-audio-preparation-20261028`.
+3. Manually close the verified-fixed stale issues #215 (PR #250), #220 (PRs #244/#249) and #227 (PRs #245/#246) — the automation token cannot change issue state (403).
+4. Continue with the branch cleanup and remaining roadmap from PR #254 §6 (repository settings, then #221 schemaVersion, #223 coverage balance, #232 layering ratchet).
 
 ## 已知风险
-- Issue #215 remains open until #250 merges; #223 remains open for broader dashboard/transfer/player coverage.
-- Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for final-head validation.
+- Hand-written Dart was not compiler-checked locally; the highest-risk surfaces are the two new/changed test files' formatting and the spliced supervisor call-site. CI findings may require small fix-up commits (append; do not rewrite the logged commits' subjects).
+- Real Windows/macOS device behavior (Media Hub upload from a phone, FFmpeg process-tree cleanup, APFS durability) is still only CI-verified, not device-verified.
+- Issue #221 remains open for per-store schemaVersion/migration; issue #229's early design sections are explicitly marked as historical proposal rather than fully rewritten prose.
 
-最后更新：2026-10-30（Asia/Taipei）
+最后更新：2026-10-31（Asia/Taipei）

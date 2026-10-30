@@ -10,9 +10,10 @@
   "model": "nvidia/moonshotai/kimi-k2.5",
   "small_model": "ollama/gemma4:latest",
   "instructions": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
     "docs/prd.md",
-    "docs/architecture.md",
-    "docs/dev-standards.md"
+    "docs/architecture_player.md"
   ],
   "watcher": {
     "ignore": [

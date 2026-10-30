@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
@@ -7,6 +6,7 @@ import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_process_supervisor.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
@@ -21,6 +21,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
   bool _running = false;
   bool _cancelRequested = false;
   Process? _sharedNormalizationProcess;
+  final AsrProcessSupervisor _processSupervisor;
+  final Future<Duration> Function(String inputPath) _sharedAudioTimeoutForFile;
 
   /// Injectable so orchestration tests can verify the shared-input contract
   /// without depending on an installed FFmpeg executable.
@@ -31,7 +33,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required this.primary,
     required this.fallback,
     this.sharedAudioPreparer,
-  });
+    AsrProcessSupervisor? processSupervisor,
+    Future<Duration> Function(String inputPath)? sharedAudioTimeoutForFile,
+  }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor(),
+       _sharedAudioTimeoutForFile =
+           sharedAudioTimeoutForFile ??
+           AsrProcessTimeoutPolicy.ffmpegPreprocessingForFile;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -234,7 +241,6 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
 
     var succeeded = false;
-    Process? process;
     try {
       _throwIfCancelled();
       _emit(
@@ -243,47 +249,56 @@ class HighQualityTranscriptionService implements TranscriptionService {
         '正在为双引擎生成一次共享的 16 kHz 单声道输入',
       );
 
-      try {
-        process = await Process.start(
-          request.config.ffmpegExecutable,
-          AsrAudioNormalization.ffmpegArguments(
-            inputPath: request.inputAudioPath,
-            outputPath: output.path,
-          ),
-        );
-      } on ProcessException catch (error) {
-        throw TranscriptionException.environment(
-          '无法启动 FFmpeg 生成双引擎共享音频',
-          details: error.message,
-        );
-      }
-
-      _sharedNormalizationProcess = process;
-      if (_cancelRequested) process.kill();
-
-      final stdoutFuture = process.stdout.drain<void>();
-      final stderrFuture = utf8.decoder.bind(process.stderr).join();
-      final exitCode = await process.exitCode;
-      await stdoutFuture;
-      final stderrText = await stderrFuture;
+      final timeout = await _sharedAudioTimeoutForFile(request.inputAudioPath);
+      final result = await _processSupervisor.run(
+        request.config.ffmpegExecutable,
+        AsrAudioNormalization.ffmpegArguments(
+          inputPath: request.inputAudioPath,
+          outputPath: output.path,
+        ),
+        timeout: timeout,
+        operation: '最高质量共享音频预处理',
+        maxOutputLines: 80,
+        maxLineLength: 2048,
+        onProcessChanged: (process) {
+          _sharedNormalizationProcess = process;
+          if (process != null && _cancelRequested) {
+            unawaited(_processSupervisor.terminate(process));
+          }
+        },
+      );
 
       _throwIfCancelled();
-      if (exitCode != 0) {
+      final diagnostic = result.stderrTail.join('\n');
+      if (result.exitCode != 0) {
         throw TranscriptionException.input(
           'FFmpeg 双引擎共享音频预处理失败',
-          details: stderrText,
+          details: diagnostic,
         );
       }
       if (!await output.exists() || await output.length() <= 44) {
-        throw const TranscriptionException.input('FFmpeg 未生成有效的双引擎共享 WAV 文件');
+        throw TranscriptionException.input(
+          'FFmpeg 未生成有效的双引擎共享 WAV 文件',
+          details: diagnostic.isEmpty ? null : diagnostic,
+        );
       }
 
       succeeded = true;
       return output.path;
+    } on AsrProcessTimeoutException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        'FFmpeg 双引擎共享音频预处理超时',
+        details: error.toString(),
+      );
+    } on ProcessException catch (error) {
+      _throwIfCancelled();
+      throw TranscriptionException.environment(
+        '无法启动 FFmpeg 生成双引擎共享音频',
+        details: error.message,
+      );
     } finally {
-      if (identical(_sharedNormalizationProcess, process)) {
-        _sharedNormalizationProcess = null;
-      }
+      _sharedNormalizationProcess = null;
       if (!succeeded && await output.exists()) {
         try {
           await output.delete();
@@ -1261,14 +1276,16 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<void> cancel() async {
     if (!_running) return;
     _cancelRequested = true;
-    _sharedNormalizationProcess?.kill();
+    final process = _sharedNormalizationProcess;
+    if (process != null) await _processSupervisor.terminate(process);
     await Future.wait([primary.cancel(), fallback.cancel()]);
   }
 
   @override
   Future<void> dispose() async {
     _cancelRequested = true;
-    _sharedNormalizationProcess?.kill();
+    final process = _sharedNormalizationProcess;
+    if (process != null) await _processSupervisor.terminate(process);
     await primary.dispose();
     await fallback.dispose();
     await _progressController.close();

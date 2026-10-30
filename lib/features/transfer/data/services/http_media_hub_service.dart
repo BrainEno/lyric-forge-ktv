@@ -1111,6 +1111,25 @@ class HttpMediaHubService implements MediaHubService {
   }
 }
 
+/// PowerShell script used by [_probeAvailableDiskSpaceBytes] on Windows.
+///
+/// The upload directory is passed through the `LYRICFORGE_UPLOAD_PATH`
+/// environment variable so the path never needs shell quoting. The script
+/// prints the available free bytes of the drive that holds the directory and
+/// exits with code 3 when the path root is not a drive-letter root.
+///
+/// Kept as a named constant (instead of an inline literal) so
+/// `media_hub_disk_space_probe_contract_test.dart` can pin its exact content
+/// and execute it under real PowerShell on Windows CI. A corrupted copy of
+/// this script once shipped inside the string literal and silently broke
+/// every Windows incoming upload with 507 responses (issue #255).
+const String mediaHubWindowsDiskSpaceProbeScript = r'''
+$path = $env:LYRICFORGE_UPLOAD_PATH
+$root = [System.IO.Path]::GetPathRoot($path)
+if ($root -notmatch '^[A-Za-z]:\\$') { exit 3 }
+$drive = New-Object System.IO.DriveInfo -ArgumentList $root
+[Console]::Out.Write([string]$drive.AvailableFreeSpace)''';
+
 Future<int?> _probeAvailableDiskSpaceBytes(Directory directory) async {
   try {
     if (Platform.isWindows) {
@@ -1121,46 +1140,7 @@ Future<int?> _probeAvailableDiskSpaceBytes(Directory directory) async {
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          r'''$path = $env:LYRICFORGE_UPLOAD_PATH
-$root = [System.IO.Path]::GetPathRoot($path)
-if ($root -notmatch '^[A-Za-z]:\\
-  final List<HttpServer> servers;
-  final List<MediaHubEndpoint> endpoints;
-
-  const _BoundMediaHubServers({required this.servers, required this.endpoints});
-}
-
-class MediaHubException implements Exception {
-  final String message;
-
-  const MediaHubException(this.message);
-
-  @override
-  String toString() => 'MediaHubException: $message';
-}
-
-class _ByteRange {
-  final int start;
-  final int endInclusive;
-
-  const _ByteRange(this.start, this.endInclusive);
-
-  int get length => endInclusive - start + 1;
-}
-
-class _ParsedRange {
-  final bool isValid;
-  final _ByteRange? range;
-
-  const _ParsedRange.none() : isValid = true, range = null;
-
-  const _ParsedRange.invalid() : isValid = false, range = null;
-
-  const _ParsedRange.valid(this.range) : isValid = true;
-}
-) { exit 3 }
-$drive = New-Object System.IO.DriveInfo -ArgumentList $root
-[Console]::Out.Write([string]$drive.AvailableFreeSpace)''',
+          mediaHubWindowsDiskSpaceProbeScript,
         ],
         environment: {'LYRICFORGE_UPLOAD_PATH': directory.absolute.path},
       );
