@@ -24,6 +24,7 @@ void main() {
           ),
         );
         expect(action, contains('subosito/flutter-action@v2'));
+        expect(action, contains('check_flutter_sdk.sh'));
 
         final directory = Directory('.github/workflows');
         final workflows = await directory
@@ -46,6 +47,54 @@ void main() {
             reason: '${file.path} must not independently pin Flutter',
           );
         }
+      },
+    );
+
+    test(
+      'local quality and build scripts enforce the .fvmrc Flutter/Dart pin',
+      () async {
+        final sdkConfig =
+            jsonDecode(await File('.fvmrc').readAsString())
+                as Map<String, dynamic>;
+        final expectedFlutter = sdkConfig['flutter'];
+        expect(expectedFlutter, matches(RegExp(r'^\d+\.\d+\.\d+$')));
+
+        final shellCheck = await File(
+          'scripts/check_flutter_sdk.sh',
+        ).readAsString();
+        final powershellCheck = await File(
+          'scripts/check_flutter_sdk.ps1',
+        ).readAsString();
+        expect(shellCheck, contains('frameworkVersion'));
+        expect(shellCheck, contains('dartSdkVersion'));
+        expect(
+          shellCheck,
+          contains(r'[[ "$actual_flutter" == "$expected_flutter" ]]'),
+        );
+        expect(
+          shellCheck,
+          contains(r'[[ "$actual_dart" == "$expected_dart" ]]'),
+        );
+        expect(powershellCheck, contains('frameworkVersion'));
+        expect(powershellCheck, contains('dartSdkVersion'));
+        expect(
+          powershellCheck,
+          contains(r'$actualFlutter -ne $expectedFlutter'),
+        );
+        expect(powershellCheck, contains(r'$actualDart -ne $expectedDart'));
+
+        final shellGate = await File('scripts/quality_gate.sh').readAsString();
+        final powershellGate = await File(
+          'scripts/quality_gate.ps1',
+        ).readAsString();
+        final iosBuild = await File('scripts/ios_build.sh').readAsString();
+        final androidBuild = await File(
+          'scripts/build_android_apk.ps1',
+        ).readAsString();
+        expect(shellGate, contains('check_flutter_sdk.sh'));
+        expect(powershellGate, contains('check_flutter_sdk.ps1'));
+        expect(iosBuild, contains('check_flutter_sdk.sh'));
+        expect(androidBuild, contains('check_flutter_sdk.ps1'));
       },
     );
 

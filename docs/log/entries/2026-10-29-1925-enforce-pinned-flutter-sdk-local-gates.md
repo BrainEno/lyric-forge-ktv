@@ -1,0 +1,7 @@
+# [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally
+
+- Scope: Resolve issue #216 by making the `.fvmrc` Flutter version the explicit toolchain source for local quality/build scripts and CI. The checks compare the installed Flutter version and the `dart --version` result against Flutter's reported bundled Dart SDK so different `dart_style` versions cannot silently produce divergent formatting results.
+- Files: `scripts/check_flutter_sdk.sh`, `scripts/check_flutter_sdk.ps1`, `scripts/quality_gate.sh`, `scripts/quality_gate.ps1`, `scripts/ios_build.sh`, `scripts/build_android_apk.ps1`, `.github/actions/setup-flutter/action.yml`, `test/ci_workflow_contract_test.dart`, `docs/development-environment.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`, and this entry.
+- Validation: Added CI-contract coverage for local shell/PowerShell gates and the shared setup action. Final-head Flutter Quality Gate must pass work-log lint, Dart formatting, analyzer, and full tests; local Flutter/Dart SDKs are unavailable in this environment.
+- Notes: `.fvmrc` is the active version selector and the shared GitHub Action already reads it. `.metadata` holds generated project creation/migration provenance and is not manually edited as a toolchain switch. The new scripts fail early on Flutter/Dart mismatch rather than auto-upgrading or silently accepting a second formatter version.
+- Commit: `build: enforce pinned Flutter and Dart versions in local gates`

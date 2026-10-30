@@ -27,3 +27,6 @@ runs:
         flutter-version: ${{ steps.flutter-version.outputs.version }}
         channel: stable
         cache: true
+    - name: Verify installed Flutter and Dart SDK pin
+      shell: bash
+      run: bash scripts/check_flutter_sdk.sh flutter
