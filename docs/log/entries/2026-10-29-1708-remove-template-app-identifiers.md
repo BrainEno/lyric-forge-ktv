@@ -1,0 +1,7 @@
+# [2026-10-29 17:08] Replace template application identifiers
+
+- Scope: Resolve issue #219 by replacing Flutter's example namespace/application IDs across Android, iOS, macOS, and Linux; update Windows company/copyright metadata where the Windows runner has no bundle-ID field; and add a CI contract to prevent reintroducing template identity values.
+- Files: `android/app/build.gradle.kts`, `android/app/src/main/kotlin/io/github/braineno/lyricforge/MainActivity.kt`, `ios/Runner.xcodeproj/project.pbxproj`, `macos/Runner.xcodeproj/project.pbxproj`, `macos/Runner/Configs/AppInfo.xcconfig`, `linux/CMakeLists.txt`, `windows/runner/Runner.rc`, `scripts/check_app_identifiers.sh`, `.github/workflows/flutter-quality.yml`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`, and this entry.
+- Validation: Added `bash scripts/check_app_identifiers.sh` to run before Flutter setup in CI. Verify the final PR head's quality gate and Android/desktop build workflows; no local Flutter SDK is available in this environment.
+- Notes: The shared reverse-DNS identifier is `io.github.braineno.lyricforge`; Android `namespace`, `applicationId`, and `MainActivity` package are aligned. iOS/macOS test bundle IDs retain the `.RunnerTests` suffix. Windows runner uses version-resource company metadata rather than an equivalent application bundle identifier.
+- Commit: `fix: replace template application identifiers`

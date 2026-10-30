@@ -1,42 +1,43 @@
 # Handoff
 
 ## 目标
-Resolve issue #234 by preventing concurrent uploads with the same filename from sharing/deleting each other's temporary file or overwriting completed content.
+Resolve issue #219 by replacing Flutter template application identities with a stable repository-owned reverse-DNS identifier and preventing regressions in CI.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@5d011ac4a51c3c04a714297916e5b8c6683b7fff`
-- Branch: `security/atomic-upload-reservations-main-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/248.
-- The upload size/time/disk/concurrency guardrails are in PR #240; this issue's branch is intentionally kept standalone to permit separate review and CI.
+- Base: `main@7e0fbacd485a5546c2588c3b0ab2b3db823533b2`
+- Branch: `fix/platform-app-identifiers-20261029`
+- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/243.
+- Canonical application identifier: `io.github.braineno.lyricforge`
 
 ## 已改文件
-- `lib/features/transfer/data/services/http_media_hub_service.dart`
-- `test/features/transfer/http_media_hub_upload_test.dart`
-- `docs/log/entries/2026-10-29-1815-atomic-upload-reservations.md`
-- `docs/work_log.md`, `docs/work_log_index.md`, `docs/handoff.md`
-
-## 实现
-- `_reserveIncomingDestination` claims a destination-specific `.reserve` marker using `File.create(exclusive: true)`, so concurrent upload contenders select different names without a check-then-create window.
-- Temporary upload bodies go to exclusive UUID-named `.lyricforge-<uuid>.part` files, independent of the target filename.
-- The marker stays held through upload, rename, and library import, and is released from `finally`. Error paths discard only the current request's temp file.
-- Added a concurrent same-name test with two different 256 KiB payloads across two independent active session tokens sharing one incoming directory. This respects the one-upload-per-session guard while asserting HTTP 201, distinct returned names, both exact SHA-256 hashes, and no remaining `.part` or `.reserve` files.
+- `android/app/build.gradle.kts`
+- `android/app/src/main/kotlin/io/github/braineno/lyricforge/MainActivity.kt` (moved from the template package path)
+- `ios/Runner.xcodeproj/project.pbxproj`
+- `macos/Runner.xcodeproj/project.pbxproj`
+- `macos/Runner/Configs/AppInfo.xcconfig`
+- `linux/CMakeLists.txt`
+- `windows/runner/Runner.rc`
+- `scripts/check_app_identifiers.sh`
+- `.github/workflows/flutter-quality.yml`
+- `docs/log/entries/2026-10-29-1708-remove-template-app-identifiers.md`
+- `docs/work_log.md`
+- `docs/work_log_archive.md`
+- `docs/work_log_index.md`
+- `docs/handoff.md`
 
 ## 检查结果
-- Source and regression test committed on the issue-specific branch.
-- Final-head Flutter Quality Gate must pass work-log checks, changed-Dart formatting, analysis, and the full test suite; local Dart/Flutter SDKs are unavailable.
-- The test uses two independent active session tokens and two service instances sharing the same incoming directory, so it does not bypass the one-upload-per-session limit. It exercises two concurrent upload requests against the same filename and checks both payload hashes.
-- The test uses concurrent requests but doesn't force a deterministic interleaving at the filesystem syscall boundary; the exclusive-create invariant is also reviewed directly in the implementation.
+- Repository file checks confirm the Android namespace, application ID, and Kotlin package match; iOS/macOS app and test bundle identifiers are aligned; Linux GTK identity is aligned; Windows metadata no longer uses the template owner string.
+- Added a pre-Flutter CI script that verifies all expected identifiers, fails on any `com.example` in platform identity files, and checks that the old Android activity path is absent.
+- Run final-head GitHub Actions, Android build, and applicable desktop build workflows before considering the issue resolved. No local Flutter SDK is available in this environment.
 
 ## 下一步
-1. Open a standalone PR against `main` and verify the final-head quality gate.
-2. Fix any formatting/analyzer/test failures from CI without weakening the two-payload hash assertions.
-3. Keep #234 open until the fix is validated and merged.
-4. Track the cleanup policy for abandoned UUID files and `.reserve` markers separately if crash recovery requirements warrant it.
+1. Open the dedicated PR and review final diff for all platform identity substitutions.
+2. Verify the new CI contract and Android/desktop build workflows on the final PR head.
+3. Keep issue #219 open until the PR is merged and builds are confirmed.
 
 ## 已知风险
-- A process crash can leave a staging file and reservation marker. The marker fails safe by preventing a later upload from reusing the same name, but orphan cleanup is not part of this fix.
-- The reservation coordinates Media Hub uploads. An unrelated process writing directly into the incoming directory does not honor the marker protocol.
-- Physical phone/desktop upload smoke testing remains a separate check.
+- Changing an application identifier after publication creates a distinct app identity. The repository issue states that no user-facing app build has been distributed, so this early change avoids future rename/data-migration cost.
+- Windows `Runner.rc` supplies company/copyright version-resource metadata rather than a package bundle ID; no Store/MSIX package identity is currently defined here.
 
-最后更新：2026-10-29 18:18（Asia/Taipei）
+最后更新：2026-10-29 17:09（Asia/Taipei）
