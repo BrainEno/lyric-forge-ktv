@@ -22,7 +22,8 @@
 
 - **Dashboard empty/retry coverage (#223):** `DashboardScreen` accepts optional repository/player/queue collaborators so widget tests can cover empty playback/history/project states and the recent-project error→retry→empty path without initializing the global service locator. This is a focused first slice, not completion of the broader coverage gap.
 
-undefined
+
+- **Contributor onboarding (#215):** `CONTRIBUTING.md` documents the pinned Flutter/Dart setup, validation, architecture boundaries, privacy-safe issue reporting and work-log rules; GitHub issue forms and the PR template standardize reproducible bug reports, product-fit proposals and validation disclosures.
 
 - **Recoverable JSON persistence (#221):** `AtomicJsonFile` keeps validated temp/backup sidecars and restores missing/invalid canonical stores. This branch uses direct POSIX rename for atomic replacement and retains Windows' recoverable delete/rename fallback; schemaVersion migration remains separate. Verify platform-specific behavior and all store consumers before closing the issue.
 

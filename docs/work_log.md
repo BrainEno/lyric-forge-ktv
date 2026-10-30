@@ -6,12 +6,12 @@
 - [2026-10-30 12:28] Validate upload name reservation across sessions `test: exercise upload destination races across sessions` ([entry](log/entries/2026-10-30-1228-validate-upload-reservation-across-sessions.md))
 - [2026-10-29 21:10] Add dashboard empty-state and project-retry tests `test: add dashboard empty/retry state coverage` ([entry](log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md))
 - [2026-10-29 20:50] Remove Media Hub session tokens from artwork URLs `security: remove session tokens from Media Hub artwork URLs` ([entry](log/entries/2026-10-29-2050-remove-token-query-artwork.md))
+- [2026-10-29 20:45] Add contribution guidance and GitHub issue/PR templates `docs: add contribution workflow and GitHub templates` ([entry](log/entries/2026-10-29-2045-add-contribution-and-github-templates.md))
 - [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally `build: enforce pinned Flutter and Dart versions in local gates` ([entry](log/entries/2026-10-29-1925-enforce-pinned-flutter-sdk-local-gates.md))
 - [2026-10-29 18:15] Reserve upload destination names and UUID temporary files `security: reserve upload names and UUID temp files atomically` ([entry](log/entries/2026-10-29-1815-atomic-upload-reservations.md))
 - [2026-10-29 17:50] Disable wildcard CORS for native Media Hub `security: remove wildcard CORS from native Media Hub` ([entry](log/entries/2026-10-29-1750-disable-wildcard-cors-media-hub.md))
-- [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits `security: compare Media Hub bearer tokens in constant time` ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
 
-<!-- 134 entries total: 8 active, 126 archived. -->
+<!-- 135 entries total: 8 active, 127 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
