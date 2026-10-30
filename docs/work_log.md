@@ -9,9 +9,9 @@
 - [2026-10-29 18:15] Reserve upload destination names and UUID temporary files `security: reserve upload names and UUID temp files atomically` ([entry](log/entries/2026-10-29-1815-atomic-upload-reservations.md))
 - [2026-10-29 17:50] Disable wildcard CORS for native Media Hub `security: remove wildcard CORS from native Media Hub` ([entry](log/entries/2026-10-29-1750-disable-wildcard-cors-media-hub.md))
 - [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits `security: compare Media Hub bearer tokens in constant time` ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
-- [2026-10-29 17:08] Replace template application identifiers `fix: replace template application identifiers` ([entry](log/entries/2026-10-29-1708-remove-template-app-identifiers.md))
+- [2026-10-29 17:18] Enforce reproducible Flutter dependency resolution `fix: enforce reproducible Flutter dependency resolution` ([entry](log/entries/2026-10-29-1718-enforce-flutter-lockfile.md))
 
-<!-- 132 entries total: 8 active, 124 archived. -->
+<!-- 133 entries total: 8 active, 125 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

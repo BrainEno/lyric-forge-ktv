@@ -49,10 +49,6 @@ function Get-QualityGateBranch {
     }
 }
 
-Invoke-CheckedStep -Name 'verify pinned Flutter/Dart SDK' -Command {
-    & (Join-Path $PSScriptRoot 'check_flutter_sdk.ps1')
-}
-
 $branch = Get-QualityGateBranch
 $commit = 'unknown'
 try {
@@ -80,6 +76,11 @@ else {
     Write-Host '  targeted tests: none (full suite when tests run)'
 }
 
+# Verify that PATH resolves the exact Flutter/Dart pair pinned in .fvmrc.
+Invoke-CheckedStep -Name 'verify pinned Flutter/Dart SDK' -Command {
+    & "$PSScriptRoot\check_flutter_sdk.ps1"
+}
+
 # Fail fast on documentation-contract errors before running the analyzer and
 # full test suite, rather than discovering a stale work log after all tests.
 if ($mode -eq 'all' -and -not $SkipDocs) {
@@ -89,7 +90,9 @@ if ($mode -eq 'all' -and -not $SkipDocs) {
 }
 
 if (-not $SkipPubGet) {
-    Invoke-CheckedStep -Name 'flutter pub get' -Command { flutter pub get }
+    Invoke-CheckedStep -Name 'reproducible Flutter dependency resolution' -Command {
+        & "$PSScriptRoot\resolve_flutter_dependencies.ps1"
+    }
 }
 
 # Analyze the application and its test surface. packages/desktop_multi_window is a

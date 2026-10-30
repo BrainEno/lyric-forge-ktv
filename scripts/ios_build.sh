@@ -221,13 +221,37 @@ run_pod_install() {
   ok "CocoaPods 与 Flutter plugins 已同步"
 }
 
+resolve_flutter_dependencies() {
+  local snapshot modified=false file
+  snapshot="$(mktemp -d)" || return 1
+  cp "$PROJECT_ROOT/pubspec.lock" "$snapshot/pubspec.lock" || { rm -rf "$snapshot"; return 1; }
+  cp "$PROJECT_ROOT/analysis_options.yaml" "$snapshot/analysis_options.yaml" || { rm -rf "$snapshot"; return 1; }
+
+  if ! "$FLUTTER_BIN" pub get --enforce-lockfile; then
+    rm -rf "$snapshot"
+    return 1
+  fi
+
+  for file in pubspec.lock analysis_options.yaml; do
+    if ! cmp -s "$snapshot/$file" "$PROJECT_ROOT/$file"; then
+      warn "Flutter dependency resolution unexpectedly modified $file"
+      git -C "$PROJECT_ROOT" --no-pager diff -- "$file" || true
+      modified=true
+    fi
+  done
+  rm -rf "$snapshot"
+  if [[ "$modified" == true ]]; then
+    die "依赖解析不得静默改写 pubspec.lock 或 analysis_options.yaml"
+  fi
+}
+
 repair_ios_environment() {
   warn "执行 iOS 深度修复：清理 Flutter 构建缓存、Pods、plugin symlink 和 Runner DerivedData"
   cd "$PROJECT_ROOT"
   "$FLUTTER_BIN" clean
   rm -rf "$IOS_DIR/Pods" "$IOS_DIR/.symlinks" "$STATE_DIR"
   rm -rf "$HOME/Library/Developer/Xcode/DerivedData/Runner-"* 2>/dev/null || true
-  "$FLUTTER_BIN" pub get
+  resolve_flutter_dependencies
   run_pod_install true
   ok "iOS 深度修复完成"
 }
@@ -562,9 +586,9 @@ is_repairable_pods_failure() {
 [[ "$(uname -s)" == "Darwin" ]] || die "iOS 构建只能在 macOS 上执行"
 [[ -n "$FLUTTER_BIN" && -x "$FLUTTER_BIN" ]] || \
   die "找不到 Flutter；请设置 FLUTTER_BIN 或使用 --flutter"
-bash "$SCRIPT_DIR/check_flutter_sdk.sh" "$FLUTTER_BIN"
 command -v xcodebuild >/dev/null 2>&1 || die "找不到 Xcode command line tools"
 command -v pod >/dev/null 2>&1 || die "找不到 CocoaPods；请先安装 CocoaPods"
+bash "$SCRIPT_DIR/check_flutter_sdk.sh" "$FLUTTER_BIN"
 [[ -f "$PROJECT_ROOT/pubspec.lock" ]] || die "缺少 pubspec.lock"
 [[ -f "$IOS_DIR/Podfile" ]] || die "缺少 ios/Podfile"
 
@@ -575,7 +599,7 @@ fi
 
 cd "$PROJECT_ROOT"
 info "同步 Dart/Flutter 依赖"
-"$FLUTTER_BIN" pub get
+resolve_flutter_dependencies
 
 if [[ "$FORCE_REPAIR" == "true" ]]; then
   repair_ios_environment

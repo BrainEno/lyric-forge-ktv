@@ -13,6 +13,13 @@ analyzer:
   exclude:
     # Vendored third-party audio backend; kept as-is on purpose.
     - packages/just_audio_media_kit/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the

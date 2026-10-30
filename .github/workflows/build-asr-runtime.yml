@@ -46,7 +46,7 @@ jobs:
       - name: Install Flutter
         uses: ./.github/actions/setup-flutter
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
 
       - name: Analyze blocking errors
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
