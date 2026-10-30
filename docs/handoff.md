@@ -25,6 +25,7 @@ Resolve issue #234 by preventing concurrent uploads with the same filename from 
 ## 检查结果
 - Source and regression test committed on the issue-specific branch.
 - Final-head Flutter Quality Gate must pass work-log checks, changed-Dart formatting, analysis, and the full test suite; local Dart/Flutter SDKs are unavailable.
+- The test uses two independent active session tokens and two service instances sharing the same incoming directory, so it does not bypass the one-upload-per-session limit. It exercises two concurrent upload requests against the same filename and checks both payload hashes.
 - The test uses concurrent requests but doesn't force a deterministic interleaving at the filesystem syscall boundary; the exclusive-create invariant is also reviewed directly in the implementation.
 
 ## 下一步
