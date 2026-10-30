@@ -192,5 +192,98 @@ void main() {
         );
       },
     );
+    group('schema versioning', () {
+      final validator = AtomicJsonFile.versioned(
+        currentVersion: 2,
+        validate: _isCounterDocument,
+      );
+
+      test('schemaVersionOf reads stamps, rejects malformed ones', () {
+        expect(AtomicJsonFile.schemaVersionOf({'counter': 1}), 0);
+        expect(AtomicJsonFile.schemaVersionOf({'version': 2}), 2);
+        expect(AtomicJsonFile.schemaVersionOf({'version': 2.0}), 2);
+        expect(AtomicJsonFile.schemaVersionOf({'version': -1}), -1);
+        expect(AtomicJsonFile.schemaVersionOf({'version': 1.5}), -1);
+        expect(AtomicJsonFile.schemaVersionOf({'version': '2'}), -1);
+        expect(AtomicJsonFile.schemaVersionOf(<Object?>[]), -1);
+        expect(AtomicJsonFile.schemaVersionOf(null), -1);
+      });
+
+      test('stampSchemaVersion copies without mutating its input', () {
+        final payload = <String, dynamic>{'counter': 1, 'version': 7};
+        final stamped = AtomicJsonFile.stampSchemaVersion(payload, 2);
+        expect(stamped, {'counter': 1, 'version': 2});
+        expect(payload, {'counter': 1, 'version': 7});
+      });
+
+      test('versioned validator gates newer schema versions', () {
+        expect(validator({'counter': 1}), isTrue);
+        expect(validator({'counter': 1, 'version': 1}), isTrue);
+        expect(validator({'counter': 1, 'version': 2}), isTrue);
+        expect(validator({'counter': 1, 'version': 3}), isFalse);
+        expect(validator({'counter': 1, 'version': -1}), isFalse);
+        expect(validator({'version': 1}), isFalse);
+      });
+
+      test('write refuses to overwrite a newer-schema document', () async {
+        final future = jsonEncode({'counter': 9, 'version': 99});
+        await destination.writeAsString(future, flush: true);
+
+        await expectLater(
+          AtomicJsonFile.write(
+            destination,
+            jsonEncode({'counter': 1, 'version': 2}),
+            validate: validator,
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        expect(await destination.readAsString(), future);
+      });
+
+      test('recovery falls back to a readable backup on downgrade', () async {
+        await destination.writeAsString(
+          jsonEncode({'counter': 9, 'version': 99}),
+          flush: true,
+        );
+        await AtomicJsonFile.backupFor(destination).writeAsString(
+          jsonEncode({'counter': 4, 'version': 1}),
+          flush: true,
+        );
+
+        final result = await AtomicJsonFile.recoverIfNeeded(
+          destination,
+          validate: validator,
+        );
+
+        expect(result, AtomicJsonRecoveryResult.restoredFromBackup);
+        expect(
+          jsonDecode(await destination.readAsString()),
+          {'counter': 4, 'version': 1},
+        );
+      });
+
+      test('legacy unstamped documents stay writable and readable', () async {
+        await destination.writeAsString(_document(1), flush: true);
+
+        await AtomicJsonFile.write(
+          destination,
+          jsonEncode({'counter': 2, 'version': 2}),
+          validate: validator,
+        );
+
+        expect(
+          jsonDecode(await destination.readAsString()),
+          {'counter': 2, 'version': 2},
+        );
+        expect(
+          jsonDecode(
+            await AtomicJsonFile.backupFor(destination).readAsString(),
+          ),
+          {'counter': 1},
+        );
+      });
+    });
+
   });
 }

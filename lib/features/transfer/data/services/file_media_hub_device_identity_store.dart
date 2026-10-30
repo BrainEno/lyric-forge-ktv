@@ -9,7 +9,15 @@ import '../../domain/models/media_hub_device_identity.dart';
 import '../../domain/services/media_hub_device_identity_store.dart';
 
 class FileMediaHubDeviceIdentityStore implements MediaHubDeviceIdentityStore {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson =
+      AtomicJsonFile.versioned(
+        currentVersion: _schemaVersion,
+        validate: _isValidPayloadJson,
+      );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&
       decoded['deviceId'] is String &&
       decoded['deviceId'].toString().trim().isNotEmpty &&
@@ -61,7 +69,9 @@ class FileMediaHubDeviceIdentityStore implements MediaHubDeviceIdentityStore {
     );
     await AtomicJsonFile.write(
       file,
-      jsonEncode(identity.toJson()),
+      jsonEncode(
+        AtomicJsonFile.stampSchemaVersion(identity.toJson(), _schemaVersion),
+      ),
       validate: _isValidStoreJson,
     );
     return identity;

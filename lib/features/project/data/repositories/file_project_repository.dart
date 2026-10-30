@@ -17,7 +17,15 @@ import '../../domain/repositories/project_repository.dart';
 /// rewrites it through a temporary file after every mutation. This keeps the
 /// existing repository contract while making projects survive app restarts.
 class FileProjectRepository implements ProjectRepository {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson =
+      AtomicJsonFile.versioned(
+        currentVersion: _schemaVersion,
+        validate: _isValidPayloadJson,
+      );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['projects'] is List;
 
   final Directory? rootDirectory;
@@ -92,7 +100,7 @@ class FileProjectRepository implements ProjectRepository {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'projects': _projects.values
           .map((project) => project.toJson())
           .toList(growable: false),

@@ -13,10 +13,16 @@ import '../../domain/services/playback_session_service.dart';
 /// directory. Writes are atomic and serialized so a process interruption cannot
 /// leave a half-written queue document behind.
 class FilePlaybackSessionStore implements PlaybackSessionStore {
-  static bool _isValidStoreJson(Object? decoded) =>
-      decoded is Map &&
-      decoded['queue'] is List &&
-      (decoded['version'] as num?)?.toInt() == 1;
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson =
+      AtomicJsonFile.versioned(
+        currentVersion: _schemaVersion,
+        validate: _isValidPayloadJson,
+      );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
+      decoded is Map && decoded['queue'] is List;
 
   final Directory? rootDirectory;
 
@@ -64,8 +70,6 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
       final decoded = jsonDecode(await file.readAsString());
       if (decoded is! Map) return null;
       final map = Map<String, dynamic>.from(decoded);
-      if ((map['version'] as num?)?.toInt() != 1) return null;
-
       final rawQueue = map['queue'];
       if (rawQueue is! List) return null;
 
@@ -130,7 +134,7 @@ class FilePlaybackSessionStore implements PlaybackSessionStore {
   @override
   Future<void> save(PlaybackSessionSnapshot snapshot) {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'savedAt': snapshot.savedAt.toIso8601String(),
       'positionMs': snapshot.position.inMilliseconds,
       'currentIndex': snapshot.state.currentIndex,

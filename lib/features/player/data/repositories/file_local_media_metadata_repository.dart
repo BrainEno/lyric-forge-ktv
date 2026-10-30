@@ -8,7 +8,15 @@ import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 
 class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson =
+      AtomicJsonFile.versioned(
+        currentVersion: _schemaVersion,
+        validate: _isValidPayloadJson,
+      );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['items'] is List;
 
   final Directory? rootDirectory;
@@ -94,7 +102,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'encoding': 'utf-8',
       'items': _entries.values.map((entry) => entry.toJson()).toList(),
     });

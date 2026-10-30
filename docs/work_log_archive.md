@@ -82,8 +82,10 @@
 - [2026-10-21 16:50] 智能歌词复核优先队列（PR #126） ([entry](log/entries/2026-10-21-1650-smart-lyric-review-queue.md))
 - [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
 
+
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 20:50] Remove Media Hub session tokens from artwork URLs ([entry](log/entries/2026-10-29-2050-remove-token-query-artwork.md))
 - [2026-10-29 20:45] Add contribution guidance and GitHub issue/PR templates ([entry](log/entries/2026-10-29-2045-add-contribution-and-github-templates.md))
 - [2026-10-29 20:00] Document LyricForge product and source-build setup ([entry](log/entries/2026-10-29-2000-replace-flutter-template-readme.md))
 - [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally ([entry](log/entries/2026-10-29-1925-enforce-pinned-flutter-sdk-local-gates.md))
