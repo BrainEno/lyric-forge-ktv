@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/tmp-format-oracle.yml'
+      - 'test/documentation_references_contract_test.dart'
   workflow_dispatch:
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
       - name: Emit formatter diff as annotations
         shell: bash
         run: |
+          set +e
           files=(
             lib/features/transfer/data/services/http_media_hub_service.dart
             lib/features/transcription/data/services/high_quality_transcription_service.dart
@@ -29,7 +31,7 @@ jobs:
             test/documentation_references_contract_test.dart
           )
           for f in "${files[@]}"; do
-            out=$(dart format --output=show "$f" | diff -u "$f" - | tail -n +3 | head -60)
+            out=$(dart format --output=show "$f" | diff -u "$f" - | tail -n +3 | head -60; true)
             if [ -n "$out" ]; then
               esc=$(printf '%s' "$out" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"}{print}')
               echo "::error file=${f}::FORMAT-DIFF-BEGIN ${esc} FORMAT-DIFF-END"
