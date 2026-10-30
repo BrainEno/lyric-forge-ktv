@@ -50,6 +50,13 @@ void main() {
       expect(serverSource, isNot(contains('otherHosts.add(value)')));
     });
 
+    test('native Media Hub does not expose wildcard CORS headers', () {
+      expect(serverSource, isNot(contains('Access-Control-Allow-Origin')));
+      expect(serverSource, isNot(contains('Access-Control-Allow-Headers')));
+      expect(serverSource, isNot(contains('Access-Control-Allow-Methods')));
+      expect(serverSource, contains("'browser_preflight_not_supported'"));
+    });
+
     test('Media Hub traffic requires pinned HTTPS and bearer headers', () {
       expect(serverSource, contains('HttpServer.bindSecure('));
       expect(serverSource, contains("'protocolVersion': 2"));

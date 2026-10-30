@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-28 19:45] Supervise resumable audio chunk processes `fix: supervise resumable audio chunk processes (#214)` ([entry](log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md))
 - [2026-10-28 19:40] Bound forced-alignment HTTP request lifetimes `fix: bound forced-alignment HTTP request lifetimes (#213)` ([entry](log/entries/2026-10-28-1940-bound-forced-alignment-http-lifetimes.md))
 - [2026-10-28 18:18] Bound Qwen transcription request and child process lifetimes `fix: bound Qwen transcription request and child process lifetimes (#212)` ([entry](log/entries/2026-10-28-1818-bound-qwen-transcription-lifetimes.md))
 - [2026-10-28 17:45] Bound Whisper CLI process lifetimes `fix: bound Whisper CLI process lifetimes` ([entry](log/entries/2026-10-28-1745-bound-whisper-cli-process-lifetimes.md))

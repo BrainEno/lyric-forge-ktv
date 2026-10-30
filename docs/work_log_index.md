@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Media Hub browser isolation (#227):** The native pinned-HTTPS service no longer sends wildcard CORS headers and rejects browser `OPTIONS` preflights. Native Media Hub clients do not require CORS; bearer auth and TLS pinning remain mandatory. See `http_media_hub_upload_test.dart` and the 2026-10-29 CORS hardening entry.
+
 - **Media Hub bearer authentication (#222):** HTTP authorization requires a Bearer header; URL token parameters are stripped from remote-player proxy/rebase URLs and must not authorize requests. `mediaHubConstantTimeEquals` is shared by HTTP token validation and discovery proof checks; see `media_hub_discovery_auth_test.dart` and the #222 follow-up entry. Full timing guarantees remain bounded by Dart runtime behavior.
 
 - **Flutter/Dart toolchain (#216):** `.fvmrc` is the active Flutter pin; the shared CI action and local shell/PowerShell quality/build scripts verify that Flutter and the `dart` executable on PATH use the same bundled SDK pair. See `docs/development-environment.md` and `scripts/check_flutter_sdk.*` before formatting changed Dart files.
