@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-28 17:45] Bound Whisper CLI process lifetimes `fix: bound Whisper CLI process lifetimes` ([entry](log/entries/2026-10-28-1745-bound-whisper-cli-process-lifetimes.md))
 - [2026-10-28 16:40] Add recoverable atomic JSON persistence ([entry](log/entries/2026-10-28-1640-recoverable-json-persistence.md))
 - [2026-10-28 13:45] Fix macOS Release Media Hub network entitlement `fix: enforce macOS Release Media Hub network entitlement` ([entry](log/entries/2026-10-28-1345-fix-macos-release-network-entitlement.md))
 - [2026-10-28 13:39] Reframe roadmap around open-source product quality ([entry](log/entries/2026-10-28-1339-reframe-product-quality-roadmap.md))
