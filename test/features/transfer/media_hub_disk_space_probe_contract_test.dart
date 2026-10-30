@@ -10,15 +10,12 @@ void main() {
       // text pasted into the literal) must fail here first. Issue #255
       // shipped Dart class definitions inside this string, which broke
       // every Windows incoming upload with a 507 response.
-      expect(
-        mediaHubWindowsDiskSpaceProbeScript,
-        r'''
+      expect(mediaHubWindowsDiskSpaceProbeScript, r'''
 $path = $env:LYRICFORGE_UPLOAD_PATH
 $root = [System.IO.Path]::GetPathRoot($path)
 if ($root -notmatch '^[A-Za-z]:\\$') { exit 3 }
 $drive = New-Object System.IO.DriveInfo -ArgumentList $root
-[Console]::Out.Write([string]$drive.AvailableFreeSpace)''',
-      );
+[Console]::Out.Write([string]$drive.AvailableFreeSpace)''');
     });
 
     test('contains no Dart source fragments', () {
@@ -67,36 +64,30 @@ $drive = New-Object System.IO.DriveInfo -ArgumentList $root
       }
     });
 
-    test(
-      'prints a non-negative byte count under real PowerShell',
-      () async {
-        final temp = await Directory.systemTemp.createTemp(
-          'lyricforge-probe-',
-        );
-        addTearDown(() async {
-          if (await temp.exists()) {
-            await temp.delete(recursive: true);
-          }
-        });
+    test('prints a non-negative byte count under real PowerShell', () async {
+      final temp = await Directory.systemTemp.createTemp('lyricforge-probe-');
+      addTearDown(() async {
+        if (await temp.exists()) {
+          await temp.delete(recursive: true);
+        }
+      });
 
-        final result = await Process.run(
-          'powershell.exe',
-          [
-            '-NoLogo',
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            mediaHubWindowsDiskSpaceProbeScript,
-          ],
-          environment: {'LYRICFORGE_UPLOAD_PATH': temp.absolute.path},
-        );
+      final result = await Process.run(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          mediaHubWindowsDiskSpaceProbeScript,
+        ],
+        environment: {'LYRICFORGE_UPLOAD_PATH': temp.absolute.path},
+      );
 
-        expect(result.exitCode, 0, reason: 'stderr: ${result.stderr}');
-        final freeBytes = int.tryParse(result.stdout.toString().trim());
-        expect(freeBytes, isNotNull);
-        expect(freeBytes, greaterThanOrEqualTo(0));
-      },
-      skip: Platform.isWindows ? false : 'Requires Windows PowerShell',
-    );
+      expect(result.exitCode, 0, reason: 'stderr: ${result.stderr}');
+      final freeBytes = int.tryParse(result.stdout.toString().trim());
+      expect(freeBytes, isNotNull);
+      expect(freeBytes, greaterThanOrEqualTo(0));
+    }, skip: Platform.isWindows ? false : 'Requires Windows PowerShell');
   });
 }

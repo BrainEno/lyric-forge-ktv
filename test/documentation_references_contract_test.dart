@@ -10,10 +10,9 @@ void main() {
         r'"instructions"\s*:\s*\[([^\]]*)\]',
       ).firstMatch(config);
       expect(instructions, isNotNull);
-      final paths = RegExp(r'"([^"]+)"')
-          .allMatches(instructions!.group(1)!)
-          .map((m) => m.group(1)!)
-          .toList();
+      final paths = RegExp(
+        r'"([^"]+)"',
+      ).allMatches(instructions!.group(1)!).map((m) => m.group(1)!).toList();
       expect(paths, isNotEmpty);
       for (final path in paths) {
         expect(

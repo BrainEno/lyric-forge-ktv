@@ -249,9 +249,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         '正在为双引擎生成一次共享的 16 kHz 单声道输入',
       );
 
-      final timeout = await _sharedAudioTimeoutForFile(
-        request.inputAudioPath,
-      );
+      final timeout = await _sharedAudioTimeoutForFile(request.inputAudioPath);
       final result = await _processSupervisor.run(
         request.config.ffmpegExecutable,
         AsrAudioNormalization.ffmpegArguments(
