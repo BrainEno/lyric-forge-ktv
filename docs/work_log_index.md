@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Dashboard empty/retry coverage (#223):** `DashboardScreen` accepts optional repository/player/queue collaborators so widget tests can cover empty playback/history/project states and the recent-project error→retry→empty path without initializing the global service locator. This is a focused first slice, not completion of the broader coverage gap.
+
 undefined
 
 - **Recoverable JSON persistence (#221):** `AtomicJsonFile` keeps validated temp/backup sidecars and restores missing/invalid canonical stores. This branch uses direct POSIX rename for atomic replacement and retains Windows' recoverable delete/rename fallback; schemaVersion migration remains separate. Verify platform-specific behavior and all store consumers before closing the issue.
