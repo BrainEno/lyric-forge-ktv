@@ -36,7 +36,7 @@ jobs:
 
       - uses: ./.github/actions/setup-flutter
       - name: Resolve Flutter packages
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
 
       - name: Analyze ASR client changes
         run: >-

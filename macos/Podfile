@@ -27,10 +27,9 @@ end
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 require_relative 'tool/managed_cmake'
 
-# flutter_soloud 4.1.7 still compiles its macOS native library through CMake.
-# Flutter 3.41.9 cannot resolve flutter_soloud 5.x, so keep the compatible
-# plugin version and make the CMake prerequisite self-healing instead of
-# requiring every developer to install Homebrew/CMake manually.
+# Keep flutter_soloud 4.1.7 while the 5.x migration is tested under the pinned
+# Flutter 3.47.7 SDK. The current plugin compiles its macOS native library via
+# CMake, so provide a self-healing fallback rather than requiring Homebrew.
 lyric_forge_cmake_bin = LyricForgeManagedCMake.ensure!
 ENV['PATH'] = "#{lyric_forge_cmake_bin}:#{ENV.fetch('PATH', '')}"
 

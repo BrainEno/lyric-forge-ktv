@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Analyze storage authorization changes
         run: >-
           flutter analyze --no-fatal-infos
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get
+      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Validate bookmark entitlements
         run: |
           /usr/libexec/PlistBuddy -c 'Print :com.apple.security.files.bookmarks.app-scope' macos/Runner/DebugProfile.entitlements | grep -q true

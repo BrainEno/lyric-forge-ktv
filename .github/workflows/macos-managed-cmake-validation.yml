@@ -38,7 +38,7 @@ jobs:
       - name: Select CocoaPods for managed CMake fallback validation
         run: flutter config --no-enable-swift-package-manager
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Validate Ruby syntax
         run: |
           ruby -c macos/tool/managed_cmake.rb

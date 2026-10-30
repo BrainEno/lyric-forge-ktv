@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 17:08] Replace template application identifiers `fix: replace template application identifiers` ([entry](log/entries/2026-10-29-1708-remove-template-app-identifiers.md))
 - [2026-10-29 16:50] Atomically replace JSON stores on POSIX `fix: replace atomic JSON stores without POSIX delete window` ([entry](log/entries/2026-10-29-1650-atomic-json-posix-replacement.md))
 - [2026-10-29 16:20] Bound Media Hub incoming upload resources `security: add Media Hub upload resource guardrails` ([entry](log/entries/2026-10-29-1620-media-hub-upload-guardrails.md))
 - [2026-10-29 11:40] Secure Media Hub with fingerprint-pinned HTTPS `style: format Media Hub consent contract test` ([entry](log/entries/2026-10-29-1140-media-hub-explicit-consent.md))

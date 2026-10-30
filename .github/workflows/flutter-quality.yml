@@ -29,7 +29,6 @@ jobs:
       - name: Check platform app identifiers
         run: bash scripts/check_app_identifiers.sh
 
-
       - name: Set up Flutter
         uses: ./.github/actions/setup-flutter
       # Catch missing work-log fields and generated-file drift before dependency
@@ -39,7 +38,7 @@ jobs:
         run: dart tool/work_log.dart check
 
       - name: Resolve Flutter packages
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
 
       # Check all Dart files touched by this diff. Formatting is blocking, while
       # the file list stays scoped to avoid unrelated historical formatter debt.

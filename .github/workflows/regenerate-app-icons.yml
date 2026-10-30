@@ -63,7 +63,7 @@ jobs:
       - name: Set up Flutter
         uses: ./.github/actions/setup-flutter
       - name: Resolve packages
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
 
       - name: Build Windows debug app
         run: flutter build windows --debug
