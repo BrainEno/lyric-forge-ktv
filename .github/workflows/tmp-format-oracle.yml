@@ -1,5 +1,5 @@
 name: TEMP diagnostics oracle (delete after use)
-# round 2
+# round 3
 
 on:
   pull_request:
@@ -33,7 +33,7 @@ jobs:
             lib/features/transfer/data/services/file_media_hub_device_identity_store.dart
             lib/features/transfer/data/services/file_media_transfer_queue_service.dart
             test/core/persistence/atomic_json_file_test.dart
-            test/features/player/playback_session_persistence_test.dart
+            test/features/player/playback_session_schema_version_test.dart
           )
           emit() {
             local data; data=$(cat)
@@ -51,7 +51,7 @@ jobs:
           echo "analyze exit: $?"
           grep -E '•' /tmp/analyze.txt | head -40 | while IFS= read -r line; do printf '%s' "$line" | emit lib/core/persistence/atomic_json_file.dart; done
           tail -3 /tmp/analyze.txt | emit lib/core/persistence/atomic_json_file.dart
-          flutter test test/core/persistence/atomic_json_file_test.dart test/features/player/playback_session_persistence_test.dart > /tmp/test.txt 2>&1
+          flutter test test/core/persistence/atomic_json_file_test.dart test/features/player/playback_session_schema_version_test.dart > /tmp/test.txt 2>&1
           echo "test exit: $?"
           { grep -E '\[E\]|failed|Some tests failed|All tests passed' /tmp/test.txt | head -30; tail -5 /tmp/test.txt; } | emit test/core/persistence/atomic_json_file_test.dart
           true

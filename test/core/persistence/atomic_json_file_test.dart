@@ -246,10 +246,9 @@ void main() {
           jsonEncode({'counter': 9, 'version': 99}),
           flush: true,
         );
-        await AtomicJsonFile.backupFor(destination).writeAsString(
-          jsonEncode({'counter': 4, 'version': 1}),
-          flush: true,
-        );
+        await AtomicJsonFile.backupFor(
+          destination,
+        ).writeAsString(jsonEncode({'counter': 4, 'version': 1}), flush: true);
 
         final result = await AtomicJsonFile.recoverIfNeeded(
           destination,
@@ -257,10 +256,10 @@ void main() {
         );
 
         expect(result, AtomicJsonRecoveryResult.restoredFromBackup);
-        expect(
-          jsonDecode(await destination.readAsString()),
-          {'counter': 4, 'version': 1},
-        );
+        expect(jsonDecode(await destination.readAsString()), {
+          'counter': 4,
+          'version': 1,
+        });
       });
 
       test('legacy unstamped documents stay writable and readable', () async {
@@ -272,10 +271,10 @@ void main() {
           validate: validator,
         );
 
-        expect(
-          jsonDecode(await destination.readAsString()),
-          {'counter': 2, 'version': 2},
-        );
+        expect(jsonDecode(await destination.readAsString()), {
+          'counter': 2,
+          'version': 2,
+        });
         expect(
           jsonDecode(
             await AtomicJsonFile.backupFor(destination).readAsString(),
@@ -284,6 +283,5 @@ void main() {
         );
       });
     });
-
   });
 }
