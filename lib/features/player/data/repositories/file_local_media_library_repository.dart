@@ -12,11 +12,10 @@ import '../../domain/services/embedded_audio_metadata_reader.dart';
 class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   static const int _schemaVersion = 3;
 
-  static final AtomicJsonValidator _isValidStoreJson =
-      AtomicJsonFile.versioned(
-        currentVersion: _schemaVersion,
-        validate: _isValidPayloadJson,
-      );
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
 
   static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&

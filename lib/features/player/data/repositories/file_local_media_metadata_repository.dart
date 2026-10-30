@@ -10,11 +10,10 @@ import '../../domain/repositories/local_media_metadata_repository.dart';
 class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   static const int _schemaVersion = 1;
 
-  static final AtomicJsonValidator _isValidStoreJson =
-      AtomicJsonFile.versioned(
-        currentVersion: _schemaVersion,
-        validate: _isValidPayloadJson,
-      );
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
 
   static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['items'] is List;

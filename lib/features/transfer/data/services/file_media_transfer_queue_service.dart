@@ -16,11 +16,10 @@ import '../../domain/services/media_transfer_service.dart';
 class FileMediaTransferQueueService implements MediaTransferQueueService {
   static const int _schemaVersion = 1;
 
-  static final AtomicJsonValidator _isValidStoreJson =
-      AtomicJsonFile.versioned(
-        currentVersion: _schemaVersion,
-        validate: _isValidPayloadJson,
-      );
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
 
   static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['items'] is List;

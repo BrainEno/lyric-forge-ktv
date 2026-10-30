@@ -10,11 +10,10 @@ import '../../domain/services/media_hub_connection_store.dart';
 class FileMediaHubConnectionStore implements MediaHubConnectionStore {
   static const int _schemaVersion = 1;
 
-  static final AtomicJsonValidator _isValidStoreJson =
-      AtomicJsonFile.versioned(
-        currentVersion: _schemaVersion,
-        validate: _isValidPayloadJson,
-      );
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
 
   static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&

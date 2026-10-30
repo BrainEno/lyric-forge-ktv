@@ -15,11 +15,10 @@ import '../../domain/services/playback_session_service.dart';
 class FilePlaybackSessionStore implements PlaybackSessionStore {
   static const int _schemaVersion = 1;
 
-  static final AtomicJsonValidator _isValidStoreJson =
-      AtomicJsonFile.versioned(
-        currentVersion: _schemaVersion,
-        validate: _isValidPayloadJson,
-      );
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
 
   static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['queue'] is List;
