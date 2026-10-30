@@ -309,8 +309,9 @@ class HttpMediaHubService implements MediaHubService {
     _applyCommonHeaders(request.response);
 
     if (request.method == 'OPTIONS') {
-      request.response.statusCode = HttpStatus.noContent;
-      await request.response.close();
+      await _writeJson(request.response, HttpStatus.methodNotAllowed, {
+        'error': 'browser_preflight_not_supported',
+      });
       return;
     }
 
@@ -1016,15 +1017,8 @@ class HttpMediaHubService implements MediaHubService {
   }
 
   void _applyCommonHeaders(HttpResponse response) {
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set(
-      'Access-Control-Allow-Headers',
-      'Authorization, Range, Content-Type, Content-Length',
-    );
-    response.headers.set(
-      'Access-Control-Allow-Methods',
-      'GET, HEAD, POST, OPTIONS',
-    );
+    // Media Hub is consumed by the native app over pinned HTTPS. It has no
+    // browser client, so do not grant cross-origin JavaScript access.
     response.headers.set('X-LyricForge-Protocol', '1');
   }
 

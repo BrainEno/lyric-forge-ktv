@@ -1,0 +1,7 @@
+# [2026-10-29 17:50] Disable wildcard CORS for native Media Hub
+
+- Scope: Address the wildcard browser cross-origin policy in issue #227. Media Hub is consumed by the native app over fingerprint-pinned HTTPS and has no browser client, so its responses no longer emit `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Headers`, or `Access-Control-Allow-Methods`. Browser `OPTIONS` preflights are explicitly rejected with HTTP 405.
+- Files: `lib/features/transfer/data/services/http_media_hub_service.dart`, `test/features/transfer/http_media_hub_upload_test.dart`, `test/features/transfer/media_hub_security_consent_contract_test.dart`, and this work-log/handoff update.
+- Validation: Added a pinned-HTTPS integration test that sends an attacker Origin plus Authorization preflight headers and expects HTTP 405 with no CORS allow headers; added a transport security contract asserting the wildcard headers are absent. Final-head Flutter Quality Gate must pass before merge. Local Flutter/Dart SDKs are unavailable here.
+- Notes: This deliberately disables browser-origin access rather than maintaining an allowlist that the native app does not need. Bearer authorization and TLS pinning remain the actual API authentication controls; CORS is not a replacement for them. Constant-time token comparison is tracked separately in PR #245.
+- Commit: `security: remove wildcard CORS from native Media Hub`
