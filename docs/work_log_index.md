@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Dashboard regression coverage (#223):** The home screen now accepts optional repository/player/queue collaborators so widget tests can exercise the empty playback-history/project states and the recent-project error→retry→empty path without booting the global production service locator. This is the first focused coverage slice; wider transfer/player coverage and lcov thresholds remain separate work.
+
 - **Recoverable JSON persistence (#221):** `AtomicJsonFile` keeps validated temp/backup sidecars and restores missing/invalid canonical stores. This branch uses direct POSIX rename for atomic replacement and retains Windows' recoverable delete/rename fallback; schemaVersion migration remains separate. Verify platform-specific behavior and all store consumers before closing the issue.
 
 - **Cross-platform application identity:** Android namespace/application ID, iOS/macOS bundle identifiers, and Linux GTK application ID use `io.github.braineno.lyricforge`; Windows runner metadata uses the repository owner rather than `com.example`. `scripts/check_app_identifiers.sh` is enforced before Flutter setup in CI.

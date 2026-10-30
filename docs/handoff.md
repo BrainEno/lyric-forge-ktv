@@ -1,40 +1,32 @@
 # Handoff
 
 ## 目标
-Address issue #221's POSIX atomic replacement gap and improve fault-injection coverage for JSON persistence without bundling broad schema migrations into the same PR.
+Start issue #223 with a small, independently testable home-screen coverage slice: verify dashboard empty states and the recoverable recent-project load error.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@ec8aef1a2c2e3109bf0911deb430ffcf6e88cc52`
-- Branch: `fix/atomic-json-platform-replacement-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/242
-- Validated implementation head before main sync: `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`
-- Local Dart/Flutter SDKs are unavailable in this environment; validate on GitHub Actions.
+- Base: `main@95a1e381ea2c73eee52c82ce54401e7592ab4b11`
+- Branch: `test/dashboard-empty-and-retry-states-20261029`
+- PR: to be opened after final work-log and source review.
 
 ## 已改文件
-- `lib/core/persistence/atomic_json_file.dart`
-- `test/core/persistence/atomic_json_file_test.dart`
-- `docs/log/entries/2026-10-29-1650-atomic-json-posix-replacement.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/work_log_index.md`
-- `docs/handoff.md`
+- `lib/features/home/presentation/screens/dashboard_screen.dart` — constructor accepts optional repository/playback/queue collaborators; production defaults still use `ServiceLocatorGlobal.I`.
+- `test/features/home/presentation/screens/dashboard_screen_test.dart` — empty playback/history/project state plus failed project loading and retry to empty state.
+- `docs/log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`.
 
 ## 检查结果
-- Flutter Quality Gate passed on implementation head `78e6ba208e3b9f1c8585cc6659b19a3458c8970c`: work-log preflight, changed-Dart formatting, analysis, and full tests all passed.
-- POSIX replacement now renames the validated temporary file directly over the current canonical file, with no explicit delete before rename.
-- Windows keeps the backup-protected delete/rename fallback; recovery uses the same platform-aware behavior.
-- Added failure injection after temporary flush, immediately before replacement (platform-specific stage), and after canonical replacement.
-- A documentation-only handoff refresh follows the validated code head; verify final-head CI before merge.
+- Test fixtures inject all five collaborators so the tests do not initialize native audio or ASR runtimes.
+- The retry regression asserts the first project request fails, the error UI appears, the user taps `重试`, a second request succeeds, and the empty state replaces the error.
+- Final-head Flutter Quality Gate must pass work-log preflight, changed-Dart formatting, analyzer, and the full test suite. Local Flutter/Dart SDKs are unavailable.
 
 ## 下一步
-1. Verify CI on the final PR head after documentation refresh.
-2. The Windows native validation workflow now runs `test/core/persistence/atomic_json_file_test.dart` on Windows before the native build, exercising the delete/rename fallback and recovery branches.
-3. Keep #221 open until the schemaVersion/migration contract is separately decided and validated.
+1. Run the final-head Flutter Quality Gate; fix format/analyzer/runtime errors from the exact CI output.
+2. If this slice passes, open a focused PR against `main` and keep #223 open because transfer/player coverage and coverage-report policy remain unresolved.
+3. Then add the next highest-value transfer integration case not already covered by #240/#242/#245/#246/#248/#252, rather than adding a percentage threshold before a stable baseline.
 
 ## 已知风险
-- On Windows the delete/rename gap remains, protected by the validated backup and startup restoration path; this is not a database transaction or a guarantee against filesystem/hardware failure.
-- This change does not add schemaVersion to the ten stores using AtomicJsonFile; broad migration changes are intentionally out of scope.
-- Failure hooks simulate interrupted stages inside the writer, but do not kill a process or validate power-loss durability on a physical filesystem.
+- This slice covers home empty/retry states only; it does not yet test a populated dashboard or visual layout at multiple breakpoints.
+- Local Flutter/Dart SDKs are unavailable, so the widgets have not been run locally.
+- Issue #223's original feature line ratios are a snapshot; do not treat this small test change as resolving all of the broader distribution gap.
 
-最后更新：2026-10-29 17:04（Asia/Taipei）
+最后更新：2026-10-29 21:10（Asia/Taipei）
