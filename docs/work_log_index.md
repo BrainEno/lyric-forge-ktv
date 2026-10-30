@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Dashboard regression coverage (#223):** The home screen now accepts optional repository/player/queue collaborators so widget tests can exercise the empty playback-history/project states and the recent-project error→retry→empty path without booting the global production service locator. This is the first focused coverage slice; wider transfer/player coverage and lcov thresholds remain separate work.
+
 - **Cross-platform application identity:** Android namespace/application ID, iOS/macOS bundle identifiers, and Linux GTK application ID use `io.github.braineno.lyricforge`; Windows runner metadata uses the repository owner rather than `com.example`. `scripts/check_app_identifiers.sh` is enforced before Flutter setup in CI.
 
 - **Media Hub upload reservation (#234):** Incoming uploads claim a final filename through an exclusive `.reserve` marker and write to a unique `.lyricforge-<uuid>.part` file. A concurrent same-name regression test validates distinct output names, both SHA-256 digests, and cleanup of temporary files.

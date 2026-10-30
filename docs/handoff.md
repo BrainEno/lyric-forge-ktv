@@ -1,43 +1,32 @@
 # Handoff
 
 ## 目标
-Resolve issue #219 by replacing Flutter template application identities with a stable repository-owned reverse-DNS identifier and preventing regressions in CI.
+Start issue #223 with a small, independently testable home-screen coverage slice: verify dashboard empty states and the recoverable recent-project load error.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@7e0fbacd485a5546c2588c3b0ab2b3db823533b2`
-- Branch: `fix/platform-app-identifiers-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/243.
-- Canonical application identifier: `io.github.braineno.lyricforge`
+- Base: `main@ec8aef1a2c2e3109bf0911deb430ffcf6e88cc52`
+- Branch: `test/dashboard-empty-and-retry-states-20261029`
+- PR: to be opened after final work-log and source review.
 
 ## 已改文件
-- `android/app/build.gradle.kts`
-- `android/app/src/main/kotlin/io/github/braineno/lyricforge/MainActivity.kt` (moved from the template package path)
-- `ios/Runner.xcodeproj/project.pbxproj`
-- `macos/Runner.xcodeproj/project.pbxproj`
-- `macos/Runner/Configs/AppInfo.xcconfig`
-- `linux/CMakeLists.txt`
-- `windows/runner/Runner.rc`
-- `scripts/check_app_identifiers.sh`
-- `.github/workflows/flutter-quality.yml`
-- `docs/log/entries/2026-10-29-1708-remove-template-app-identifiers.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/work_log_index.md`
-- `docs/handoff.md`
+- `lib/features/home/presentation/screens/dashboard_screen.dart` — constructor accepts optional repository/playback/queue collaborators; production defaults still use `ServiceLocatorGlobal.I`.
+- `test/features/home/presentation/screens/dashboard_screen_test.dart` — empty playback/history/project state plus failed project loading and retry to empty state.
+- `docs/log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`.
 
 ## 检查结果
-- Repository file checks confirm the Android namespace, application ID, and Kotlin package match; iOS/macOS app and test bundle identifiers are aligned; Linux GTK identity is aligned; Windows metadata no longer uses the template owner string.
-- Added a pre-Flutter CI script that verifies all expected identifiers, fails on any `com.example` in platform identity files, and checks that the old Android activity path is absent.
-- Run final-head GitHub Actions, Android build, and applicable desktop build workflows before considering the issue resolved. No local Flutter SDK is available in this environment.
+- Test fixtures inject all five collaborators so the tests do not initialize native audio or ASR runtimes.
+- The retry regression asserts the first project request fails, the error UI appears, the user taps `重试`, a second request succeeds, and the empty state replaces the error.
+- Final-head Flutter Quality Gate must pass work-log preflight, changed-Dart formatting, analyzer, and the full test suite. Local Flutter/Dart SDKs are unavailable.
 
 ## 下一步
-1. Open the dedicated PR and review final diff for all platform identity substitutions.
-2. Verify the new CI contract and Android/desktop build workflows on the final PR head.
-3. Keep issue #219 open until the PR is merged and builds are confirmed.
+1. Run the final-head Flutter Quality Gate; fix format/analyzer/runtime errors from the exact CI output.
+2. If this slice passes, open a focused PR against `main` and keep #223 open because transfer/player coverage and coverage-report policy remain unresolved.
+3. Then add the next highest-value transfer integration case not already covered by #240/#242/#245/#246/#248/#252, rather than adding a percentage threshold before a stable baseline.
 
 ## 已知风险
-- Changing an application identifier after publication creates a distinct app identity. The repository issue states that no user-facing app build has been distributed, so this early change avoids future rename/data-migration cost.
-- Windows `Runner.rc` supplies company/copyright version-resource metadata rather than a package bundle ID; no Store/MSIX package identity is currently defined here.
+- This slice covers home empty/retry states only; it does not yet test a populated dashboard or visual layout at multiple breakpoints.
+- Local Flutter/Dart SDKs are unavailable, so the widgets have not been run locally.
+- Issue #223's original feature line ratios are a snapshot; do not treat this small test change as resolving all of the broader distribution gap.
 
-最后更新：2026-10-29 17:09（Asia/Taipei）
+最后更新：2026-10-29 21:10（Asia/Taipei）
