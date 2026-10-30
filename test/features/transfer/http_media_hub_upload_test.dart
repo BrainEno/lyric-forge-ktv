@@ -134,7 +134,7 @@ void main() {
     expect(await File(imported.single).readAsBytes(), bytes);
   });
 
-  test('unauthorized upload is rejected before a file is created', () async {
+  test('query token cannot authorize an upload', () async {
     final session = await service.startSharing(const []);
     final client = _pinnedHttpClient(session.tlsFingerprint!);
     addTearDown(() => client.close(force: true));
@@ -143,7 +143,7 @@ void main() {
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
       path: '/v1/incoming/audio',
-      queryParameters: const {'filename': 'blocked.mp3'},
+      queryParameters: {'filename': 'blocked.mp3', 'token': session.token},
     );
     final request = await client.postUrl(uri);
     request.contentLength = 3;

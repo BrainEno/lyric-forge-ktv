@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Media Hub bearer authentication (#222):** HTTP authorization requires a Bearer header; URL token parameters are stripped from remote-player proxy/rebase URLs and must not authorize requests. `mediaHubConstantTimeEquals` is shared by HTTP token validation and discovery proof checks; see `media_hub_discovery_auth_test.dart` and the #222 follow-up entry. Full timing guarantees remain bounded by Dart runtime behavior.
+
 - **Flutter/Dart toolchain (#216):** `.fvmrc` is the active Flutter pin; the shared CI action and local shell/PowerShell quality/build scripts verify that Flutter and the `dart` executable on PATH use the same bundled SDK pair. See `docs/development-environment.md` and `scripts/check_flutter_sdk.*` before formatting changed Dart files.
 
 - **Media Hub URL credentials (#222):** Remote artwork no longer gets a session token appended to URL query parameters. Artwork bytes are fetched through the pinned HTTPS client with Bearer Authorization; static regression contracts prevent restoring `Image.network` against a credential-bearing URI.
