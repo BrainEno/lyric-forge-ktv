@@ -1,89 +1,121 @@
-# lyric_forge_ktv
+# LyricForge KTV
 
-A new Flutter project.
+**A local-first music player, lyric workspace, and KTV production toolkit built with Flutter.**
 
-## Getting Started
+LyricForge combines everyday local music playback with editable synchronized lyrics and desktop-first tools for transcription, alignment, and KTV recording. Your library and project files remain local; online access is needed only for tasks such as downloading runtimes or models.
 
-This project is a starting point for a Flutter application.
+## Features
 
-A few resources to get you started if this is your first Flutter project:
+- **Local music library and playback** — import local files, browse metadata and artwork, manage a queue, favorites and playlists, and resume recent listening.
+- **Editable lyrics** — import and export LRC, adjust global timing offsets, audition individual lines, review alignment proposals, and keep manual edits protected from automatic suggestions.
+- **KTV workflow** — switch between accompaniment and vocal playback, record and monitor a microphone on supported desktop setups, and work with take history and mix/project exports.
+- **Local transcription and alignment** — desktop workflows can use Whisper.cpp and Qwen3-ASR with Qwen ForcedAligner. FFmpeg is used for consistent audio preparation. Recognition output is a draft for human review, not guaranteed ground truth.
+- **Desktop-to-mobile Media Hub** — pair devices through the app, confirm the sharing scope, and transfer/play shared media over fingerprint-pinned HTTPS on a trusted private LAN or Tailscale network.
+- **Offline-first design** — no cloud music catalog or mandatory cloud transcription service is required for normal local playback.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Platform overview
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Platform | Intended use | Notes |
+| --- | --- | --- |
+| Windows desktop | Full local playback/library and KTV production workflow | Highest-quality ASR profile targets compatible Windows x64 runtimes; NVIDIA CUDA is supported when the matching runtime and model files are installed. |
+| macOS desktop | Local playback/library and supported production workflows | Native runtime and device behavior depend on the installed build and CPU architecture. |
+| Linux desktop | Local playback/library | Audio backend availability depends on the installed system libraries and packaged plugins. |
+| Android | Mobile playback, library, synced lyrics, and Media Hub connectivity | Desktop-only transcription, source separation, and KTV recording flows are not promised on mobile. |
+| iOS | Mobile playback, library, synced lyrics, and Media Hub connectivity | Building requires macOS, Xcode, and CocoaPods. |
 
+Availability of ASR, microphone, native playback, and packaging features varies by operating system and installed runtime. Check the platform-specific requirements before relying on a production workflow.
 
-## iOS local build
+## Install or run
 
-The repository helper is **iOS Dev** and lives under `Scripts/`:
+If a release build for your platform is published, use the repository's **Releases** page. Otherwise, build from source:
+
+1. Install Flutter **3.47.7**, the version pinned in [`.fvmrc`](.fvmrc). Use the Dart SDK bundled with that Flutter installation so `dart format` matches CI.
+2. Install the platform toolchain required by Flutter (`flutter doctor -v` reports missing components).
+3. Clone the repository and restore packages:
+
+   ```bash
+   git clone https://github.com/BrainEno/lyric-forge-ktv.git
+   cd lyric-forge-ktv
+   flutter --version
+   flutter pub get
+   ```
+
+4. Inspect available devices and launch the app:
+
+   ```bash
+   flutter devices
+   flutter run -d windows
+   ```
+
+   Replace `windows` with a device ID reported by `flutter devices` for your target platform.
+
+### Desktop builds
 
 ```bash
-./Scripts/ios-dev build --run
+flutter build windows --release
+flutter build macos --release
+flutter build linux --release
 ```
 
-For run commands, `flutter devices --machine` is the authority for targets that
-Flutter can actually launch. `devicectl` is used only to diagnose physical iOS
-devices that Xcode can see but Flutter cannot yet use, while `simctl` is used to
-show installed simulators and boot a selected shutdown simulator.
+Run a build only on a host with the corresponding platform toolchain installed.
 
-The picker is intentionally single-select: use Up/Down to move, Enter to run,
-and `q` to cancel. A shutdown Simulator is booted first and then must appear in
-Flutter's device list before `flutter run` starts. A physical iPhone that is only
-visible to Xcode/devicectl is shown as `Flutter unavailable`; iOS Dev retries
-Flutter discovery and prints Xcode/device/`flutter doctor -v` diagnostics instead
-of passing a system-only identifier to `flutter run`.
+### Android build
 
-Useful variants:
-
-```bash
-./Scripts/ios-dev devices                 # show Flutter/Xcode iOS target status
-./Scripts/ios-dev run                     # select one target and run Debug
-./Scripts/ios-dev build --run             # same fast run path; no redundant pre-build
-./Scripts/ios-dev build                   # build physical-device Debug (signing required)
-./Scripts/ios-dev build --simulator       # build Simulator Debug
-./Scripts/ios-dev build --run --clean     # clean explicitly, then run
-./Scripts/ios-dev run --device <id>       # skip the picker; ID is still validated
+```powershell
+.\scripts\build_android_apk.ps1 -Mode release
 ```
 
-The helper keeps development runs fast by reusing Flutter incremental build
-artifacts. It does not run `flutter clean` unless `--clean` is provided, and it
-only runs `flutter pub get` when `pubspec.yaml` / `pubspec.lock` are newer than
-the local package configuration.
+The helper copies the generated APK to `release/android` and writes a SHA-256 sidecar. Review its signing warning before distribution; a local debug-signed package is suitable for testing, not an app-store release.
 
-The iOS app uses CocoaPods for Flutter plugin modules such as `audio_service`,
-`audio_session`, `just_audio`, and `file_picker`. iOS Dev checks for Flutter,
-full Xcode, Xcode first-launch/license readiness, and CocoaPods before a build or
-run. It never runs `sudo` automatically; if the active developer directory is
-wrong it prints the `xcode-select --switch` command for the developer to review.
+### iOS build
 
-After pulling dependency changes, if CocoaPods needs a manual refresh, run:
+On macOS, install Xcode and CocoaPods, then run:
 
 ```bash
-flutter clean
 flutter pub get
 cd ios
-pod install --repo-update
+pod install
 cd ..
-open ios/Runner.xcworkspace
+flutter build ios --no-codesign
 ```
 
-Build the app from `Runner.xcworkspace`, not `Runner.xcodeproj`. Opening the
-project file directly does not load the CocoaPods workspace, which can surface
-errors such as `Module 'audio_service' not found` in
-`GeneratedPluginRegistrant`.
+When using Xcode, open `ios/Runner.xcworkspace` rather than `Runner.xcodeproj` so the CocoaPods workspace is loaded. A signed device build requires the appropriate Apple development team and signing setup.
 
-If Xcode still shows a stale plugin-module error, reset the local pods once:
+## Local ASR requirements
+
+Transcription and alignment runtimes and model weights are separate from the normal music-player experience. Use the application's runtime/setup workflow for supported platforms, and allow enough disk space for the models and normalized audio. Model downloads require network access; inference runs locally once the required assets are installed.
+
+Highest Quality mode can combine a full-song Whisper transcript with a Qwen3-ASR second opinion and forced alignment on supported desktop configurations. It favors evidence and reviewability over minimum runtime. Compare results with a manually checked reference before judging lyric recall or timestamp accuracy.
+
+## Media Hub security
+
+Media Hub sharing is stopped until you explicitly confirm the sharing scope. Pairing pins the desktop's HTTPS certificate fingerprint; requests use Bearer authorization, and listeners are restricted to detected private-LAN/Tailscale IPv4 addresses. Do not expose the service through an untrusted public interface. Browser-based clients are not supported.
+
+## Development and tests
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. The active Flutter SDK pin is `.fvmrc`; CI uses the shared setup action. Common checks are:
 
 ```bash
-flutter clean
-rm -rf ios/Pods ios/Podfile.lock
-flutter pub get
-cd ios
-pod install --repo-update
-cd ..
-open ios/Runner.xcworkspace
+flutter analyze --no-pub --no-fatal-infos lib test
+flutter test
+dart tool/work_log.dart check
 ```
+
+The active Flutter version is recorded in [`.fvmrc`](.fvmrc). Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution, validation, and work-log expectations; the full architecture and engineering rules are in [`AGENTS.md`](AGENTS.md).
+
+## Project layout
+
+- `lib/features/` — feature modules, each split into presentation, domain, and data layers.
+- `lib/core/` — shared application infrastructure and responsive layout.
+- `packages/` — maintained local plugin integration/forks used by the application.
+- `scripts/` — development, build, and quality-gate helpers.
+- `docs/` — architecture, environment setup, work log, and engineering decisions.
+
+## Scope and limitations
+
+LyricForge is an actively developed open-source project. Automatic transcription and alignment are review aids; they can omit words, select incorrect alternatives, or produce inaccurate timestamps. Native audio behavior, microphone latency, device pairing, and packaged ASR runtime availability should be verified on the target device before a long recording session.
+
+## License
+
+LyricForge is distributed under the [MIT License](LICENSE). Third-party dependencies and local plugin integrations retain their respective licenses.
+

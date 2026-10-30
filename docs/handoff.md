@@ -1,33 +1,32 @@
 # Handoff
 
 ## 目标
-Finish the remaining reviewed PR queue after merging dependency reproducibility and dashboard coverage; land the contributor onboarding guide before the README that links to it.
+Finish the final reviewed PR queue after dependency reproducibility, dashboard coverage and contributor onboarding have landed.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@da5ba0690825fcb31fd056c8013d06d21e757b94`
-- Merged: PR #244 (strict dependency resolution/toolchain checks), PR #253 (dashboard empty/retry widget coverage).
-- PR #251 is synchronized to this base; #250 remains the final README/package metadata PR.
+- Base: `main@6b66a80488f0c0255b486401d9629b15388add61`
+- Merged: PR #244 (strict dependency resolution/toolchain checks), #253 (dashboard empty/retry coverage), and #251 (contribution guide and GitHub templates).
+- PR #250 is synchronized to this base and is the final reviewed PR in the queue.
 
 ## 已改文件
-- `CONTRIBUTING.md` — setup, validation, architecture, privacy and work-log expectations.
-- `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/PULL_REQUEST_TEMPLATE.md`.
-- `docs/log/entries/2026-10-29-2045-add-contribution-and-github-templates.md`, generated work-log summary/archive, index and this handoff.
+- `README.md` — local-first product overview, platform matrix, source-build instructions, ASR/runtime caveats, Media Hub security, project layout and license.
+- `pubspec.yaml` — accurate package description and repository metadata.
+- `docs/log/entries/2026-10-29-2000-replace-flutter-template-readme.md` and generated work-log navigation.
 
 ## 检查结果
 - PR #244 final CI passed on attempt 2, including Windows CUDA and macOS Intel Qwen/Whisper runtime builds and smoke checks.
-- PR #253 final-head Flutter Quality Gate passed on attempt 2; its first run exposed a stale generated summary and a second run hit a transient loopback TLS test failure. The retry passed.
-- #251's old head had passed its original quality gate; final-head validation after this synchronization is required.
+- PR #253 final-head Flutter Quality Gate passed on attempt 2; the transient loopback TLS test failure did not recur.
+- PR #251 final-head Flutter Quality Gate passed; the README's `CONTRIBUTING.md` link target is now present on main.
+- #250's README/package metadata changes do not modify dependency constraints or runtime code; final-head CI is still required.
 
 ## 下一步
-1. Run #251's final-head Flutter Quality Gate; if green, mark ready and merge.
-2. Synchronize #250 after #251 so its README link to `CONTRIBUTING.md` resolves.
-3. Regenerate work-log navigation, run #250 final-head CI, and merge if green.
-4. Recheck all open PRs and main checks.
+1. Run #250's final-head Flutter Quality Gate and relevant Windows validation.
+2. If all checks pass, merge #250.
+3. Recheck the repository's open PR list, merge statuses, main SHA and latest main checks.
 
 ## 已知风险
-- #215 remains open until both documentation slices (#251 and #250) are merged.
-- GitHub form rendering is ultimately verified by GitHub; this environment validates YAML content and the repository's quality gate but does not emulate the GitHub issue-form renderer.
+- Issue #215 remains open until #250 merges; #223 remains open for broader dashboard/transfer/player coverage.
 - Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for final-head validation.
 
 最后更新：2026-10-30（Asia/Taipei）
