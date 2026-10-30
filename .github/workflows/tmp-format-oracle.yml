@@ -35,13 +35,8 @@ jobs:
             test/features/player/playback_session_persistence_test.dart
           )
           emit() {
-            python3 - "$1" <<'PYEOF'
-          import sys
-          path = sys.argv[1]
-          data = sys.stdin.read()
-          msg = data.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-          print(f'::error file={path}::{msg}')
-          PYEOF
+            local data; data=$(cat)
+            MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
           }
           for f in "${files[@]}"; do
             out=$(dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 | head -80; true)
