@@ -137,9 +137,12 @@ abstract final class AtomicJsonFile {
         await backupTemporary.rename(backup.path);
         await onStage?.call(AtomicJsonWriteStage.backupPrepared);
 
-        // A verified backup exists before the canonical file is removed.
-        await destination.delete();
-        await onStage?.call(AtomicJsonWriteStage.canonicalRemoved);
+        // POSIX rename atomically replaces an existing destination. Windows
+        // requires deleting the target first, so recovery still covers that gap.
+        if (Platform.isWindows) {
+          await destination.delete();
+          await onStage?.call(AtomicJsonWriteStage.canonicalRemoved);
+        }
       }
 
       await temporary.rename(destination.path);
@@ -194,7 +197,11 @@ abstract final class AtomicJsonFile {
       );
     }
 
-    if (await destination.exists()) await destination.delete();
+    // Use the same platform-aware replacement approach during recovery. On
+    // POSIX this avoids another delete/rename gap while restoring a sidecar.
+    if (Platform.isWindows && await destination.exists()) {
+      await destination.delete();
+    }
     await recoveryTemporary.rename(destination.path);
   }
 }
