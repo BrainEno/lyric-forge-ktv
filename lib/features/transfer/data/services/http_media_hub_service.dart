@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
+import 'media_hub_discovery_auth.dart';
 import 'media_hub_tls_identity_store.dart';
 
 typedef IncomingMediaCallback = Future<void> Function(String path);
@@ -900,7 +901,10 @@ class HttpMediaHubService implements MediaHubService {
 
     const prefix = 'Bearer ';
     return authorization.startsWith(prefix) &&
-        authorization.substring(prefix.length) == token;
+        mediaHubConstantTimeEquals(
+          authorization.substring(prefix.length),
+          token,
+        );
   }
 
   bool _isTailscaleIpv4(String address) {

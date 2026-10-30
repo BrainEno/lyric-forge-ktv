@@ -4,14 +4,14 @@
 
 - [2026-10-29 20:50] Remove Media Hub session tokens from artwork URLs `security: remove session tokens from Media Hub artwork URLs` ([entry](log/entries/2026-10-29-2050-remove-token-query-artwork.md))
 - [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally `build: enforce pinned Flutter and Dart versions in local gates` ([entry](log/entries/2026-10-29-1925-enforce-pinned-flutter-sdk-local-gates.md))
+- [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits `security: compare Media Hub bearer tokens in constant time` ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
 - [2026-10-29 16:20] Bound Media Hub incoming upload resources `security: add Media Hub upload resource guardrails` ([entry](log/entries/2026-10-29-1620-media-hub-upload-guardrails.md))
 - [2026-10-29 11:40] Secure Media Hub with fingerprint-pinned HTTPS `style: format Media Hub consent contract test` ([entry](log/entries/2026-10-29-1140-media-hub-explicit-consent.md))
 - [2026-10-28 23:10] Unify Flutter CI version and focused workflow gates `ci: unify Flutter SDK and focus specialist workflows` ([entry](log/entries/2026-10-28-2310-unify-flutter-ci-workflows.md))
 - [2026-10-28 22:15] Pin and verify managed FFmpeg downloads `fix: pin and verify managed FFmpeg downloads` ([entry](log/entries/2026-10-28-2215-pin-and-verify-managed-ffmpeg.md))
 - [2026-10-28 19:45] Supervise resumable audio chunk processes `fix: supervise resumable audio chunk processes (#214)` ([entry](log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md))
-- [2026-10-28 19:40] Bound forced-alignment HTTP request lifetimes `fix: bound forced-alignment HTTP request lifetimes (#213)` ([entry](log/entries/2026-10-28-1940-bound-forced-alignment-http-lifetimes.md))
 
-<!-- 125 entries total: 8 active, 117 archived. -->
+<!-- 126 entries total: 8 active, 118 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

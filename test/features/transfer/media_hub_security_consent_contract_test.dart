@@ -57,6 +57,7 @@ void main() {
         serverSource,
         isNot(contains("request.uri.queryParameters['token']")),
       );
+      expect(serverSource, contains('mediaHubConstantTimeEquals('));
       expect(clientSource, contains('badCertificateCallback'));
       expect(clientSource, contains('mediaHubTlsFingerprint(certificate.der)'));
       expect(clientSource, contains('connection.tlsFingerprint'));
@@ -86,6 +87,10 @@ void main() {
       ).readAsString();
       expect(proxySource, contains('InternetAddress.loopbackIPv4'));
       expect(proxySource, contains('HttpHeaders.authorizationHeader'));
+      expect(
+        RegExp(r"\.\.remove\('token'\)").allMatches(proxySource),
+        hasLength(2),
+      );
       expect(proxySource, contains("..remove('token')"));
 
       final catalogSource = await File(
