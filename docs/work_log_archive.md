@@ -84,7 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
-- [2026-10-29 21:10] Add dashboard empty-state and project-retry tests `test: add dashboard empty/retry state coverage` ([entry](log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md))
+- [2026-10-29 17:18] Enforce reproducible Flutter dependency resolution ([entry](log/entries/2026-10-29-1718-enforce-flutter-lockfile.md))
 - [2026-10-29 17:08] Replace template application identifiers `fix: replace template application identifiers` ([entry](log/entries/2026-10-29-1708-remove-template-app-identifiers.md))
 - [2026-10-29 16:50] Atomically replace JSON stores on POSIX `fix: replace atomic JSON stores without POSIX delete window` ([entry](log/entries/2026-10-29-1650-atomic-json-posix-replacement.md))
 - [2026-10-29 16:20] Bound Media Hub incoming upload resources `security: add Media Hub upload resource guardrails` ([entry](log/entries/2026-10-29-1620-media-hub-upload-guardrails.md))
