@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Cross-platform application identity:** Android namespace/application ID, iOS/macOS bundle identifiers, and Linux GTK application ID use `io.github.braineno.lyricforge`; Windows runner metadata uses the repository owner rather than `com.example`. `scripts/check_app_identifiers.sh` is enforced before Flutter setup in CI.
+
 - **Media Hub upload reservation (#234):** Incoming uploads claim a final filename through an exclusive `.reserve` marker and write to a unique `.lyricforge-<uuid>.part` file. A concurrent same-name regression test validates distinct output names, both SHA-256 digests, and cleanup of temporary files.
 
 - **Media Hub browser isolation (#227):** The native pinned-HTTPS service no longer sends wildcard CORS headers and rejects browser `OPTIONS` preflights. Native Media Hub clients do not require CORS; bearer auth and TLS pinning remain mandatory. See `http_media_hub_upload_test.dart` and the 2026-10-29 CORS hardening entry.
