@@ -23,6 +23,7 @@ Resolve issue #220 by making Flutter dependency resolution reproducible under th
 - CI diagnostic run `40848063646` on Flutter 3.47.7 generated the exact drift used for `pubspec.lock` and `analysis_options.yaml`; updates were derived from that output rather than guessed.
 - Workflow dependency steps now run `flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml`.
 - Shell and PowerShell helper scripts snapshot both tracked inputs before strict resolution and fail if Flutter changes either file; this avoids false positives from unrelated local edits already present before the command.
+- The first final-head Flutter Quality Gate exposed that rewritten quality/build scripts had dropped existing `.fvmrc` toolchain checks. Those checks have been restored in shell/PowerShell quality gates and iOS/Android build helpers; rerun the complete gate on the new head.
 - Final-head Flutter Quality Gate and relevant Windows/macOS platform workflows must still pass before issue #220 is considered validated.
 
 ## 下一步
@@ -37,4 +38,4 @@ Resolve issue #220 by making Flutter dependency resolution reproducible under th
 - The CI `git diff` guard assumes a clean checkout, as provided by GitHub Actions; local build scripts use before/after snapshots instead.
 - The independent self-hosted WSL runner installer is intentionally unchanged because it provisions a different repository.
 
-最后更新：2026-10-29 17:18（Asia/Taipei）
+最后更新：2026-10-30 17:45（Asia/Taipei）

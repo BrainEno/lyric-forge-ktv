@@ -76,6 +76,11 @@ else {
     Write-Host '  targeted tests: none (full suite when tests run)'
 }
 
+# Verify that PATH resolves the exact Flutter/Dart pair pinned in .fvmrc.
+Invoke-CheckedStep -Name 'verify pinned Flutter/Dart SDK' -Command {
+    & "$PSScriptRoot\check_flutter_sdk.ps1"
+}
+
 # Fail fast on documentation-contract errors before running the analyzer and
 # full test suite, rather than discovering a stale work log after all tests.
 if ($mode -eq 'all' -and -not $SkipDocs) {

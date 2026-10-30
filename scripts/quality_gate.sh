@@ -103,6 +103,8 @@ print_provenance() {
 
 print_provenance
 
+run_step "verify pinned Flutter/Dart SDK" bash scripts/check_flutter_sdk.sh
+
 # Fail fast on documentation-contract errors before running the full analyzer
 # and test suite. This avoids spending a minute or more on tests when the log is
 # already known to be inconsistent.

@@ -588,6 +588,7 @@ is_repairable_pods_failure() {
   die "找不到 Flutter；请设置 FLUTTER_BIN 或使用 --flutter"
 command -v xcodebuild >/dev/null 2>&1 || die "找不到 Xcode command line tools"
 command -v pod >/dev/null 2>&1 || die "找不到 CocoaPods；请先安装 CocoaPods"
+bash "$SCRIPT_DIR/check_flutter_sdk.sh" "$FLUTTER_BIN"
 [[ -f "$PROJECT_ROOT/pubspec.lock" ]] || die "缺少 pubspec.lock"
 [[ -f "$IOS_DIR/Podfile" ]] || die "缺少 ios/Podfile"
 
