@@ -11,7 +11,7 @@
 - [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits `security: compare Media Hub bearer tokens in constant time` ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
 - [2026-10-29 17:18] Enforce reproducible Flutter dependency resolution `fix: enforce reproducible Flutter dependency resolution` ([entry](log/entries/2026-10-29-1718-enforce-flutter-lockfile.md))
 
-<!-- 133 entries total: 8 active, 125 archived. -->
+<!-- 134 entries total: 8 active, 126 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

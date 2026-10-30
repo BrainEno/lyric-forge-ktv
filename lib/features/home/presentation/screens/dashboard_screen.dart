@@ -21,7 +21,20 @@ import '../../../transcription/domain/services/batch_transcription_queue.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final ProjectRepository? projectRepository;
+  final PlayHistoryRepository? playHistoryRepository;
+  final PlaybackSessionService? playbackSessionService;
+  final AudioPlayerService? audioPlayerService;
+  final BatchTranscriptionQueue? transcriptionQueue;
+
+  const DashboardScreen({
+    super.key,
+    this.projectRepository,
+    this.playHistoryRepository,
+    this.playbackSessionService,
+    this.audioPlayerService,
+    this.transcriptionQueue,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -41,12 +54,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
-    _projects = services.projectRepository;
-    _history = services.playHistoryRepository;
-    _playbackSession = services.playbackSessionService;
-    _audioPlayer = services.audioPlayerService;
-    _transcriptionQueue = services.transcriptionQueue;
+    final needsGlobalServices =
+        widget.projectRepository == null ||
+        widget.playHistoryRepository == null ||
+        widget.playbackSessionService == null ||
+        widget.audioPlayerService == null ||
+        widget.transcriptionQueue == null;
+    final services = needsGlobalServices ? ServiceLocatorGlobal.I : null;
+    _projects = widget.projectRepository ?? services!.projectRepository;
+    _history = widget.playHistoryRepository ?? services!.playHistoryRepository;
+    _playbackSession =
+        widget.playbackSessionService ?? services!.playbackSessionService;
+    _audioPlayer = widget.audioPlayerService ?? services!.audioPlayerService;
+    _transcriptionQueue =
+        widget.transcriptionQueue ?? services!.transcriptionQueue;
     _loadData();
   }
 
@@ -60,7 +81,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openModelSettings() async {
     final services = ServiceLocatorGlobal.I;
     try {
-      final initialConfig = await services.transcriptionSettingsStore.load() ??
+      final initialConfig =
+          await services.transcriptionSettingsStore.load() ??
           const TranscriptionConfig(
             mode: TranscriptionMode.highestQuality,
             profilePreference: TranscriptionProfilePreference.automatic,
@@ -80,9 +102,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('打开模型高级设置失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('打开模型高级设置失败：$error')));
     }
   }
 
@@ -124,7 +146,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   stream: _transcriptionQueue.snapshots,
                   initialData: _transcriptionQueue.current,
                   builder: (context, queueSnapshot) {
-                    final queue = queueSnapshot.data ??
+                    final queue =
+                        queueSnapshot.data ??
                         const TranscriptionQueueSnapshot(
                           items: [],
                           isPaused: false,
@@ -283,9 +306,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         projects: items,
                                         onOpen: (project) =>
                                             Navigator.pushNamed(
-                                          context,
-                                          Routes.projectDetailPath(project.id),
-                                        ),
+                                              context,
+                                              Routes.projectDetailPath(
+                                                project.id,
+                                              ),
+                                            ),
                                       );
                                     },
                                   ),
@@ -335,20 +360,21 @@ class _Header extends StatelessWidget {
           children: [
             Text(
               'Elysium Player',
-              style: (layout.isCompact
-                      ? Theme.of(context).textTheme.headlineSmall
-                      : Theme.of(context).textTheme.headlineMedium)
-                  ?.copyWith(
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.8,
-              ),
+              style:
+                  (layout.isCompact
+                          ? Theme.of(context).textTheme.headlineSmall
+                          : Theme.of(context).textTheme.headlineMedium)
+                      ?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.8,
+                      ),
             ),
             const SizedBox(height: 2),
             Text(
               '你的本地音乐、歌词与 KTV 工作台',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         );
@@ -441,7 +467,12 @@ class _Header extends StatelessWidget {
                   actions,
                 ],
               )
-            : Row(children: [Expanded(child: identity), actions]);
+            : Row(
+                children: [
+                  Expanded(child: identity),
+                  actions,
+                ],
+              );
       },
     );
   }
@@ -522,13 +553,14 @@ class _IdleHero extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final showArtwork = !layout.isShort &&
+        final showArtwork =
+            !layout.isShort &&
             (layout.isExpanded || layout.isLarge || layout.isExtraLarge);
         final minHeight = layout.isShort
             ? 190.0
             : layout.isCompact
-                ? 220.0
-                : 250.0;
+            ? 220.0
+            : 250.0;
         return Container(
           constraints: BoxConstraints(minHeight: minHeight),
           padding: EdgeInsets.all(
@@ -546,20 +578,21 @@ class _IdleHero extends StatelessWidget {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       '把你的音乐库变成\n可以继续制作的 KTV 工程',
-                      style: (layout.isCompact
-                              ? Theme.of(context).textTheme.headlineSmall
-                              : Theme.of(context).textTheme.headlineMedium)
-                          ?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
+                      style:
+                          (layout.isCompact
+                                  ? Theme.of(context).textTheme.headlineSmall
+                                  : Theme.of(context).textTheme.headlineMedium)
+                              ?.copyWith(
+                                fontWeight: FontWeight.w900,
+                                height: 1.15,
+                              ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       '先正常听歌，需要歌词时再交给后台批量识别。',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     FilledButton.icon(
@@ -578,9 +611,7 @@ class _IdleHero extends StatelessWidget {
               ),
               if (showArtwork) ...[
                 SizedBox(width: layout.sectionGap),
-                _Artwork(
-                  size: layout.isExpanded ? 130 : 150,
-                ),
+                _Artwork(size: layout.isExpanded ? 130 : 150),
               ],
             ],
           ),
@@ -618,10 +649,10 @@ class _PlayingHero extends StatelessWidget {
         final artworkSize = layout.isShort
             ? 88.0
             : layout.isCompact
-                ? 104.0
-                : layout.isMedium
-                    ? 120.0
-                    : 172.0;
+            ? 104.0
+            : layout.isMedium
+            ? 120.0
+            : 172.0;
         final detail = Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,22 +663,22 @@ class _PlayingHero extends StatelessWidget {
               item.title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 4),
             Text(
               item.artist?.trim().isNotEmpty == true
                   ? item.artist!
                   : item.projectId == null
-                      ? '本地音乐'
-                      : 'Elysium Player 工程',
+                  ? '本地音乐'
+                  : 'Elysium Player 工程',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             _HeroProgress(playback),
@@ -708,9 +739,7 @@ class _PlayingHero extends StatelessWidget {
                         : Icons.lyrics_rounded,
                     size: 17,
                   ),
-                  label: Text(
-                    item.projectId == null ? '打开播放器' : '打开歌词播放器',
-                  ),
+                  label: Text(item.projectId == null ? '打开播放器' : '打开歌词播放器'),
                 ),
               ],
             ),
@@ -722,8 +751,8 @@ class _PlayingHero extends StatelessWidget {
             minHeight: layout.isShort
                 ? 190
                 : layout.isCompact
-                    ? 220
-                    : 250,
+                ? 220
+                : 250,
           ),
           padding: EdgeInsets.all(
             layout.isCompact ? AppSpacing.md : AppSpacing.lg,
@@ -791,10 +820,9 @@ class _PlaybackQueueCard extends StatelessWidget {
     final visibleCount = layout.isShort
         ? 3
         : layout.isCompact
-            ? 4
-            : 5;
-    final end =
-        (start + visibleCount).clamp(0, session.queue.length).toInt();
+        ? 4
+        : 5;
+    final end = (start + visibleCount).clamp(0, session.queue.length).toInt();
     final items = start < end
         ? session.queue.sublist(start, end)
         : const <PlaybackItem>[];
@@ -804,8 +832,8 @@ class _PlaybackQueueCard extends StatelessWidget {
         minHeight: layout.isShort
             ? 180
             : layout.isCompact
-                ? 220
-                : 250,
+            ? 220
+            : 250,
       ),
       padding: EdgeInsets.all(layout.isCompact ? AppSpacing.sm : AppSpacing.md),
       decoration: _cardDecoration(),
@@ -816,9 +844,9 @@ class _PlaybackQueueCard extends StatelessWidget {
             children: [
               Text(
                 '播放队列',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
               const Spacer(),
               Text('${session.queue.length} 首', style: _mutedLabel(context)),
@@ -833,8 +861,8 @@ class _PlaybackQueueCard extends StatelessWidget {
                   '播放音乐后，这里会显示当前队列',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             )
@@ -899,19 +927,18 @@ class _QueueRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: current
-                                ? AppColors.accent
-                                : AppColors.textPrimary,
-                            fontWeight:
-                                current ? FontWeight.w700 : FontWeight.w500,
-                          ),
+                        color: current
+                            ? AppColors.accent
+                            : AppColors.textPrimary,
+                        fontWeight: current ? FontWeight.w700 : FontWeight.w500,
+                      ),
                     ),
                     Text(
                       item.artist?.trim().isNotEmpty == true
                           ? item.artist!
                           : item.projectId == null
-                              ? '本地音乐'
-                              : '歌词工程',
+                          ? '本地音乐'
+                          : '歌词工程',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: _mutedLabel(context),
@@ -948,22 +975,26 @@ class _BackgroundWorkCard extends StatelessWidget {
     final running = snapshot.items.where(
       (item) => item.status == TranscriptionQueueItemStatus.running,
     );
-    final active = snapshot.items.where(
-      (item) =>
-          item.status == TranscriptionQueueItemStatus.running ||
-          item.status == TranscriptionQueueItemStatus.queued ||
-          item.status == TranscriptionQueueItemStatus.paused,
-    ).length;
+    final active = snapshot.items
+        .where(
+          (item) =>
+              item.status == TranscriptionQueueItemStatus.running ||
+              item.status == TranscriptionQueueItemStatus.queued ||
+              item.status == TranscriptionQueueItemStatus.paused,
+        )
+        .length;
     final current = running.isEmpty ? null : running.first;
     final progress = snapshot.items.isEmpty
         ? 0.0
         : snapshot.items
-                .map((item) =>
-                    item.status == TranscriptionQueueItemStatus.completed
+                  .map(
+                    (item) =>
+                        item.status == TranscriptionQueueItemStatus.completed
                         ? 1.0
-                        : item.progress.clamp(0.0, 1.0).toDouble())
-                .fold<double>(0, (sum, value) => sum + value) /
-            snapshot.items.length;
+                        : item.progress.clamp(0.0, 1.0).toDouble(),
+                  )
+                  .fold<double>(0, (sum, value) => sum + value) /
+              snapshot.items.length;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -977,12 +1008,12 @@ class _BackgroundWorkCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: (snapshot.failedCount > 0
-                          ? AppColors.warning
-                          : AppColors.accent)
-                      .withAlpha(20),
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMedium),
+                  color:
+                      (snapshot.failedCount > 0
+                              ? AppColors.warning
+                              : AppColors.accent)
+                          .withAlpha(20),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 ),
                 child: Icon(
                   snapshot.isPaused
@@ -1002,15 +1033,15 @@ class _BackgroundWorkCard extends StatelessWidget {
                       snapshot.isPaused
                           ? '后台歌词任务已暂停'
                           : current != null
-                              ? '正在识别 · ${current.projectName}'
-                              : active > 0
-                                  ? '后台歌词任务'
-                                  : '歌词任务已处理完毕',
+                          ? '正在识别 · ${current.projectName}'
+                          : active > 0
+                          ? '后台歌词任务'
+                          : '歌词任务已处理完毕',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -1022,8 +1053,9 @@ class _BackgroundWorkCard extends StatelessWidget {
                       value: progress,
                       minHeight: 3,
                       backgroundColor: AppColors.bgHighlight,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusCircular),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusCircular,
+                      ),
                     ),
                   ],
                 ),
@@ -1101,16 +1133,16 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 2),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
         ),
       ],
     );
@@ -1191,8 +1223,9 @@ class _ListeningCard extends StatelessWidget {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       gradient: AppColors.cardGradient,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusMedium,
+                      ),
                     ),
                     child: const Icon(
                       Icons.music_note_rounded,
@@ -1206,9 +1239,9 @@ class _ListeningCard extends StatelessWidget {
                   history.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   history.artist?.trim().isNotEmpty == true
@@ -1238,11 +1271,7 @@ class _ProjectGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = AppResponsive.fromConstraints(constraints);
-        final columns = layout.gridColumns(
-          minTileWidth: 280,
-          min: 1,
-          max: 4,
-        );
+        final columns = layout.gridColumns(minTileWidth: 280, min: 1, max: 4);
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -1283,7 +1312,9 @@ class _ProjectCard extends StatelessWidget {
         hoverColor: AppColors.hoverOverlay,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
         child: Padding(
-          padding: EdgeInsets.all(layout.isCompact ? AppSpacing.sm : AppSpacing.md),
+          padding: EdgeInsets.all(
+            layout.isCompact ? AppSpacing.sm : AppSpacing.md,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1303,10 +1334,8 @@ class _ProjectCard extends StatelessWidget {
                           project.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -1374,8 +1403,9 @@ class _Artwork extends StatelessWidget {
         child: exists
             ? Image.file(file, fit: BoxFit.cover)
             : Container(
-                decoration:
-                    const BoxDecoration(gradient: AppColors.cardGradient),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.cardGradient,
+                ),
                 child: Icon(
                   Icons.album_rounded,
                   size: size * 0.42,
@@ -1412,7 +1442,11 @@ class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool accent;
-  const _MetaChip({required this.icon, required this.label, this.accent = false});
+  const _MetaChip({
+    required this.icon,
+    required this.label,
+    this.accent = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1437,8 +1471,8 @@ class _MetaChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: accent ? AppColors.accent : AppColors.textSecondary,
-                ),
+              color: accent ? AppColors.accent : AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -1455,10 +1489,10 @@ class _Eyebrow extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: AppColors.accent,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-          ),
+        color: AppColors.accent,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.2,
+      ),
     );
   }
 }
@@ -1485,7 +1519,11 @@ class _EmptyCard extends StatelessWidget {
         final layout = AppResponsive.fromConstraints(constraints);
         final info = Row(
           children: [
-            Icon(icon, size: layout.isCompact ? 34 : 42, color: AppColors.textTertiary),
+            Icon(
+              icon,
+              size: layout.isCompact ? 34 : 42,
+              color: AppColors.textTertiary,
+            ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
@@ -1494,15 +1532,15 @@ class _EmptyCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     message,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
@@ -1511,7 +1549,9 @@ class _EmptyCard extends StatelessWidget {
         );
         return Container(
           width: double.infinity,
-          padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.xl),
+          padding: EdgeInsets.all(
+            layout.isCompact ? AppSpacing.md : AppSpacing.xl,
+          ),
           decoration: _cardDecoration(),
           child: layout.isCompactOrMedium || layout.isShort
               ? Column(
@@ -1554,28 +1594,27 @@ class _LoadingBlock extends StatelessWidget {
 }
 
 BoxDecoration _heroDecoration() => BoxDecoration(
-      gradient: AppColors.playerGradient,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-      border: Border.all(color: AppColors.borderMuted),
-    );
+  gradient: AppColors.playerGradient,
+  borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
+  border: Border.all(color: AppColors.borderMuted),
+);
 
 BoxDecoration _cardDecoration() => BoxDecoration(
-      color: AppColors.bgElevated,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      border: Border.all(color: AppColors.borderMuted),
-    );
+  color: AppColors.bgElevated,
+  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+  border: Border.all(color: AppColors.borderMuted),
+);
 
-TextStyle? _mutedLabel(BuildContext context) =>
-    Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textTertiary,
-        );
+TextStyle? _mutedLabel(BuildContext context) => Theme.of(
+  context,
+).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary);
 
 String _stageLabel(ProcessingStage stage) => switch (stage) {
-      ProcessingStage.none => '待开始',
-      ProcessingStage.audioImported => '已导入',
-      ProcessingStage.audioNormalized => '音频处理',
-      ProcessingStage.vocalsSeparated => '人声已分离',
-      ProcessingStage.transcriptionComplete => '歌词已识别',
-      ProcessingStage.lyricsEdited => '歌词已校对',
-      ProcessingStage.exported => '已导出',
-    };
+  ProcessingStage.none => '待开始',
+  ProcessingStage.audioImported => '已导入',
+  ProcessingStage.audioNormalized => '音频处理',
+  ProcessingStage.vocalsSeparated => '人声已分离',
+  ProcessingStage.transcriptionComplete => '歌词已识别',
+  ProcessingStage.lyricsEdited => '歌词已校对',
+  ProcessingStage.exported => '已导出',
+};
