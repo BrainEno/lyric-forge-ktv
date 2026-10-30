@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Flutter/Dart toolchain (#216):** `.fvmrc` is the active Flutter pin; the shared CI action and local shell/PowerShell quality/build scripts verify that Flutter and the `dart` executable on PATH use the same bundled SDK pair. See `docs/development-environment.md` and `scripts/check_flutter_sdk.*` before formatting changed Dart files.
+
 - **Media Hub URL credentials (#222):** Remote artwork no longer gets a session token appended to URL query parameters. Artwork bytes are fetched through the pinned HTTPS client with Bearer Authorization; static regression contracts prevent restoring `Image.network` against a credential-bearing URI.
 
 - **App startup/navigation:** route observer coalesces Navigator route changes and publishes the current route after the frame, avoiding a ValueNotifier notification during initial route restoration. Regression coverage: `current_route_observer_test.dart`.

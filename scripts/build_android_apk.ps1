@@ -27,6 +27,8 @@ if (-not (Get-Command $Flutter -ErrorAction SilentlyContinue)) {
 }
 
 Set-Location $projectRoot
+& (Join-Path $PSScriptRoot 'check_flutter_sdk.ps1') -Flutter $Flutter
+
 if ($Clean) {
     & $Flutter clean
     if ($LASTEXITCODE -ne 0) { throw '错误：flutter clean 失败。' }
