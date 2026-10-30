@@ -79,13 +79,17 @@ $drive = New-Object System.IO.DriveInfo -ArgumentList $root
           }
         });
 
-        final result = await Process.run('powershell.exe', [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          mediaHubWindowsDiskSpaceProbeScript,
-        ], environment: {'LYRICFORGE_UPLOAD_PATH': temp.absolute.path});
+        final result = await Process.run(
+          'powershell.exe',
+          [
+            '-NoLogo',
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            mediaHubWindowsDiskSpaceProbeScript,
+          ],
+          environment: {'LYRICFORGE_UPLOAD_PATH': temp.absolute.path},
+        );
 
         expect(result.exitCode, 0, reason: 'stderr: ${result.stderr}');
         final freeBytes = int.tryParse(result.stdout.toString().trim());

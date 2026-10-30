@@ -22,8 +22,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
   bool _cancelRequested = false;
   Process? _sharedNormalizationProcess;
   final AsrProcessSupervisor _processSupervisor;
-  final Future<Duration> Function(String inputPath)
-  _sharedAudioTimeoutForFile;
+  final Future<Duration> Function(String inputPath) _sharedAudioTimeoutForFile;
 
   /// Injectable so orchestration tests can verify the shared-input contract
   /// without depending on an installed FFmpeg executable.
