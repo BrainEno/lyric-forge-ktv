@@ -39,21 +39,16 @@ Map<String, List<RemoteAudioTrack>> groupRemoteCatalog(
   return Map<String, List<RemoteAudioTrack>>.unmodifiable(ordered);
 }
 
-Uri? remoteArtworkUriFor(
-  MediaHubClientService client,
-  RemoteAudioTrack track,
-) {
+Uri? remoteArtworkUriFor(MediaHubClientService client, RemoteAudioTrack track) {
   final connection = client.currentConnection;
   final path = track.artworkPath?.trim();
   if (connection == null || !track.hasArtwork || path == null || path.isEmpty) {
     return null;
   }
   final uri = connection.resolve(path);
+  final query = Map<String, String>.from(uri.queryParameters)..remove('token');
   return uri.replace(
-    queryParameters: {
-      ...uri.queryParameters,
-      'token': connection.token,
-    },
+    queryParameters: query.isEmpty ? <String, String>{} : query,
   );
 }
 

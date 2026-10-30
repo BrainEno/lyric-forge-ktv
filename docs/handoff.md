@@ -1,40 +1,34 @@
 # Handoff
 
 ## 目标
-Resolve high-priority Issue #224 by bounding Media Hub incoming audio uploads in size, duration, storage consumption, and concurrency, while preserving the HTTPS certificate pinning and successful upload/import contract.
+Resolve issue #222's remaining Media Hub credential leak: remote artwork URLs must not carry the long-lived session token and protected images must be fetched through the authenticated, certificate-pinned client.
 
 ## Git 现场
-- Repository: BrainEno/lyric-forge-ktv
+- Repository: `BrainEno/lyric-forge-ktv`
 - Base: `main@0e62beafe36c807b31297454c87311bb465bf8ed`
-- Branch: `security/media-hub-upload-guardrails-20261029`
-- PR: https://github.com/BrainEno/lyric-forge-ktv/pull/240
-- Current implementation head: `6f23b50f37c9cf2f513aef0da60925487985a21a`
-- Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for validation.
+- Branch: `security/remove-mediahub-token-from-artwork-urls-20261029`
+- PR: to be opened after work-log contract and changed-Dart formatting checks.
 
 ## 已改文件
-- `lib/features/transfer/data/services/http_media_hub_service.dart`
-- `test/features/transfer/http_media_hub_upload_test.dart`
-- `docs/log/entries/2026-10-29-1620-media-hub-upload-guardrails.md`
-- `docs/work_log.md`
-- `docs/work_log_archive.md`
-- `docs/work_log_index.md`
+- `lib/features/transfer/presentation/screens/remote_catalog_utils.dart` — stop adding `token` and strip legacy token query parameters.
+- `lib/features/transfer/presentation/widgets/remote_media_artwork.dart` — use `client.fetchArtwork(track)` and render authenticated bytes using `Image.memory`, not `Image.network`.
+- `test/features/transfer/media_hub_security_consent_contract_test.dart` — assert the server refuses query-token auth, artwork URL code strips token, and remote artwork uses authenticated fetch.
+- `docs/log/entries/2026-10-29-2050-remove-token-query-artwork.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`, `docs/handoff.md`.
 
 ## 检查结果
-- Flutter Quality Gate passed on implementation head `6f23b50f37c9cf2f513aef0da60925487985a21a`: work-log preflight, changed-Dart formatting, analysis, and full tests all passed.
-- Added pre-rejection for oversized declared Content-Length, in-stream byte counting for chunked uploads, HTTP 413 overflow rejection, idle/total deadlines, partial-file cleanup, HTTP 507 storage rejection, and HTTP 429 concurrency backoff.
-- Added a 256 MiB free-space reserve plus periodic checks during large streams, with deterministic probe injection for tests.
-- Timeout handling now manually arbitrates the request iterator against idle and total timers, allowing the 408 response to be written before the request-body subscription is cancelled.
-- A documentation-only handoff refresh follows the validated code head; check final-head CI before merge.
+- The HTTP Media Hub server already authorizes through `Authorization: Bearer` and does not read `request.uri.queryParameters['token']`.
+- The audio rebinding proxy already removes legacy token query parameters and forwards credentials in the HTTPS Authorization header.
+- This patch closes the remaining artwork helper that appended the token and changes the artwork widget to authenticated fetch.
+- Final-head Flutter Quality Gate is pending; local Flutter/Dart SDKs are unavailable.
 
 ## 下一步
-1. Verify CI on the final PR head after the documentation refresh.
-2. Ensure KTV history/recovery and Windows Debug checks are green if triggered by the applicable CI configuration; the Flutter Quality Gate includes full tests.
-3. Keep #224 open until the PR is merged; physically test upload/timeout behavior on at least one device.
-4. Continue with #227 (constant-time token comparison/CORS origin policy) and #234 (atomic .part name reservation) as the next Media Hub security fixes.
+1. Run final-head work-log lint, formatter, analyzer, and the full test suite; fix exact CI findings.
+2. Verify the mobile remote catalog artwork and Now Playing artwork regressions through the existing resolver/cache path.
+3. Keep #222 open until the fix passes CI and is merged.
+4. Continue to remaining high-priority #223 test-distribution issue and then the other audit/refactor issues.
 
 ## 已知风险
-- Disk-space probing uses PowerShell/.NET DriveInfo on Windows and `df -Pk` on Linux/macOS. If the OS or filesystem cannot provide a reliable estimate, uploads fail closed with 507.
-- Free-space probes run at upload start and every 64 MiB during large streaming uploads; unrelated writes between probes can still affect the available-space estimate.
-- The existing `.part` name-reservation race is tracked separately in #234. Physical-device upload behavior still requires a smoke test.
+- The `remoteArtworkUri` metadata field remains for compatibility, but it must contain a credential-free URI only. The current remote playback resolver fetches and caches artwork through the authenticated client and removes this metadata field from the rebound playback item.
+- Platform device checks for mobile artwork and system-media notifications remain separate from the automated Flutter tests.
 
-最后更新：2026-10-29 17:03（Asia/Taipei）
+最后更新：2026-10-29 20:50（Asia/Taipei）
