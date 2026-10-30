@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-29. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-10-30. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -19,6 +19,8 @@
 - `docs/handoff.md` — single-slot interruption handoff; overwrite before ending a session.
 
 ## Recent work areas
+
+- **Media Hub upload reservation (#234):** Incoming uploads claim a final filename through an exclusive `.reserve` marker and write to a unique `.lyricforge-<uuid>.part` file. A concurrent same-name regression test validates distinct output names, both SHA-256 digests, and cleanup of temporary files.
 
 - **Media Hub browser isolation (#227):** The native pinned-HTTPS service no longer sends wildcard CORS headers and rejects browser `OPTIONS` preflights. Native Media Hub clients do not require CORS; bearer auth and TLS pinning remain mandatory. See `http_media_hub_upload_test.dart` and the 2026-10-29 CORS hardening entry.
 

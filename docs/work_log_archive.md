@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-28 23:10] Unify Flutter CI version and focused workflow gates `ci: unify Flutter SDK and focus specialist workflows` ([entry](log/entries/2026-10-28-2310-unify-flutter-ci-workflows.md))
+- [2026-10-28 22:15] Pin and verify managed FFmpeg downloads `fix: pin and verify managed FFmpeg downloads` ([entry](log/entries/2026-10-28-2215-pin-and-verify-managed-ffmpeg.md))
 - [2026-10-28 19:45] Supervise resumable audio chunk processes `fix: supervise resumable audio chunk processes (#214)` ([entry](log/entries/2026-10-28-1945-supervise-resumable-chunk-processes.md))
 - [2026-10-28 19:40] Bound forced-alignment HTTP request lifetimes `fix: bound forced-alignment HTTP request lifetimes (#213)` ([entry](log/entries/2026-10-28-1940-bound-forced-alignment-http-lifetimes.md))
 - [2026-10-28 18:18] Bound Qwen transcription request and child process lifetimes `fix: bound Qwen transcription request and child process lifetimes (#212)` ([entry](log/entries/2026-10-28-1818-bound-qwen-transcription-lifetimes.md))

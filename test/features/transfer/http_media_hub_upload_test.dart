@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+// ignore: depend_on_referenced_packages
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
@@ -183,6 +185,95 @@ void main() {
     expect(response.headers.value('Access-Control-Allow-Headers'), isNull);
     expect(response.headers.value('Access-Control-Allow-Methods'), isNull);
   });
+
+  test(
+    'concurrent same-name uploads preserve both complete file hashes',
+    () async {
+      final secondService = createService();
+      addTearDown(secondService.stopSharing);
+      final sessionA = await service.startSharing(const []);
+      final sessionB = await secondService.startSharing(const []);
+      expect(sessionA.token, isNot(sessionB.token));
+
+      final clientA = _pinnedHttpClient(sessionA.tlsFingerprint!);
+      final clientB = _pinnedHttpClient(sessionB.tlsFingerprint!);
+      addTearDown(() => clientA.close(force: true));
+      addTearDown(() => clientB.close(force: true));
+
+      final bytesA = List<int>.generate(
+        256 * 1024,
+        (index) => (index * 17) % 251,
+      );
+      final bytesB = List<int>.generate(
+        256 * 1024,
+        (index) => (index * 29 + 7) % 253,
+      );
+
+      Future<Map<String, dynamic>> upload(
+        HttpClient client,
+        MediaHubSession session,
+        List<int> bytes,
+      ) async {
+        final request = await client.postUrl(
+          Uri(
+            scheme: 'https',
+            host: InternetAddress.loopbackIPv4.address,
+            port: session.port,
+            path: '/v1/incoming/audio',
+            queryParameters: const {'filename': 'same-name.mp3'},
+          ),
+        );
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${session.token}',
+        );
+        request.contentLength = bytes.length;
+        request.add(bytes);
+
+        final response = await request.close().timeout(
+          const Duration(seconds: 10),
+        );
+        final body =
+            jsonDecode(await utf8.decoder.bind(response).join())
+                as Map<String, dynamic>;
+        expect(response.statusCode, HttpStatus.created);
+        return body;
+      }
+
+      final bodies = await Future.wait([
+        upload(clientA, sessionA, bytesA),
+        upload(clientB, sessionB, bytesB),
+      ]);
+      expect(bodies.map((body) => body['filename']).toSet(), {
+        'same-name.mp3',
+        'same-name_1.mp3',
+      });
+      expect(imported, hasLength(2));
+      expect(imported.toSet(), hasLength(2));
+
+      final actualHashes = <String>{};
+      for (final path in imported) {
+        actualHashes.add(
+          sha256.convert(await File(path).readAsBytes()).toString(),
+        );
+      }
+      expect(actualHashes, {
+        sha256.convert(bytesA).toString(),
+        sha256.convert(bytesB).toString(),
+      });
+
+      final leftovers = await incomingDirectory
+          .list()
+          .where(
+            (entity) =>
+                entity.path.endsWith('.part') ||
+                entity.path.endsWith('.reserve'),
+          )
+          .toList();
+      expect(leftovers, isEmpty);
+      await secondService.stopSharing();
+    },
+  );
 
   test('failed library import removes the completed incoming file', () async {
     await service.stopSharing();
