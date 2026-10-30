@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 19:25] Enforce the pinned Flutter/Dart toolchain locally ([entry](log/entries/2026-10-29-1925-enforce-pinned-flutter-sdk-local-gates.md))
 - [2026-10-29 18:15] Reserve upload destination names and UUID temporary files ([entry](log/entries/2026-10-29-1815-atomic-upload-reservations.md))
 - [2026-10-29 17:50] Disable wildcard CORS for native Media Hub ([entry](log/entries/2026-10-29-1750-disable-wildcard-cors-media-hub.md))
 - [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))

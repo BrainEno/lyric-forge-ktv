@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/asr_process_supervisor.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/high_quality_transcription_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
@@ -529,6 +530,116 @@ void main() {
         }
       },
     );
+    test(
+      'normalization timeout is an environment failure and removes partial WAV',
+      () async {
+        final input = File(
+          '${tempDirectory.path}${Platform.pathSeparator}source.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 1));
+        final process = _FakeProcess();
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _resultLines([])),
+          fallback: _FakeTranscriptionService(result: _resultLines([])),
+          sharedAudioTimeoutForFile: (_) async =>
+              const Duration(milliseconds: 20),
+          processSupervisor: AsrProcessSupervisor(
+            startProcess: (_, arguments) async {
+              await File(arguments.last).writeAsBytes(List<int>.filled(128, 0));
+              return process;
+            },
+            terminationGrace: const Duration(milliseconds: 5),
+            streamDrainGrace: const Duration(milliseconds: 5),
+          ),
+        );
+        final outputPath =
+            '${tempDirectory.path}${Platform.pathSeparator}'
+            'high_quality_shared_input.wav';
+
+        await expectLater(
+          service.transcribe(
+            _request(
+              tempDirectory.path,
+              includeNormalizedInput: false,
+              inputAudioPath: input.path,
+            ),
+          ),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'failure kind',
+                  TranscriptionFailureKind.environment,
+                )
+                .having((error) => error.message, 'message', contains('超时')),
+          ),
+        );
+
+        expect(await File(outputPath).exists(), isFalse);
+        expect(process.killSignals, contains(ProcessSignal.sigterm));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'cancelling shared normalization escalates and removes partial WAV',
+      () async {
+        final input = File(
+          '${tempDirectory.path}${Platform.pathSeparator}source.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 1));
+        final process = _FakeProcess(killOnSigterm: false, killOnSigkill: true);
+        final started = Completer<void>();
+        final primary = _FakeTranscriptionService(result: _resultLines([]));
+        final fallback = _FakeTranscriptionService(result: _resultLines([]));
+        final service = HighQualityTranscriptionService(
+          primary: primary,
+          fallback: fallback,
+          sharedAudioTimeoutForFile: (_) async => const Duration(minutes: 1),
+          processSupervisor: AsrProcessSupervisor(
+            startProcess: (_, arguments) async {
+              await File(arguments.last).writeAsBytes(List<int>.filled(128, 0));
+              if (!started.isCompleted) started.complete();
+              return process;
+            },
+            terminationGrace: const Duration(milliseconds: 10),
+            streamDrainGrace: const Duration(milliseconds: 10),
+          ),
+        );
+        final outputPath =
+            '${tempDirectory.path}${Platform.pathSeparator}'
+            'high_quality_shared_input.wav';
+        final running = service.transcribe(
+          _request(
+            tempDirectory.path,
+            includeNormalizedInput: false,
+            inputAudioPath: input.path,
+          ),
+        );
+        await started.future.timeout(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+
+        await service.cancel();
+
+        await expectLater(
+          running,
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.message,
+              'message',
+              '歌词识别已取消',
+            ),
+          ),
+        );
+        expect(await File(outputPath).exists(), isFalse);
+        expect(process.killSignals, contains(ProcessSignal.sigterm));
+        expect(process.killSignals, contains(ProcessSignal.sigkill));
+        expect(primary.requests, isEmpty);
+        expect(fallback.requests, isEmpty);
+        await service.dispose();
+      },
+    );
+
   });
 }
 
@@ -539,9 +650,10 @@ TranscriptionRequest _request(
   String? qwenAlignerModelPath,
   String? whisperModelPath,
   bool includeNormalizedInput = true,
+  String inputAudioPath = 'unused-by-fake.wav',
 }) {
   return TranscriptionRequest(
-    inputAudioPath: 'unused-by-fake.wav',
+    inputAudioPath: inputAudioPath,
     normalizedInputAudioPath: includeNormalizedInput
         ? 'already-normalized.wav'
         : null,
@@ -614,4 +726,61 @@ class _FakeTranscriptionService implements TranscriptionService {
   Future<void> dispose() async {
     await _progressController.close();
   }
+}
+
+class _FakeProcess implements Process {
+  final StreamController<List<int>> _stdout = StreamController<List<int>>();
+  final StreamController<List<int>> _stderr = StreamController<List<int>>();
+  final Completer<int> _exitCode = Completer<int>();
+  final IOSink _stdin = IOSink(_DiscardingConsumer());
+  final List<ProcessSignal> killSignals = <ProcessSignal>[];
+  final bool killOnSigterm;
+  final bool killOnSigkill;
+
+  _FakeProcess({this.killOnSigterm = true, this.killOnSigkill = true});
+
+  @override
+  IOSink get stdin => _stdin;
+
+  @override
+  Stream<List<int>> get stdout => _stdout.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderr.stream;
+
+  @override
+  Future<int> get exitCode => _exitCode.future;
+
+  @override
+  int get pid => 12345;
+
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    killSignals.add(signal);
+    if ((signal == ProcessSignal.sigterm && killOnSigterm) ||
+        (signal == ProcessSignal.sigkill && killOnSigkill)) {
+      finish(137);
+    }
+    return true;
+  }
+
+  void finish(int code) {
+    if (!_exitCode.isCompleted) _exitCode.complete(code);
+    unawaited(_closeStreams());
+  }
+
+  Future<void> _closeStreams() async {
+    if (!_stdout.isClosed) await _stdout.close();
+    if (!_stderr.isClosed) await _stderr.close();
+  }
+}
+
+class _DiscardingConsumer implements StreamConsumer<List<int>> {
+  @override
+  Future<void> addStream(Stream<List<int>> stream) async {
+    await stream.drain<void>();
+  }
+
+  @override
+  Future<void> close() async {}
 }
