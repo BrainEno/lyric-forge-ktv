@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
+import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_session.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/media_hub_tls_identity_store.dart';
 
 void main() {
@@ -13,21 +15,42 @@ void main() {
   late HttpMediaHubService service;
   final imported = <String>[];
 
+  HttpMediaHubService createService({
+    int maxIncomingAudioBytes =
+        HttpMediaHubService.defaultMaxIncomingAudioBytes,
+    Duration idleTimeout = HttpMediaHubService.defaultIncomingUploadIdleTimeout,
+    Duration totalTimeout =
+        HttpMediaHubService.defaultIncomingUploadTotalTimeout,
+    int minimumFreeSpaceBytes = 0,
+    IncomingDiskSpaceProbe? diskSpaceProbe,
+    IncomingMediaCallback? onIncomingFile,
+  }) {
+    return HttpMediaHubService(
+      incomingDirectory: incomingDirectory,
+      tlsIdentityStore: MediaHubTlsIdentityStore(
+        rootDirectory: Directory(temp.path + Platform.pathSeparator + 'tls'),
+      ),
+      maxIncomingAudioBytes: maxIncomingAudioBytes,
+      incomingUploadIdleTimeout: idleTimeout,
+      incomingUploadTotalTimeout: totalTimeout,
+      minimumFreeSpaceBytes: minimumFreeSpaceBytes,
+      diskSpaceProbe:
+          diskSpaceProbe ?? (Directory _) async => 8 * 1024 * 1024 * 1024,
+      onIncomingFile:
+          onIncomingFile ??
+          (path) async {
+            imported.add(path);
+          },
+    );
+  }
+
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('lyricforge-incoming-');
     incomingDirectory = Directory(
-      '${temp.path}${Platform.pathSeparator}incoming',
+      temp.path + Platform.pathSeparator + 'incoming',
     );
     imported.clear();
-    service = HttpMediaHubService(
-      incomingDirectory: incomingDirectory,
-      tlsIdentityStore: MediaHubTlsIdentityStore(
-        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
-      ),
-      onIncomingFile: (path) async {
-        imported.add(path);
-      },
-    );
+    service = createService();
   });
 
   tearDown(() async {
@@ -53,7 +76,7 @@ void main() {
       final request = await client.postUrl(uri);
       request.headers.set(
         HttpHeaders.authorizationHeader,
-        'Bearer ' + session.token,
+        'Bearer ${session.token}',
       );
       final bytes = utf8.encode('fake mp3 bytes');
       request.contentLength = bytes.length;
@@ -136,11 +159,7 @@ void main() {
 
   test('failed library import removes the completed incoming file', () async {
     await service.stopSharing();
-    service = HttpMediaHubService(
-      incomingDirectory: incomingDirectory,
-      tlsIdentityStore: MediaHubTlsIdentityStore(
-        rootDirectory: Directory('${temp.path}${Platform.pathSeparator}tls'),
-      ),
+    service = createService(
       onIncomingFile: (_) async {
         throw UnsupportedError('unsupported audio');
       },
@@ -171,6 +190,248 @@ void main() {
     expect(response.statusCode, HttpStatus.internalServerError);
     expect(await incomingDirectory.list().toList(), isEmpty);
   });
+
+  test(
+    'rejects declared uploads above the configured cap before creating storage',
+    () async {
+      service = createService(maxIncomingAudioBytes: 4);
+      final session = await service.startSharing(const []);
+      final socket = await _openPinnedSocket(session);
+      addTearDown(socket.destroy);
+      final responseFuture = _readRawResponse(socket);
+      socket.write(
+        _rawContentLengthHeaders(session, 'too-big.bin', 5) + '12345',
+      );
+      await socket.flush();
+
+      final response = await responseFuture;
+      expect(response, startsWith('HTTP/1.1 413'));
+      expect(response, contains('upload_too_large'));
+      expect(await incomingDirectory.exists(), isFalse);
+    },
+  );
+
+  test(
+    'rejects chunked uploads above the cap and deletes the partial file',
+    () async {
+      service = createService(maxIncomingAudioBytes: 4);
+      final session = await service.startSharing(const []);
+      final socket = await _openPinnedSocket(session);
+      addTearDown(socket.destroy);
+      final responseFuture = _readRawResponse(socket);
+      socket.write(
+        _rawChunkedHeaders(session, 'chunked-too-big.bin') +
+            '5\r\n12345\r\n0\r\n\r\n',
+      );
+      await socket.flush();
+
+      final response = await responseFuture;
+      expect(response, startsWith('HTTP/1.1 413'));
+      expect(response, contains('upload_too_large'));
+      expect(await incomingDirectory.list().toList(), isEmpty);
+    },
+  );
+
+  test('rejects upload when disk space cannot preserve the reserve', () async {
+    service = createService(
+      minimumFreeSpaceBytes: 100,
+      diskSpaceProbe: (Directory _) async => 103,
+    );
+    final session = await service.startSharing(const []);
+    final socket = await _openPinnedSocket(session);
+    addTearDown(socket.destroy);
+    final responseFuture = _readRawResponse(socket);
+    socket.write(
+      _rawContentLengthHeaders(session, 'low-space.bin', 4) + 'data',
+    );
+    await socket.flush();
+
+    final response = await responseFuture;
+    expect(response, startsWith('HTTP/1.1 507'));
+    expect(response, contains('insufficient_storage'));
+    expect(await incomingDirectory.list().toList(), isEmpty);
+  });
+
+  test('rejects uploads when disk-space information is unavailable', () async {
+    service = createService(diskSpaceProbe: (Directory _) async => null);
+    final session = await service.startSharing(const []);
+    final socket = await _openPinnedSocket(session);
+    addTearDown(socket.destroy);
+    final responseFuture = _readRawResponse(socket);
+    socket.write(
+      _rawContentLengthHeaders(session, 'unknown-space.bin', 4) + 'data',
+    );
+    await socket.flush();
+
+    final response = await responseFuture;
+    expect(response, startsWith('HTTP/1.1 507'));
+    expect(response, contains('storage_check_unavailable'));
+    expect(await incomingDirectory.list().toList(), isEmpty);
+  });
+
+  test('idle upload timeout removes the partial file', () async {
+    service = createService(
+      maxIncomingAudioBytes: 64,
+      idleTimeout: const Duration(milliseconds: 150),
+      totalTimeout: const Duration(seconds: 3),
+    );
+    final session = await service.startSharing(const []);
+    final socket = await _openPinnedSocket(session);
+    addTearDown(socket.destroy);
+    final responseFuture = _readRawResponse(socket);
+    socket.write(
+      _rawChunkedHeaders(session, 'idle-timeout.bin') + '1\r\nx\r\n',
+    );
+    await socket.flush();
+
+    final response = await responseFuture;
+    expect(response, startsWith('HTTP/1.1 408'));
+    expect(response, contains('upload_idle_timeout'));
+    expect(await incomingDirectory.list().toList(), isEmpty);
+  });
+
+  test(
+    'total upload deadline applies while chunks continue arriving',
+    () async {
+      service = createService(
+        maxIncomingAudioBytes: 1024,
+        idleTimeout: const Duration(seconds: 2),
+        totalTimeout: const Duration(milliseconds: 250),
+      );
+      final session = await service.startSharing(const []);
+      final socket = await _openPinnedSocket(session);
+      addTearDown(socket.destroy);
+      socket.write(
+        _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
+      );
+      await socket.flush();
+      var responseFinished = false;
+      final responseFuture = _readRawResponse(socket).then((response) {
+        responseFinished = true;
+        return response;
+      });
+
+      for (var index = 0; index < 20 && !responseFinished; index++) {
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        if (responseFinished) break;
+        try {
+          socket.write('1\r\nx\r\n');
+          await socket.flush();
+        } on SocketException {
+          break;
+        } on TlsException {
+          break;
+        }
+      }
+
+      final response = await responseFuture;
+      expect(response, startsWith('HTTP/1.1 408'));
+      expect(response, contains('upload_total_timeout'));
+      expect(await incomingDirectory.list().toList(), isEmpty);
+    },
+  );
+
+  test('rejects a second simultaneous upload for the same session', () async {
+    final probeStarted = Completer<void>();
+    service = createService(
+      diskSpaceProbe: (Directory _) async {
+        if (!probeStarted.isCompleted) probeStarted.complete();
+        return 8 * 1024 * 1024 * 1024;
+      },
+    );
+    final session = await service.startSharing(const []);
+    final socket = await _openPinnedSocket(session);
+    addTearDown(socket.destroy);
+    final firstResponseFuture = _readRawResponse(socket);
+    socket.write(_rawChunkedHeaders(session, 'first.bin') + '1\r\nx\r\n');
+    await socket.flush();
+    await probeStarted.future.timeout(const Duration(seconds: 2));
+
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
+    addTearDown(() => client.close(force: true));
+    final rejectedRequest = await client.postUrl(
+      Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        path: '/v1/incoming/audio',
+        queryParameters: const {'filename': 'rejected.bin'},
+      ),
+    );
+    rejectedRequest.headers.set(
+      HttpHeaders.authorizationHeader,
+      'Bearer ${session.token}',
+    );
+    rejectedRequest.contentLength = 0;
+    final rejectedResponse = await rejectedRequest.close();
+    final rejectedBody = await utf8.decoder.bind(rejectedResponse).join();
+    expect(rejectedResponse.statusCode, HttpStatus.tooManyRequests);
+    expect(rejectedResponse.headers.value('retry-after'), '5');
+    expect(rejectedBody, contains('upload_limit_reached'));
+
+    socket.write('0\r\n\r\n');
+    await socket.flush();
+    final firstResponse = await firstResponseFuture;
+    expect(firstResponse, startsWith('HTTP/1.1 201'));
+
+    final retryRequest = await client.postUrl(
+      Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: session.port,
+        path: '/v1/incoming/audio',
+        queryParameters: const {'filename': 'retry.bin'},
+      ),
+    );
+    retryRequest.headers.set(
+      HttpHeaders.authorizationHeader,
+      'Bearer ${session.token}',
+    );
+    retryRequest.contentLength = 1;
+    retryRequest.add(const [1]);
+    final retryResponse = await retryRequest.close();
+    await retryResponse.drain<void>();
+    expect(retryResponse.statusCode, HttpStatus.created);
+  });
+}
+
+Future<SecureSocket> _openPinnedSocket(MediaHubSession session) {
+  return SecureSocket.connect(
+    InternetAddress.loopbackIPv4.address,
+    session.port,
+    context: SecurityContext(withTrustedRoots: false),
+    onBadCertificate: (certificate) =>
+        mediaHubTlsFingerprint(certificate.der) ==
+        session.tlsFingerprint!.toLowerCase(),
+  );
+}
+
+Future<String> _readRawResponse(SecureSocket socket) {
+  return socket
+      .cast<List<int>>()
+      .transform(utf8.decoder)
+      .join()
+      .timeout(const Duration(seconds: 5));
+}
+
+String _rawContentLengthHeaders(
+  MediaHubSession session,
+  String filename,
+  int length,
+) {
+  return 'POST /v1/incoming/audio?filename=${Uri.encodeQueryComponent(filename)} HTTP/1.1\r\n'
+      'Host: 127.0.0.1:${session.port}\r\n'
+      'Authorization: Bearer ${session.token}\r\n'
+      'Content-Length: $length\r\n'
+      'Connection: close\r\n\r\n';
+}
+
+String _rawChunkedHeaders(MediaHubSession session, String filename) {
+  return 'POST /v1/incoming/audio?filename=${Uri.encodeQueryComponent(filename)} HTTP/1.1\r\n'
+      'Host: 127.0.0.1:${session.port}\r\n'
+      'Authorization: Bearer ${session.token}\r\n'
+      'Transfer-Encoding: chunked\r\n'
+      'Connection: close\r\n\r\n';
 }
 
 HttpClient _pinnedHttpClient(String fingerprint) {

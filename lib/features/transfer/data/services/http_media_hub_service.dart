@@ -11,14 +11,33 @@ import '../../domain/services/media_hub_service.dart';
 import 'media_hub_tls_identity_store.dart';
 
 typedef IncomingMediaCallback = Future<void> Function(String path);
+typedef IncomingDiskSpaceProbe = Future<int?> Function(Directory directory);
 
 class HttpMediaHubService implements MediaHubService {
   static const int preferredPort = 48517;
+  static const int defaultMaxIncomingAudioBytes = 2 * 1024 * 1024 * 1024;
+  static const Duration defaultIncomingUploadIdleTimeout = Duration(
+    seconds: 30,
+  );
+  static const Duration defaultIncomingUploadTotalTimeout = Duration(
+    minutes: 45,
+  );
+  static const int defaultMinimumFreeSpaceBytes = 256 * 1024 * 1024;
+  static const int _incomingUploadDiskSpaceCheckIntervalBytes =
+      64 * 1024 * 1024;
+  static const int _maximumConcurrentIncomingUploads = 2;
+  static int _activeIncomingUploads = 0;
+  static final Set<String> _activeIncomingSessionTokens = <String>{};
 
   final Uuid _uuid;
   final MediaHubTlsIdentityStore _tlsIdentityStore;
   final Directory? incomingDirectory;
   final IncomingMediaCallback? onIncomingFile;
+  final int maxIncomingAudioBytes;
+  final Duration incomingUploadIdleTimeout;
+  final Duration incomingUploadTotalTimeout;
+  final int minimumFreeSpaceBytes;
+  final IncomingDiskSpaceProbe _diskSpaceProbe;
   final StreamController<MediaHubState> _stateController =
       StreamController<MediaHubState>.broadcast();
 
@@ -31,8 +50,33 @@ class HttpMediaHubService implements MediaHubService {
     MediaHubTlsIdentityStore? tlsIdentityStore,
     this.incomingDirectory,
     this.onIncomingFile,
+    this.maxIncomingAudioBytes = defaultMaxIncomingAudioBytes,
+    this.incomingUploadIdleTimeout = defaultIncomingUploadIdleTimeout,
+    this.incomingUploadTotalTimeout = defaultIncomingUploadTotalTimeout,
+    this.minimumFreeSpaceBytes = defaultMinimumFreeSpaceBytes,
+    IncomingDiskSpaceProbe? diskSpaceProbe,
   }) : _uuid = uuid ?? const Uuid(),
-       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore();
+       _tlsIdentityStore = tlsIdentityStore ?? MediaHubTlsIdentityStore(),
+       _diskSpaceProbe = diskSpaceProbe ?? _probeAvailableDiskSpaceBytes {
+    if (maxIncomingAudioBytes <= 0) {
+      throw ArgumentError.value(
+        maxIncomingAudioBytes,
+        'maxIncomingAudioBytes',
+        'Must be greater than zero.',
+      );
+    }
+    if (incomingUploadIdleTimeout <= Duration.zero ||
+        incomingUploadTotalTimeout <= Duration.zero) {
+      throw ArgumentError('Upload timeouts must be greater than zero.');
+    }
+    if (minimumFreeSpaceBytes < 0) {
+      throw ArgumentError.value(
+        minimumFreeSpaceBytes,
+        'minimumFreeSpaceBytes',
+        'Must not be negative.',
+      );
+    }
+  }
 
   @override
   Stream<MediaHubState> get stateStream => _stateController.stream;
@@ -314,7 +358,7 @@ class HttpMediaHubService implements MediaHubService {
           segments[1] == 'incoming' &&
           segments[2] == 'audio';
       if (isIncomingAudio) {
-        await _receiveIncomingAudio(request);
+        await _receiveIncomingAudio(request, session);
         return;
       }
 
@@ -402,46 +446,167 @@ class HttpMediaHubService implements MediaHubService {
     }
   }
 
-  Future<void> _receiveIncomingAudio(HttpRequest request) async {
+  Future<void> _receiveIncomingAudio(
+    HttpRequest request,
+    MediaHubSession session,
+  ) async {
     final rawName = request.uri.queryParameters['filename']?.trim();
     if (rawName == null || rawName.isEmpty) {
-      await _writeJson(request.response, HttpStatus.badRequest, {
-        'error': 'missing_filename',
-      });
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.badRequest,
+        'missing_filename',
+      );
       return;
     }
 
-    final directory = await _resolveIncomingDirectory();
-    await directory.create(recursive: true);
-    final destination = await _uniqueDestination(
-      directory,
-      _safeIncomingName(rawName),
-    );
-    final partial = File('${destination.path}.part');
-    if (await partial.exists()) await partial.delete();
+    final expectedLength = request.contentLength >= 0
+        ? request.contentLength
+        : null;
+    if (expectedLength != null && expectedLength > maxIncomingAudioBytes) {
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.requestEntityTooLarge,
+        'upload_too_large',
+        details: {'maxBytes': maxIncomingAudioBytes},
+      );
+      return;
+    }
 
-    final expected = request.contentLength >= 0 ? request.contentLength : null;
-    final sink = partial.openWrite();
-    var received = 0;
+    if (!_tryReserveIncomingUpload(session.token)) {
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.tooManyRequests,
+        'upload_limit_reached',
+        retryAfterSeconds: 5,
+      );
+      return;
+    }
+
+    File? partialFile;
+    IOSink? uploadSink;
+    StreamIterator<List<int>>? uploadIterator;
+    Timer? idleTimer;
+    Timer? totalTimer;
     try {
-      await for (final chunk in request) {
+      final directory = await _resolveIncomingDirectory();
+      await directory.create(recursive: true);
+
+      final availableBytes = await _availableDiskSpace(directory);
+      if (availableBytes == null) {
+        throw const _IncomingUploadStorageCheckUnavailable();
+      }
+      if (!_hasEnoughFreeSpace(availableBytes, expectedLength ?? 0)) {
+        throw const _IncomingUploadInsufficientSpace();
+      }
+
+      final destination = await _uniqueDestination(
+        directory,
+        _safeIncomingName(rawName),
+      );
+      final partial = File(destination.path + '.part');
+      partialFile = partial;
+      if (await partial.exists()) await partial.delete();
+
+      final sink = partial.openWrite();
+      uploadSink = sink;
+      var received = 0;
+      var nextDiskSpaceCheckAt = _incomingUploadDiskSpaceCheckIntervalBytes;
+      final iterator = StreamIterator<List<int>>(request);
+      uploadIterator = iterator;
+      final timeoutSignal = Completer<String>();
+
+      void reportTimeout(String reason) {
+        if (!timeoutSignal.isCompleted) timeoutSignal.complete(reason);
+      }
+
+      void resetIdleTimer() {
+        idleTimer?.cancel();
+        idleTimer = Timer(
+          incomingUploadIdleTimeout,
+          () => reportTimeout('idle'),
+        );
+      }
+
+      Never throwUploadTimeout(String reason) {
+        if (reason == 'idle') {
+          throw TimeoutException('Incoming audio upload was idle.');
+        }
+        throw const _IncomingUploadTotalTimeout();
+      }
+
+      resetIdleTimer();
+      totalTimer = Timer(
+        incomingUploadTotalTimeout,
+        () => reportTimeout('total'),
+      );
+
+      while (true) {
+        final event = await Future.any<Object>([
+          iterator.moveNext().then(
+            (hasNext) => _IncomingUploadChunkSignal(hasNext),
+          ),
+          timeoutSignal.future.then(
+            (reason) => _IncomingUploadTimeoutSignal(reason),
+          ),
+        ]);
+        if (event is _IncomingUploadTimeoutSignal) {
+          throwUploadTimeout(event.reason);
+        }
+        if (timeoutSignal.isCompleted) {
+          throwUploadTimeout(await timeoutSignal.future);
+        }
+
+        final chunkEvent = event as _IncomingUploadChunkSignal;
+        if (!chunkEvent.hasNext) break;
+        resetIdleTimer();
+        final chunk = iterator.current;
+        if (chunk.length > maxIncomingAudioBytes - received) {
+          throw const _IncomingUploadTooLarge();
+        }
+
+        if (received + chunk.length >= nextDiskSpaceCheckAt) {
+          final latestFreeBytes = await _availableDiskSpace(directory);
+          if (timeoutSignal.isCompleted) {
+            throwUploadTimeout(await timeoutSignal.future);
+          }
+          if (latestFreeBytes == null) {
+            throw const _IncomingUploadStorageCheckUnavailable();
+          }
+          if (!_hasEnoughFreeSpace(latestFreeBytes, chunk.length)) {
+            throw const _IncomingUploadInsufficientSpace();
+          }
+          nextDiskSpaceCheckAt =
+              received +
+              chunk.length +
+              _incomingUploadDiskSpaceCheckIntervalBytes;
+        }
+
         sink.add(chunk);
         received += chunk.length;
       }
+      idleTimer?.cancel();
+      idleTimer = null;
+      totalTimer.cancel();
+      totalTimer = null;
+
       await sink.flush();
       await sink.close();
+      uploadSink = null;
 
-      if (expected != null && received != expected) {
+      if (expectedLength != null && received != expectedLength) {
         if (await partial.exists()) await partial.delete();
+        partialFile = null;
         await _writeJson(request.response, HttpStatus.badRequest, {
           'error': 'length_mismatch',
-          'expected': expected,
+          'expected': expectedLength,
           'received': received,
         });
         return;
       }
 
       await partial.rename(destination.path);
+      partialFile = null;
       final callback = onIncomingFile;
       if (callback != null) {
         try {
@@ -462,12 +627,120 @@ class HttpMediaHubService implements MediaHubService {
         'byteLength': received,
         'imported': callback != null,
       });
-    } catch (error) {
+    } on _IncomingUploadTooLarge {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.requestEntityTooLarge,
+        'upload_too_large',
+        details: {'maxBytes': maxIncomingAudioBytes},
+      );
+    } on TimeoutException {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.requestTimeout,
+        'upload_idle_timeout',
+      );
+    } on _IncomingUploadTotalTimeout {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.requestTimeout,
+        'upload_total_timeout',
+      );
+    } on _IncomingUploadStorageCheckUnavailable {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.insufficientStorage,
+        'storage_check_unavailable',
+      );
+    } on _IncomingUploadInsufficientSpace {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.insufficientStorage,
+        'insufficient_storage',
+        details: {'minimumFreeBytes': minimumFreeSpaceBytes},
+      );
+    } on FileSystemException {
+      await _discardPartialUpload(uploadSink, partialFile);
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.insufficientStorage,
+        'storage_write_failed',
+      );
+    } catch (_) {
+      await _discardPartialUpload(uploadSink, partialFile);
+      rethrow;
+    } finally {
+      idleTimer?.cancel();
+      totalTimer?.cancel();
+      try {
+        await uploadIterator?.cancel();
+      } catch (_) {
+        // The request may already have been closed by the client.
+      }
+      _releaseIncomingUpload(session.token);
+    }
+  }
+
+  bool _tryReserveIncomingUpload(String sessionToken) {
+    if (_activeIncomingUploads >= _maximumConcurrentIncomingUploads ||
+        !_activeIncomingSessionTokens.add(sessionToken)) {
+      return false;
+    }
+    _activeIncomingUploads++;
+    return true;
+  }
+
+  void _releaseIncomingUpload(String sessionToken) {
+    if (_activeIncomingSessionTokens.remove(sessionToken)) {
+      _activeIncomingUploads--;
+    }
+  }
+
+  Future<int?> _availableDiskSpace(Directory directory) async {
+    try {
+      return await _diskSpaceProbe(directory);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _hasEnoughFreeSpace(int availableBytes, int payloadBytes) {
+    if (availableBytes < minimumFreeSpaceBytes) return false;
+    return payloadBytes <= availableBytes - minimumFreeSpaceBytes;
+  }
+
+  Future<void> _rejectIncomingUpload(
+    HttpRequest request,
+    int statusCode,
+    String errorCode, {
+    Map<String, dynamic> details = const {},
+    int? retryAfterSeconds,
+  }) async {
+    request.response.persistentConnection = false;
+    if (retryAfterSeconds != null) {
+      request.response.headers.set('Retry-After', retryAfterSeconds.toString());
+    }
+    await _writeJson(request.response, statusCode, {
+      'error': errorCode,
+      ...details,
+    });
+  }
+
+  Future<void> _discardPartialUpload(IOSink? sink, File? partial) async {
+    if (sink != null) {
       try {
         await sink.close();
       } catch (_) {}
-      if (await partial.exists()) await partial.delete();
-      rethrow;
+    }
+    if (partial != null) {
+      try {
+        if (await partial.exists()) await partial.delete();
+      } catch (_) {}
     }
   }
 
@@ -768,6 +1041,117 @@ class HttpMediaHubService implements MediaHubService {
       _stateController.add(state);
     }
   }
+}
+
+Future<int?> _probeAvailableDiskSpaceBytes(Directory directory) async {
+  try {
+    if (Platform.isWindows) {
+      final result = await Process.run(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          r'''$path = $env:LYRICFORGE_UPLOAD_PATH
+$root = [System.IO.Path]::GetPathRoot($path)
+if ($root -notmatch '^[A-Za-z]:\\
+  final List<HttpServer> servers;
+  final List<MediaHubEndpoint> endpoints;
+
+  const _BoundMediaHubServers({required this.servers, required this.endpoints});
+}
+
+class MediaHubException implements Exception {
+  final String message;
+
+  const MediaHubException(this.message);
+
+  @override
+  String toString() => 'MediaHubException: $message';
+}
+
+class _ByteRange {
+  final int start;
+  final int endInclusive;
+
+  const _ByteRange(this.start, this.endInclusive);
+
+  int get length => endInclusive - start + 1;
+}
+
+class _ParsedRange {
+  final bool isValid;
+  final _ByteRange? range;
+
+  const _ParsedRange.none() : isValid = true, range = null;
+
+  const _ParsedRange.invalid() : isValid = false, range = null;
+
+  const _ParsedRange.valid(this.range) : isValid = true;
+}
+) { exit 3 }
+$drive = New-Object System.IO.DriveInfo -ArgumentList $root
+[Console]::Out.Write([string]$drive.AvailableFreeSpace)''',
+        ],
+        environment: {'LYRICFORGE_UPLOAD_PATH': directory.absolute.path},
+      );
+      if (result.exitCode != 0) return null;
+      final freeBytes = int.tryParse(result.stdout.toString().trim());
+      return freeBytes != null && freeBytes >= 0 ? freeBytes : null;
+    }
+
+    if (!Platform.isLinux && !Platform.isMacOS) return null;
+
+    final result = await Process.run('df', ['-Pk', directory.absolute.path]);
+    if (result.exitCode != 0) return null;
+    final lines = result.stdout
+        .toString()
+        .trim()
+        .split(RegExp(r'\r?\n'))
+        .where((line) => line.trim().isNotEmpty)
+        .toList();
+    if (lines.length < 2) return null;
+    final columns = lines.last.trim().split(RegExp(r'\s+'));
+    if (columns.length < 4) return null;
+    final availableBlocks = int.tryParse(columns[3]);
+    if (availableBlocks == null ||
+        availableBlocks < 0 ||
+        availableBlocks > 0x7fffffffffffffff ~/ 1024) {
+      return null;
+    }
+    return availableBlocks * 1024;
+  } catch (_) {
+    return null;
+  }
+}
+
+class _IncomingUploadChunkSignal {
+  const _IncomingUploadChunkSignal(this.hasNext);
+
+  final bool hasNext;
+}
+
+class _IncomingUploadTimeoutSignal {
+  const _IncomingUploadTimeoutSignal(this.reason);
+
+  final String reason;
+}
+
+class _IncomingUploadTooLarge implements Exception {
+  const _IncomingUploadTooLarge();
+}
+
+class _IncomingUploadTotalTimeout implements Exception {
+  const _IncomingUploadTotalTimeout();
+}
+
+class _IncomingUploadStorageCheckUnavailable implements Exception {
+  const _IncomingUploadStorageCheckUnavailable();
+}
+
+class _IncomingUploadInsufficientSpace implements Exception {
+  const _IncomingUploadInsufficientSpace();
 }
 
 class _BoundMediaHubServers {
