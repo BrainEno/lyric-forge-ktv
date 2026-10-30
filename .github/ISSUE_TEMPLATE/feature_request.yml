@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a concrete improvement to local playback, lyrics, KTV production, or tooling.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: What workflow or limitation should this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the expected user-visible behavior, including relevant edge cases.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Target platform
+      multiple: true
+      options:
+        - Windows desktop
+        - macOS desktop
+        - Linux desktop
+        - Android
+        - iOS
+        - All supported platforms
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+      description: Mention workarounds, compatibility constraints, privacy implications, or performance expectations.
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Product fit
+      options:
+        - label: The proposal preserves local-first behavior for core playback.
+          required: true
+        - label: Desktop-only requirements are identified rather than assumed on mobile.
+          required: false

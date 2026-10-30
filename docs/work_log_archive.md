@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-29 17:38] Compare Media Hub bearer tokens without content early exits ([entry](log/entries/2026-10-29-1738-constant-time-media-hub-token-comparison.md))
 - [2026-10-29 17:18] Enforce reproducible Flutter dependency resolution ([entry](log/entries/2026-10-29-1718-enforce-flutter-lockfile.md))
 - [2026-10-29 17:08] Replace template application identifiers `fix: replace template application identifiers` ([entry](log/entries/2026-10-29-1708-remove-template-app-identifiers.md))
 - [2026-10-29 16:50] Atomically replace JSON stores on POSIX `fix: replace atomic JSON stores without POSIX delete window` ([entry](log/entries/2026-10-29-1650-atomic-json-posix-replacement.md))

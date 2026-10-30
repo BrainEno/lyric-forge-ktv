@@ -1,33 +1,33 @@
 # Handoff
 
 ## 目标
-Finish the remaining reviewed PR queue after merging reproducible Flutter dependency resolution and dashboard empty/retry coverage.
+Finish the remaining reviewed PR queue after merging dependency reproducibility and dashboard coverage; land the contributor onboarding guide before the README that links to it.
 
 ## Git 现场
 - Repository: `BrainEno/lyric-forge-ktv`
-- Base: `main@fed9fc64f86010ab6af58e6dfbe097633fdc0939`
-- Merged: PR #244 (strict dependency resolution/toolchain checks).
-- PR #253 is synchronized to this base; its first post-sync Quality Gate caught a stale generated work-log summary, now corrected in this follow-up commit.
-- Remaining reviewed PRs: #251 contribution guide/templates, then #250 product README/package metadata.
+- Base: `main@da5ba0690825fcb31fd056c8013d06d21e757b94`
+- Merged: PR #244 (strict dependency resolution/toolchain checks), PR #253 (dashboard empty/retry widget coverage).
+- PR #251 is synchronized to this base; #250 remains the final README/package metadata PR.
 
 ## 已改文件
-- PR #244: CI dependency resolution, local toolchain guards, analysis exclusions, work-log entry.
-- PR #253: `lib/features/home/presentation/screens/dashboard_screen.dart`, `test/features/home/presentation/screens/dashboard_screen_test.dart`, work-log entry and navigation.
+- `CONTRIBUTING.md` — setup, validation, architecture, privacy and work-log expectations.
+- `.github/ISSUE_TEMPLATE/bug_report.yml`, `.github/ISSUE_TEMPLATE/feature_request.yml`, `.github/PULL_REQUEST_TEMPLATE.md`.
+- `docs/log/entries/2026-10-29-2045-add-contribution-and-github-templates.md`, generated work-log summary/archive, index and this handoff.
 
 ## 检查结果
-- PR #244 final CI passed on attempt 2: Flutter quality/runtime contract tests, Windows x64 CUDA runtime, macOS Intel Qwen and Whisper builds, bundle assembly and smoke checks.
-- PR #253's pre-sync Flutter Quality Gate passed; the post-sync gate exposed that the active summary must be regenerated from the timestamp-sorted entry set. The summary/archive are now corrected and the final-head gate must be rerun.
-- No app behavior is changed by the dependency/CI PR; dashboard production defaults continue to use the global service locator.
+- PR #244 final CI passed on attempt 2, including Windows CUDA and macOS Intel Qwen/Whisper runtime builds and smoke checks.
+- PR #253 final-head Flutter Quality Gate passed on attempt 2; its first run exposed a stale generated summary and a second run hit a transient loopback TLS test failure. The retry passed.
+- #251's old head had passed its original quality gate; final-head validation after this synchronization is required.
 
 ## 下一步
-1. Rerun #253's final-head Flutter Quality Gate; if green, mark ready and merge.
-2. Synchronize #251 onto the new main, preserve its contribution guide and GitHub templates, regenerate work-log navigation, and run final-head CI.
-3. Mark #251 ready and merge only after CI passes.
-4. Synchronize #250 after #251 so its README link to `CONTRIBUTING.md` resolves; run final-head CI and merge.
-5. Recheck all open PRs and main checks.
+1. Run #251's final-head Flutter Quality Gate; if green, mark ready and merge.
+2. Synchronize #250 after #251 so its README link to `CONTRIBUTING.md` resolves.
+3. Regenerate work-log navigation, run #250 final-head CI, and merge if green.
+4. Recheck all open PRs and main checks.
 
 ## 已知风险
-- #223 remains open: this PR adds a narrow empty/retry coverage slice, not populated-dashboard, transfer/player, or repository-wide coverage policy.
+- #215 remains open until both documentation slices (#251 and #250) are merged.
+- GitHub form rendering is ultimately verified by GitHub; this environment validates YAML content and the repository's quality gate but does not emulate the GitHub issue-form renderer.
 - Local Flutter/Dart SDKs are unavailable in this environment; use GitHub Actions for final-head validation.
 
 最后更新：2026-10-30（Asia/Taipei）
