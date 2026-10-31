@@ -1,5 +1,5 @@
 name: TEMP diagnostics oracle (delete after use)
-# round 3: chunked diffs for two large files
+# round 4: base64 full formatted files
 
 on:
   pull_request:
@@ -17,37 +17,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Chunked format diff for immersive
+      - name: Base64 formatted immersive
         run: |
           set +e
           f=lib/features/player/presentation/screens/immersive_ktv_screen.dart
-          emit() {
-            local data; data=$(cat)
-            MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
-          }
-          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 > /tmp/full.diff; true
-          if [ ! -s /tmp/full.diff ]; then echo "::notice file=$f::FORMAT-CLEAN"; exit 0; fi
-          split -l 40 /tmp/full.diff /tmp/chunk_
-          total=$(ls /tmp/chunk_* | wc -l); i=0
-          for c in /tmp/chunk_*; do
+          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | base64 -w0 > /tmp/full.b64; true
+          i=0; total=$(( ( $(wc -c < /tmp/full.b64) + 2999 ) / 3000 ))
+          while read -r chunk; do
             i=$((i+1))
-            { echo "FORMAT-DIFF-PART $i/$total"; cat "$c"; } | emit "$f"
-          done
+            echo "::error file=$f::FORMAT-B64-PART $i/$total $chunk"
+          done < <(fold -w 3000 /tmp/full.b64)
           true
-      - name: Chunked format diff for import-action
+      - name: Base64 formatted import-action
         run: |
           set +e
           f=lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart
-          emit() {
-            local data; data=$(cat)
-            MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
-          }
-          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 > /tmp/full.diff; true
-          if [ ! -s /tmp/full.diff ]; then echo "::notice file=$f::FORMAT-CLEAN"; exit 0; fi
-          split -l 40 /tmp/full.diff /tmp/chunk_
-          total=$(ls /tmp/chunk_* | wc -l); i=0
-          for c in /tmp/chunk_*; do
+          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | base64 -w0 > /tmp/full.b64; true
+          i=0; total=$(( ( $(wc -c < /tmp/full.b64) + 2999 ) / 3000 ))
+          while read -r chunk; do
             i=$((i+1))
-            { echo "FORMAT-DIFF-PART $i/$total"; cat "$c"; } | emit "$f"
-          done
+            echo "::error file=$f::FORMAT-B64-PART $i/$total $chunk"
+          done < <(fold -w 3000 /tmp/full.b64)
           true
