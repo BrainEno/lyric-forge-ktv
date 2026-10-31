@@ -3,32 +3,27 @@ import 'dart:io';
 
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/ktv_recording_session.dart';
+import '../../domain/services/ktv_take_history_store.dart';
 import 'ktv_project_storage.dart';
 import 'pcm16_wav_writer.dart';
 
-class KtvTakeHistoryScanResult {
-  final List<KtvRecordingSession> takes;
-  final int recoveredCount;
-
-  const KtvTakeHistoryScanResult({
-    required this.takes,
-    required this.recoveredCount,
-  });
-}
-
 /// Discovers completed takes and safely recovers interrupted local recordings.
-class KtvTakeHistoryStore {
-  static const int maxDisplayNameLength = 80;
+class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
+  static const int maxDisplayNameLength =
+      KtvTakeHistoryStore.maxDisplayNameLength;
 
-  const KtvTakeHistoryStore();
+  const FileKtvTakeHistoryStore();
 
+  @override
   Future<KtvTakeHistoryScanResult> scanProject(ProjectManifest project) async {
     final directory = await KtvProjectStorage.resolveProjectDirectory(project);
     return scanFromDirectory(directory, project.id);
   }
 
-  Future<List<KtvRecordingSession>> listProject(ProjectManifest project) async =>
-      (await scanProject(project)).takes;
+  @override
+  Future<List<KtvRecordingSession>> listProject(
+    ProjectManifest project,
+  ) async => (await scanProject(project)).takes;
 
   Future<KtvTakeHistoryScanResult> scanFromDirectory(
     Directory projectDirectory,
@@ -73,10 +68,7 @@ class KtvTakeHistoryStore {
               File(take.micStemPath).absolute.path,
               expectedVoice.absolute.path,
             ) ||
-            await FileSystemEntity.type(
-                  take.micStemPath,
-                  followLinks: false,
-                ) !=
+            await FileSystemEntity.type(take.micStemPath, followLinks: false) !=
                 FileSystemEntityType.file) {
           continue;
         }
@@ -86,7 +78,8 @@ class KtvTakeHistoryStore {
           final expectedMix = File(
             '${entity.path}${Platform.pathSeparator}mix.wav',
           );
-          final safeMix = _samePath(mixedPath, expectedMix.path) &&
+          final safeMix =
+              _samePath(mixedPath, expectedMix.path) &&
               await FileSystemEntity.type(mixedPath, followLinks: false) ==
                   FileSystemEntityType.file;
           if (!safeMix) {
@@ -95,8 +88,9 @@ class KtvTakeHistoryStore {
         }
 
         if (take.completedAt == null) {
-          final recoveredDuration =
-              await Pcm16WavWriter.recoverInterruptedFile(take.micStemPath);
+          final recoveredDuration = await Pcm16WavWriter.recoverInterruptedFile(
+            take.micStemPath,
+          );
           if (recoveredDuration == null || recoveredDuration <= Duration.zero) {
             continue;
           }
@@ -133,9 +127,9 @@ class KtvTakeHistoryStore {
   Future<List<KtvRecordingSession>> listFromDirectory(
     Directory projectDirectory,
     String projectId,
-  ) async =>
-      (await scanFromDirectory(projectDirectory, projectId)).takes;
+  ) async => (await scanFromDirectory(projectDirectory, projectId)).takes;
 
+  @override
   Future<KtvRecordingSession> updateProjectTakeMetadata(
     ProjectManifest project,
     KtvRecordingSession take, {
@@ -171,7 +165,8 @@ class KtvTakeHistoryStore {
     final updated = indexed.copyWith(
       displayName: normalizedName,
       clearDisplayName:
-          clearDisplayName || (normalizedName != null && normalizedName.isEmpty),
+          clearDisplayName ||
+          (normalizedName != null && normalizedName.isEmpty),
       isFavorite: isFavorite,
     );
     final manifest = File(indexed.manifestPath);
@@ -182,6 +177,7 @@ class KtvTakeHistoryStore {
     return updated;
   }
 
+  @override
   Future<void> deleteProjectTake(
     ProjectManifest project,
     KtvRecordingSession take,
@@ -197,9 +193,16 @@ class KtvTakeHistoryStore {
     String projectId,
     KtvRecordingSession take,
   ) async {
-    final folder = await _validatedTakeFolder(projectDirectory, projectId, take);
+    final folder = await _validatedTakeFolder(
+      projectDirectory,
+      projectId,
+      take,
+    );
     await _findIndexedTake(projectDirectory, projectId, take);
-    await for (final child in folder.list(recursive: true, followLinks: false)) {
+    await for (final child in folder.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (child is Link) {
         throw const FileSystemException('录音包含符号链接，已取消删除');
       }
