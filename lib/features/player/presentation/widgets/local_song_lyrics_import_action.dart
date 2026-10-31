@@ -82,9 +82,9 @@ Future<void> importLyricsForLocalPlaybackItem(
     );
   } catch (error) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('歌词导入失败：$error')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('歌词导入失败：$error')));
     return;
   }
 
@@ -142,18 +142,9 @@ Future<void> importLyricsForLocalPlaybackItem(
 
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        timed
-            ? '歌词已导入，可直接校对或播放'
-            : '文本歌词已导入，请在歌词编辑器中补时间轴',
-      ),
-    ),
+    SnackBar(content: Text(timed ? '歌词已导入，可直接校对或播放' : '文本歌词已导入，请在歌词编辑器中补时间轴')),
   );
-  await Navigator.pushNamed(
-    context,
-    Routes.lyricEditorPath(savedProject.id),
-  );
+  await Navigator.pushNamed(context, Routes.lyricEditorPath(savedProject.id));
 }
 
 Future<LyricImportResult> _importWithEncodingFallback(
@@ -166,8 +157,7 @@ Future<LyricImportResult> _importWithEncodingFallback(
     return await importer.importFile(path, encodingHint: encodingHint);
   } on LyricImportException catch (error) {
     final message = error.message.toLowerCase();
-    final encodingRelated =
-        message.contains('编码') || message.contains('解码');
+    final encodingRelated = message.contains('编码') || message.contains('解码');
     if (!encodingRelated || encodingHint != null) rethrow;
     if (!context.mounted) rethrow;
 
@@ -179,10 +169,7 @@ Future<LyricImportResult> _importWithEncodingFallback(
       forceManualEncoding: true,
     );
     if (fallback == null || fallback.encodingHint == null) rethrow;
-    return importer.importFile(
-      path,
-      encodingHint: fallback.encodingHint,
-    );
+    return importer.importFile(path, encodingHint: fallback.encodingHint);
   }
 }
 
@@ -228,8 +215,7 @@ class _LyricImportOptionsDialog extends StatefulWidget {
       _LyricImportOptionsDialogState();
 }
 
-class _LyricImportOptionsDialogState
-    extends State<_LyricImportOptionsDialog> {
+class _LyricImportOptionsDialogState extends State<_LyricImportOptionsDialog> {
   late String _encodingValue;
 
   static const _encodingLabels = <String, String>{
@@ -255,17 +241,16 @@ class _LyricImportOptionsDialogState
     final fileName = widget.path.split(Platform.pathSeparator).last;
     final extension = _extensionOf(widget.path).toUpperCase();
     final maxWidth = spec.isCompact
-        ? (spec.width - spec.pageGutter * 2)
-            .clamp(280.0, 520.0)
-            .toDouble()
+        ? (spec.width - spec.pageGutter * 2).clamp(280.0, 520.0).toDouble()
         : 560.0;
     final chromeReserve = spec.isShort ? 132.0 : 156.0;
-    final maxHeight = (media.size.height -
-            media.viewInsets.bottom -
-            spec.pageGutter * 2 -
-            chromeReserve)
-        .clamp(64.0, 680.0)
-        .toDouble();
+    final maxHeight =
+        (media.size.height -
+                media.viewInsets.bottom -
+                spec.pageGutter * 2 -
+                chromeReserve)
+            .clamp(64.0, 680.0)
+            .toDouble();
 
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
@@ -288,59 +273,50 @@ class _LyricImportOptionsDialogState
         spec.pageGutter,
         spec.pageGutter,
       ),
-      title: Text(
-        widget.forceManualEncoding ? '重新选择歌词编码' : '导入歌词',
-      ),
+      title: Text(widget.forceManualEncoding ? '重新选择歌词编码' : '导入歌词'),
       content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: maxWidth,
-          maxHeight: maxHeight,
-        ),
+        constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _ImportFileSummary(
-                fileName: fileName,
-                extension: extension,
-              ),
+              _ImportFileSummary(fileName: fileName, extension: extension),
               if (widget.recoveryMessage != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: AppColors.warning.withAlpha(18),
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMedium),
-                    border: Border.all(
-                      color: AppColors.warning.withAlpha(70),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
                     ),
+                    border: Border.all(color: AppColors.warning.withAlpha(70)),
                   ),
                   child: Text(
                     '自动解码没有成功：${widget.recoveryMessage}\n'
                     '请选择这个歌词文件原本使用的文本编码。',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
               Text(
                 '文本编码',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 widget.forceManualEncoding
                     ? '请选择明确编码后再次导入。'
                     : '默认先自动检测。旧版中文 Windows 歌词常见 GBK，日文歌词常见 Shift-JIS / EUC-JP。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.sm),
               DropdownButtonFormField<String>(
@@ -369,8 +345,8 @@ class _LyricImportOptionsDialogState
               Text(
                 '支持格式',
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                  color: AppColors.textTertiary,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Wrap(
@@ -388,9 +364,9 @@ class _LyricImportOptionsDialogState
               const SizedBox(height: AppSpacing.md),
               Text(
                 '导入只会在 LyricForge 中建立或更新歌词工程，不会修改原音频文件，也不会覆盖音频标签。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ),
@@ -411,17 +387,14 @@ class _LyricImportOptionsDialogState
           onPressed: () => Navigator.pop(
             context,
             _LyricImportChoice(
-              encodingHint:
-                  _encodingValue == 'auto' ? null : _encodingValue,
+              encodingHint: _encodingValue == 'auto' ? null : _encodingValue,
             ),
           ),
           style: FilledButton.styleFrom(
             minimumSize: Size(0, spec.minimumInteractiveExtent),
           ),
           icon: const Icon(Icons.file_upload_outlined),
-          label: Text(
-            widget.forceManualEncoding ? '用此编码重试' : '导入',
-          ),
+          label: Text(widget.forceManualEncoding ? '用此编码重试' : '导入'),
         ),
       ],
     );
@@ -432,10 +405,7 @@ class _ImportFileSummary extends StatelessWidget {
   final String fileName;
   final String extension;
 
-  const _ImportFileSummary({
-    required this.fileName,
-    required this.extension,
-  });
+  const _ImportFileSummary({required this.fileName, required this.extension});
 
   @override
   Widget build(BuildContext context) {
@@ -462,15 +432,15 @@ class _ImportFileSummary extends StatelessWidget {
                   fileName,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   extension.isEmpty ? '歌词文本文件' : '$extension 歌词文件',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -507,10 +477,7 @@ Future<ProjectManifest?> _linkedOrMatchingProject({
     // prevent a user from opening/importing lyrics.
   }
 
-  return _findProjectForAudio(
-    projectRepository,
-    item.audioAsset.originalPath,
-  );
+  return _findProjectForAudio(projectRepository, item.audioAsset.originalPath);
 }
 
 Future<ProjectManifest?> _findProjectForAudio(

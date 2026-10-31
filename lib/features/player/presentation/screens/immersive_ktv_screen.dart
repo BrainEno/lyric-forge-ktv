@@ -55,14 +55,16 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   @override
   void initState() {
     super.initState();
-    final needsGlobal = widget.projectRepository == null ||
+    final needsGlobal =
+        widget.projectRepository == null ||
         widget.metadataRepository == null ||
         widget.audioService == null ||
         widget.playbackSession == null ||
         widget.pathCanonicalizer == null;
     final services = needsGlobal ? ServiceLocatorGlobal.I : null;
     _projects = widget.projectRepository ?? services!.projectRepository;
-    _metadata = widget.metadataRepository ?? services!.localMediaMetadataRepository;
+    _metadata =
+        widget.metadataRepository ?? services!.localMediaMetadataRepository;
     _audio = widget.audioService ?? services!.audioPlayerService;
     _session = widget.playbackSession ?? services!.playbackSessionService;
     _pathCanonicalizer =
@@ -127,57 +129,55 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
 
   @override
   Widget build(BuildContext context) => FullscreenKtvInteractionSurface(
-        onExit: () => Navigator.maybePop(context),
-        builder: (context, controlsVisible) => Material(
-          color: AppColors.pureBlack,
-          child: SafeArea(
-            child: StreamBuilder<PlaybackSessionState>(
-              stream: _session.stateStream,
-              initialData: _session.currentState,
-              builder: (context, sessionSnapshot) =>
-                  StreamBuilder<PlaybackState>(
-                stream: _audio.stateStream,
-                initialData: _audio.currentState,
-                builder: (context, playbackSnapshot) {
-                  final session = sessionSnapshot.data ?? _session.currentState;
-                  final playback = playbackSnapshot.data ?? _audio.currentState;
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: _error == null
-                            ? FullscreenKtvLyricStage(
-                                document: _project?.lyricDocument,
-                                position: playback.position,
-                              )
-                            : Center(
-                                child: Text(
-                                  '歌词加载失败：$_error',
-                                  style: const TextStyle(color: AppColors.error),
-                                ),
-                              ),
-                      ),
-                      _ControlLayer(
-                        visible: controlsVisible,
-                        title: _project?.name ??
-                            session.currentItem?.title ??
-                            'KTV',
-                        playback: playback,
-                        canPrevious: session.canSkipPrevious,
-                        canNext: session.canSkipNext,
-                        onExit: () => Navigator.maybePop(context),
-                        onSeek: _session.seek,
-                        onPlayPause: _session.togglePlayPause,
-                        onPrevious: _session.skipPrevious,
-                        onNext: _session.skipNext,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
+    onExit: () => Navigator.maybePop(context),
+    builder: (context, controlsVisible) => Material(
+      color: AppColors.pureBlack,
+      child: SafeArea(
+        child: StreamBuilder<PlaybackSessionState>(
+          stream: _session.stateStream,
+          initialData: _session.currentState,
+          builder: (context, sessionSnapshot) => StreamBuilder<PlaybackState>(
+            stream: _audio.stateStream,
+            initialData: _audio.currentState,
+            builder: (context, playbackSnapshot) {
+              final session = sessionSnapshot.data ?? _session.currentState;
+              final playback = playbackSnapshot.data ?? _audio.currentState;
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: _error == null
+                        ? FullscreenKtvLyricStage(
+                            document: _project?.lyricDocument,
+                            position: playback.position,
+                          )
+                        : Center(
+                            child: Text(
+                              '歌词加载失败：$_error',
+                              style: const TextStyle(color: AppColors.error),
+                            ),
+                          ),
+                  ),
+                  _ControlLayer(
+                    visible: controlsVisible,
+                    title:
+                        _project?.name ?? session.currentItem?.title ?? 'KTV',
+                    playback: playback,
+                    canPrevious: session.canSkipPrevious,
+                    canNext: session.canSkipNext,
+                    onExit: () => Navigator.maybePop(context),
+                    onSeek: _session.seek,
+                    onPlayPause: _session.togglePlayPause,
+                    onPrevious: _session.skipPrevious,
+                    onNext: _session.skipNext,
+                  ),
+                ],
+              );
+            },
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ControlLayer extends StatelessWidget {
@@ -243,10 +243,7 @@ class _ControlLayer extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  SeekableProgressBar(
-                    state: playback,
-                    onSeek: onSeek,
-                  ),
+                  SeekableProgressBar(state: playback, onSeek: onSeek),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
