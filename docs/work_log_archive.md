@@ -85,6 +85,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 01:20] Repair the corrupted Windows Media Hub disk-space probe ([entry](log/entries/2026-10-31-0120-fix-windows-media-hub-disk-probe.md))
 - [2026-10-30 17:20] Run atomic JSON persistence tests on Windows ([entry](log/entries/2026-10-30-1720-atomic-json-windows-validation.md))
 - [2026-10-30 12:28] Validate upload name reservation across sessions ([entry](log/entries/2026-10-30-1228-validate-upload-reservation-across-sessions.md))
 - [2026-10-29 21:10] Add dashboard empty-state and project-retry tests ([entry](log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md))

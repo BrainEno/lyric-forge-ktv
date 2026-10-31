@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../domain/services/asr_managed_storage_service.dart';
+
 class AsrSecurityScopedBookmarkAccess {
   final String path;
   final String bookmark;
@@ -51,64 +53,17 @@ class MethodChannelAsrSecurityScopedBookmarkBridge
   AsrSecurityScopedBookmarkAccess _decode(Map<String, dynamic>? result) {
     final path = result?['path'];
     final bookmark = result?['bookmark'];
-    if (path is! String || path.trim().isEmpty ||
-        bookmark is! String || bookmark.trim().isEmpty) {
-      throw const FileSystemException(
-        'macOS 无法恢复模型目录访问授权，请重新选择模型存储位置',
-      );
+    if (path is! String ||
+        path.trim().isEmpty ||
+        bookmark is! String ||
+        bookmark.trim().isEmpty) {
+      throw const FileSystemException('macOS 无法恢复模型目录访问授权，请重新选择模型存储位置');
     }
     return AsrSecurityScopedBookmarkAccess(
       path: path.trim(),
       bookmark: bookmark.trim(),
     );
   }
-}
-
-class AsrManagedStorageLocation {
-  final String activeRoot;
-  final String defaultRoot;
-  final int managedBytes;
-  final bool oldRootRetained;
-
-  const AsrManagedStorageLocation({
-    required this.activeRoot,
-    required this.defaultRoot,
-    required this.managedBytes,
-    this.oldRootRetained = false,
-  });
-
-  bool get isDefault => _samePath(activeRoot, defaultRoot);
-
-  static bool _samePath(String left, String right) {
-    return _normalizedPath(left) == _normalizedPath(right);
-  }
-
-  static String _normalizedPath(String value) {
-    var normalized = Directory(value).absolute.path;
-    while (normalized.length > 1 &&
-        normalized.endsWith(Platform.pathSeparator)) {
-      normalized = normalized.substring(0, normalized.length - 1);
-    }
-    return Platform.isWindows ? normalized.toLowerCase() : normalized;
-  }
-}
-
-class AsrManagedStorageMoveResult {
-  final String sourceRoot;
-  final String targetRoot;
-  final int copiedBytes;
-  final int copiedFiles;
-  final bool moved;
-  final bool oldRootRetained;
-
-  const AsrManagedStorageMoveResult({
-    required this.sourceRoot,
-    required this.targetRoot,
-    required this.copiedBytes,
-    required this.copiedFiles,
-    required this.moved,
-    this.oldRootRetained = false,
-  });
 }
 
 /// Owns the single source of truth for LyricForge-managed ASR storage.
@@ -121,7 +76,7 @@ class AsrManagedStorageMoveResult {
 /// Migration is copy-first: the old environment remains untouched until a
 /// staging copy has the same file count and byte total and the new location
 /// pointer has been persisted successfully.
-class LocalAsrManagedStorageService {
+class LocalAsrManagedStorageService implements AsrManagedStorageService {
   final Future<Directory> Function()? supportDirectoryResolver;
   final AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge;
   final bool Function()? isMacOSResolver;
@@ -131,10 +86,11 @@ class LocalAsrManagedStorageService {
     this.supportDirectoryResolver,
     AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge,
     this.isMacOSResolver,
-  }) : securityScopedBookmarkBridge = securityScopedBookmarkBridge ??
-            (Platform.isMacOS
-                ? const MethodChannelAsrSecurityScopedBookmarkBridge()
-                : null);
+  }) : securityScopedBookmarkBridge =
+           securityScopedBookmarkBridge ??
+           (Platform.isMacOS
+               ? const MethodChannelAsrSecurityScopedBookmarkBridge()
+               : null);
 
   bool get isMoving => _moving;
 
@@ -161,7 +117,10 @@ class LocalAsrManagedStorageService {
     var root = Directory(configured.managedRoot).absolute;
     final bookmark = configured.securityScopedBookmark;
     final bridge = securityScopedBookmarkBridge;
-    if (_isMacOS && bookmark != null && bookmark.trim().isNotEmpty && bridge != null) {
+    if (_isMacOS &&
+        bookmark != null &&
+        bookmark.trim().isNotEmpty &&
+        bridge != null) {
       final restored = await bridge.restoreAndStart(bookmark);
       final restoredParent = Directory(restored.path).absolute;
       root = Directory(
@@ -184,9 +143,12 @@ class LocalAsrManagedStorageService {
 
   Future<Directory> defaultRoot() async {
     final support = await _supportDirectory();
-    return Directory(_join(support.path, ['LyricForge', 'ASRRuntime'])).absolute;
+    return Directory(
+      _join(support.path, ['LyricForge', 'ASRRuntime']),
+    ).absolute;
   }
 
+  @override
   Future<AsrManagedStorageLocation> inspect() async {
     final active = await resolveRoot();
     final fallback = await defaultRoot();
@@ -195,9 +157,11 @@ class LocalAsrManagedStorageService {
       activeRoot: active.path,
       defaultRoot: fallback.path,
       managedBytes: bytes,
+      isDefault: _samePath(active.path, fallback.path),
     );
   }
 
+  @override
   Future<AsrManagedStorageMoveResult> moveToParent(
     String selectedParent, {
     void Function(int copiedBytes, int totalBytes)? onProgress,
@@ -229,6 +193,7 @@ class LocalAsrManagedStorageService {
     );
   }
 
+  @override
   Future<AsrManagedStorageMoveResult> moveToDefault({
     void Function(int copiedBytes, int totalBytes)? onProgress,
   }) async {
@@ -279,10 +244,9 @@ class LocalAsrManagedStorageService {
 
       final targetParent = target.parent;
       final staging = Directory(
-        _join(
-          targetParent.path,
-          ['.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}'],
-        ),
+        _join(targetParent.path, [
+          '.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}',
+        ]),
       );
 
       await targetParent.create(recursive: true);
@@ -318,10 +282,7 @@ class LocalAsrManagedStorageService {
         final copiedStats = await _treeStats(staging);
         if (copiedStats.files != sourceStats.files ||
             copiedStats.bytes != sourceStats.bytes) {
-          throw FileSystemException(
-            '迁移校验失败：复制后的文件数量或总大小与原目录不一致',
-            staging.path,
-          );
+          throw FileSystemException('迁移校验失败：复制后的文件数量或总大小与原目录不一致', staging.path);
         }
 
         await staging.rename(target.path);
@@ -377,7 +338,10 @@ class LocalAsrManagedStorageService {
     if (!await source.exists()) return;
     await target.create(recursive: true);
 
-    await for (final entity in source.list(recursive: false, followLinks: false)) {
+    await for (final entity in source.list(
+      recursive: false,
+      followLinks: false,
+    )) {
       final name = entity.uri.pathSegments
           .where((segment) => segment.isNotEmpty)
           .last;
@@ -423,7 +387,9 @@ class LocalAsrManagedStorageService {
 
   Future<void> _assertWritable(Directory directory) async {
     final probe = File(
-      _join(directory.path, ['.lyricforge-write-${DateTime.now().microsecondsSinceEpoch}']),
+      _join(directory.path, [
+        '.lyricforge-write-${DateTime.now().microsecondsSinceEpoch}',
+      ]),
     );
     try {
       await probe.writeAsString('ok', flush: true);
@@ -448,8 +414,9 @@ class LocalAsrManagedStorageService {
       final bookmark = decoded['securityScopedBookmark'];
       return _ConfiguredManagedRoot(
         managedRoot: value.trim(),
-        securityScopedParent:
-            parent is String && parent.trim().isNotEmpty ? parent.trim() : null,
+        securityScopedParent: parent is String && parent.trim().isNotEmpty
+            ? parent.trim()
+            : null,
         securityScopedBookmark: bookmark is String && bookmark.trim().isNotEmpty
             ? bookmark.trim()
             : null,
