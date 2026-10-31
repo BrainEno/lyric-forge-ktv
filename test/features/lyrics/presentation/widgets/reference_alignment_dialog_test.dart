@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/data/services/local_lyric_file_import_service.dart';
-import 'package:lyric_forge_ktv/features/lyrics/data/services/reference_lyric_text_parser.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_lyric_text_parser.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_dialog.dart';
 
 void main() {

@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../data/services/reference_lyric_text_parser.dart';
 import '../../domain/models/reference_lyric_input.dart';
+import '../../domain/services/reference_lyric_text_parser.dart';
 
 Future<ReferenceLyricInput?> showReferenceAlignmentDialog(
   BuildContext context, {

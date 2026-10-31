@@ -17,9 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 const Set<String> _platformBaseline = <String>{};
 
 const Set<String> _presentationBaseline = <String>{
-  'lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/lyrics/data/services/reference_lyric_text_parser.dart',
   'lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/transcription/data/services/forced_alignment_proofread_service.dart',
-  'lib/features/lyrics/presentation/widgets/reference_alignment_dialog.dart -> lib/features/lyrics/data/services/reference_lyric_text_parser.dart',
   'lib/features/player/presentation/screens/player_screen.dart -> lib/features/player/data/services/ktv_take_history_store.dart',
   'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart -> lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
   'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart -> lib/features/transcription/data/services/local_asr_managed_storage_service.dart',
