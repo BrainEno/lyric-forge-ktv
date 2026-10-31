@@ -14,7 +14,14 @@ import '../../domain/services/batch_transcription_queue.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 
 class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 2;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['items'] is List;
 
   static const _supportedExtensions = <String>{
@@ -479,7 +486,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 2,
+      'version': _schemaVersion,
       'paused': _paused,
       'pauseReason': _pauseReason?.name,
       'pauseMessage': _pauseMessage,

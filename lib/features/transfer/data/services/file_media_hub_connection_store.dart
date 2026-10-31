@@ -8,7 +8,14 @@ import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
 class FileMediaHubConnectionStore implements MediaHubConnectionStore {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&
       decoded['host'] is String &&
       decoded['host'].toString().isNotEmpty &&
@@ -65,7 +72,12 @@ class FileMediaHubConnectionStore implements MediaHubConnectionStore {
       final file = await _file();
       await AtomicJsonFile.write(
         file,
-        jsonEncode(connection.toJson()),
+        jsonEncode(
+          AtomicJsonFile.stampSchemaVersion(
+            connection.toJson(),
+            _schemaVersion,
+          ),
+        ),
         validate: _isValidStoreJson,
       );
     }();

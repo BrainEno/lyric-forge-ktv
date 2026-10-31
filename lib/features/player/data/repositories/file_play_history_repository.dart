@@ -14,7 +14,14 @@ import '../../domain/repositories/play_history_repository.dart';
 /// from normal recent-history reads but retained so a moved file can be relinked
 /// without losing its resume position or last-played timestamp.
 class FilePlayHistoryRepository implements PlayHistoryRepository {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['histories'] is List;
 
   final Directory? rootDirectory;
@@ -104,7 +111,7 @@ class FilePlayHistoryRepository implements PlayHistoryRepository {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'histories': _histories
           .take(maxHistoryCount)
           .map((history) => history.toJson())

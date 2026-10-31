@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   macos-debug-build-without-system-cmake:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 30
     env:
       LYRIC_FORGE_FORCE_MANAGED_CMAKE: "1"

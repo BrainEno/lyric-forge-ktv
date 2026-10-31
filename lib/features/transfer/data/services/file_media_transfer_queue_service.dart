@@ -14,7 +14,14 @@ import '../../domain/services/media_transfer_queue_service.dart';
 import '../../domain/services/media_transfer_service.dart';
 
 class FileMediaTransferQueueService implements MediaTransferQueueService {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map && decoded['items'] is List;
 
   final MediaTransferService transfers;
@@ -440,7 +447,7 @@ class FileMediaTransferQueueService implements MediaTransferQueueService {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'paused': _state.isPaused,
       'pauseReason': _state.pauseReason,
       'items': _items.map((item) => item.toJson()).toList(growable: false),

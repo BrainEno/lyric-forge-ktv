@@ -23,7 +23,22 @@ typedef AtomicJsonWriteHook = Future<void> Function(AtomicJsonWriteStage stage);
 /// Sidecars live beside the destination, keeping replacement on the same
 /// filesystem. If a process stops after removing the canonical file, startup
 /// can restore the flushed temporary document or the last valid backup.
+///
+/// Each store declares a schema version for its document shape. Outgoing
+/// payloads are stamped under [schemaVersionKey], reads validate through
+/// [versioned], and a store that changes its shape bumps its version and
+/// migrates older documents on load using [schemaVersionOf].
 abstract final class AtomicJsonFile {
+  /// Key recording a store document's schema version.
+  ///
+  /// Stores already wrote an ad-hoc `version` field before schema
+  /// versioning was formalized, so the key adopts that name instead of
+  /// introducing a second competing stamp next to it.
+  static const String schemaVersionKey = 'version';
+
+  /// Schema version assumed for documents written before versioning.
+  static const int legacySchemaVersion = 0;
+
   static File temporaryFor(File destination) => File('${destination.path}.tmp');
 
   static File backupFor(File destination) => File('${destination.path}.bak');
@@ -44,6 +59,47 @@ abstract final class AtomicJsonFile {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Returns the schema version stamped on [decoded].
+  ///
+  /// Documents without a stamp predate schema versioning and report
+  /// [legacySchemaVersion]. Non-object documents and malformed stamps
+  /// (negative, fractional, or non-numeric) report -1 so validators can
+  /// reject them as corrupt.
+  static int schemaVersionOf(Object? decoded) {
+    if (decoded is! Map) return -1;
+    final raw = decoded[schemaVersionKey];
+    if (raw == null) return legacySchemaVersion;
+    if (raw is num && raw >= 0 && raw % 1 == 0) return raw.toInt();
+    return -1;
+  }
+
+  /// Returns a copy of [payload] stamped with schema [version].
+  ///
+  /// The stamp is applied last so a stale value already present in
+  /// [payload] can never win over the store's current version.
+  static Map<String, dynamic> stampSchemaVersion(
+    Map<String, dynamic> payload,
+    int version,
+  ) => {...payload, schemaVersionKey: version};
+
+  /// Wraps [validate] with schema-version gating for a store whose current
+  /// schema is [currentVersion].
+  ///
+  /// Legacy (unstamped) and older documents stay readable so stores can
+  /// migrate them on load and restamp them on the next write. Documents
+  /// stamped by a newer app version are rejected, routing them into the
+  /// existing recovery / refuse-to-overwrite paths instead of letting this
+  /// build silently rewrite data it does not understand.
+  static AtomicJsonValidator versioned({
+    required int currentVersion,
+    required AtomicJsonValidator validate,
+  }) {
+    return (decoded) {
+      final version = schemaVersionOf(decoded);
+      return version >= 0 && version <= currentVersion && validate(decoded);
+    };
   }
 
   /// Restores a valid sidecar only when the canonical document is missing or

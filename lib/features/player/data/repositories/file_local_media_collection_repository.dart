@@ -10,7 +10,14 @@ import '../../domain/repositories/local_media_collection_repository.dart';
 
 class FileLocalMediaCollectionRepository
     implements LocalMediaCollectionRepository {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 1;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&
       (decoded['favorites'] is List || decoded['playlists'] is List) &&
       (decoded['favorites'] == null || decoded['favorites'] is List) &&
@@ -140,7 +147,7 @@ class FileLocalMediaCollectionRepository
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 1,
+      'version': _schemaVersion,
       'favorites': _favoritePaths,
       'playlists': _playlists
           .map((item) => item.toJson())

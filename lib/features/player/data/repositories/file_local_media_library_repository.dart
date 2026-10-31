@@ -10,7 +10,14 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/services/embedded_audio_metadata_reader.dart';
 
 class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
-  static bool _isValidStoreJson(Object? decoded) =>
+  static const int _schemaVersion = 3;
+
+  static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
+    currentVersion: _schemaVersion,
+    validate: _isValidPayloadJson,
+  );
+
+  static bool _isValidPayloadJson(Object? decoded) =>
       decoded is Map &&
       decoded['entries'] is List &&
       (decoded['roots'] == null || decoded['roots'] is List);
@@ -129,7 +136,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   Future<void> _persist() {
     final payload = const JsonEncoder.withIndent('  ').convert({
-      'version': 3,
+      'version': _schemaVersion,
       'roots': _roots,
       'entries': _entries
           .map((entry) => entry.toJson())
