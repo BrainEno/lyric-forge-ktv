@@ -12,7 +12,9 @@ void main() {
         '${root.path}${Platform.pathSeparator}recordings',
       );
       await recordings.create();
-      final external = File('${root.path}${Platform.pathSeparator}external.wav');
+      final external = File(
+        '${root.path}${Platform.pathSeparator}external.wav',
+      );
       await external.writeAsBytes([9, 8, 7]);
 
       Future<void> writeTake(
@@ -25,33 +27,33 @@ void main() {
           '${recordings.path}${Platform.pathSeparator}$id',
         );
         await takeDir.create();
-        final voice = File(
-          '${takeDir.path}${Platform.pathSeparator}voice.wav',
-        );
+        final voice = File('${takeDir.path}${Platform.pathSeparator}voice.wav');
         await voice.writeAsBytes([0, 1]);
         final mix = File('${takeDir.path}${Platform.pathSeparator}mix.wav');
         if (createExpectedMix) await mix.writeAsBytes([2, 3]);
         final manifest = File(
           '${takeDir.path}${Platform.pathSeparator}session.json',
         );
-        await manifest.writeAsString(jsonEncode({
-          'version': 1,
-          'id': id,
-          'projectId': 'song',
-          'startedAt': startedAt,
-          'completedAt': '2026-10-09T12:01:00.000',
-          'backingSource': 'original',
-          'backingPath': 'song.wav',
-          'startPositionMs': 0,
-          'durationMs': 1000,
-          'micStemPath': voice.path,
-          'manifestPath': manifest.path,
-          'mixedOutputPath': mixedPath(takeDir),
-          'backingVolume': 1,
-          'monitorMicGain': 1,
-          'alignmentReliable': true,
-          'alignmentIssue': null,
-        }));
+        await manifest.writeAsString(
+          jsonEncode({
+            'version': 1,
+            'id': id,
+            'projectId': 'song',
+            'startedAt': startedAt,
+            'completedAt': '2026-10-09T12:01:00.000',
+            'backingSource': 'original',
+            'backingPath': 'song.wav',
+            'startPositionMs': 0,
+            'durationMs': 1000,
+            'micStemPath': voice.path,
+            'manifestPath': manifest.path,
+            'mixedOutputPath': mixedPath(takeDir),
+            'backingVolume': 1,
+            'monitorMicGain': 1,
+            'alignmentReliable': true,
+            'alignmentIssue': null,
+          }),
+        );
       }
 
       await writeTake(
@@ -71,8 +73,10 @@ void main() {
         mixedPath: (dir) => '${dir.path}${Platform.pathSeparator}mix.wav',
       );
 
-      final takes = await const FileKtvTakeHistoryStore()
-          .listFromDirectory(root, 'song');
+      final takes = await const FileKtvTakeHistoryStore().listFromDirectory(
+        root,
+        'song',
+      );
       expect(takes, hasLength(3));
       expect(
         takes.firstWhere((take) => take.id == 'take_safe').mixedOutputPath,

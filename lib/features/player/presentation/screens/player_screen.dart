@@ -29,10 +29,7 @@ import 'immersive_ktv_screen.dart';
 class PlayerScreen extends StatefulWidget {
   final String projectId;
 
-  const PlayerScreen({
-    super.key,
-    required this.projectId,
-  });
+  const PlayerScreen({super.key, required this.projectId});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -54,8 +51,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
     _activeProjectId = widget.projectId;
     _loadProject(_activeProjectId);
-    _sessionSubscription =
-        _playbackSession.stateStream.listen(_handleSessionChange);
+    _sessionSubscription = _playbackSession.stateStream.listen(
+      _handleSessionChange,
+    );
   }
 
   void _loadProject(String projectId) {
@@ -73,10 +71,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _openLyricEditor(ProjectManifest project) async {
-    await Navigator.pushNamed(
-      context,
-      Routes.lyricEditorPath(project.id),
-    );
+    await Navigator.pushNamed(context, Routes.lyricEditorPath(project.id));
     if (!mounted || _activeProjectId != project.id) return;
     setState(() => _loadProject(project.id));
   }
@@ -116,9 +111,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _audioService.switchSource(source);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法切换到该音源：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法切换到该音源：$error')));
     }
   }
 
@@ -262,7 +257,8 @@ class _PlayerContentState extends State<_PlayerContent> {
   Future<void> _enterKtv() async {
     final document = widget.project.lyricDocument;
     final audioAsset = widget.project.audioAsset;
-    if (document == null || document.lines.isEmpty || audioAsset == null) return;
+    if (document == null || document.lines.isEmpty || audioAsset == null)
+      return;
 
     final selectedMode = await showModalBottomSheet<KtvBackingMode>(
       context: context,
@@ -277,14 +273,15 @@ class _PlayerContentState extends State<_PlayerContent> {
     if (!mounted || selectedMode == null) return;
 
     try {
-      if (widget.audioService.currentState.currentSource != selectedMode.source) {
+      if (widget.audioService.currentState.currentSource !=
+          selectedMode.source) {
         await widget.audioService.switchSource(selectedMode.source);
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('无法进入 KTV：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('无法进入 KTV：$error')));
       return;
     }
 
@@ -335,9 +332,9 @@ class _PlayerContentState extends State<_PlayerContent> {
                     : '本地工程',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
               ),
           ],
         ),
@@ -409,8 +406,9 @@ class _PlayerContentState extends State<_PlayerContent> {
                   onSkipNext: widget.onSkipNext,
                   onModeChanged: (ktvMode) =>
                       setState(() => _ktvMode = ktvMode),
-                  onOpenFullScreenKtv:
-                      lyrics.isEmpty ? null : _openFullScreenKtv,
+                  onOpenFullScreenKtv: lyrics.isEmpty
+                      ? null
+                      : _openFullScreenKtv,
                 );
               },
             );
@@ -457,8 +455,8 @@ class _PlayerWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lyrics = document?.lines ?? const <LyricLine>[];
-    final availableSources = project.audioAsset?.availableSources ??
-        const <AudioSourceType>[];
+    final availableSources =
+        project.audioAsset?.availableSources ?? const <AudioSourceType>[];
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -815,10 +813,11 @@ class _LyricsPane extends StatelessWidget {
               Expanded(
                 child: Text(
                   ktvMode ? 'KTV 歌词' : '同步歌词',
-                  style: (spec.isCompact || spec.isShort
-                          ? Theme.of(context).textTheme.titleMedium
-                          : Theme.of(context).textTheme.titleLarge)
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style:
+                      (spec.isCompact || spec.isShort
+                              ? Theme.of(context).textTheme.titleMedium
+                              : Theme.of(context).textTheme.titleLarge)
+                          ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (ktvMode && onOpenFullScreenKtv != null)
@@ -939,7 +938,9 @@ class _ScrollableLyricsState extends State<_ScrollableLyrics> {
             onTap: () => widget.onLyricTap(line),
             borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             child: Container(
-              constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
+              constraints: BoxConstraints(
+                minHeight: spec.minimumInteractiveExtent,
+              ),
               padding: EdgeInsets.symmetric(
                 horizontal: spec.isCompact ? AppSpacing.sm : AppSpacing.md,
                 vertical: spec.isShort ? 6 : AppSpacing.sm,
@@ -952,23 +953,22 @@ class _ScrollableLyricsState extends State<_ScrollableLyrics> {
                     child: Text(
                       _formatTime(line.startTime),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: current
-                                ? AppColors.accent
-                                : AppColors.textTertiary,
-                          ),
+                        color: current
+                            ? AppColors.accent
+                            : AppColors.textTertiary,
+                      ),
                     ),
                   ),
                   Expanded(
                     child: Text(
                       line.text,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: current
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
-                            fontWeight:
-                                current ? FontWeight.w800 : FontWeight.w500,
-                            height: spec.isShort ? 1.3 : 1.45,
-                          ),
+                        color: current
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: current ? FontWeight.w800 : FontWeight.w500,
+                        height: spec.isShort ? 1.3 : 1.45,
+                      ),
                     ),
                   ),
                   if (line.isChorus && !spec.isCompact)
@@ -1011,22 +1011,25 @@ class _KtvFocusLyrics extends StatelessWidget {
     final gap = spec.isShort ? AppSpacing.sm : AppSpacing.xl;
     final horizontal = spec.pageGutter.clamp(16, 48).toDouble();
 
-    final previousStyle = (spec.isShort || spec.isCompact
-            ? Theme.of(context).textTheme.bodyLarge
-            : Theme.of(context).textTheme.titleMedium)
-        ?.copyWith(color: AppColors.textTertiary);
-    final currentStyle = (spec.isShort || spec.isCompact
-            ? Theme.of(context).textTheme.headlineSmall
-            : Theme.of(context).textTheme.headlineMedium)
-        ?.copyWith(
-      color: AppColors.accent,
-      fontWeight: FontWeight.w900,
-      height: 1.3,
-    );
-    final nextStyle = (spec.isShort || spec.isCompact
-            ? Theme.of(context).textTheme.titleMedium
-            : Theme.of(context).textTheme.titleLarge)
-        ?.copyWith(color: AppColors.textSecondary);
+    final previousStyle =
+        (spec.isShort || spec.isCompact
+                ? Theme.of(context).textTheme.bodyLarge
+                : Theme.of(context).textTheme.titleMedium)
+            ?.copyWith(color: AppColors.textTertiary);
+    final currentStyle =
+        (spec.isShort || spec.isCompact
+                ? Theme.of(context).textTheme.headlineSmall
+                : Theme.of(context).textTheme.headlineMedium)
+            ?.copyWith(
+              color: AppColors.accent,
+              fontWeight: FontWeight.w900,
+              height: 1.3,
+            );
+    final nextStyle =
+        (spec.isShort || spec.isCompact
+                ? Theme.of(context).textTheme.titleMedium
+                : Theme.of(context).textTheme.titleLarge)
+            ?.copyWith(color: AppColors.textSecondary);
 
     return Center(
       child: SingleChildScrollView(
@@ -1065,11 +1068,7 @@ class _FocusLyricLine extends StatelessWidget {
   final TextStyle? style;
   final VoidCallback? onTap;
 
-  const _FocusLyricLine({
-    required this.line,
-    required this.style,
-    this.onTap,
-  });
+  const _FocusLyricLine({required this.line, required this.style, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1083,11 +1082,7 @@ class _FocusLyricLine extends StatelessWidget {
       child: Container(
         constraints: BoxConstraints(minHeight: spec.minimumInteractiveExtent),
         padding: EdgeInsets.all(spec.isShort ? 6 : AppSpacing.sm),
-        child: Text(
-          line!.text,
-          textAlign: TextAlign.center,
-          style: style,
-        ),
+        child: Text(line!.text, textAlign: TextAlign.center, style: style),
       ),
     );
   }
@@ -1097,15 +1092,13 @@ class _KtvEntrySheet extends StatelessWidget {
   final AudioAsset audioAsset;
   final AudioSourceType? currentSource;
 
-  const _KtvEntrySheet({
-    required this.audioAsset,
-    required this.currentSource,
-  });
+  const _KtvEntrySheet({required this.audioAsset, required this.currentSource});
 
   @override
   Widget build(BuildContext context) {
-    final instrumentalAvailable =
-        audioAsset.hasSource(AudioSourceType.instrumental);
+    final instrumentalAvailable = audioAsset.hasSource(
+      AudioSourceType.instrumental,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -1123,18 +1116,18 @@ class _KtvEntrySheet extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 '进入 KTV',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '选择演唱时保留原唱伴唱，或只播放纯伴奏。切换音轨会保留当前播放位置。',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.md),
           _KtvModeTile(
@@ -1152,9 +1145,9 @@ class _KtvEntrySheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               '纯伴奏暂不可用：需要先为该歌曲生成伴奏轨。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ],
@@ -1245,8 +1238,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     _recordingService = ServiceLocatorGlobal.I.ktvRecordingService;
     _takeHistoryStore = ServiceLocatorGlobal.I.ktvTakeHistoryStore;
     AppChromeController.enterImmersive();
-    _sessionSubscription =
-        widget.playbackSession.stateStream.listen(_handleSessionChange);
+    _sessionSubscription = widget.playbackSession.stateStream.listen(
+      _handleSessionChange,
+    );
   }
 
   Future<void> _handleSessionChange(PlaybackSessionState state) async {
@@ -1255,7 +1249,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
 
     final generation = ++_projectLoadGeneration;
     final nextProject = await widget.repository.getProjectById(projectId);
-    if (!mounted || generation != _projectLoadGeneration || nextProject == null) {
+    if (!mounted ||
+        generation != _projectLoadGeneration ||
+        nextProject == null) {
       return;
     }
     setState(() => _project = nextProject);
@@ -1289,9 +1285,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       if (mounted) setState(() {});
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('KTV 录音失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('KTV 录音失败：$error')));
     }
   }
 
@@ -1352,16 +1348,14 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(value.trim().isEmpty ? '录音名称已清除' : '录音名称已保存'),
-        ),
+        SnackBar(content: Text(value.trim().isEmpty ? '录音名称已清除' : '录音名称已保存')),
       );
       await _openTakeHistory();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存录音名称失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('保存录音名称失败：$error')));
     }
   }
 
@@ -1380,9 +1374,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       await _openTakeHistory();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('更新收藏状态失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('更新收藏状态失败：$error')));
     }
   }
 
@@ -1416,17 +1410,18 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     try {
       await _takeHistoryStore.deleteProjectTake(_project, take);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('演唱录音已删除')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('演唱录音已删除')));
       await _openTakeHistory();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('删除失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('删除失败：$error')));
     }
   }
+
   bool _takeMutationLocked() {
     final state = _recordingService.currentState;
     return state.isRecording || state.isExporting;
@@ -1438,9 +1433,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          state.isExporting
-              ? '混音正在导出，完成前不能删除、重命名或收藏录音'
-              : '录音进行中，停止录音后再管理演唱历史',
+          state.isExporting ? '混音正在导出，完成前不能删除、重命名或收藏录音' : '录音进行中，停止录音后再管理演唱历史',
         ),
       ),
     );
@@ -1457,9 +1450,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       scan = await _takeHistoryStore.scanProject(_project);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('读取演唱历史失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('读取演唱历史失败：$error')));
       return;
     }
     if (!mounted) return;
@@ -1467,11 +1460,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     if (scan.recoveredCount > 0) {
       final count = scan.recoveredCount;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '已恢复 $count 次中断录音，原始人声已保留；自动混音已停用',
-          ),
-        ),
+        SnackBar(content: Text('已恢复 $count 次中断录音，原始人声已保留；自动混音已停用')),
       );
     }
 
@@ -1486,15 +1475,20 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
         shrinkWrap: true,
         padding: const EdgeInsets.all(20),
         children: [
-          Text('演唱历史（${takes.length}）',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            '演唱历史（${takes.length}）',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 12),
           if (takes.isEmpty) const ListTile(title: Text('暂无已完成的演唱录音')),
           for (final take in takes)
             Builder(
               builder: (sheetContext) {
-                final timestamp =
-                    take.startedAt.toLocal().toString().split('.').first;
+                final timestamp = take.startedAt
+                    .toLocal()
+                    .toString()
+                    .split('.')
+                    .first;
                 final customName = take.displayName?.trim();
                 final hasCustomName = customName?.isNotEmpty == true;
                 return ListTile(
@@ -1536,14 +1530,8 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                           }
                         },
                         itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'rename',
-                            child: Text('重命名'),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('永久删除'),
-                          ),
+                          PopupMenuItem(value: 'rename', child: Text('重命名')),
+                          PopupMenuItem(value: 'delete', child: Text('永久删除')),
                         ],
                       ),
                     ],
@@ -1579,9 +1567,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   Widget build(BuildContext context) {
     final document = _project.lyricDocument;
     final lyrics = document?.lines ?? const <LyricLine>[];
-    final ktvSources = availableKtvBackingModes(_project.audioAsset)
-        .map((mode) => mode.source)
-        .toList(growable: false);
+    final ktvSources = availableKtvBackingModes(
+      _project.audioAsset,
+    ).map((mode) => mode.source).toList(growable: false);
     final recordingLocked = _recordingService.currentState.isRecording;
 
     return Material(
@@ -1616,38 +1604,35 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                 final lyricGutter = spec.isExtraLarge
                     ? 120.0
                     : spec.isLarge
-                        ? 88.0
-                        : spec.pageGutter.clamp(16, 48).toDouble();
+                    ? 88.0
+                    : spec.pageGutter.clamp(16, 48).toDouble();
                 final lyricGap = spec.isShort
                     ? AppSpacing.sm
                     : spec.isCompact
-                        ? AppSpacing.lg
-                        : AppSpacing.xxl;
+                    ? AppSpacing.lg
+                    : AppSpacing.xxl;
 
-                final previousStyle = (spec.isShort || spec.isCompact
-                        ? Theme.of(context).textTheme.titleMedium
-                        : Theme.of(context).textTheme.headlineSmall)
-                    ?.copyWith(
-                  color: AppColors.textTertiary,
-                  height: 1.35,
-                );
-                final currentStyle = (spec.isShort
-                        ? Theme.of(context).textTheme.headlineMedium
-                        : spec.isCompact
+                final previousStyle =
+                    (spec.isShort || spec.isCompact
+                            ? Theme.of(context).textTheme.titleMedium
+                            : Theme.of(context).textTheme.headlineSmall)
+                        ?.copyWith(color: AppColors.textTertiary, height: 1.35);
+                final currentStyle =
+                    (spec.isShort
+                            ? Theme.of(context).textTheme.headlineMedium
+                            : spec.isCompact
                             ? Theme.of(context).textTheme.headlineLarge
                             : Theme.of(context).textTheme.displaySmall)
-                    ?.copyWith(
-                  color: AppColors.pureWhite,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                );
-                final nextStyle = (spec.isShort || spec.isCompact
-                        ? Theme.of(context).textTheme.titleLarge
-                        : Theme.of(context).textTheme.headlineMedium)
-                    ?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.3,
-                );
+                        ?.copyWith(
+                          color: AppColors.pureWhite,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                        );
+                final nextStyle =
+                    (spec.isShort || spec.isCompact
+                            ? Theme.of(context).textTheme.titleLarge
+                            : Theme.of(context).textTheme.headlineMedium)
+                        ?.copyWith(color: AppColors.textSecondary, height: 1.3);
 
                 return Container(
                   decoration: const BoxDecoration(
@@ -1676,17 +1661,21 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                     _project.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: (spec.isShort
-                                            ? Theme.of(context)
-                                                .textTheme
-                                                .titleMedium
-                                            : Theme.of(context)
-                                                .textTheme
-                                                .titleLarge)
-                                        ?.copyWith(fontWeight: FontWeight.w800),
+                                    style:
+                                        (spec.isShort
+                                                ? Theme.of(
+                                                    context,
+                                                  ).textTheme.titleMedium
+                                                : Theme.of(
+                                                    context,
+                                                  ).textTheme.titleLarge)
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
                                   ),
                                   if (!spec.isShort &&
-                                      _project.artist?.trim().isNotEmpty == true)
+                                      _project.artist?.trim().isNotEmpty ==
+                                          true)
                                     Text(
                                       _project.artist!,
                                       maxLines: 1,
@@ -1738,7 +1727,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               height: spec.minimumInteractiveExtent,
                               child: IconButton.filledTonal(
                                 tooltip: '演唱历史',
-                                onPressed: recordingLocked ? null : _openTakeHistory,
+                                onPressed: recordingLocked
+                                    ? null
+                                    : _openTakeHistory,
                                 icon: const Icon(Icons.history_rounded),
                               ),
                             ),
@@ -1747,7 +1738,8 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               stream: _recordingService.stateStream,
                               initialData: _recordingService.currentState,
                               builder: (context, recordingSnapshot) {
-                                final recording = recordingSnapshot.data ??
+                                final recording =
+                                    recordingSnapshot.data ??
                                     _recordingService.currentState;
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1789,7 +1781,8 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                         icon: Icon(
                                           recording.isRecording
                                               ? Icons.stop_rounded
-                                              : Icons.fiber_manual_record_rounded,
+                                              : Icons
+                                                    .fiber_manual_record_rounded,
                                         ),
                                       ),
                                     ),
@@ -1802,7 +1795,8 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                               stream: _microphoneService.stateStream,
                               initialData: _microphoneService.currentState,
                               builder: (context, microphoneSnapshot) {
-                                final microphone = microphoneSnapshot.data ??
+                                final microphone =
+                                    microphoneSnapshot.data ??
                                     _microphoneService.currentState;
                                 return SizedBox(
                                   width: spec.minimumInteractiveExtent,
@@ -1841,8 +1835,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 child: Padding(
                                   padding: EdgeInsets.symmetric(
                                     horizontal: lyricGutter,
-                                    vertical:
-                                        spec.isShort ? 4 : AppSpacing.sm,
+                                    vertical: spec.isShort ? 4 : AppSpacing.sm,
                                   ),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1893,9 +1886,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
                                 enabled: !recordingLocked,
                               ),
                             ),
-                            SizedBox(
-                              height: spec.isShort ? 2 : AppSpacing.sm,
-                            ),
+                            SizedBox(height: spec.isShort ? 2 : AppSpacing.sm),
                             IgnorePointer(
                               ignoring: recordingLocked,
                               child: Opacity(
@@ -1962,8 +1953,8 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
 
   String? _previewPathFor(_KtvTakePreviewKind kind) =>
       kind == _KtvTakePreviewKind.mix
-          ? _session.mixedOutputPath
-          : _session.micStemPath;
+      ? _session.mixedOutputPath
+      : _session.micStemPath;
 
   String _previewLabel(_KtvTakePreviewKind kind) =>
       kind == _KtvTakePreviewKind.mix ? '混音成品' : '原始人声';
@@ -1979,18 +1970,21 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
         ? _KtvTakePreviewKind.mix
         : _KtvTakePreviewKind.voice;
     _previewDuration = _session.duration;
-    _previewPositionSubscription =
-        _previewPlayer.positionStream.listen((position) {
+    _previewPositionSubscription = _previewPlayer.positionStream.listen((
+      position,
+    ) {
       if (!mounted) return;
       setState(() => _previewPosition = position);
     });
-    _previewDurationSubscription =
-        _previewPlayer.durationStream.listen((duration) {
+    _previewDurationSubscription = _previewPlayer.durationStream.listen((
+      duration,
+    ) {
       if (!mounted || duration == null) return;
       setState(() => _previewDuration = duration);
     });
-    _previewStateSubscription =
-        _previewPlayer.playerStateStream.listen((state) {
+    _previewStateSubscription = _previewPlayer.playerStateStream.listen((
+      state,
+    ) {
       if (!mounted) return;
       final completed =
           state.processingState == preview_audio.ProcessingState.completed;
@@ -2065,9 +2059,7 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
   Future<void> _seekPreview(double milliseconds) async {
     if (!_previewLoaded || _exporting) return;
     try {
-      await _previewPlayer.seek(
-        Duration(milliseconds: milliseconds.round()),
-      );
+      await _previewPlayer.seek(Duration(milliseconds: milliseconds.round()));
     } catch (error) {
       if (mounted) setState(() => _error = '调整试听进度失败：$error');
     }
@@ -2157,8 +2149,8 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
                           ? _session.displayName!
                           : 'KTV 录音已保存',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -2171,40 +2163,37 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
               const SizedBox(height: AppSpacing.xs),
               SelectableText(
                 _session.micStemPath,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
               if (!_session.alignmentReliable) ...[
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   _session.alignmentIssue ??
                       '播放时间轴在录音中发生变化，已保留人声 stem，但自动混音已禁用。',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.warning,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.warning),
                 ),
               ],
               if (_hasMix) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  '混音成品',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
+                Text('混音成品', style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: AppSpacing.xs),
                 SelectableText(
                   _session.mixedOutputPath!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
               Text(
                 '试听版本',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: AppSpacing.sm),
               Wrap(
@@ -2275,8 +2264,8 @@ class _KtvTakeResultSheetState extends State<_KtvTakeResultSheet> {
                 Text(
                   '导出混音后，可在这里直接切换试听原始人声和混音成品。',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),
@@ -2364,13 +2353,16 @@ class _KtvAudioControlsSheet extends StatelessWidget {
             final totalMs = engineMs == null ? null : engineMs + extraMs;
             const systemDefaultDeviceId = '__system_default__';
             final selectedDeviceId = microphone.selectedInputDeviceId;
-            final selectedDeviceValue = selectedDeviceId != null &&
-                    microphone.inputDevices
-                        .any((device) => device.id == selectedDeviceId)
+            final selectedDeviceValue =
+                selectedDeviceId != null &&
+                    microphone.inputDevices.any(
+                      (device) => device.id == selectedDeviceId,
+                    )
                 ? selectedDeviceId
                 : systemDefaultDeviceId;
             final selectedDevice = microphone.selectedInputDevice;
-            final deviceControlsLocked = recordingLocked ||
+            final deviceControlsLocked =
+                recordingLocked ||
                 microphone.isStarting ||
                 microphone.isRefreshingInputDevices;
 
@@ -2390,14 +2382,15 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.mic_rounded, color: AppColors.accent),
+                          const Icon(
+                            Icons.mic_rounded,
+                            color: AppColors.accent,
+                          ),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
                               '麦克风与演唱音量',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
+                              style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -2407,8 +2400,8 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                       Text(
                         '麦克风监听与歌曲播放使用独立音量。建议佩戴耳机或使用独立监听设备，扬声器直出可能产生啸叫。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Row(
@@ -2429,8 +2422,8 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                               onPressed: deviceControlsLocked
                                   ? null
                                   : () => unawaited(
-                                        microphoneService.refreshInputDevices(),
-                                      ),
+                                      microphoneService.refreshInputDevices(),
+                                    ),
                               icon: microphone.isRefreshingInputDevices
                                   ? const SizedBox(
                                       width: 18,
@@ -2481,12 +2474,12 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                             onChanged: deviceControlsLocked
                                 ? null
                                 : (value) => unawaited(
-                                      microphoneService.selectInputDevice(
-                                        value == systemDefaultDeviceId
-                                            ? null
-                                            : value,
-                                      ),
+                                    microphoneService.selectInputDevice(
+                                      value == systemDefaultDeviceId
+                                          ? null
+                                          : value,
                                     ),
+                                  ),
                           ),
                         ),
                       ),
@@ -2495,15 +2488,15 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                         recordingLocked
                             ? '正在录制 take，输入设备已锁定；停止录音后可切换。'
                             : selectedDevice == null
-                                ? microphone.inputDevices.isEmpty
-                                    ? '未发现可选麦克风，将继续使用系统默认输入；可点击刷新重新扫描。'
-                                    : '当前跟随系统默认输入设备；也可以固定选择某个麦克风。'
-                                : '当前：${selectedDevice.label}',
+                            ? microphone.inputDevices.isEmpty
+                                  ? '未发现可选麦克风，将继续使用系统默认输入；可点击刷新重新扫描。'
+                                  : '当前跟随系统默认输入设备；也可以固定选择某个麦克风。'
+                            : '当前：${selectedDevice.label}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: recordingLocked
-                                  ? AppColors.warning
-                                  : AppColors.textTertiary,
-                            ),
+                          color: recordingLocked
+                              ? AppColors.warning
+                              : AppColors.textTertiary,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       SwitchListTile.adaptive(
@@ -2522,7 +2515,9 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                             ? const SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Icon(
                                 microphone.isMonitoring
@@ -2576,13 +2571,10 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                         onChanged: recordingLocked
                             ? null
                             : (value) =>
-                                unawaited(audioService.setVolume(value)),
+                                  unawaited(audioService.setVolume(value)),
                       ),
                       const SizedBox(height: AppSpacing.sm),
-                      _KtvControlLabel(
-                        title: '监听附加延迟',
-                        value: '${extraMs}ms',
-                      ),
+                      _KtvControlLabel(title: '监听附加延迟', value: '${extraMs}ms'),
                       Slider(
                         value: extraMs.clamp(0, 250).toDouble(),
                         min: 0,
@@ -2599,8 +2591,8 @@ class _KtvAudioControlsSheet extends StatelessWidget {
                             ? '设备未报告稳定的硬件延迟；这里的数值只增加软件监听延迟。'
                             : '音频引擎约 ${engineMs}ms + 附加 ${extraMs}ms = 约 ${totalMs}ms。',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -2629,9 +2621,9 @@ class _KtvControlLabel extends StatelessWidget {
         ),
         Text(
           value,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );
@@ -2716,9 +2708,9 @@ class _FullscreenNoLyrics extends StatelessWidget {
         child: Text(
           '当前歌曲没有可用歌词',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(color: AppColors.textTertiary),
         ),
       ),
     );
@@ -2754,9 +2746,7 @@ class _ProjectArtwork extends StatelessWidget {
                   child: Icon(
                     Icons.album_rounded,
                     size: compact ? 34 : 88,
-                    color: loading
-                        ? AppColors.accent
-                        : AppColors.textTertiary,
+                    color: loading ? AppColors.accent : AppColors.textTertiary,
                   ),
                 ),
         ),
@@ -2775,18 +2765,20 @@ class _SongIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     return Column(
-      crossAxisAlignment:
-          compact ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      crossAxisAlignment: compact
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
       children: [
         Text(
           project.name,
           textAlign: compact ? TextAlign.left : TextAlign.center,
           maxLines: compact ? 1 : 2,
           overflow: TextOverflow.ellipsis,
-          style: (compact
-                  ? Theme.of(context).textTheme.titleMedium
-                  : Theme.of(context).textTheme.headlineSmall)
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              (compact
+                      ? Theme.of(context).textTheme.titleMedium
+                      : Theme.of(context).textTheme.headlineSmall)
+                  ?.copyWith(fontWeight: FontWeight.w800),
         ),
         if (!spec.isShort) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -2797,9 +2789,9 @@ class _SongIdentity extends StatelessWidget {
             textAlign: compact ? TextAlign.left : TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
         ],
         if (!compact && project.album?.trim().isNotEmpty == true) ...[
@@ -2809,9 +2801,9 @@ class _SongIdentity extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ],
@@ -2923,16 +2915,18 @@ class _AudioSourceSelector extends StatelessWidget {
       alignment: WrapAlignment.center,
       spacing: AppSpacing.xs,
       runSpacing: AppSpacing.xs,
-      children: availableSources.map((source) {
-        return ChoiceChip(
-          selected: source == currentSource,
-          onSelected: (_) => onSourceChanged(source),
-          visualDensity: compact ? VisualDensity.compact : null,
-          label: Text(
-            ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
-          ),
-        );
-      }).toList(growable: false),
+      children: availableSources
+          .map((source) {
+            return ChoiceChip(
+              selected: source == currentSource,
+              onSelected: (_) => onSourceChanged(source),
+              visualDensity: compact ? VisualDensity.compact : null,
+              label: Text(
+                ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
+              ),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
@@ -3007,9 +3001,9 @@ class _PlaybackError extends StatelessWidget {
         message,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.error,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AppColors.error),
       ),
     );
   }
@@ -3033,17 +3027,14 @@ class _NoLyricsState extends StatelessWidget {
               color: AppColors.textTertiary,
             ),
             const SizedBox(height: AppSpacing.md),
-            Text(
-              '这个工程还没有歌词',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('这个工程还没有歌词', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(
               '可以继续普通播放，生成或编辑歌词后再进入 KTV 模式。',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),

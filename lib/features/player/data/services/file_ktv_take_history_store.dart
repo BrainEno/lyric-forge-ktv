@@ -21,8 +21,9 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
   }
 
   @override
-  Future<List<KtvRecordingSession>> listProject(ProjectManifest project) async =>
-      (await scanProject(project)).takes;
+  Future<List<KtvRecordingSession>> listProject(
+    ProjectManifest project,
+  ) async => (await scanProject(project)).takes;
 
   Future<KtvTakeHistoryScanResult> scanFromDirectory(
     Directory projectDirectory,
@@ -67,10 +68,7 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
               File(take.micStemPath).absolute.path,
               expectedVoice.absolute.path,
             ) ||
-            await FileSystemEntity.type(
-                  take.micStemPath,
-                  followLinks: false,
-                ) !=
+            await FileSystemEntity.type(take.micStemPath, followLinks: false) !=
                 FileSystemEntityType.file) {
           continue;
         }
@@ -80,7 +78,8 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
           final expectedMix = File(
             '${entity.path}${Platform.pathSeparator}mix.wav',
           );
-          final safeMix = _samePath(mixedPath, expectedMix.path) &&
+          final safeMix =
+              _samePath(mixedPath, expectedMix.path) &&
               await FileSystemEntity.type(mixedPath, followLinks: false) ==
                   FileSystemEntityType.file;
           if (!safeMix) {
@@ -89,8 +88,9 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
         }
 
         if (take.completedAt == null) {
-          final recoveredDuration =
-              await Pcm16WavWriter.recoverInterruptedFile(take.micStemPath);
+          final recoveredDuration = await Pcm16WavWriter.recoverInterruptedFile(
+            take.micStemPath,
+          );
           if (recoveredDuration == null || recoveredDuration <= Duration.zero) {
             continue;
           }
@@ -127,8 +127,7 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
   Future<List<KtvRecordingSession>> listFromDirectory(
     Directory projectDirectory,
     String projectId,
-  ) async =>
-      (await scanFromDirectory(projectDirectory, projectId)).takes;
+  ) async => (await scanFromDirectory(projectDirectory, projectId)).takes;
 
   @override
   Future<KtvRecordingSession> updateProjectTakeMetadata(
@@ -166,7 +165,8 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
     final updated = indexed.copyWith(
       displayName: normalizedName,
       clearDisplayName:
-          clearDisplayName || (normalizedName != null && normalizedName.isEmpty),
+          clearDisplayName ||
+          (normalizedName != null && normalizedName.isEmpty),
       isFavorite: isFavorite,
     );
     final manifest = File(indexed.manifestPath);
@@ -193,9 +193,16 @@ class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
     String projectId,
     KtvRecordingSession take,
   ) async {
-    final folder = await _validatedTakeFolder(projectDirectory, projectId, take);
+    final folder = await _validatedTakeFolder(
+      projectDirectory,
+      projectId,
+      take,
+    );
     await _findIndexedTake(projectDirectory, projectId, take);
-    await for (final child in folder.list(recursive: true, followLinks: false)) {
+    await for (final child in folder.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (child is Link) {
         throw const FileSystemException('录音包含符号链接，已取消删除');
       }
