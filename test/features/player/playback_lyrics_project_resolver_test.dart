@@ -273,26 +273,28 @@ void main() {
     expect(cleared.repairedLink, isFalse);
   });
 
-  test('discovers lyrics for an item enqueued before the project existed',
-      () async {
-    const audioPath = '/music/song.mp3';
+  test(
+    'discovers lyrics for an item enqueued before the project existed',
+    () async {
+      const audioPath = '/music/song.mp3';
 
-    final resolution = await resolvePlaybackLyrics(
-      pathCanonicalizer: const FileAudioPathCanonicalizer(),
-      item: PlaybackItem(
-        id: 'item-1',
-        title: 'song',
-        audioAsset: const AudioAsset(originalPath: audioPath, format: 'mp3'),
-      ),
-      projectRepository: _FakeProjectRepository([
-        project('project-late', audioPath),
-      ]),
-      metadataRepository: _FakeMetadataRepository(),
-    );
+      final resolution = await resolvePlaybackLyrics(
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        item: PlaybackItem(
+          id: 'item-1',
+          title: 'song',
+          audioAsset: const AudioAsset(originalPath: audioPath, format: 'mp3'),
+        ),
+        projectRepository: _FakeProjectRepository([
+          project('project-late', audioPath),
+        ]),
+        metadataRepository: _FakeMetadataRepository(),
+      );
 
-    expect(resolution.projectId, 'project-late');
-    expect(resolution.hasLyrics, isTrue);
-  });
+      expect(resolution.projectId, 'project-late');
+      expect(resolution.hasLyrics, isTrue);
+    },
+  );
 }
 
 class _FakeMetadataRepository implements LocalMediaMetadataRepository {

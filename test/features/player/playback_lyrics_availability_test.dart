@@ -175,8 +175,9 @@ void main() {
     expect(session.updates, isEmpty);
   });
 
-  testWidgets('syncs the current queue item when the session changes',
-      (tester) async {
+  testWidgets('syncs the current queue item when the session changes', (
+    tester,
+  ) async {
     final session = _StreamingSession(
       PlaybackSessionState(queue: [item()], currentIndex: 0),
     );

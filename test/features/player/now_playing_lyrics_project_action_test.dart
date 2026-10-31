@@ -25,28 +25,30 @@ void main() {
     expect(result, 'direct-project');
   });
 
-  test('local playback resolves linkedProjectId when linked project has lyrics',
-      () async {
-    final metadata = _FakeMetadataRepository(
-      LocalMediaMetadata(
-        sourcePath: '/music/song.mp3',
-        updatedAt: DateTime(2026, 10, 8),
-        metadata: const {'linkedProjectId': 'lyrics-project'},
-      ),
-    );
-    final projects = _FakeProjectRepository([
-      _project('lyrics-project', withLyrics: true),
-    ]);
+  test(
+    'local playback resolves linkedProjectId when linked project has lyrics',
+    () async {
+      final metadata = _FakeMetadataRepository(
+        LocalMediaMetadata(
+          sourcePath: '/music/song.mp3',
+          updatedAt: DateTime(2026, 10, 8),
+          metadata: const {'linkedProjectId': 'lyrics-project'},
+        ),
+      );
+      final projects = _FakeProjectRepository([
+        _project('lyrics-project', withLyrics: true),
+      ]);
 
-    final result = await resolvePlaybackLyricsProjectId(
-      pathCanonicalizer: const FileAudioPathCanonicalizer(),
-      item: _item(hasLyrics: true),
-      projectRepository: projects,
-      metadataRepository: metadata,
-    );
+      final result = await resolvePlaybackLyricsProjectId(
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        item: _item(hasLyrics: true),
+        projectRepository: projects,
+        metadataRepository: metadata,
+      );
 
-    expect(result, 'lyrics-project');
-  });
+      expect(result, 'lyrics-project');
+    },
+  );
 
   test('stale or lyric-less local links do not expose a KTV action', () async {
     final metadata = _FakeMetadataRepository(
@@ -73,15 +75,12 @@ void main() {
 }
 
 PlaybackItem _item({String? projectId, bool hasLyrics = false}) => PlaybackItem(
-      id: 'song',
-      title: 'Song',
-      projectId: projectId,
-      hasLyrics: hasLyrics,
-      audioAsset: const AudioAsset(
-        originalPath: '/music/song.mp3',
-        format: 'mp3',
-      ),
-    );
+  id: 'song',
+  title: 'Song',
+  projectId: projectId,
+  hasLyrics: hasLyrics,
+  audioAsset: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
+);
 
 ProjectManifest _project(String id, {required bool withLyrics}) {
   final now = DateTime(2026, 10, 8);
@@ -118,7 +117,8 @@ class _FakeMetadataRepository implements LocalMediaMetadataRepository {
       metadata == null ? const [] : [metadata!];
 
   @override
-  Future<LocalMediaMetadata> save(LocalMediaMetadata metadata) async => metadata;
+  Future<LocalMediaMetadata> save(LocalMediaMetadata metadata) async =>
+      metadata;
 
   @override
   Future<void> removeForAudio(String sourcePath) async {}
@@ -137,13 +137,14 @@ class _FakeProjectRepository implements ProjectRepository {
   final Map<String, ProjectManifest> projects;
 
   _FakeProjectRepository(Iterable<ProjectManifest> values)
-      : projects = {for (final project in values) project.id: project};
+    : projects = {for (final project in values) project.id: project};
 
   @override
   Future<ProjectManifest?> getProjectById(String id) async => projects[id];
 
   @override
-  Future<List<ProjectManifest>> getAllProjects() async => projects.values.toList();
+  Future<List<ProjectManifest>> getAllProjects() async =>
+      projects.values.toList();
 
   @override
   Future<List<ProjectManifest>> getRecentProjects({int limit = 10}) async =>

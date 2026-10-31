@@ -37,15 +37,15 @@ class _NowPlayingLyricsProjectActionState
   ProjectRepository get _projects =>
       widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
 
-  LocalMediaMetadataRepository get _metadata => widget.metadataRepository ??
+  LocalMediaMetadataRepository get _metadata =>
+      widget.metadataRepository ??
       ServiceLocatorGlobal.I.localMediaMetadataRepository;
 
   PlaybackSessionService get _session =>
       widget.playbackSession ?? ServiceLocatorGlobal.I.playbackSessionService;
 
   AudioPathCanonicalizer get _pathCanonicalizer =>
-      widget.pathCanonicalizer ??
-      ServiceLocatorGlobal.I.audioPathCanonicalizer;
+      widget.pathCanonicalizer ?? ServiceLocatorGlobal.I.audioPathCanonicalizer;
 
   @override
   void initState() {
@@ -96,18 +96,16 @@ class _NowPlayingLyricsProjectActionState
         return TextButton.icon(
           onPressed: localLinkedLyrics
               ? () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ImmersiveKtvScreen(
-                        initialProjectId: projectId,
-                        projectRepository: _projects,
-                        metadataRepository: _metadata,
-                      ),
+                  MaterialPageRoute<void>(
+                    builder: (_) => ImmersiveKtvScreen(
+                      initialProjectId: projectId,
+                      projectRepository: _projects,
+                      metadataRepository: _metadata,
                     ),
-                  )
-              : () => Navigator.pushNamed(
-                    context,
-                    Routes.playerPath(projectId),
                   ),
+                )
+              : () =>
+                    Navigator.pushNamed(context, Routes.playerPath(projectId)),
           icon: Icon(
             localLinkedLyrics ? Icons.fullscreen_rounded : Icons.lyrics_rounded,
           ),

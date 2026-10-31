@@ -49,7 +49,8 @@ class _PlaybackLyricsAvailabilitySyncState
   void initState() {
     super.initState();
     try {
-      final session = widget.playbackSession ??
+      final session =
+          widget.playbackSession ??
           ServiceLocatorGlobal.I.playbackSessionService;
       _subscription = session.stateStream.listen(_handleSession);
       _handleSession(session.currentState);
@@ -75,23 +76,27 @@ class _PlaybackLyricsAvailabilitySyncState
   }
 
   String _keyFor(PlaybackItem item) => [
-        item.id,
-        item.projectId ?? '',
-        item.audioAsset.originalPath,
-        item.hasLyrics ? '1' : '0',
-      ].join('\u0000');
+    item.id,
+    item.projectId ?? '',
+    item.audioAsset.originalPath,
+    item.hasLyrics ? '1' : '0',
+  ].join('\u0000');
 
   Future<void> _sync(PlaybackItem item) async {
     try {
       await resolveAndSyncPlaybackLyrics(
         item: item,
-        projectRepository: widget.projectRepository ??
+        projectRepository:
+            widget.projectRepository ??
             ServiceLocatorGlobal.I.projectRepository,
-        metadataRepository: widget.metadataRepository ??
+        metadataRepository:
+            widget.metadataRepository ??
             ServiceLocatorGlobal.I.localMediaMetadataRepository,
-        playbackSession: widget.playbackSession ??
+        playbackSession:
+            widget.playbackSession ??
             ServiceLocatorGlobal.I.playbackSessionService,
-        pathCanonicalizer: widget.pathCanonicalizer ??
+        pathCanonicalizer:
+            widget.pathCanonicalizer ??
             ServiceLocatorGlobal.I.audioPathCanonicalizer,
       );
     } catch (_) {

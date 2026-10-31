@@ -1,5 +1,5 @@
 name: TEMP diagnostics oracle (delete after use)
-# round 2: full diffs for remaining files
+# round 3: chunked diffs for two large files
 
 on:
   pull_request:
@@ -17,29 +17,37 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Emit full format diffs as annotations
+      - name: Chunked format diff for immersive
         run: |
           set +e
-          files=(
-            lib/features/player/presentation/screens/immersive_ktv_screen.dart
-            lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart
-            lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart
-            lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart
-            test/file_project_repository_test.dart
-            test/features/player/now_playing_lyrics_project_action_test.dart
-            test/features/player/playback_lyrics_availability_test.dart
-            test/features/player/playback_lyrics_project_resolver_test.dart
-          )
+          f=lib/features/player/presentation/screens/immersive_ktv_screen.dart
           emit() {
             local data; data=$(cat)
             MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
           }
-          for f in "${files[@]}"; do
-            out=$(dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 | head -300; true)
-            if [ -n "$out" ]; then
-              printf 'FORMAT-DIFF-BEGIN\n%s\nFORMAT-DIFF-END' "$out" | emit "$f"
-            else
-              echo "::notice file=$f::FORMAT-CLEAN"
-            fi
+          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 > /tmp/full.diff; true
+          if [ ! -s /tmp/full.diff ]; then echo "::notice file=$f::FORMAT-CLEAN"; exit 0; fi
+          split -l 40 /tmp/full.diff /tmp/chunk_
+          total=$(ls /tmp/chunk_* | wc -l); i=0
+          for c in /tmp/chunk_*; do
+            i=$((i+1))
+            { echo "FORMAT-DIFF-PART $i/$total"; cat "$c"; } | emit "$f"
+          done
+          true
+      - name: Chunked format diff for import-action
+        run: |
+          set +e
+          f=lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart
+          emit() {
+            local data; data=$(cat)
+            MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
+          }
+          dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 > /tmp/full.diff; true
+          if [ ! -s /tmp/full.diff ]; then echo "::notice file=$f::FORMAT-CLEAN"; exit 0; fi
+          split -l 40 /tmp/full.diff /tmp/chunk_
+          total=$(ls /tmp/chunk_* | wc -l); i=0
+          for c in /tmp/chunk_*; do
+            i=$((i+1))
+            { echo "FORMAT-DIFF-PART $i/$total"; cat "$c"; } | emit "$f"
           done
           true
