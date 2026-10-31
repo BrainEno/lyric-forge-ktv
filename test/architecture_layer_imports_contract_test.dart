@@ -11,15 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// was introduced. The ratchet only tightens: a new violation fails here
 /// until the import itself is fixed (never baseline a new violation), and a
 /// fixed violation fails here until its stale baseline entry is deleted.
-/// The domain platform baseline reached zero when the playback lyrics
-/// path handling moved behind `AudioPathCanonicalizer`; the remaining
-/// burn-down is the presentation->data imports.
+/// Both baselines reached zero during the #232 burn-down: the domain
+/// platform baseline when playback lyrics path handling moved behind
+/// `AudioPathCanonicalizer`, and the presentation->data baseline when the
+/// last presentation imports moved behind domain contracts.
 const Set<String> _platformBaseline = <String>{};
 
-const Set<String> _presentationBaseline = <String>{
-  'lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/transcription/data/services/forced_alignment_proofread_service.dart',
-  'lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart -> lib/features/transfer/data/services/local_library_media_share_catalog.dart',
-};
+const Set<String> _presentationBaseline = <String>{};
 
 final RegExp _importPattern = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
 final RegExp _layerPattern = RegExp(

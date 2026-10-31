@@ -70,6 +70,7 @@ import '../../features/transfer/data/services/file_media_hub_device_identity_sto
 import '../../features/transfer/data/services/file_media_transfer_queue_service.dart';
 import '../../features/transfer/data/services/http_media_hub_client_service.dart';
 import '../../features/transfer/data/services/http_media_hub_service.dart';
+import '../../features/transfer/data/services/local_library_media_share_catalog.dart';
 import '../../features/transfer/data/services/local_media_transfer_service.dart';
 import '../../features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
 import '../../features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
@@ -77,6 +78,7 @@ import '../../features/transfer/data/services/udp_media_hub_discovery_service.da
 import '../../features/transfer/domain/services/media_hub_client_service.dart';
 import '../../features/transfer/domain/services/media_hub_connection_store.dart';
 import '../../features/transfer/domain/services/media_hub_service.dart';
+import '../../features/transfer/domain/services/media_share_catalog.dart';
 import '../../features/transfer/domain/services/media_transfer_queue_service.dart';
 import '../../features/transfer/domain/services/media_transfer_service.dart';
 
@@ -105,6 +107,7 @@ class ServiceLocator {
   late final PlaybackSessionService playbackSessionService;
   late final AudioPathCanonicalizer audioPathCanonicalizer;
   late final MediaHubService mediaHubService;
+  late final MediaShareCatalog mediaShareCatalog;
   late final TranscriptionService transcriptionService;
   late final Qwen3AsrNativeTranscriptionService qwenNativeTranscriptionService;
   late final AsrRuntimeManager asrRuntimeManager;
@@ -218,6 +221,10 @@ class ServiceLocator {
     mediaHubService = DiscoverableMediaHubService(
       delegate: rawMediaHub,
       identityStore: FileMediaHubDeviceIdentityStore(),
+    );
+    mediaShareCatalog = LocalLibraryMediaShareCatalog(
+      libraryRepository: localMediaLibraryRepository,
+      metadataRepository: localMediaMetadataRepository,
     );
     mediaTransferService = LocalMediaTransferService(
       client: mediaHubClientService,

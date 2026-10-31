@@ -10,10 +10,10 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../data/services/local_library_media_share_catalog.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
+import '../../domain/services/media_share_catalog.dart';
 
 /// Desktop-first transfer center for an explicitly started Media Hub.
 ///
@@ -30,7 +30,7 @@ class DesktopMediaTransferHubV2Screen extends StatefulWidget {
 class _DesktopMediaTransferHubV2ScreenState
     extends State<DesktopMediaTransferHubV2Screen> {
   late final MediaHubService _hub;
-  late final LocalLibraryMediaShareCatalog _catalog;
+  late final MediaShareCatalog _catalog;
   late MediaHubState _hubState;
   StreamSubscription<MediaHubState>? _hubSubscription;
 
@@ -50,10 +50,7 @@ class _DesktopMediaTransferHubV2ScreenState
     super.initState();
     final services = ServiceLocatorGlobal.I;
     _hub = services.mediaHubService;
-    _catalog = LocalLibraryMediaShareCatalog(
-      libraryRepository: services.localMediaLibraryRepository,
-      metadataRepository: services.localMediaMetadataRepository,
-    );
+    _catalog = services.mediaShareCatalog;
     _hubState = _hub.currentState;
     _hubSubscription = _hub.stateStream.listen((state) {
       if (mounted) setState(() => _hubState = state);

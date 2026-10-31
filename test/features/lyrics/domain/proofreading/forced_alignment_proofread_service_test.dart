@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/forced_alignment_http_client.dart';
-import 'package:lyric_forge_ktv/features/transcription/data/services/forced_alignment_proofread_service.dart';
 
 void main() {
   late HttpServer server;
@@ -17,7 +17,7 @@ void main() {
     client = ForcedAlignmentHttpClient(
       endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
     );
-    service = ForcedAlignmentProofreadService(client: client);
+    service = ForcedAlignmentProofreadService(runner: client.align);
   });
 
   tearDown(() async {
