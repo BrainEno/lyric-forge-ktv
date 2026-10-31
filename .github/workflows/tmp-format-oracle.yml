@@ -1,5 +1,5 @@
 name: TEMP diagnostics oracle (delete after use)
-# round 4: base64 full formatted files
+# round 5: fixed read loop, full parts
 
 on:
   pull_request:
@@ -17,24 +17,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Base64 formatted immersive
+      - name: Base64 tail for immersive
         run: |
           set +e
           f=lib/features/player/presentation/screens/immersive_ktv_screen.dart
           dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | base64 -w0 > /tmp/full.b64; true
           i=0; total=$(( ( $(wc -c < /tmp/full.b64) + 2999 ) / 3000 ))
-          while read -r chunk; do
+          while read -r chunk || [ -n "$chunk" ]; do
             i=$((i+1))
             echo "::error file=$f::FORMAT-B64-PART $i/$total $chunk"
           done < <(fold -w 3000 /tmp/full.b64)
           true
-      - name: Base64 formatted import-action
+      - name: Base64 tail for import-action
         run: |
           set +e
           f=lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart
           dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | base64 -w0 > /tmp/full.b64; true
           i=0; total=$(( ( $(wc -c < /tmp/full.b64) + 2999 ) / 3000 ))
-          while read -r chunk; do
+          while read -r chunk || [ -n "$chunk" ]; do
             i=$((i+1))
             echo "::error file=$f::FORMAT-B64-PART $i/$total $chunk"
           done < <(fold -w 3000 /tmp/full.b64)
