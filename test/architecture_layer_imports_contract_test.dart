@@ -18,7 +18,6 @@ const Set<String> _platformBaseline = <String>{};
 
 const Set<String> _presentationBaseline = <String>{
   'lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/transcription/data/services/forced_alignment_proofread_service.dart',
-  'lib/features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart -> lib/features/transfer/data/services/local_library_media_share_catalog.dart',
 };
 
 final RegExp _importPattern = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');

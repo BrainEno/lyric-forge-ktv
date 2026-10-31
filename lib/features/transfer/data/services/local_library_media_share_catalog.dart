@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/models/shared_audio_track.dart';
+import '../../domain/services/media_share_catalog.dart';
 
 /// Builds the desktop Media Hub share list from the same persistent local
 /// library used by the regular player.
@@ -10,7 +11,7 @@ import '../../domain/models/shared_audio_track.dart';
 /// User-edited presentation metadata has the same priority here as in local
 /// playback: override > embedded file tag > file-name fallback. This keeps the
 /// phone's remote catalog visually aligned with the desktop Library.
-class LocalLibraryMediaShareCatalog {
+class LocalLibraryMediaShareCatalog implements MediaShareCatalog {
   final LocalMediaLibraryRepository libraryRepository;
   final LocalMediaMetadataRepository? metadataRepository;
 
@@ -19,6 +20,7 @@ class LocalLibraryMediaShareCatalog {
     this.metadataRepository,
   });
 
+  @override
   Future<List<SharedAudioTrack>> build() async {
     final entries = await libraryRepository.getAll();
     final tracks = <SharedAudioTrack>[];
@@ -37,13 +39,15 @@ class LocalLibraryMediaShareCatalog {
           ? entry.embeddedTitle!.trim()
           : _titleFromFileName(fileName);
       final title = override?.resolvedTitle(embeddedTitle) ?? embeddedTitle;
-      final artist = override?.resolvedArtist(entry.embeddedArtist) ??
+      final artist =
+          override?.resolvedArtist(entry.embeddedArtist) ??
           _nonEmpty(entry.embeddedArtist);
-      final album = override?.resolvedAlbum(entry.embeddedAlbum) ??
+      final album =
+          override?.resolvedAlbum(entry.embeddedAlbum) ??
           _nonEmpty(entry.embeddedAlbum);
       final resolvedArtwork =
           override?.resolvedArtwork(entry.embeddedArtworkPath) ??
-              entry.embeddedArtworkPath;
+          entry.embeddedArtworkPath;
       final artworkPath = await _existingArtworkPath(resolvedArtwork);
       final byteLength = entry.sourceSizeBytes ?? await file.length();
       final format = entry.format.trim().isNotEmpty

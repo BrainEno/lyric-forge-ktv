@@ -85,6 +85,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 01:50] Run AtomicJsonFile fault-injection tests on macOS CI ([entry](log/entries/2026-10-31-0150-macos-atomic-json-fault-injection.md))
 - [2026-10-31 01:35] Supervise high-quality shared audio preparation ([entry](log/entries/2026-10-31-0135-supervise-high-quality-shared-audio-prep.md))
 - [2026-10-31 01:20] Repair the corrupted Windows Media Hub disk-space probe ([entry](log/entries/2026-10-31-0120-fix-windows-media-hub-disk-probe.md))
 - [2026-10-30 17:20] Run atomic JSON persistence tests on Windows ([entry](log/entries/2026-10-30-1720-atomic-json-windows-validation.md))
