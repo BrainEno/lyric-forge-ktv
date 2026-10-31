@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
-import '../../../transcription/data/services/local_asr_managed_storage_service.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
+import '../../../transcription/domain/services/asr_managed_storage_service.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
@@ -30,7 +30,7 @@ class _AiTranscriptionSettingsSectionState
   late final TranscriptionSettingsStore _settingsStore;
   late final AsrRuntimeManager _runtimeManager;
   late final AsrStoragePreflightService _storagePreflightService;
-  late final LocalAsrManagedStorageService _managedStorageService;
+  late final AsrManagedStorageService _managedStorageService;
 
   StreamSubscription<AsrRuntimeInstallProgress>? _progressSubscription;
   TranscriptionConfig? _config;
