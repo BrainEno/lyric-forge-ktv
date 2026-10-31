@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
