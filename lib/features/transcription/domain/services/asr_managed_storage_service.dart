@@ -18,7 +18,8 @@ class AsrManagedStorageLocation {
   });
 }
 
-/// 一次托管存储迁移的结果（复制优先语义见 [AsrManagedStorageService]）。
+/// 一次托管存储迁移或已有环境接管的结果（复制优先语义见
+/// [AsrManagedStorageService]）。
 class AsrManagedStorageMoveResult {
   final String sourceRoot;
   final String targetRoot;
@@ -27,6 +28,10 @@ class AsrManagedStorageMoveResult {
   final bool moved;
   final bool oldRootRetained;
 
+  /// 目标目录原本就是一个可识别的 LyricForge ASR 环境，本次只切换指针，
+  /// 没有复制当前环境，也没有删除旧目录。
+  final bool adoptedExisting;
+
   const AsrManagedStorageMoveResult({
     required this.sourceRoot,
     required this.targetRoot,
@@ -34,6 +39,7 @@ class AsrManagedStorageMoveResult {
     required this.copiedFiles,
     required this.moved,
     this.oldRootRetained = false,
+    this.adoptedExisting = false,
   });
 }
 
@@ -47,7 +53,12 @@ abstract class AsrManagedStorageService {
   /// 读取当前生效位置、默认位置与托管数据占用。
   Future<AsrManagedStorageLocation> inspect();
 
-  /// 把托管环境迁移到 `selectedParent` 下的 `LyricForge/ASRRuntime`。
+  /// 把托管环境切换到用户选择的位置。
+  ///
+  /// 选择普通父目录时，目标是其下的 `LyricForge/ASRRuntime`；也可以直接
+  /// 选择 `LyricForge` 或已有的 `ASRRuntime`。若目标已经是可识别的 ASR
+  /// 环境，实现应原地接管并让后续 repair/inspect 复用其中模型，不得为了
+  /// 切换目录重复复制或删除该环境。
   Future<AsrManagedStorageMoveResult> moveToParent(
     String selectedParent, {
     void Function(int copiedBytes, int totalBytes)? onProgress,

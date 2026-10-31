@@ -252,7 +252,7 @@ class _AiTranscriptionSettingsSectionState
 
   Future<void> _changeManagedStorageLocation() async {
     final parent = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择 ASR 模型和 runtime 所在磁盘 / 文件夹',
+      dialogTitle: '选择磁盘 / 父文件夹、LyricForge 文件夹或已有的 ASRRuntime',
     );
     if (parent == null || parent.trim().isEmpty || !mounted) return;
     await _moveManagedStorage(parent: parent);
@@ -276,8 +276,9 @@ class _AiTranscriptionSettingsSectionState
         builder: (context) => AlertDialog(
           title: Text(useDefault ? '迁回默认位置？' : '迁移识别环境？'),
           content: Text(
-            '当前托管环境约 ${_formatBytes(bytes)}。LyricForge 会先完整复制并核对文件数量与总大小，'
-            '确认新目录完整后才切换路径并清理旧目录；迁移期间不会启动识别任务。',
+            '当前托管环境约 ${_formatBytes(bytes)}。如果所选位置已有 LyricForge ASRRuntime，'
+            '会直接识别并使用其中的模型，不复制、不删除当前目录；否则会先完整复制并核对文件数量与总大小，'
+            '确认新目录完整后才切换路径并清理旧目录。操作期间不会启动识别任务。',
           ),
           actions: [
             TextButton(
@@ -311,7 +312,14 @@ class _AiTranscriptionSettingsSectionState
             );
       final current = _config ?? _defaultConfig;
       final repaired = await _runtimeManager.repair(current);
-      await _settingsStore.save(repaired);
+      // Changing the storage root must work before the environment is fully
+      // installed. The settings store intentionally rejects incomplete
+      // configurations, so only persist repaired paths once they are usable;
+      // the managed-root pointer above is already the source of truth for
+      // the new location and _refresh will rediscover whatever exists there.
+      if (repaired.isConfigured) {
+        await _settingsStore.save(repaired);
+      }
       if (!mounted) return;
       setState(() => _config = repaired);
       await _refresh();
@@ -319,7 +327,9 @@ class _AiTranscriptionSettingsSectionState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result.oldRootRetained
+            result.adoptedExisting
+                ? '已识别并使用现有的识别环境：${result.targetRoot}；旧目录未删除。'
+                : result.oldRootRetained
                 ? '识别环境已切换；旧目录 ${result.sourceRoot} 未能自动删除，请手工清理。'
                 : '识别环境已迁移到 ${result.targetRoot}',
           ),
@@ -595,7 +605,7 @@ class _AiTranscriptionSettingsSectionState
             OutlinedButton.icon(
               onPressed: _busy ? null : _changeManagedStorageLocation,
               icon: const Icon(Icons.folder_open_rounded),
-              label: const Text('更改模型存储位置'),
+              label: const Text('更改 / 使用已有模型目录'),
             ),
             if (_managedStorageLocation?.isDefault == false)
               TextButton.icon(

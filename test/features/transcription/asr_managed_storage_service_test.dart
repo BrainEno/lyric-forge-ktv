@@ -6,10 +6,16 @@ import 'package:lyric_forge_ktv/features/transcription/data/services/local_asr_m
 
 void main() {
   test('moves managed ASR tree to another parent and persists the root', () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-root-');
+    final sandbox = await Directory.systemTemp.createTemp(
+      'lyricforge-asr-root-',
+    );
     addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    final destination = Directory('${sandbox.path}${Platform.pathSeparator}models-drive');
+    final support = Directory(
+      '${sandbox.path}${Platform.pathSeparator}support',
+    );
+    final destination = Directory(
+      '${sandbox.path}${Platform.pathSeparator}models-drive',
+    );
     await support.create(recursive: true);
     await destination.create(recursive: true);
 
@@ -59,54 +65,69 @@ void main() {
     expect(await source.exists(), isFalse);
   });
 
-  test('can migrate a custom root back to the default application-support root',
-      () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-default-');
-    addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    final destination = Directory('${sandbox.path}${Platform.pathSeparator}external');
-    await support.create(recursive: true);
-    await destination.create(recursive: true);
+  test(
+    'can migrate a custom root back to the default application-support root',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-default-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final support = Directory(
+        '${sandbox.path}${Platform.pathSeparator}support',
+      );
+      final destination = Directory(
+        '${sandbox.path}${Platform.pathSeparator}external',
+      );
+      await support.create(recursive: true);
+      await destination.create(recursive: true);
 
-    final service = LocalAsrManagedStorageService(
-      supportDirectoryResolver: () async => support,
-    );
-    final source = await service.resolveRoot();
-    final file = File(
-      '${source.path}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
-    );
-    await file.parent.create(recursive: true);
-    await file.writeAsString('runtime');
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      final file = File(
+        '${source.path}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
+      );
+      await file.parent.create(recursive: true);
+      await file.writeAsString('runtime');
 
-    await service.moveToParent(destination.path);
-    final custom = await service.inspect();
-    expect(custom.isDefault, isFalse);
+      await service.moveToParent(destination.path);
+      final custom = await service.inspect();
+      expect(custom.isDefault, isFalse);
 
-    final back = await service.moveToDefault();
-    final current = await service.inspect();
+      final back = await service.moveToDefault();
+      final current = await service.inspect();
 
-    expect(back.moved, isTrue);
-    expect(current.isDefault, isTrue);
-    expect(
-      await File(
-        '${current.activeRoot}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
-      ).readAsString(),
-      'runtime',
-    );
-  });
+      expect(back.moved, isTrue);
+      expect(current.isDefault, isTrue);
+      expect(
+        await File(
+          '${current.activeRoot}${Platform.pathSeparator}bundle${Platform.pathSeparator}qwen3-asr',
+        ).readAsString(),
+        'runtime',
+      );
+    },
+  );
 
   test('refuses to overwrite an existing LyricForge ASRRuntime tree', () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-conflict-');
+    final sandbox = await Directory.systemTemp.createTemp(
+      'lyricforge-asr-conflict-',
+    );
     addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    final destination = Directory('${sandbox.path}${Platform.pathSeparator}destination');
+    final support = Directory(
+      '${sandbox.path}${Platform.pathSeparator}support',
+    );
+    final destination = Directory(
+      '${sandbox.path}${Platform.pathSeparator}destination',
+    );
     await support.create(recursive: true);
     final service = LocalAsrManagedStorageService(
       supportDirectoryResolver: () async => support,
     );
     final source = await service.resolveRoot();
-    await File('${source.path}${Platform.pathSeparator}source.bin')
-        .writeAsString('source');
+    await File(
+      '${source.path}${Platform.pathSeparator}source.bin',
+    ).writeAsString('source');
 
     final conflicting = File(
       '${destination.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime${Platform.pathSeparator}foreign.bin',
@@ -127,58 +148,160 @@ void main() {
     expect(await conflicting.readAsString(), 'do not overwrite');
   });
 
-  test('refuses a migration target nested inside the current ASR root',
-      () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-overlap-');
-    addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    await support.create(recursive: true);
-    final service = LocalAsrManagedStorageService(
-      supportDirectoryResolver: () async => support,
-    );
-    final source = await service.resolveRoot();
-    final sourceFile = File('${source.path}${Platform.pathSeparator}keep.bin');
-    await sourceFile.writeAsString('keep-me');
+  test(
+    'adopts an existing ASRRuntime under the selected parent in place',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-adopt-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      final destination = Directory('${sandbox.path}${separator}drive-d');
+      await support.create(recursive: true);
+      await destination.create(recursive: true);
 
-    final nestedParent = Directory(
-      '${source.path}${Platform.pathSeparator}nested-destination',
-    );
-    await expectLater(
-      service.moveToParent(nestedParent.path),
-      throwsA(
-        isA<FileSystemException>().having(
-          (error) => error.message,
-          'message',
-          contains('不能位于当前 ASRRuntime 目录内部'),
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      final sourceFile = File('${source.path}${separator}keep-current.bin');
+      await sourceFile.writeAsString('current-root');
+
+      final existingRoot = Directory(
+        '${destination.path}${separator}LyricForge${separator}ASRRuntime',
+      );
+      final whisperModel = File(
+        '${existingRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+      );
+      await whisperModel.parent.create(recursive: true);
+      await whisperModel.writeAsString('existing-whisper-model');
+      final qwenMarker = File(
+        '${existingRoot.path}${separator}models${separator}qwen${separator}Qwen--Qwen3-ASR-1.7B${separator}.lyricforge-model.json',
+      );
+      await qwenMarker.parent.create(recursive: true);
+      await qwenMarker.writeAsString('{}');
+
+      final result = await service.moveToParent(destination.path);
+
+      expect(result.moved, isTrue);
+      expect(result.adoptedExisting, isTrue);
+      expect(result.oldRootRetained, isTrue);
+      expect(result.copiedBytes, 0);
+      expect(result.copiedFiles, 0);
+      expect(result.targetRoot, existingRoot.absolute.path);
+      expect((await service.resolveRoot()).path, existingRoot.absolute.path);
+      expect(await sourceFile.readAsString(), 'current-root');
+      expect(await whisperModel.readAsString(), 'existing-whisper-model');
+      expect(await qwenMarker.exists(), isTrue);
+    },
+  );
+
+  test(
+    'adopts an ASRRuntime selected directly without nesting another root',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-direct-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      await support.create(recursive: true);
+
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      await File('${source.path}${separator}keep.bin').writeAsString('keep');
+
+      final existingRoot = Directory(
+        '${sandbox.path}${separator}downloaded${separator}ASRRuntime',
+      );
+      final runtime = File(
+        '${existingRoot.path}${separator}bundle${separator}bin${separator}qwen3-asr.exe',
+      );
+      await runtime.parent.create(recursive: true);
+      await runtime.writeAsString('runtime');
+
+      final result = await service.moveToParent(existingRoot.path);
+
+      expect(result.adoptedExisting, isTrue);
+      expect(result.targetRoot, existingRoot.absolute.path);
+      expect((await service.resolveRoot()).path, existingRoot.absolute.path);
+      expect(
+        await Directory(
+          '${existingRoot.path}${separator}LyricForge${separator}ASRRuntime',
+        ).exists(),
+        isFalse,
+      );
+      expect(await runtime.readAsString(), 'runtime');
+    },
+  );
+
+  test(
+    'refuses a migration target nested inside the current ASR root',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-overlap-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final support = Directory(
+        '${sandbox.path}${Platform.pathSeparator}support',
+      );
+      await support.create(recursive: true);
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      final sourceFile = File(
+        '${source.path}${Platform.pathSeparator}keep.bin',
+      );
+      await sourceFile.writeAsString('keep-me');
+
+      final nestedParent = Directory(
+        '${source.path}${Platform.pathSeparator}nested-destination',
+      );
+      await expectLater(
+        service.moveToParent(nestedParent.path),
+        throwsA(
+          isA<FileSystemException>().having(
+            (error) => error.message,
+            'message',
+            contains('不能位于当前 ASRRuntime 目录内部'),
+          ),
         ),
-      ),
+      );
+
+      expect((await service.resolveRoot()).path, source.path);
+      expect(await sourceFile.readAsString(), 'keep-me');
+      expect(service.isMoving, isFalse);
+    },
+  );
+
+  test('persists and restores a macOS security-scoped storage bookmark', () async {
+    final sandbox = await Directory.systemTemp.createTemp(
+      'lyricforge-asr-bookmark-',
     );
-
-    expect((await service.resolveRoot()).path, source.path);
-    expect(await sourceFile.readAsString(), 'keep-me');
-    expect(service.isMoving, isFalse);
-  });
-
-  test('persists and restores a macOS security-scoped storage bookmark',
-      () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-bookmark-');
     addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    final destination = Directory('${sandbox.path}${Platform.pathSeparator}external');
+    final support = Directory(
+      '${sandbox.path}${Platform.pathSeparator}support',
+    );
+    final destination = Directory(
+      '${sandbox.path}${Platform.pathSeparator}external',
+    );
     await support.create(recursive: true);
     await destination.create(recursive: true);
 
-    final bridge = _FakeBookmarkBridge(
-      createdBookmark: 'bookmark-v2',
-    );
+    final bridge = _FakeBookmarkBridge(createdBookmark: 'bookmark-v2');
     final service = LocalAsrManagedStorageService(
       supportDirectoryResolver: () async => support,
       securityScopedBookmarkBridge: bridge,
       isMacOSResolver: () => true,
     );
     final source = await service.resolveRoot();
-    await File('${source.path}${Platform.pathSeparator}keep.bin')
-        .writeAsString('keep');
+    await File(
+      '${source.path}${Platform.pathSeparator}keep.bin',
+    ).writeAsString('keep');
 
     await service.moveToParent(destination.path);
     final expected = Directory(
@@ -188,7 +311,8 @@ void main() {
     final configFile = File(
       '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}asr-managed-storage.json',
     );
-    final config = jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+    final config =
+        jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
     expect(config['schemaVersion'], 2);
     expect(config['securityScopedBookmark'], 'bookmark-v2');
     expect(config['securityScopedParent'], destination.absolute.path);
@@ -211,50 +335,61 @@ void main() {
     );
   });
 
-  test('reauthorizes a legacy macOS root in place without losing part files',
-      () async {
-    final sandbox = await Directory.systemTemp.createTemp('lyricforge-asr-legacy-');
-    addTearDown(() => sandbox.delete(recursive: true));
-    final support = Directory('${sandbox.path}${Platform.pathSeparator}support');
-    final selectedParent = Directory('${sandbox.path}${Platform.pathSeparator}external');
-    final legacyRoot = Directory(
-      '${selectedParent.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime',
-    );
-    await support.create(recursive: true);
-    await legacyRoot.create(recursive: true);
-    final part = File(
-      '${legacyRoot.path}${Platform.pathSeparator}downloads${Platform.pathSeparator}asr-runtime.zip.part',
-    );
-    await part.parent.create(recursive: true);
-    await part.writeAsBytes(List<int>.filled(333, 9));
+  test(
+    'reauthorizes a legacy macOS root in place without losing part files',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-legacy-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final support = Directory(
+        '${sandbox.path}${Platform.pathSeparator}support',
+      );
+      final selectedParent = Directory(
+        '${sandbox.path}${Platform.pathSeparator}external',
+      );
+      final legacyRoot = Directory(
+        '${selectedParent.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}ASRRuntime',
+      );
+      await support.create(recursive: true);
+      await legacyRoot.create(recursive: true);
+      final part = File(
+        '${legacyRoot.path}${Platform.pathSeparator}downloads${Platform.pathSeparator}asr-runtime.zip.part',
+      );
+      await part.parent.create(recursive: true);
+      await part.writeAsBytes(List<int>.filled(333, 9));
 
-    final configFile = File(
-      '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}asr-managed-storage.json',
-    );
-    await configFile.parent.create(recursive: true);
-    await configFile.writeAsString(jsonEncode({
-      'schemaVersion': 1,
-      'managedRoot': legacyRoot.absolute.path,
-    }));
+      final configFile = File(
+        '${support.path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}asr-managed-storage.json',
+      );
+      await configFile.parent.create(recursive: true);
+      await configFile.writeAsString(
+        jsonEncode({
+          'schemaVersion': 1,
+          'managedRoot': legacyRoot.absolute.path,
+        }),
+      );
 
-    final bridge = _FakeBookmarkBridge(createdBookmark: 'legacy-upgraded');
-    final service = LocalAsrManagedStorageService(
-      supportDirectoryResolver: () async => support,
-      securityScopedBookmarkBridge: bridge,
-      isMacOSResolver: () => true,
-    );
+      final bridge = _FakeBookmarkBridge(createdBookmark: 'legacy-upgraded');
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+        securityScopedBookmarkBridge: bridge,
+        isMacOSResolver: () => true,
+      );
 
-    expect(await service.needsSecurityScopedAuthorization(), isTrue);
-    final result = await service.moveToParent(selectedParent.path);
-    expect(result.moved, isFalse);
-    expect(await part.length(), 333);
-    expect(await service.needsSecurityScopedAuthorization(), isFalse);
+      expect(await service.needsSecurityScopedAuthorization(), isTrue);
+      final result = await service.moveToParent(selectedParent.path);
+      expect(result.moved, isFalse);
+      expect(await part.length(), 333);
+      expect(await service.needsSecurityScopedAuthorization(), isFalse);
 
-    final config = jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
-    expect(config['schemaVersion'], 2);
-    expect(config['securityScopedBookmark'], 'legacy-upgraded');
-    expect(bridge.createdPaths, [selectedParent.absolute.path]);
-  });
+      final config =
+          jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+      expect(config['schemaVersion'], 2);
+      expect(config['securityScopedBookmark'], 'legacy-upgraded');
+      expect(bridge.createdPaths, [selectedParent.absolute.path]);
+    },
+  );
 }
 
 class _FakeBookmarkBridge implements AsrSecurityScopedBookmarkBridge {
@@ -281,7 +416,9 @@ class _FakeBookmarkBridge implements AsrSecurityScopedBookmarkBridge {
   }
 
   @override
-  Future<AsrSecurityScopedBookmarkAccess> restoreAndStart(String bookmark) async {
+  Future<AsrSecurityScopedBookmarkAccess> restoreAndStart(
+    String bookmark,
+  ) async {
     restoredBookmarks.add(bookmark);
     final path = restoredPath;
     if (path == null) {

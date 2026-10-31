@@ -123,9 +123,10 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         bridge != null) {
       final restored = await bridge.restoreAndStart(bookmark);
       final restoredParent = Directory(restored.path).absolute;
-      root = Directory(
-        _join(restoredParent.path, ['LyricForge', 'ASRRuntime']),
-      ).absolute;
+      root = _rootFromRestoredParent(
+        restoredParent: restoredParent,
+        configured: configured,
+      );
       if (!_samePath(root.path, configured.managedRoot) ||
           restored.bookmark != bookmark ||
           configured.securityScopedParent != restoredParent.path) {
@@ -182,9 +183,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       bookmark = access.bookmark;
     }
 
-    final target = Directory(
-      _join(Directory(parent).absolute.path, ['LyricForge', 'ASRRuntime']),
-    );
+    final target = await _resolveSelectionTarget(Directory(parent).absolute);
     return _moveToRoot(
       target,
       securityScopedParent: _isMacOS ? Directory(parent).absolute.path : null,
@@ -239,6 +238,29 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         throw FileSystemException(
           '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
           target.path,
+        );
+      }
+
+      // A previous LyricForge install may already have downloaded the full
+      // runtime/models on another drive. Switching the pointer is enough:
+      // the runtime managers resolve every component relative to this root,
+      // so repair/inspect will rediscover those files without a second
+      // multi-GB copy (and without deleting either tree).
+      if (await _looksLikeManagedAsrRoot(target)) {
+        await _assertWritable(target);
+        await _writeConfiguredRoot(
+          target.path,
+          securityScopedParent: securityScopedParent,
+          securityScopedBookmark: securityScopedBookmark,
+        );
+        return AsrManagedStorageMoveResult(
+          sourceRoot: source.path,
+          targetRoot: target.path,
+          copiedBytes: 0,
+          copiedFiles: 0,
+          moved: true,
+          oldRootRetained: sourceStats.files > 0 || sourceStats.bytes > 0,
+          adoptedExisting: true,
         );
       }
 
@@ -328,6 +350,132 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     } finally {
       _moving = false;
     }
+  }
+
+  Future<Directory> _resolveSelectionTarget(Directory selected) async {
+    final selectedName = _pathBasename(selected.path).toLowerCase();
+    if (selectedName == 'ASRRuntime') return selected;
+    if (selectedName == 'lyricforge') {
+      return Directory(_join(selected.path, ['ASRRuntime'])).absolute;
+    }
+
+    final candidates = <Directory>[
+      selected,
+      Directory(_join(selected.path, ['ASRRuntime'])).absolute,
+      Directory(_join(selected.path, ['LyricForge', 'ASRRuntime'])).absolute,
+    ];
+    for (final candidate in candidates) {
+      if (await _looksLikeManagedAsrRoot(candidate)) return candidate;
+    }
+    return candidates.last;
+  }
+
+  Future<bool> _looksLikeManagedAsrRoot(Directory root) async {
+    if (!await root.exists()) return false;
+
+    Future<bool> fileExists(List<String> relative) {
+      return File(_join(root.path, relative)).exists();
+    }
+
+    // Strong, layout-specific evidence only. A merely non-empty directory
+    // must keep taking the existing conflict path so unrelated user files
+    // are never silently treated as an ASR environment.
+    if (await fileExists(['models', 'whisper', 'ggml-large-v3.bin']) ||
+        await fileExists(['models', 'whisper', 'ggml-large-v3.bin.part']) ||
+        await fileExists(['bundle', 'bin', 'qwen3-asr']) ||
+        await fileExists(['bundle', 'bin', 'qwen3-asr.exe']) ||
+        await fileExists(['bundle', 'bin', 'whisper-cli']) ||
+        await fileExists(['bundle', 'bin', 'whisper-cli.exe']) ||
+        await fileExists(['state', 'runtime-build-revision.txt']) ||
+        await fileExists(['downloads', 'asr-runtime.zip']) ||
+        await fileExists(['downloads', 'asr-runtime.zip.part'])) {
+      return true;
+    }
+
+    final state = Directory(_join(root.path, ['state']));
+    if (await state.exists()) {
+      await for (final entity in state.list(followLinks: false)) {
+        if (entity is File &&
+            _pathBasename(entity.path).startsWith('qwen_') &&
+            entity.path.endsWith('.ready.json')) {
+          return true;
+        }
+      }
+    }
+
+    final qwenModels = Directory(_join(root.path, ['models', 'qwen']));
+    if (!await qwenModels.exists()) return false;
+    await for (final entity in qwenModels.list(followLinks: false)) {
+      if (entity is! Directory) continue;
+      const managedModelDirectoryNames = {
+        'Qwen--Qwen3-ASR-1.7B',
+        'Qwen--Qwen3-ASR-0.6B',
+        'Qwen--Qwen3-ForcedAligner-0.6B',
+      };
+      if (managedModelDirectoryNames.contains(_pathBasename(entity.path))) {
+        await for (final child in entity.list(followLinks: false)) {
+          if (child is File) return true;
+        }
+      }
+      if (await File(_join(entity.path, ['.lyricforge-model.json'])).exists()) {
+        return true;
+      }
+
+      // A model downloaded by an older build (or copied from a Hugging Face
+      // snapshot into the managed layout) may not have LyricForge's marker
+      // yet. The normal file names + a weight file are sufficient to adopt
+      // the root; runtime repair/install still performs its own stricter
+      // completeness and integrity checks before using the model.
+      final hasConfig = await File(
+        _join(entity.path, ['config.json']),
+      ).exists();
+      if (!hasConfig) continue;
+      await for (final child in entity.list(followLinks: false)) {
+        if (child is File && child.path.endsWith('.safetensors')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  Directory _rootFromRestoredParent({
+    required Directory restoredParent,
+    required _ConfiguredManagedRoot configured,
+  }) {
+    final legacyRoot = Directory(
+      _join(restoredParent.path, ['LyricForge', 'ASRRuntime']),
+    ).absolute;
+    final configuredParent = configured.securityScopedParent;
+    if (configuredParent == null || configuredParent.trim().isEmpty) {
+      return legacyRoot;
+    }
+
+    final configuredRoot = Directory(configured.managedRoot).absolute.path;
+    final parentPath = Directory(configuredParent).absolute.path;
+    if (_samePath(configuredRoot, parentPath)) return restoredParent;
+
+    final separator = Platform.pathSeparator;
+    final normalizedRoot = _normalizedPath(configuredRoot);
+    final normalizedParent = _normalizedPath(parentPath);
+    final prefix = normalizedParent.endsWith(separator)
+        ? normalizedParent
+        : '$normalizedParent$separator';
+    if (!normalizedRoot.startsWith(prefix)) return legacyRoot;
+
+    final relative = configuredRoot.substring(prefix.length);
+    final segments = relative
+        .split(separator)
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+    if (segments.isEmpty) return restoredParent;
+    return Directory(_join(restoredParent.path, segments)).absolute;
+  }
+
+  String _pathBasename(String path) {
+    final trimmed = path.replaceAll(RegExp(r'[/\\]+$'), '');
+    final parts = trimmed.split(RegExp(r'[/\\]'));
+    return parts.isEmpty ? trimmed : parts.last;
   }
 
   Future<void> _copyTree({
