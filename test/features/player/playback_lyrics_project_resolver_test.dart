@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_resolver.dart';
@@ -55,6 +56,7 @@ void main() {
     );
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository([
         project('project-linked', audioPath),
@@ -77,6 +79,7 @@ void main() {
     );
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath, projectId: 'project-direct'),
       projectRepository: _FakeProjectRepository([
         project('project-direct', audioPath),
@@ -106,6 +109,7 @@ void main() {
       );
 
       final resolved = await resolvePlaybackLyricsProjectId(
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
         item: item(audioPath),
         projectRepository: _FakeProjectRepository([
           project('project-other', '/music/other.mp3'),
@@ -143,6 +147,7 @@ void main() {
     );
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository([
         project('project-other', '/music/other.mp3'),
@@ -169,6 +174,7 @@ void main() {
     );
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository([
         project('project-draft', audioPath, withLyrics: false),
@@ -186,6 +192,7 @@ void main() {
     final metadataRepository = _FakeMetadataRepository();
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository(const []),
       metadataRepository: metadataRepository,
@@ -205,6 +212,7 @@ void main() {
     );
 
     final resolved = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: PlaybackItem(
         id: 'stream-1',
         title: 'stream',
@@ -224,6 +232,7 @@ void main() {
     const audioPath = '/music/song.mp3';
 
     final repaired = await resolvePlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository([
         project('project-repaired', audioPath),
@@ -243,6 +252,7 @@ void main() {
     expect(repaired.clearedLink, isFalse);
 
     final cleared = await resolvePlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(audioPath),
       projectRepository: _FakeProjectRepository(const []),
       metadataRepository: _FakeMetadataRepository(
@@ -268,6 +278,7 @@ void main() {
     const audioPath = '/music/song.mp3';
 
     final resolution = await resolvePlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: PlaybackItem(
         id: 'item-1',
         title: 'song',

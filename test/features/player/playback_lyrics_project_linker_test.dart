@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart';
@@ -29,6 +30,7 @@ void main() {
     );
 
     await linkPlaybackLyricsProject(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       audioPath: audioPath,
       projectId: 'lyrics-project',
       metadataRepository: metadataRepository,
@@ -55,6 +57,7 @@ void main() {
     final session = _FakePlaybackSession(const PlaybackSessionState());
 
     await linkPlaybackLyricsProject(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       audioPath: '/music/song.mp3',
       projectId: 'lyrics-project',
       metadataRepository: metadataRepository,

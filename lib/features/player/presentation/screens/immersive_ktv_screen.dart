@@ -10,6 +10,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_lyrics_project_resolver.dart';
 import '../../domain/services/playback_session_service.dart';
@@ -24,6 +25,7 @@ class ImmersiveKtvScreen extends StatefulWidget {
   final LocalMediaMetadataRepository? metadataRepository;
   final AudioPlayerService? audioService;
   final PlaybackSessionService? playbackSession;
+  final AudioPathCanonicalizer? pathCanonicalizer;
 
   const ImmersiveKtvScreen({
     super.key,
@@ -32,6 +34,7 @@ class ImmersiveKtvScreen extends StatefulWidget {
     this.metadataRepository,
     this.audioService,
     this.playbackSession,
+    this.pathCanonicalizer,
   });
 
   @override
@@ -43,6 +46,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   late final LocalMediaMetadataRepository _metadata;
   late final AudioPlayerService _audio;
   late final PlaybackSessionService _session;
+  late final AudioPathCanonicalizer _pathCanonicalizer;
   StreamSubscription<PlaybackSessionState>? _sessionSub;
   ProjectManifest? _project;
   Object? _error;
@@ -54,12 +58,15 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
     final needsGlobal = widget.projectRepository == null ||
         widget.metadataRepository == null ||
         widget.audioService == null ||
-        widget.playbackSession == null;
+        widget.playbackSession == null ||
+        widget.pathCanonicalizer == null;
     final services = needsGlobal ? ServiceLocatorGlobal.I : null;
     _projects = widget.projectRepository ?? services!.projectRepository;
     _metadata = widget.metadataRepository ?? services!.localMediaMetadataRepository;
     _audio = widget.audioService ?? services!.audioPlayerService;
     _session = widget.playbackSession ?? services!.playbackSessionService;
+    _pathCanonicalizer =
+        widget.pathCanonicalizer ?? services!.audioPathCanonicalizer;
     AppChromeController.enterImmersive();
     unawaited(_loadProject(widget.initialProjectId));
     _sessionSub = _session.stateStream.listen(_syncProjectToPlayback);
@@ -89,6 +96,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
         item: item,
         projectRepository: _projects,
         metadataRepository: _metadata,
+        pathCanonicalizer: _pathCanonicalizer,
       );
       if (!mounted || generation != _loadGeneration) return;
       if (projectId == null) {

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
+import '../../../player/domain/services/audio_path_canonicalizer.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
 import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -30,6 +31,7 @@ class LocalProjectTranscriptionWorkflow
   final AsrRuntimeManager _runtimeManager;
   final LocalMediaMetadataRepository _mediaMetadataRepository;
   final PlaybackSessionService _playbackSession;
+  final AudioPathCanonicalizer _pathCanonicalizer;
 
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
@@ -39,13 +41,15 @@ class LocalProjectTranscriptionWorkflow
     required AsrRuntimeManager runtimeManager,
     required LocalMediaMetadataRepository mediaMetadataRepository,
     required PlaybackSessionService playbackSession,
+    required AudioPathCanonicalizer pathCanonicalizer,
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
        _profileResolver = profileResolver,
        _runtimeManager = runtimeManager,
        _mediaMetadataRepository = mediaMetadataRepository,
-       _playbackSession = playbackSession;
+       _playbackSession = playbackSession,
+       _pathCanonicalizer = pathCanonicalizer;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -200,6 +204,7 @@ class LocalProjectTranscriptionWorkflow
         projectId: savedProject.id,
         metadataRepository: _mediaMetadataRepository,
         playbackSession: _playbackSession,
+        pathCanonicalizer: _pathCanonicalizer,
       );
     } on TranscriptionException catch (error) {
       final latest = await _projectRepository.getProjectById(projectId);

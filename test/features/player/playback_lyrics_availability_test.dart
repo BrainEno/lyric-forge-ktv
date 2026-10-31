@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_availability.dart';
@@ -60,6 +61,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(),
       projectRepository: _FakeProjectRepository(const []),
       metadataRepository: metadata,
@@ -80,6 +82,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(hasLyrics: false),
       projectRepository: _FakeProjectRepository([project('project-found')]),
       metadataRepository: metadata,
@@ -108,6 +111,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(),
       projectRepository: _FakeProjectRepository([project('project-linked')]),
       metadataRepository: metadata,
@@ -122,6 +126,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(hasLyrics: false, projectId: 'project-1'),
       projectRepository: _FakeProjectRepository([project('project-1')]),
       metadataRepository: _FakeMetadataRepository(),
@@ -137,6 +142,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: item(projectId: 'project-gone'),
       projectRepository: _FakeProjectRepository(const []),
       metadataRepository: _FakeMetadataRepository(),
@@ -152,6 +158,7 @@ void main() {
     final session = _RecordingSession();
 
     final resolution = await resolveAndSyncPlaybackLyrics(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: PlaybackItem(
         id: 'stream-1',
         title: 'stream',
@@ -177,6 +184,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: PlaybackLyricsAvailabilitySync(
+          pathCanonicalizer: const FileAudioPathCanonicalizer(),
           playbackSession: session,
           projectRepository: _FakeProjectRepository([
             project('project-late', path: '/music/other.mp3'),

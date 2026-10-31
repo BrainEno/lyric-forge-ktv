@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../models/local_media_metadata.dart';
 import '../repositories/local_media_metadata_repository.dart';
+import 'audio_path_canonicalizer.dart';
 import 'playback_session_service.dart';
 
 /// Structured outcome of resolving the lyric project for one playback item.
@@ -53,6 +52,7 @@ Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
   required PlaybackItem item,
   required ProjectRepository projectRepository,
   required LocalMediaMetadataRepository metadataRepository,
+  required AudioPathCanonicalizer pathCanonicalizer,
 }) async {
   final directProjectId = item.projectId?.trim();
   if (directProjectId != null && directProjectId.isNotEmpty) {
@@ -78,6 +78,7 @@ Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
   final matchedProjectId = await _scannedProjectIdForAudio(
     projectRepository,
     audioPath,
+    pathCanonicalizer,
   );
   if (matchedProjectId != null && matchedProjectId == linkedProjectId) {
     // The scan rediscovered the same id; rewriting an identical link would
@@ -108,11 +109,13 @@ Future<String?> resolvePlaybackLyricsProjectId({
   required PlaybackItem item,
   required ProjectRepository projectRepository,
   required LocalMediaMetadataRepository metadataRepository,
+  required AudioPathCanonicalizer pathCanonicalizer,
 }) async {
   final resolution = await resolvePlaybackLyrics(
     item: item,
     projectRepository: projectRepository,
     metadataRepository: metadataRepository,
+    pathCanonicalizer: pathCanonicalizer,
   );
   return resolution.projectId;
 }
@@ -149,14 +152,18 @@ Future<ProjectManifest?> _projectFor(
 Future<String?> _scannedProjectIdForAudio(
   ProjectRepository repository,
   String path,
+  AudioPathCanonicalizer pathCanonicalizer,
 ) async {
   try {
+    final canonicalPath = pathCanonicalizer.canonicalize(path);
     final projects = await repository.getAllProjects();
     for (final project in projects) {
       final projectPath = project.audioAsset?.originalPath;
       if (projectPath == null || projectPath.trim().isEmpty) continue;
       if (!project.hasLyrics) continue;
-      if (_sameAudioPath(projectPath, path)) return project.id;
+      if (pathCanonicalizer.canonicalize(projectPath) == canonicalPath) {
+        return project.id;
+      }
     }
   } catch (_) {
     // Project scanning is a best-effort fallback.
@@ -203,11 +210,4 @@ Future<_LinkHealing> _healLink({
     // Self-healing is best effort; a failed write keeps resolution alive.
   }
   return _LinkHealing.none;
-}
-
-bool _sameAudioPath(String a, String b) {
-  final left = File(a).absolute.path;
-  final right = File(b).absolute.path;
-  if (Platform.isWindows) return left.toLowerCase() == right.toLowerCase();
-  return left == right;
 }

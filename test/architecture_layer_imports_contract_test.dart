@@ -11,12 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// was introduced. The ratchet only tightens: a new violation fails here
 /// until the import itself is fixed (never baseline a new violation), and a
 /// fixed violation fails here until its stale baseline entry is deleted.
-/// Burn-down order: the two domain `dart:io` files (abstract the file
-/// access behind a domain interface), then the presentation->data imports.
-const Set<String> _platformBaseline = <String>{
-  'lib/features/player/domain/services/playback_lyrics_project_linker.dart -> dart:io',
-  'lib/features/player/domain/services/playback_lyrics_project_resolver.dart -> dart:io',
-};
+/// The domain platform baseline reached zero when the playback lyrics
+/// path handling moved behind `AudioPathCanonicalizer`; the remaining
+/// burn-down is the presentation->data imports.
+const Set<String> _platformBaseline = <String>{};
 
 const Set<String> _presentationBaseline = <String>{
   'lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/lyrics/data/services/reference_lyric_text_parser.dart',

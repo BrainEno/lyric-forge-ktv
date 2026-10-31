@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_resolver.dart';
@@ -15,6 +16,7 @@ void main() {
     ]);
 
     final result = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: _item(projectId: 'direct-project'),
       projectRepository: projects,
       metadataRepository: _FakeMetadataRepository(),
@@ -37,6 +39,7 @@ void main() {
     ]);
 
     final result = await resolvePlaybackLyricsProjectId(
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
       item: _item(hasLyrics: true),
       projectRepository: projects,
       metadataRepository: metadata,
@@ -59,6 +62,7 @@ void main() {
 
     expect(
       await resolvePlaybackLyricsProjectId(
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
         item: _item(hasLyrics: true),
         projectRepository: projects,
         metadataRepository: metadata,

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
 
@@ -23,6 +24,7 @@ class PlaybackLyricsAvailabilitySync extends StatefulWidget {
     this.projectRepository,
     this.metadataRepository,
     this.playbackSession,
+    this.pathCanonicalizer,
   });
 
   final Widget child;
@@ -31,6 +33,7 @@ class PlaybackLyricsAvailabilitySync extends StatefulWidget {
   final ProjectRepository? projectRepository;
   final LocalMediaMetadataRepository? metadataRepository;
   final PlaybackSessionService? playbackSession;
+  final AudioPathCanonicalizer? pathCanonicalizer;
 
   @override
   State<PlaybackLyricsAvailabilitySync> createState() =>
@@ -88,6 +91,8 @@ class _PlaybackLyricsAvailabilitySyncState
             ServiceLocatorGlobal.I.localMediaMetadataRepository,
         playbackSession: widget.playbackSession ??
             ServiceLocatorGlobal.I.playbackSessionService,
+        pathCanonicalizer: widget.pathCanonicalizer ??
+            ServiceLocatorGlobal.I.audioPathCanonicalizer,
       );
     } catch (_) {
       // A rebuild-path availability refresh is best effort; playback and the

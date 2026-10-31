@@ -27,6 +27,7 @@ Future<void> importLyricsForLocalPlaybackItem(
   final mediaMetadataRepository =
       ServiceLocatorGlobal.I.localMediaMetadataRepository;
   final playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
+  final pathCanonicalizer = ServiceLocatorGlobal.I.audioPathCanonicalizer;
 
   // Resolve through the shared resolver so a dead link is repaired or cleared
   // and the queue's lyric flag is retracted, matching every playback surface.
@@ -35,6 +36,7 @@ Future<void> importLyricsForLocalPlaybackItem(
     projectRepository: projectRepository,
     metadataRepository: mediaMetadataRepository,
     playbackSession: playbackSession,
+    pathCanonicalizer: pathCanonicalizer,
   );
   if (!context.mounted) return;
 
@@ -135,6 +137,7 @@ Future<void> importLyricsForLocalPlaybackItem(
     projectId: savedProject.id,
     metadataRepository: mediaMetadataRepository,
     playbackSession: playbackSession,
+    pathCanonicalizer: pathCanonicalizer,
   );
 
   if (!context.mounted) return;
