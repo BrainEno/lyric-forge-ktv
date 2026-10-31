@@ -207,7 +207,7 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   Future<void> _changeManagedStorageLocation() async {
     if (_installing || _runtimeManager.isInstalling) return;
     final parent = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: '选择 ASR 模型和 runtime 所在磁盘 / 文件夹',
+      dialogTitle: '选择磁盘 / 父文件夹、LyricForge 文件夹或已有的 ASRRuntime',
     );
     if (parent == null || parent.trim().isEmpty || !mounted) return;
 
@@ -225,7 +225,9 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result.oldRootRetained
+            result.adoptedExisting
+                ? '已识别并使用现有的识别环境；没有复制或删除旧目录。'
+                : result.oldRootRetained
                 ? '识别环境已切换到新位置；旧目录未能自动删除，请稍后手工清理。'
                 : '识别环境已安全迁移到新位置。',
           ),

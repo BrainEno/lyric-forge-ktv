@@ -82,9 +82,9 @@
 - [2026-10-21 16:50] 智能歌词复核优先队列（PR #126） ([entry](log/entries/2026-10-21-1650-smart-lyric-review-queue.md))
 - [2026-10-21 17:04] 智能复核逐项完成与确认记录 ([entry](log/entries/2026-10-21-1704-guided-smart-review-confirmation.md))
 
-
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 02:20] Add per-store schema versioning to atomic JSON persistence ([entry](log/entries/2026-10-31-0220-atomic-json-schema-versioning.md))
 - [2026-10-31 02:05] Align architecture documentation and AI config with the implemented stack ([entry](log/entries/2026-10-31-0205-align-architecture-docs.md))
 - [2026-10-31 01:50] Run AtomicJsonFile fault-injection tests on macOS CI ([entry](log/entries/2026-10-31-0150-macos-atomic-json-fault-injection.md))
 - [2026-10-31 01:35] Supervise high-quality shared audio preparation ([entry](log/entries/2026-10-31-0135-supervise-high-quality-shared-audio-prep.md))
