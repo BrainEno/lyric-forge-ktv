@@ -53,11 +53,11 @@ class MethodChannelAsrSecurityScopedBookmarkBridge
   AsrSecurityScopedBookmarkAccess _decode(Map<String, dynamic>? result) {
     final path = result?['path'];
     final bookmark = result?['bookmark'];
-    if (path is! String || path.trim().isEmpty ||
-        bookmark is! String || bookmark.trim().isEmpty) {
-      throw const FileSystemException(
-        'macOS 无法恢复模型目录访问授权，请重新选择模型存储位置',
-      );
+    if (path is! String ||
+        path.trim().isEmpty ||
+        bookmark is! String ||
+        bookmark.trim().isEmpty) {
+      throw const FileSystemException('macOS 无法恢复模型目录访问授权，请重新选择模型存储位置');
     }
     return AsrSecurityScopedBookmarkAccess(
       path: path.trim(),
@@ -86,10 +86,11 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     this.supportDirectoryResolver,
     AsrSecurityScopedBookmarkBridge? securityScopedBookmarkBridge,
     this.isMacOSResolver,
-  }) : securityScopedBookmarkBridge = securityScopedBookmarkBridge ??
-            (Platform.isMacOS
-                ? const MethodChannelAsrSecurityScopedBookmarkBridge()
-                : null);
+  }) : securityScopedBookmarkBridge =
+           securityScopedBookmarkBridge ??
+           (Platform.isMacOS
+               ? const MethodChannelAsrSecurityScopedBookmarkBridge()
+               : null);
 
   bool get isMoving => _moving;
 
@@ -116,7 +117,10 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     var root = Directory(configured.managedRoot).absolute;
     final bookmark = configured.securityScopedBookmark;
     final bridge = securityScopedBookmarkBridge;
-    if (_isMacOS && bookmark != null && bookmark.trim().isNotEmpty && bridge != null) {
+    if (_isMacOS &&
+        bookmark != null &&
+        bookmark.trim().isNotEmpty &&
+        bridge != null) {
       final restored = await bridge.restoreAndStart(bookmark);
       final restoredParent = Directory(restored.path).absolute;
       root = Directory(
@@ -139,7 +143,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
 
   Future<Directory> defaultRoot() async {
     final support = await _supportDirectory();
-    return Directory(_join(support.path, ['LyricForge', 'ASRRuntime'])).absolute;
+    return Directory(
+      _join(support.path, ['LyricForge', 'ASRRuntime']),
+    ).absolute;
   }
 
   @override
@@ -238,10 +244,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
 
       final targetParent = target.parent;
       final staging = Directory(
-        _join(
-          targetParent.path,
-          ['.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}'],
-        ),
+        _join(targetParent.path, [
+          '.ASRRuntime.migrating-${DateTime.now().microsecondsSinceEpoch}',
+        ]),
       );
 
       await targetParent.create(recursive: true);
@@ -277,10 +282,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         final copiedStats = await _treeStats(staging);
         if (copiedStats.files != sourceStats.files ||
             copiedStats.bytes != sourceStats.bytes) {
-          throw FileSystemException(
-            '迁移校验失败：复制后的文件数量或总大小与原目录不一致',
-            staging.path,
-          );
+          throw FileSystemException('迁移校验失败：复制后的文件数量或总大小与原目录不一致', staging.path);
         }
 
         await staging.rename(target.path);
@@ -336,7 +338,10 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     if (!await source.exists()) return;
     await target.create(recursive: true);
 
-    await for (final entity in source.list(recursive: false, followLinks: false)) {
+    await for (final entity in source.list(
+      recursive: false,
+      followLinks: false,
+    )) {
       final name = entity.uri.pathSegments
           .where((segment) => segment.isNotEmpty)
           .last;
@@ -382,7 +387,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
 
   Future<void> _assertWritable(Directory directory) async {
     final probe = File(
-      _join(directory.path, ['.lyricforge-write-${DateTime.now().microsecondsSinceEpoch}']),
+      _join(directory.path, [
+        '.lyricforge-write-${DateTime.now().microsecondsSinceEpoch}',
+      ]),
     );
     try {
       await probe.writeAsString('ok', flush: true);
@@ -407,8 +414,9 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       final bookmark = decoded['securityScopedBookmark'];
       return _ConfiguredManagedRoot(
         managedRoot: value.trim(),
-        securityScopedParent:
-            parent is String && parent.trim().isNotEmpty ? parent.trim() : null,
+        securityScopedParent: parent is String && parent.trim().isNotEmpty
+            ? parent.trim()
+            : null,
         securityScopedBookmark: bookmark is String && bookmark.trim().isNotEmpty
             ? bookmark.trim()
             : null,
