@@ -3,8 +3,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge_ktv/features/player/data/services/ktv_take_history_store.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_ktv_take_history_store.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/pcm16_wav_writer.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/ktv_take_history_store.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
@@ -46,17 +47,17 @@ void main() {
         'micStemPath': external.path, 'manifestPath': forgedManifest.path,
         'backingVolume': 1, 'monitorMicGain': 1,
       }));
-      final history = await const KtvTakeHistoryStore().listFromDirectory(root, 'song');
+      final history = await const FileKtvTakeHistoryStore().listFromDirectory(root, 'song');
       expect(history.map((e) => e.id).toList(), ['take_2', 'take_1']);
-      expect(await const KtvTakeHistoryStore().listFromDirectory(root, 'other'), isEmpty);
+      expect(await const FileKtvTakeHistoryStore().listFromDirectory(root, 'other'), isEmpty);
       expect(await external.readAsBytes(), [7, 8, 9]);
       final first = history.firstWhere((take) => take.id == 'take_1');
-      await const KtvTakeHistoryStore().deleteTake(root, 'song', first);
+      await const FileKtvTakeHistoryStore().deleteTake(root, 'song', first);
       expect(await Directory('${recordings.path}${Platform.pathSeparator}take_1').exists(), isFalse);
       expect(await Directory('${recordings.path}${Platform.pathSeparator}take_2').exists(), isTrue);
       expect(await external.readAsBytes(), [7, 8, 9]);
       await expectLater(
-        const KtvTakeHistoryStore().deleteTake(root, 'other', first),
+        const FileKtvTakeHistoryStore().deleteTake(root, 'other', first),
         throwsA(isA<FileSystemException>()),
       );
     } finally {
@@ -100,7 +101,7 @@ void main() {
         }));
       }
 
-      const store = KtvTakeHistoryStore();
+      const store = FileKtvTakeHistoryStore();
       final initial = await store.listFromDirectory(root, 'song');
       expect(initial.map((take) => take.id), ['take_new', 'take_old']);
       expect(initial.every((take) => take.displayName == null), isTrue);
@@ -201,7 +202,7 @@ void main() {
         updatedAt: DateTime(2026, 10, 9),
         projectDirectory: root.path,
       );
-      const store = KtvTakeHistoryStore();
+      const store = FileKtvTakeHistoryStore();
       final firstScan = await store.scanProject(project);
       expect(firstScan.recoveredCount, 1);
       expect(firstScan.takes, hasLength(1));

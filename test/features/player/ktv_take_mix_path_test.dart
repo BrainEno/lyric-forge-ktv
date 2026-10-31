@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lyric_forge_ktv/features/player/data/services/ktv_take_history_store.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_ktv_take_history_store.dart';
 
 void main() {
   test('history exposes only an in-take regular mix.wav', () async {
@@ -71,7 +71,7 @@ void main() {
         mixedPath: (dir) => '${dir.path}${Platform.pathSeparator}mix.wav',
       );
 
-      final takes = await const KtvTakeHistoryStore()
+      final takes = await const FileKtvTakeHistoryStore()
           .listFromDirectory(root, 'song');
       expect(takes, hasLength(3));
       expect(

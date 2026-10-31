@@ -3,30 +3,24 @@ import 'dart:io';
 
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/ktv_recording_session.dart';
+import '../../domain/services/ktv_take_history_store.dart';
 import 'ktv_project_storage.dart';
 import 'pcm16_wav_writer.dart';
 
-class KtvTakeHistoryScanResult {
-  final List<KtvRecordingSession> takes;
-  final int recoveredCount;
-
-  const KtvTakeHistoryScanResult({
-    required this.takes,
-    required this.recoveredCount,
-  });
-}
-
 /// Discovers completed takes and safely recovers interrupted local recordings.
-class KtvTakeHistoryStore {
-  static const int maxDisplayNameLength = 80;
+class FileKtvTakeHistoryStore implements KtvTakeHistoryStore {
+  static const int maxDisplayNameLength =
+      KtvTakeHistoryStore.maxDisplayNameLength;
 
-  const KtvTakeHistoryStore();
+  const FileKtvTakeHistoryStore();
 
+  @override
   Future<KtvTakeHistoryScanResult> scanProject(ProjectManifest project) async {
     final directory = await KtvProjectStorage.resolveProjectDirectory(project);
     return scanFromDirectory(directory, project.id);
   }
 
+  @override
   Future<List<KtvRecordingSession>> listProject(ProjectManifest project) async =>
       (await scanProject(project)).takes;
 
@@ -136,6 +130,7 @@ class KtvTakeHistoryStore {
   ) async =>
       (await scanFromDirectory(projectDirectory, projectId)).takes;
 
+  @override
   Future<KtvRecordingSession> updateProjectTakeMetadata(
     ProjectManifest project,
     KtvRecordingSession take, {
@@ -182,6 +177,7 @@ class KtvTakeHistoryStore {
     return updated;
   }
 
+  @override
   Future<void> deleteProjectTake(
     ProjectManifest project,
     KtvRecordingSession take,

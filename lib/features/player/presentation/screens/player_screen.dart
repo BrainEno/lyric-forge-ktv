@@ -14,7 +14,6 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
-import '../../data/services/ktv_take_history_store.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/ktv_microphone_state.dart';
 import '../../domain/models/ktv_recording_session.dart';
@@ -22,6 +21,7 @@ import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/ktv_microphone_service.dart';
 import '../../domain/services/ktv_recording_service.dart';
+import '../../domain/services/ktv_take_history_store.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../widgets/seekable_progress_bar.dart';
 import 'immersive_ktv_screen.dart';
@@ -1233,6 +1233,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   late ProjectManifest _project;
   late final KtvMicrophoneService _microphoneService;
   late final KtvRecordingService _recordingService;
+  late final KtvTakeHistoryStore _takeHistoryStore;
   StreamSubscription<PlaybackSessionState>? _sessionSubscription;
   int _projectLoadGeneration = 0;
 
@@ -1242,6 +1243,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     _project = widget.initialProject;
     _microphoneService = ServiceLocatorGlobal.I.ktvMicrophoneService;
     _recordingService = ServiceLocatorGlobal.I.ktvRecordingService;
+    _takeHistoryStore = ServiceLocatorGlobal.I.ktvTakeHistoryStore;
     AppChromeController.enterImmersive();
     _sessionSubscription =
         widget.playbackSession.stateStream.listen(_handleSessionChange);
@@ -1342,7 +1344,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
     controller.dispose();
     if (value == null || !mounted) return;
     try {
-      await const KtvTakeHistoryStore().updateProjectTakeMetadata(
+      await _takeHistoryStore.updateProjectTakeMetadata(
         _project,
         take,
         displayName: value,
@@ -1369,7 +1371,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       return;
     }
     try {
-      await const KtvTakeHistoryStore().updateProjectTakeMetadata(
+      await _takeHistoryStore.updateProjectTakeMetadata(
         _project,
         take,
         isFavorite: !take.isFavorite,
@@ -1412,7 +1414,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       return;
     }
     try {
-      await const KtvTakeHistoryStore().deleteProjectTake(_project, take);
+      await _takeHistoryStore.deleteProjectTake(_project, take);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('演唱录音已删除')),
@@ -1452,7 +1454,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
 
     KtvTakeHistoryScanResult scan;
     try {
-      scan = await const KtvTakeHistoryStore().scanProject(_project);
+      scan = await _takeHistoryStore.scanProject(_project);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
