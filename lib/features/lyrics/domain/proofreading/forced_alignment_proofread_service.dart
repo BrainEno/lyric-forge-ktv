@@ -1,7 +1,19 @@
-import '../../../lyrics/domain/proofreading/asr_first_pipeline.dart';
-import '../../../lyrics/domain/proofreading/proofread_result.dart';
 import '../../../project/domain/models/lyric_document.dart';
-import 'forced_alignment_http_client.dart';
+import 'asr_first_pipeline.dart';
+import 'proofread_result.dart';
+
+/// One timestamped text span returned by a forced-alignment backend.
+class ForcedAlignedSpan {
+  final String text;
+  final Duration start;
+  final Duration end;
+
+  const ForcedAlignedSpan({
+    required this.text,
+    required this.start,
+    required this.end,
+  });
+}
 
 typedef ForcedAlignmentRunner = Future<List<ForcedAlignedSpan>> Function({
   required String audioPath,
@@ -16,15 +28,13 @@ typedef ForcedAlignmentRunner = Future<List<ForcedAlignedSpan>> Function({
 /// the source document. If the runtime is unavailable or returns invalid data,
 /// callers still receive a normal review proposal plus a visible warning.
 class ForcedAlignmentProofreadService {
-  final ForcedAlignmentHttpClient? client;
-  final ForcedAlignmentRunner? runner;
+  final ForcedAlignmentRunner runner;
   final AsrFirstPipeline pipeline;
 
   const ForcedAlignmentProofreadService({
-    this.client,
-    this.runner,
+    required this.runner,
     this.pipeline = const AsrFirstPipeline(),
-  }) : assert(client != null || runner != null);
+  });
 
   Future<ForcedAlignmentProofreadOutcome> buildReview({
     required LyricDocument draft,
@@ -36,19 +46,12 @@ class ForcedAlignmentProofreadService {
     Set<int> protectedDraftIndices = const {},
   }) async {
     try {
-      final spans = runner != null
-          ? await runner!(
-              audioPath: audioPath,
-              text: referenceText,
-              language: language,
-              audioDuration: audioDuration,
-            )
-          : await client!.align(
-              audioPath: audioPath,
-              text: referenceText,
-              language: language,
-              audioDuration: audioDuration,
-            );
+      final spans = await runner(
+        audioPath: audioPath,
+        text: referenceText,
+        language: language,
+        audioDuration: audioDuration,
+      );
       final result = pipeline.build(
         draft: draft,
         secondary: secondary,

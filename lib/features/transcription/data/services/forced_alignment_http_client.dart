@@ -2,18 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// One timestamped text span returned by a forced-alignment backend.
-class ForcedAlignedSpan {
-  final String text;
-  final Duration start;
-  final Duration end;
-
-  const ForcedAlignedSpan({
-    required this.text,
-    required this.start,
-    required this.end,
-  });
-}
+import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 
 /// A deliberately separate client for an explicit arbitrary-text alignment API.
 ///
