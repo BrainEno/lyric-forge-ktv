@@ -1,7 +1,7 @@
 import '../../../project/domain/models/lyric_document.dart';
-import '../../domain/models/reference_lyric_input.dart';
-import '../../domain/models/reference_lyric_line.dart';
-import '../../domain/services/lyric_file_import_service.dart';
+import '../models/reference_lyric_input.dart';
+import '../models/reference_lyric_line.dart';
+import 'lyric_file_import_service.dart';
 
 /// 参考歌词解析失败时抛出的可展示错误。
 class ReferenceLyricParseException implements Exception {
