@@ -13,10 +13,7 @@ void main() {
     expect(manager, contains("'Recursive': 'true'"));
     expect(manager, contains(r"'/models/$modelId/resolve/master/$fileName'"));
     expect(manager, contains('fromModelScopeManifest(jsonDecode(body))'));
-    expect(
-      manager,
-      contains('_modelScopeManifestCache.clear()'),
-    );
+    expect(manager, contains('_modelScopeManifestCache.clear()'));
   });
 
   test('keeps source fallback guarded by size and known SHA-256', () {
@@ -27,11 +24,11 @@ void main() {
       'lib/features/transcription/data/services/hugging_face_file_metadata.dart',
     ).readAsStringSync();
 
+    final compactManager = manager.replaceAll(RegExp(r'\s+'), '');
     expect(
-      manager,
-      contains('metadata.isContentCompatibleWith(fallbackMetadata)'),
+      compactManager,
+      contains('metadata.isContentCompatibleWith(fallbackMetadata,)'),
     );
-    expect(manager, contains('metadata.isContentCompatibleWith(fallbackMetadata)'));
     expect(manager, contains(r"'${target.path}.modelscope.part'"));
     expect(manager, contains('await huggingFacePartial.delete()'));
     expect(manager, contains('contentCompatible'));

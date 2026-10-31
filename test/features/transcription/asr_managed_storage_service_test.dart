@@ -238,6 +238,266 @@ void main() {
     },
   );
 
+  test('resolveRoot unwraps a repeated nested root to the stronger outer root', () async {
+    final sandbox = await Directory.systemTemp.createTemp(
+      'lyricforge-asr-unwrap-',
+    );
+    addTearDown(() => sandbox.delete(recursive: true));
+    final separator = Platform.pathSeparator;
+    final support = Directory('${sandbox.path}${separator}support');
+    await support.create(recursive: true);
+
+    final outerRoot = Directory(
+      '${sandbox.path}${separator}Models${separator}LyricForge${separator}ASRRuntime',
+    );
+    final nestedRoot = Directory(
+      '${outerRoot.path}${separator}LyricForge${separator}ASRRuntime',
+    );
+    final whisper = File(
+      '${outerRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+    );
+    await whisper.parent.create(recursive: true);
+    await whisper.writeAsString('existing-whisper');
+    final runtime = File(
+      '${outerRoot.path}${separator}bundle${separator}bin${separator}qwen3-asr.exe',
+    );
+    await runtime.parent.create(recursive: true);
+    await runtime.writeAsString('runtime');
+    await File(
+      '${outerRoot.path}${separator}.runtime-health-v1.json',
+    ).writeAsString('{}');
+
+    final nestedPartial = File(
+      '${nestedRoot.path}${separator}downloads${separator}asr-runtime.zip.part',
+    );
+    await nestedPartial.parent.create(recursive: true);
+    await nestedPartial.writeAsString('partial');
+
+    final configFile = File(
+      '${support.path}${separator}LyricForge${separator}asr-managed-storage.json',
+    );
+    await configFile.parent.create(recursive: true);
+    await configFile.writeAsString(
+      jsonEncode({'schemaVersion': 2, 'managedRoot': nestedRoot.absolute.path}),
+    );
+
+    final service = LocalAsrManagedStorageService(
+      supportDirectoryResolver: () async => support,
+    );
+
+    expect((await service.resolveRoot()).path, outerRoot.absolute.path);
+    expect(await nestedPartial.readAsString(), 'partial');
+    final config =
+        jsonDecode(await configFile.readAsString()) as Map<String, dynamic>;
+    expect(config['managedRoot'], outerRoot.absolute.path);
+  });
+
+  test(
+    'adopts an outer existing root even when the active root is nested inside it',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-ancestor-adopt-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      await support.create(recursive: true);
+
+      final outerRoot = Directory(
+        '${sandbox.path}${separator}Models${separator}LyricForge${separator}ASRRuntime',
+      );
+      final nestedRoot = Directory(
+        '${outerRoot.path}${separator}LyricForge${separator}ASRRuntime',
+      );
+      await outerRoot.create(recursive: true);
+      await File(
+        '${outerRoot.path}${separator}.runtime-health-v1.json',
+      ).writeAsString('{}');
+      final nestedWhisper = File(
+        '${nestedRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+      );
+      await nestedWhisper.parent.create(recursive: true);
+      await nestedWhisper.writeAsString('nested-partial-environment');
+      final nestedRuntime = File(
+        '${nestedRoot.path}${separator}bundle${separator}bin${separator}qwen3-asr.exe',
+      );
+      await nestedRuntime.parent.create(recursive: true);
+      await nestedRuntime.writeAsString('nested-runtime');
+
+      final configFile = File(
+        '${support.path}${separator}LyricForge${separator}asr-managed-storage.json',
+      );
+      await configFile.parent.create(recursive: true);
+      await configFile.writeAsString(
+        jsonEncode({
+          'schemaVersion': 2,
+          'managedRoot': nestedRoot.absolute.path,
+        }),
+      );
+
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final result = await service.moveToParent(outerRoot.path);
+
+      expect(result.adoptedExisting, isTrue);
+      expect(result.moved, isTrue);
+      expect(result.targetRoot, outerRoot.absolute.path);
+      expect((await service.resolveRoot()).path, outerRoot.absolute.path);
+      expect(await nestedWhisper.readAsString(), 'nested-partial-environment');
+    },
+  );
+
+  test(
+    'discoverAndAdoptExisting finds a Models/LyricForge root with bounded search',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-discover-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      await support.create(recursive: true);
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      await File('${source.path}${separator}keep.bin').writeAsString('keep');
+
+      final existingRoot = Directory(
+        '${sandbox.path}${separator}Models${separator}LyricForge${separator}ASRRuntime',
+      );
+      final whisper = File(
+        '${existingRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+      );
+      await whisper.parent.create(recursive: true);
+      await whisper.writeAsString('existing');
+      await File(
+        '${existingRoot.path}${separator}.runtime-health-v1.json',
+      ).writeAsString('{}');
+
+      final result = await service.discoverAndAdoptExisting();
+
+      expect(result, isNotNull);
+      expect(result!.adoptedExisting, isTrue);
+      expect(result.targetRoot, existingRoot.absolute.path);
+      expect((await service.resolveRoot()).path, existingRoot.absolute.path);
+      expect(
+        await File('${source.path}${separator}keep.bin').readAsString(),
+        'keep',
+      );
+    },
+  );
+
+  test(
+    'adoptExistingAt finds Models/LyricForge below a drive-like selection',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-drive-selection-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      final drive = Directory('${sandbox.path}${separator}drive-d');
+      await support.create(recursive: true);
+      await drive.create(recursive: true);
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      await service.resolveRoot();
+
+      final existingRoot = Directory(
+        '${drive.path}${separator}Models${separator}LyricForge${separator}ASRRuntime',
+      );
+      final qwenMarker = File(
+        '${existingRoot.path}${separator}models${separator}qwen${separator}Qwen--Qwen3-ASR-1.7B${separator}.lyricforge-model.json',
+      );
+      await qwenMarker.parent.create(recursive: true);
+      await qwenMarker.writeAsString('{}');
+
+      final result = await service.adoptExistingAt(drive.path);
+
+      expect(result.adoptedExisting, isTrue);
+      expect(result.targetRoot, existingRoot.absolute.path);
+      expect((await service.resolveRoot()).path, existingRoot.absolute.path);
+    },
+  );
+
+  test(
+    'adoptExistingAt accepts a quoted model file path inside the root',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-pasted-file-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      await support.create(recursive: true);
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      await service.resolveRoot();
+
+      final existingRoot = Directory(
+        '${sandbox.path}${separator}existing${separator}ASRRuntime',
+      );
+      final whisper = File(
+        '${existingRoot.path}${separator}models${separator}whisper${separator}ggml-large-v3.bin',
+      );
+      await whisper.parent.create(recursive: true);
+      await whisper.writeAsString('existing');
+
+      final result = await service.adoptExistingAt('"${whisper.path}"');
+
+      expect(result.adoptedExisting, isTrue);
+      expect(result.targetRoot, existingRoot.absolute.path);
+    },
+  );
+
+  test(
+    'adoptExistingAt does not migrate into an unrelated non-empty folder',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'lyricforge-asr-adopt-foreign-',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+      final separator = Platform.pathSeparator;
+      final support = Directory('${sandbox.path}${separator}support');
+      final foreign = Directory('${sandbox.path}${separator}foreign');
+      await support.create(recursive: true);
+      await foreign.create(recursive: true);
+      await File('${foreign.path}${separator}notes.txt').writeAsString('mine');
+      final service = LocalAsrManagedStorageService(
+        supportDirectoryResolver: () async => support,
+      );
+      final source = await service.resolveRoot();
+      await File('${source.path}${separator}keep.bin').writeAsString('keep');
+
+      await expectLater(
+        service.adoptExistingAt(foreign.path),
+        throwsA(
+          isA<FileSystemException>().having(
+            (error) => error.message,
+            'message',
+            contains('未在该路径'),
+          ),
+        ),
+      );
+
+      expect((await service.resolveRoot()).path, source.path);
+      expect(
+        await Directory(
+          '${foreign.path}${separator}LyricForge${separator}ASRRuntime',
+        ).exists(),
+        isFalse,
+      );
+      expect(
+        await File('${foreign.path}${separator}notes.txt').readAsString(),
+        'mine',
+      );
+    },
+  );
+
   test(
     'refuses a migration target nested inside the current ASR root',
     () async {

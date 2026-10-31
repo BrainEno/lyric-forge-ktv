@@ -42,22 +42,46 @@ void main() {
     final card = await File(
       'lib/features/transcription/presentation/widgets/asr_storage_preflight_card.dart',
     ).readAsString();
+    final existingActions = await File(
+      'lib/features/transcription/presentation/widgets/asr_existing_model_actions.dart',
+    ).readAsString();
 
     expect(setup, contains('FilePicker.platform.getDirectoryPath'));
     expect(setup, contains('_managedStorageService.moveToParent(parent)'));
+    expect(
+      setup,
+      contains('_managedStorageService.discoverAndAdoptExisting()'),
+    );
+    expect(setup, contains('_managedStorageService.adoptExistingAt(path)'));
+    expect(setup, contains('showAsrExistingModelPathDialog(context)'));
+    expect(setup, contains('AsrExistingModelCard'));
     expect(setup, contains('onChangeLocation:'));
     expect(setup, contains('已有的 ASRRuntime'));
     expect(setup, contains('result.adoptedExisting'));
+    expect(setup, contains('此步骤不会下载'));
 
     expect(settings, contains('FilePicker.platform.getDirectoryPath'));
     expect(settings, contains('_managedStorageService.moveToParent('));
     expect(settings, contains('_managedStorageService.moveToDefault('));
+    expect(
+      settings,
+      contains('_managedStorageService.discoverAndAdoptExisting()'),
+    );
+    expect(settings, contains('_managedStorageService.adoptExistingAt(path)'));
+    expect(settings, contains('showAsrExistingModelPathDialog(context)'));
+    expect(settings, contains('AsrExistingModelCard'));
     expect(settings, contains('正在迁移'));
     expect(settings, contains('已有的 ASRRuntime'));
     expect(settings, contains('result.adoptedExisting'));
     expect(settings, contains('if (repaired.isConfigured)'));
     expect(settings, contains('_settingsStore.save(repaired)'));
     expect(settings, contains('Icons.folder_open_rounded'));
+    expect(settings, contains('校验并补齐缺失组件'));
+
+    expect(existingActions, contains('一键识别已有模型'));
+    expect(existingActions, contains('粘贴路径识别'));
+    expect(existingActions, contains('不会开始下载'));
+    expect(existingActions, contains('showAsrExistingModelPathDialog'));
 
     expect(card, contains('VoidCallback? onChangeLocation'));
     expect(card, contains('换一个磁盘 / 文件夹'));
@@ -98,7 +122,19 @@ void main() {
       expect(source, contains('目标位置不能位于当前 ASRRuntime 目录内部'));
       expect(source, contains('_resolveSelectionTarget'));
       expect(source, contains('_looksLikeManagedAsrRoot'));
+      expect(source, contains('_findExistingRoots'));
+      expect(source, contains('_unwrapRepeatedManagedRoot'));
+      expect(source, contains('.runtime-health-v1.json'));
+      expect(source, contains('discoverAndAdoptExisting'));
+      expect(source, contains('adoptExistingAt'));
       expect(source, contains('adoptedExisting: true'));
+      final adoption = source.indexOf('if (targetIsExistingRoot)');
+      final overlap = source.indexOf(
+        '_pathsOverlap(source.path, target.path)',
+        adoption,
+      );
+      expect(adoption, greaterThanOrEqualTo(0));
+      expect(overlap, greaterThan(adoption));
     },
   );
 }

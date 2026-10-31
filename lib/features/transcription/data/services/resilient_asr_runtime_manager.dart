@@ -23,7 +23,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   final Future<Directory> Function()? managedRootResolver;
   final AsrDownloadHttpClientFactory httpClientFactory;
   final Future<String?> Function(TranscriptionConfig config)?
-      whisperRuntimeBootstrap;
+  whisperRuntimeBootstrap;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -42,8 +42,9 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     this.whisperRuntimeBootstrap,
     AsrDownloadHttpClientFactory? httpClientFactory,
   }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory() {
-    _delegateSubscription =
-        delegate.progressStream.listen(_forwardDelegateProgress);
+    _delegateSubscription = delegate.progressStream.listen(
+      _forwardDelegateProgress,
+    );
   }
 
   @override
@@ -149,9 +150,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     }
   }
 
-  Future<String?> _ensureWhisperRuntime(
-    TranscriptionConfig config,
-  ) async {
+  Future<String?> _ensureWhisperRuntime(TranscriptionConfig config) async {
     final injected = whisperRuntimeBootstrap;
     if (injected != null) {
       return injected(config);
@@ -222,32 +221,20 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     }
     await whisperRoot.create(recursive: true);
 
-    _emit(
-      AsrRuntimeComponent.whisperRuntime,
-      0.065,
-      '正在安装 Whisper runtime',
-    );
+    _emit(AsrRuntimeComponent.whisperRuntime, 0.065, '正在安装 Whisper runtime');
     await _extractZip(archive.path, whisperRoot.path);
     _throwIfCancelled();
 
     final executable = await _findFile(whisperRoot, _whisperName);
     if (executable == null) {
-      throw const TranscriptionException(
-        'Whisper 安装包不完整：没有找到 whisper-cli.exe',
-      );
+      throw const TranscriptionException('Whisper 安装包不完整：没有找到 whisper-cli.exe');
     }
 
     if (!await _executableLooksUsable(executable.path)) {
-      throw const TranscriptionException(
-        'Whisper runtime 已下载，但启动检查失败',
-      );
+      throw const TranscriptionException('Whisper runtime 已下载，但启动检查失败');
     }
 
-    _emit(
-      AsrRuntimeComponent.whisperRuntime,
-      0.08,
-      'Whisper runtime 已准备完成',
-    );
+    _emit(AsrRuntimeComponent.whisperRuntime, 0.08, 'Whisper runtime 已准备完成');
     return executable.path;
   }
 
@@ -262,9 +249,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     final part = File('${target.path}.part');
     var existing = await part.exists() ? await part.length() : 0;
 
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
@@ -341,16 +326,13 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   Future<void> _extractZip(String archive, String destination) async {
-    final result = await Process.run(
-      'powershell',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        'Expand-Archive -LiteralPath ${_psQuote(archive)} '
-            '-DestinationPath ${_psQuote(destination)} -Force',
-      ],
-    );
+    final result = await Process.run('powershell', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      'Expand-Archive -LiteralPath ${_psQuote(archive)} '
+          '-DestinationPath ${_psQuote(destination)} -Force',
+    ]);
     if (result.exitCode != 0) {
       throw TranscriptionException(
         'Whisper runtime 解压失败',
@@ -390,9 +372,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       return root;
     }
     final support = await getApplicationSupportDirectory();
-    final root = Directory(
-      _join(support.path, ['LyricForge', 'ASRRuntime']),
-    );
+    final root = Directory(_join(support.path, ['LyricForge', 'ASRRuntime']));
     await root.create(recursive: true);
     return root;
   }
@@ -400,7 +380,16 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   void _forwardDelegateProgress(AsrRuntimeInstallProgress progress) {
     final span = _delegatePhaseEnd - _delegatePhaseStart;
     final mapped = _delegatePhaseStart + span * progress.progress;
-    _emit(progress.component, mapped, progress.message);
+    _emit(
+      progress.component,
+      mapped,
+      progress.message,
+      phase: progress.phase,
+      downloadedBytes: progress.downloadedBytes,
+      totalBytes: progress.totalBytes,
+      bytesPerSecond: progress.bytesPerSecond,
+      estimatedRemaining: progress.estimatedRemaining,
+    );
   }
 
   bool _isCancellation(TranscriptionException error) {
@@ -416,14 +405,24 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
   void _emit(
     AsrRuntimeComponent? component,
     double progress,
-    String message,
-  ) {
+    String message, {
+    AsrRuntimeInstallPhase phase = AsrRuntimeInstallPhase.preparing,
+    int? downloadedBytes,
+    int? totalBytes,
+    double? bytesPerSecond,
+    Duration? estimatedRemaining,
+  }) {
     if (_progressController.isClosed) return;
     _progressController.add(
       AsrRuntimeInstallProgress(
         component: component,
         progress: progress.clamp(0.0, 1.0).toDouble(),
         message: message,
+        phase: phase,
+        downloadedBytes: downloadedBytes,
+        totalBytes: totalBytes,
+        bytesPerSecond: bytesPerSecond,
+        estimatedRemaining: estimatedRemaining,
       ),
     );
   }
