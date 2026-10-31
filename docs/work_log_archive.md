@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 10:45] Add a layering import ratchet for feature architecture rules ([entry](log/entries/2026-10-31-1045-layering-import-ratchet.md))
 - [2026-10-31 02:20] Add per-store schema versioning to atomic JSON persistence ([entry](log/entries/2026-10-31-0220-atomic-json-schema-versioning.md))
 - [2026-10-31 02:05] Align architecture documentation and AI config with the implemented stack ([entry](log/entries/2026-10-31-0205-align-architecture-docs.md))
 - [2026-10-31 01:50] Run AtomicJsonFile fault-injection tests on macOS CI ([entry](log/entries/2026-10-31-0150-macos-atomic-json-fault-injection.md))

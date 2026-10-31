@@ -44,6 +44,21 @@ class AsrInstallProgressCard extends StatelessWidget {
         : paused
         ? AppColors.warning
         : AppColors.accent;
+    final checkingExisting =
+        !failed &&
+        !paused &&
+        progress.phase == AsrRuntimeInstallPhase.checkingExisting &&
+        !hasTransfer;
+    final verifying =
+        !failed &&
+        !paused &&
+        progress.phase == AsrRuntimeInstallPhase.verifying &&
+        !hasTransfer;
+    final downloading = !failed && !paused && progress.isDownloading;
+    final installing =
+        !failed &&
+        !paused &&
+        progress.phase == AsrRuntimeInstallPhase.installing;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -62,7 +77,13 @@ class AsrInstallProgressCard extends StatelessWidget {
                     ? Icons.error_outline_rounded
                     : paused
                     ? Icons.pause_circle_outline_rounded
-                    : Icons.downloading_rounded,
+                    : checkingExisting || verifying
+                    ? Icons.fact_check_outlined
+                    : downloading
+                    ? Icons.downloading_rounded
+                    : installing
+                    ? Icons.build_circle_outlined
+                    : Icons.hourglass_top_rounded,
                 size: 20,
                 color: accent,
               ),
@@ -73,8 +94,14 @@ class AsrInstallProgressCard extends StatelessWidget {
                       ? '当前组件需要重试'
                       : paused
                       ? '下载已暂停，断点已保留'
-                      : hasTransfer
+                      : checkingExisting
+                      ? '正在识别 / 校验已有文件 · $component'
+                      : verifying
+                      ? '正在校验文件完整性 · $component'
+                      : downloading
                       ? '正在下载 · $component'
+                      : installing
+                      ? '正在安装 · $component'
                       : '正在准备 · $component',
                   style: Theme.of(
                     context,
@@ -88,9 +115,7 @@ class AsrInstallProgressCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  failed
-                      ? '失败时的环境准备进度（估算）'
-                      : '整体环境准备进度（估算）',
+                  failed ? '失败时的环境准备进度（估算）' : '整体环境准备进度（估算）',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -183,9 +208,13 @@ class AsrInstallProgressCard extends StatelessWidget {
                 ? '继续后会从现有来源对应的 .part 文件尝试断点续传；重试时仍会重新检查完整性。'
                 : failed
                 ? '本次环境准备尚未完成。这里显示失败前的最后一次进度；重试会重新校验文件，必要时清理不兼容的临时分片。'
+                : checkingExisting
+                ? '当前只读取本机已有文件并核对大小 / SHA-256，不会下载模型；只有缺失或校验失败的文件才会进入下载，并会注明原因。'
+                : verifying
+                ? '当前正在核对文件完整性，不会继续传输模型数据。'
                 : hasTransfer
                 ? '上方是整个识别环境的估算进度；这里是当前文件下载进度。下载中断会自动重试，已完成部分会保留。'
-                : '环境准备包含下载、校验和安装；已完成组件会自动复用，失败重试只会继续未完成部分。',
+                : '环境准备包含检查已有文件、下载缺失文件、校验和安装；已完成组件会自动复用，失败重试只会继续未完成部分。',
             style: Theme.of(
               context,
             ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),

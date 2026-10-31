@@ -35,19 +35,17 @@ class AsrModelDownloadEndpoints {
 }
 
 Uri _officialHuggingFaceFileUri(String modelId, String fileName) => Uri.parse(
-      'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
-    );
+  'https://huggingface.co/$modelId/resolve/main/$fileName?download=true',
+);
 
 Uri _officialModelScopeManifestUri(String modelId) => Uri.https(
-      'modelscope.cn',
-      '/api/v1/models/$modelId/repo/files',
-      const {'Revision': 'master', 'Recursive': 'true'},
-    );
+  'modelscope.cn',
+  '/api/v1/models/$modelId/repo/files',
+  const {'Revision': 'master', 'Recursive': 'true'},
+);
 
-Uri _officialModelScopeFileUri(String modelId, String fileName) => Uri.https(
-      'modelscope.cn',
-      '/models/$modelId/resolve/master/$fileName',
-    );
+Uri _officialModelScopeFileUri(String modelId, String fileName) =>
+    Uri.https('modelscope.cn', '/models/$modelId/resolve/master/$fileName');
 
 /// Adds LyricForge-managed Qwen model downloads in front of the existing
 /// runtime installer so normal users never need to locate a Hugging Face cache.
@@ -102,7 +100,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
   final Map<String, Future<Map<String, HuggingFaceFileMetadata>>>
-      _modelScopeManifestCache = {};
+  _modelScopeManifestCache = {};
 
   bool _installingModels = false;
   bool _cancelRequested = false;
@@ -116,8 +114,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     this.managedRootResolver,
     AsrDownloadHttpClientFactory? httpClientFactory,
     AsrModelDownloadEndpoints? downloadEndpoints,
-  })  : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
-        downloadEndpoints = downloadEndpoints ?? AsrModelDownloadEndpoints.official {
+  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
+       downloadEndpoints =
+           downloadEndpoints ?? AsrModelDownloadEndpoints.official {
     delegate.progressStream.listen(_forwardDelegateProgress);
   }
 
@@ -184,8 +183,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final expectedAligner = _alignerForProfile(resolved.profile);
       final shouldManageModels =
           prepared.mode == TranscriptionMode.highestQuality &&
-              expectedModel != null &&
-              expectedAligner != null;
+          expectedModel != null &&
+          expectedAligner != null;
 
       if (shouldManageModels) {
         await _preflightRuntimeBundle(prepared, resolved.profile);
@@ -198,7 +197,8 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         _emit(
           AsrRuntimeComponent.qwenModel,
           0.01,
-          '正在准备 Qwen 模型目录；最高质量模式首次约需下载 6.5 GB',
+          '正在检查本机已有的 Qwen 模型；校验通过的文件不会下载',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
         );
 
         final qwenPath = await _useOrInstallModel(
@@ -275,7 +275,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     _activeClient = client;
 
     try {
-      _emit(AsrRuntimeComponent.qwenRuntime, 0.005, '正在检查识别引擎安装包是否可用');
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.005,
+        '正在检查识别引擎安装包是否可用（尚未下载大型模型）',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
+      );
       final request = await client.headUrl(uri);
       _activeRequest = request;
       final response = await request.close().timeout(_downloadTimeout);
@@ -305,10 +310,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     }
   }
 
-  bool _componentReady(
-    AsrRuntimeStatus status,
-    AsrRuntimeComponent component,
-  ) {
+  bool _componentReady(AsrRuntimeStatus status, AsrRuntimeComponent component) {
     for (final item in status.components) {
       if (item.component == component) {
         return item.state == AsrRuntimeComponentState.ready;
@@ -327,28 +329,70 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String proxyOverride,
   }) async {
     final configuredPath = configured.trim();
+    String? configuredHashFailure;
     if (configuredPath.isNotEmpty &&
         await _modelDirectoryComplete(configuredPath, modelId)) {
+      final verification = await _verifyModelMarkerHashes(
+        path: configuredPath,
+        modelId: modelId,
+        component: component,
+        startProgress: startProgress,
+        endProgress: endProgress,
+      );
+      if (verification.failedFile == null) {
+        _emit(
+          component,
+          endProgress,
+          verification.hasIntegrityMarker
+              ? '${_modelLabel(modelId)} 已通过本地 SHA-256 校验，将直接复用，不会下载'
+              : '${_modelLabel(modelId)} 已在本机找到，无需重复下载',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
+        );
+        return configuredPath;
+      }
+      configuredHashFailure = verification.failedFile;
       _emit(
         component,
-        endProgress,
-        '${_modelLabel(modelId)} 已在本机找到，无需重复下载',
+        startProgress,
+        '${_modelLabel(modelId)} 的已有文件 ${verification.failedFile} '
+        '未通过 SHA-256 校验；将只重新下载不匹配的文件',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
       );
-      return configuredPath;
     }
 
     final managed = _modelDirectory(root, modelId);
-    if (await _modelDirectoryComplete(
-      managed.path,
-      modelId,
-      requireIntegrityMarker: true,
-    )) {
+    final configuredIsManaged =
+        configuredPath.isNotEmpty &&
+        Directory(configuredPath).absolute.path == managed.absolute.path;
+    if ((!configuredIsManaged || configuredHashFailure == null) &&
+        await _modelDirectoryComplete(
+          managed.path,
+          modelId,
+          requireIntegrityMarker: true,
+        )) {
+      final verification = await _verifyModelMarkerHashes(
+        path: managed.path,
+        modelId: modelId,
+        component: component,
+        startProgress: startProgress,
+        endProgress: endProgress,
+      );
+      if (verification.failedFile == null) {
+        _emit(
+          component,
+          endProgress,
+          '${_modelLabel(modelId)} 已通过本地 SHA-256 校验，将直接复用，不会下载',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
+        );
+        return managed.path;
+      }
       _emit(
         component,
-        endProgress,
-        '${_modelLabel(modelId)} 已安装，正在复用本地文件',
+        startProgress,
+        '${_modelLabel(modelId)} 的已有文件 ${verification.failedFile} '
+        '未通过 SHA-256 校验；将只重新下载不匹配的文件',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
       );
-      return managed.path;
     }
 
     return _installModel(
@@ -358,6 +402,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       startProgress: startProgress,
       endProgress: endProgress,
       proxyOverride: proxyOverride,
+      localSourcePath: configuredIsManaged || configuredPath.isEmpty
+          ? null
+          : configuredPath,
     );
   }
 
@@ -390,6 +437,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required double startProgress,
     required double endProgress,
     required String proxyOverride,
+    String? localSourcePath,
   }) async {
     final files = _modelFiles[modelId];
     if (files == null) {
@@ -399,6 +447,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final directory = _modelDirectory(root, modelId);
     await directory.create(recursive: true);
     final verifiedFiles = <Map<String, Object?>>[];
+    var downloadedAnyFile = false;
 
     for (var index = 0; index < files.length; index++) {
       _throwIfCancelled();
@@ -406,6 +455,15 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final target = File(_join(directory.path, [fileName]));
       final fileStart = index / files.length;
       final fileEnd = (index + 1) / files.length;
+      final targetExists = await target.exists();
+      if (targetExists) {
+        _emit(
+          component,
+          _mapProgress(fileStart, startProgress, endProgress),
+          '正在校验已有 ${_modelLabel(modelId)} 文件：$fileName（不会下载）',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
+        );
+      }
       var metadata = await _fetchModelFileMetadata(
         modelId: modelId,
         fileName: fileName,
@@ -415,10 +473,52 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       );
 
       var reusable = false;
-      if (await target.exists()) {
+      if (targetExists) {
         reusable = await _verifyLocalModelFile(target, metadata);
         if (!reusable) {
+          _emit(
+            component,
+            _mapProgress(fileStart, startProgress, endProgress),
+            '已有 ${_modelLabel(modelId)} 文件 $fileName 的大小或 SHA-256 '
+            '不匹配，将只重新下载该文件',
+            phase: AsrRuntimeInstallPhase.checkingExisting,
+          );
           await target.delete();
+        }
+      }
+
+      if (!reusable && localSourcePath != null) {
+        final source = File(_join(localSourcePath, [fileName]));
+        if (source.absolute.path != target.absolute.path &&
+            await source.exists()) {
+          _emit(
+            component,
+            _mapProgress(fileStart, startProgress, endProgress),
+            '正在校验已配置目录中的 ${_modelLabel(modelId)} 文件：'
+            '$fileName（不会下载）',
+            phase: AsrRuntimeInstallPhase.checkingExisting,
+          );
+          if (await _verifyLocalModelFile(source, metadata)) {
+            _emit(
+              component,
+              _mapProgress(fileStart, startProgress, endProgress),
+              '已从本机已有目录校验通过 ${_modelLabel(modelId)} 文件：'
+              '$fileName，将直接复用，不会下载',
+              phase: AsrRuntimeInstallPhase.checkingExisting,
+            );
+            await source.copy(target.path);
+            reusable = await _verifyLocalModelFile(target, metadata);
+            if (!reusable) {
+              _emit(
+                component,
+                _mapProgress(fileStart, startProgress, endProgress),
+                '从本机已有目录复用的 ${_modelLabel(modelId)} 文件 '
+                '$fileName 再次校验未通过，将只重新下载该文件',
+                phase: AsrRuntimeInstallPhase.checkingExisting,
+              );
+              await target.delete();
+            }
+          }
         }
       }
 
@@ -427,9 +527,11 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         _emit(
           component,
           progress,
-          '已校验 ${_modelLabel(modelId)} · ${index + 1}/${files.length}',
+          '已校验并复用 ${_modelLabel(modelId)} · ${index + 1}/${files.length}（未下载）',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
         );
       } else {
+        downloadedAnyFile = true;
         Future<void> downloadWithMetadata(
           HuggingFaceFileMetadata fileMetadata,
         ) {
@@ -439,25 +541,27 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
             target: target,
             metadata: fileMetadata,
             proxyOverride: proxyOverride,
-            onProgress: (
-              fraction,
-              downloadedBytes,
-              totalBytes,
-              bytesPerSecond,
-              estimatedRemaining,
-            ) {
-              final modelFraction =
-                  fileStart + (fileEnd - fileStart) * fraction;
-              _emit(
-                component,
-                _mapProgress(modelFraction, startProgress, endProgress),
-                '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
-                downloadedBytes: downloadedBytes,
-                totalBytes: totalBytes,
-                bytesPerSecond: bytesPerSecond,
-                estimatedRemaining: estimatedRemaining,
-              );
-            },
+            onProgress:
+                (
+                  fraction,
+                  downloadedBytes,
+                  totalBytes,
+                  bytesPerSecond,
+                  estimatedRemaining,
+                ) {
+                  final modelFraction =
+                      fileStart + (fileEnd - fileStart) * fraction;
+                  _emit(
+                    component,
+                    _mapProgress(modelFraction, startProgress, endProgress),
+                    '正在下载 ${_modelLabel(modelId)} · ${index + 1}/${files.length} · ${_percent(modelFraction)}',
+                    phase: AsrRuntimeInstallPhase.downloading,
+                    downloadedBytes: downloadedBytes,
+                    totalBytes: totalBytes,
+                    bytesPerSecond: bytesPerSecond,
+                    estimatedRemaining: estimatedRemaining,
+                  );
+                },
           );
         }
 
@@ -483,8 +587,9 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
               fileName: fileName,
               proxyOverride: proxyOverride,
             );
-            final contentCompatible =
-                metadata.isContentCompatibleWith(fallbackMetadata);
+            final contentCompatible = metadata.isContentCompatibleWith(
+              fallbackMetadata,
+            );
             // Keep partials scoped to their source. This switch never feeds
             // Hugging Face bytes into a ModelScope response, even when metadata
             // matches. ModelScope can resume only its own previous partial.
@@ -512,10 +617,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         }
       }
 
-      verifiedFiles.add({
-        'name': fileName,
-        ...metadata.toJson(),
-      });
+      verifiedFiles.add({'name': fileName, ...metadata.toJson()});
     }
 
     final marker = File(_join(directory.path, ['.lyricforge-model.json']));
@@ -540,7 +642,12 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     _emit(
       component,
       endProgress,
-      '${_modelLabel(modelId)} 已下载并通过完整性校验',
+      downloadedAnyFile
+          ? '${_modelLabel(modelId)} 已补齐缺失/不匹配文件并通过完整性校验'
+          : '${_modelLabel(modelId)} 已校验并复用本地文件，未下载模型文件',
+      phase: downloadedAnyFile
+          ? AsrRuntimeInstallPhase.verifying
+          : AsrRuntimeInstallPhase.checkingExisting,
     );
     return directory.path;
   }
@@ -587,9 +694,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final uri = metadata.source == AsrModelDownloadSource.modelScope
         ? downloadEndpoints.modelScopeFileUri(modelId, fileName)
         : downloadEndpoints.huggingFaceFileUri(modelId, fileName);
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
@@ -726,10 +831,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     }
   }
 
-  String _partialDownloadPath(
-    File target,
-    AsrModelDownloadSource source,
-  ) {
+  String _partialDownloadPath(File target, AsrModelDownloadSource source) {
     // Keep fallback partials separate so a retry cannot resume ModelScope
     // bytes as though they came from Hugging Face, or the reverse.
     return source == AsrModelDownloadSource.modelScope
@@ -786,11 +888,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       huggingFaceError = error;
     }
 
-    _emit(
-      component,
-      progress,
-      'Hugging Face 无法读取模型元数据，正在尝试官方 ModelScope 备用源',
-    );
+    _emit(component, progress, 'Hugging Face 无法读取模型元数据，正在尝试官方 ModelScope 备用源');
     try {
       return await _fetchModelScopeFileMetadata(
         modelId: modelId,
@@ -813,9 +911,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String proxyOverride,
   }) async {
     final uri = downloadEndpoints.huggingFaceFileUri(modelId, fileName);
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
@@ -904,9 +1000,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     required String proxyOverride,
   }) async {
     final uri = downloadEndpoints.modelScopeManifestUri(modelId);
-    final client = await httpClientFactory.create(
-      manualProxy: proxyOverride,
-    );
+    final client = await httpClientFactory.create(manualProxy: proxyOverride);
     client.userAgent = 'LyricForge/1.0';
     _activeClient = client;
 
@@ -918,18 +1012,20 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       final response = await request.close().timeout(_downloadTimeout);
       _activeRequest = null;
       if (response.statusCode != HttpStatus.ok) {
-        final body = await utf8.decoder.bind(response).join().timeout(
-              _downloadTimeout,
-            );
+        final body = await utf8.decoder
+            .bind(response)
+            .join()
+            .timeout(_downloadTimeout);
         throw TranscriptionException(
           'ModelScope 无法读取模型文件清单',
           details: 'model=$modelId, HTTP ${response.statusCode}: $body',
         );
       }
 
-      final body = await utf8.decoder.bind(response).join().timeout(
-            _downloadTimeout,
-          );
+      final body = await utf8.decoder
+          .bind(response)
+          .join()
+          .timeout(_downloadTimeout);
       try {
         return HuggingFaceFileMetadata.fromModelScopeManifest(jsonDecode(body));
       } on FormatException catch (error) {
@@ -944,10 +1040,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       if (_cancelRequested) {
         throw const TranscriptionException('识别环境安装已取消');
       }
-      throw TranscriptionException(
-        '无法连接 ModelScope 模型文件清单',
-        details: '$error',
-      );
+      throw TranscriptionException('无法连接 ModelScope 模型文件清单', details: '$error');
     } finally {
       _activeRequest = null;
       _activeClient = null;
@@ -970,14 +1063,22 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   Future<bool> _verifySha256(String path, String expected) async {
     try {
       if (Platform.isWindows) {
-        final result = await Process.run('certutil', ['-hashfile', path, 'SHA256']);
+        final result = await Process.run('certutil', [
+          '-hashfile',
+          path,
+          'SHA256',
+        ]);
         if (result.exitCode != 0) return false;
         final output = result.stdout.toString().toLowerCase();
         return output.contains(expected.toLowerCase());
       }
 
       if (Platform.isMacOS) {
-        final result = await Process.run('/usr/bin/shasum', ['-a', '256', path]);
+        final result = await Process.run('/usr/bin/shasum', [
+          '-a',
+          '256',
+          path,
+        ]);
         if (result.exitCode != 0) return false;
         final actual = result.stdout.toString().trim().split(' ').first;
         return actual.toLowerCase() == expected.toLowerCase();
@@ -989,6 +1090,84 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       return actual.toLowerCase() == expected.toLowerCase();
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<({bool hasIntegrityMarker, String? failedFile})>
+  _verifyModelMarkerHashes({
+    required String path,
+    required String modelId,
+    required AsrRuntimeComponent component,
+    required double startProgress,
+    required double endProgress,
+  }) async {
+    final files = _modelFiles[modelId];
+    if (files == null || path.trim().isEmpty) {
+      return (hasIntegrityMarker: false, failedFile: '模型文件清单');
+    }
+
+    final directory = Directory(path);
+    final marker = File(_join(directory.path, ['.lyricforge-model.json']));
+    if (!await marker.exists()) {
+      return (hasIntegrityMarker: false, failedFile: null);
+    }
+
+    try {
+      final decoded = jsonDecode(await marker.readAsString());
+      if (decoded is! Map<String, dynamic> ||
+          decoded['schemaVersion'] != 2 ||
+          decoded['modelId'] != modelId ||
+          decoded['files'] is! List) {
+        return (hasIntegrityMarker: true, failedFile: '完整性记录');
+      }
+
+      final entries = (decoded['files'] as List)
+          .whereType<Map>()
+          .map((entry) => entry.cast<String, Object?>())
+          .toList();
+
+      for (var index = 0; index < files.length; index++) {
+        _throwIfCancelled();
+        final fileName = files[index];
+        Map<String, Object?>? entry;
+        for (final candidate in entries) {
+          if (candidate['name'] == fileName) {
+            entry = candidate;
+            break;
+          }
+        }
+        if (entry == null) {
+          return (hasIntegrityMarker: true, failedFile: fileName);
+        }
+
+        final metadata = HuggingFaceFileMetadata.fromJson(entry);
+        final file = File(_join(directory.path, [fileName]));
+        if (!await file.exists() || await file.length() != metadata.sizeBytes) {
+          return (hasIntegrityMarker: true, failedFile: fileName);
+        }
+
+        final expectedSha256 = metadata.sha256;
+        if (expectedSha256 == null) continue;
+        final progress = _mapProgress(
+          index / files.length,
+          startProgress,
+          endProgress,
+        );
+        _emit(
+          component,
+          progress,
+          '正在校验已有 ${_modelLabel(modelId)} SHA-256：'
+          '$fileName（${index + 1}/${files.length}，不会下载）',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
+        );
+        if (!await _verifySha256(file.path, expectedSha256)) {
+          return (hasIntegrityMarker: true, failedFile: fileName);
+        }
+      }
+      return (hasIntegrityMarker: true, failedFile: null);
+    } catch (_) {
+      if (_cancelRequested) rethrow;
+      return (hasIntegrityMarker: true, failedFile: '完整性记录');
     }
   }
 
@@ -1050,25 +1229,21 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     final injected = managedRootResolver;
     final root = injected == null
         ? Directory(
-            _join(
-              (await getApplicationSupportDirectory()).path,
-              ['LyricForge', 'ASRRuntime'],
-            ),
+            _join((await getApplicationSupportDirectory()).path, [
+              'LyricForge',
+              'ASRRuntime',
+            ]),
           )
         : await injected();
-    await Directory(_join(root.path, ['models', 'qwen']))
-        .create(recursive: true);
+    await Directory(
+      _join(root.path, ['models', 'qwen']),
+    ).create(recursive: true);
     return root;
   }
 
   Directory _modelDirectory(Directory root, String modelId) {
-    final directoryName = modelId.replaceAll(
-      RegExp(r'[^A-Za-z0-9._-]+'),
-      '--',
-    );
-    return Directory(
-      _join(root.path, ['models', 'qwen', directoryName]),
-    );
+    final directoryName = modelId.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '--');
+    return Directory(_join(root.path, ['models', 'qwen', directoryName]));
   }
 
   String? _qwenModelForProfile(TranscriptionProfilePreference profile) {
@@ -1105,6 +1280,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       progress.component,
       mapped,
       progress.message,
+      phase: progress.phase,
       downloadedBytes: progress.downloadedBytes,
       totalBytes: progress.totalBytes,
       bytesPerSecond: progress.bytesPerSecond,
@@ -1116,6 +1292,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
     AsrRuntimeComponent? component,
     double progress,
     String message, {
+    AsrRuntimeInstallPhase phase = AsrRuntimeInstallPhase.preparing,
     int? downloadedBytes,
     int? totalBytes,
     double? bytesPerSecond,
@@ -1127,6 +1304,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
         component: component,
         progress: progress.clamp(0.0, 1.0).toDouble(),
         message: message,
+        phase: phase,
         downloadedBytes: downloadedBytes,
         totalBytes: totalBytes,
         bytesPerSecond: bytesPerSecond,

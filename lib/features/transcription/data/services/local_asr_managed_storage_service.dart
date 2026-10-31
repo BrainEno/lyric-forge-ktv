@@ -115,6 +115,8 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
     }
 
     var root = Directory(configured.managedRoot).absolute;
+    var securityScopedParent = configured.securityScopedParent;
+    var securityScopedBookmark = configured.securityScopedBookmark;
     final bookmark = configured.securityScopedBookmark;
     final bridge = securityScopedBookmarkBridge;
     if (_isMacOS &&
@@ -127,6 +129,8 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
         restoredParent: restoredParent,
         configured: configured,
       );
+      securityScopedParent = restoredParent.path;
+      securityScopedBookmark = restored.bookmark;
       if (!_samePath(root.path, configured.managedRoot) ||
           restored.bookmark != bookmark ||
           configured.securityScopedParent != restoredParent.path) {
@@ -136,6 +140,23 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           securityScopedBookmark: restored.bookmark,
         );
       }
+    }
+
+    // Older builds could poison the persisted pointer by appending another
+    // LyricForge/ASRRuntime below the real ASRRuntime (for example
+    // D:\Models\LyricForge\ASRRuntime\LyricForge\ASRRuntime).  Merely
+    // creating that nested directory forever makes every later refresh miss
+    // the multi-GB models one level above it.  Recover only when the outer
+    // ancestor is recognisable as at least as complete an ASR root; the
+    // nested partial tree is left in place rather than deleted implicitly.
+    final recovered = await _unwrapRepeatedManagedRoot(root);
+    if (recovered != null && !_samePath(recovered.path, root.path)) {
+      root = recovered;
+      await _writeConfiguredRoot(
+        root.path,
+        securityScopedParent: securityScopedParent,
+        securityScopedBookmark: securityScopedBookmark,
+      );
     }
 
     await root.create(recursive: true);
@@ -163,13 +184,104 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
   }
 
   @override
+  Future<AsrManagedStorageMoveResult?> discoverAndAdoptExisting() async {
+    final candidates = await _findExistingRoots(
+      await _discoverySeedDirectories(),
+    );
+    if (candidates.isEmpty) return null;
+
+    final best = candidates.first.root;
+    final configured = await _readConfiguredRoot();
+    final fallback = await defaultRoot();
+    var securityScopedParent = configured?.securityScopedParent;
+    var securityScopedBookmark = configured?.securityScopedBookmark;
+
+    if (_isMacOS) {
+      final alreadyAuthorized =
+          configured != null &&
+          _samePath(best.path, configured.managedRoot) &&
+          (configured.securityScopedBookmark?.trim().isNotEmpty ?? false);
+      if (!_samePath(best.path, fallback.path) && !alreadyAuthorized) {
+        throw FileSystemException(
+          '已找到已有 ASRRuntime，但 macOS 需要先通过“粘贴路径识别”或“浏览已有 ASRRuntime”授权该文件夹',
+          best.path,
+        );
+      }
+      if (!alreadyAuthorized) {
+        securityScopedParent = null;
+        securityScopedBookmark = null;
+      }
+    } else {
+      securityScopedParent = null;
+      securityScopedBookmark = null;
+    }
+
+    return _moveToRoot(
+      best,
+      securityScopedParent: securityScopedParent,
+      securityScopedBookmark: securityScopedBookmark,
+    );
+  }
+
+  @override
+  Future<AsrManagedStorageMoveResult> adoptExistingAt(
+    String selectedPath,
+  ) async {
+    final authorized = await _authorizeSelectedPath(
+      selectedPath,
+      emptyMessage: '没有输入已有模型路径',
+    );
+    final selected = await _directoryForSelection(authorized.path);
+    final candidates = await _findExistingRoots([
+      selected,
+    ], expandAllSeedChildren: true);
+    if (candidates.isEmpty) {
+      throw FileSystemException(
+        '未在该路径及其相邻 LyricForge/ASRRuntime 目录中识别到已有 ASRRuntime；'
+        '可粘贴完整的 ASRRuntime 路径，或改为一键自动查找',
+        selected.path,
+      );
+    }
+    return _moveToRoot(
+      candidates.first.root,
+      securityScopedParent: authorized.securityScopedParent,
+      securityScopedBookmark: authorized.securityScopedBookmark,
+    );
+  }
+
+  @override
   Future<AsrManagedStorageMoveResult> moveToParent(
     String selectedParent, {
     void Function(int copiedBytes, int totalBytes)? onProgress,
   }) async {
-    var parent = selectedParent.trim();
-    if (parent.isEmpty) {
-      throw const FileSystemException('没有选择新的模型存储目录');
+    final authorized = await _authorizeSelectedPath(
+      selectedParent,
+      emptyMessage: '没有选择新的模型存储目录',
+    );
+    final selected = await _directoryForSelection(authorized.path);
+    final target = await _resolveSelectionTarget(selected);
+    return _moveToRoot(
+      target,
+      securityScopedParent: authorized.securityScopedParent,
+      securityScopedBookmark: authorized.securityScopedBookmark,
+      onProgress: onProgress,
+    );
+  }
+
+  Future<
+    ({
+      String path,
+      String? securityScopedParent,
+      String? securityScopedBookmark,
+    })
+  >
+  _authorizeSelectedPath(
+    String selectedPath, {
+    required String emptyMessage,
+  }) async {
+    var path = _cleanSelectedPath(selectedPath);
+    if (path.isEmpty) {
+      throw FileSystemException(emptyMessage);
     }
 
     String? bookmark;
@@ -178,18 +290,42 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       if (bridge == null) {
         throw const FileSystemException('macOS 模型目录授权服务不可用');
       }
-      final access = await bridge.createAndStart(parent);
-      parent = access.path;
+      final access = await bridge.createAndStart(path);
+      path = access.path;
       bookmark = access.bookmark;
     }
 
-    final target = await _resolveSelectionTarget(Directory(parent).absolute);
-    return _moveToRoot(
-      target,
-      securityScopedParent: _isMacOS ? Directory(parent).absolute.path : null,
+    return (
+      path: path,
+      securityScopedParent: _isMacOS ? Directory(path).absolute.path : null,
       securityScopedBookmark: bookmark,
-      onProgress: onProgress,
     );
+  }
+
+  Future<Directory> _directoryForSelection(String selectedPath) async {
+    final type = await FileSystemEntity.type(selectedPath, followLinks: false);
+    if (type == FileSystemEntityType.file ||
+        type == FileSystemEntityType.link) {
+      return File(selectedPath).parent.absolute;
+    }
+    return Directory(selectedPath).absolute;
+  }
+
+  String _cleanSelectedPath(String selectedPath) {
+    var value = selectedPath.trim();
+    while (value.length >= 2 &&
+        ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'")))) {
+      value = value.substring(1, value.length - 1).trim();
+    }
+    if (value.toLowerCase().startsWith('file://')) {
+      try {
+        value = Uri.parse(value).toFilePath();
+      } catch (_) {
+        // Keep the original text so the normal filesystem error names it.
+      }
+    }
+    return value;
   }
 
   @override
@@ -219,6 +355,8 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       final target = requestedTarget.absolute;
       final sourceStats = await _treeStats(source);
 
+      final targetIsExistingRoot = await _looksLikeManagedAsrRoot(target);
+
       if (_samePath(source.path, target.path)) {
         await _writeConfiguredRoot(
           target.path,
@@ -231,13 +369,7 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           copiedBytes: sourceStats.bytes,
           copiedFiles: sourceStats.files,
           moved: false,
-        );
-      }
-
-      if (_pathsOverlap(source.path, target.path)) {
-        throw FileSystemException(
-          '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
-          target.path,
+          adoptedExisting: targetIsExistingRoot,
         );
       }
 
@@ -246,7 +378,12 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
       // the runtime managers resolve every component relative to this root,
       // so repair/inspect will rediscover those files without a second
       // multi-GB copy (and without deleting either tree).
-      if (await _looksLikeManagedAsrRoot(target)) {
+      //
+      // Adoption deliberately precedes the overlap guard. If an older build
+      // nested the active root below the real root, the real target is an
+      // ancestor of the source; copying would be unsafe, but a pointer-only
+      // switch to that recognisable ancestor is exactly the recovery path.
+      if (targetIsExistingRoot) {
         await _assertWritable(target);
         await _writeConfiguredRoot(
           target.path,
@@ -261,6 +398,13 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
           moved: true,
           oldRootRetained: sourceStats.files > 0 || sourceStats.bytes > 0,
           adoptedExisting: true,
+        );
+      }
+
+      if (_pathsOverlap(source.path, target.path)) {
+        throw FileSystemException(
+          '目标位置不能位于当前 ASRRuntime 目录内部，也不能包含当前目录，请选择其他文件夹',
+          target.path,
         );
       }
 
@@ -353,90 +497,415 @@ class LocalAsrManagedStorageService implements AsrManagedStorageService {
   }
 
   Future<Directory> _resolveSelectionTarget(Directory selected) async {
+    final existing = await _findExistingRoots([
+      selected,
+    ], expandAllSeedChildren: true);
+    if (existing.isNotEmpty) return existing.first.root;
+
     final selectedName = _pathBasename(selected.path).toLowerCase();
-    if (selectedName == 'ASRRuntime') return selected;
-    if (selectedName == 'lyricforge') {
+    if (_isAsrRuntimeName(selectedName)) {
+      return await _unwrapRepeatedManagedRoot(selected) ?? selected;
+    }
+    if (_isLyricForgeName(selectedName)) {
       return Directory(_join(selected.path, ['ASRRuntime'])).absolute;
     }
+    return Directory(
+      _join(selected.path, ['LyricForge', 'ASRRuntime']),
+    ).absolute;
+  }
 
-    final candidates = <Directory>[
-      selected,
-      Directory(_join(selected.path, ['ASRRuntime'])).absolute,
-      Directory(_join(selected.path, ['LyricForge', 'ASRRuntime'])).absolute,
-    ];
-    for (final candidate in candidates) {
-      if (await _looksLikeManagedAsrRoot(candidate)) return candidate;
+  Future<List<_ExistingRootCandidate>> _findExistingRoots(
+    Iterable<Directory> seeds, {
+    bool expandAllSeedChildren = false,
+  }) async {
+    final candidatePaths = <String, String>{};
+
+    void addCandidate(Directory directory) {
+      final absolute = directory.absolute;
+      candidatePaths.putIfAbsent(
+        _normalizedPath(absolute.path),
+        () => absolute.path,
+      );
     }
-    return candidates.last;
+
+    void addCandidatesForBase(Directory base) {
+      for (final candidate in _candidateRootsForBase(base)) {
+        addCandidate(candidate);
+      }
+    }
+
+    for (final seed in seeds) {
+      final absoluteSeed = seed.absolute;
+      addCandidatesForBase(absoluteSeed);
+
+      final seedChildren = await _immediateChildDirectories(absoluteSeed);
+      for (final child in seedChildren) {
+        if (expandAllSeedChildren ||
+            _isFilesystemRoot(absoluteSeed) ||
+            _isLikelyContainerName(_pathBasename(child.path))) {
+          addCandidatesForBase(child);
+        }
+      }
+
+      // A selection may be the managed root itself, a model subdirectory, or
+      // a file's parent. Likewise, a poisoned nested active root has the
+      // real root among its ancestors. Checking each ancestor (and the
+      // canonical child roots below it) makes those inputs forgiving without
+      // recursively walking an entire drive.
+      for (final ancestor in _ancestorDirectories(absoluteSeed)) {
+        addCandidatesForBase(ancestor);
+        final children = await _immediateChildDirectories(ancestor);
+        for (final child in children) {
+          if (_isFilesystemRoot(ancestor) ||
+              _isLikelyContainerName(_pathBasename(child.path))) {
+            addCandidatesForBase(child);
+          }
+        }
+      }
+    }
+
+    final configured = await _readConfiguredRoot();
+    final fallback = await defaultRoot();
+    final preferredPaths = <String>{
+      if (configured != null) _normalizedPath(configured.managedRoot),
+      _normalizedPath(fallback.path),
+    };
+
+    final candidates = <_ExistingRootCandidate>[];
+    for (final path in candidatePaths.values) {
+      final root = Directory(path).absolute;
+      final score = await _scoreManagedAsrRoot(root);
+      if (score < 4) continue;
+      candidates.add(
+        _ExistingRootCandidate(
+          root: root,
+          score: score,
+          preferred: preferredPaths.contains(_normalizedPath(root.path)),
+          isRepeatedNestedRoot: _repeatedManagedRootAncestor(root) != null,
+        ),
+      );
+    }
+
+    candidates.sort((left, right) {
+      if (left.isRepeatedNestedRoot != right.isRepeatedNestedRoot) {
+        return left.isRepeatedNestedRoot ? 1 : -1;
+      }
+      final byScore = right.score.compareTo(left.score);
+      if (byScore != 0) return byScore;
+      if (left.preferred != right.preferred) {
+        return left.preferred ? -1 : 1;
+      }
+      final byLength = left.root.path.length.compareTo(right.root.path.length);
+      if (byLength != 0) return byLength;
+      return left.root.path.compareTo(right.root.path);
+    });
+    return candidates;
+  }
+
+  List<Directory> _candidateRootsForBase(Directory base) {
+    final absolute = base.absolute;
+    final name = _pathBasename(absolute.path).toLowerCase();
+    final candidates = <Directory>[];
+    void add(Directory directory) {
+      final value = directory.absolute;
+      if (!candidates.any((item) => _samePath(item.path, value.path))) {
+        candidates.add(value);
+      }
+    }
+
+    if (_isAsrRuntimeName(name)) {
+      add(absolute);
+      var current = absolute;
+      while (true) {
+        final outer = _repeatedManagedRootAncestor(current);
+        if (outer == null) break;
+        add(outer);
+        current = outer;
+      }
+      return candidates;
+    }
+    if (_isLyricForgeName(name)) {
+      add(Directory(_join(absolute.path, ['ASRRuntime'])));
+      return candidates;
+    }
+
+    add(absolute);
+    add(Directory(_join(absolute.path, ['ASRRuntime'])));
+    add(Directory(_join(absolute.path, ['LyricForge', 'ASRRuntime'])));
+    // The user's real layout is D:\Models\LyricForge\ASRRuntime. When the
+    // seed is a whole drive, this one extra canonical branch finds it while
+    // keeping discovery bounded to named locations.
+    add(
+      Directory(_join(absolute.path, ['Models', 'LyricForge', 'ASRRuntime'])),
+    );
+    return candidates;
+  }
+
+  Future<List<Directory>> _discoverySeedDirectories() async {
+    final seeds = <Directory>[];
+    void add(Directory directory) {
+      final absolute = directory.absolute;
+      if (!seeds.any((item) => _samePath(item.path, absolute.path))) {
+        seeds.add(absolute);
+      }
+    }
+
+    final configured = await _readConfiguredRoot();
+    if (configured != null) {
+      add(Directory(configured.managedRoot));
+    }
+    add(await defaultRoot());
+    add(await _supportDirectory());
+
+    final environment = Platform.environment;
+    final home = Platform.isWindows
+        ? environment['USERPROFILE'] ?? environment['HOME']
+        : environment['HOME'] ?? environment['USERPROFILE'];
+    if (home != null && home.trim().isNotEmpty) {
+      final homeDirectory = Directory(home.trim());
+      add(homeDirectory);
+      for (final child in const [
+        'Downloads',
+        'Documents',
+        'Models',
+        'LyricForge',
+      ]) {
+        add(Directory(_join(homeDirectory.path, [child])));
+      }
+    }
+
+    if (Platform.isWindows) {
+      for (var code = 'C'.codeUnitAt(0); code <= 'Z'.codeUnitAt(0); code++) {
+        final drive = Directory('${String.fromCharCode(code)}:\\');
+        try {
+          if (await drive.exists()) add(drive);
+        } catch (_) {
+          // A disconnected removable/network drive must not make discovery fail.
+        }
+      }
+    } else if (Platform.isMacOS) {
+      add(Directory('/Volumes'));
+    } else if (Platform.isLinux) {
+      add(Directory('/mnt'));
+      add(Directory('/media'));
+    }
+    return seeds;
+  }
+
+  List<Directory> _ancestorDirectories(Directory directory) {
+    final ancestors = <Directory>[];
+    var current = directory.absolute.parent;
+    while (true) {
+      ancestors.add(current);
+      final parent = current.parent;
+      if (_samePath(parent.path, current.path)) break;
+      current = parent;
+    }
+    return ancestors;
+  }
+
+  Future<List<Directory>> _immediateChildDirectories(
+    Directory directory,
+  ) async {
+    final children = <Directory>[];
+    try {
+      if (!await directory.exists()) return children;
+      await for (final entity in directory.list(followLinks: false)) {
+        if (entity is Directory) children.add(entity.absolute);
+      }
+    } catch (_) {
+      return children;
+    }
+    return children;
+  }
+
+  bool _isFilesystemRoot(Directory directory) {
+    final absolute = directory.absolute;
+    return _samePath(absolute.path, absolute.parent.path);
+  }
+
+  bool _isLikelyContainerName(String name) {
+    final normalized = name.toLowerCase();
+    return const {
+          'lyricforge',
+          'models',
+          'model',
+          'ai',
+          'downloads',
+          'download',
+          'documents',
+          'data',
+          'apps',
+          'applications',
+          'programdata',
+          'users',
+          'home',
+          'volumes',
+          'mnt',
+          'media',
+        }.contains(normalized) ||
+        _isAsrRuntimeName(normalized) ||
+        normalized.contains('lyricforge') ||
+        normalized.contains('model');
+  }
+
+  bool _isAsrRuntimeName(String value) => value.toUpperCase() == 'ASRRUNTIME';
+
+  bool _isLyricForgeName(String value) => value.toUpperCase() == 'LYRICFORGE';
+
+  Directory? _repeatedManagedRootAncestor(Directory root) {
+    final absolute = root.absolute;
+    final parent = absolute.parent;
+    final grandparent = parent.parent;
+    if (!_isAsrRuntimeName(_pathBasename(absolute.path)) ||
+        !_isLyricForgeName(_pathBasename(parent.path)) ||
+        !_isAsrRuntimeName(_pathBasename(grandparent.path))) {
+      return null;
+    }
+    return grandparent.absolute;
+  }
+
+  Future<Directory?> _unwrapRepeatedManagedRoot(Directory root) async {
+    var current = root.absolute;
+    if (_repeatedManagedRootAncestor(current) == null) return null;
+
+    final originalScore = await _scoreManagedAsrRoot(current);
+    Directory? recovered;
+    while (true) {
+      final outer = _repeatedManagedRootAncestor(current);
+      if (outer == null) break;
+      final outerScore = await _scoreManagedAsrRoot(outer);
+      if (outerScore < 4 || outerScore < originalScore) break;
+      recovered = outer;
+      current = outer;
+    }
+    return recovered;
   }
 
   Future<bool> _looksLikeManagedAsrRoot(Directory root) async {
-    if (!await root.exists()) return false;
+    return await _scoreManagedAsrRoot(root) >= 4;
+  }
 
-    Future<bool> fileExists(List<String> relative) {
-      return File(_join(root.path, relative)).exists();
+  /// Scores layout-specific evidence that [root] is a LyricForge ASR root.
+  ///
+  /// A merely non-empty directory scores zero and keeps taking the existing
+  /// conflict path, so unrelated user files are never silently treated as an
+  /// ASR environment. Scores also let bounded discovery prefer the complete
+  /// outer root over a newly created, nearly empty nested root.
+  Future<int> _scoreManagedAsrRoot(Directory root) async {
+    var score = 0;
+
+    Future<bool> fileExists(List<String> relative) async {
+      try {
+        return await File(_join(root.path, relative)).exists();
+      } catch (_) {
+        return false;
+      }
     }
 
-    // Strong, layout-specific evidence only. A merely non-empty directory
-    // must keep taking the existing conflict path so unrelated user files
-    // are never silently treated as an ASR environment.
-    if (await fileExists(['models', 'whisper', 'ggml-large-v3.bin']) ||
-        await fileExists(['models', 'whisper', 'ggml-large-v3.bin.part']) ||
-        await fileExists(['bundle', 'bin', 'qwen3-asr']) ||
-        await fileExists(['bundle', 'bin', 'qwen3-asr.exe']) ||
-        await fileExists(['bundle', 'bin', 'whisper-cli']) ||
-        await fileExists(['bundle', 'bin', 'whisper-cli.exe']) ||
-        await fileExists(['state', 'runtime-build-revision.txt']) ||
-        await fileExists(['downloads', 'asr-runtime.zip']) ||
-        await fileExists(['downloads', 'asr-runtime.zip.part'])) {
-      return true;
-    }
+    try {
+      if (!await root.exists()) return 0;
 
-    final state = Directory(_join(root.path, ['state']));
-    if (await state.exists()) {
-      await for (final entity in state.list(followLinks: false)) {
-        if (entity is File &&
-            _pathBasename(entity.path).startsWith('qwen_') &&
-            entity.path.endsWith('.ready.json')) {
-          return true;
+      if (_isAsrRuntimeName(_pathBasename(root.path))) score += 1;
+      if (await fileExists(['.runtime-health-v1.json'])) score += 4;
+      if (await fileExists(['models', 'whisper', 'ggml-large-v3.bin'])) {
+        score += 5;
+      } else if (await fileExists([
+        'models',
+        'whisper',
+        'ggml-large-v3.bin.part',
+      ])) {
+        score += 2;
+      }
+      if (await fileExists(['bundle', 'bin', 'qwen3-asr']) ||
+          await fileExists(['bundle', 'bin', 'qwen3-asr.exe'])) {
+        score += 3;
+      }
+      if (await fileExists(['bundle', 'bin', 'whisper-cli']) ||
+          await fileExists(['bundle', 'bin', 'whisper-cli.exe']) ||
+          await fileExists(['whisper', 'bin', 'whisper-cli']) ||
+          await fileExists(['whisper', 'bin', 'whisper-cli.exe']) ||
+          await fileExists(['whisper', 'whisper-cli']) ||
+          await fileExists(['whisper', 'whisper-cli.exe'])) {
+        score += 3;
+      }
+      if (await fileExists(['bundle', 'bin', 'ffmpeg']) ||
+          await fileExists(['bundle', 'bin', 'ffmpeg.exe']) ||
+          await fileExists(['ffmpeg', 'bin', 'ffmpeg']) ||
+          await fileExists(['ffmpeg', 'bin', 'ffmpeg.exe'])) {
+        score += 1;
+      }
+      if (await fileExists(['state', 'runtime-build-revision.txt'])) {
+        score += 3;
+      }
+      if (await fileExists(['downloads', 'asr-runtime.zip'])) {
+        score += 2;
+      } else if (await fileExists(['downloads', 'asr-runtime.zip.part'])) {
+        score += 1;
+      }
+
+      final state = Directory(_join(root.path, ['state']));
+      if (await state.exists()) {
+        await for (final entity in state.list(followLinks: false)) {
+          if (entity is File &&
+              _pathBasename(entity.path).startsWith('qwen_') &&
+              entity.path.endsWith('.ready.json')) {
+            score += 3;
+            break;
+          }
         }
       }
-    }
 
-    final qwenModels = Directory(_join(root.path, ['models', 'qwen']));
-    if (!await qwenModels.exists()) return false;
-    await for (final entity in qwenModels.list(followLinks: false)) {
-      if (entity is! Directory) continue;
-      const managedModelDirectoryNames = {
-        'Qwen--Qwen3-ASR-1.7B',
-        'Qwen--Qwen3-ASR-0.6B',
-        'Qwen--Qwen3-ForcedAligner-0.6B',
-      };
-      if (managedModelDirectoryNames.contains(_pathBasename(entity.path))) {
-        await for (final child in entity.list(followLinks: false)) {
-          if (child is File) return true;
+      final qwenModels = Directory(_join(root.path, ['models', 'qwen']));
+      if (!await qwenModels.exists()) return score;
+      var modelEvidence = 0;
+      await for (final entity in qwenModels.list(followLinks: false)) {
+        if (entity is! Directory) continue;
+        var directoryEvidence = 0;
+        const managedModelDirectoryNames = {
+          'Qwen--Qwen3-ASR-1.7B',
+          'Qwen--Qwen3-ASR-0.6B',
+          'Qwen--Qwen3-ForcedAligner-0.6B',
+        };
+        if (managedModelDirectoryNames.contains(_pathBasename(entity.path))) {
+          await for (final child in entity.list(followLinks: false)) {
+            if (child is File) {
+              directoryEvidence = 3;
+              break;
+            }
+          }
         }
-      }
-      if (await File(_join(entity.path, ['.lyricforge-model.json'])).exists()) {
-        return true;
-      }
+        if (await File(
+          _join(entity.path, ['.lyricforge-model.json']),
+        ).exists()) {
+          modelEvidence += 4;
+          if (modelEvidence >= 8) break;
+          continue;
+        }
 
-      // A model downloaded by an older build (or copied from a Hugging Face
-      // snapshot into the managed layout) may not have LyricForge's marker
-      // yet. The normal file names + a weight file are sufficient to adopt
-      // the root; runtime repair/install still performs its own stricter
-      // completeness and integrity checks before using the model.
-      final hasConfig = await File(
-        _join(entity.path, ['config.json']),
-      ).exists();
-      if (!hasConfig) continue;
-      await for (final child in entity.list(followLinks: false)) {
-        if (child is File && child.path.endsWith('.safetensors')) {
-          return true;
+        // A model downloaded by an older build (or copied from a Hugging
+        // Face snapshot into the managed layout) may not have LyricForge's
+        // marker yet. Normal file names + a weight file are sufficient to
+        // adopt the root; runtime repair/install still performs its own
+        // stricter completeness and SHA-256 checks before using the model.
+        final hasConfig = await File(
+          _join(entity.path, ['config.json']),
+        ).exists();
+        if (hasConfig) {
+          await for (final child in entity.list(followLinks: false)) {
+            if (child is File && child.path.endsWith('.safetensors')) {
+              directoryEvidence = 4;
+              break;
+            }
+          }
         }
+        modelEvidence += directoryEvidence;
+        if (modelEvidence >= 8) break;
       }
+      return score + (modelEvidence > 8 ? 8 : modelEvidence);
+    } catch (_) {
+      return score;
     }
-    return false;
   }
 
   Directory _rootFromRestoredParent({
@@ -659,4 +1128,18 @@ class _TreeStats {
   final int bytes;
 
   const _TreeStats({required this.files, required this.bytes});
+}
+
+class _ExistingRootCandidate {
+  final Directory root;
+  final int score;
+  final bool preferred;
+  final bool isRepeatedNestedRoot;
+
+  const _ExistingRootCandidate({
+    required this.root,
+    required this.score,
+    required this.preferred,
+    required this.isRepeatedNestedRoot,
+  });
 }

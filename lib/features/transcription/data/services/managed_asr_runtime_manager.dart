@@ -136,7 +136,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         AsrRuntimeComponent.whisperModel,
         'Whisper large-v3 模型',
         whisperModelReady,
-        readyDetail: 'large-v3 模型已下载并通过大小检查',
+        readyDetail: '已找到 large-v3 模型；校验/修复时会核对 SHA-256',
         missingDetail: '需要下载约 3.1 GB 模型',
         path: whisperModelReady ? whisperModel : null,
       ),
@@ -258,7 +258,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       final root = await _managedRoot();
       await _ensureDirectories(root);
 
-      _emit(null, 0.01, '正在检查本机已有的识别组件');
+      _emit(
+        null,
+        0.01,
+        '正在检查本机已有的识别组件（此阶段不会下载）',
+        phase: AsrRuntimeInstallPhase.checkingExisting,
+      );
 
       var repaired = await _repairPaths(profile.config, root);
 
@@ -318,11 +323,40 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         'whisper',
         _whisperModelName,
       ]);
-      if (!await _validWhisperModel(whisperModelPath)) {
+      final whisperModelFile = File(whisperModelPath);
+      final whisperModelExists = await whisperModelFile.exists();
+      if (whisperModelExists) {
+        _emit(
+          AsrRuntimeComponent.whisperModel,
+          0.35,
+          '正在校验已有 Whisper large-v3 的 SHA-256（不会下载）',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
+        );
+      }
+      final whisperModelValid = await _validWhisperModel(
+        whisperModelPath,
+        verifyHash: true,
+      );
+      if (!whisperModelValid) {
+        if (whisperModelExists) {
+          _emit(
+            AsrRuntimeComponent.whisperModel,
+            0.355,
+            '已有 Whisper large-v3 未通过大小或 SHA-256 校验，将重新下载该模型',
+            phase: AsrRuntimeInstallPhase.checkingExisting,
+          );
+        }
         await _installWhisperModel(
           root,
           whisperModelPath,
           proxyOverride: config.downloadProxy,
+        );
+      } else if (whisperModelExists) {
+        _emit(
+          AsrRuntimeComponent.whisperModel,
+          0.69,
+          '已有 Whisper large-v3 已通过 SHA-256 校验，将直接复用，不会下载',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
         );
       }
 
@@ -372,7 +406,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     TranscriptionProfilePreference profile, {
     required String proxyOverride,
   }) async {
-    _emit(AsrRuntimeComponent.qwenRuntime, 0.05, '正在下载 LyricForge 识别引擎');
+    _emit(
+      AsrRuntimeComponent.qwenRuntime,
+      0.05,
+      '识别引擎缺失或版本不匹配，正在下载 LyricForge 识别引擎',
+      phase: AsrRuntimeInstallPhase.downloading,
+    );
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['asr-runtime.zip']));
@@ -400,7 +439,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     }
 
     _throwIfCancelled();
-    _emit(AsrRuntimeComponent.qwenRuntime, 0.225, '正在校验 LyricForge 识别引擎完整性');
+    _emit(
+      AsrRuntimeComponent.qwenRuntime,
+      0.225,
+      '正在校验 LyricForge 识别引擎完整性（刚下载的文件）',
+      phase: AsrRuntimeInstallPhase.verifying,
+    );
 
     final actualSize = await archive.length();
     if (actualSize != metadata.sizeBytes) {
@@ -426,7 +470,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     await staging.create(recursive: true);
 
     try {
-      _emit(AsrRuntimeComponent.qwenRuntime, 0.23, '正在安装本地识别引擎');
+      _emit(
+        AsrRuntimeComponent.qwenRuntime,
+        0.23,
+        '正在安装本地识别引擎',
+        phase: AsrRuntimeInstallPhase.installing,
+      );
       await _extractZip(archive.path, staging.path);
 
       final manifest = await _findFile(staging, 'runtime-manifest.json');
@@ -576,7 +625,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       await staging.delete(recursive: true);
     }
 
-    _emit(AsrRuntimeComponent.ffmpeg, 0.25, '正在下载 FFmpeg 音频处理组件');
+    _emit(
+      AsrRuntimeComponent.ffmpeg,
+      0.25,
+      'FFmpeg 缺失或无法启动，正在下载 FFmpeg 音频处理组件',
+      phase: AsrRuntimeInstallPhase.downloading,
+    );
 
     final downloads = Directory(_join(root.path, ['downloads']));
     final archive = File(_join(downloads.path, ['ffmpeg.zip']));
@@ -694,6 +748,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       AsrRuntimeComponent.whisperModel,
       0.36,
       '正在下载 Whisper large-v3（约 3.1 GB，可断点续传）',
+      phase: AsrRuntimeInstallPhase.downloading,
     );
 
     final target = File(targetPath);
@@ -709,7 +764,12 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       proxyOverride: proxyOverride,
     );
 
-    _emit(AsrRuntimeComponent.whisperModel, 0.69, '正在校验 Whisper large-v3 文件');
+    _emit(
+      AsrRuntimeComponent.whisperModel,
+      0.69,
+      '正在校验刚下载的 Whisper large-v3 文件 SHA-256',
+      phase: AsrRuntimeInstallPhase.verifying,
+    );
 
     final valid = await _verifySha256(target.path, _whisperModelSha256);
     if (!valid) {
@@ -928,6 +988,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
             component,
             mapped,
             total > 0 ? '正在下载 ${_percent(fraction)}' : '正在下载…',
+            phase: AsrRuntimeInstallPhase.downloading,
             downloadedBytes: received,
             totalBytes: total > 0 ? total : null,
             bytesPerSecond: speed,
@@ -1035,11 +1096,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     return verifyFileSha256(File(path), expected);
   }
 
-  Future<bool> _validWhisperModel(String path) async {
+  Future<bool> _validWhisperModel(
+    String path, {
+    bool verifyHash = false,
+  }) async {
     final file = File(path);
     if (!await file.exists()) return false;
     final length = await file.length();
-    return length > 2 * 1024 * 1024 * 1024;
+    if (length <= 2 * 1024 * 1024 * 1024) return false;
+    // Ordinary inspect stays cheap and reports this as a size check. The
+    // install/repair decision that can skip a 3.1 GB download must perform
+    // the pinned SHA-256 check, otherwise a same-sized wrong file would be
+    // treated as a reusable model forever.
+    return !verifyHash || await _verifySha256(path, _whisperModelSha256);
   }
 
   Future<bool> _healthReady(int port) async {
@@ -1368,6 +1437,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     AsrRuntimeComponent? component,
     double progress,
     String message, {
+    AsrRuntimeInstallPhase phase = AsrRuntimeInstallPhase.preparing,
     int? downloadedBytes,
     int? totalBytes,
     double? bytesPerSecond,
@@ -1379,6 +1449,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         component: component,
         progress: progress.clamp(0.0, 1.0).toDouble(),
         message: message,
+        phase: phase,
         downloadedBytes: downloadedBytes,
         totalBytes: totalBytes,
         bytesPerSecond: bytesPerSecond,

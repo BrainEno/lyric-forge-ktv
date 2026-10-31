@@ -42,6 +42,47 @@ void main() {
       await root.delete(recursive: true);
     });
 
+    Future<Directory> seedVerifiedQwen06({
+      String? corruptFile,
+      Directory? directory,
+    }) async {
+      final separator = Platform.pathSeparator;
+      final modelDirectory =
+          directory ??
+          Directory(
+            '${root.path}${separator}models'
+            '${separator}qwen'
+            '${separator}Qwen--Qwen3-ASR-0.6B',
+          );
+      await modelDirectory.create(recursive: true);
+      for (final fileName in _DownloadFixture.modelFiles) {
+        final bytes = fileName == corruptFile
+            ? List<int>.filled(_DownloadFixture.payload.length, 0x78)
+            : _DownloadFixture.payload;
+        await File(
+          '${modelDirectory.path}$separator$fileName',
+        ).writeAsBytes(bytes);
+      }
+      await File(
+        '${modelDirectory.path}${separator}.lyricforge-model.json',
+      ).writeAsString(
+        jsonEncode({
+          'schemaVersion': 2,
+          'modelId': 'Qwen/Qwen3-ASR-0.6B',
+          'files': [
+            for (final fileName in _DownloadFixture.modelFiles)
+              {
+                'name': fileName,
+                'etag': _DownloadFixture.sha256,
+                'sizeBytes': _DownloadFixture.payload.length,
+                'sha256': _DownloadFixture.sha256,
+              },
+          ],
+        }),
+      );
+      return modelDirectory;
+    }
+
     test('falls back to ModelScope and resumes a matching partial file', () async {
       final modelDirectory = Directory(
         '${root.path}${Platform.pathSeparator}models'
@@ -64,7 +105,9 @@ void main() {
       expect(fixture.manifestRequests['Qwen/Qwen3-ASR-0.6B'], 1);
       expect(
         fixture.rangeRequests,
-        contains('/hf/Qwen/Qwen3-ASR-0.6B/resolve/main/tokenizer_config.json=bytes=3-'),
+        contains(
+          '/hf/Qwen/Qwen3-ASR-0.6B/resolve/main/tokenizer_config.json=bytes=3-',
+        ),
       );
       expect(await partial.exists(), isFalse);
       expect(
@@ -78,11 +121,119 @@ void main() {
         '${modelDirectory.path}${Platform.pathSeparator}.lyricforge-model.json',
       );
       expect(await marker.exists(), isTrue);
-      final decoded = jsonDecode(await marker.readAsString()) as Map<String, dynamic>;
+      final decoded =
+          jsonDecode(await marker.readAsString()) as Map<String, dynamic>;
       expect(decoded['schemaVersion'], 2);
       expect(decoded['modelId'], 'Qwen/Qwen3-ASR-0.6B');
       expect((decoded['files'] as List).length, 8);
     });
+
+    test(
+      'reuses marker-verified existing Qwen files without downloading them',
+      () async {
+        final modelDirectory = await seedVerifiedQwen06();
+
+        final installed = await manager.installRecommended(_config);
+
+        expect(installed.qwenModelPath, modelDirectory.path);
+        expect(
+          fixture.huggingFaceFileRequests.where(
+            (request) => request.startsWith('Qwen/Qwen3-ASR-0.6B/'),
+          ),
+          isEmpty,
+        );
+        expect(
+          fixture.modelScopeFileRequests.where(
+            (request) => request.startsWith('Qwen/Qwen3-ASR-0.6B/'),
+          ),
+          isEmpty,
+        );
+        expect(
+          fixture.huggingFaceFileRequests,
+          contains('Qwen/Qwen3-ForcedAligner-0.6B/config.json'),
+        );
+      },
+    );
+
+    test(
+      'redownloads only the Qwen file whose marker SHA-256 does not match',
+      () async {
+        final modelDirectory = await seedVerifiedQwen06(
+          corruptFile: 'vocab.json',
+        );
+        final progressMessages = <String>[];
+        final subscription = manager.progressStream.listen(
+          (progress) => progressMessages.add(progress.message),
+        );
+        addTearDown(subscription.cancel);
+
+        final installed = await manager.installRecommended(_config);
+
+        expect(installed.qwenModelPath, modelDirectory.path);
+        expect(
+          fixture.huggingFaceFileRequests.where(
+            (request) => request.startsWith('Qwen/Qwen3-ASR-0.6B/'),
+          ),
+          ['Qwen/Qwen3-ASR-0.6B/vocab.json'],
+        );
+        expect(
+          await File(
+            '${modelDirectory.path}${Platform.pathSeparator}vocab.json',
+          ).readAsBytes(),
+          _DownloadFixture.payload,
+        );
+        expect(
+          progressMessages.any(
+            (message) =>
+                message.contains('vocab.json') && message.contains('SHA-256'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'copies verified files from a configured external Qwen directory',
+      () async {
+        final separator = Platform.pathSeparator;
+        final externalDirectory = Directory(
+          '${root.path}${separator}external-qwen',
+        );
+        await seedVerifiedQwen06(
+          corruptFile: 'vocab.json',
+          directory: externalDirectory,
+        );
+        final managedDirectory = Directory(
+          '${root.path}${separator}models'
+          '${separator}qwen'
+          '${separator}Qwen--Qwen3-ASR-0.6B',
+        );
+
+        final installed = await manager.installRecommended(
+          _config.copyWith(qwenModelPath: externalDirectory.path),
+        );
+
+        expect(installed.qwenModelPath, managedDirectory.path);
+        expect(
+          fixture.huggingFaceFileRequests.where(
+            (request) => request.startsWith('Qwen/Qwen3-ASR-0.6B/'),
+          ),
+          ['Qwen/Qwen3-ASR-0.6B/vocab.json'],
+        );
+        expect(
+          await File(
+            '${managedDirectory.path}${separator}config.json',
+          ).readAsBytes(),
+          _DownloadFixture.payload,
+        );
+        expect(
+          await File(
+            '${externalDirectory.path}${separator}config.json',
+          ).readAsBytes(),
+          _DownloadFixture.payload,
+        );
+      },
+    );
 
     test(
       'restarts from ModelScope when Hugging Face size metadata is stale',
@@ -116,9 +267,11 @@ void main() {
         expect(entry['sha256'], _DownloadFixture.staleChatTemplateSha256);
         expect(
           fixture.rangeRequests,
-          isNot(contains(
-            '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/chat_template.json=bytes=',
-          )),
+          isNot(
+            contains(
+              '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/chat_template.json=bytes=',
+            ),
+          ),
         );
       },
     );
@@ -149,9 +302,11 @@ void main() {
         );
         expect(
           fixture.rangeRequests,
-          isNot(contains(
-            '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/config.json=bytes=3-',
-          )),
+          isNot(
+            contains(
+              '/models/Qwen/Qwen3-ASR-0.6B/resolve/master/config.json=bytes=3-',
+            ),
+          ),
         );
         expect(await partial.exists(), isFalse);
         final marker = File(
@@ -172,8 +327,11 @@ class _DownloadFixture {
       '2cb79648d94c9a2aa10f9a1164f92c8090e37d753749aa3c8ca125c281598812';
   static const String differentSha256 =
       'c2d9eddc8c765da08e84b1835f0a55fdf0f5f3aad8269c8709b076ca67f3785d';
-  static final List<int> staleChatTemplatePayload =
-      List<int>.filled(1161, 0x61, growable: false);
+  static final List<int> staleChatTemplatePayload = List<int>.filled(
+    1161,
+    0x61,
+    growable: false,
+  );
   static const String staleChatTemplateSha256 =
       'b05f477a1425a7bb180a7323fb60e567970d71e4e5b1d52407d96e8b20f6cb7a';
   static const List<String> modelFiles = <String>[
@@ -189,6 +347,7 @@ class _DownloadFixture {
 
   final HttpServer server;
   final Map<String, int> manifestRequests = <String, int>{};
+  final List<String> huggingFaceFileRequests = <String>[];
   final List<String> modelScopeFileRequests = <String>[];
   final List<String> rangeRequests = <String>[];
   bool mismatchModelScopeChecksum = false;
@@ -206,28 +365,23 @@ class _DownloadFixture {
     return _DownloadFixture._(server);
   }
 
-  Uri get _baseUri => Uri(
-        scheme: 'http',
-        host: '127.0.0.1',
-        port: server.port,
-      );
+  Uri get _baseUri => Uri(scheme: 'http', host: '127.0.0.1', port: server.port);
 
   AsrModelDownloadEndpoints get endpoints => AsrModelDownloadEndpoints(
-        huggingFaceFileUri: (modelId, fileName) => _baseUri.replace(
-          path: '/hf/$modelId/resolve/main/$fileName',
-          queryParameters: const <String, String>{'download': 'true'},
-        ),
-        modelScopeManifestUri: (modelId) => _baseUri.replace(
-          path: '/api/v1/models/$modelId/repo/files',
-          queryParameters: const <String, String>{
-            'Revision': 'master',
-            'Recursive': 'true',
-          },
-        ),
-        modelScopeFileUri: (modelId, fileName) => _baseUri.replace(
-          path: '/models/$modelId/resolve/master/$fileName',
-        ),
-      );
+    huggingFaceFileUri: (modelId, fileName) => _baseUri.replace(
+      path: '/hf/$modelId/resolve/main/$fileName',
+      queryParameters: const <String, String>{'download': 'true'},
+    ),
+    modelScopeManifestUri: (modelId) => _baseUri.replace(
+      path: '/api/v1/models/$modelId/repo/files',
+      queryParameters: const <String, String>{
+        'Revision': 'master',
+        'Recursive': 'true',
+      },
+    ),
+    modelScopeFileUri: (modelId, fileName) =>
+        _baseUri.replace(path: '/models/$modelId/resolve/master/$fileName'),
+  );
 
   Future<void> _handle(HttpRequest request) async {
     try {
@@ -258,34 +412,44 @@ class _DownloadFixture {
   Future<void> _serveManifest(HttpRequest request) async {
     const prefix = '/api/v1/models/';
     const suffix = '/repo/files';
-    final modelId = request.uri.path
-        .substring(prefix.length, request.uri.path.length - suffix.length);
+    final modelId = request.uri.path.substring(
+      prefix.length,
+      request.uri.path.length - suffix.length,
+    );
     manifestRequests.update(modelId, (value) => value + 1, ifAbsent: () => 1);
 
-    final files = modelFiles.map((fileName) {
-      final mismatched = mismatchModelScopeChecksum &&
-          modelId == 'Qwen/Qwen3-ASR-0.6B' &&
-          fileName == 'config.json';
-      final staleChatTemplate = staleChatTemplateHeadMetadata &&
-          modelId == 'Qwen/Qwen3-ASR-0.6B' &&
-          fileName == 'chat_template.json';
-      return <String, Object>{
-        'Type': 'blob',
-        'Path': fileName,
-        'Size': staleChatTemplate ? staleChatTemplatePayload.length : payload.length,
-        'Sha256': staleChatTemplate
-            ? staleChatTemplateSha256
-            : mismatched
+    final files = modelFiles
+        .map((fileName) {
+          final mismatched =
+              mismatchModelScopeChecksum &&
+              modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+              fileName == 'config.json';
+          final staleChatTemplate =
+              staleChatTemplateHeadMetadata &&
+              modelId == 'Qwen/Qwen3-ASR-0.6B' &&
+              fileName == 'chat_template.json';
+          return <String, Object>{
+            'Type': 'blob',
+            'Path': fileName,
+            'Size': staleChatTemplate
+                ? staleChatTemplatePayload.length
+                : payload.length,
+            'Sha256': staleChatTemplate
+                ? staleChatTemplateSha256
+                : mismatched
                 ? differentSha256
                 : sha256,
-      };
-    }).toList(growable: false);
+          };
+        })
+        .toList(growable: false);
 
     request.response.headers.contentType = ContentType.json;
-    request.response.write(jsonEncode(<String, Object>{
-      'Success': true,
-      'Data': <String, Object>{'Files': files},
-    }));
+    request.response.write(
+      jsonEncode(<String, Object>{
+        'Success': true,
+        'Data': <String, Object>{'Files': files},
+      }),
+    );
     await request.response.close();
   }
 
@@ -295,7 +459,8 @@ class _DownloadFixture {
     final modelId = '${segments[0]}/${segments[1]}';
     final fileName = segments.last;
     if (request.method == 'HEAD') {
-      final staleChatTemplate = staleChatTemplateHeadMetadata &&
+      final staleChatTemplate =
+          staleChatTemplateHeadMetadata &&
           modelId == 'Qwen/Qwen3-ASR-0.6B' &&
           fileName == 'chat_template.json';
       request.response.headers.set('etag', '"$sha256"');
@@ -312,6 +477,7 @@ class _DownloadFixture {
       await request.response.close();
       return;
     }
+    huggingFaceFileRequests.add('$modelId/$fileName');
 
     if (modelId == 'Qwen/Qwen3-ASR-0.6B' && fileName == 'config.json') {
       huggingFaceConfigFailures++;
@@ -395,14 +561,13 @@ class _FakeProfileResolver implements TranscriptionProfileResolver {
   @override
   Future<ResolvedTranscriptionProfile> resolve(
     TranscriptionConfig config,
-  ) async =>
-      ResolvedTranscriptionProfile(
-        profile: config.profilePreference,
-        label: 'Local HTTP test profile',
-        description: 'No native runtime is launched by this test.',
-        hardware: _hardware,
-        config: config,
-      );
+  ) async => ResolvedTranscriptionProfile(
+    profile: config.profilePreference,
+    label: 'Local HTTP test profile',
+    description: 'No native runtime is launched by this test.',
+    hardware: _hardware,
+    config: config,
+  );
 }
 
 class _FakeRuntimeManager implements AsrRuntimeManager {
@@ -448,8 +613,7 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   @override
   Future<TranscriptionConfig> installRecommended(
     TranscriptionConfig config,
-  ) async =>
-      config;
+  ) async => config;
 
   @override
   Future<TranscriptionConfig> repair(TranscriptionConfig config) async =>

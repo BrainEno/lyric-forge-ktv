@@ -12,6 +12,7 @@ import '../../../transcription/domain/services/asr_managed_storage_service.dart'
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/asr_storage_preflight_service.dart';
 import '../../../transcription/domain/services/transcription_settings_store.dart';
+import '../../../transcription/presentation/widgets/asr_existing_model_actions.dart';
 import '../../../transcription/presentation/widgets/asr_install_error_card.dart';
 import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
 import '../../../transcription/presentation/widgets/asr_storage_preflight_card.dart';
@@ -45,6 +46,8 @@ class _AiTranscriptionSettingsSectionState
   bool _pauseRequested = false;
   bool _deleting = false;
   bool _movingStorage = false;
+  bool _scanningExisting = false;
+  String? _existingModelMessage;
   int _movingCopiedBytes = 0;
   int _movingTotalBytes = 0;
   AsrRuntimeComponent? _failedComponent;
@@ -59,7 +62,12 @@ class _AiTranscriptionSettingsSectionState
   );
 
   bool get _busy =>
-      _loading || _installing || _paused || _deleting || _movingStorage;
+      _loading ||
+      _installing ||
+      _paused ||
+      _deleting ||
+      _movingStorage ||
+      _scanningExisting;
 
   @override
   void initState() {
@@ -193,7 +201,8 @@ class _AiTranscriptionSettingsSectionState
       if (!resume || _progress == null) {
         _progress = const AsrRuntimeInstallProgress(
           progress: 0,
-          message: '准备下载并安装本地歌词识别环境',
+          message: '正在检查已有组件并校验本地文件；只有缺失或校验失败的文件才会下载',
+          phase: AsrRuntimeInstallPhase.checkingExisting,
         );
       }
     });
@@ -249,6 +258,99 @@ class _AiTranscriptionSettingsSectionState
   }
 
   Future<void> _resumeInstall() => _install(resume: true);
+
+  Future<void> _scanExistingModels() async {
+    if (_busy || _runtimeManager.isInstalling) return;
+    setState(() {
+      _scanningExisting = true;
+      _error = null;
+      _existingModelMessage = '正在常见磁盘位置查找已有 ASRRuntime…此步骤不会下载。';
+    });
+    try {
+      final result = await _managedStorageService.discoverAndAdoptExisting();
+      if (!mounted) return;
+      if (result == null) {
+        setState(() {
+          _existingModelMessage =
+              '没有在常见位置找到已有 ASRRuntime。可以粘贴包含已有模型的磁盘或文件夹路径，'
+              '也可以继续在当前目录校验并补齐缺失组件。';
+        });
+        return;
+      }
+      await _afterExistingRootAdopted(result);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = '识别已有模型失败：$error');
+    } finally {
+      if (mounted) setState(() => _scanningExisting = false);
+    }
+  }
+
+  Future<void> _pasteExistingModelPath() async {
+    if (_busy || _runtimeManager.isInstalling) return;
+    final path = await showAsrExistingModelPathDialog(context);
+    if (path == null || path.trim().isEmpty || !mounted) return;
+    await _adoptExistingPath(path);
+  }
+
+  Future<void> _browseExistingModel() async {
+    if (_busy || _runtimeManager.isInstalling) return;
+    final path = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择磁盘、Models、LyricForge 或已有的 ASRRuntime',
+    );
+    if (path == null || path.trim().isEmpty || !mounted) return;
+    await _adoptExistingPath(path);
+  }
+
+  Future<void> _adoptExistingPath(String path) async {
+    if (_busy || _runtimeManager.isInstalling) return;
+    setState(() {
+      _scanningExisting = true;
+      _error = null;
+      _existingModelMessage = '正在从 $path 识别已有 ASRRuntime…此步骤不会下载。';
+    });
+    try {
+      final result = await _managedStorageService.adoptExistingAt(path);
+      await _afterExistingRootAdopted(result);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _existingModelMessage = '没有从该路径识别到已有 ASRRuntime，当前目录未改变。';
+        _error = '识别已有模型失败：$error';
+      });
+    } finally {
+      if (mounted) setState(() => _scanningExisting = false);
+    }
+  }
+
+  Future<void> _afterExistingRootAdopted(
+    AsrManagedStorageMoveResult result,
+  ) async {
+    if (!mounted) return;
+    setState(() {
+      _existingModelMessage = '已找到已有环境：${result.targetRoot}。正在重新检测组件；此步骤不会下载。';
+    });
+    final repaired = await _runtimeManager.repair(_config ?? _defaultConfig);
+    if (repaired.isConfigured) {
+      await _settingsStore.save(repaired);
+    }
+    if (!mounted) return;
+    setState(() => _config = repaired);
+    await _refresh();
+    if (!mounted) return;
+    final status = _status;
+    setState(() {
+      _existingModelMessage = status?.isReady == true
+          ? '已启用已有环境：${result.targetRoot}。组件已就绪，本次没有下载；'
+                '之后执行校验/修复时仍会核对模型 SHA-256。'
+          : status == null
+          ? '已找到并使用已有环境：${result.targetRoot}。请重新检测确认各组件状态。'
+          : '已找到并使用已有环境：${result.targetRoot}。当前 '
+                '${status.readyCount}/${status.components.length} 个组件就绪；'
+                '点击“校验并补齐缺失组件”时会先校验已有文件，只有下面列出的缺失或'
+                '校验失败组件才会下载。';
+    });
+  }
 
   Future<void> _changeManagedStorageLocation() async {
     final parent = await FilePicker.platform.getDirectoryPath(
@@ -321,7 +423,13 @@ class _AiTranscriptionSettingsSectionState
         await _settingsStore.save(repaired);
       }
       if (!mounted) return;
-      setState(() => _config = repaired);
+      setState(() {
+        _config = repaired;
+        if (result.adoptedExisting) {
+          _existingModelMessage =
+              '已识别并使用现有识别环境：${result.targetRoot}；未复制或删除旧目录。';
+        }
+      });
       await _refresh();
       if (!mounted || !result.moved) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -590,6 +698,16 @@ class _AiTranscriptionSettingsSectionState
           const SizedBox(height: AppSpacing.md),
           _ComponentList(components: status.components),
         ],
+        if (!ready || _existingModelMessage != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          AsrExistingModelCard(
+            scanning: _scanningExisting,
+            message: _existingModelMessage,
+            onScan: _busy ? null : _scanExistingModels,
+            onPastePath: _busy ? null : _pasteExistingModelPath,
+            onBrowse: _busy ? null : _browseExistingModel,
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         AsrStoragePreflightCard(
           result: _storage,
@@ -605,7 +723,7 @@ class _AiTranscriptionSettingsSectionState
             OutlinedButton.icon(
               onPressed: _busy ? null : _changeManagedStorageLocation,
               icon: const Icon(Icons.folder_open_rounded),
-              label: const Text('更改 / 使用已有模型目录'),
+              label: const Text('迁移当前环境到其他文件夹'),
             ),
             if (_managedStorageLocation?.isDefault == false)
               TextButton.icon(
@@ -675,7 +793,7 @@ class _AiTranscriptionSettingsSectionState
                       ? Icons.sd_storage_rounded
                       : _error != null
                       ? Icons.refresh_rounded
-                      : Icons.download_for_offline_outlined,
+                      : Icons.fact_check_outlined,
                 ),
                 label: Text(
                   storageBlocked
@@ -685,8 +803,8 @@ class _AiTranscriptionSettingsSectionState
                             ? '重试未完成组件'
                             : '重试 ${_componentLabel(_failedComponent!)}')
                       : ready
-                      ? '重新安装 / 修复'
-                      : '一键下载安装',
+                      ? '校验并修复'
+                      : '校验并补齐缺失组件',
                 ),
               ),
             OutlinedButton.icon(

@@ -19,7 +19,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
       StreamController<AsrRuntimeInstallProgress>.broadcast();
 
   late final StreamSubscription<AsrRuntimeInstallProgress>
-      _delegateSubscription;
+  _delegateSubscription;
   bool _installing = false;
   bool _cancelRequested = false;
   AsrRuntimeInstallProgress? _lastProgress;
@@ -31,14 +31,14 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
     this.retryDelay = const Duration(seconds: 2),
   }) : assert(maxAttempts >= 1) {
     _delegateSubscription = delegate.progressStream.listen((progress) {
-      _progressHighWatermark =
-          progress.progress > _progressHighWatermark
-              ? progress.progress
-              : _progressHighWatermark;
+      _progressHighWatermark = progress.progress > _progressHighWatermark
+          ? progress.progress
+          : _progressHighWatermark;
       final forwarded = AsrRuntimeInstallProgress(
         component: progress.component,
         progress: _progressHighWatermark,
         message: progress.message,
+        phase: progress.phase,
         downloadedBytes: progress.downloadedBytes,
         totalBytes: progress.totalBytes,
         bytesPerSecond: progress.bytesPerSecond,
@@ -154,7 +154,8 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
 
     var message = '网络连接中断，正在自动重连（第 $nextAttempt/$maxAttempts 次）';
     if (downloaded != null && total != null && total > 0) {
-      message = '网络连接中断，将从 ${_formatBytes(downloaded)} / '
+      message =
+          '网络连接中断，将从 ${_formatBytes(downloaded)} / '
           '${_formatBytes(total)} 继续（第 $nextAttempt/$maxAttempts 次）';
     }
 
@@ -164,6 +165,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
           component: previous?.component,
           progress: _progressHighWatermark,
           message: message,
+          phase: previous?.phase ?? AsrRuntimeInstallPhase.downloading,
           downloadedBytes: downloaded,
           totalBytes: total,
           bytesPerSecond: null,

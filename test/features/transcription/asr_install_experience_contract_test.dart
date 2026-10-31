@@ -18,6 +18,7 @@ void main() {
         component: AsrRuntimeComponent.qwenModel,
         progress: 0.5,
         message: 'download',
+        phase: AsrRuntimeInstallPhase.downloading,
         downloadedBytes: 512,
         totalBytes: 1024,
         bytesPerSecond: 256,
@@ -25,7 +26,10 @@ void main() {
       );
 
       expect(legacy.hasTransferMetrics, isFalse);
+      expect(legacy.phase, AsrRuntimeInstallPhase.preparing);
+      expect(legacy.isCheckingExisting, isFalse);
       expect(rich.hasTransferMetrics, isTrue);
+      expect(rich.isDownloading, isTrue);
       expect(rich.downloadedBytes, 512);
       expect(rich.totalBytes, 1024);
       expect(rich.bytesPerSecond, 256);
@@ -76,10 +80,7 @@ void main() {
       expect(setup, contains('继续下载'));
       expect(settings, contains('暂停下载'));
       expect(settings, contains('继续下载'));
-      expect(
-        settings,
-        contains('_loading || _installing || _paused || _deleting'),
-      );
+      expect(settings, contains('_scanningExisting'));
     },
   );
 
@@ -116,39 +117,42 @@ void main() {
     },
   );
 
-  test('Qwen failures stay visible and model settings are accessible from the dashboard', () {
-    final runtime = File(
-      'lib/features/transcription/data/services/resilient_asr_runtime_manager.dart',
-    ).readAsStringSync();
-    final dashboard = File(
-      'lib/features/home/presentation/screens/dashboard_screen.dart',
-    ).readAsStringSync();
-    final setup = File(
-      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-    ).readAsStringSync();
-    final checker = File(
-      'lib/features/transcription/data/services/asr_download_connection_checker.dart',
-    ).readAsStringSync();
+  test(
+    'Qwen failures stay visible and model settings are accessible from the dashboard',
+    () {
+      final runtime = File(
+        'lib/features/transcription/data/services/resilient_asr_runtime_manager.dart',
+      ).readAsStringSync();
+      final dashboard = File(
+        'lib/features/home/presentation/screens/dashboard_screen.dart',
+      ).readAsStringSync();
+      final setup = File(
+        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
+      ).readAsStringSync();
+      final checker = File(
+        'lib/features/transcription/data/services/asr_download_connection_checker.dart',
+      ).readAsStringSync();
 
-    expect(runtime, contains('没有切换识别方案'));
-    expect(dashboard, contains("tooltip: '更多'"));
-    expect(dashboard, contains('Icons.more_horiz_rounded'));
-    expect(dashboard, contains("Text('模型高级设置')"));
-    expect(dashboard, contains('onOpenModelSettings: _openModelSettings'));
-    expect(setup, isNot(contains("tooltip: '打开模型高级设置'")));
-    expect(setup, contains("Text('高级设置')"));
-    expect(checker, contains('manualProxy: proxyOverride'));
-    expect(checker, contains("HttpHeaders.rangeHeader, 'bytes=0-0'"));
-    expect(checker, contains('HttpStatus.partialContent'));
-    expect(checker, contains('request.followRedirects = false'));
-    expect(checker, contains('HuggingFaceFileMetadata.fromHeaders(headers)'));
-    expect(checker, contains('fromModelScopeManifest'));
-    expect(checker, contains('modelScopeAlignerManifestAvailable'));
-    expect(checker, contains('modelScopeAlignerFileAvailable'));
-    expect(checker, contains('qwenModelId ='));
-    expect(checker, contains('alignerModelId ='));
-    expect(checker, contains('ForcedAligner 模型'));
-  });
+      expect(runtime, contains('没有切换识别方案'));
+      expect(dashboard, contains("tooltip: '更多'"));
+      expect(dashboard, contains('Icons.more_horiz_rounded'));
+      expect(dashboard, contains("Text('模型高级设置')"));
+      expect(dashboard, contains('onOpenModelSettings: _openModelSettings'));
+      expect(setup, isNot(contains("tooltip: '打开模型高级设置'")));
+      expect(setup, contains("Text('高级设置')"));
+      expect(checker, contains('manualProxy: proxyOverride'));
+      expect(checker, contains("HttpHeaders.rangeHeader, 'bytes=0-0'"));
+      expect(checker, contains('HttpStatus.partialContent'));
+      expect(checker, contains('request.followRedirects = false'));
+      expect(checker, contains('HuggingFaceFileMetadata.fromHeaders(headers)'));
+      expect(checker, contains('fromModelScopeManifest'));
+      expect(checker, contains('modelScopeAlignerManifestAvailable'));
+      expect(checker, contains('modelScopeAlignerFileAvailable'));
+      expect(checker, contains('qwenModelId ='));
+      expect(checker, contains('alignerModelId ='));
+      expect(checker, contains('ForcedAligner 模型'));
+    },
+  );
 
   test('rich progress card exposes component, bytes, speed and ETA copy', () {
     final card = File(
@@ -164,6 +168,9 @@ void main() {
     expect(card, contains('已完成组件会自动复用'));
     expect(card, contains('整体环境准备进度（估算）'));
     expect(card, contains('失败时的环境准备进度（估算）'));
+    expect(card, contains('正在识别 / 校验已有文件'));
+    expect(card, contains('不会下载模型'));
+    expect(card, contains('AsrRuntimeInstallPhase.checkingExisting'));
     expect(card, contains('0.99'));
     expect(card, contains('当前文件下载'));
     expect(card, contains('上方是整个识别环境的估算进度'));
@@ -204,6 +211,31 @@ void main() {
     expect(find.text('30%'), findsOneWidget);
     expect(find.text('30.0 MB / 100 MB'), findsOneWidget);
   });
+  testWidgets('existing-file verification is not presented as a download', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: const Scaffold(
+          body: AsrInstallProgressCard(
+            progress: AsrRuntimeInstallProgress(
+              component: AsrRuntimeComponent.whisperModel,
+              progress: 0.35,
+              message: '正在校验已有 Whisper large-v3 的 SHA-256（不会下载）',
+              phase: AsrRuntimeInstallPhase.checkingExisting,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('正在识别 / 校验已有文件 · Whisper large-v3'), findsOneWidget);
+    expect(find.text('正在下载 · Whisper large-v3'), findsNothing);
+    expect(find.textContaining('不会下载模型'), findsOneWidget);
+    expect(find.text('当前文件下载'), findsNothing);
+  });
+
   testWidgets('failed installs cannot display a completed progress state', (
     tester,
   ) async {
@@ -238,9 +270,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData.dark(),
-        home: const Scaffold(
-          body: AsrInstallErrorCard(message: details),
-        ),
+        home: const Scaffold(body: AsrInstallErrorCard(message: details)),
       ),
     );
 
@@ -248,5 +278,4 @@ void main() {
     expect(find.text(details), findsOneWidget);
     expect(find.text('复制诊断详情'), findsOneWidget);
   });
-
 }
