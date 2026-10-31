@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
+import '../../../player/domain/services/audio_path_canonicalizer.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
 import '../../../player/domain/services/playback_session_service.dart';
 import '../../domain/models/project_manifest.dart';
@@ -30,6 +31,7 @@ class FileProjectRepository implements ProjectRepository {
   final Directory? rootDirectory;
   final LocalMediaMetadataRepository? _mediaMetadataRepository;
   final PlaybackSessionService? _playbackSession;
+  final AudioPathCanonicalizer? _pathCanonicalizer;
 
   final Map<String, ProjectManifest> _projects = <String, ProjectManifest>{};
   Future<void>? _loadFuture;
@@ -39,8 +41,10 @@ class FileProjectRepository implements ProjectRepository {
     this.rootDirectory,
     LocalMediaMetadataRepository? mediaMetadataRepository,
     PlaybackSessionService? playbackSession,
+    AudioPathCanonicalizer? pathCanonicalizer,
   }) : _mediaMetadataRepository = mediaMetadataRepository,
-       _playbackSession = playbackSession;
+       _playbackSession = playbackSession,
+       _pathCanonicalizer = pathCanonicalizer;
 
   Future<void> _ensureLoaded() => _loadFuture ??= _load();
 
@@ -174,18 +178,21 @@ class FileProjectRepository implements ProjectRepository {
     // association the transcription workflow gets.
     final mediaMetadataRepository = _mediaMetadataRepository;
     final playbackSession = _playbackSession;
+    final pathCanonicalizer = _pathCanonicalizer;
     final audioAsset = updated.audioAsset;
     if (oldProject.lyricDocument == null &&
         updated.lyricDocument != null &&
         audioAsset != null &&
         mediaMetadataRepository != null &&
-        playbackSession != null) {
+        playbackSession != null &&
+        pathCanonicalizer != null) {
       unawaited(
         linkPlaybackLyricsProject(
           audioPath: audioAsset.originalPath,
           projectId: updated.id,
           metadataRepository: mediaMetadataRepository,
           playbackSession: playbackSession,
+          pathCanonicalizer: pathCanonicalizer,
         ),
       );
     }

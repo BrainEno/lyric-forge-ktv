@@ -4,6 +4,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../screens/immersive_ktv_screen.dart';
@@ -13,6 +14,7 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
   final ProjectRepository? projectRepository;
   final LocalMediaMetadataRepository? metadataRepository;
   final PlaybackSessionService? playbackSession;
+  final AudioPathCanonicalizer? pathCanonicalizer;
 
   const NowPlayingLyricsProjectAction({
     super.key,
@@ -20,6 +22,7 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
     this.projectRepository,
     this.metadataRepository,
     this.playbackSession,
+    this.pathCanonicalizer,
   });
 
   @override
@@ -34,11 +37,15 @@ class _NowPlayingLyricsProjectActionState
   ProjectRepository get _projects =>
       widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
 
-  LocalMediaMetadataRepository get _metadata => widget.metadataRepository ??
+  LocalMediaMetadataRepository get _metadata =>
+      widget.metadataRepository ??
       ServiceLocatorGlobal.I.localMediaMetadataRepository;
 
   PlaybackSessionService get _session =>
       widget.playbackSession ?? ServiceLocatorGlobal.I.playbackSessionService;
+
+  AudioPathCanonicalizer get _pathCanonicalizer =>
+      widget.pathCanonicalizer ?? ServiceLocatorGlobal.I.audioPathCanonicalizer;
 
   @override
   void initState() {
@@ -56,7 +63,8 @@ class _NowPlayingLyricsProjectActionState
         oldItem.hasLyrics != nextItem.hasLyrics ||
         oldItem.audioAsset.originalPath != nextItem.audioAsset.originalPath ||
         oldWidget.projectRepository != widget.projectRepository ||
-        oldWidget.metadataRepository != widget.metadataRepository) {
+        oldWidget.metadataRepository != widget.metadataRepository ||
+        oldWidget.pathCanonicalizer != widget.pathCanonicalizer) {
       _projectIdFuture = _resolve();
     }
   }
@@ -69,6 +77,7 @@ class _NowPlayingLyricsProjectActionState
       projectRepository: _projects,
       metadataRepository: _metadata,
       playbackSession: _session,
+      pathCanonicalizer: _pathCanonicalizer,
     );
     return resolution.projectId;
   }
@@ -87,18 +96,16 @@ class _NowPlayingLyricsProjectActionState
         return TextButton.icon(
           onPressed: localLinkedLyrics
               ? () => Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => ImmersiveKtvScreen(
-                        initialProjectId: projectId,
-                        projectRepository: _projects,
-                        metadataRepository: _metadata,
-                      ),
+                  MaterialPageRoute<void>(
+                    builder: (_) => ImmersiveKtvScreen(
+                      initialProjectId: projectId,
+                      projectRepository: _projects,
+                      metadataRepository: _metadata,
                     ),
-                  )
-              : () => Navigator.pushNamed(
-                    context,
-                    Routes.playerPath(projectId),
                   ),
+                )
+              : () =>
+                    Navigator.pushNamed(context, Routes.playerPath(projectId)),
           icon: Icon(
             localLinkedLyrics ? Icons.fullscreen_rounded : Icons.lyrics_rounded,
           ),

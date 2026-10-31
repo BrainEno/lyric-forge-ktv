@@ -10,6 +10,7 @@ import '../../features/player/data/repositories/file_local_media_metadata_reposi
 import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/repositories/file_playback_session_store.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
+import '../../features/player/data/services/file_audio_path_canonicalizer.dart';
 import '../../features/player/data/services/file_ktv_microphone_preference_store.dart';
 import '../../features/player/data/services/file_local_media_relink_service.dart';
 import '../../features/player/data/services/record_soloud_ktv_microphone_service.dart';
@@ -25,6 +26,7 @@ import '../../features/player/domain/repositories/local_media_metadata_repositor
 import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/repositories/playback_session_store.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
+import '../../features/player/domain/services/audio_path_canonicalizer.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/ktv_microphone_service.dart';
 import '../../features/player/domain/services/ktv_recording_service.dart';
@@ -98,6 +100,7 @@ class ServiceLocator {
   late final PlayHistoryRepository playHistoryRepository;
   late final PlaybackSessionStore playbackSessionStore;
   late final PlaybackSessionService playbackSessionService;
+  late final AudioPathCanonicalizer audioPathCanonicalizer;
   late final MediaHubService mediaHubService;
   late final TranscriptionService transcriptionService;
   late final Qwen3AsrNativeTranscriptionService qwenNativeTranscriptionService;
@@ -194,9 +197,11 @@ class ServiceLocator {
       resolver: remoteResolver,
     );
 
+    audioPathCanonicalizer = const FileAudioPathCanonicalizer();
     projectRepository = FileProjectRepository(
       mediaMetadataRepository: localMediaMetadataRepository,
       playbackSession: playbackSessionService,
+      pathCanonicalizer: audioPathCanonicalizer,
     );
 
     final rawMediaHub = HttpMediaHubService(
@@ -275,6 +280,7 @@ class ServiceLocator {
       runtimeManager: asrRuntimeManager,
       mediaMetadataRepository: localMediaMetadataRepository,
       playbackSession: playbackSessionService,
+      pathCanonicalizer: audioPathCanonicalizer,
     );
     asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(
       projectRepository: projectRepository,

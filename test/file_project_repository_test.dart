@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
@@ -82,6 +83,7 @@ void main() {
         rootDirectory: root,
         mediaMetadataRepository: metadataRepository,
         playbackSession: session,
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
       );
       var project = await repository.createProject(name: 'Edited Song');
       project = await repository.updateProject(
@@ -118,6 +120,7 @@ void main() {
         rootDirectory: root,
         mediaMetadataRepository: metadataRepository,
         playbackSession: session,
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
       );
       var project = await repository.createProject(name: 'Edited Song');
       project = await repository.updateProject(

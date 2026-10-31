@@ -1,5 +1,6 @@
 import '../../../project/domain/repositories/project_repository.dart';
 import '../repositories/local_media_metadata_repository.dart';
+import 'audio_path_canonicalizer.dart';
 import 'playback_lyrics_project_resolver.dart';
 import 'playback_session_service.dart';
 
@@ -20,11 +21,13 @@ Future<PlaybackLyricsResolution> resolveAndSyncPlaybackLyrics({
   required ProjectRepository projectRepository,
   required LocalMediaMetadataRepository metadataRepository,
   required PlaybackSessionService playbackSession,
+  required AudioPathCanonicalizer pathCanonicalizer,
 }) async {
   final resolution = await resolvePlaybackLyrics(
     item: item,
     projectRepository: projectRepository,
     metadataRepository: metadataRepository,
+    pathCanonicalizer: pathCanonicalizer,
   );
   if (item.isRemoteStream || resolution.hasLyrics == item.hasLyrics) {
     return resolution;

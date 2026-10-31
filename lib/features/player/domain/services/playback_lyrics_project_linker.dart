@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import '../models/local_media_metadata.dart';
 import '../repositories/local_media_metadata_repository.dart';
+import 'audio_path_canonicalizer.dart';
 import 'playback_session_service.dart';
 
 Future<void> linkPlaybackLyricsProject({
@@ -9,6 +8,7 @@ Future<void> linkPlaybackLyricsProject({
   required String projectId,
   required LocalMediaMetadataRepository metadataRepository,
   required PlaybackSessionService playbackSession,
+  required AudioPathCanonicalizer pathCanonicalizer,
 }) async {
   if (audioPath.trim().isEmpty || projectId.trim().isEmpty) {
     throw ArgumentError('Audio path and project ID must not be empty.');
@@ -29,18 +29,14 @@ Future<void> linkPlaybackLyricsProject({
     ),
   );
 
-  final normalizedAudioPath = _normalizedPath(audioPath);
+  final normalizedAudioPath = pathCanonicalizer.canonicalize(audioPath);
   for (final item in playbackSession.currentState.queue) {
     if (item.isRemoteStream ||
-        _normalizedPath(item.audioAsset.originalPath) != normalizedAudioPath ||
+        pathCanonicalizer.canonicalize(item.audioAsset.originalPath) !=
+            normalizedAudioPath ||
         item.hasLyrics) {
       continue;
     }
     await playbackSession.updateItem(item.copyWith(hasLyrics: true));
   }
-}
-
-String _normalizedPath(String path) {
-  final absolutePath = File(path).absolute.path;
-  return Platform.isWindows ? absolutePath.toLowerCase() : absolutePath;
 }

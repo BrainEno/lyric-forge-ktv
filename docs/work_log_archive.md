@@ -85,6 +85,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-30 12:28] Validate upload name reservation across sessions ([entry](log/entries/2026-10-30-1228-validate-upload-reservation-across-sessions.md))
 - [2026-10-29 21:10] Add dashboard empty-state and project-retry tests ([entry](log/entries/2026-10-29-2110-dashboard-empty-and-retry-tests.md))
 - [2026-10-29 20:50] Remove Media Hub session tokens from artwork URLs ([entry](log/entries/2026-10-29-2050-remove-token-query-artwork.md))
 - [2026-10-29 20:45] Add contribution guidance and GitHub issue/PR templates ([entry](log/entries/2026-10-29-2045-add-contribution-and-github-templates.md))
