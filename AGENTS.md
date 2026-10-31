@@ -15,6 +15,7 @@ Build a local-first music player with lyric editing, local ASR, vocal/instrument
 - Domain must not import Flutter UI, Drift, Hive, or platform APIs.
 - Presentation must not access DAOs/database classes or shell processes directly.
 - Repository contracts belong in `domain/`; implementations belong in `data/`.
+- Layer imports are machine-checked by `test/architecture_layer_imports_contract_test.dart` (#232): the baseline of known violations may only shrink; never add to it, and delete an entry when its violation is fixed.
 - Cross-feature calls use use cases, services, or repository abstractions, not widget-to-widget shortcuts.
 - Flutter owns app shell, navigation, presentation, interaction, playback/lyric UI, progress, and retry/error presentation.
 - Processing services/adapters own heavy local processing, long-running orchestration, audio pipelines, file IO/project artifacts, deterministic errors, caches, and manifest integrity.
