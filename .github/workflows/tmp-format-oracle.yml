@@ -1,4 +1,5 @@
 name: TEMP diagnostics oracle (delete after use)
+# round 2: full diffs for remaining files
 
 on:
   pull_request:
@@ -15,45 +16,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
-      - run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
-      - name: Emit format diffs, analyze issues and test results as annotations
+      - run: flutter pub get --enforce-lockfile
+      - name: Emit full format diffs as annotations
         run: |
           set +e
           files=(
-            lib/core/services/service_locator.dart
-            lib/features/player/data/services/file_audio_path_canonicalizer.dart
-            lib/features/player/domain/services/audio_path_canonicalizer.dart
-            lib/features/player/domain/services/playback_lyrics_availability.dart
-            lib/features/player/domain/services/playback_lyrics_project_linker.dart
-            lib/features/player/domain/services/playback_lyrics_project_resolver.dart
             lib/features/player/presentation/screens/immersive_ktv_screen.dart
             lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart
             lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart
             lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart
-            lib/features/project/data/repositories/file_project_repository.dart
-            lib/features/transcription/data/services/local_project_transcription_workflow.dart
-            test/architecture_layer_imports_contract_test.dart
+            test/file_project_repository_test.dart
             test/features/player/now_playing_lyrics_project_action_test.dart
             test/features/player/playback_lyrics_availability_test.dart
-            test/features/player/playback_lyrics_project_linker_test.dart
             test/features/player/playback_lyrics_project_resolver_test.dart
-            test/file_project_repository_test.dart
           )
           emit() {
             local data; data=$(cat)
             MSG="$data" python3 -c 'import os,sys; d=os.environ["MSG"]; print("::error file="+sys.argv[1]+"::"+d.replace("%","%25").replace("\r","%0D").replace("\n","%0A"))' "$1"
           }
           for f in "${files[@]}"; do
-            out=$(dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 | head -60; true)
+            out=$(dart format --output=show "$f" | sed '/^Formatted [0-9]/d' | diff -u "$f" - | tail -n +3 | head -300; true)
             if [ -n "$out" ]; then
               printf 'FORMAT-DIFF-BEGIN\n%s\nFORMAT-DIFF-END' "$out" | emit "$f"
             else
               echo "::notice file=$f::FORMAT-CLEAN"
             fi
           done
-          flutter analyze "${files[@]}" > /tmp/analyze.txt 2>&1
-          grep -E '•' /tmp/analyze.txt | head -30 | while IFS= read -r line; do printf '%s' "$line" | emit lib/features/player/domain/services/audio_path_canonicalizer.dart; done
-          tail -3 /tmp/analyze.txt | emit lib/features/player/domain/services/audio_path_canonicalizer.dart
-          flutter test test/architecture_layer_imports_contract_test.dart test/features/player/now_playing_lyrics_project_action_test.dart test/features/player/playback_lyrics_availability_test.dart test/features/player/playback_lyrics_project_linker_test.dart test/features/player/playback_lyrics_project_resolver_test.dart test/file_project_repository_test.dart > /tmp/test.txt 2>&1
-          { grep -E '\[E\]|failed|Some tests failed|All tests passed|tests passed' /tmp/test.txt | head -25; tail -4 /tmp/test.txt; } | emit test/architecture_layer_imports_contract_test.dart
           true
