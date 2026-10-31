@@ -59,13 +59,15 @@ void _expectRatchet(Set<String> actual, Set<String> baseline) {
   expect(
     added,
     isEmpty,
-    reason: 'New layering violations (fix the import; the #232 baseline '
+    reason:
+        'New layering violations (fix the import; the #232 baseline '
         'must only shrink):\n${added.join('\n')}',
   );
   expect(
     fixed,
     isEmpty,
-    reason: 'Stale baseline entries (these violations are fixed; delete '
+    reason:
+        'Stale baseline entries (these violations are fixed; delete '
         'them so the ratchet only tightens):\n${fixed.join('\n')}',
   );
 }
