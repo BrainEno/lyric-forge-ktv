@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-01 11:56] Review recognition quality and UI complexity ([entry](log/entries/2026-11-01-1156-recognition-quality-ux-review.md))
 - [2026-10-31 17:55] Discover and verify existing ASR models in place ([entry](log/entries/2026-10-31-1755-discover-existing-asr-models.md))
 - [2026-10-31 16:50] Adopt existing ASR runtime when changing model storage ([entry](log/entries/2026-10-31-1650-adopt-existing-asr-storage.md))
 - [2026-10-31 15:19] Put media share catalog behind a domain contract ([entry](log/entries/2026-10-31-1519-media-share-catalog-domain-contract.md))
