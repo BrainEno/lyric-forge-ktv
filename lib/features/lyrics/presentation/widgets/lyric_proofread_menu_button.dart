@@ -133,7 +133,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
   /// Title plus the one-line explanation that distinguishes the strategies.
   static (String, String?) _textFor(LyricProofreadAction action) {
     return switch (action) {
-      LyricProofreadAction.proofreadV2 => ('智能校对 V2', '不需要参考歌词；生成不写盘的提案，逐行对比后再应用'),
+      LyricProofreadAction.proofreadV2 => (
+        '智能校对 V2',
+        '不需要参考歌词；生成不写盘的提案，逐行对比后再应用',
+      ),
       LyricProofreadAction.referenceAlignment => ('参考歌词纠正', '有参考歌词；可一并修正时间轴'),
       LyricProofreadAction.referenceProofread => (
         '逐行智能纠错（保留时间戳）',
