@@ -1,0 +1,62 @@
+name: Temp diagnose
+
+on:
+  push:
+    branches:
+      - arena/40c97524-lyric-forge-ktv
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: true
+      - name: Resolve packages
+        run: flutter pub get
+      - name: Analyze
+        id: analyze
+        continue-on-error: true
+        run: flutter analyze --no-pub --no-fatal-infos lib test > /tmp/analyze.txt 2>&1; echo "exit=$?" >> /tmp/analyze.txt; tail -5 /tmp/analyze.txt
+      - name: Full test suite
+        id: tests
+        continue-on-error: true
+        run: flutter test --no-pub --reporter expanded > /tmp/tests.txt 2>&1; echo "exit=$?" >> /tmp/tests.txt; tail -30 /tmp/tests.txt
+      - name: Surface results as annotations
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import re, os
+          def emit(msg):
+              msg = msg.replace('%', '%25').replace('\r', '')
+              msg = msg.replace('\n', '%0A')
+              print('::error::' + msg)
+          for name, path, pats in [
+              ('analyze', '/tmp/analyze.txt', ['error •', 'Error:', 'exit=1', 'exit=2', 'exit=255']),
+              ('tests', '/tmp/tests.txt', [r'\[E\]', 'Some tests failed', 'Failed to load', 'Error:', 'exit=1']),
+          ]:
+              if not os.path.exists(path):
+                  emit(f'{name}: no output file')
+                  continue
+              text = open(path, encoding='utf-8', errors='replace').read()
+              exit_line = re.search(r'exit=(\d+)', text)
+              emit(f'{name}: exit={exit_line.group(1) if exit_line else "?"}')
+              lines = text.splitlines()
+              hits = [l for l in lines if any(re.search(p, l) for p in pats)]
+              for l in hits[:8]:
+                  emit(f'{name}: {l[:900]}')
+              if name == 'tests':
+                  names = sorted(set(re.findall(r'^[^:\s][^\n]*?\.dart.*?(?=\s|\n)', '', re.M)))
+                  del names
+                  fail_lines = [l for l in lines if re.search(r'FAILED|\[E\]|-[0-9]+:', l)]
+                  for l in fail_lines[:8]:
+                      emit(f'testfail: {l[:900]}')
+          PY
+      - name: Fail if anything failed
+        if: steps.analyze.outcome == 'failure' || steps.tests.outcome == 'failure'
+        run: exit 1
