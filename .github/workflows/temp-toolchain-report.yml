@@ -179,9 +179,12 @@ jobs:
       - name: Full test suite
         run: |
           set +e
-          flutter test --no-pub --reporter compact             > .ci-report/full-test.txt 2>&1
-          echo "full test exit: $?" >> .ci-report/full-test.txt
+          flutter test --no-pub --reporter compact > .ci-report/full-test.txt 2>&1
+          code=$?
+          echo "full test exit: $code" >> .ci-report/full-test.txt
+          set -e
           tail -25 .ci-report/full-test.txt
+          exit $code
 
       - name: Publish report back to the branch
         if: always()
