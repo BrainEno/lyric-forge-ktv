@@ -439,6 +439,12 @@ void main() {
           break;
         } on TlsException {
           break;
+        } on StateError {
+          // The hub answers and closes the connection, and the close can be
+          // observed a microtask before the reader delivers those bytes. That
+          // is the expected end of the upload, not a test failure; the response
+          // is still buffered for the assertions below.
+          break;
         }
       }
 
