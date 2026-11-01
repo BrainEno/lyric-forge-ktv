@@ -15,50 +15,57 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Resolve packages
         run: flutter pub get
-      - name: Repeated full suite
-        id: suites
+      - name: Format check for changed Dart files
+        run: dart format --output=none --set-exit-if-changed test/features/transfer/http_media_hub_upload_test.dart
+      - name: Analyze
+        run: flutter analyze --no-pub --no-fatal-infos lib test
+      - name: Repeat the flaky upload test
+        id: repeats
         continue-on-error: true
         run: |
           set +e
           status=0
-          for attempt in 1 2 3 4 5 6 7 8; do
-            out="/tmp/suite_${attempt}.txt"
-            bash scripts/quality_gate.sh --skip-pub-get > "$out" 2>&1
+          for attempt in $(seq 1 20); do
+            out="/tmp/repeat_${attempt}.txt"
+            flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart > "$out" 2>&1
             code=$?
-            echo "attempt ${attempt} exit=${code}" >> /tmp/attempts.txt
+            echo "repeat ${attempt} exit=${code}" >> /tmp/attempts.txt
             if [ "$code" -ne 0 ]; then status=1; fi
           done
-          echo "status=${status}" >> /tmp/attempts.txt
+          echo "repeat-status=${status}" >> /tmp/attempts.txt
           cat /tmp/attempts.txt
           exit "$status"
+      - name: Full suite
+        id: suite
+        continue-on-error: true
+        run: bash scripts/quality_gate.sh --skip-pub-get > /tmp/suite.txt 2>&1; echo "suite-exit=$?" >> /tmp/attempts.txt
       - name: Surface results as annotations
         if: always()
         run: |
           python3 - <<'PY'
-          import os, re
+          import os
           def emit(msg):
               msg = str(msg).replace('%', '%25').replace('\r', '').replace('\n', '%0A')
               print('::error::' + msg)
-          attempts = open('/tmp/attempts.txt').read() if os.path.exists('/tmp/attempts.txt') else 'no attempts recorded'
-          for line in attempts.strip().splitlines():
-              emit(line)
-          for attempt in range(1, 9):
-              path = f'/tmp/suite_{attempt}.txt'
+          if os.path.exists('/tmp/attempts.txt'):
+              for line in open('/tmp/attempts.txt').read().strip().splitlines():
+                  emit(line)
+          for name, path in [('suite', '/tmp/suite.txt')] + [
+                  (f'repeat{n}', f'/tmp/repeat_{n}.txt') for n in range(1, 21)]:
               if not os.path.exists(path):
                   continue
               text = open(path, encoding='utf-8', errors='replace').read()
-              if 'quality gate (all) passed' in text:
-                  emit(f'attempt{attempt}: PASSED')
+              if 'All tests passed' in text and name.startswith('repeat'):
                   continue
               lines = text.splitlines()
               for i, line in enumerate(lines):
-                  if '[E]' in line:
-                      emit(f'attempt{attempt} FAIL: {line.strip()[:500]}')
-                      for follow in lines[i + 1:i + 6]:
+                  if '[E]' in line or 'Some tests failed' in line or 'Failed to load' in line:
+                      emit(f'{name}: {line.strip()[:400]}')
+                      for follow in lines[i + 1:i + 4]:
                           if follow.strip():
-                              emit(f'attempt{attempt}   > {follow.strip()[:400]}')
+                              emit(f'{name}  > {follow.strip()[:300]}')
                       break
           PY
-      - name: Fail if the suite failed
-        if: steps.suites.outcome == 'failure'
+      - name: Fail if anything failed
+        if: steps.repeats.outcome == 'failure' || steps.suite.outcome == 'failure'
         run: exit 1
