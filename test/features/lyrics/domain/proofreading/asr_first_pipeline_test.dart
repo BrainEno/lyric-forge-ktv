@@ -84,6 +84,7 @@ void main() {
     int end, {
     String? id,
     int confidence = 90,
+    LyricConfidenceSource confidenceSource = LyricConfidenceSource.model,
   }) =>
       LyricLine(
         text: text,
@@ -91,6 +92,7 @@ void main() {
         endTime: Duration(milliseconds: end),
         id: id,
         confidence: confidence,
+        confidenceSource: confidenceSource,
       );
 
   LyricDocument doc(
@@ -584,4 +586,36 @@ void main() {
       throwsArgumentError,
     );
   });
+  test('an unscored line is not turned into a low-confidence line', () {
+    // Qwen commonly returns no calibrated score. The placeholder number must
+    // not be read as "the model was unsure", or every line of the draft lands in
+    // the review queue.
+    final primary = doc([
+      row(
+        'first lyric',
+        0,
+        800,
+        id: 'one',
+        confidence: 50,
+        confidenceSource: LyricConfidenceSource.unscored,
+      ),
+    ]);
+    final secondary = doc([row('first lyric', 0, 800)]);
+
+    final result = pipeline.build(draft: primary, secondary: secondary);
+
+    expect(result.lines.single.reasons, isNot(contains(ProofreadReason.lowConfidence)));
+    expect(result.lines.single.verdict, ProofreadVerdict.green);
+  });
+
+  test('a genuinely low score still sends the line to review', () {
+    final primary = doc([row('first lyric', 0, 800, id: 'one', confidence: 40)]);
+    final secondary = doc([row('first lyric', 0, 800)]);
+
+    final result = pipeline.build(draft: primary, secondary: secondary);
+
+    expect(result.lines.single.reasons, contains(ProofreadReason.lowConfidence));
+    expect(result.lines.single.verdict, ProofreadVerdict.amber);
+  });
+
 }

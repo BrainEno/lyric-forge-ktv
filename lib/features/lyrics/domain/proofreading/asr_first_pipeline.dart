@@ -116,7 +116,10 @@ class AsrFirstPipeline {
       } else if (consensusRow != null) {
         reasons.add(ProofreadReason.asrDisagreement);
       }
-      if (line.confidence < greenConfidenceThreshold) {
+      // An unscored line is not a low-scoring line: without an engine score the
+      // threshold has nothing to compare against, so flagging it here would put
+      // every line of a Qwen draft in the review queue.
+      if (line.isLowConfidence(greenConfidenceThreshold)) {
         reasons.add(ProofreadReason.lowConfidence);
       }
       if (hallucinationIndices.contains(index)) {

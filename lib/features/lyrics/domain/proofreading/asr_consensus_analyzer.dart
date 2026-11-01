@@ -91,7 +91,7 @@ class AsrConsensusAnalyzer {
       ];
       usedSecondary.addAll(indices);
       final reasons = <AsrConsensusReason>{};
-      if (line.confidence < reviewConfidenceThreshold) {
+      if (line.isLowConfidence(reviewConfidenceThreshold)) {
         reasons.add(AsrConsensusReason.lowPrimaryConfidence);
       }
       if (indices.isEmpty) {
@@ -106,8 +106,18 @@ class AsrConsensusAnalyzer {
 
       final alternatives = [for (final i in indices) secondary.lines[i]];
       final text = _joinText(alternatives);
-      final confidence = (alternatives.fold<int>(0, (sum, row) => sum + row.confidence) /
-              alternatives.length).round().clamp(0, 100).toInt();
+      // Averaging placeholder scores would invent a confidence the engine never
+      // produced, so only scored alternatives contribute; none means unknown.
+      final scoredAlternatives = alternatives
+          .where((line) => line.hasConfidenceScore)
+          .toList(growable: false);
+      final confidence = scoredAlternatives.isEmpty
+          ? null
+          : (scoredAlternatives.fold<int>(0, (sum, row) => sum + row.confidence) /
+                    scoredAlternatives.length)
+                .round()
+                .clamp(0, 100)
+                .toInt();
       double? similarity;
       if (_exceedsBudget(line.text, text)) {
         reasons.add(AsrConsensusReason.comparisonLimitExceeded);
@@ -117,7 +127,7 @@ class AsrConsensusAnalyzer {
           reasons.add(AsrConsensusReason.textMismatch);
         }
       }
-      if (confidence < reviewConfidenceThreshold) {
+      if (confidence != null && confidence < reviewConfidenceThreshold) {
         reasons.add(AsrConsensusReason.lowSecondaryConfidence);
       }
       rows.add(AsrConsensusRow(

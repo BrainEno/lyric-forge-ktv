@@ -626,6 +626,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       lines[index] = lines[index].copyWith(
         text: qwenText,
         confidence: decision.outputConfidence,
+        // The fused score is this service's policy, not the engine's number.
+        confidenceSource: LyricConfidenceSource.heuristic,
       );
       appliedCount++;
     }
@@ -953,6 +955,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       lines[index] = lines[index].copyWith(
         text: whisperText,
         confidence: decision.outputConfidence,
+        confidenceSource: LyricConfidenceSource.heuristic,
       );
       appliedCount++;
     }
@@ -1179,7 +1182,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
       }
       entries.add(
         _MergedTimelineEntry(
-          line: line.copyWith(confidence: line.confidence.clamp(0, 60).toInt()),
+          line: line.copyWith(
+            confidence: line.confidence.clamp(0, 60).toInt(),
+            // The clamped value is this service's review policy, not the
+            // engine's score, so it is labelled as a heuristic.
+            confidenceSource: LyricConfidenceSource.heuristic,
+          ),
           primaryIndex: null,
           secondaryOnly: true,
         ),

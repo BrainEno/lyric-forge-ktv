@@ -52,7 +52,7 @@ class AsrRepetitionAnalyzer {
       final alternativeConfidence = row.secondaryConfidence;
       if (alternative == null ||
           alternativeConfidence == null ||
-          row.primaryLine.confidence < reviewConfidenceThreshold ||
+          row.primaryLine.isLowConfidence(reviewConfidenceThreshold) ||
           alternativeConfidence < reviewConfidenceThreshold) {
         continue;
       }

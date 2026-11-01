@@ -52,7 +52,11 @@ class AsrHallucinationCandidateFilter {
           !row.reasons.contains(AsrConsensusReason.noSecondaryOverlap) ||
           row.secondaryLineIndices.isNotEmpty ||
           row.secondaryText != null ||
-          line.confidence >= lowConfidenceThreshold ||
+          // Unscored lines have no score to fall below the threshold, but this
+          // list is a suspicion list: a primary-only line with no engine score
+          // and no secondary evidence is exactly the case worth reviewing.
+          (line.hasConfidenceScore &&
+              line.confidence >= lowConfidenceThreshold) ||
           LyricAlignmentService.normalizeLine(line.text).isEmpty ||
           _hasNearbySecondaryEvidence(line, evidence.secondaryOnlyLines)) {
         continue;

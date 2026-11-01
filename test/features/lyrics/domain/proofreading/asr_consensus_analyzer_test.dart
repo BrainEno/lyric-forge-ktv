@@ -5,9 +5,17 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 void main() {
   const analyzer = AsrConsensusAnalyzer();
 
-  LyricLine line(String text, int start, int end, {int confidence = 90}) => LyricLine(
+  LyricLine line(
+    String text,
+    int start,
+    int end, {
+    int confidence = 90,
+    LyricConfidenceSource confidenceSource = LyricConfidenceSource.model,
+  }) => LyricLine(
     text: text, startTime: Duration(milliseconds: start),
-    endTime: Duration(milliseconds: end), confidence: confidence,
+    endTime: Duration(milliseconds: end),
+    confidence: confidence,
+    confidenceSource: confidenceSource,
   );
   LyricDocument doc(List<LyricLine> lines) => LyricDocument(language: 'en', lines: lines);
 
@@ -92,4 +100,35 @@ void main() {
     expect(result.secondaryOnlyLines, isEmpty);
     expect(result.hasDisagreements, isFalse);
   });
+  test('unscored engines are not reported as low confidence', () {
+    final result = analyzer.analyze(
+      primary: doc([
+        line(
+          'hello world',
+          0,
+          2000,
+          confidence: 50,
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+      ]),
+      secondary: doc([
+        line(
+          'hello world',
+          0,
+          2000,
+          confidence: 50,
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+      ]),
+    );
+
+    expect(result.rows.single.status, AsrConsensusStatus.agreement);
+    expect(result.rows.single.reasons, isEmpty);
+    expect(
+      result.rows.single.secondaryConfidence,
+      isNull,
+      reason: '没有分数就不要算出一个平均分',
+    );
+  });
+
 }

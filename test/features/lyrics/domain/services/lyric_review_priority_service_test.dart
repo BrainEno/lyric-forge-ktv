@@ -9,11 +9,13 @@ void main() {
   LyricLine line(
     String text, {
     int confidence = 100,
+    LyricConfidenceSource confidenceSource = LyricConfidenceSource.model,
     int startMs = 0,
     int endMs = 1000,
   }) => LyricLine(
     text: text,
     confidence: confidence,
+    confidenceSource: confidenceSource,
     startTime: Duration(milliseconds: startMs),
     endTime: Duration(milliseconds: endMs),
   );
@@ -172,4 +174,29 @@ void main() {
     expect(ranked.first.reasons, contains('歌词文本较长但显示区间极短'));
     expect(ranked.last.reasons, contains('单行持续时间超过 20 秒'));
   });
+  test('does not rank an unscored line as a low-confidence line', () {
+    final document = LyricDocument(
+      language: 'en',
+      lines: [
+        line(
+          'unscored lyric',
+          confidence: 50,
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+        line('low confidence', confidence: 50, startMs: 1000, endMs: 2000),
+      ],
+    );
+
+    final ranked = service.rank(document);
+
+    // Same placeholder number, different meaning: only the line that actually
+    // carries an engine score is worth reviewing.
+    expect(ranked.single.lineIndex, 1);
+    expect(ranked.single.reasons, contains('识别置信度偏低（50）'));
+    expect(
+      ranked.map((item) => item.lineIndex),
+      isNot(contains(0)),
+    );
+  });
+
 }

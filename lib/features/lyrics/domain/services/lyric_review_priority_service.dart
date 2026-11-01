@@ -69,14 +69,18 @@ class LyricReviewPriorityService {
         score.add(60, '歌词为空');
       }
 
-      if (line.confidence <= 25) {
-        score.add(38, '识别置信度极低（${line.confidence}）');
-      } else if (line.confidence <= 45) {
-        score.add(30, '识别置信度很低（${line.confidence}）');
-      } else if (line.confidence <= 60) {
-        score.add(23, '识别置信度偏低（${line.confidence}）');
-      } else if (line.confidence < 70) {
-        score.add(16, '识别置信度低于复核阈值（${line.confidence}）');
+      // Unscored lines carry a placeholder number, not a model score, so the
+      // confidence ladder must not rank them as if the engine had been unsure.
+      if (line.hasConfidenceScore) {
+        if (line.confidence <= 25) {
+          score.add(38, '识别置信度极低（${line.confidence}）');
+        } else if (line.confidence <= 45) {
+          score.add(30, '识别置信度很低（${line.confidence}）');
+        } else if (line.confidence <= 60) {
+          score.add(23, '识别置信度偏低（${line.confidence}）');
+        } else if (line.confidence < 70) {
+          score.add(16, '识别置信度低于复核阈值（${line.confidence}）');
+        }
       }
 
       if (line.confidence < 100) {
