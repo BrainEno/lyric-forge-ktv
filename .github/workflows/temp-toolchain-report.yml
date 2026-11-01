@@ -63,7 +63,7 @@ jobs:
 
       - name: CLI smoke test
         run: |
-          set +e
+          set -euo pipefail
           rm -rf /tmp/quality-smoke && mkdir -p /tmp/quality-smoke/song-01
           cat > /tmp/quality-smoke/song-01/reference.lrc <<'LRC'
           [ti:smoke]
@@ -92,31 +92,73 @@ jobs:
             ]
           }
           JSON
-          {
-            echo '--- single pair ---'
-            dart run tool/asr_quality_report.dart               --reference /tmp/quality-smoke/song-01/reference.lrc               --hypothesis /tmp/quality-smoke/song-01/fused.lrc               --engine fused
-            echo "pair exit: $?"
-            echo '--- corpus + json baseline ---'
-            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --output /tmp/quality-smoke/baseline.json
-            echo "corpus exit: $?"
-            python3 -c "import json;d=json.load(open('/tmp/quality-smoke/baseline.json'));print('json ok, duplicate rate:', d['overallByEngine']['fused']['duplicateLineRate'])"
-            echo '--- regression gate must fail ---'
-            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --baseline /tmp/quality-smoke/baseline.json               --fail-on-regression > /dev/null
-            echo "same-run exit (expect 0): $?"
-            python3 - <<'PY'
+
+          check() {
+            local expected="$1" actual="$2" label="$3"
+            if [ "$expected" != "$actual" ]; then
+              echo "FAILED: $label expected exit $expected, got $actual"
+              exit 1
+            fi
+            echo "ok: $label (exit $expected)"
+          }
+
+          set +e
+          dart run tool/asr_quality_report.dart \
+            --reference /tmp/quality-smoke/song-01/reference.lrc \
+            --hypothesis /tmp/quality-smoke/song-01/fused.lrc \
+            --engine fused > /tmp/quality-smoke/pair.txt 2>&1
+          check 0 $? 'single pair'
+          cat /tmp/quality-smoke/pair.txt
+
+          dart run tool/asr_quality_report.dart \
+            --corpus /tmp/quality-smoke/corpus.json \
+            --output /tmp/quality-smoke/baseline.json > /tmp/quality-smoke/corpus.txt 2>&1
+          check 0 $? 'corpus report'
+          cat /tmp/quality-smoke/corpus.txt
+
+          dart run tool/asr_quality_report.dart \
+            --corpus /tmp/quality-smoke/corpus.json \
+            --baseline /tmp/quality-smoke/baseline.json \
+            --fail-on-regression > /tmp/quality-smoke/same.txt 2>&1
+          check 0 $? 'unchanged run passes the gate'
+
+          python3 - <<'PY'
           import json
-          p='/tmp/quality-smoke/baseline.json'
-          d=json.load(open(p))
-          d['overallByEngine']['fused']['duplicateLineRate'] = 0.0
-          json.dump(d, open('/tmp/quality-smoke/fake-better.json','w'))
+          path = '/tmp/quality-smoke/baseline.json'
+          report = json.load(open(path))
+          fused = report['overallByEngine']['fused']
+          assert fused['duplicateLineCount'] == 1, fused
+          assert abs(fused['duplicateLineRate'] - 1 / 4) < 1e-9, fused
+          assert abs(fused['lineCountRatio'] - 4 / 3) < 1e-9, fused
+          assert abs(fused['lineRecall'] - 1.0) < 1e-9, fused
+          print('metric assertions ok:', {
+              'duplicateLineRate': fused['duplicateLineRate'],
+              'lineCountRatio': fused['lineCountRatio'],
+              'lineRecall': fused['lineRecall'],
+              'startTimeMaeMs': fused['startTimeMaeMs'],
+          })
+          fused['duplicateLineRate'] = 0.0
+          json.dump(report, open('/tmp/quality-smoke/optimistic.json', 'w'))
           PY
-            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --baseline /tmp/quality-smoke/fake-better.json               --fail-on-regression > /dev/null 2>&1
-            echo "regressed exit (expect 1): $?"
-            echo '--- bad input must exit 2 ---'
-            dart run tool/asr_quality_report.dart --corpus /tmp/missing.json >/dev/null 2>&1
-            echo "missing corpus exit (expect 2): $?"
-          } > .ci-report/cli.txt 2>&1
-          cat .ci-report/cli.txt
+
+          dart run tool/asr_quality_report.dart \
+            --corpus /tmp/quality-smoke/corpus.json \
+            --baseline /tmp/quality-smoke/optimistic.json \
+            --fail-on-regression > /tmp/quality-smoke/regress.txt 2>&1
+          check 1 $? 'regression gate fails the build'
+          grep -q 'REGRESSION fused duplicateLineRate' /tmp/quality-smoke/regress.txt
+          echo "ok: regression named in the report"
+
+          dart run tool/asr_quality_report.dart \
+            --corpus /tmp/quality-smoke/missing.json > /dev/null 2>&1
+          check 2 $? 'missing corpus exits 2'
+
+          dart run tool/asr_quality_report.dart --bogus-option > /dev/null 2>&1
+          check 2 $? 'unknown option exits 2'
+
+          set -e
+          { cat /tmp/quality-smoke/pair.txt; echo; cat /tmp/quality-smoke/corpus.txt; \
+            echo; cat /tmp/quality-smoke/regress.txt; } > .ci-report/cli.txt
 
       - name: Full test suite
         run: |

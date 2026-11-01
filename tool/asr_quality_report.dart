@@ -65,6 +65,12 @@ const int _timestampToleranceMs = 500;
 final RegExp _lrcTimestamp = RegExp(r'\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]');
 final RegExp _lrcMetadata = RegExp(r'^\[[a-zA-Z][^\]]*:.*\]$');
 
+/// A timestamp that starts a line, which is what separates LRC from JSON that
+/// also begins with `[`.
+final RegExp _lrcTimestampAtLineStart = RegExp(
+  r'(?m)^[ \t]*\[\d{1,3}:\d{2}',
+);
+
 const LyricTokenizer _tokenizer = LyricTokenizer();
 
 /// One lyric line with optional millisecond boundaries.
@@ -561,16 +567,20 @@ List<QualityLine> parseLyricJsonContent(String content, String label) {
 }
 
 /// Detects the format of [content] and parses it.
+///
+/// An LRC file may open with a metadata tag such as `[ti:...]`, which also
+/// starts with `[`, so LRC detection has to look at line starts before the
+/// JSON branch treats the file as an array.
 List<QualityLine> parseLyricSource(String content, String label) {
   final trimmed = content.trimLeft();
   if (trimmed.isEmpty) {
     throw FormatException('$label is empty.');
   }
+  if (_lrcTimestampAtLineStart.hasMatch(content)) {
+    return parseLrcLyrics(content);
+  }
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     return parseLyricJsonContent(content, label);
-  }
-  if (_lrcTimestamp.hasMatch(content)) {
-    return parseLrcLyrics(content);
   }
   return parsePlainLyrics(content);
 }

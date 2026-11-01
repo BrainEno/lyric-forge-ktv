@@ -243,6 +243,31 @@ void main() {
       ]);
     });
 
+    test('an LRC file that opens with a metadata tag is not read as JSON', () {
+      // Regression: `[ti:...]` also starts with `[`, which used to send a real
+      // LRC file into the JSON parser.
+      final lines = quality.parseLyricSource(
+        '[ti:smoke]\n[ar:someone]\n[00:10.00]we are dancing\n[00:15.00]again\n',
+        'lrc',
+      );
+      expect(lines.map((line) => line.text).toList(), <String>[
+        'we are dancing',
+        'again',
+      ]);
+      expect(lines.map((line) => line.startMs).toList(), <int>[10000, 15000]);
+    });
+
+    test('a JSON array of lyric lines is still read as JSON', () {
+      final lines = quality.parseLyricSource(
+        jsonEncode(<Object?>[
+          <String, Object?>{'text': '第一句', 'startMs': 1000},
+        ]),
+        'json',
+      );
+      expect(lines.single.text, '第一句');
+      expect(lines.single.startMs, 1000);
+    });
+
     test('LyricDocument JSON with millisecond fields is accepted', () {
       final lines = quality.parseLyricSource(
         jsonEncode(<String, Object?>{
