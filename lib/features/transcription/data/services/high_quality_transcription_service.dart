@@ -885,18 +885,25 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final primaryContainsSecondary = primaryText.contains(secondaryText);
     final secondaryContainsPrimary = secondaryText.contains(primaryText);
     if (primaryContainsSecondary || secondaryContainsPrimary) {
-      // A text fragment is not enough to prove correspondence: a repeated
-      // backing vocal can contain words from a long lead-vocal segment. Its
-      // timestamps must line up with that fragment's likely position, unless
-      // it touches the same segment boundary.
-      final fullText = primaryContainsSecondary ? primaryText : secondaryText;
-      final fragmentText = primaryContainsSecondary
-          ? secondaryText
-          : primaryText;
+      // One row's text sits inside the other's. Whether that is the same lyric
+      // re-segmented or a genuinely different row is decided by the timestamps.
       final fullLine = primaryContainsSecondary ? primaryLine : secondaryLine;
       final fragmentLine = primaryContainsSecondary
           ? secondaryLine
           : primaryLine;
+
+      // A row whose text is already inside the other engine's line and whose
+      // time span sits inside that same line is the same lyric, re-segmented.
+      // Inserting it cannot add words the user cannot already read; it only
+      // duplicates them. Text-position pacing is deliberately not consulted
+      // here: singers hold notes and ASR timings are noisy, so the proportional
+      // estimate below rejects genuine fragments and floods the document.
+      if (_spanContains(fullLine, fragmentLine)) return true;
+
+      final fullText = primaryContainsSecondary ? primaryText : secondaryText;
+      final fragmentText = primaryContainsSecondary
+          ? secondaryText
+          : primaryText;
       return _containedFragmentMatchesTimeline(
         fullText: fullText,
         fragmentText: fragmentText,
@@ -946,6 +953,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return startDelta <= 350 &&
         endDelta <= 350 &&
         longerDuration / shorterDuration <= 2.0;
+  }
+
+  /// True when [inner]'s time span lies inside [outer]'s span, allowing the
+  /// boundary jitter that two recognizers always disagree about.
+  bool _spanContains(LyricLine outer, LyricLine inner) {
+    const tolerance = Duration(milliseconds: 400);
+    return inner.startTime >= outer.startTime - tolerance &&
+        inner.endTime <= outer.endTime + tolerance;
   }
 
   bool _containedFragmentMatchesTimeline({

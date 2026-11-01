@@ -50,8 +50,16 @@ const double _duplicateSimilarityThreshold = 0.85;
 /// word of a lyric line emitted as its own row.
 const double _containmentThreshold = 0.9;
 
-/// Duplicate candidates must be this close in time; a chorus that repeats a
-/// minute later is legitimate and must not be counted.
+/// Two rows must overlap in time by at least this share of the shorter row
+/// before they can count as the same lyric at the same moment. A chorus that
+/// repeats a minute later does not overlap and is therefore never a duplicate.
+const double _coincidenceOverlapRatio = 0.8;
+
+/// Upper bound for the end time inferred when a source carries only start
+/// times, so one long gap cannot turn a line into a paragraph.
+const int _maxInferredSpanMs = 10000;
+
+/// Fallback window used when a source has start times but no usable span.
 const int _duplicateWindowMs = 1500;
 
 /// Shortest text that can count as a duplicate. Two-character CJK words such as
@@ -378,9 +386,32 @@ List<DuplicateGroup> findDuplicateLyricLines(List<QualityLine> lines) {
   final squashed = [for (final line in lines) _squashed(line.text)];
   final timed = lines.every((line) => line.startMs != null);
 
-  bool nearby(int a, int b) {
+  // A row with no end time (plain LRC) borrows the next row's start, capped, so
+  // nested fragments are still detected without authoritative end times.
+  int effectiveEnd(int index) {
+    final line = lines[index];
+    final start = line.startMs!;
+    if (line.endMs != null && line.endMs! > start) return line.endMs!;
+    for (var next = index + 1; next < lines.length; next++) {
+      final nextStart = lines[next].startMs;
+      if (nextStart != null && nextStart > start) {
+        return math.min(nextStart, start + _maxInferredSpanMs);
+      }
+    }
+    return start + _duplicateWindowMs;
+  }
+
+  bool coincide(int a, int b) {
     if (!timed) return b - a <= 1;
-    return (lines[a].startMs! - lines[b].startMs!).abs() <= _duplicateWindowMs;
+    final aStart = lines[a].startMs!;
+    final bStart = lines[b].startMs!;
+    final aEnd = effectiveEnd(a);
+    final bEnd = effectiveEnd(b);
+    final overlap = math.min(aEnd, bEnd) - math.max(aStart, bStart);
+    if (overlap <= 0) return false;
+    final shorterSpan = math.min(aEnd - aStart, bEnd - bStart);
+    if (shorterSpan <= 0) return false;
+    return overlap / shorterSpan >= _coincidenceOverlapRatio;
   }
 
   for (var i = 0; i < lines.length; i++) {
@@ -389,7 +420,7 @@ List<DuplicateGroup> findDuplicateLyricLines(List<QualityLine> lines) {
     var kind = 'repeated';
     for (var j = i + 1; j < lines.length; j++) {
       if (squashed[j].length < _minDuplicateTextLength) continue;
-      if (!nearby(i, j)) continue;
+      if (!coincide(i, j)) continue;
       final shorter = squashed[i].length <= squashed[j].length
           ? squashed[i]
           : squashed[j];
