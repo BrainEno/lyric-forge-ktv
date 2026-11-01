@@ -29,9 +29,8 @@ Future<UnsavedLyricEditsDecision> confirmUnsavedLyricEdits(
       content: const Text('返回前是否保存当前歌词修改？未保存的更改将会丢失。'),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(
-            dialogContext,
-          ).pop(UnsavedLyricEditsDecision.stay),
+          onPressed: () =>
+              Navigator.of(dialogContext).pop(UnsavedLyricEditsDecision.stay),
           child: const Text('继续编辑'),
         ),
         TextButton(
@@ -41,9 +40,8 @@ Future<UnsavedLyricEditsDecision> confirmUnsavedLyricEdits(
           child: const Text('放弃修改'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(
-            dialogContext,
-          ).pop(UnsavedLyricEditsDecision.save),
+          onPressed: () =>
+              Navigator.of(dialogContext).pop(UnsavedLyricEditsDecision.save),
           child: const Text('保存并返回'),
         ),
       ],
