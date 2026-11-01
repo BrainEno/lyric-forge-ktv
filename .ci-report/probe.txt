@@ -1,45 +1,30 @@
 00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart
-test/tmp_fusion_probe_test.dart:99:3: Error: No named parameter with the name 'audioDuration'.
-  audioDuration: const Duration(minutes: 5),
-  ^^^^^^^^^^^^^
-lib/features/transcription/domain/models/transcription_models.dart:272:9: Context: Found this candidate, but the arguments don't match.
-  const TranscriptionResult({
-        ^^^^^^^^^^^^^^^^^^^
-test/tmp_fusion_probe_test.dart:158:24: Error: The argument type 'List<LyricLine>' can't be assigned to the parameter type 'List<QualityLine>'.
- - 'List' is from 'dart:core'.
- - 'LyricLine' is from 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart' ('lib/features/project/domain/models/lyric_document.dart').
- - 'QualityLine' is from 'tool/asr_quality_report.dart'.
-            reference: reference,
-                       ^
-test/tmp_fusion_probe_test.dart:159:25: Error: The argument type 'List<LyricLine>' can't be assigned to the parameter type 'List<QualityLine>'.
- - 'List' is from 'dart:core'.
- - 'LyricLine' is from 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart' ('lib/features/project/domain/models/lyric_document.dart').
- - 'QualityLine' is from 'tool/asr_quality_report.dart'.
-            hypothesis: out,
-                        ^
-00:00 +0 -1: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart [E]
-  Failed to load "/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart":
-  Compilation failed for testPath=/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart: test/tmp_fusion_probe_test.dart:99:3: Error: No named parameter with the name 'audioDuration'.
-    audioDuration: const Duration(minutes: 5),
-    ^^^^^^^^^^^^^
-  lib/features/transcription/domain/models/transcription_models.dart:272:9: Context: Found this candidate, but the arguments don't match.
-    const TranscriptionResult({
-          ^^^^^^^^^^^^^^^^^^^
-  test/tmp_fusion_probe_test.dart:158:24: Error: The argument type 'List<LyricLine>' can't be assigned to the parameter type 'List<QualityLine>'.
-   - 'List' is from 'dart:core'.
-   - 'LyricLine' is from 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart' ('lib/features/project/domain/models/lyric_document.dart').
-   - 'QualityLine' is from 'tool/asr_quality_report.dart'.
-              reference: reference,
-                         ^
-  test/tmp_fusion_probe_test.dart:159:25: Error: The argument type 'List<LyricLine>' can't be assigned to the parameter type 'List<QualityLine>'.
-   - 'List' is from 'dart:core'.
-   - 'LyricLine' is from 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart' ('lib/features/project/domain/models/lyric_document.dart').
-   - 'QualityLine' is from 'tool/asr_quality_report.dart'.
-              hypothesis: out,
-                          ^
-  .
+00:00 +0: fusion granularity probe
+PRIMARY_SEC | FRAG_SEC | TYPO | OUT | INSERTED | DUP_RATE | RECALL | PRECISION | RATIO
+8 | 8 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+8 | 8 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+8 | 8 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+8 | 8 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+8 | 4 | false | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [whisperPrimary]
+8 | 4 | false | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [qwenPrimary]
+8 | 4 | true | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [whisperPrimary]
+8 | 4 | true | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [qwenPrimary]
+10 | 3 | false | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [whisperPrimary]
+10 | 3 | false | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [qwenPrimary]
+10 | 3 | true | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [whisperPrimary]
+10 | 3 | true | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [qwenPrimary]
+6 | 6 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+6 | 6 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+6 | 6 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+6 | 6 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+00:00 +0 -1: fusion granularity probe [E]
+  Unsupported operation: Infinity or NaN toInt
+  dart:core                               double.ceil
+  test/tmp_fusion_probe_test.dart 43:44   fragmented
+  test/tmp_fusion_probe_test.dart 149:27  main.<fn>
+  
 00:00 +0 -1: Some tests failed.
 
 Failing tests:
-  /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart
+  /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart: fusion granularity probe
 probe exit: 1
