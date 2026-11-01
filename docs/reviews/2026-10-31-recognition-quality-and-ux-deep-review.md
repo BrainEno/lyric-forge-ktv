@@ -28,7 +28,7 @@
 | **P0** | R5 | 自动安装只认 RTX 5080 / Intel Mac（`managed_asr_runtime_manager.dart:1314`） | 绝大多数机器「一键准备」直接报错，连 Whisper 单模型也装不了 |
 | **P0** | R6 | 最高质量模式在 Qwen 不可用时整体失败，不做降级（`high_quality_transcription_service.dart:64`） | 驱动更新/显存不足 = 一首歌都识别不出来，而 Whisper 本来能跑。**已修复** |
 | **P1** | R7 | Whisper 参数从未优化：贪心解码、无 `--prompt`、无 VAD、`-l auto` | 精度上限被锁死；乐器段幻觉；专有名词全错 |
-| **P1** | R8 | Qwen 无置信度时统一记 50（`qwen3_...:941`），而阈值是 70 | 每一行都显示「低置信度」，复核队列 = 全部歌词 |
+| **P1** | R8 | Qwen 无置信度时统一记 50（`qwen3_...:941`），而阈值是 70 | 每一行都显示「低置信度」，复核队列 = 全部歌词。**已修复** |
 | **P1** | R9 | `max_new_tokens: 1024` 固定值（`qwen3_...:593`） | 长歌尾部可能被静默截断 |
 | **P1** | R10 | 没有质量语料与回归门禁 | 任何「改进」都无法证明有效，也无法证明没有退化 |
 | **P1** | R11 | 三套语义重叠的校对入口 + 25 个控件的工具栏 | 用户不知道点哪个；学不会 |
@@ -408,6 +408,18 @@ score.add(23, '识别置信度偏低');     // 50 分 ⇒ 23 分 ⇒ 超过 mini
 1. 把「无置信度」与「低置信度」分成两个状态（`confidenceSource: none|model`），UI 显示「未评分」而不是红色告警。
 2. 复核排序以**结构证据**为主（双引擎分歧、时间轴异常、重复、异常时长），置信度只在有真实分数时参与。
 3. `_needsReview` 改为基于 `LyricReviewPriorityService` 的分数阈值，而不是裸 confidence。
+
+**处理（2026-11-01）**
+
+按「有分数 / 没分数」拆成两种状态，而不是把阈值调松：
+
+- `LyricLine` 新增 `confidenceSource`（`model` / `heuristic` / `unscored`），以及两个判据：`hasConfidenceScore` 与 `isLowConfidence(threshold)`（**没分数就永远不返回 true**）。JSON 往返保留该字段；旧数据缺字段时按 `model` 解析，因此历史工程的行为一字不变。
+- 两个引擎都改成如实标注：`scoreAsrLine`（Qwen）在 `explicitConfidence == null` 时返回 `unscored`，分数被规则调整过时返回 `heuristic`；`scoreWhisperSegment` 在没有 token 概率时返回 `unscored`（此前同样伪造 50）。数值仍保留在 `confidence` 里，只用于排序，不再被当作精度。
+- 消费侧统一走 `isLowConfidence(...)`：复核队列计数与筛选、`LyricReviewPriorityService` 的置信度阶梯、共识分析器的 `lowPrimaryConfidence`、ASR-first 管线的 `ProofreadReason.lowConfidence`。共识行的 `secondaryConfidence` 在副引擎无分数时记为 `null`，不再对占位值求平均。
+- 用户能看到的部分：行徽标显示「未评分」而不是红色的「50」；编辑器手工导入的第二份转写稿也标为 `unscored`（原来写死 60，等于每一行都待复核）。
+- 刻意**不改**的：`AsrHallucinationCandidateFilter` 仍然把「无分数 + 无二次证据」的行列为可疑行——那是一份需要人工确认的怀疑清单，不是给用户体验的置信度；`high_quality_transcription_service` 里以 `qwenConfidence >= 55` 决定是否采纳第二引擎候选的门槛也保持原样，因为在没有分数的情况下「不采纳」仍是保守选择。这两处都在本文件里记为后续项，而不是顺手改掉。
+
+**实测口径**：新增 `test/features/transcription/asr_confidence_test.dart` 直接测两个评分函数与 JSON 往返；管线、共识分析器、复核排序各加一例，锁住「同一占位数值，语义不同」：未评分的行不进低置信度理由、不进复核队列，真有分数的 40 分仍然进。占位值仍是 50，所以任何一个漏改的阈值都不会被测试掩盖——它会立刻表现为「未评分行又进了队列」，测试失败。
 
 ---
 
