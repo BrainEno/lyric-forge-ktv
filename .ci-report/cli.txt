@@ -1,0 +1,18 @@
+--- single pair ---
+Running build hooks...Running build hooks...Invalid lyric quality input: Unexpected character
+pair exit: 2
+--- corpus + json baseline ---
+Running build hooks...Running build hooks...Invalid lyric quality input: Unexpected character
+corpus exit: 2
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/quality-smoke/baseline.json'
+--- regression gate must fail ---
+Running build hooks...Running build hooks...Invalid lyric quality input: Unexpected character
+same-run exit (expect 0): 2
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/tmp/quality-smoke/baseline.json'
+regressed exit (expect 1): 2
+--- bad input must exit 2 ---
+missing corpus exit (expect 2): 2
