@@ -155,13 +155,32 @@ incorrectly marked failed for the same missing prerequisite.
 
 ## Resumable long-audio transcription
 
-Long audio is processed as 3-minute chunks with an 8-second overlap. Each
-completed chunk is checkpointed under the project's transcription output before
-the next chunk starts. Restarting the same source resumes from those checkpoints
-instead of rerunning completed inference. A chunk is retried up to three times;
-cancellation keeps completed checkpoints. Overlap lines are merged by
-normalized text and timing, preferring the higher-confidence duplicate. Short
-audio continues through the existing whole-song path.
+A song is recognised in one pass. The engine decides how to window it internally
+(the Qwen runtime splits at 180 s under its forced aligner, Whisper uses a
+sliding window), and adding a second, coarser split above the engine is what
+produced half-sentences at the seams, reset decoder context in the middle of a
+song, and turned whole-song engine disagreement into per-seam bookkeeping.
+
+The resumable wrapper therefore only engages above **20 minutes** of audio
+(`ResumableChunkedTranscriptionService.defaultChunkDuration`), where losing a
+long inference run costs more than seam fidelity. For that path each chunk is
+20 minutes with an 8-second overlap, and every completed chunk is checkpointed
+under the project's transcription output before the next one starts. Restarting
+the same source resumes from those checkpoints instead of rerunning completed
+inference. A chunk is retried up to three times; cancellation keeps completed
+checkpoints. Overlap lines are merged by normalized text and timing, preferring
+the higher-confidence duplicate, and the document metadata is rebuilt across
+chunks: engine identity and quality mode come from the first chunk, while
+`fallbackCandidates`, `secondaryOnlyLineIndices`, `suspiciousLineIndexes` and the
+corresponding counts are re-indexed onto the merged line list so the editor's
+"use the other engine's line" review still works. Per-chunk working directories
+are deleted once the checkpoint is written.
+
+Checkpoints are only reusable when the recognition settings match. The session
+manifest stores a hash of the mode, engine order, engine and model paths,
+device/dtype, language and review thresholds; changing any of them invalidates
+the session and re-runs inference. Before this, switching models and pressing
+"recognise again" silently replayed the previous lyrics.
 
 ## Confidence and review
 

@@ -2,15 +2,36 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
 
-/// Runs long audio as resumable chunks while keeping the wrapped service's
-/// quality policy intact for every chunk.
+/// Splits genuinely long audio into resumable chunks, keeping the wrapped
+/// service's quality policy intact for every chunk.
+///
+/// Songs must not be chunked here. Every ASR engine already handles a full song
+/// on its own (the Qwen runtime splits at 180 s internally with its forced
+/// aligner, Whisper uses a sliding window), and a second, coarser split above
+/// them is what creates half-sentences at the seams, resets the decoder context
+/// twice per song, and replaces whole-song engine disagreement with per-seam
+/// bookkeeping. The wrapper therefore only takes over when the audio is far
+/// longer than any song, where resuming inference is worth more than seam
+/// fidelity.
 class ResumableChunkedTranscriptionService implements TranscriptionService {
+  /// Audio at or below this length is sent to the delegate in one pass.
+  static const Duration defaultChunkDuration = Duration(minutes: 20);
+
+  /// Default seam overlap. Only meaningful for the >[defaultChunkDuration] path.
+  static const Duration defaultOverlap = Duration(seconds: 8);
+
+  /// Version of the on-disk checkpoint manifest, bumped whenever the
+  /// compatibility rules change so stale checkpoints cannot be reused.
+  static const int checkpointManifestVersion = 2;
+
   final TranscriptionService delegate;
   final Duration chunkDuration;
   final Duration overlap;
@@ -27,8 +48,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   ResumableChunkedTranscriptionService({
     required this.delegate,
-    this.chunkDuration = const Duration(minutes: 3),
-    this.overlap = const Duration(seconds: 8),
+    this.chunkDuration = defaultChunkDuration,
+    this.overlap = defaultOverlap,
     this.maxAttempts = 3,
     AsrProcessSupervisor? processSupervisor,
     this.durationProbeTimeout = const Duration(seconds: 45),
@@ -36,6 +57,33 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
        assert(chunkDuration > overlap),
        assert(maxAttempts > 0),
        assert(durationProbeTimeout > Duration.zero);
+
+  /// Fingerprint of every recognition setting that can change the output.
+  ///
+  /// Checkpoints are only reusable when this matches. Without it, switching
+  /// between "Whisper only" and "highest quality", changing the engine order,
+  /// picking a different model, or fixing a broken runtime would all silently
+  /// replay the previous run's lyrics — which reads to the user as "the app
+  /// cannot recognise anything, no matter what I pick". Executables are
+  /// included because a replaced binary is a different recogniser, and the
+  /// value is hashed so absolute paths stay out of the project directory.
+  static String checkpointConfigFingerprint(TranscriptionConfig config) {
+    final material = [
+      'mode=${config.mode.name}',
+      'engineOrder=${config.engineOrder.name}',
+      'qwenExecutable=${config.qwenExecutable}',
+      'qwenModelPath=${config.qwenModelPath}',
+      'qwenAlignerModelPath=${config.qwenAlignerModelPath}',
+      'qwenDevice=${config.qwenDevice}',
+      'qwenDtype=${config.qwenDtype}',
+      'whisperExecutable=${config.whisperExecutable}',
+      'modelPath=${config.modelPath}',
+      'language=${config.language}',
+      'fallbackConfidenceThreshold=${config.fallbackConfidenceThreshold}',
+      'maxFallbackSegments=${config.maxFallbackSegments}',
+    ].join('\u0000');
+    return sha256.convert(utf8.encode(material)).toString();
+  }
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -53,6 +101,21 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     _cancelRequested = false;
 
     try {
+      _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频时长');
+      final duration = await _probeDuration(
+        request.config.ffmpegExecutable,
+        request.inputAudioPath,
+      );
+      _throwIfCancelled();
+
+      // A song is one recognisable unit: hand it to the delegate whole and let
+      // the engine's own internal windowing do its job. Chunking here is only
+      // for audio long enough that resuming beats seam fidelity. Probing first
+      // also means the whole-song path leaves no chunk session behind at all.
+      if (duration <= chunkDuration) {
+        return await _runDelegate(request, prefix: '');
+      }
+
       final root = Directory(
         '${request.outputDirectory}${Platform.pathSeparator}chunk_session',
       );
@@ -61,29 +124,21 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         '${root.path}${Platform.pathSeparator}chunks',
       );
       await chunksDir.create(recursive: true);
-
-      _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频并准备可恢复分片');
-      final duration = await _probeDuration(
-        request.config.ffmpegExecutable,
-        request.inputAudioPath,
-      );
+      _emit(TranscriptionStage.preprocessing, 0.02, '正在准备可恢复分片');
       _throwIfCancelled();
-
-      // Short songs keep the existing path and avoid needless chunk overhead.
-      if (duration <= chunkDuration) {
-        return await _runDelegate(request, prefix: '');
-      }
 
       final plan = _buildPlan(duration);
       final fingerprint = await _fingerprint(request.inputAudioPath);
+      final configFingerprint = checkpointConfigFingerprint(request.config);
       final manifestFile = File(
         '${root.path}${Platform.pathSeparator}session.json',
       );
       var manifest = await _loadManifest(manifestFile);
       final compatible =
           manifest != null &&
-          manifest['version'] == 1 &&
+          manifest['version'] == checkpointManifestVersion &&
           manifest['sourceFingerprint'] == fingerprint &&
+          manifest['configFingerprint'] == configFingerprint &&
           manifest['chunkMs'] == chunkDuration.inMilliseconds &&
           manifest['overlapMs'] == overlap.inMilliseconds;
 
@@ -93,8 +148,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           await chunksDir.create(recursive: true);
         }
         manifest = <String, dynamic>{
-          'version': 1,
+          'version': checkpointManifestVersion,
           'sourceFingerprint': fingerprint,
+          'configFingerprint': configFingerprint,
           'chunkMs': chunkDuration.inMilliseconds,
           'overlapMs': overlap.inMilliseconds,
           'durationMs': duration.inMilliseconds,
@@ -143,6 +199,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
         TranscriptionResult? result;
         Object? lastError;
+        final chunkOutput = Directory(
+          '${chunksDir.path}${Platform.pathSeparator}${id}_work',
+        );
         for (var attempt = 1; attempt <= maxAttempts; attempt++) {
           _throwIfCancelled();
           final base = index / plan.length;
@@ -154,9 +213,6 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                 : '分片 ${index + 1} / ${plan.length} 失败，正在重试 $attempt / $maxAttempts',
           );
           try {
-            final chunkOutput = Directory(
-              '${chunksDir.path}${Platform.pathSeparator}${id}_work',
-            );
             await chunkOutput.create(recursive: true);
             result = await _runDelegate(
               TranscriptionRequest(
@@ -215,8 +271,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         manifest['updatedAt'] = DateTime.now().toUtc().toIso8601String();
         await _writeManifest(manifestFile, manifest);
 
-        // Chunk WAV is reproducible; checkpoint JSON is the valuable state.
+        // The chunk WAV and the delegate's per-chunk working directory are
+        // reproducible; the checkpoint JSON is the valuable state. Leaving the
+        // working directories behind used to fill the project with one
+        // normalized copy of the audio per chunk.
         if (await wav.exists()) await wav.delete();
+        if (await chunkOutput.exists()) {
+          await chunkOutput.delete(recursive: true);
+        }
       }
 
       _throwIfCancelled();
@@ -443,6 +505,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   }
 
   LyricDocument _shiftDocument(LyricDocument document, Duration offset) {
+    final metadata = document.metadata;
+    final candidates = metadata['fallbackCandidates'];
     return document.copyWith(
       lines: document.lines
           .map(
@@ -452,7 +516,35 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             ),
           )
           .toList(growable: false),
+      // Review candidates carry their own timestamps; leaving them in chunk
+      // local time would describe the wrong part of the song.
+      metadata: candidates is List
+          ? {
+              ...metadata,
+              'fallbackCandidates': <Map<String, dynamic>>[
+                for (final entry in candidates)
+                  if (entry is Map)
+                    _shiftCandidateTimes(
+                      Map<String, dynamic>.from(entry),
+                      offset,
+                    ),
+              ],
+            }
+          : metadata,
     );
+  }
+
+  Map<String, dynamic> _shiftCandidateTimes(
+    Map<String, dynamic> candidate,
+    Duration offset,
+  ) {
+    for (final key in const ['startMs', 'endMs']) {
+      final value = candidate[key];
+      if (value is num) {
+        candidate[key] = value.toInt() + offset.inMilliseconds;
+      }
+    }
+    return candidate;
   }
 
   LyricDocument _mergeDocuments(List<LyricDocument> documents) {
@@ -460,28 +552,144 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       return const LyricDocument(language: 'unknown', lines: []);
     }
     final lines = <LyricLine>[];
+    // For each chunk: its own line index -> index in `lines` before sorting.
+    final indexMaps = <List<int>>[];
     for (final document in documents) {
-      for (final line in document.lines) {
+      final indexMap = List<int>.filled(document.lines.length, -1);
+      for (var index = 0; index < document.lines.length; index++) {
+        final line = document.lines[index];
         final duplicateIndex = lines.lastIndexWhere(
           (existing) =>
               _normalize(existing.text) == _normalize(line.text) &&
               _absoluteDuration(existing.startTime - line.startTime) <= overlap,
         );
         if (duplicateIndex >= 0) {
+          indexMap[index] = duplicateIndex;
           if (line.confidence > lines[duplicateIndex].confidence) {
             lines[duplicateIndex] = line;
           }
         } else {
+          indexMap[index] = lines.length;
           lines.add(line);
         }
       }
+      indexMaps.add(indexMap);
     }
-    lines.sort((a, b) => a.startTime.compareTo(b.startTime));
-    return LyricDocument(
-      language: documents.first.language,
-      lines: lines,
-      metadata: {'mergeStrategy': 'overlapTextAndTimeDedup'},
+
+    final order = List<int>.generate(lines.length, (index) => index)
+      ..sort((a, b) => lines[a].startTime.compareTo(lines[b].startTime));
+    final sortedIndex = List<int>.filled(lines.length, -1);
+    final sortedLines = <LyricLine>[];
+    for (var position = 0; position < order.length; position++) {
+      sortedIndex[order[position]] = position;
+      sortedLines.add(lines[order[position]]);
+    }
+    final finalMaps = <List<int>>[
+      for (final indexMap in indexMaps)
+        <int>[
+          for (final index in indexMap)
+            index >= 0 && index < sortedIndex.length ? sortedIndex[index] : -1,
+        ],
+    ];
+
+    return documents.first.copyWith(
+      lines: sortedLines,
+      metadata: _mergeMetadata(documents, finalMaps),
     );
+  }
+
+  /// Rebuilds document metadata across chunks instead of dropping it.
+  ///
+  /// Per-chunk engine identity, quality mode, fusion policy and the review
+  /// evidence (`fallbackCandidates`, `secondaryOnlyLineIndices`,
+  /// `suspiciousLineIndexes`) are the reason the editor can offer "use the
+  /// other engine's line" at all. Those fields are line-indexed, so they are
+  /// remapped onto the merged line list; counts are recomputed from the merged
+  /// data rather than copied from one chunk.
+  Map<String, dynamic> _mergeMetadata(
+    List<LyricDocument> documents,
+    List<List<int>> indexMaps,
+  ) {
+    final merged = <String, dynamic>{
+      ...documents.first.metadata,
+      'mergeStrategy': 'overlapTextAndTimeDedup',
+    };
+    // These point at a single chunk's working directory, which is not the
+    // document the user ends up with. The merged result's own `rawJsonPath` is
+    // reported by [transcribe] instead.
+    merged
+      ..remove('qwenRawJsonPath')
+      ..remove('whisperRawJsonPath');
+
+    int remap(int chunk, Object? rawIndex) {
+      if (rawIndex is! num) return -1;
+      final index = rawIndex.toInt();
+      if (chunk >= indexMaps.length) return -1;
+      final map = indexMaps[chunk];
+      if (index < 0 || index >= map.length) return -1;
+      return map[index];
+    }
+
+    List<int> remapIndexList(String key) {
+      final result = <int>{};
+      for (var chunk = 0; chunk < documents.length; chunk++) {
+        final raw = documents[chunk].metadata[key];
+        if (raw is! List) continue;
+        for (final entry in raw) {
+          final index = remap(chunk, entry);
+          if (index >= 0) result.add(index);
+        }
+      }
+      final sorted = result.toList()..sort();
+      return sorted;
+    }
+
+    final secondaryOnly = remapIndexList('secondaryOnlyLineIndices');
+    final suspicious = remapIndexList('suspiciousLineIndexes');
+    final hasSecondaryOnlyKey = documents.any(
+      (document) => document.metadata.containsKey('secondaryOnlyLineIndices'),
+    );
+    final hasSuspiciousKey = documents.any(
+      (document) => document.metadata.containsKey('suspiciousLineIndexes'),
+    );
+
+    final candidates = <Map<String, dynamic>>[];
+    final candidateLines = <int>{};
+    var appliedCount = 0;
+    var hasCandidateKey = false;
+    for (var chunk = 0; chunk < documents.length; chunk++) {
+      final metadata = documents[chunk].metadata;
+      final applied = metadata['fallbackAppliedCount'];
+      if (applied is num) appliedCount += applied.toInt();
+      final raw = metadata['fallbackCandidates'];
+      if (raw is! List) continue;
+      hasCandidateKey = true;
+      for (final entry in raw) {
+        if (entry is! Map) continue;
+        final candidate = Map<String, dynamic>.from(entry);
+        final lineIndex = remap(chunk, candidate['lineIndex']);
+        if (lineIndex < 0) continue;
+        // A line that both chunks saw twice needs one candidate, not two; the
+        // editor looks candidates up per line.
+        if (!candidateLines.add(lineIndex)) continue;
+        candidate['lineIndex'] = lineIndex;
+        candidates.add(candidate);
+      }
+    }
+
+    if (hasCandidateKey) {
+      merged['fallbackCandidates'] = candidates;
+      merged['fallbackCandidateCount'] = candidates.length;
+      merged['fallbackAppliedCount'] = appliedCount;
+    }
+    if (hasSecondaryOnlyKey) {
+      merged['secondaryOnlyLineIndices'] = secondaryOnly;
+      merged['secondaryOnlyLineCount'] = secondaryOnly.length;
+    }
+    if (hasSuspiciousKey) {
+      merged['suspiciousLineIndexes'] = suspicious;
+    }
+    return merged;
   }
 
   Duration _absoluteDuration(Duration value) =>

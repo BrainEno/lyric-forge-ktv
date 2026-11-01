@@ -268,6 +268,10 @@ class ServiceLocator {
     );
     final qwenNativeTranscriptionService = Qwen3AsrNativeTranscriptionService();
     this.qwenNativeTranscriptionService = qwenNativeTranscriptionService;
+    // Whole song in one pass: the wrapper only kicks in above 20 minutes, where
+    // resuming a long inference run beats keeping the song seamless. Both
+    // engines already window audio internally, so chunking here would put a
+    // second, coarser split above them and create the seams we were fixing.
     transcriptionService = ResumableChunkedTranscriptionService(
       delegate: HighQualityTranscriptionService(
         primary: qwenNativeTranscriptionService,
