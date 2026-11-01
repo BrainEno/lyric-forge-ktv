@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:lyric_forge/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
-import 'package:lyric_forge/features/player/domain/models/playback_state.dart';
-import 'package:lyric_forge/features/project/domain/models/lyric_document.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 const _document = LyricDocument(
   language: 'zh',
