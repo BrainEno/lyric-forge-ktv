@@ -23,7 +23,24 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          dart format lib/features/transcription lib/features/project/presentation/screens/project_detail_screen.dart test/asr_runtime_status_test.dart test/high_quality_transcription_service_test.dart test/transcription_config_test.dart test/features/transcription > /tmp/format.txt 2>&1
+          CHANGED=$(printf '%s\n' \
+            lib/features/transcription/domain/models/transcription_degradation.dart \
+            lib/features/transcription/domain/models/transcription_models.dart \
+            lib/features/transcription/domain/services/asr_runtime_manager.dart \
+            lib/features/transcription/domain/services/transcription_environment_preflight.dart \
+            lib/features/transcription/domain/services/transcription_queue_environment_recovery.dart \
+            lib/features/transcription/data/services/high_quality_transcription_service.dart \
+            lib/features/transcription/data/services/local_project_transcription_workflow.dart \
+            lib/features/project/presentation/screens/project_detail_screen.dart \
+            test/asr_runtime_status_test.dart \
+            test/high_quality_transcription_service_test.dart \
+            test/transcription_config_test.dart \
+            test/features/transcription/transcription_environment_preflight_test.dart \
+            test/features/transcription/transcription_queue_environment_recovery_test.dart \
+            test/features/transcription/transcription_queue_protective_pause_contract_test.dart)
+          # Only the files this change touches: the repository has historical
+          # formatter debt that unrelated files must not inherit.
+          dart format $CHANGED > /tmp/format.txt 2>&1
           git --no-pager diff > /tmp/format_diff.txt 2>&1
           if git diff --quiet; then code=0; else code=1; fi
           echo "exit=$code" >> /tmp/format.txt
@@ -32,7 +49,22 @@ jobs:
         if: steps.format.outcome == 'failure'
         run: |
           set -e
-          dart format lib/features/transcription lib/features/project/presentation/screens/project_detail_screen.dart test/asr_runtime_status_test.dart test/high_quality_transcription_service_test.dart test/transcription_config_test.dart test/features/transcription
+          CHANGED=$(printf '%s\n' \
+            lib/features/transcription/domain/models/transcription_degradation.dart \
+            lib/features/transcription/domain/models/transcription_models.dart \
+            lib/features/transcription/domain/services/asr_runtime_manager.dart \
+            lib/features/transcription/domain/services/transcription_environment_preflight.dart \
+            lib/features/transcription/domain/services/transcription_queue_environment_recovery.dart \
+            lib/features/transcription/data/services/high_quality_transcription_service.dart \
+            lib/features/transcription/data/services/local_project_transcription_workflow.dart \
+            lib/features/project/presentation/screens/project_detail_screen.dart \
+            test/asr_runtime_status_test.dart \
+            test/high_quality_transcription_service_test.dart \
+            test/transcription_config_test.dart \
+            test/features/transcription/transcription_environment_preflight_test.dart \
+            test/features/transcription/transcription_queue_environment_recovery_test.dart \
+            test/features/transcription/transcription_queue_protective_pause_contract_test.dart)
+          dart format $CHANGED
           if git diff --quiet; then
             echo 'No formatting changes to push.'
             exit 0
