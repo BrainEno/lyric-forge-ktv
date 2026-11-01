@@ -341,10 +341,7 @@ class _FilterMenu extends StatelessWidget {
                   : Icons.circle_outlined,
               size: 18,
             ),
-            child: _OverflowLabel(
-              title: _label(value),
-              detail: _detail(value),
-            ),
+            child: _OverflowLabel(title: _label(value), detail: _detail(value)),
           ),
       ],
       builder: (context, controller, child) {
@@ -380,7 +377,8 @@ class _OffsetMenu extends StatelessWidget {
           child: const _OverflowLabel(title: '提前 100ms', detail: '歌词整体早一点出现'),
         ),
         MenuItemButton(
-          onPressed: () => onChanged(offset + const Duration(milliseconds: 100)),
+          onPressed: () =>
+              onChanged(offset + const Duration(milliseconds: 100)),
           leadingIcon: const Icon(Icons.add_rounded, size: 18),
           child: const _OverflowLabel(title: '延后 100ms', detail: '歌词整体晚一点出现'),
         ),
