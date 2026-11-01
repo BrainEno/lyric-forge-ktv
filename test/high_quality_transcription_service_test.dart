@@ -450,94 +450,90 @@ void main() {
 
       await service.dispose();
     });
-    test(
-      'preserves a novel secondary lyric inside an overlapping primary segment '
-      'for both engine orders',
-      () async {
-        final fullLine = LyricLine(
-          text: 'we are dancing through the night',
+    test('preserves a novel secondary lyric inside an overlapping primary segment '
+        'for both engine orders', () async {
+      final fullLine = LyricLine(
+        text: 'we are dancing through the night',
+        startTime: const Duration(seconds: 10),
+        endTime: const Duration(seconds: 14),
+        confidence: 92,
+      );
+      final secondaryLines = [
+        LyricLine(
+          text: 'we are dancing',
           startTime: const Duration(seconds: 10),
-          endTime: const Duration(seconds: 14),
+          endTime: const Duration(milliseconds: 11700),
           confidence: 92,
+        ),
+        LyricLine(
+          text: 'sing a little song',
+          startTime: const Duration(milliseconds: 11900),
+          endTime: const Duration(milliseconds: 12300),
+          confidence: 92,
+        ),
+        LyricLine(
+          text: 'dancing',
+          startTime: const Duration(milliseconds: 12350),
+          endTime: const Duration(milliseconds: 12700),
+          confidence: 92,
+        ),
+        LyricLine(
+          text: 'through the night',
+          startTime: const Duration(milliseconds: 12700),
+          endTime: const Duration(milliseconds: 13900),
+          confidence: 92,
+        ),
+      ];
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final qwenLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
+            ? [fullLine]
+            : secondaryLines;
+        final whisperLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
+            ? secondaryLines
+            : [fullLine];
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _resultLines(qwenLines)),
+          fallback: _FakeTranscriptionService(
+            result: _resultLines(whisperLines),
+          ),
         );
-        final secondaryLines = [
-          LyricLine(
-            text: 'we are dancing',
-            startTime: const Duration(seconds: 10),
-            endTime: const Duration(milliseconds: 11700),
-            confidence: 92,
-          ),
-          LyricLine(
-            text: 'sing a little song',
-            startTime: const Duration(milliseconds: 11900),
-            endTime: const Duration(milliseconds: 12300),
-            confidence: 92,
-          ),
-          LyricLine(
-            text: 'dancing',
-            startTime: const Duration(milliseconds: 12350),
-            endTime: const Duration(milliseconds: 12700),
-            confidence: 92,
-          ),
-          LyricLine(
-            text: 'through the night',
-            startTime: const Duration(milliseconds: 12700),
-            endTime: const Duration(milliseconds: 13900),
-            confidence: 92,
-          ),
-        ];
 
-        for (final engineOrder in [
-          TranscriptionEngineOrder.qwenPrimary,
-          TranscriptionEngineOrder.whisperPrimary,
-        ]) {
-          final qwenLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
-              ? [fullLine]
-              : secondaryLines;
-          final whisperLines =
-              engineOrder == TranscriptionEngineOrder.qwenPrimary
-              ? secondaryLines
-              : [fullLine];
-          final service = HighQualityTranscriptionService(
-            primary: _FakeTranscriptionService(result: _resultLines(qwenLines)),
-            fallback: _FakeTranscriptionService(
-              result: _resultLines(whisperLines),
-            ),
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
           );
-
-          try {
-            final result = await service.transcribe(
-              _request(tempDirectory.path, engineOrder: engineOrder),
-            );
-            final lines = result.lyrics.lines;
-            // Only the genuinely novel line survives. The other three secondary
-            // rows restate words already inside the primary line and sit inside
-            // its time span, so keeping them would duplicate lyrics the user can
-            // already read -- including "dancing", which is a single word of the
-            // primary line.
-            expect(lines.map((line) => line.text).toList(), [
-              fullLine.text,
-              'sing a little song',
-            ], reason: 'engine order: $engineOrder');
-            expect(
-              lines[1].confidence,
-              60,
-              reason: 'novel secondary lines must stay review-only',
-            );
-            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
-            expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
-            // The engines genuinely disagree here: the primary covers the whole
-            // line while the secondary splits it, so one review candidate is
-            // raised. A review candidate is not an inserted row: the merged text
-            // stays exactly the primary line.
-            expect(result.lyrics.metadata['fallbackCandidateCount'], 1);
-            expect(lines.map((line) => line.text).toSet(), hasLength(2));
-          } finally {
-            await service.dispose();
-          }
+          final lines = result.lyrics.lines;
+          // Only the genuinely novel line survives. The other three secondary
+          // rows restate words already inside the primary line and sit inside
+          // its time span, so keeping them would duplicate lyrics the user can
+          // already read -- including "dancing", which is a single word of the
+          // primary line.
+          expect(lines.map((line) => line.text).toList(), [
+            fullLine.text,
+            'sing a little song',
+          ], reason: 'engine order: $engineOrder');
+          expect(
+            lines[1].confidence,
+            60,
+            reason: 'novel secondary lines must stay review-only',
+          );
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
+          expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
+          // The engines genuinely disagree here: the primary covers the whole
+          // line while the secondary splits it, so one review candidate is
+          // raised. A review candidate is not an inserted row: the merged text
+          // stays exactly the primary line.
+          expect(result.lyrics.metadata['fallbackCandidateCount'], 1);
+          expect(lines.map((line) => line.text).toSet(), hasLength(2));
+        } finally {
+          await service.dispose();
         }
-      },
-    );
+      }
+    });
     test(
       'never duplicates lyrics when the second engine segments more finely',
       () async {
