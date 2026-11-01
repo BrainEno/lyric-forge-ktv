@@ -57,9 +57,7 @@ const int _duplicateWindowMs = 1500;
 /// Matched pairs closer than this in start time count toward `within500msRate`.
 const int _timestampToleranceMs = 500;
 
-final RegExp _lrcTimestamp = RegExp(
-  r'\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]',
-);
+final RegExp _lrcTimestamp = RegExp(r'\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]');
 final RegExp _lrcMetadata = RegExp(r'^\[[a-zA-Z][^\]]*:.*\]$');
 
 const LyricTokenizer _tokenizer = LyricTokenizer();
@@ -141,8 +139,8 @@ int _editDistance<T>(
   for (var i = 1; i < height; i++) {
     current[0] = i;
     for (var j = 1; j < width; j++) {
-      final substitution = previous[j - 1] +
-          (reference[i - 1] == candidate[j - 1] ? 0 : 1);
+      final substitution =
+          previous[j - 1] + (reference[i - 1] == candidate[j - 1] ? 0 : 1);
       final deletion = previous[j] + 1;
       final insertion = current[j - 1] + 1;
       current[j] = math.min(substitution, math.min(deletion, insertion));
@@ -368,8 +366,7 @@ List<DuplicateGroup> findDuplicateLyricLines(List<QualityLine> lines) {
 
   bool nearby(int a, int b) {
     if (!timed) return b - a <= 1;
-    return (lines[a].startMs! - lines[b].startMs!).abs() <=
-        _duplicateWindowMs;
+    return (lines[a].startMs! - lines[b].startMs!).abs() <= _duplicateWindowMs;
   }
 
   for (var i = 0; i < lines.length; i++) {
@@ -651,7 +648,9 @@ Map<String, Object?> evaluateLyricQualityPair({
     throw FormatException('Reference for $songId has no lyric lines.');
   }
   if (hypothesis.isEmpty) {
-    throw FormatException('Hypothesis for $songId ($engine) has no lyric lines.');
+    throw FormatException(
+      'Hypothesis for $songId ($engine) has no lyric lines.',
+    );
   }
   final outcome = matchLyricLines(
     reference,
@@ -844,9 +843,7 @@ Map<String, Object?> evaluateQualityCorpus(
 }) {
   final corpus = _asMap(jsonDecode(source), 'Corpus');
   if (corpus['schemaVersion'] != kQualityReportSchemaVersion) {
-    throw const FormatException(
-      'Corpus must be a schemaVersion 1 object.',
-    );
+    throw const FormatException('Corpus must be a schemaVersion 1 object.');
   }
   final thresholdValue = matchThreshold ?? _asDouble(corpus['matchThreshold']);
   final threshold = thresholdValue ?? kDefaultMatchThreshold;
@@ -1145,10 +1142,9 @@ String _ratio(Object? value) {
   return number == null ? 'n/a' : number.toStringAsFixed(2);
 }
 
-String _metricValue(String metric, Object? value) =>
-    metric.endsWith('Ms') ? _milliseconds(value) : (
-      metric == 'lineCountRatio' ? _ratio(value) : _percent(value)
-    );
+String _metricValue(String metric, Object? value) => metric.endsWith('Ms')
+    ? _milliseconds(value)
+    : (metric == 'lineCountRatio' ? _ratio(value) : _percent(value));
 
 /// Renders a compact human-readable summary of a report.
 String formatQualityReport(Map<String, Object?> report) {
@@ -1195,7 +1191,8 @@ String formatQualityReport(Map<String, Object?> report) {
     ..writeln('|---|---|---|---|---|---|---|---|---|');
   for (final rawSong in report['songs'] as List? ?? const <Object?>[]) {
     final song = _asMap(rawSong, 'song');
-    for (final rawCandidate in song['candidates'] as List? ?? const <Object?>[]) {
+    for (final rawCandidate
+        in song['candidates'] as List? ?? const <Object?>[]) {
       final candidate = _asMap(rawCandidate, 'candidate');
       buffer.writeln(
         '| ${song['id']} | ${candidate['engine']} | '
@@ -1213,7 +1210,8 @@ String formatQualityReport(Map<String, Object?> report) {
   final duplicates = <Map<String, Object?>>[];
   for (final rawSong in report['songs'] as List? ?? const <Object?>[]) {
     final song = _asMap(rawSong, 'song');
-    for (final rawCandidate in song['candidates'] as List? ?? const <Object?>[]) {
+    for (final rawCandidate
+        in song['candidates'] as List? ?? const <Object?>[]) {
       final candidate = _asMap(rawCandidate, 'candidate');
       for (final rawGroup
           in candidate['duplicateGroups'] as List? ?? const <Object?>[]) {
@@ -1373,10 +1371,7 @@ Future<void> main(List<String> args) async {
     '--engine',
     '--match-threshold',
   };
-  const flagOptions = <String>{
-    '--fail-on-regression',
-    '--json',
-  };
+  const flagOptions = <String>{'--fail-on-regression', '--json'};
 
   for (var index = 0; index < args.length; index++) {
     final argument = args[index];
@@ -1480,7 +1475,9 @@ Future<void> main(List<String> args) async {
       File(outputPath).writeAsStringSync(encoded);
       stdout.writeln('Wrote lyric quality report: $outputPath');
     }
-    stdout.write(flags.contains('--json') ? encoded : formatQualityReport(report));
+    stdout.write(
+      flags.contains('--json') ? encoded : formatQualityReport(report),
+    );
 
     if (flags.contains('--fail-on-regression')) {
       final comparison = report['baselineComparison'];

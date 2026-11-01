@@ -51,10 +51,7 @@ void main() {
       ];
       final score = evaluate(
         reference: reference,
-        hypothesis: <quality.QualityLine>[
-          reference[0],
-          reference[2],
-        ],
+        hypothesis: <quality.QualityLine>[reference[0], reference[2]],
       );
 
       expect(score['matchedLineCount'], 2);
@@ -151,10 +148,7 @@ void main() {
     });
 
     test('without timestamps only adjacent lines are compared', () {
-      final adjacent = <quality.QualityLine>[
-        line('我们跳舞直到天亮'),
-        line('跳舞'),
-      ];
+      final adjacent = <quality.QualityLine>[line('我们跳舞直到天亮'), line('跳舞')];
       expect(quality.findDuplicateLyricLines(adjacent), hasLength(1));
 
       final farApart = <quality.QualityLine>[
@@ -166,10 +160,7 @@ void main() {
     });
 
     test('very short fragments are ignored', () {
-      final lines = <quality.QualityLine>[
-        line('我们跳舞', 1000),
-        line('啊', 1100),
-      ];
+      final lines = <quality.QualityLine>[line('我们跳舞', 1000), line('啊', 1100)];
       expect(quality.findDuplicateLyricLines(lines), isEmpty);
     });
   });
@@ -480,7 +471,10 @@ void main() {
     test('rejects a wrong schema version and duplicate engines', () {
       expect(
         () => quality.evaluateQualityCorpus(
-          jsonEncode(<String, Object?>{'schemaVersion': 2, 'songs': <Object?>[]}),
+          jsonEncode(<String, Object?>{
+            'schemaVersion': 2,
+            'songs': <Object?>[],
+          }),
         ),
         throwsFormatException,
       );
@@ -648,7 +642,8 @@ void main() {
 
     test('documents above the line cap are rejected', () {
       final tooLong = <quality.QualityLine>[
-        for (var index = 0; index < 301; index++) line('第$index句', index * 1000),
+        for (var index = 0; index < 301; index++)
+          line('第$index句', index * 1000),
       ];
       expect(
         () => evaluate(reference: tooLong, hypothesis: tooLong),
