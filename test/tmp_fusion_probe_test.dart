@@ -96,7 +96,9 @@ TranscriptionResult _result(List<LyricLine> lines) => TranscriptionResult(
     lines: lines,
     metadata: const {'draft': true},
   ),
-  audioDuration: const Duration(minutes: 5),
+  normalizedAudioPath: 'normalized.wav',
+  rawJsonPath: 'raw.json',
+  detectedLanguage: 'en',
 );
 
 TranscriptionRequest _request(String dir, TranscriptionEngineOrder order) =>
@@ -114,6 +116,15 @@ TranscriptionRequest _request(String dir, TranscriptionEngineOrder order) =>
         modelPath: 'ggml-large-v3.bin',
       ),
     );
+
+List<quality.QualityLine> toQuality(List<LyricLine> lines) => [
+  for (final line in lines)
+    quality.QualityLine(
+      text: line.text,
+      startMs: line.startTime.inMilliseconds,
+      endMs: line.endTime.inMilliseconds,
+    ),
+];
 
 String pct(Object? v) => v is num ? (v * 100).toStringAsFixed(1) + '%' : 'n/a';
 String num2(Object? v) => v is num ? v.toStringAsFixed(2) : 'n/a';
@@ -155,8 +166,8 @@ void main() {
           final score = quality.evaluateLyricQualityPair(
             songId: 'probe',
             engine: 'fused',
-            reference: reference,
-            hypothesis: out,
+            reference: toQuality(reference),
+            hypothesis: toQuality(out),
           );
           // ignore: avoid_print
           print(
