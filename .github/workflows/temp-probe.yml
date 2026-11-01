@@ -94,6 +94,19 @@ jobs:
           bash scripts/quality_gate.sh --skip-pub-get > /tmp/full.txt 2>&1
           echo "exit=$?" >> /tmp/full.txt
 
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-logs
+          path: |
+            /tmp/format.txt
+            /tmp/format_diff.txt
+            /tmp/analyze.txt
+            /tmp/targeted.txt
+            /tmp/full.txt
+          if-no-files-found: warn
+
       - name: Report
         if: always()
         run: |
