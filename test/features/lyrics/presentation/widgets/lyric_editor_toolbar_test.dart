@@ -202,10 +202,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final reset = tester.widget<MenuItemButton>(
-      find.ancestor(
-        of: find.text('归零'),
-        matching: find.byType(MenuItemButton),
-      ),
+      find.ancestor(of: find.text('归零'), matching: find.byType(MenuItemButton)),
     );
     expect(reset.onPressed, isNull);
     expect(find.text('当前无偏移'), findsOneWidget);
