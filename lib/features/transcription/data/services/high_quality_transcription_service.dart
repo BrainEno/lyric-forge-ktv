@@ -76,8 +76,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         return await _runDegradedToWhisper(
           request,
           reason: TranscriptionDegradationReason.qwenNotConfigured,
-          detail:
-              '未配置 Qwen3-ASR / ForcedAligner，已用 Whisper large-v3 单引擎识别',
+          detail: '未配置 Qwen3-ASR / ForcedAligner，已用 Whisper large-v3 单引擎识别',
         );
       }
 
@@ -771,7 +770,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ...result.lyrics.metadata,
           'qualityMode': 'highestQuality',
           TranscriptionQualityMetadata.requestedModeKey: 'highestQuality',
-          ...TranscriptionQualityMetadata.degradedFields(reason, detail: detail),
+          ...TranscriptionQualityMetadata.degradedFields(
+            reason,
+            detail: detail,
+          ),
           'primaryEngine': TranscriptionModelIdentity.whisperEngine(
             request.config.modelPath,
           ),

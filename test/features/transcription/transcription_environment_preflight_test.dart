@@ -15,28 +15,25 @@ void main() {
     modelPath: 'whisper.bin',
   );
 
-  test('unconfigured store returns without touching the runtime manager',
-      () async {
-    final store = _FakeSettingsStore();
-    final runtime = _FakeRuntimeManager(
-      status: _status(baseConfig),
-    );
-    final preflight = TranscriptionEnvironmentPreflight(
-      settingsStore: store,
-      runtimeManager: runtime,
-    );
+  test(
+    'unconfigured store returns without touching the runtime manager',
+    () async {
+      final store = _FakeSettingsStore();
+      final runtime = _FakeRuntimeManager(status: _status(baseConfig));
+      final preflight = TranscriptionEnvironmentPreflight(
+        settingsStore: store,
+        runtimeManager: runtime,
+      );
 
-    final result = await preflight.inspect();
+      final result = await preflight.inspect();
 
-    expect(
-      result.state,
-      TranscriptionEnvironmentReadinessState.unconfigured,
-    );
-    expect(result.config, isNull);
-    expect(runtime.repairCalls, 0);
-    expect(runtime.inspectCalls, 0);
-    expect(store.saveCalls, 0);
-  });
+      expect(result.state, TranscriptionEnvironmentReadinessState.unconfigured);
+      expect(result.config, isNull);
+      expect(runtime.repairCalls, 0);
+      expect(runtime.inspectCalls, 0);
+      expect(store.saveCalls, 0);
+    },
+  );
 
   test('ready runtime persists repaired paths and reports ready', () async {
     final repaired = baseConfig.copyWith(
@@ -85,30 +82,29 @@ void main() {
     expect(result.config, isNotNull);
   });
 
-  test('missing Whisper baseline requires setup without losing config',
-      () async {
-    final store = _FakeSettingsStore(baseConfig);
-    final runtime = _FakeRuntimeManager(
-      status: _status(baseConfig, whisperReady: false),
-    );
-    final preflight = TranscriptionEnvironmentPreflight(
-      settingsStore: store,
-      runtimeManager: runtime,
-    );
+  test(
+    'missing Whisper baseline requires setup without losing config',
+    () async {
+      final store = _FakeSettingsStore(baseConfig);
+      final runtime = _FakeRuntimeManager(
+        status: _status(baseConfig, whisperReady: false),
+      );
+      final preflight = TranscriptionEnvironmentPreflight(
+        settingsStore: store,
+        runtimeManager: runtime,
+      );
 
-    final result = await preflight.inspect();
+      final result = await preflight.inspect();
 
-    expect(
-      result.state,
-      TranscriptionEnvironmentReadinessState.needsSetup,
-    );
-    expect(result.isReady, isFalse);
-    expect(result.config, isNotNull);
-    expect(
-      result.blockingComponents.single.component,
-      AsrRuntimeComponent.whisperModel,
-    );
-  });
+      expect(result.state, TranscriptionEnvironmentReadinessState.needsSetup);
+      expect(result.isReady, isFalse);
+      expect(result.config, isNotNull);
+      expect(
+        result.blockingComponents.single.component,
+        AsrRuntimeComponent.whisperModel,
+      );
+    },
+  );
 
   test('runtime inspection failure becomes actionable failed state', () async {
     final store = _FakeSettingsStore(baseConfig);
@@ -215,11 +211,7 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   int repairCalls = 0;
   int inspectCalls = 0;
 
-  _FakeRuntimeManager({
-    this.repaired,
-    required this.status,
-    this.inspectError,
-  });
+  _FakeRuntimeManager({this.repaired, required this.status, this.inspectError});
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => _progress.stream;

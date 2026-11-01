@@ -969,12 +969,18 @@ void main() {
         service.transcribe(_request(tempDirectory.path)),
         throwsA(
           isA<TranscriptionException>()
-              .having((error) => error.kind, 'kind',
-                  TranscriptionFailureKind.environment)
+              .having(
+                (error) => error.kind,
+                'kind',
+                TranscriptionFailureKind.environment,
+              )
               .having(
                 (error) => error.toString(),
                 'message',
-                allOf(contains('Qwen runtime 崩溃'), contains('Whisper runtime 缺失')),
+                allOf(
+                  contains('Qwen runtime 崩溃'),
+                  contains('Whisper runtime 缺失'),
+                ),
               ),
         ),
       );
@@ -982,29 +988,34 @@ void main() {
       await service.dispose();
     });
 
-    test('a missing Whisper baseline is a blocking environment error', () async {
-      final service = HighQualityTranscriptionService(
-        primary: _FakeTranscriptionService(
-          error: const TranscriptionException('unused'),
-        ),
-        fallback: _FakeTranscriptionService(
-          error: const TranscriptionException('unused'),
-        ),
-      );
-
-      await expectLater(
-        service.transcribe(_request(tempDirectory.path, whisperConfigured: false)),
-        throwsA(
-          isA<TranscriptionException>().having(
-            (error) => error.kind,
-            'kind',
-            TranscriptionFailureKind.environment,
+    test(
+      'a missing Whisper baseline is a blocking environment error',
+      () async {
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(
+            error: const TranscriptionException('unused'),
           ),
-        ),
-      );
+          fallback: _FakeTranscriptionService(
+            error: const TranscriptionException('unused'),
+          ),
+        );
 
-      await service.dispose();
-    });
+        await expectLater(
+          service.transcribe(
+            _request(tempDirectory.path, whisperConfigured: false),
+          ),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.environment,
+            ),
+          ),
+        );
+
+        await service.dispose();
+      },
+    );
   });
 }
 

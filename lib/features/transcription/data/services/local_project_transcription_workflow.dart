@@ -164,10 +164,9 @@ class LocalProjectTranscriptionWorkflow
               'degraded': TranscriptionQualityMetadata.isDegraded(
                 editableLyrics.metadata,
               ),
-              'degradationReason':
-                  TranscriptionQualityMetadata.reasonOf(
-                    editableLyrics.metadata,
-                  )?.name,
+              'degradationReason': TranscriptionQualityMetadata.reasonOf(
+                editableLyrics.metadata,
+              )?.name,
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
               'inputPath': inputPath,

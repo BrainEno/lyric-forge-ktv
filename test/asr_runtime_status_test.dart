@@ -133,10 +133,9 @@ void main() {
       );
 
       expect(status.isBaselineReady, isFalse);
-      expect(
-        status.missingBaselineComponents.map((c) => c.component),
-        [AsrRuntimeComponent.whisperModel],
-      );
+      expect(status.missingBaselineComponents.map((c) => c.component), [
+        AsrRuntimeComponent.whisperModel,
+      ]);
     });
   });
 }

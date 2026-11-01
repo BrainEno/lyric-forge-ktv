@@ -78,14 +78,13 @@ class AsrRuntimeStatus {
   bool get isBaselineReady => _ready(baselineComponents);
 
   /// Baseline components that would block recognition, for error messages.
-  List<AsrRuntimeComponentStatus> get missingBaselineComponents =>
-      components
-          .where(
-            (component) =>
-                baselineComponents.contains(component.component) &&
-                component.state != AsrRuntimeComponentState.ready,
-          )
-          .toList(growable: false);
+  List<AsrRuntimeComponentStatus> get missingBaselineComponents => components
+      .where(
+        (component) =>
+            baselineComponents.contains(component.component) &&
+            component.state != AsrRuntimeComponentState.ready,
+      )
+      .toList(growable: false);
 
   bool _ready(Set<AsrRuntimeComponent> required) => components
       .where((component) => required.contains(component.component))
