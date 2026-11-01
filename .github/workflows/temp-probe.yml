@@ -83,8 +83,11 @@ jobs:
             --test-path test/features/lyrics/presentation/widgets/reference_alignment_backup_restore_test.dart \
             > targeted.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n -A6 "\[E\]" targeted.log | head -60 > diag-targeted.log || true
-          head -40 diag-targeted.log || true
+          {
+            grep -nE "Expected:|Actual:|Which:|was thrown running a test" targeted.log | head -6
+            grep -n "\[E\]" targeted.log | head -4
+          } > diag-targeted.log || true
+          cat diag-targeted.log || true
           exit 0
 
       - name: Full gate
@@ -94,8 +97,11 @@ jobs:
           set +e
           bash scripts/quality_gate.sh --skip-pub-get --skip-docs > full.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n -A6 "\[E\]" full.log | head -60 > diag-full.log || true
-          head -40 diag-full.log || true
+          {
+            grep -nE "Expected:|Actual:|Which:|was thrown running a test" full.log | head -6
+            grep -n "\[E\]" full.log | head -4
+          } > diag-full.log || true
+          cat diag-full.log || true
           exit 0
 
       - name: Report

@@ -11,7 +11,6 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
-import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -59,8 +58,6 @@ import '../widgets/unsaved_lyric_edits_dialog.dart';
 /// same as "the model was unsure", and mixing them turned the review queue into
 /// the whole song.
 const int _reviewConfidenceThreshold = 70;
-
-enum LyricReviewFilter { all, needsReview, lowConfidence, smartReview }
 
 /// 参考对齐应用前的完整内存快照，用于立即撤销（不写磁盘）。
 class _AlignmentUndoSnapshot {
@@ -4502,7 +4499,4 @@ String _formatCompactDuration(Duration duration) {
     return '${(safe.inMilliseconds / 1000).toStringAsFixed(1)}s';
   }
   return '${safe.inMilliseconds}ms';
-}
-
-
 }
