@@ -2229,7 +2229,9 @@ class _LyricEditorContent extends StatelessWidget {
         LyricReviewFilter.lowConfidence => line.isLowConfidence(
           _reviewConfidenceThreshold,
         ),
-        LyricReviewFilter.smartReview => reviewPriorityByIndex.containsKey(index),
+        LyricReviewFilter.smartReview => reviewPriorityByIndex.containsKey(
+          index,
+        ),
       };
       if (include) indices.add(index);
     }
