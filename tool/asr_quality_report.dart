@@ -54,6 +54,11 @@ const double _containmentThreshold = 0.9;
 /// minute later is legitimate and must not be counted.
 const int _duplicateWindowMs = 1500;
 
+/// Shortest text that can count as a duplicate. Two-character CJK words such as
+/// "跳舞" are exactly the fragments the fusion step duplicates, while a single
+/// character is usually an ad-lib and too weak to judge.
+const int _minDuplicateTextLength = 2;
+
 /// Matched pairs closer than this in start time count toward `within500msRate`.
 const int _timestampToleranceMs = 500;
 
@@ -370,11 +375,11 @@ List<DuplicateGroup> findDuplicateLyricLines(List<QualityLine> lines) {
   }
 
   for (var i = 0; i < lines.length; i++) {
-    if (squashed[i].length < 3) continue;
+    if (squashed[i].length < _minDuplicateTextLength) continue;
     final members = <int>[i];
     var kind = 'repeated';
     for (var j = i + 1; j < lines.length; j++) {
-      if (squashed[j].length < 3) continue;
+      if (squashed[j].length < _minDuplicateTextLength) continue;
       if (!nearby(i, j)) continue;
       final shorter = squashed[i].length <= squashed[j].length
           ? squashed[i]
@@ -1047,9 +1052,16 @@ Map<String, Object?> compareQualityReports(
     }
   }
 
+  final newEngines = <String>[];
   for (final engine in engines) {
-    final before = _asMap(baselineEngines[engine], 'Baseline engine $engine');
+    final rawBefore = baselineEngines[engine];
     final after = _asMap(currentEngines[engine], 'Engine $engine');
+    if (rawBefore is! Map) {
+      // First run for this engine: nothing to compare against yet.
+      newEngines.add(engine);
+      continue;
+    }
+    final before = rawBefore.cast<String, dynamic>();
     record(
       engine,
       'lineRecall',
@@ -1117,6 +1129,7 @@ Map<String, Object?> compareQualityReports(
     'currentEvaluator': current['evaluator'],
     'byEngine': perEngine,
     'enginesOnlyInBaseline': missingEngines,
+    'enginesOnlyInCurrent': newEngines,
     'regressions': regressions,
     'improvements': improvements,
     'regressed': regressions.isNotEmpty,

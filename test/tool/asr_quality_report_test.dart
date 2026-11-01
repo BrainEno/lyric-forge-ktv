@@ -578,6 +578,8 @@ void main() {
       );
       final comparison = quality.compareQualityReports(baseline, current);
       expect(comparison['enginesOnlyInBaseline'], <String>['whisper']);
+      expect(comparison['enginesOnlyInCurrent'], <String>['fused']);
+      expect(comparison['regressed'], isFalse);
     });
   });
 
