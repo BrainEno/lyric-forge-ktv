@@ -17,21 +17,24 @@ class _HarnessState extends State<_Harness> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        body: Column(
-          children: [
-            TextButton(
-              onPressed: () async {
-                final result = await confirmUnsavedLyricEdits(context);
-                if (!mounted) return;
-                setState(() => decision = result);
-              },
-              child: const Text('leave'),
-            ),
-            Text(
-              decision == null ? 'none' : 'decision:${decision!.name}',
-              key: const Key('decision'),
-            ),
-          ],
+        body: Builder(
+          // The dialog needs a context below the MaterialApp's Navigator.
+          builder: (innerContext) => Column(
+            children: [
+              TextButton(
+                onPressed: () async {
+                  final result = await confirmUnsavedLyricEdits(innerContext);
+                  if (!mounted) return;
+                  setState(() => decision = result);
+                },
+                child: const Text('leave'),
+              ),
+              Text(
+                decision == null ? 'none' : 'decision:${decision!.name}',
+                key: const Key('decision'),
+              ),
+            ],
+          ),
         ),
       ),
     );
