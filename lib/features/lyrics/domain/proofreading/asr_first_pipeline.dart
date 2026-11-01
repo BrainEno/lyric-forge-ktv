@@ -68,8 +68,12 @@ class AsrFirstPipeline {
     final alignmentTokensByLine =
         alignmentMatch?.tokensByLine ?? const <int, List<TimedLyricToken>>{};
     final alignmentDiagnostics = alignmentMatch?.diagnostics;
-    final hallucinationIndices = hallucinations.map((item) => item.primaryIndex).toSet();
-    final repetitionIndices = repetitions.map((item) => item.primaryIndex).toSet();
+    final hallucinationIndices = hallucinations
+        .map((item) => item.primaryIndex)
+        .toSet();
+    final repetitionIndices = repetitions
+        .map((item) => item.primaryIndex)
+        .toSet();
     final consensusByIndex = {
       for (final row in consensus?.rows ?? const <AsrConsensusRow>[])
         row.primaryIndex: row,
@@ -116,7 +120,10 @@ class AsrFirstPipeline {
       } else if (consensusRow != null) {
         reasons.add(ProofreadReason.asrDisagreement);
       }
-      if (line.confidence < greenConfidenceThreshold) {
+      // An unscored line is not a low-scoring line: without an engine score the
+      // threshold has nothing to compare against, so flagging it here would put
+      // every line of a Qwen draft in the review queue.
+      if (line.isLowConfidence(greenConfidenceThreshold)) {
         reasons.add(ProofreadReason.lowConfidence);
       }
       if (hallucinationIndices.contains(index)) {
@@ -134,25 +141,29 @@ class AsrFirstPipeline {
       if (consensusRow == null && secondary != null) {
         reasons.add(ProofreadReason.noTimingEvidence);
       }
-      final alignedTokens = alignmentTokensByLine[index] ?? const <TimedLyricToken>[];
+      final alignedTokens =
+          alignmentTokensByLine[index] ?? const <TimedLyricToken>[];
       if (alignmentDiagnostics != null && alignedTokens.isEmpty) {
         reasons.add(ProofreadReason.noTimingEvidence);
       }
 
-      final hasRisk = reasons.any((reason) => {
-        ProofreadReason.asrDisagreement,
-        ProofreadReason.lowConfidence,
-        ProofreadReason.suspectedHallucination,
-        ProofreadReason.repeatedSegment,
-        ProofreadReason.timingConflict,
-        ProofreadReason.noTimingEvidence,
-      }.contains(reason));
+      final hasRisk = reasons.any(
+        (reason) => {
+          ProofreadReason.asrDisagreement,
+          ProofreadReason.lowConfidence,
+          ProofreadReason.suspectedHallucination,
+          ProofreadReason.repeatedSegment,
+          ProofreadReason.timingConflict,
+          ProofreadReason.noTimingEvidence,
+        }.contains(reason),
+      );
       final verdict = locked
           ? ProofreadVerdict.locked
           : hasRisk || secondary == null
           ? ProofreadVerdict.amber
           : ProofreadVerdict.green;
-      final risk = reasons.contains(ProofreadReason.suspectedHallucination) ||
+      final risk =
+          reasons.contains(ProofreadReason.suspectedHallucination) ||
               reasons.contains(ProofreadReason.timingConflict)
           ? ProofreadRisk.high
           : hasRisk
@@ -161,14 +172,16 @@ class AsrFirstPipeline {
 
       // Preserve the source line exactly; this stage only creates review data.
       outputLines.add(line);
-      results.add(ProofreadLineResult(
-        lineId: line.id,
-        line: line,
-        verdict: verdict,
-        reasons: reasons,
-        risk: risk,
-        tokens: alignedTokens,
-      ));
+      results.add(
+        ProofreadLineResult(
+          lineId: line.id,
+          line: line,
+          verdict: verdict,
+          reasons: reasons,
+          risk: risk,
+          tokens: alignedTokens,
+        ),
+      );
     }
 
     return ProofreadResult(
@@ -231,9 +244,11 @@ class AsrFirstPipeline {
 
       skippedSpanCount += range.startIndex - cursor;
       matched[lineIndex] = [
-        for (var tokenIndex = range.startIndex;
-            tokenIndex <= range.endIndex;
-            tokenIndex++)
+        for (
+          var tokenIndex = range.startIndex;
+          tokenIndex <= range.endIndex;
+          tokenIndex++
+        )
           TimedLyricToken(
             text: spans[tokenIndex].text,
             interval: ProofreadTimeInterval(

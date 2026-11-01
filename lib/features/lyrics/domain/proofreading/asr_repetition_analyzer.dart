@@ -27,7 +27,6 @@ class AsrRepetitionResult {
 
   AsrRepetitionResult({required List<AsrRepetitionSuggestion> suggestions})
     : suggestions = List.unmodifiable(suggestions);
-
 }
 
 /// Returns conservative dual-ASR de-duplication candidates for manual review.
@@ -41,7 +40,9 @@ class AsrRepetitionAnalyzer {
     this.reviewConfidenceThreshold = 75,
     this.minimumRepeatedRunes = 3,
     this.maxComparedRunes = 512,
-  }) : assert(reviewConfidenceThreshold >= 0 && reviewConfidenceThreshold <= 100),
+  }) : assert(
+         reviewConfidenceThreshold >= 0 && reviewConfidenceThreshold <= 100,
+       ),
        assert(minimumRepeatedRunes > 0),
        assert(maxComparedRunes > 0);
 
@@ -52,7 +53,7 @@ class AsrRepetitionAnalyzer {
       final alternativeConfidence = row.secondaryConfidence;
       if (alternative == null ||
           alternativeConfidence == null ||
-          row.primaryLine.confidence < reviewConfidenceThreshold ||
+          row.primaryLine.isLowConfidence(reviewConfidenceThreshold) ||
           alternativeConfidence < reviewConfidenceThreshold) {
         continue;
       }
@@ -61,9 +62,12 @@ class AsrRepetitionAnalyzer {
         continue;
       }
 
-      final primaryNormalized =
-          LyricAlignmentService.normalizeLine(row.primaryLine.text);
-      final secondaryNormalized = LyricAlignmentService.normalizeLine(alternative);
+      final primaryNormalized = LyricAlignmentService.normalizeLine(
+        row.primaryLine.text,
+      );
+      final secondaryNormalized = LyricAlignmentService.normalizeLine(
+        alternative,
+      );
       if (primaryNormalized.isEmpty ||
           secondaryNormalized.isEmpty ||
           primaryNormalized == secondaryNormalized) {

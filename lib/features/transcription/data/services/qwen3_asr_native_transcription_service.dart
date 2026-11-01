@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -689,7 +690,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     final suspiciousIndexes = <int>[];
     for (var i = 0; i < lines.length; i++) {
-      if (lines[i].confidence < 70) {
+      if (lines[i].isLowConfidence(70)) {
         suspiciousIndexes.add(i);
       }
     }
@@ -704,7 +705,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'qualityMode': 'highestQuality',
         'segmentCount': lines.length,
         'suspiciousLineIndexes': suspiciousIndexes,
-        'confidenceSource': 'model_probability_or_neutral_unavailable_default',
+        'confidenceSource': 'per-line: model|heuristic|unscored',
         'rawJsonPath': rawJsonPath,
       },
     );
@@ -797,16 +798,20 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     final token = _parseTimedToken(raw);
     if (token == null) return null;
 
+    // The native response usually has no calibrated lexical confidence; see
+    // [scoreAsrLine] for how a missing score stays visibly missing.
+    final score = scoreAsrLine(
+      text: token.text,
+      start: token.start,
+      end: token.end,
+      explicitConfidence: token.confidence,
+    );
     return LyricLine(
       text: token.text,
       startTime: token.start,
       endTime: token.end,
-      confidence: _lineConfidence(
-        token.text,
-        token.start,
-        token.end,
-        explicitConfidence: token.confidence,
-      ),
+      confidence: score.value,
+      confidenceSource: score.source,
     );
   }
 
@@ -870,17 +875,19 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           ? null
           : (confidences.reduce((a, b) => a + b) / confidences.length).round();
 
+      final score = scoreAsrLine(
+        text: text,
+        start: buffer.first.start,
+        end: buffer.last.end,
+        explicitConfidence: explicitConfidence,
+      );
       lines.add(
         LyricLine(
           text: text,
           startTime: buffer.first.start,
           endTime: buffer.last.end,
-          confidence: _lineConfidence(
-            text,
-            buffer.first.start,
-            buffer.last.end,
-            explicitConfidence: explicitConfidence,
-          ),
+          confidence: score.value,
+          confidenceSource: score.source,
         ),
       );
       buffer.clear();
@@ -936,49 +943,6 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
   bool _endsPhrase(String text) {
     return RegExp(r'[。！？!?；;]$').hasMatch(text.trim());
-  }
-
-  int _lineConfidence(
-    String text,
-    Duration start,
-    Duration end, {
-    int? explicitConfidence,
-  }) {
-    // The native response often has no calibrated lexical confidence.
-    // Use a review-required neutral baseline instead of implying 92% accuracy
-    // from a plausible-looking timestamp interval.
-    var score = explicitConfidence ?? 50;
-    final duration = end - start;
-
-    if (duration > const Duration(seconds: 9)) score -= 18;
-    if (text.length > 72) score -= 18;
-    if (duration < const Duration(milliseconds: 350) && text.length > 8) {
-      score -= 18;
-    }
-    if (_hasSuspiciousRepetition(text)) score -= 35;
-    if (text.trim().length <= 1) score -= 12;
-
-    return score.clamp(25, 99).toInt();
-  }
-
-  bool _hasSuspiciousRepetition(String text) {
-    final normalized = text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), ' ')
-        .trim();
-    if (normalized.length < 8) return false;
-
-    final tokens = normalized.contains(' ')
-        ? normalized.split(RegExp(r'\s+'))
-        : normalized.runes.map(String.fromCharCode).toList();
-    if (tokens.length < 4) return false;
-
-    var repeated = 0;
-    for (var i = 1; i < tokens.length; i++) {
-      if (tokens[i] == tokens[i - 1]) repeated++;
-    }
-
-    return repeated >= 2 || tokens.toSet().length / tokens.length < 0.45;
   }
 
   void _emit(TranscriptionStage stage, double progress, String message) {

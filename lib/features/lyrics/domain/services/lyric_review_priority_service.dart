@@ -69,14 +69,18 @@ class LyricReviewPriorityService {
         score.add(60, '歌词为空');
       }
 
-      if (line.confidence <= 25) {
-        score.add(38, '识别置信度极低（${line.confidence}）');
-      } else if (line.confidence <= 45) {
-        score.add(30, '识别置信度很低（${line.confidence}）');
-      } else if (line.confidence <= 60) {
-        score.add(23, '识别置信度偏低（${line.confidence}）');
-      } else if (line.confidence < 70) {
-        score.add(16, '识别置信度低于复核阈值（${line.confidence}）');
+      // Unscored lines carry a placeholder number, not a model score, so the
+      // confidence ladder must not rank them as if the engine had been unsure.
+      if (line.hasConfidenceScore) {
+        if (line.confidence <= 25) {
+          score.add(38, '识别置信度极低（${line.confidence}）');
+        } else if (line.confidence <= 45) {
+          score.add(30, '识别置信度很低（${line.confidence}）');
+        } else if (line.confidence <= 60) {
+          score.add(23, '识别置信度偏低（${line.confidence}）');
+        } else if (line.confidence < 70) {
+          score.add(16, '识别置信度低于复核阈值（${line.confidence}）');
+        }
       }
 
       if (line.confidence < 100) {
@@ -95,8 +99,10 @@ class LyricReviewPriorityService {
 
       if (line.confidence < 95 &&
           text.isNotEmpty &&
-          RegExp(r'(\S{1,24})(?:\s+\1){2,}', caseSensitive: false)
-              .hasMatch(text)) {
+          RegExp(
+            r'(\S{1,24})(?:\s+\1){2,}',
+            caseSensitive: false,
+          ).hasMatch(text)) {
         score.add(12, '出现连续重复词，建议确认是否为识别重复');
       }
 
@@ -203,10 +209,8 @@ class LyricReviewPriorityService {
     return null;
   }
 
-  String _normalize(String value) => value
-      .toLowerCase()
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+  String _normalize(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
   double? _number(Object? value) {
     if (value is num) return value.toDouble();

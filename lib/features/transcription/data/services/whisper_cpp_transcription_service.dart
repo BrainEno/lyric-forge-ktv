@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -303,15 +304,18 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         continue;
       }
 
-      final confidence = _segmentConfidence(segment);
-      if (confidence < 65) lowConfidenceCount++;
+      final score = scoreWhisperSegment(segment);
+      if (score.source != LyricConfidenceSource.unscored && score.value < 65) {
+        lowConfidenceCount++;
+      }
 
       lines.add(
         LyricLine(
           text: text,
           startTime: Duration(milliseconds: from.toInt()),
           endTime: Duration(milliseconds: to.toInt()),
-          confidence: confidence,
+          confidence: score.value,
+          confidenceSource: score.source,
         ),
       );
     }
@@ -329,6 +333,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         'segmentCount': lines.length,
         'lowConfidenceThreshold': 65,
         'lowConfidenceLineCount': lowConfidenceCount,
+        'confidenceSource': 'per-line: model|unscored',
         'skippedSegmentCount': skippedSegmentCount,
         'rawJsonPath': rawJsonPath,
       },
@@ -340,28 +345,6 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       rawJsonPath: rawJsonPath,
       detectedLanguage: detectedLanguage,
     );
-  }
-
-  int _segmentConfidence(Map<String, dynamic> segment) {
-    final tokens = segment['tokens'];
-    if (tokens is! List) return 50;
-
-    final probabilities = <double>[];
-    for (final rawToken in tokens) {
-      if (rawToken is! Map) continue;
-      final token = Map<String, dynamic>.from(rawToken);
-      final text = (token['text'] as String? ?? '').trim();
-      if (text.startsWith('[_') && text.endsWith('_]')) continue;
-      final probability = token['p'];
-      if (probability is num) {
-        probabilities.add(probability.toDouble().clamp(0.0, 1.0));
-      }
-    }
-
-    if (probabilities.isEmpty) return 50;
-    final average =
-        probabilities.reduce((a, b) => a + b) / probabilities.length;
-    return (average * 100).round().clamp(0, 100).toInt();
   }
 
   Future<_ProcessResult> _runProcess(

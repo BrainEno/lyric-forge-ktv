@@ -50,6 +50,13 @@ import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
 
+/// Lines below this score are surfaced for review.
+///
+/// Lines whose engine never produced a score are excluded: "unknown" is not the
+/// same as "the model was unsure", and mixing them turned the review queue into
+/// the whole song.
+const int _reviewConfidenceThreshold = 70;
+
 enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
 
 /// 参考对齐应用前的完整内存快照，用于立即撤销（不写磁盘）。
@@ -669,9 +676,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               text: line.text,
               startTime: line.startTime!,
               endTime: line.endTime!,
-              // Imported transcripts have no calibrated confidence metadata.
-              // Keep the evidence conservative rather than treating it as 100%.
-              confidence: 60,
+              // Imported transcripts have no calibrated confidence metadata, so
+              // the line is unscored rather than "60% sure".
+              confidence: unscoredConfidencePlaceholder,
+              confidenceSource: LyricConfidenceSource.unscored,
             ),
         ],
         globalOffset: Duration.zero,
@@ -2196,7 +2204,7 @@ class _LyricEditorContent extends StatelessWidget {
   bool _needsReview(int index) {
     if (_isLineReviewed(index)) return false;
     final line = document.lines[index];
-    return line.confidence < 70 ||
+    return line.isLowConfidence(_reviewConfidenceThreshold) ||
         (line.confidence < 100 && _fallbackCandidateFor(index) != null);
   }
 
@@ -2218,7 +2226,9 @@ class _LyricEditorContent extends StatelessWidget {
       final include = switch (filter) {
         _ReviewFilter.all => true,
         _ReviewFilter.needsReview => _needsReview(index),
-        _ReviewFilter.lowConfidence => line.confidence < 70,
+        _ReviewFilter.lowConfidence => line.isLowConfidence(
+          _reviewConfidenceThreshold,
+        ),
         _ReviewFilter.smartReview => reviewPriorityByIndex.containsKey(index),
       };
       if (include) indices.add(index);
@@ -2301,7 +2311,7 @@ class _LyricEditorContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final lowConfidenceCount = document.lines
-        .where((line) => line.confidence < 70)
+        .where((line) => line.isLowConfidence(_reviewConfidenceThreshold))
         .length;
     final reviewCount = List<int>.generate(
       document.lines.length,
@@ -3819,7 +3829,7 @@ class _LyricReviewRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final needsReview =
-        line.confidence < 70 ||
+        line.isLowConfidence(_reviewConfidenceThreshold) ||
         (line.confidence < 100 && fallbackCandidate != null);
     final background = selected
         ? AppColors.bgSurface
@@ -4024,8 +4034,10 @@ class _LyricReviewRow extends StatelessWidget {
                   ] else if (needsReview) ...[
                     const SizedBox(width: AppSpacing.xs),
                     _TinyBadge(
-                      label: '${line.confidence}',
-                      warning: line.confidence < 70,
+                      label: line.hasConfidenceScore
+                          ? '${line.confidence}'
+                          : '未评分',
+                      warning: line.isLowConfidence(_reviewConfidenceThreshold),
                     ),
                   ],
                   if (selected && onDoubleTap != null && !spec.isCompact) ...[
@@ -4298,11 +4310,13 @@ class _LineInspectorState extends State<_LineInspector> {
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
-              if (_workingLine.confidence < 70)
+              if (_workingLine.isLowConfidence(_reviewConfidenceThreshold))
                 _TinyBadge(
                   label: '低置信度 ${_workingLine.confidence}',
                   warning: true,
                 )
+              else if (!_workingLine.hasConfidenceScore)
+                const _TinyBadge(label: '未评分')
               else
                 _TinyBadge(label: '置信度 ${_workingLine.confidence}'),
               if (_workingLine.isChorus)
