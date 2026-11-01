@@ -67,9 +67,7 @@ final RegExp _lrcMetadata = RegExp(r'^\[[a-zA-Z][^\]]*:.*\]$');
 
 /// A timestamp that starts a line, which is what separates LRC from JSON that
 /// also begins with `[`.
-final RegExp _lrcTimestampAtLineStart = RegExp(
-  r'(?m)^[ \t]*\[\d{1,3}:\d{2}',
-);
+final RegExp _lrcTimestampAtLineStart = RegExp(r'(?m)^[ \t]*\[\d{1,3}:\d{2}');
 
 const LyricTokenizer _tokenizer = LyricTokenizer();
 
