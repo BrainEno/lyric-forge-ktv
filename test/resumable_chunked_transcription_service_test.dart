@@ -234,7 +234,7 @@ void main() {
       },
     );
 
-    test('a five-minute song is recognised in a single whole-song pass', () async {
+    test('a five-minute song is recognised in one pass', () async {
       expect(
         ResumableChunkedTranscriptionService.defaultChunkDuration,
         const Duration(minutes: 20),
@@ -266,7 +266,7 @@ void main() {
       await service.dispose();
     });
 
-    test('chunk merge keeps engine identity and remaps review indices', () async {
+    test('chunk merge keeps engine identity and remaps indices', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-merge-');
       addTearDown(() => directory.delete(recursive: true));
       final input = File('${directory.path}${Platform.pathSeparator}song.wav');
@@ -380,7 +380,7 @@ void main() {
       await service.dispose();
     });
 
-    test('changing recognition settings invalidates chunk checkpoints', () async {
+    test('changing recognition settings invalidates checkpoints', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-config-');
       addTearDown(() => directory.delete(recursive: true));
       final input = File('${directory.path}${Platform.pathSeparator}song.wav');
@@ -464,7 +464,7 @@ class _FfmpegStub {
 class _ScriptedService implements TranscriptionService {
   _ScriptedService(this.documentsForChunk);
 
-  final Map<String, LyricDocument> Function(int chunkIndex) documentsForChunk;
+  final LyricDocument Function(int chunkIndex) documentsForChunk;
   final _controller = StreamController<TranscriptionProgress>.broadcast();
   final List<String> outputDirectories = <String>[];
 

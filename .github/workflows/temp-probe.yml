@@ -18,7 +18,10 @@ jobs:
       - name: Format check
         id: format
         continue-on-error: true
-        run: dart format --output=none --set-exit-if-changed lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart > /tmp/format.txt 2>&1; echo "exit=$?" >> /tmp/format.txt
+        run: |
+          dart format lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart > /tmp/format.txt 2>&1
+          git --no-pager diff > /tmp/format_diff.txt 2>&1
+          if git diff --quiet; then echo "exit=0" >> /tmp/format.txt; else echo "exit=1" >> /tmp/format.txt; fi
       - name: Analyze
         id: analyze
         continue-on-error: true
@@ -59,8 +62,12 @@ jobs:
                   continue
               lines = [l.rstrip() for l in text.splitlines() if l.strip()]
               if name == 'format':
-                  for line in lines[:15]:
+                  for line in lines[:5]:
                       emit(f'format| {line[:300]}')
+                  diff = '/tmp/format_diff.txt'
+                  if os.path.exists(diff):
+                      for line in [l.rstrip() for l in open(diff, encoding='utf-8', errors='replace').read().splitlines()][:120]:
+                          emit(f'fmt| {line[:300]}')
                   continue
               if name == 'analyze':
                   hits = [l for l in lines if ' error • ' in l or ' warning • ' in l]
