@@ -67,7 +67,8 @@ jobs:
           set +e
           flutter analyze --no-pub --no-fatal-infos lib test > analyze.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -E "^\s*(error|warning)" analyze.log | head -40
+          grep -E "^\s*(error|warning)" analyze.log | head -40 || true
+          exit 0
 
       - name: Targeted tests
         id: targeted
@@ -81,7 +82,8 @@ jobs:
             --test-path test/features/lyrics/presentation/widgets/reference_alignment_backup_restore_test.dart \
             > targeted.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n "\[E\]" targeted.log | head -10
+          grep -n "\[E\]" targeted.log | head -10 || true
+          exit 0
 
       - name: Full gate
         id: full
@@ -90,7 +92,8 @@ jobs:
           set +e
           bash scripts/quality_gate.sh --skip-pub-get --skip-docs > full.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n "\[E\]" full.log | head -10
+          grep -n "\[E\]" full.log | head -10 || true
+          exit 0
 
       - name: Report
         shell: bash
