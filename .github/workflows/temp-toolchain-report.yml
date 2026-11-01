@@ -96,33 +96,43 @@ jobs:
           JSON
 
           check() {
-            local expected="$1" actual="$2" label="$3"
+            local expected="$1" actual="$2" label="$3" log="${4:-}"
             if [ "$expected" != "$actual" ]; then
               echo "FAILED: $label expected exit $expected, got $actual"
+              if [ -n "$log" ]; then
+                echo "--- $log ---"
+                cat "$log"
+                echo '--- end ---'
+              fi
               exit 1
             fi
             echo "ok: $label (exit $expected)"
           }
+
+          echo '--- generated inputs ---'
+          ls -l /tmp/quality-smoke/song-01
+          head -4 /tmp/quality-smoke/song-01/reference.lrc
+          head -4 /tmp/quality-smoke/song-01/fused.lrc
 
           set +e
           dart run tool/asr_quality_report.dart \
             --reference /tmp/quality-smoke/song-01/reference.lrc \
             --hypothesis /tmp/quality-smoke/song-01/fused.lrc \
             --engine fused > /tmp/quality-smoke/pair.txt 2>&1
-          check 0 $? 'single pair'
+          check 0 $? 'single pair' /tmp/quality-smoke/pair.txt
           cat /tmp/quality-smoke/pair.txt
 
           dart run tool/asr_quality_report.dart \
             --corpus /tmp/quality-smoke/corpus.json \
             --output /tmp/quality-smoke/baseline.json > /tmp/quality-smoke/corpus.txt 2>&1
-          check 0 $? 'corpus report'
+          check 0 $? 'corpus report' /tmp/quality-smoke/corpus.txt
           cat /tmp/quality-smoke/corpus.txt
 
           dart run tool/asr_quality_report.dart \
             --corpus /tmp/quality-smoke/corpus.json \
             --baseline /tmp/quality-smoke/baseline.json \
             --fail-on-regression > /tmp/quality-smoke/same.txt 2>&1
-          check 0 $? 'unchanged run passes the gate'
+          check 0 $? 'unchanged run passes the gate' /tmp/quality-smoke/same.txt
 
           python3 - <<'PY'
           import json
@@ -147,7 +157,7 @@ jobs:
             --corpus /tmp/quality-smoke/corpus.json \
             --baseline /tmp/quality-smoke/optimistic.json \
             --fail-on-regression > /tmp/quality-smoke/regress.txt 2>&1
-          check 1 $? 'regression gate fails the build'
+          check 1 $? 'regression gate fails the build' /tmp/quality-smoke/regress.txt
           grep -q 'REGRESSION fused duplicateLineRate' /tmp/quality-smoke/regress.txt
           echo "ok: regression named in the report"
 
