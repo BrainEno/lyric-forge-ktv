@@ -25,7 +25,7 @@ jobs:
         run: |
           set +e
           status=0
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 20); do
             out="/tmp/repeat_${attempt}.txt"
             flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart > "$out" 2>&1
             code=$?
@@ -38,7 +38,16 @@ jobs:
       - name: Full suite
         id: suite
         continue-on-error: true
-        run: bash scripts/quality_gate.sh --skip-pub-get > /tmp/suite.txt 2>&1; echo "suite-exit=$?" >> /tmp/attempts.txt
+        run: |
+          set +e
+          status=0
+          for attempt in $(seq 1 4); do
+            bash scripts/quality_gate.sh --skip-pub-get > "/tmp/suite_${attempt}.txt" 2>&1
+            code=$?
+            echo "suite ${attempt} exit=${code}" >> /tmp/attempts.txt
+            if [ "$code" -ne 0 ]; then status=1; fi
+          done
+          exit "$status"
       - name: Surface results as annotations
         if: always()
         run: |
@@ -51,8 +60,8 @@ jobs:
               for line in open('/tmp/attempts.txt').read().strip().splitlines():
                   if 'exit=1' in line or 'status=1' in line:
                       emit(line)
-          candidates = [('suite', '/tmp/suite.txt')] + [
-                  (f'repeat{n}', f'/tmp/repeat_{n}.txt') for n in range(1, 31)]
+          candidates = [(f'suite{i}', f'/tmp/suite_{i}.txt') for i in range(1, 5)] + [
+                  (f'repeat{n}', f'/tmp/repeat_{n}.txt') for n in range(1, 21)]
           shown = 0
           for name, path in candidates:
               if not os.path.exists(path) or shown >= 3:
