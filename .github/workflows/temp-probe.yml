@@ -67,7 +67,8 @@ jobs:
           set +e
           flutter analyze --no-pub --no-fatal-infos lib test > analyze.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -E "^\s*(error|warning)" analyze.log | head -40 || true
+          grep -E "error •|warning •|Error:" analyze.log | head -20 > diag-analyze.log || true
+          head -20 diag-analyze.log || true
           exit 0
 
       - name: Targeted tests
@@ -82,7 +83,8 @@ jobs:
             --test-path test/features/lyrics/presentation/widgets/reference_alignment_backup_restore_test.dart \
             > targeted.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n "\[E\]" targeted.log | head -10 || true
+          grep -n -A6 "\[E\]" targeted.log | head -60 > diag-targeted.log || true
+          head -40 diag-targeted.log || true
           exit 0
 
       - name: Full gate
@@ -92,7 +94,8 @@ jobs:
           set +e
           bash scripts/quality_gate.sh --skip-pub-get --skip-docs > full.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
-          grep -n "\[E\]" full.log | head -10 || true
+          grep -n -A6 "\[E\]" full.log | head -60 > diag-full.log || true
+          head -40 diag-full.log || true
           exit 0
 
       - name: Report
@@ -101,24 +104,25 @@ jobs:
         run: |
           set +e
           echo "::notice::format=${{ steps.format.outputs.exit }} analyze=${{ steps.analyze.outputs.exit }} targeted=${{ steps.targeted.outputs.exit }} full=${{ steps.full.outputs.exit }}"
-          report() {
-            stage="$1"; code="$2"; log="$3"
+          emit() {
+            stage="$1"; code="$2"; diag="$3"
             if [[ "$code" == "0" ]]; then
               echo "::notice::${stage} ok"
               return 0
             fi
             echo "::error::${stage} failed (exit=${code})"
-            [[ -f "$log" ]] || return 0
+            [[ -f "$diag" ]] || return 0
             local n=0
             while IFS= read -r line; do
+              [[ -z "$line" ]] && continue
               n=$((n+1))
-              [[ $n -gt 8 ]] && break
-              echo "::error::${stage} :: ${line:0:900}"
-            done < <(grep -nE "\[E\]|Error:|error:|Exception|FAILED|failed" "$log" | head -8)
+              [[ $n -gt 10 ]] && break
+              echo "::error::${stage} :: ${line:0:800}"
+            done < "$diag"
             return 0
           }
-          report format "${{ steps.format.outputs.exit }}" ""
-          report analyze "${{ steps.analyze.outputs.exit }}" analyze.log
-          report targeted "${{ steps.targeted.outputs.exit }}" targeted.log
-          report full "${{ steps.full.outputs.exit }}" full.log
+          emit format "${{ steps.format.outputs.exit }}" ""
+          emit analyze "${{ steps.analyze.outputs.exit }}" diag-analyze.log
+          emit targeted "${{ steps.targeted.outputs.exit }}" diag-targeted.log
+          emit full "${{ steps.full.outputs.exit }}" diag-full.log
           exit 0
