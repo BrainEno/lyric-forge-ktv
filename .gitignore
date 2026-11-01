@@ -46,3 +46,8 @@ app.*.map.json
 
 # Local tooling / agent artifacts
 *hermes*
+
+# Hand-checked ASR quality corpus (audio + lyrics stay local; see
+# docs/asr_quality_baseline.md). Reports are intentionally not ignored so a
+# baseline can be committed for regression comparison.
+/corpus/
