@@ -33,27 +33,25 @@ dart run tool/asr_quality_report.dart --corpus corpus/corpus.json \
   --output corpus/baseline-2026-11.json
 ```
 
-输出示例：
+输出示例（仓库内 CLI 冒烟测试的真实输出，3 行参考 + 4 行融合输出）：
 
 ```
 # Lyric quality baseline
 
-1 song(s), 3 candidate document(s), match threshold 0.6.
+1 song(s), 1 candidate document(s), match threshold 0.6.
 
 ## By engine
 
 | engine | songs | recall | precision | CER | duplicate rate | line ratio | start MAE | within 500 ms |
 |---|---|---|---|---|---|---|---|---|
-| fused | 1 | 100.0% | 58.3% | 9.2% | 41.7% | 1.71 | 240 ms | 88.0% |
-| qwen | 1 | 82.1% | 95.0% | 18.4% | 5.0% | 0.86 | 610 ms | 52.0% |
-| whisper | 1 | 94.3% | 93.1% | 11.7% | 0.0% | 1.01 | 380 ms | 71.0% |
+| fused | 1 | 100.0% | 75.0% | 11.3% | 25.0% | 1.33 | 100 ms | 100.0% |
 
 ## Duplicate lines
 
-- song-01 / fused (contained, t=41200 ms): "we are dancing through the night"
+- song-01 / fused (contained, t=10000 ms): "we are dancing through the night"
 ```
 
-一眼就能读出结论：**融合（fused）把行召回从 94% 拉到 100%，代价是重复行率 0% → 42%、行数比 1.01 → 1.71。** 这就是「不如以前」的量化形态。
+读法：行召回 100% 说明没漏词，但**精确率只有 75%、重复行率 25%、行数比 1.33** —— 4 行里有 1 行是从第 1 行里拆出来的 "dancing"。这正是「识别得没错，但输出是脏的」的量化形态。
 
 ## 3. 语料格式
 

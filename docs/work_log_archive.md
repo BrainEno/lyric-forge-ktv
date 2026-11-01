@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 13:25] Put ASR managed storage behind a domain contract ([entry](log/entries/2026-10-31-1325-managed-storage-domain-contract.md))
 - [2026-10-31 12:15] Relocate ReferenceLyricTextParser to the domain layer ([entry](log/entries/2026-10-31-1215-relocate-reference-lyric-text-parser.md))
 - [2026-10-31 11:20] Move playback lyrics path handling behind a domain interface ([entry](log/entries/2026-10-31-1120-purify-playback-lyrics-path-handling.md))
 - [2026-10-31 10:45] Add a layering import ratchet for feature architecture rules ([entry](log/entries/2026-10-31-1045-layering-import-ratchet.md))
