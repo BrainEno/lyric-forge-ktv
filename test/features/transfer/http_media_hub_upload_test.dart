@@ -419,19 +419,19 @@ void main() {
       final session = await service.startSharing(const []);
       final socket = await _openPinnedSocket(session);
       addTearDown(socket.destroy);
+      // Watch the response instead of only its completion: the server closes
+      // the connection as soon as it rejects the upload, and a write that
+      // lands after that teardown resets the connection and throws away a
+      // response the client had already received.
+      final reader = _RawResponseReader(socket);
       socket.write(
         _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
       );
       await socket.flush();
-      var responseFinished = false;
-      final responseFuture = _readRawResponse(socket).then((response) {
-        responseFinished = true;
-        return response;
-      });
 
-      for (var index = 0; index < 20 && !responseFinished; index++) {
+      for (var index = 0; index < 40 && !reader.hasStarted; index++) {
         await Future<void>.delayed(const Duration(milliseconds: 30));
-        if (responseFinished) break;
+        if (reader.hasStarted) break;
         try {
           socket.write('1\r\nx\r\n');
           await socket.flush();
@@ -439,10 +439,18 @@ void main() {
           break;
         } on TlsException {
           break;
+        } on StateError {
+          // The hub answers and closes the connection, and the close can be
+          // observed a microtask before the reader delivers those bytes. That
+          // is the expected end of the upload, not a test failure; the response
+          // is still buffered for the assertions below.
+          break;
         }
       }
 
-      final response = await responseFuture;
+      final response = await reader.response.timeout(
+        const Duration(seconds: 5),
+      );
       expect(response, startsWith('HTTP/1.1 408'));
       expect(response, contains('upload_total_timeout'));
       expect(await incomingDirectory.list().toList(), isEmpty);
@@ -530,6 +538,54 @@ Future<String> _readRawResponse(SecureSocket socket) {
       .transform(utf8.decoder)
       .join()
       .timeout(const Duration(seconds: 5));
+}
+
+/// Reads a raw HTTP response while reporting the moment its first byte lands.
+///
+/// Tests that keep writing request body bytes until the server answers need to
+/// know when the answer *starts*, not when it finishes: the hub closes the
+/// connection while rejecting an upload, so a later client write can reset the
+/// connection and discard bytes that already arrived. Such a reset is tolerated
+/// once the response has started, because the response did reach the client; an
+/// error before the first byte still fails the test.
+class _RawResponseReader {
+  _RawResponseReader(SecureSocket socket) {
+    _subscription = socket
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .listen(
+          (text) {
+            _buffer.write(text);
+            _hasStarted = true;
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!_hasStarted) {
+              if (!_response.isCompleted) {
+                _response.completeError(error, stackTrace);
+              }
+              return;
+            }
+            _subscription?.cancel();
+            if (!_response.isCompleted) _response.complete(_buffer.toString());
+          },
+          onDone: () {
+            if (!_response.isCompleted) _response.complete(_buffer.toString());
+          },
+          cancelOnError: true,
+        );
+  }
+
+  final StringBuffer _buffer = StringBuffer();
+  final Completer<String> _response = Completer<String>();
+  StreamSubscription<String>? _subscription;
+  bool _hasStarted = false;
+
+  /// Whether at least one byte of the response has been received.
+  bool get hasStarted => _hasStarted;
+
+  /// The response text; resolves early (with what arrived) if the connection is
+  /// reset after the response started.
+  Future<String> get response => _response.future;
 }
 
 String _rawContentLengthHeaders(

@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 15:00] Relocate forced-alignment proofread service to the lyrics domain ([entry](log/entries/2026-10-31-1500-relocate-forced-alignment-proofread.md))
 - [2026-10-31 14:55] Put KTV take history behind a domain contract ([entry](log/entries/2026-10-31-1455-ktv-take-history-domain-contract.md))
 - [2026-10-31 13:25] Put ASR managed storage behind a domain contract ([entry](log/entries/2026-10-31-1325-managed-storage-domain-contract.md))
 - [2026-10-31 12:15] Relocate ReferenceLyricTextParser to the domain layer ([entry](log/entries/2026-10-31-1215-relocate-reference-lyric-text-parser.md))
