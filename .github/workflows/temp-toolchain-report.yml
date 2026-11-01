@@ -49,8 +49,11 @@ jobs:
           set +e
           flutter analyze --no-pub --no-fatal-infos lib test \
             > .ci-report/analyze.txt 2>&1
-          echo "analyze exit: $?" >> .ci-report/analyze.txt
+          code=$?
+          echo "analyze exit: $code" >> .ci-report/analyze.txt
+          set -e
           tail -60 .ci-report/analyze.txt
+          exit $code
 
       - name: Test new tool
         run: |
@@ -58,8 +61,11 @@ jobs:
           flutter test --no-pub --reporter expanded \
             test/tool/asr_quality_report_test.dart \
             > .ci-report/test.txt 2>&1
-          echo "test exit: $?" >> .ci-report/test.txt
+          code=$?
+          echo "test exit: $code" >> .ci-report/test.txt
+          set -e
           tail -100 .ci-report/test.txt
+          exit $code
 
       - name: CLI smoke test
         run: |

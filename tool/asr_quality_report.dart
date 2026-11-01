@@ -67,7 +67,12 @@ final RegExp _lrcMetadata = RegExp(r'^\[[a-zA-Z][^\]]*:.*\]$');
 
 /// A timestamp that starts a line, which is what separates LRC from JSON that
 /// also begins with `[`.
-final RegExp _lrcTimestampAtLineStart = RegExp(r'(?m)^[ \t]*\[\d{1,3}:\d{2}');
+// Dart RegExp is ECMAScript-based: inline flags such as `(?m)` are invalid, so
+// multi-line mode is passed as an argument instead.
+final RegExp _lrcTimestampAtLineStart = RegExp(
+  r'^[ \t]*\[\d{1,3}:\d{2}',
+  multiLine: true,
+);
 
 const LyricTokenizer _tokenizer = LyricTokenizer();
 
