@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import '../domain/models/qwen_decode_budget.dart';
+import '../../domain/models/qwen_decode_budget.dart';
 
 typedef AsrProcessStarter =
     Future<Process> Function(String executable, List<String> arguments);
