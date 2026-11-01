@@ -96,24 +96,29 @@ jobs:
           exit 0
 
       - name: Report
+        if: always()
         shell: bash
         run: |
-          emit() {
-            local stage="$1" code="$2" log="$3"
+          set +e
+          echo "::notice::format=${{ steps.format.outputs.exit }} analyze=${{ steps.analyze.outputs.exit }} targeted=${{ steps.targeted.outputs.exit }} full=${{ steps.full.outputs.exit }}"
+          report() {
+            stage="$1"; code="$2"; log="$3"
             if [[ "$code" == "0" ]]; then
-              echo "::notice::${stage}: exit=0"
-              return
+              echo "::notice::${stage} ok"
+              return 0
             fi
             echo "::error::${stage} failed (exit=${code})"
-            if [[ -f "$log" ]]; then
-              grep -n -m 3 -E "\[E\]|Error:|error:|Exception|failed" "$log" | head -12
-            fi
+            [[ -f "$log" ]] || return 0
+            local n=0
+            while IFS= read -r line; do
+              n=$((n+1))
+              [[ $n -gt 8 ]] && break
+              echo "::error::${stage} :: ${line:0:900}"
+            done < <(grep -nE "\[E\]|Error:|error:|Exception|FAILED|failed" "$log" | head -8)
+            return 0
           }
-          emit full "${{ steps.full.outputs.exit }}" full.log
-          emit targeted "${{ steps.targeted.outputs.exit }}" targeted.log
-          emit analyze "${{ steps.analyze.outputs.exit }}" analyze.log
-          emit format "${{ steps.format.outputs.exit }}" ""
-          echo "--- analyze tail ---"
-          tail -25 analyze.log || true
-          echo "--- targeted context around failures ---"
-          grep -n -B2 -A12 "\[E\]" targeted.log | head -60 || true
+          report format "${{ steps.format.outputs.exit }}" ""
+          report analyze "${{ steps.analyze.outputs.exit }}" analyze.log
+          report targeted "${{ steps.targeted.outputs.exit }}" targeted.log
+          report full "${{ steps.full.outputs.exit }}" full.log
+          exit 0
