@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-10-31. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-11-01. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -52,10 +52,12 @@
 
 ## Follow-up leads — re-check before acting
 
+- **Recognition quality + editor complexity (2026-11-01):** [reviews/2026-10-31-recognition-quality-and-ux-deep-review.md](reviews/2026-10-31-recognition-quality-and-ux-deep-review.md) traces the perceived recognition regression to global 3-minute chunking, duplicate-inserting dual-engine fusion, chunk-merge metadata loss, config-blind chunk checkpoints, RTX-5080-only auto install, and a neutral-50 confidence default; it also lists the editor/navigation complexity findings plus a phased plan with acceptance criteria. Read it before changing recognition quality, the review queue semantics, or editor information architecture.
+
 - **Open-source product-quality roadmap:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) prioritizes persistence recovery, ASR lifecycle, Media Hub upload limits, separation/MVP scope, installable app packages, and real-song/mix quality gates. Third-party provenance/notices are scoped to artifacts actually bundled; they are not a general development or monetization gate.
 
 - **Media Hub security (#218):** [PR #239](https://github.com/BrainEno/lyric-forge-ktv/pull/239) merged on 2026-10-29 after the final-head Flutter Quality Gate, KTV recovery validation, and Windows Debug build all passed. Physical Android-to-desktop pairing and real audio playback still need a device-level smoke test; protocol-v1 saved connections must pair again.
-- **Media Hub uploads (#224):** The guardrail branch adds a 2 GiB default file cap, 30-second idle timeout, 45-minute total deadline, a 256 MiB free-space reserve with periodic probes, and two process-wide / one-per-session concurrency limits. Oversize, timeout, contention, and storage failures return 413, 408, 429, and 507 respectively. Validate final-head CI before merge; the `.part` reservation race tracked by #234 remains separate.
+- **Media Hub uploads (#224/#234):** merged guardrails are a 2 GiB default cap, 30-second idle timeout, 45-minute deadline, 256 MiB free-space reserve with periodic probes, and process/session concurrency limits (413/408/429/507); the `.part` reservation race is covered by the exclusive `.reserve` claim. Device-level upload smoke tests remain.
 - **Recoverable JSON persistence:** `lib/core/persistence/atomic_json_file.dart` keeps a validated previous generation before replacement and restores invalid/missing canonical stores from valid temp/backup sidecars. See the newest work-log entry and verify all migrated stores in CI.
 - **macOS Media Hub Release entitlement:** [PR #208](https://github.com/BrainEno/lyric-forge-ktv/pull/208) adds and CI-validates client/server entitlements in source plists and signed Debug/Release artifacts. LAN/Tailscale device smoke tests remain a separate end-to-end check.
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.

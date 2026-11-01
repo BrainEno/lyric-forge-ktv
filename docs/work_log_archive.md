@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-10-31 11:20] Move playback lyrics path handling behind a domain interface ([entry](log/entries/2026-10-31-1120-purify-playback-lyrics-path-handling.md))
 - [2026-10-31 10:45] Add a layering import ratchet for feature architecture rules ([entry](log/entries/2026-10-31-1045-layering-import-ratchet.md))
 - [2026-10-31 02:20] Add per-store schema versioning to atomic JSON persistence ([entry](log/entries/2026-10-31-0220-atomic-json-schema-versioning.md))
 - [2026-10-31 02:05] Align architecture documentation and AI config with the implemented stack ([entry](log/entries/2026-10-31-0205-align-architecture-docs.md))
