@@ -29,7 +29,11 @@ jobs:
         uses: ./.github/actions/setup-flutter
 
       - name: Resolve packages
-        run: flutter pub get
+        run: |
+          set +e
+          flutter pub get > /tmp/pubget.txt 2>&1
+          echo "exit=$?" >> /tmp/pubget.txt
+          tail -5 /tmp/pubget.txt
 
       - name: Format check
         id: format
@@ -143,7 +147,7 @@ jobs:
               for index in range(0, len(rows), size):
                   body = '\n'.join(rows[index:index + size])[:limit]
                   if body.strip():
-                      emit('failure', f'{title}[{index}]\n' + body)
+                      emit('error', f'{title}[{index}]\n' + body)
 
           if 'exit=0' not in statuses['format']:
               chunk('format', '/tmp/format_diff.txt')
@@ -154,7 +158,7 @@ jobs:
                   if row.strip().startswith(('error', 'warning'))
               ]
               body = '\n'.join(problems[:40]) or '\n'.join(rows[-40:])
-              emit('failure', 'analyze-problems\n' + body[:2400])
+              emit('error', 'analyze-problems\n' + body[:2400])
           if 'exit=0' not in statuses['targeted']:
               chunk('targeted', '/tmp/targeted.txt')
           if 'exit=0' not in statuses['full']:
