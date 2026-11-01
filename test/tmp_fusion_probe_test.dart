@@ -36,7 +36,7 @@ List<LyricLine> referenceLines(int secondsPerLine) => [
 
 /// Splits [script] into equal-time fragments of [fragmentSeconds] each.
 List<LyricLine> fragmented(int secondsPerLine, int fragmentSeconds, {required bool typo}) {
-  final perLine = secondsPerLine ~/ fragmentSeconds;
+  final perLine = (secondsPerLine ~/ fragmentSeconds).clamp(1, 8);
   final lines = <LyricLine>[];
   for (var i = 0; i < script.length; i++) {
     final words = script[i].split(' ');
@@ -177,6 +177,14 @@ void main() {
             '${pct(score['linePrecision'])} | ${num2(score['lineCountRatio'])}'
             '   [${order == TranscriptionEngineOrder.whisperPrimary ? "whisperPrimary" : "qwenPrimary"}]',
           );
+          if (combo[0] == 8 && combo[1] == 4 && order == TranscriptionEngineOrder.whisperPrimary) {
+            // ignore: avoid_print
+            print('  primary=${primaryDoc.length} secondary=${secondaryDoc.length} meta=${result.lyrics.metadata.keys.toList()}');
+            for (final line in out.take(8)) {
+              // ignore: avoid_print
+              print('   OUT ${line.startTime.inMilliseconds}-${line.endTime.inMilliseconds} "${line.text}" c=${line.confidence}');
+            }
+          }
           await service.dispose();
         }
       }
