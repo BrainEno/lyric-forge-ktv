@@ -50,6 +50,7 @@ import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
+import '../widgets/unsaved_lyric_edits_dialog.dart';
 
 /// Lines below this score are surfaced for review.
 ///
@@ -2332,33 +2333,19 @@ class _LyricEditorContent extends StatelessWidget {
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (!hasChanges) return;
-        final shouldPop = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: AppColors.bgElevated,
-            title: const Text('有未保存的修改'),
-            content: const Text('返回前是否保存当前歌词修改？未保存的更改将会丢失。'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('继续编辑'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('放弃修改'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(false);
-                  onSave();
-                },
-                child: const Text('保存并返回'),
-              ),
-            ],
-          ),
-        );
-        if (shouldPop == true && context.mounted) {
-          Navigator.of(context).pop();
+        final decision = await confirmUnsavedLyricEdits(context);
+        if (!context.mounted) return;
+        switch (decision) {
+          // "保存并返回" used to pop with `false` and call onSave(), which saved
+          // the document but left the user on the editor, so the button did the
+          // opposite of what it said. Saving now always ends with leaving.
+          case UnsavedLyricEditsDecision.save:
+            onSave();
+            Navigator.of(context).pop();
+          case UnsavedLyricEditsDecision.discard:
+            Navigator.of(context).pop();
+          case UnsavedLyricEditsDecision.stay:
+            break;
         }
       },
       child: CallbackShortcuts(
@@ -2745,15 +2732,17 @@ class _EditorToolbar extends StatelessWidget {
               ),
             // All proofreading flows live behind one entry point: the toolbar
             // used to carry six separate buttons whose differences were only
-            // visible in their tooltips.
-            LyricProofreadMenuButton(
-              onProofreadV2: onProofreadV2,
-              onReferenceAlignment: onReferenceAlignment,
-              onReferenceProofread: onReferenceProofread,
-              onViewComparison: onViewAlignmentComparison,
-              onUndoAlignment: onUndoReferenceAlignment,
-              onRestoreBackup: onRestoreAlignment,
-            ),
+            // visible in their tooltips. Narrow layouts already show the same
+            // menu in the app bar, so they do not get a second copy here.
+            if (!compactControls)
+              LyricProofreadMenuButton(
+                onProofreadV2: onProofreadV2,
+                onReferenceAlignment: onReferenceAlignment,
+                onReferenceProofread: onReferenceProofread,
+                onViewComparison: onViewAlignmentComparison,
+                onUndoAlignment: onUndoReferenceAlignment,
+                onRestoreBackup: onRestoreAlignment,
+              ),
             if (filter == _ReviewFilter.smartReview)
               Tooltip(
                 message: LyricReviewStrings.loopCurrentLineHelp,

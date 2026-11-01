@@ -79,6 +79,7 @@ jobs:
           set +e
           bash scripts/quality_gate.sh --skip-pub-get --skip-docs --test-only \
             --test-path test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart \
+            --test-path test/features/lyrics/presentation/widgets/unsaved_lyric_edits_dialog_test.dart \
             --test-path test/features/lyrics/presentation/widgets/reference_alignment_backup_restore_test.dart \
             --test-path test/features/lyrics/presentation/widgets/reference_alignment_dialog_test.dart \
             --test-path test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart \
