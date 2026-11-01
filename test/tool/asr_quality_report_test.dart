@@ -129,10 +129,12 @@ void main() {
         line('dancing through', 3000, 6000),
         line('the night', 9000, 12000),
       ];
+      // Both fragments restate line 0, so they form one group with two extras.
       final groups = quality.findDuplicateLyricLines(lines);
-      expect(groups, hasLength(2));
-      expect(groups.first.lineIndexes, <int>[0, 1]);
-      expect(groups.last.lineIndexes, <int>[0, 2]);
+      expect(groups, hasLength(1));
+      expect(groups.single.lineIndexes, <int>[0, 1, 2]);
+      expect(groups.single.kind, 'contained');
+      expect(groups.single.text, 'we are dancing through the night');
 
       final score = evaluate(
         reference: <quality.QualityLine>[
