@@ -49,6 +49,7 @@ import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/lyric_proofread_menu_button.dart';
 
 /// Lines below this score are surfaced for review.
 ///
@@ -2385,40 +2386,15 @@ class _LyricEditorContent extends StatelessWidget {
               ],
             ),
             actions: [
-              if ((spec.isCompactOrMedium || spec.isShort) &&
-                  onReferenceAlignment != null)
-                IconButton(
-                  tooltip: '参考歌词纠正',
-                  onPressed: onReferenceAlignment,
-                  icon: const Icon(Icons.auto_fix_high_rounded),
-                ),
-              if ((spec.isCompactOrMedium || spec.isShort) &&
-                  onReferenceProofread != null)
-                IconButton(
-                  tooltip: '逐行智能纠错（保留时间戳）',
-                  onPressed: onReferenceProofread,
-                  icon: const Icon(Icons.spellcheck_rounded),
-                ),
-              if ((spec.isCompactOrMedium || spec.isShort) &&
-                  onViewAlignmentComparison != null)
-                IconButton(
-                  tooltip: '查看本次逐行对比',
-                  onPressed: onViewAlignmentComparison,
-                  icon: const Icon(Icons.compare_arrows_rounded),
-                ),
-              if ((spec.isCompactOrMedium || spec.isShort) &&
-                  onUndoReferenceAlignment != null)
-                IconButton(
-                  tooltip: '撤销本次参考对齐',
-                  onPressed: onUndoReferenceAlignment,
-                  icon: const Icon(Icons.undo_rounded),
-                ),
-              if ((spec.isCompactOrMedium || spec.isShort) &&
-                  onRestoreAlignment != null)
-                IconButton(
-                  tooltip: '恢复对齐前版本',
-                  onPressed: onRestoreAlignment,
-                  icon: const Icon(Icons.history_rounded),
+              if (spec.isCompactOrMedium || spec.isShort)
+                LyricProofreadMenuButton(
+                  compact: true,
+                  onProofreadV2: onProofreadV2,
+                  onReferenceAlignment: onReferenceAlignment,
+                  onReferenceProofread: onReferenceProofread,
+                  onViewComparison: onViewAlignmentComparison,
+                  onUndoAlignment: onUndoReferenceAlignment,
+                  onRestoreBackup: onRestoreAlignment,
                 ),
               if (document.lines.isNotEmpty)
                 IconButton(
@@ -2767,62 +2743,17 @@ class _EditorToolbar extends StatelessWidget {
                   label: const Text('在播放位置插入'),
                 ),
               ),
-            if (!compactControls)
-              Tooltip(
-                message: onReferenceAlignment == null
-                    ? '先导入或生成歌词草稿'
-                    : '用参考歌词纠正 ASR 草稿',
-                child: FilledButton.tonalIcon(
-                  onPressed: onReferenceAlignment,
-                  icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
-                  label: const Text('参考歌词纠正'),
-                ),
-              ),
-            if (!compactControls)
-              Tooltip(
-                message: onReferenceProofread == null
-                    ? '先导入或生成歌词草稿'
-                    : '逐行审核参考歌词建议；仅替换文字并保留当前时间戳',
-                child: OutlinedButton.icon(
-                  onPressed: onReferenceProofread,
-                  icon: const Icon(Icons.spellcheck_rounded, size: 18),
-                  label: const Text('逐行智能纠错'),
-                ),
-              ),
-            Tooltip(
-              message: onProofreadV2 == null
-                  ? '先导入或生成歌词草稿'
-                  : '生成不自动写盘的校对提案；逐行对比后再明确应用',
-              child: FilledButton.tonalIcon(
-                onPressed: onProofreadV2,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: const Text('智能校对 V2'),
-              ),
+            // All proofreading flows live behind one entry point: the toolbar
+            // used to carry six separate buttons whose differences were only
+            // visible in their tooltips.
+            LyricProofreadMenuButton(
+              onProofreadV2: onProofreadV2,
+              onReferenceAlignment: onReferenceAlignment,
+              onReferenceProofread: onReferenceProofread,
+              onViewComparison: onViewAlignmentComparison,
+              onUndoAlignment: onUndoReferenceAlignment,
+              onRestoreBackup: onRestoreAlignment,
             ),
-            if (!compactControls && onViewAlignmentComparison != null)
-              OutlinedButton.icon(
-                onPressed: onViewAlignmentComparison,
-                icon: const Icon(Icons.compare_arrows_rounded, size: 18),
-                label: const Text('查看逐行对比'),
-              ),
-            if (!compactControls && onUndoReferenceAlignment != null)
-              Tooltip(
-                message: '撤销最近一次参考对齐（未保存前有效）',
-                child: FilledButton.tonalIcon(
-                  onPressed: onUndoReferenceAlignment,
-                  icon: const Icon(Icons.undo_rounded, size: 18),
-                  label: const Text('撤销最近更改'),
-                ),
-              ),
-            if (!compactControls && onRestoreAlignment != null)
-              Tooltip(
-                message: '恢复参考歌词对齐前的歌词快照，需二次确认',
-                child: FilledButton.tonalIcon(
-                  onPressed: onRestoreAlignment,
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('恢复对齐前版本'),
-                ),
-              ),
             if (filter == _ReviewFilter.smartReview)
               Tooltip(
                 message: LyricReviewStrings.loopCurrentLineHelp,
