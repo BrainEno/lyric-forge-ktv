@@ -4037,9 +4037,7 @@ class _LyricReviewRow extends StatelessWidget {
                       label: line.hasConfidenceScore
                           ? '${line.confidence}'
                           : '未评分',
-                      warning: line.isLowConfidence(
-                        _reviewConfidenceThreshold,
-                      ),
+                      warning: line.isLowConfidence(_reviewConfidenceThreshold),
                     ),
                   ],
                   if (selected && onDoubleTap != null && !spec.isCompact) ...[

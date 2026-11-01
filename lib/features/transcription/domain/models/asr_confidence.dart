@@ -75,8 +75,7 @@ import '../../../project/domain/models/lyric_document.dart';
 
   if (probabilities.isEmpty) return _unscoredSegment;
 
-  final average =
-      probabilities.reduce((a, b) => a + b) / probabilities.length;
+  final average = probabilities.reduce((a, b) => a + b) / probabilities.length;
   return (
     value: (average * 100).round().clamp(0, 100).toInt(),
     source: LyricConfidenceSource.model,

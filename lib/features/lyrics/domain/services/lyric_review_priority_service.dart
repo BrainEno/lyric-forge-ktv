@@ -99,8 +99,10 @@ class LyricReviewPriorityService {
 
       if (line.confidence < 95 &&
           text.isNotEmpty &&
-          RegExp(r'(\S{1,24})(?:\s+\1){2,}', caseSensitive: false)
-              .hasMatch(text)) {
+          RegExp(
+            r'(\S{1,24})(?:\s+\1){2,}',
+            caseSensitive: false,
+          ).hasMatch(text)) {
         score.add(12, '出现连续重复词，建议确认是否为识别重复');
       }
 
@@ -207,10 +209,8 @@ class LyricReviewPriorityService {
     return null;
   }
 
-  String _normalize(String value) => value
-      .toLowerCase()
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
+  String _normalize(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
   double? _number(Object? value) {
     if (value is num) return value.toDouble();
