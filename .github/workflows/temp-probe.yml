@@ -1,0 +1,47 @@
+name: Temp probe
+
+on:
+  push:
+    branches:
+      - 'arena/40c97524-lyric-forge-ktv'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Probe
+        run: |
+          mkdir -p .ci-report
+          set +e
+          flutter test --no-pub --reporter expanded test/tmp_fusion_probe_test.dart \
+            > .ci-report/probe.txt 2>&1
+          code=$?
+          echo "probe exit: $code" >> .ci-report/probe.txt
+          set -e
+          cat .ci-report/probe.txt
+          exit $code
+      - name: Publish
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name 'ci-probe'
+          git config user.email 'ci-probe@users.noreply.github.com'
+          git add -A -f -- .ci-report
+          git diff --cached --quiet || git commit -m 'chore: probe output [skip ci]'
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
