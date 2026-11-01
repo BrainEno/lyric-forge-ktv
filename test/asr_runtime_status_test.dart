@@ -67,5 +67,75 @@ void main() {
       expect(status.isReady, isFalse);
       expect(status.readyCount, 1);
     });
+
+    test('a missing second engine degrades instead of blocking', () {
+      const status = AsrRuntimeStatus(
+        profile: profile,
+        managedRoot: '/tmp/runtime',
+        components: [
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.ffmpeg,
+            state: AsrRuntimeComponentState.ready,
+            label: 'FFmpeg',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.whisperRuntime,
+            state: AsrRuntimeComponentState.ready,
+            label: 'Whisper',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.whisperModel,
+            state: AsrRuntimeComponentState.ready,
+            label: 'Whisper model',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.qwenRuntime,
+            state: AsrRuntimeComponentState.missing,
+            label: 'Qwen runtime',
+            detail: 'missing',
+          ),
+        ],
+      );
+
+      // Nothing is "fully ready", but lyrics can still be produced.
+      expect(status.isReady, isFalse);
+      expect(status.isBaselineReady, isTrue);
+      expect(status.missingBaselineComponents, isEmpty);
+    });
+
+    test('a missing Whisper baseline blocks recognition', () {
+      const status = AsrRuntimeStatus(
+        profile: profile,
+        managedRoot: '/tmp/runtime',
+        components: [
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.ffmpeg,
+            state: AsrRuntimeComponentState.ready,
+            label: 'FFmpeg',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.whisperModel,
+            state: AsrRuntimeComponentState.missing,
+            label: 'Whisper model',
+            detail: 'missing',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.qwenRuntime,
+            state: AsrRuntimeComponentState.ready,
+            label: 'Qwen runtime',
+            detail: 'ready',
+          ),
+        ],
+      );
+
+      expect(status.isBaselineReady, isFalse);
+      expect(status.missingBaselineComponents.map((c) => c.component), [
+        AsrRuntimeComponent.whisperModel,
+      ]);
+    });
   });
 }

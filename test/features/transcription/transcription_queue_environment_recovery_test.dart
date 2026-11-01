@@ -37,6 +37,26 @@ void main() {
     expect(store.saved, hasLength(2));
   });
 
+  test('a missing second engine still resumes the queue', () async {
+    // The queue pauses on environment faults. A broken optional engine is not
+    // one any more: the run degrades, so pausing every remaining song would
+    // punish the user for a capability they never needed.
+    final store = _FakeSettingsStore();
+    final runtime = _FakeRuntimeManager(ready: true, qwenReady: false);
+    final queue = _FakeQueue(reason: TranscriptionQueuePauseReason.environment);
+    final recovery = TranscriptionQueueEnvironmentRecovery(
+      settingsStore: store,
+      runtimeManager: runtime,
+      queue: queue,
+    );
+
+    final result = await recovery.recover(config);
+
+    expect(result.ready, isTrue);
+    expect(result.resumed, isTrue);
+    expect(queue.resumeCalls, 1);
+  });
+
   test('not-ready environment stays protectively paused', () async {
     final store = _FakeSettingsStore();
     final runtime = _FakeRuntimeManager(ready: false);
@@ -55,24 +75,26 @@ void main() {
     expect(queue.current.isEnvironmentBlocked, isTrue);
   });
 
-  test('manual pause that replaces environment pause is never overridden',
-      () async {
-    final store = _FakeSettingsStore();
-    final runtime = _FakeRuntimeManager(ready: true);
-    final queue = _FakeQueue(reason: TranscriptionQueuePauseReason.manual);
-    final recovery = TranscriptionQueueEnvironmentRecovery(
-      settingsStore: store,
-      runtimeManager: runtime,
-      queue: queue,
-    );
+  test(
+    'manual pause that replaces environment pause is never overridden',
+    () async {
+      final store = _FakeSettingsStore();
+      final runtime = _FakeRuntimeManager(ready: true);
+      final queue = _FakeQueue(reason: TranscriptionQueuePauseReason.manual);
+      final recovery = TranscriptionQueueEnvironmentRecovery(
+        settingsStore: store,
+        runtimeManager: runtime,
+        queue: queue,
+      );
 
-    final result = await recovery.recover(config);
+      final result = await recovery.recover(config);
 
-    expect(result.ready, isTrue);
-    expect(result.resumed, isFalse);
-    expect(queue.resumeCalls, 0);
-    expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
-  });
+      expect(result.ready, isTrue);
+      expect(result.resumed, isFalse);
+      expect(queue.resumeCalls, 0);
+      expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
+    },
+  );
 }
 
 class _FakeSettingsStore implements TranscriptionSettingsStore {
@@ -82,7 +104,8 @@ class _FakeSettingsStore implements TranscriptionSettingsStore {
   Future<void> clear() async {}
 
   @override
-  Future<TranscriptionConfig?> load() async => saved.isEmpty ? null : saved.last;
+  Future<TranscriptionConfig?> load() async =>
+      saved.isEmpty ? null : saved.last;
 
   @override
   Future<void> save(TranscriptionConfig config) async => saved.add(config);
@@ -90,10 +113,11 @@ class _FakeSettingsStore implements TranscriptionSettingsStore {
 
 class _FakeRuntimeManager implements AsrRuntimeManager {
   final bool ready;
+  final bool qwenReady;
   int repairCalls = 0;
   int inspectCalls = 0;
 
-  _FakeRuntimeManager({required this.ready});
+  _FakeRuntimeManager({required this.ready, this.qwenReady = true});
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => const Stream.empty();
@@ -105,8 +129,9 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   Future<void> cancel() async {}
 
   @override
-  Future<TranscriptionConfig> installRecommended(TranscriptionConfig config) async =>
-      config;
+  Future<TranscriptionConfig> installRecommended(
+    TranscriptionConfig config,
+  ) async => config;
 
   @override
   Future<AsrRuntimeStatus> inspect(TranscriptionConfig config) async {
@@ -125,12 +150,36 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
       ),
       components: [
         AsrRuntimeComponentStatus(
-          component: AsrRuntimeComponent.qwenRuntime,
+          component: AsrRuntimeComponent.ffmpeg,
           state: ready
               ? AsrRuntimeComponentState.ready
               : AsrRuntimeComponentState.failed,
-          label: 'Qwen runtime',
+          label: 'FFmpeg',
           detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.whisperRuntime,
+          state: ready
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Whisper runtime',
+          detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.whisperModel,
+          state: ready
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Whisper large-v3',
+          detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.qwenRuntime,
+          state: qwenReady
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Qwen runtime',
+          detail: qwenReady ? 'ready' : 'failed',
         ),
       ],
       managedRoot: r'C:\LyricForge\ASRRuntime',
@@ -152,14 +201,14 @@ class _FakeQueue implements BatchTranscriptionQueue {
 
   @override
   TranscriptionQueueSnapshot get current => TranscriptionQueueSnapshot(
-        items: const [],
-        isPaused: reason != null,
-        isProcessing: false,
-        pauseReason: reason,
-        pauseMessage: reason == TranscriptionQueuePauseReason.environment
-            ? 'runtime unavailable'
-            : null,
-      );
+    items: const [],
+    isPaused: reason != null,
+    isProcessing: false,
+    pauseReason: reason,
+    pauseMessage: reason == TranscriptionQueuePauseReason.environment
+        ? 'runtime unavailable'
+        : null,
+  );
 
   @override
   Stream<TranscriptionQueueSnapshot> get snapshots => const Stream.empty();

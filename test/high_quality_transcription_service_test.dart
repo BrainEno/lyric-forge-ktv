@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/asr_process_supervisor.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/high_quality_transcription_service.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_degradation.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 
@@ -781,6 +782,241 @@ void main() {
       },
     );
   });
+
+  group('HighQualityTranscriptionService degradation', () {
+    late Directory tempDirectory;
+
+    setUp(() async {
+      tempDirectory = await Directory.systemTemp.createTemp('lyric_forge_deg_');
+    });
+
+    tearDown(() async {
+      if (await tempDirectory.exists()) {
+        await tempDirectory.delete(recursive: true);
+      }
+    });
+
+    test('runs Whisper and records why when Qwen is not configured', () async {
+      final whisper = _FakeTranscriptionService(
+        result: _result(
+          LyricLine(
+            text: 'whisper draft',
+            startTime: const Duration(seconds: 1),
+            endTime: const Duration(seconds: 3),
+          ),
+        ),
+      );
+      final qwen = _FakeTranscriptionService(
+        error: const TranscriptionException('should not be called'),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: qwen,
+        fallback: whisper,
+      );
+
+      final result = await service.transcribe(
+        _request(tempDirectory.path, qwenExecutable: ''),
+      );
+
+      expect(result.lyrics.lines.single.text, 'whisper draft');
+      expect(qwen.requests, isEmpty, reason: 'Qwen is not configured');
+      expect(whisper.requests, hasLength(1));
+      expect(
+        whisper.requests.single.config.mode,
+        TranscriptionMode.whisperOnly,
+        reason: 'the delegate must not think it is running dual-engine',
+      );
+      final metadata = result.lyrics.metadata;
+      expect(metadata[TranscriptionQualityMetadata.degradedKey], isTrue);
+      expect(
+        TranscriptionQualityMetadata.reasonOf(metadata),
+        TranscriptionDegradationReason.qwenNotConfigured,
+      );
+      expect(metadata['primaryEngine'], contains('whisper'));
+      expect(metadata['fallbackStatus'], 'degraded');
+      // A degraded draft is still a draft the editor must review.
+      expect(
+        TranscriptionQualityMetadata.explanationOf(metadata),
+        contains('Whisper'),
+      );
+
+      await service.dispose();
+    });
+
+    test('degrades to Whisper when Qwen fails at run time', () async {
+      final qwen = _FakeTranscriptionService(
+        error: const TranscriptionException.environment('CUDA 显存不足'),
+      );
+      final whisper = _FakeTranscriptionService(
+        result: _result(
+          LyricLine(
+            text: 'recovered draft',
+            startTime: const Duration(seconds: 2),
+            endTime: const Duration(seconds: 4),
+          ),
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: qwen,
+        fallback: whisper,
+        sharedAudioPreparer: (request) async => 'generated-shared.wav',
+      );
+
+      final result = await service.transcribe(
+        _request(tempDirectory.path, includeNormalizedInput: false),
+      );
+
+      expect(result.lyrics.lines.single.text, 'recovered draft');
+      expect(
+        TranscriptionQualityMetadata.reasonOf(result.lyrics.metadata),
+        TranscriptionDegradationReason.qwenUnavailable,
+      );
+      // The real cause has to survive: "degraded" alone is not actionable.
+      expect(
+        TranscriptionQualityMetadata.explanationOf(result.lyrics.metadata),
+        contains('CUDA 显存不足'),
+      );
+      // The prepared audio is reused instead of normalized twice.
+      expect(
+        whisper.requests.single.normalizedInputAudioPath,
+        'generated-shared.wav',
+      );
+
+      await service.dispose();
+    });
+
+    test('does not degrade when the audio itself is unusable', () async {
+      final qwen = _FakeTranscriptionService(
+        error: const TranscriptionException.input('待识别音频文件不存在'),
+      );
+      final whisper = _FakeTranscriptionService(
+        result: _result(
+          LyricLine(
+            text: 'unreachable',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 1),
+          ),
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: qwen,
+        fallback: whisper,
+      );
+
+      await expectLater(
+        service.transcribe(_request(tempDirectory.path)),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.input,
+          ),
+        ),
+      );
+      // Whisper would fail on the same input; running it burns time to produce
+      // an identical complaint.
+      expect(whisper.requests, isEmpty);
+
+      await service.dispose();
+    });
+
+    test('does not degrade on cancellation', () async {
+      final qwen = _FakeTranscriptionService(
+        error: const TranscriptionException.cancelled('歌词识别已取消'),
+      );
+      final whisper = _FakeTranscriptionService(
+        result: _result(
+          LyricLine(
+            text: 'unreachable',
+            startTime: Duration.zero,
+            endTime: const Duration(seconds: 1),
+          ),
+        ),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: qwen,
+        fallback: whisper,
+      );
+
+      await expectLater(
+        service.transcribe(_request(tempDirectory.path)),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      expect(whisper.requests, isEmpty);
+
+      await service.dispose();
+    });
+
+    test('reports both engines when the degraded run also fails', () async {
+      final qwen = _FakeTranscriptionService(
+        error: const TranscriptionException.environment('Qwen runtime 崩溃'),
+      );
+      final whisper = _FakeTranscriptionService(
+        error: const TranscriptionException.environment('Whisper runtime 缺失'),
+      );
+      final service = HighQualityTranscriptionService(
+        primary: qwen,
+        fallback: whisper,
+      );
+
+      await expectLater(
+        service.transcribe(_request(tempDirectory.path)),
+        throwsA(
+          isA<TranscriptionException>()
+              .having(
+                (error) => error.kind,
+                'kind',
+                TranscriptionFailureKind.environment,
+              )
+              .having(
+                (error) => error.toString(),
+                'message',
+                allOf(
+                  contains('Qwen runtime 崩溃'),
+                  contains('Whisper runtime 缺失'),
+                ),
+              ),
+        ),
+      );
+
+      await service.dispose();
+    });
+
+    test(
+      'a missing Whisper baseline is a blocking environment error',
+      () async {
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(
+            error: const TranscriptionException('unused'),
+          ),
+          fallback: _FakeTranscriptionService(
+            error: const TranscriptionException('unused'),
+          ),
+        );
+
+        await expectLater(
+          service.transcribe(
+            _request(tempDirectory.path, whisperConfigured: false),
+          ),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.environment,
+            ),
+          ),
+        );
+
+        await service.dispose();
+      },
+    );
+  });
 }
 
 TranscriptionRequest _request(
@@ -789,6 +1025,8 @@ TranscriptionRequest _request(
   String? qwenModelPath,
   String? qwenAlignerModelPath,
   String? whisperModelPath,
+  String qwenExecutable = 'qwen3-asr',
+  bool whisperConfigured = true,
   bool includeNormalizedInput = true,
   String inputAudioPath = 'unused-by-fake.wav',
 }) {
@@ -801,7 +1039,7 @@ TranscriptionRequest _request(
     config: TranscriptionConfig(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
-      qwenExecutable: 'qwen3-asr',
+      qwenExecutable: qwenExecutable,
       qwenModelPath:
           qwenModelPath ??
           (engineOrder == TranscriptionEngineOrder.whisperPrimary
@@ -809,8 +1047,10 @@ TranscriptionRequest _request(
               : 'Qwen/Qwen3-ASR-1.7B'),
       qwenAlignerModelPath:
           qwenAlignerModelPath ?? 'Qwen/Qwen3-ForcedAligner-0.6B',
-      whisperExecutable: 'whisper-cli',
-      modelPath: whisperModelPath ?? 'ggml-large-v3.bin',
+      whisperExecutable: whisperConfigured ? 'whisper-cli' : '',
+      modelPath: whisperConfigured
+          ? (whisperModelPath ?? 'ggml-large-v3.bin')
+          : '',
     ),
   );
 }

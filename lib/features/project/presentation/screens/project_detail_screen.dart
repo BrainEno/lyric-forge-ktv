@@ -9,6 +9,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
@@ -20,10 +21,7 @@ import '../../domain/repositories/project_repository.dart';
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
 
-  const ProjectDetailScreen({
-    super.key,
-    required this.projectId,
-  });
+  const ProjectDetailScreen({super.key, required this.projectId});
 
   @override
   State<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
@@ -57,8 +55,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     _asrRuntimeManager = ServiceLocatorGlobal.I.asrRuntimeManager;
     _loadProject();
 
-    _progressSubscription =
-        _transcriptionWorkflow.progressStream.listen((progress) {
+    _progressSubscription = _transcriptionWorkflow.progressStream.listen((
+      progress,
+    ) {
       if (!mounted) return;
       setState(() => _liveProgress = progress);
     });
@@ -85,17 +84,15 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     final config = await showDialog<TranscriptionConfig>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AsrRuntimeSetupDialog(
-        initialConfig: current,
-      ),
+      builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
     );
     if (config == null) return current;
 
     await _transcriptionSettingsStore.save(config);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('本地歌词识别环境已保存')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('本地歌词识别环境已保存')));
     }
     return config;
   }
@@ -132,7 +129,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (config == null) return;
     } else {
       final runtimeStatus = await _asrRuntimeManager.inspect(config);
-      if (!runtimeStatus.isReady) {
+      // Only the Whisper baseline blocks the button. Sending the user into
+      // setup because the optional second engine is missing would refuse work
+      // the app can actually finish (with a recorded degradation).
+      if (!runtimeStatus.isBaselineReady) {
         config = await _configureTranscription();
         if (config == null) return;
       }
@@ -151,9 +151,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       await _transcriptionWorkflow.transcribeProject(project.id);
       await _refreshProject();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')));
       }
     } on TranscriptionException catch (error) {
       if (mounted) {
@@ -251,9 +251,9 @@ class _ErrorState extends StatelessWidget {
             Text(
               '工程文件暂时无法读取，请重新加载。',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.tonalIcon(
@@ -356,8 +356,9 @@ class _ProjectDetailContent extends StatelessWidget {
                               _ProcessingProgress(
                                 stage: project.currentStage,
                                 progress: project.progressPercent,
-                                liveProgress:
-                                    isTranscribing ? liveProgress : null,
+                                liveProgress: isTranscribing
+                                    ? liveProgress
+                                    : null,
                               ),
                               const SizedBox(height: AppSpacing.md),
                               _LyricStatusCard(project: project),
@@ -371,8 +372,7 @@ class _ProjectDetailContent extends StatelessWidget {
                                 isDesktop: isDesktop,
                                 isTranscribing: isTranscribing,
                                 onTranscribe: onTranscribe,
-                                onCancelTranscription:
-                                    onCancelTranscription,
+                                onCancelTranscription: onCancelTranscription,
                                 onConfigureTranscription:
                                     onConfigureTranscription,
                               ),
@@ -439,9 +439,9 @@ class _ProjectHero extends StatelessWidget {
             Text(
               '歌曲工程',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textTertiary,
-                    letterSpacing: 0.6,
-                  ),
+                color: AppColors.textTertiary,
+                letterSpacing: 0.6,
+              ),
             ),
             _StatusPill(status: project.status),
             if (project.lyricDocument?.lines.isNotEmpty == true)
@@ -456,22 +456,20 @@ class _ProjectHero extends StatelessWidget {
           project.name,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: (spec.isCompact
-                  ? Theme.of(context).textTheme.headlineSmall
-                  : Theme.of(context).textTheme.headlineMedium)
-              ?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-          ),
+          style:
+              (spec.isCompact
+                      ? Theme.of(context).textTheme.headlineSmall
+                      : Theme.of(context).textTheme.headlineMedium)
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
           _subtitle(project),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         Wrap(
@@ -542,10 +540,7 @@ class _ProjectArtwork extends StatelessWidget {
   final ProjectManifest project;
   final bool compact;
 
-  const _ProjectArtwork({
-    required this.project,
-    required this.compact,
-  });
+  const _ProjectArtwork({required this.project, required this.compact});
 
   @override
   Widget build(BuildContext context) {
@@ -556,10 +551,10 @@ class _ProjectArtwork extends StatelessWidget {
     final size = spec.isShort
         ? 96.0
         : compact
-            ? 112.0
-            : spec.isExtraLarge
-                ? 180.0
-                : 164.0;
+        ? 112.0
+        : spec.isExtraLarge
+        ? 180.0
+        : 164.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -601,9 +596,9 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         _statusLabel(status),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -636,9 +631,9 @@ class _MiniPill extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -707,8 +702,8 @@ class _ProcessingProgress extends StatelessWidget {
                     Text(
                       '制作进度',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -716,8 +711,8 @@ class _ProcessingProgress extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -725,9 +720,9 @@ class _ProcessingProgress extends StatelessWidget {
               Text(
                 '${(displayProgress * 100).round()}%',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -779,7 +774,9 @@ class _StagePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = completed || active ? AppColors.accent : AppColors.textTertiary;
+    final color = completed || active
+        ? AppColors.accent
+        : AppColors.textTertiary;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
@@ -803,11 +800,11 @@ class _StagePill extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: completed || active
-                      ? FontWeight.w700
-                      : FontWeight.w500,
-                ),
+              color: color,
+              fontWeight: completed || active
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -839,8 +836,7 @@ class _LyricStatusCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: (hasLyrics ? AppColors.accent : AppColors.info)
                       .withAlpha(22),
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMedium),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 ),
                 child: Icon(
                   hasLyrics ? Icons.lyrics_rounded : Icons.edit_note_rounded,
@@ -855,8 +851,8 @@ class _LyricStatusCard extends StatelessWidget {
                     Text(
                       hasLyrics ? '歌词草稿已生成' : '还没有歌词草稿',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -864,8 +860,8 @@ class _LyricStatusCard extends StatelessWidget {
                           ? '自动识别结果仍建议进入歌词编辑器逐行校对。'
                           : '在桌面端完成本地识别后，会在这里生成可编辑时间轴。',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -916,9 +912,9 @@ class _MetricChip extends StatelessWidget {
       ),
       child: Text(
         '$label · $value',
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -957,16 +953,16 @@ class _ActionPanel extends StatelessWidget {
         children: [
           Text(
             '下一步',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
             _nextStepText(project),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
           const SizedBox(height: AppSpacing.md),
           if (project.hasLyrics)
@@ -1005,9 +1001,9 @@ class _ActionPanel extends StatelessWidget {
               style: outlinedStyle,
               onPressed: project.canPlay
                   ? () => Navigator.pushNamed(
-                        context,
-                        Routes.playerPath(project.id),
-                      )
+                      context,
+                      Routes.playerPath(project.id),
+                    )
                   : null,
               icon: const Icon(Icons.play_arrow_rounded),
               label: Text(project.canPlay ? '打开播放器' : '等待伴奏处理'),
@@ -1066,9 +1062,9 @@ class _DesktopRequiredNotice extends StatelessWidget {
       ),
       child: Text(
         '本地歌词自动识别需要在桌面端完成。',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -1079,9 +1075,18 @@ class _ProjectMetadata extends StatelessWidget {
 
   const _ProjectMetadata({required this.project});
 
+  static String _modeLabel(Object? mode, {required bool degraded}) {
+    final base = mode == 'highestQuality' ? '最高质量' : 'Whisper';
+    return degraded ? '$base（已降级为单引擎）' : base;
+  }
+
   @override
   Widget build(BuildContext context) {
     final transcription = project.metadata['transcription'];
+    final lyricMetadata = project.lyricDocument?.metadata;
+    final degraded = lyricMetadata != null
+        ? TranscriptionQualityMetadata.isDegraded(lyricMetadata)
+        : transcription is Map && transcription['degraded'] == true;
     final rows = <_MetadataValue>[
       _MetadataValue('创建', _formatDate(project.createdAt)),
       _MetadataValue('更新', _formatDate(project.updatedAt)),
@@ -1092,10 +1097,19 @@ class _ProjectMetadata extends StatelessWidget {
       if (transcription is Map && transcription['mode'] != null)
         _MetadataValue(
           '识别模式',
-          transcription['mode'] == 'highestQuality' ? '最高质量' : 'Whisper',
+          _modeLabel(transcription['mode'], degraded: degraded),
         ),
-      if (transcription is Map &&
-          transcription['hardwareProfileLabel'] != null)
+      if (degraded)
+        _MetadataValue(
+          '识别降级',
+          (lyricMetadata == null
+                  ? null
+                  : TranscriptionQualityMetadata.explanationOf(
+                      lyricMetadata,
+                    )) ??
+              '已降级为单引擎识别',
+        ),
+      if (transcription is Map && transcription['hardwareProfileLabel'] != null)
         _MetadataValue(
           '本机方案',
           transcription['hardwareProfileLabel'].toString(),
@@ -1118,9 +1132,9 @@ class _ProjectMetadata extends StatelessWidget {
               Expanded(
                 child: Text(
                   '工程信息',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               Tooltip(
@@ -1168,16 +1182,16 @@ class _MetadataRow extends StatelessWidget {
           children: [
             Text(
               row.label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: 2),
             Text(
               row.value,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -1193,9 +1207,9 @@ class _MetadataRow extends StatelessWidget {
             width: 74,
             child: Text(
               row.label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -1203,9 +1217,9 @@ class _MetadataRow extends StatelessWidget {
             child: Text(
               row.value,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],

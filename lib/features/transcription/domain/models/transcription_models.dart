@@ -121,14 +121,28 @@ class TranscriptionConfig {
       qwenModelPath.trim().isNotEmpty &&
       qwenAlignerModelPath.trim().isNotEmpty;
 
+  /// Whether both engines are wired up, i.e. a highest-quality run will really
+  /// compare two opinions.
   bool get isHighQualityConfigured => isQwenConfigured && isWhisperConfigured;
 
-  bool get isConfigured {
-    return switch (mode) {
-      TranscriptionMode.highestQuality => isHighQualityConfigured,
-      TranscriptionMode.whisperOnly => isWhisperConfigured,
-    };
-  }
+  /// Whether this configuration can produce lyrics at all.
+  ///
+  /// Whisper is the baseline every local setup can reach, so a highest-quality
+  /// configuration is usable without Qwen: the run degrades to Whisper and
+  /// records why. Treating the missing second engine as a configuration error
+  /// meant one driver update or a moved model file left the user with "no song
+  /// can be recognised", even though Whisper was fine all along.
+  bool get isConfigured => isWhisperConfigured;
+
+  /// True when this request will actually run two engines.
+  bool get runsDualEngine =>
+      mode == TranscriptionMode.highestQuality && isHighQualityConfigured;
+
+  /// True when the request asks for two engines but will be downgraded.
+  bool get willDegradeToWhisper =>
+      mode == TranscriptionMode.highestQuality &&
+      isWhisperConfigured &&
+      !isQwenConfigured;
 
   TranscriptionConfig copyWith({
     TranscriptionMode? mode,

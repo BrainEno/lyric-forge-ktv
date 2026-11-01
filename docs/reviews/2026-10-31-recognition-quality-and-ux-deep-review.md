@@ -26,7 +26,7 @@
 | **P0** | R3 | 分片合并只保留 `mergeStrategy` 一个 metadata（`resumable_chunked_transcription_service.dart:483`） | 双引擎候选、模型身份、可疑行索引全部丢失；≥3 分钟的歌等于没有双引擎复核。**已修复** |
 | **P0** | R4 | 分片检查点指纹不含 ASR 配置（同文件 `:83` / `:495`） | 换模型/换引擎顺序后「重新识别」静默返回旧结果。**已修复** |
 | **P0** | R5 | 自动安装只认 RTX 5080 / Intel Mac（`managed_asr_runtime_manager.dart:1314`） | 绝大多数机器「一键准备」直接报错，连 Whisper 单模型也装不了 |
-| **P0** | R6 | 最高质量模式在 Qwen 不可用时整体失败，不做降级（`high_quality_transcription_service.dart:64`） | 驱动更新/显存不足 = 一首歌都识别不出来，而 Whisper 本来能跑 |
+| **P0** | R6 | 最高质量模式在 Qwen 不可用时整体失败，不做降级（`high_quality_transcription_service.dart:64`） | 驱动更新/显存不足 = 一首歌都识别不出来，而 Whisper 本来能跑。**已修复** |
 | **P1** | R7 | Whisper 参数从未优化：贪心解码、无 `--prompt`、无 VAD、`-l auto` | 精度上限被锁死；乐器段幻觉；专有名词全错 |
 | **P1** | R8 | Qwen 无置信度时统一记 50（`qwen3_...:941`），而阈值是 70 | 每一行都显示「低置信度」，复核队列 = 全部歌词 |
 | **P1** | R9 | `max_new_tokens: 1024` 固定值（`qwen3_...:593`） | 长歌尾部可能被静默截断 |
@@ -308,6 +308,33 @@ if (!request.config.isHighQualityConfigured) {
 结果：一次驱动更新、一次显存不足、一次模型路径被移动，用户就「一首歌都识别不出来」，而实际上 Whisper 完全可用。
 
 **建议**：模式语义改为能力声明——「双引擎可用则双引擎，否则自动降级为 Whisper 并把降级原因写进结果 metadata 与 UI」。这才是「最高质量」应有的行为。
+
+**处理（2026-11-01）**
+
+把「最高质量」从**前置条件**改成**能力声明**，并在四处同时改，否则任何一处漏掉都会让降级走不到：
+
+| 层 | 之前 | 现在 |
+|---|---|---|
+| `TranscriptionConfig.isConfigured` | 最高质量必须两引擎齐全 | 只要 Whisper 基线可用（`isWhisperConfigured`）；另加 `runsDualEngine` / `willDegradeToWhisper` 供调用方判断 |
+| `AsrRuntimeStatus` | `isReady` = 所有组件就绪 | 新增 `isBaselineReady` = ffmpeg + Whisper runtime + 模型；`missingBaselineComponents` 用于报错文案 |
+| 工作流 / 导入预检 / 队列恢复 / 「开始识别」按钮 | 任一组件缺失就拦下 | 只有基线缺失才拦；第二引擎缺失直接放行 |
+| `HighQualityTranscriptionService` | 未配置就抛错；Qwen 失败就抛错 | 两条路径都降级为 Whisper 并记录原因 |
+
+**降级分两种，都写进文档 metadata**：
+
+- 配置级：Qwen 没配 → 直接走 Whisper（`degradationReason: qwenNotConfigured`）。
+- 运行级：Qwen 抛错 → 用同一份已归一化音频走 Whisper（`qwenUnavailable`，`degradationDetail` 里带原始错误，例如「CUDA 显存不足」）。
+
+**哪些错误不降级**（这是本次唯一的判断分歧点，写明理由）：
+
+- `input`（音频缺失/损坏）—— 两个引擎会以同样方式失败，跑第二遍只是把同样的错误再收集一次，还多花一遍时间。
+- `cancelled` —— 用户取消不是「换个引擎再试」的理由。
+
+**Whisper 自己失败时仍然致命**，但错误信息会同时带上降级原因与 Whisper 的原始错误，避免用户只看到「降级也失败了」。
+
+**UI**：工程信息面板新增「识别降级」一行并显示具体原因；「识别模式」显示为「最高质量（已降级为单引擎）」。两个「第二意见失败」的分支（Qwen 主 + Whisper 失败、Whisper 主 + Qwen 失败）也统一打上 `degraded` 标记，避免同样的情况在两个方向上表现不一致。
+
+**取舍**：降级后的文档 `qualityMode` 仍记为请求的模式，真实情况由 `degraded` + `degradationReason` 表达。反过来（把 `qualityMode` 改成 whisperOnly）会让「用户当初选了什么」这条信息丢失，而工程信息的价值恰恰在于两者都能看到。
 
 ---
 

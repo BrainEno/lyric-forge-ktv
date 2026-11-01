@@ -9,6 +9,7 @@ import '../../../player/domain/services/playback_lyrics_project_linker.dart';
 import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
+import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
@@ -87,15 +88,15 @@ class LocalProjectTranscriptionWorkflow
       }
 
       final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
-      if (!runtimeStatus.isReady) {
-        final failed = runtimeStatus.components
-            .where(
-              (component) => component.state != AsrRuntimeComponentState.ready,
-            )
+      // Only the Whisper baseline may block recognition. A missing second
+      // engine is not a reason to refuse the song: the transcription service
+      // degrades to Whisper and records why, so the user still gets a draft.
+      if (!runtimeStatus.isBaselineReady) {
+        final failed = runtimeStatus.missingBaselineComponents
             .map((component) => '${component.label}: ${component.detail}')
             .join('; ');
         throw TranscriptionException.environment(
-          '本机识别环境缺少必要组件，请先运行自动安装或修复',
+          '本机识别环境缺少 Whisper 基线组件，请先运行自动安装或修复',
           details: failed.isEmpty ? null : failed,
         );
       }
@@ -160,6 +161,12 @@ class LocalProjectTranscriptionWorkflow
                   editableLyrics.metadata['primaryEngine'] ??
                   editableLyrics.metadata['generatedBy'] ??
                   'local-asr',
+              'degraded': TranscriptionQualityMetadata.isDegraded(
+                editableLyrics.metadata,
+              ),
+              'degradationReason': TranscriptionQualityMetadata.reasonOf(
+                editableLyrics.metadata,
+              )?.name,
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
               'inputPath': inputPath,

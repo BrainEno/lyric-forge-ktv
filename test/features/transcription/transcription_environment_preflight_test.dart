@@ -15,28 +15,25 @@ void main() {
     modelPath: 'whisper.bin',
   );
 
-  test('unconfigured store returns without touching the runtime manager',
-      () async {
-    final store = _FakeSettingsStore();
-    final runtime = _FakeRuntimeManager(
-      status: _status(baseConfig, ready: true),
-    );
-    final preflight = TranscriptionEnvironmentPreflight(
-      settingsStore: store,
-      runtimeManager: runtime,
-    );
+  test(
+    'unconfigured store returns without touching the runtime manager',
+    () async {
+      final store = _FakeSettingsStore();
+      final runtime = _FakeRuntimeManager(status: _status(baseConfig));
+      final preflight = TranscriptionEnvironmentPreflight(
+        settingsStore: store,
+        runtimeManager: runtime,
+      );
 
-    final result = await preflight.inspect();
+      final result = await preflight.inspect();
 
-    expect(
-      result.state,
-      TranscriptionEnvironmentReadinessState.unconfigured,
-    );
-    expect(result.config, isNull);
-    expect(runtime.repairCalls, 0);
-    expect(runtime.inspectCalls, 0);
-    expect(store.saveCalls, 0);
-  });
+      expect(result.state, TranscriptionEnvironmentReadinessState.unconfigured);
+      expect(result.config, isNull);
+      expect(runtime.repairCalls, 0);
+      expect(runtime.inspectCalls, 0);
+      expect(store.saveCalls, 0);
+    },
+  );
 
   test('ready runtime persists repaired paths and reports ready', () async {
     final repaired = baseConfig.copyWith(
@@ -46,7 +43,7 @@ void main() {
     final store = _FakeSettingsStore(baseConfig);
     final runtime = _FakeRuntimeManager(
       repaired: repaired,
-      status: _status(repaired, ready: true),
+      status: _status(repaired),
     );
     final preflight = TranscriptionEnvironmentPreflight(
       settingsStore: store,
@@ -65,11 +62,12 @@ void main() {
     expect(runtime.inspectCalls, 1);
   });
 
-  test('missing component reports setup required without losing config',
-      () async {
+  test('missing second engine still counts as importable', () async {
+    // Highest quality degrades to Whisper, so a missing Qwen model must not
+    // send the user back into setup before every song.
     final store = _FakeSettingsStore(baseConfig);
     final runtime = _FakeRuntimeManager(
-      status: _status(baseConfig, ready: false),
+      status: _status(baseConfig, qwenReady: false),
     );
     final preflight = TranscriptionEnvironmentPreflight(
       settingsStore: store,
@@ -78,23 +76,40 @@ void main() {
 
     final result = await preflight.inspect();
 
-    expect(
-      result.state,
-      TranscriptionEnvironmentReadinessState.needsSetup,
-    );
-    expect(result.isReady, isFalse);
+    expect(result.state, TranscriptionEnvironmentReadinessState.ready);
+    expect(result.isReady, isTrue);
+    expect(result.blockingComponents, isEmpty);
     expect(result.config, isNotNull);
-    expect(result.blockingComponents, hasLength(1));
-    expect(
-      result.blockingComponents.single.component,
-      AsrRuntimeComponent.qwenModel,
-    );
   });
+
+  test(
+    'missing Whisper baseline requires setup without losing config',
+    () async {
+      final store = _FakeSettingsStore(baseConfig);
+      final runtime = _FakeRuntimeManager(
+        status: _status(baseConfig, whisperReady: false),
+      );
+      final preflight = TranscriptionEnvironmentPreflight(
+        settingsStore: store,
+        runtimeManager: runtime,
+      );
+
+      final result = await preflight.inspect();
+
+      expect(result.state, TranscriptionEnvironmentReadinessState.needsSetup);
+      expect(result.isReady, isFalse);
+      expect(result.config, isNotNull);
+      expect(
+        result.blockingComponents.single.component,
+        AsrRuntimeComponent.whisperModel,
+      );
+    },
+  );
 
   test('runtime inspection failure becomes actionable failed state', () async {
     final store = _FakeSettingsStore(baseConfig);
     final runtime = _FakeRuntimeManager(
-      status: _status(baseConfig, ready: true),
+      status: _status(baseConfig),
       inspectError: const TranscriptionException('runtime probe failed'),
     );
     final preflight = TranscriptionEnvironmentPreflight(
@@ -112,7 +127,8 @@ void main() {
 
 AsrRuntimeStatus _status(
   TranscriptionConfig config, {
-  required bool ready,
+  bool whisperReady = true,
+  bool qwenReady = true,
 }) {
   const hardware = TranscriptionHardwareInfo(
     operatingSystem: 'windows',
@@ -138,13 +154,27 @@ AsrRuntimeStatus _status(
         label: 'FFmpeg',
         detail: 'ready',
       ),
+      const AsrRuntimeComponentStatus(
+        component: AsrRuntimeComponent.whisperRuntime,
+        state: AsrRuntimeComponentState.ready,
+        label: 'Whisper runtime',
+        detail: 'ready',
+      ),
+      AsrRuntimeComponentStatus(
+        component: AsrRuntimeComponent.whisperModel,
+        state: whisperReady
+            ? AsrRuntimeComponentState.ready
+            : AsrRuntimeComponentState.missing,
+        label: 'Whisper large-v3',
+        detail: whisperReady ? 'ready' : 'missing',
+      ),
       AsrRuntimeComponentStatus(
         component: AsrRuntimeComponent.qwenModel,
-        state: ready
+        state: qwenReady
             ? AsrRuntimeComponentState.ready
             : AsrRuntimeComponentState.missing,
         label: 'Qwen3-ASR 1.7B',
-        detail: ready ? 'ready' : 'missing',
+        detail: qwenReady ? 'ready' : 'missing',
       ),
     ],
   );
@@ -181,11 +211,7 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   int repairCalls = 0;
   int inspectCalls = 0;
 
-  _FakeRuntimeManager({
-    this.repaired,
-    required this.status,
-    this.inspectError,
-  });
+  _FakeRuntimeManager({this.repaired, required this.status, this.inspectError});
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => _progress.stream;

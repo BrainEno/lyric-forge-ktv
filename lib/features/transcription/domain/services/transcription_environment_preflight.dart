@@ -26,16 +26,12 @@ class TranscriptionEnvironmentReadiness {
 
   bool get isConfigured => config != null;
 
-  List<AsrRuntimeComponentStatus> get blockingComponents {
-    final components = status?.components;
-    if (components == null) return const <AsrRuntimeComponentStatus>[];
-    return components
-        .where(
-          (component) =>
-              component.state != AsrRuntimeComponentState.ready,
-        )
-        .toList(growable: false);
-  }
+  /// Components that actually block recognition.
+  ///
+  /// A missing optional second engine is reported separately by the runtime
+  /// panel; it degrades a run rather than preventing it.
+  List<AsrRuntimeComponentStatus> get blockingComponents =>
+      status?.missingBaselineComponents ?? const <AsrRuntimeComponentStatus>[];
 }
 
 /// Performs the same runtime readiness check used immediately before local ASR,
@@ -69,7 +65,10 @@ class TranscriptionEnvironmentPreflight {
       await settingsStore.save(repaired);
       final status = await runtimeManager.inspect(repaired);
       return TranscriptionEnvironmentReadiness(
-        state: status.isReady
+        // The baseline is what decides whether lyrics can be produced at all.
+        // A missing second engine only degrades the result, so gating import on
+        // it would block precisely the setups that already work.
+        state: status.isBaselineReady
             ? TranscriptionEnvironmentReadinessState.ready
             : TranscriptionEnvironmentReadinessState.needsSetup,
         config: repaired,

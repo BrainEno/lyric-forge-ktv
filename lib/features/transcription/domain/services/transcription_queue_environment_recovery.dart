@@ -40,7 +40,9 @@ class TranscriptionQueueEnvironmentRecovery {
     final status = await runtimeManager.inspect(repaired);
     await settingsStore.save(repaired);
 
-    if (!status.isReady) {
+    // Resume as soon as the Whisper baseline is usable. The queue is paused on
+    // environment faults, and a broken optional engine no longer causes one.
+    if (!status.isBaselineReady) {
       return TranscriptionQueueEnvironmentRecoveryResult(
         config: repaired,
         ready: false,
