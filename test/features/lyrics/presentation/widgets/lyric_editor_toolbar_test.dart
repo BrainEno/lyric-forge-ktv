@@ -145,9 +145,9 @@ void main() {
   testWidgets('偏移按钮显示当前值，并按 100ms 步进', (tester) async {
     await pumpAt(tester, buildToolbar(), const Size(1280, 900));
 
-    expect(find.text('偏移 +0.2s'), findsOneWidget);
+    expect(find.text('偏移 +200ms'), findsOneWidget);
 
-    await tester.tap(find.text('偏移 +0.2s'));
+    await tester.tap(find.text('偏移 +200ms'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('提前 100ms'));
     await tester.pumpAndSettle();
