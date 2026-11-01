@@ -6,6 +6,9 @@ on:
       - arena/1680b6b3-lyric-forge-ktv
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -25,6 +28,19 @@ jobs:
           if git diff --quiet; then code=0; else code=1; fi
           echo "exit=$code" >> /tmp/format.txt
           exit $code
+      - name: Apply the formatter and push it back
+        if: steps.format.outcome == 'failure'
+        run: |
+          set -e
+          dart format lib/features/transcription lib/features/project/presentation/screens/project_detail_screen.dart test/asr_runtime_status_test.dart test/high_quality_transcription_service_test.dart test/transcription_config_test.dart test/features/transcription
+          if git diff --quiet; then
+            echo 'No formatting changes to push.'
+            exit 0
+          fi
+          git config user.name 'lyric-forge-format-bot'
+          git config user.email 'format-bot@users.noreply.github.com'
+          git commit -am 'chore: apply dart format [skip ci]'
+          git push origin HEAD:arena/1680b6b3-lyric-forge-ktv
       - name: Analyze
         id: analyze
         continue-on-error: true

@@ -972,8 +972,8 @@ void main() {
               .having((error) => error.kind, 'kind',
                   TranscriptionFailureKind.environment)
               .having(
-                (error) => error.details ?? '',
-                'details',
+                (error) => error.toString(),
+                'message',
                 allOf(contains('Qwen runtime 崩溃'), contains('Whisper runtime 缺失')),
               ),
         ),
