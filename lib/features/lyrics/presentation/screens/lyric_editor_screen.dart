@@ -2352,8 +2352,7 @@ class _LyricEditorContent extends StatelessWidget {
       },
       child: CallbackShortcuts(
         bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyS, control: true):
-              onSave,
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): onSave,
           const SingleActivator(LogicalKeyboardKey.keyS, meta: true): onSave,
         },
         child: Scaffold(
@@ -2368,220 +2367,221 @@ class _LyricEditorContent extends StatelessWidget {
                 Text(
                   project.name,
                   maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          if ((spec.isCompactOrMedium || spec.isShort) &&
-              onReferenceAlignment != null)
-            IconButton(
-              tooltip: '参考歌词纠正',
-              onPressed: onReferenceAlignment,
-              icon: const Icon(Icons.auto_fix_high_rounded),
-            ),
-          if ((spec.isCompactOrMedium || spec.isShort) &&
-              onReferenceProofread != null)
-            IconButton(
-              tooltip: '逐行智能纠错（保留时间戳）',
-              onPressed: onReferenceProofread,
-              icon: const Icon(Icons.spellcheck_rounded),
-            ),
-          if ((spec.isCompactOrMedium || spec.isShort) &&
-              onViewAlignmentComparison != null)
-            IconButton(
-              tooltip: '查看本次逐行对比',
-              onPressed: onViewAlignmentComparison,
-              icon: const Icon(Icons.compare_arrows_rounded),
-            ),
-          if ((spec.isCompactOrMedium || spec.isShort) &&
-              onUndoReferenceAlignment != null)
-            IconButton(
-              tooltip: '撤销本次参考对齐',
-              onPressed: onUndoReferenceAlignment,
-              icon: const Icon(Icons.undo_rounded),
-            ),
-          if ((spec.isCompactOrMedium || spec.isShort) &&
-              onRestoreAlignment != null)
-            IconButton(
-              tooltip: '恢复对齐前版本',
-              onPressed: onRestoreAlignment,
-              icon: const Icon(Icons.history_rounded),
-            ),
-          if (document.lines.isNotEmpty)
-            IconButton(
-              tooltip: '导出 LRC',
-              onPressed: onExport,
-              icon: const Icon(Icons.download_rounded),
-            ),
-          if (hasChanges)
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: spec.isCompact
-                  ? IconButton.filledTonal(
-                      tooltip: '保存修改',
-                      onPressed: onSave,
-                      icon: const Icon(Icons.save_rounded),
-                    )
-                  : FilledButton.icon(
-                      onPressed: onSave,
-                      icon: const Icon(Icons.save_rounded, size: 18),
-                      label: const Text('保存修改'),
-                    ),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _EditorToolbar(
-              document: document,
-              playback: playback,
-              playbackBelongsToProject: playbackBelongsToProject,
-              lowConfidenceCount: lowConfidenceCount,
-              reviewCount: reviewCount,
-              smartReviewCount: reviewPriorityByIndex.length,
-              filter: filter,
-              loopCurrentLineAudition: loopCurrentLineAudition,
-              onLoopCurrentLineAuditionChanged:
-                  onLoopCurrentLineAuditionChanged,
-              followPlayback: followPlayback,
-              onFilterChanged: onFilterChanged,
-              onFollowPlaybackChanged: onFollowPlaybackChanged,
-              onUpdateOffset: onUpdateOffset,
-              onTogglePlayback: onTogglePlayback,
-              onInsertAtPlayback: playbackBelongsToProject
-                  ? onInsertAtPlayback
-                  : null,
-              onSeekPlayback: onSeekPlayback,
-              onReferenceAlignment: onReferenceAlignment,
-              onReferenceProofread: onReferenceProofread,
-              onProofreadV2: onProofreadV2,
-              onUndoReferenceAlignment: onUndoReferenceAlignment,
-              onViewAlignmentComparison: onViewAlignmentComparison,
-              onRestoreAlignment: onRestoreAlignment,
-              onOpenPlayer: project.canPlay
-                  ? () => Navigator.pushNamed(
-                      context,
-                      Routes.playerPath(project.id),
-                    )
-                  : null,
-            ),
-            Expanded(
-              child: document.lines.isEmpty
-                  ? _EmptyLyricsState(onAddLine: onAddLine)
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        final layout = AppResponsive.fromConstraints(
-                          constraints,
-                        );
-                        final twoPane = layout.supportsTwoPane;
-                        final list = _LyricListPane(
-                          document: document,
-                          visibleIndices: visibleIndices,
-                          selectedIndex: selectedIndex,
-                          currentPlaybackLine: currentPlaybackLine,
-                          followPlayback: followPlayback,
-                          focusRequestId: focusRequestId,
-                          focusLineIndex: focusLineIndex,
-                          fallbackCandidateFor: _fallbackCandidateFor,
-                          reviewPriorityByIndex: reviewPriorityByIndex,
-                          filter: filter,
-                          activeAuditionLineIndex: activeAuditionLineIndex,
-                          auditionPlaying: auditionPlaying,
-                          onPreviewLine: project.audioAsset == null
-                              ? null
-                              : onPreviewLine,
-                          onInsertedLineFocus: twoPane
-                              ? onSelectLine
-                              : (index) => _showInspectorSheet(
-                                  context,
-                                  index,
-                                  autofocusText: true,
-                                ),
-                          onSelectLine: twoPane
-                              ? onSelectLine
-                              : (index) => _showInspectorSheet(context, index),
-                          onUpdateLine: onUpdateLine,
-                          onDeleteLine: onDeleteLine,
-                          onSetStartFromPlayback: project.audioAsset == null
-                              ? null
-                              : onSetStartFromPlayback,
-                          onSetEndFromPlayback: project.audioAsset == null
-                              ? null
-                              : onSetEndFromPlayback,
-                          manuallyEditedLineIndices:
-                              manuallyEditedLineIndices,
-                        );
+            actions: [
+              if ((spec.isCompactOrMedium || spec.isShort) &&
+                  onReferenceAlignment != null)
+                IconButton(
+                  tooltip: '参考歌词纠正',
+                  onPressed: onReferenceAlignment,
+                  icon: const Icon(Icons.auto_fix_high_rounded),
+                ),
+              if ((spec.isCompactOrMedium || spec.isShort) &&
+                  onReferenceProofread != null)
+                IconButton(
+                  tooltip: '逐行智能纠错（保留时间戳）',
+                  onPressed: onReferenceProofread,
+                  icon: const Icon(Icons.spellcheck_rounded),
+                ),
+              if ((spec.isCompactOrMedium || spec.isShort) &&
+                  onViewAlignmentComparison != null)
+                IconButton(
+                  tooltip: '查看本次逐行对比',
+                  onPressed: onViewAlignmentComparison,
+                  icon: const Icon(Icons.compare_arrows_rounded),
+                ),
+              if ((spec.isCompactOrMedium || spec.isShort) &&
+                  onUndoReferenceAlignment != null)
+                IconButton(
+                  tooltip: '撤销本次参考对齐',
+                  onPressed: onUndoReferenceAlignment,
+                  icon: const Icon(Icons.undo_rounded),
+                ),
+              if ((spec.isCompactOrMedium || spec.isShort) &&
+                  onRestoreAlignment != null)
+                IconButton(
+                  tooltip: '恢复对齐前版本',
+                  onPressed: onRestoreAlignment,
+                  icon: const Icon(Icons.history_rounded),
+                ),
+              if (document.lines.isNotEmpty)
+                IconButton(
+                  tooltip: '导出 LRC',
+                  onPressed: onExport,
+                  icon: const Icon(Icons.download_rounded),
+                ),
+              if (hasChanges)
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: spec.isCompact
+                      ? IconButton.filledTonal(
+                          tooltip: '保存修改',
+                          onPressed: onSave,
+                          icon: const Icon(Icons.save_rounded),
+                        )
+                      : FilledButton.icon(
+                          onPressed: onSave,
+                          icon: const Icon(Icons.save_rounded, size: 18),
+                          label: const Text('保存修改'),
+                        ),
+                ),
+            ],
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                _EditorToolbar(
+                  document: document,
+                  playback: playback,
+                  playbackBelongsToProject: playbackBelongsToProject,
+                  lowConfidenceCount: lowConfidenceCount,
+                  reviewCount: reviewCount,
+                  smartReviewCount: reviewPriorityByIndex.length,
+                  filter: filter,
+                  loopCurrentLineAudition: loopCurrentLineAudition,
+                  onLoopCurrentLineAuditionChanged:
+                      onLoopCurrentLineAuditionChanged,
+                  followPlayback: followPlayback,
+                  onFilterChanged: onFilterChanged,
+                  onFollowPlaybackChanged: onFollowPlaybackChanged,
+                  onUpdateOffset: onUpdateOffset,
+                  onTogglePlayback: onTogglePlayback,
+                  onInsertAtPlayback: playbackBelongsToProject
+                      ? onInsertAtPlayback
+                      : null,
+                  onSeekPlayback: onSeekPlayback,
+                  onReferenceAlignment: onReferenceAlignment,
+                  onReferenceProofread: onReferenceProofread,
+                  onProofreadV2: onProofreadV2,
+                  onUndoReferenceAlignment: onUndoReferenceAlignment,
+                  onViewAlignmentComparison: onViewAlignmentComparison,
+                  onRestoreAlignment: onRestoreAlignment,
+                  onOpenPlayer: project.canPlay
+                      ? () => Navigator.pushNamed(
+                          context,
+                          Routes.playerPath(project.id),
+                        )
+                      : null,
+                ),
+                Expanded(
+                  child: document.lines.isEmpty
+                      ? _EmptyLyricsState(onAddLine: onAddLine)
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final layout = AppResponsive.fromConstraints(
+                              constraints,
+                            );
+                            final twoPane = layout.supportsTwoPane;
+                            final list = _LyricListPane(
+                              document: document,
+                              visibleIndices: visibleIndices,
+                              selectedIndex: selectedIndex,
+                              currentPlaybackLine: currentPlaybackLine,
+                              followPlayback: followPlayback,
+                              focusRequestId: focusRequestId,
+                              focusLineIndex: focusLineIndex,
+                              fallbackCandidateFor: _fallbackCandidateFor,
+                              reviewPriorityByIndex: reviewPriorityByIndex,
+                              filter: filter,
+                              activeAuditionLineIndex: activeAuditionLineIndex,
+                              auditionPlaying: auditionPlaying,
+                              onPreviewLine: project.audioAsset == null
+                                  ? null
+                                  : onPreviewLine,
+                              onInsertedLineFocus: twoPane
+                                  ? onSelectLine
+                                  : (index) => _showInspectorSheet(
+                                      context,
+                                      index,
+                                      autofocusText: true,
+                                    ),
+                              onSelectLine: twoPane
+                                  ? onSelectLine
+                                  : (index) =>
+                                        _showInspectorSheet(context, index),
+                              onUpdateLine: onUpdateLine,
+                              onDeleteLine: onDeleteLine,
+                              onSetStartFromPlayback: project.audioAsset == null
+                                  ? null
+                                  : onSetStartFromPlayback,
+                              onSetEndFromPlayback: project.audioAsset == null
+                                  ? null
+                                  : onSetEndFromPlayback,
+                              manuallyEditedLineIndices:
+                                  manuallyEditedLineIndices,
+                            );
 
-                        if (!twoPane) return list;
+                            if (!twoPane) return list;
 
-                        return Row(
-                          children: [
-                            Expanded(child: list),
-                            const VerticalDivider(width: 1),
-                            SizedBox(
-                              width: layout.sidePanelWidth,
-                              child: _InspectorPane(
-                                document: document,
-                                selectedIndex: selectedIndex,
-                                fallbackCandidate: selectedIndex == null
-                                    ? null
-                                    : _fallbackCandidateFor(selectedIndex),
-                                isReviewed:
-                                    selectedIndex != null &&
-                                    _isLineReviewed(selectedIndex),
-                                onReviewDecision:
-                                    selectedIndex != null &&
-                                        (_isLineReviewed(selectedIndex) ||
-                                            reviewPriorityByIndex.containsKey(
+                            return Row(
+                              children: [
+                                Expanded(child: list),
+                                const VerticalDivider(width: 1),
+                                SizedBox(
+                                  width: layout.sidePanelWidth,
+                                  child: _InspectorPane(
+                                    document: document,
+                                    selectedIndex: selectedIndex,
+                                    fallbackCandidate: selectedIndex == null
+                                        ? null
+                                        : _fallbackCandidateFor(selectedIndex),
+                                    isReviewed:
+                                        selectedIndex != null &&
+                                        _isLineReviewed(selectedIndex),
+                                    onReviewDecision:
+                                        selectedIndex != null &&
+                                            (_isLineReviewed(selectedIndex) ||
+                                                reviewPriorityByIndex
+                                                    .containsKey(selectedIndex))
+                                        ? (reviewed) {
+                                            onReviewDecision(
                                               selectedIndex,
-                                            ))
-                                    ? (reviewed) {
-                                        onReviewDecision(
-                                          selectedIndex,
-                                          reviewed,
-                                        );
-                                      }
-                                    : null,
-                                playback: playback,
-                                playbackBelongsToProject:
-                                    playbackBelongsToProject,
-                                currentPlaybackLine: currentPlaybackLine,
-                                onUpdateLine: onUpdateLine,
-                                onDeleteLine: onDeleteLine,
-                                onPreviewLine: onPreviewLine,
-                                onSetStartFromPlayback: onSetStartFromPlayback,
-                                onSetEndFromPlayback: onSetEndFromPlayback,
-                                autofocusText:
-                                    selectedIndex != null &&
-                                    selectedIndex == focusLineIndex,
-                                focusRequestId: focusRequestId,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                                              reviewed,
+                                            );
+                                          }
+                                        : null,
+                                    playback: playback,
+                                    playbackBelongsToProject:
+                                        playbackBelongsToProject,
+                                    currentPlaybackLine: currentPlaybackLine,
+                                    onUpdateLine: onUpdateLine,
+                                    onDeleteLine: onDeleteLine,
+                                    onPreviewLine: onPreviewLine,
+                                    onSetStartFromPlayback:
+                                        onSetStartFromPlayback,
+                                    onSetEndFromPlayback: onSetEndFromPlayback,
+                                    autofocusText:
+                                        selectedIndex != null &&
+                                        selectedIndex == focusLineIndex,
+                                    focusRequestId: focusRequestId,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                ),
+                _BottomBar(
+                  totalLines: document.lines.length,
+                  visibleLines: visibleIndices.length,
+                  hasChanges: hasChanges,
+                  onAddLine: onAddLine,
+                  onInsertAtPlayback: playbackBelongsToProject
+                      ? onInsertAtPlayback
+                      : null,
+                ),
+              ],
             ),
-            _BottomBar(
-              totalLines: document.lines.length,
-              visibleLines: visibleIndices.length,
-              hasChanges: hasChanges,
-              onAddLine: onAddLine,
-              onInsertAtPlayback: playbackBelongsToProject
-                  ? onInsertAtPlayback
-                  : null,
-            ),
-          ],
+          ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
@@ -2987,7 +2987,8 @@ class _LyricListPaneState extends State<_LyricListPane> {
       oldWidget.visibleIndices,
       widget.visibleIndices,
     );
-    final searchChanged = _searchQuery.isNotEmpty &&
+    final searchChanged =
+        _searchQuery.isNotEmpty &&
         !_sameIndices(
           oldWidget.visibleIndices.where((i) {
             final q = _searchQuery.trim().toLowerCase();
@@ -3098,21 +3099,6 @@ class _LyricListPaneState extends State<_LyricListPane> {
     setState(() => _editingIndex = null);
   }
 
-  Future<void> _editTimestampDialog(int index) async {
-    if (index < 0 || index >= widget.document.lines.length) return;
-    final line = widget.document.lines[index];
-    final result = await showDialog<Duration>(
-      context: context,
-      builder: (dialogContext) => _TimestampEditDialog(
-        title: index == line.startTime.hashCode ? '编辑开始时间' : '编辑时间',
-        initial: line.startTime,
-        label: '开始时间',
-      ),
-    );
-    // Handled via dedicated start/end dialogs below
-    if (result == null) return;
-  }
-
   Future<void> _editStartTime(int index) async {
     if (index < 0 || index >= widget.document.lines.length) return;
     final line = widget.document.lines[index];
@@ -3126,9 +3112,9 @@ class _LyricListPaneState extends State<_LyricListPane> {
     );
     if (result == null || !mounted) return;
     if (result > line.endTime - const Duration(milliseconds: 10)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('开始时间不能晚于结束时间')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('开始时间不能晚于结束时间')));
       return;
     }
     widget.onUpdateLine(index, line.copyWith(startTime: result));
@@ -3147,9 +3133,9 @@ class _LyricListPaneState extends State<_LyricListPane> {
     );
     if (result == null || !mounted) return;
     if (result < line.startTime + const Duration(milliseconds: 10)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('结束时间不能早于开始时间')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('结束时间不能早于开始时间')));
       return;
     }
     widget.onUpdateLine(index, line.copyWith(endTime: result));
@@ -3217,8 +3203,11 @@ class _LyricListPaneState extends State<_LyricListPane> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.search_off_rounded,
-                      size: 42, color: AppColors.textTertiary),
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 42,
+                    color: AppColors.textTertiary,
+                  ),
                   SizedBox(height: 8),
                   Text('没有匹配的歌词行'),
                 ],
@@ -3272,7 +3261,8 @@ class _LyricListPaneState extends State<_LyricListPane> {
                   playing: widget.currentPlaybackLine == index,
                   hasAudio: widget.onPreviewLine != null,
                   auditionIsPlaying:
-                      widget.auditionPlaying && widget.activeAuditionLineIndex == index,
+                      widget.auditionPlaying &&
+                      widget.activeAuditionLineIndex == index,
                   onPreview: widget.onPreviewLine == null
                       ? null
                       : () => widget.onPreviewLine!(index),
@@ -3285,6 +3275,7 @@ class _LyricListPaneState extends State<_LyricListPane> {
                   onDelete: () => widget.onDeleteLine(index),
                   onCopy: () {
                     final text = line.text;
+                    Clipboard.setData(ClipboardData(text: text));
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('已复制：第 ${index + 1} 行')),
                     );
@@ -3297,8 +3288,9 @@ class _LyricListPaneState extends State<_LyricListPane> {
                   onSetEndFromPlayback: widget.onSetEndFromPlayback == null
                       ? null
                       : () => widget.onSetEndFromPlayback!(index),
-                  isManuallyEdited:
-                      widget.manuallyEditedLineIndices.contains(index),
+                  isManuallyEdited: widget.manuallyEditedLineIndices.contains(
+                    index,
+                  ),
                 );
               },
             ),
@@ -3316,10 +3308,9 @@ class _LyricListPaneState extends State<_LyricListPane> {
         onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
           hintText: '搜索歌词文本、时间或行号…',
-          hintStyle: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textTertiary),
+          hintStyle: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           prefixIcon: const Icon(Icons.search_rounded, size: 18),
           suffixIcon: _searchQuery.isEmpty
               ? null
@@ -3333,8 +3324,10 @@ class _LyricListPaneState extends State<_LyricListPane> {
                 ),
           filled: true,
           fillColor: AppColors.bgSurface,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             borderSide: BorderSide.none,
@@ -3432,59 +3425,56 @@ class _InlineLyricEditorRowState extends State<_InlineLyricEditorRow> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       '${widget.index + 1}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ),
                   InkWell(
                     onTap: widget.onEditStartTime,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
                       child: Text(
                         _formatDuration(widget.line.startTime),
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.accent,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.accent,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
-                  const Text(' → ',
-                      style: TextStyle(color: AppColors.textTertiary)),
+                  const Text(
+                    ' → ',
+                    style: TextStyle(color: AppColors.textTertiary),
+                  ),
                   InkWell(
                     onTap: widget.onEditEndTime,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusSmall),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
                       child: Text(
                         _formatDuration(widget.line.endTime),
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: AppColors.accent,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.accent,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
                   const Spacer(),
                   Text(
                     '按回车保存 · Esc 取消',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: AppColors.textTertiary, fontSize: 10),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textTertiary,
+                      fontSize: 10,
+                    ),
                   ),
                 ],
               ),
@@ -3506,18 +3496,21 @@ class _InlineLyricEditorRowState extends State<_InlineLyricEditorRow> {
                   maxLines: 3,
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _submit(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
                     hintText: '输入歌词文本',
                     filled: true,
                     fillColor: AppColors.bgElevated,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusMedium,
+                      ),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -3532,8 +3525,9 @@ class _InlineLyricEditorRowState extends State<_InlineLyricEditorRow> {
                       icon: const Icon(Icons.close_rounded, size: 16),
                       label: const Text('取消'),
                       style: OutlinedButton.styleFrom(
-                        minimumSize:
-                            Size.fromHeight(spec.minimumInteractiveExtent),
+                        minimumSize: Size.fromHeight(
+                          spec.minimumInteractiveExtent,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -3545,8 +3539,9 @@ class _InlineLyricEditorRowState extends State<_InlineLyricEditorRow> {
                       icon: const Icon(Icons.check_rounded, size: 16),
                       label: const Text('保存'),
                       style: FilledButton.styleFrom(
-                        minimumSize:
-                            Size.fromHeight(spec.minimumInteractiveExtent),
+                        minimumSize: Size.fromHeight(
+                          spec.minimumInteractiveExtent,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -3657,10 +3652,9 @@ class _TimestampEditDialogState extends State<_TimestampEditDialog> {
           const SizedBox(height: 8),
           Text(
             '当前：${_formatDuration(widget.initial)}',
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -3723,43 +3717,100 @@ class _LyricReviewRow extends StatelessWidget {
   void _showContextMenu(BuildContext context, Offset position) {
     final entries = <PopupMenuEntry<String>>[
       if (onDoubleTap != null)
-        const PopupMenuItem(value: 'edit', child: ListTile(
-          leading: Icon(Icons.edit_rounded, size: 18),
-          title: Text('编辑文字（双击）'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'edit',
+          child: ListTile(
+            leading: Icon(Icons.edit_rounded, size: 18),
+            title: Text('编辑文字（双击）'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onEditStartTime != null)
-        const PopupMenuItem(value: 'editStart', child: ListTile(
-          leading: Icon(Icons.timer_outlined, size: 18),
-          title: Text('编辑开始时间'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'editStart',
+          child: ListTile(
+            leading: Icon(Icons.timer_outlined, size: 18),
+            title: Text('编辑开始时间'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onEditEndTime != null)
-        const PopupMenuItem(value: 'editEnd', child: ListTile(
-          leading: Icon(Icons.timer_outlined, size: 18),
-          title: Text('编辑结束时间'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'editEnd',
+          child: ListTile(
+            leading: Icon(Icons.timer_outlined, size: 18),
+            title: Text('编辑结束时间'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onSetStartFromPlayback != null)
-        const PopupMenuItem(value: 'markStart', child: ListTile(
-          leading: Icon(Icons.my_location_rounded, size: 18),
-          title: Text('标记人声起点为当前播放'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'markStart',
+          child: ListTile(
+            leading: Icon(Icons.my_location_rounded, size: 18),
+            title: Text('标记人声起点为当前播放'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onSetEndFromPlayback != null)
-        const PopupMenuItem(value: 'markEnd', child: ListTile(
-          leading: Icon(Icons.my_location_rounded, size: 18),
-          title: Text('标记人声终点为当前播放'), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'markEnd',
+          child: ListTile(
+            leading: Icon(Icons.my_location_rounded, size: 18),
+            title: Text('标记人声终点为当前播放'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onDelete != null)
-        const PopupMenuItem(value: 'delete', child: ListTile(
-          leading: Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
-          title: Text('删除此行', style: TextStyle(color: AppColors.error)), dense: true, contentPadding: EdgeInsets.zero)),
+        const PopupMenuItem(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(
+              Icons.delete_outline_rounded,
+              size: 18,
+              color: AppColors.error,
+            ),
+            title: Text('删除此行', style: TextStyle(color: AppColors.error)),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
     ];
     if (entries.isEmpty) return;
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx,
+        position.dy,
+      ),
       items: entries,
     ).then((value) {
       switch (value) {
-        case 'edit': onDoubleTap?.call(); break;
-        case 'editStart': onEditStartTime?.call(); break;
-        case 'editEnd': onEditEndTime?.call(); break;
-        case 'markStart': onSetStartFromPlayback?.call(); break;
-        case 'markEnd': onSetEndFromPlayback?.call(); break;
-        case 'delete': onDelete?.call(); break;
+        case 'edit':
+          onDoubleTap?.call();
+          break;
+        case 'editStart':
+          onEditStartTime?.call();
+          break;
+        case 'editEnd':
+          onEditEndTime?.call();
+          break;
+        case 'markStart':
+          onSetStartFromPlayback?.call();
+          break;
+        case 'markEnd':
+          onSetEndFromPlayback?.call();
+          break;
+        case 'delete':
+          onDelete?.call();
+          break;
       }
     });
   }
@@ -3851,48 +3902,65 @@ class _LyricReviewRow extends StatelessWidget {
                     message: '点击直接编辑时间',
                     child: InkWell(
                       onTap: onEditStartTime,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusSmall,
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         child: Text(
                           _formatDuration(line.startTime),
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                            decoration: onEditStartTime != null
-                                ? TextDecoration.underline
-                                : null,
-                            decorationStyle: TextDecorationStyle.dotted,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.textTertiary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                decoration: onEditStartTime != null
+                                    ? TextDecoration.underline
+                                    : null,
+                                decorationStyle: TextDecorationStyle.dotted,
+                              ),
                         ),
                       ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Text('–',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: AppColors.borderSubtle)),
+                    child: Text(
+                      '–',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.borderSubtle,
+                      ),
+                    ),
                   ),
                   Tooltip(
                     message: '点击直接编辑时间',
                     child: InkWell(
                       onTap: onEditEndTime,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusSmall,
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         child: Text(
                           _formatDuration(line.endTime),
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                            decoration: onEditEndTime != null
-                                ? TextDecoration.underline
-                                : null,
-                            decorationStyle: TextDecorationStyle.dotted,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.textTertiary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                decoration: onEditEndTime != null
+                                    ? TextDecoration.underline
+                                    : null,
+                                decorationStyle: TextDecorationStyle.dotted,
+                              ),
                         ),
                       ),
                     ),
@@ -3904,24 +3972,32 @@ class _LyricReviewRow extends StatelessWidget {
                             displayText,
                             maxLines: 4,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: line.text.trim().isEmpty
-                                  ? AppColors.textTertiary
-                                  : AppColors.textPrimary,
-                              fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: line.text.trim().isEmpty
+                                      ? AppColors.textTertiary
+                                      : AppColors.textPrimary,
+                                  fontWeight: playing
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
                           )
                         : Text(
                             displayText,
                             maxLines: spec.isCompact ? 1 : 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: line.text.trim().isEmpty
-                                  ? AppColors.textTertiary
-                                  : AppColors.textPrimary,
-                              fontWeight: playing ? FontWeight.w700 : FontWeight.w500,
-                              fontStyle: isManuallyEdited ? FontStyle.italic : null,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: line.text.trim().isEmpty
+                                      ? AppColors.textTertiary
+                                      : AppColors.textPrimary,
+                                  fontWeight: playing
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  fontStyle: isManuallyEdited
+                                      ? FontStyle.italic
+                                      : null,
+                                ),
                           ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
