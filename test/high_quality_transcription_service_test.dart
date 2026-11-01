@@ -526,7 +526,12 @@ void main() {
             );
             expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
             expect(result.lyrics.metadata['secondaryOnlyLineIndices'], [1]);
-            expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+            // The engines genuinely disagree here: the primary covers the whole
+            // line while the secondary splits it, so one review candidate is
+            // raised. A review candidate is not an inserted row: the merged text
+            // stays exactly the primary line.
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 1);
+            expect(lines.map((line) => line.text).toSet(), hasLength(2));
           } finally {
             await service.dispose();
           }

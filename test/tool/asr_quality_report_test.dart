@@ -120,6 +120,30 @@ void main() {
       expect(score['lineCountRatio'], 2.0);
     });
 
+    test('catches fragments nested deep inside a long parent line', () {
+      // A parent line spanning a whole phrase hides its fragments from a
+      // start-time window: the fragment starts seconds after the parent. Only a
+      // span check sees that the words are already on screen.
+      final lines = <quality.QualityLine>[
+        line('we are dancing through the night', 0, 12000),
+        line('dancing through', 3000, 6000),
+        line('the night', 9000, 12000),
+      ];
+      final groups = quality.findDuplicateLyricLines(lines);
+      expect(groups, hasLength(2));
+      expect(groups.first.lineIndexes, <int>[0, 1]);
+      expect(groups.last.lineIndexes, <int>[0, 2]);
+
+      final score = evaluate(
+        reference: <quality.QualityLine>[
+          line('we are dancing through the night', 0, 12000),
+        ],
+        hypothesis: lines,
+      );
+      expect(score['duplicateLineCount'], 2);
+      expect(score['lineCountRatio'], 3.0);
+    });
+
     test('a chorus that repeats a minute later is not a duplicate', () {
       final lines = <quality.QualityLine>[
         line('我们跳舞', 10000, 13000),

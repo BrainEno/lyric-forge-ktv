@@ -401,10 +401,17 @@ List<DuplicateGroup> findDuplicateLyricLines(List<QualityLine> lines) {
     return start + _duplicateWindowMs;
   }
 
+  /// Two rows describe the same moment when either their spans overlap enough
+  /// that one is nested inside the other, or their start times are close.
+  ///
+  /// The nesting test catches a fragment emitted inside a long parent line; the
+  /// start window keeps working for sources that only carry start times, where
+  /// spans have to be inferred.
   bool coincide(int a, int b) {
     if (!timed) return b - a <= 1;
     final aStart = lines[a].startMs!;
     final bStart = lines[b].startMs!;
+    if ((aStart - bStart).abs() <= _duplicateWindowMs) return true;
     final aEnd = effectiveEnd(a);
     final bEnd = effectiveEnd(b);
     final overlap = math.min(aEnd, bEnd) - math.max(aStart, bStart);
