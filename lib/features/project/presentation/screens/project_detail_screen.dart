@@ -9,6 +9,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/service_locator.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../transcription/domain/models/transcription_degradation.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../../transcription/domain/services/project_transcription_workflow.dart';
@@ -132,7 +133,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (config == null) return;
     } else {
       final runtimeStatus = await _asrRuntimeManager.inspect(config);
-      if (!runtimeStatus.isReady) {
+      // Only the Whisper baseline blocks the button. Sending the user into
+      // setup because the optional second engine is missing would refuse work
+      // the app can actually finish (with a recorded degradation).
+      if (!runtimeStatus.isBaselineReady) {
         config = await _configureTranscription();
         if (config == null) return;
       }
@@ -1079,9 +1083,18 @@ class _ProjectMetadata extends StatelessWidget {
 
   const _ProjectMetadata({required this.project});
 
+  static String _modeLabel(Object? mode, {required bool degraded}) {
+    final base = mode == 'highestQuality' ? '最高质量' : 'Whisper';
+    return degraded ? '$base（已降级为单引擎）' : base;
+  }
+
   @override
   Widget build(BuildContext context) {
     final transcription = project.metadata['transcription'];
+    final lyricMetadata = project.lyricDocument?.metadata;
+    final degraded = lyricMetadata != null
+        ? TranscriptionQualityMetadata.isDegraded(lyricMetadata)
+        : transcription is Map && transcription['degraded'] == true;
     final rows = <_MetadataValue>[
       _MetadataValue('创建', _formatDate(project.createdAt)),
       _MetadataValue('更新', _formatDate(project.updatedAt)),
@@ -1092,7 +1105,15 @@ class _ProjectMetadata extends StatelessWidget {
       if (transcription is Map && transcription['mode'] != null)
         _MetadataValue(
           '识别模式',
-          transcription['mode'] == 'highestQuality' ? '最高质量' : 'Whisper',
+          _modeLabel(transcription['mode'], degraded: degraded),
+        ),
+      if (degraded)
+        _MetadataValue(
+          '识别降级',
+          (lyricMetadata == null
+                  ? null
+                  : TranscriptionQualityMetadata.explanationOf(lyricMetadata)) ??
+              '已降级为单引擎识别',
         ),
       if (transcription is Map &&
           transcription['hardwareProfileLabel'] != null)

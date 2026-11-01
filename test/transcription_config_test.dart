@@ -35,7 +35,9 @@ void main() {
       expect(config.isConfigured, isTrue);
     });
 
-    test('highest quality mode requires both Qwen and Whisper runtimes', () {
+    test('highest quality still runs when only Whisper is set up', () {
+      // Whisper is the baseline. A missing second engine must not make the
+      // configuration unusable: the run degrades and records why.
       const incomplete = TranscriptionConfig(
         mode: TranscriptionMode.highestQuality,
         qwenExecutable: '',
@@ -46,7 +48,9 @@ void main() {
       expect(incomplete.isWhisperConfigured, isTrue);
       expect(incomplete.isQwenConfigured, isFalse);
       expect(incomplete.isHighQualityConfigured, isFalse);
-      expect(incomplete.isConfigured, isFalse);
+      expect(incomplete.isConfigured, isTrue);
+      expect(incomplete.runsDualEngine, isFalse);
+      expect(incomplete.willDegradeToWhisper, isTrue);
 
       const complete = TranscriptionConfig(
         mode: TranscriptionMode.highestQuality,
@@ -59,6 +63,22 @@ void main() {
       expect(complete.qwenAlignerModelPath, 'Qwen/Qwen3-ForcedAligner-0.6B');
       expect(complete.isHighQualityConfigured, isTrue);
       expect(complete.isConfigured, isTrue);
+      expect(complete.runsDualEngine, isTrue);
+      expect(complete.willDegradeToWhisper, isFalse);
+    });
+
+    test('a configuration without Whisper cannot recognise anything', () {
+      const noWhisper = TranscriptionConfig(
+        mode: TranscriptionMode.highestQuality,
+        qwenExecutable: 'qwen3-asr',
+        whisperExecutable: '',
+        modelPath: '',
+      );
+
+      // The optional engine alone is not a usable baseline: there would be
+      // nothing to fall back to.
+      expect(noWhisper.isQwenConfigured, isTrue);
+      expect(noWhisper.isConfigured, isFalse);
     });
 
     test('round trips high quality fallback policy', () {

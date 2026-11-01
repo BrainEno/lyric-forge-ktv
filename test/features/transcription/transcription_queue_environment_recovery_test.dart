@@ -37,6 +37,26 @@ void main() {
     expect(store.saved, hasLength(2));
   });
 
+  test('a missing second engine still resumes the queue', () async {
+    // The queue pauses on environment faults. A broken optional engine is not
+    // one any more: the run degrades, so pausing every remaining song would
+    // punish the user for a capability they never needed.
+    final store = _FakeSettingsStore();
+    final runtime = _FakeRuntimeManager(ready: true, qwenReady: false);
+    final queue = _FakeQueue(reason: TranscriptionQueuePauseReason.environment);
+    final recovery = TranscriptionQueueEnvironmentRecovery(
+      settingsStore: store,
+      runtimeManager: runtime,
+      queue: queue,
+    );
+
+    final result = await recovery.recover(config);
+
+    expect(result.ready, isTrue);
+    expect(result.resumed, isTrue);
+    expect(queue.resumeCalls, 1);
+  });
+
   test('not-ready environment stays protectively paused', () async {
     final store = _FakeSettingsStore();
     final runtime = _FakeRuntimeManager(ready: false);
@@ -90,10 +110,11 @@ class _FakeSettingsStore implements TranscriptionSettingsStore {
 
 class _FakeRuntimeManager implements AsrRuntimeManager {
   final bool ready;
+  final bool qwenReady;
   int repairCalls = 0;
   int inspectCalls = 0;
 
-  _FakeRuntimeManager({required this.ready});
+  _FakeRuntimeManager({required this.ready, this.qwenReady = true});
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => const Stream.empty();
@@ -125,12 +146,36 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
       ),
       components: [
         AsrRuntimeComponentStatus(
-          component: AsrRuntimeComponent.qwenRuntime,
+          component: AsrRuntimeComponent.ffmpeg,
           state: ready
               ? AsrRuntimeComponentState.ready
               : AsrRuntimeComponentState.failed,
-          label: 'Qwen runtime',
+          label: 'FFmpeg',
           detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.whisperRuntime,
+          state: ready
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Whisper runtime',
+          detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.whisperModel,
+          state: ready
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Whisper large-v3',
+          detail: ready ? 'ready' : 'failed',
+        ),
+        AsrRuntimeComponentStatus(
+          component: AsrRuntimeComponent.qwenRuntime,
+          state: qwenReady
+              ? AsrRuntimeComponentState.ready
+              : AsrRuntimeComponentState.failed,
+          label: 'Qwen runtime',
+          detail: qwenReady ? 'ready' : 'failed',
         ),
       ],
       managedRoot: r'C:\LyricForge\ASRRuntime',

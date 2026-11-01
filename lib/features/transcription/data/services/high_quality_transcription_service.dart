@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
@@ -57,13 +58,26 @@ class HighQualityTranscriptionService implements TranscriptionService {
     _cancelRequested = false;
 
     try {
+      // Whisper is the baseline every mode depends on. Without it there is
+      // nothing to run and nothing to degrade to.
+      if (!request.config.isWhisperConfigured) {
+        throw const TranscriptionException.environment(
+          '尚未配置 Whisper 本地识别引擎与模型，无法识别歌词',
+        );
+      }
+
       if (request.config.mode == TranscriptionMode.whisperOnly) {
         return await _runWhisperOnly(request);
       }
 
-      if (!request.config.isHighQualityConfigured) {
-        throw const TranscriptionException(
-          '最高质量模式需要完整配置 Qwen3-ASR、ForcedAligner 和 Whisper large-v3',
+      // Highest quality is a capability request: the second engine is optional
+      // and its absence degrades the run instead of failing it.
+      if (!request.config.isQwenConfigured) {
+        return await _runDegradedToWhisper(
+          request,
+          reason: TranscriptionDegradationReason.qwenNotConfigured,
+          detail:
+              '未配置 Qwen3-ASR / ForcedAligner，已用 Whisper large-v3 单引擎识别',
         );
       }
 
@@ -83,7 +97,28 @@ class HighQualityTranscriptionService implements TranscriptionService {
         return await _transcribeWhisperPrimary(sharedRequest);
       }
 
-      final primaryResult = await _runPrimary(sharedRequest);
+      TranscriptionResult primaryResult;
+      try {
+        primaryResult = await _runPrimary(sharedRequest);
+      } on TranscriptionException catch (error) {
+        if (error.message == '歌词识别已取消') rethrow;
+        if (!_canDegradeToWhisper(error)) rethrow;
+        // One broken engine must not cost the song. The error is recorded in
+        // the document instead of escaping, so a missing driver, an exhausted
+        // GPU or a moved model file still leaves a Whisper draft the user can
+        // correct — and no longer pauses the whole transcription queue.
+        return await _runDegradedToWhisper(
+          TranscriptionRequest(
+            inputAudioPath: request.inputAudioPath,
+            normalizedInputAudioPath: sharedNormalizedPath,
+            outputDirectory: request.outputDirectory,
+            config: request.config,
+            context: request.context,
+          ),
+          reason: TranscriptionDegradationReason.qwenUnavailable,
+          detail: error.toString(),
+        );
+      }
       _throwIfCancelled();
 
       _emit(TranscriptionStage.fallback, 0.76, 'Whisper large-v3 正在进行全曲第二意见识别');
@@ -115,6 +150,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
           lyrics: primaryResult.lyrics.copyWith(
             metadata: {
               ...primaryResult.lyrics.metadata,
+              ...TranscriptionQualityMetadata.degradedFields(
+                TranscriptionDegradationReason.whisperSecondOpinionFailed,
+                detail: error.toString(),
+              ),
               'qualityMode': 'highestQuality',
               'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
                 request.config.qwenModelPath,
@@ -390,6 +429,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
         lyrics: whisperResult.lyrics.copyWith(
           metadata: {
             ...whisperResult.lyrics.metadata,
+            ...TranscriptionQualityMetadata.degradedFields(
+              TranscriptionDegradationReason.qwenSecondOpinionFailed,
+              detail: error.toString(),
+            ),
             'qualityMode': 'highestQuality',
             'primaryEngine': TranscriptionModelIdentity.whisperEngine(
               request.config.modelPath,
@@ -647,6 +690,100 @@ class HighQualityTranscriptionService implements TranscriptionService {
       reason: similarity < _reviewDisagreementThreshold
           ? 'engine_disagreement_review'
           : 'keep_whisper_primary',
+    );
+  }
+
+  /// Whether an engine failure is about the engine rather than the audio.
+  ///
+  /// Input problems (missing, unreadable or unsupported audio) are engine
+  /// independent: Whisper would fail the same way, so surfacing the original
+  /// error is more useful than running the second engine to collect an
+  /// identical complaint. Cancellation is never a reason to keep working.
+  static bool _canDegradeToWhisper(TranscriptionException error) {
+    return error.kind != TranscriptionFailureKind.cancelled &&
+        error.kind != TranscriptionFailureKind.input;
+  }
+
+  /// Produces a Whisper draft when the second engine cannot contribute.
+  ///
+  /// Used both when Qwen is absent from the configuration and when it fails at
+  /// run time. The reason travels with the document so the editor and project
+  /// panel can state it plainly; presenting a single-engine draft as
+  /// "highest quality" is exactly the kind of silent downgrade users read as
+  /// "the app got worse".
+  Future<TranscriptionResult> _runDegradedToWhisper(
+    TranscriptionRequest request, {
+    required TranscriptionDegradationReason reason,
+    required String detail,
+  }) async {
+    _throwIfCancelled();
+    _emit(TranscriptionStage.fallback, 0.05, reason.message);
+
+    final directory = Directory(
+      '${request.outputDirectory}${Platform.pathSeparator}whisper_degraded',
+    );
+    await directory.create(recursive: true);
+
+    final subscription = fallback.progressStream.listen((progress) {
+      if (_cancelRequested) return;
+      final mapped = 0.05 + progress.progress * 0.9;
+      _emit(
+        progress.stage,
+        mapped.clamp(0.05, 0.97).toDouble(),
+        'Whisper 降级识别 · ${progress.message}',
+      );
+    });
+
+    TranscriptionResult result;
+    try {
+      result = await fallback.transcribe(
+        TranscriptionRequest(
+          inputAudioPath: request.inputAudioPath,
+          normalizedInputAudioPath: request.normalizedInputAudioPath,
+          outputDirectory: directory.path,
+          config: request.config.copyWith(mode: TranscriptionMode.whisperOnly),
+          context: request.context,
+        ),
+      );
+    } on TranscriptionException catch (error) {
+      if (error.message == '歌词识别已取消') rethrow;
+      // Whisper is the last engine standing. Report both failures so the user
+      // sees the root cause, not just "the fallback failed too".
+      throw TranscriptionException(
+        '已降级为 Whisper 单引擎识别，但 Whisper 也失败了：${error.message}',
+        details: [
+          '降级原因：$detail',
+          if (error.details != null && error.details!.trim().isNotEmpty)
+            'Whisper：${error.details}',
+        ].join('\n'),
+        kind: error.kind,
+      );
+    } finally {
+      await subscription.cancel();
+    }
+
+    _throwIfCancelled();
+    _emit(TranscriptionStage.completed, 1.0, reason.message);
+
+    return TranscriptionResult(
+      lyrics: result.lyrics.copyWith(
+        metadata: {
+          ...result.lyrics.metadata,
+          'qualityMode': 'highestQuality',
+          TranscriptionQualityMetadata.requestedModeKey: 'highestQuality',
+          ...TranscriptionQualityMetadata.degradedFields(reason, detail: detail),
+          'primaryEngine': TranscriptionModelIdentity.whisperEngine(
+            request.config.modelPath,
+          ),
+          'alignmentEngine': 'whisper-segment-timestamps',
+          'fallbackStatus': 'degraded',
+          'fallbackCandidateCount': 0,
+          'fallbackAppliedCount': 0,
+        },
+      ),
+      normalizedAudioPath: result.normalizedAudioPath,
+      rawJsonPath: result.rawJsonPath,
+      detectedLanguage: result.detectedLanguage,
     );
   }
 

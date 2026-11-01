@@ -44,7 +44,9 @@ void main() {
     expect(recovery, contains('await settingsStore.save(config)'));
     expect(recovery, contains('final repaired = await runtimeManager.repair(config)'));
     expect(recovery, contains('final status = await runtimeManager.inspect(repaired)'));
-    expect(recovery, contains('if (!status.isReady)'));
+    // Recognition no longer pauses on a missing optional engine: the run
+    // degrades to Whisper, so only the Whisper baseline gates the queue.
+    expect(recovery, contains('if (!status.isBaselineReady)'));
     expect(recovery, contains('if (!queue.current.isEnvironmentBlocked)'));
     expect(recovery, contains('await queue.resume()'));
 

@@ -46,6 +46,17 @@ class AsrRuntimeComponentStatus {
 }
 
 class AsrRuntimeStatus {
+  /// Components needed before any lyrics can be produced locally.
+  ///
+  /// Whisper is the baseline: every hardware profile can install it, and the
+  /// highest-quality mode falls back to it when the optional second engine is
+  /// unavailable. Only these components may block recognition outright.
+  static const Set<AsrRuntimeComponent> baselineComponents = {
+    AsrRuntimeComponent.ffmpeg,
+    AsrRuntimeComponent.whisperRuntime,
+    AsrRuntimeComponent.whisperModel,
+  };
+
   final ResolvedTranscriptionProfile profile;
   final List<AsrRuntimeComponentStatus> components;
   final String managedRoot;
@@ -56,9 +67,29 @@ class AsrRuntimeStatus {
     required this.managedRoot,
   });
 
+  /// Every component the profile needs is installed, including the optional
+  /// second engine.
   bool get isReady => components.every(
     (component) => component.state == AsrRuntimeComponentState.ready,
   );
+
+  /// The Whisper baseline is installed, so a run can produce a draft even if
+  /// the optional second engine is missing or broken.
+  bool get isBaselineReady => _ready(baselineComponents);
+
+  /// Baseline components that would block recognition, for error messages.
+  List<AsrRuntimeComponentStatus> get missingBaselineComponents =>
+      components
+          .where(
+            (component) =>
+                baselineComponents.contains(component.component) &&
+                component.state != AsrRuntimeComponentState.ready,
+          )
+          .toList(growable: false);
+
+  bool _ready(Set<AsrRuntimeComponent> required) => components
+      .where((component) => required.contains(component.component))
+      .every((component) => component.state == AsrRuntimeComponentState.ready);
 
   int get readyCount => components
       .where((component) => component.state == AsrRuntimeComponentState.ready)
