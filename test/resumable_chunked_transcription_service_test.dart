@@ -167,8 +167,8 @@ void main() {
         );
         await manifestFile.writeAsString(
           jsonEncode({
-            'version': ResumableChunkedTranscriptionService
-                .checkpointManifestVersion,
+            'version':
+                ResumableChunkedTranscriptionService.checkpointManifestVersion,
             'sourceFingerprint': fingerprint,
             'configFingerprint':
                 ResumableChunkedTranscriptionService.checkpointConfigFingerprint(
@@ -206,6 +206,7 @@ void main() {
         );
         final service = ResumableChunkedTranscriptionService(
           delegate: _FakeService(),
+          chunkDuration: const Duration(minutes: 3),
           processSupervisor: supervisor,
         );
 
@@ -344,10 +345,11 @@ void main() {
       );
 
       final metadata = result.lyrics.metadata;
-      expect(
-        result.lyrics.lines.map((line) => line.text).toList(),
-        ['first line', 'second line', 'third line'],
-      );
+      expect(result.lyrics.lines.map((line) => line.text).toList(), [
+        'first line',
+        'second line',
+        'third line',
+      ]);
       // The overlap duplicate keeps the more confident copy.
       expect(result.lyrics.lines[1].confidence, 90);
       // Engine identity and quality mode survive the merge (they used to be
@@ -434,7 +436,7 @@ TranscriptionRequest _request(
 /// Reports a fixed duration for whichever file FFmpeg is asked about and
 /// materialises chunk WAVs like the real extractor.
 class _FfmpegStub {
-  _FfmpegStub({required this.durationLabel, this.chunkStartRequests = 0});
+  _FfmpegStub({required this.durationLabel});
 
   final String durationLabel;
   int chunkStartRequests;
