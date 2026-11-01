@@ -594,7 +594,9 @@ void main() {
             primary: _FakeTranscriptionService(
               result: _resultLines(secondaryLines),
             ),
-            fallback: _FakeTranscriptionService(result: _resultLines(primaryLines)),
+            fallback: _FakeTranscriptionService(
+              result: _resultLines(primaryLines),
+            ),
           );
 
           try {
@@ -602,7 +604,8 @@ void main() {
               _request(tempDirectory.path, engineOrder: engineOrder),
             );
             final lines = result.lyrics.lines;
-            final authoritative = engineOrder == TranscriptionEngineOrder.whisperPrimary
+            final authoritative =
+                engineOrder == TranscriptionEngineOrder.whisperPrimary
                 ? primaryLines
                 : secondaryLines;
             expect(

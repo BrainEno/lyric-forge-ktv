@@ -35,7 +35,11 @@ List<LyricLine> referenceLines(int secondsPerLine) => [
 ];
 
 /// Splits [script] into equal-time fragments of [fragmentSeconds] each.
-List<LyricLine> fragmented(int secondsPerLine, int fragmentSeconds, {required bool typo}) {
+List<LyricLine> fragmented(
+  int secondsPerLine,
+  int fragmentSeconds, {
+  required bool typo,
+}) {
   final perLine = (secondsPerLine ~/ fragmentSeconds).clamp(1, 8);
   final lines = <LyricLine>[];
   for (var i = 0; i < script.length; i++) {
@@ -133,7 +137,9 @@ void main() {
   test('fusion granularity probe', () async {
     final temp = await Directory.systemTemp.createTemp('probe_');
     // ignore: avoid_print
-    print('PRIMARY_SEC | FRAG_SEC | TYPO | OUT | INSERTED | DUP_RATE | RECALL | PRECISION | RATIO');
+    print(
+      'PRIMARY_SEC | FRAG_SEC | TYPO | OUT | INSERTED | DUP_RATE | RECALL | PRECISION | RATIO',
+    );
     for (final combo in <List<int>>[
       [8, 8],
       [8, 4],
@@ -178,10 +184,14 @@ void main() {
           );
           if (combo[0] == 8 && combo[1] == 4 && !typo) {
             // ignore: avoid_print
-            print('  qwen=${qwenDoc.length} whisper=${whisperDoc.length} applied=${result.lyrics.metadata['fallbackAppliedCount']}');
+            print(
+              '  qwen=${qwenDoc.length} whisper=${whisperDoc.length} applied=${result.lyrics.metadata['fallbackAppliedCount']}',
+            );
             for (final line in out.take(8)) {
               // ignore: avoid_print
-              print('   OUT ${line.startTime.inMilliseconds}-${line.endTime.inMilliseconds} "${line.text}" c=${line.confidence}');
+              print(
+                '   OUT ${line.startTime.inMilliseconds}-${line.endTime.inMilliseconds} "${line.text}" c=${line.confidence}',
+              );
             }
           }
           await service.dispose();
