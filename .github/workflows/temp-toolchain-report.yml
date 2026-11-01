@@ -61,6 +61,70 @@ jobs:
           echo "test exit: $?" >> .ci-report/test.txt
           tail -100 .ci-report/test.txt
 
+      - name: CLI smoke test
+        run: |
+          set +e
+          rm -rf /tmp/quality-smoke && mkdir -p /tmp/quality-smoke/song-01
+          cat > /tmp/quality-smoke/song-01/reference.lrc <<'LRC'
+          [ti:smoke]
+          [00:10.00]we are dancing through the night
+          [00:15.00]sing a little song
+          [00:20.00]until the morning light
+          LRC
+          cat > /tmp/quality-smoke/song-01/fused.lrc <<'LRC'
+          [00:10.00]we are dancing through the night
+          [00:10.50]dancing
+          [00:15.00]sing a little song
+          [00:20.30]until the morning light
+          LRC
+          cat > /tmp/quality-smoke/corpus.json <<'JSON'
+          {
+            "schemaVersion": 1,
+            "songs": [
+              {
+                "id": "song-01",
+                "language": "en",
+                "reference": { "path": "song-01/reference.lrc", "reviewed": true },
+                "candidates": [
+                  { "engine": "fused", "path": "song-01/fused.lrc" }
+                ]
+              }
+            ]
+          }
+          JSON
+          {
+            echo '--- single pair ---'
+            dart run tool/asr_quality_report.dart               --reference /tmp/quality-smoke/song-01/reference.lrc               --hypothesis /tmp/quality-smoke/song-01/fused.lrc               --engine fused
+            echo "pair exit: $?"
+            echo '--- corpus + json baseline ---'
+            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --output /tmp/quality-smoke/baseline.json
+            echo "corpus exit: $?"
+            python3 -c "import json;d=json.load(open('/tmp/quality-smoke/baseline.json'));print('json ok, duplicate rate:', d['overallByEngine']['fused']['duplicateLineRate'])"
+            echo '--- regression gate must fail ---'
+            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --baseline /tmp/quality-smoke/baseline.json               --fail-on-regression > /dev/null
+            echo "same-run exit (expect 0): $?"
+            python3 - <<'PY'
+          import json
+          p='/tmp/quality-smoke/baseline.json'
+          d=json.load(open(p))
+          d['overallByEngine']['fused']['duplicateLineRate'] = 0.0
+          json.dump(d, open('/tmp/quality-smoke/fake-better.json','w'))
+          PY
+            dart run tool/asr_quality_report.dart               --corpus /tmp/quality-smoke/corpus.json               --baseline /tmp/quality-smoke/fake-better.json               --fail-on-regression > /dev/null 2>&1
+            echo "regressed exit (expect 1): $?"
+            echo '--- bad input must exit 2 ---'
+            dart run tool/asr_quality_report.dart --corpus /tmp/missing.json >/dev/null 2>&1
+            echo "missing corpus exit (expect 2): $?"
+          } > .ci-report/cli.txt 2>&1
+          cat .ci-report/cli.txt
+
+      - name: Full test suite
+        run: |
+          set +e
+          flutter test --no-pub --reporter compact             > .ci-report/full-test.txt 2>&1
+          echo "full test exit: $?" >> .ci-report/full-test.txt
+          tail -25 .ci-report/full-test.txt
+
       - name: Publish report back to the branch
         run: |
           set -euo pipefail
