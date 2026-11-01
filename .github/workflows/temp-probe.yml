@@ -1,0 +1,70 @@
+name: Temp Probe
+
+# Temporary harness: reproduces the pull-request format check exactly and
+# publishes the offending diff as annotations (sandbox cannot read job logs).
+
+on:
+  push:
+    branches:
+      - arena/ecafb146-lyric-forge-ktv
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format check (pull-request scope)
+        id: fmt
+        shell: bash
+        run: |
+          set +e
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          BASE=$(git merge-base HEAD origin/main)
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE" HEAD -- '*.dart')
+          echo "base=$BASE files=${#files[@]}: ${files[*]}"
+          dart format --output=none --set-exit-if-changed "${files[@]}" > fmt.log 2>&1
+          code=$?
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          {
+            grep -nE "Changed|Unchanged|error|Error|Unable|Formatting" fmt.log | head -12
+            echo "--- would-format diff ---"
+            dart format "${files[@]}" > /dev/null 2>&1
+            git --no-pager diff --stat -- "${files[@]}" | head -12
+            git --no-pager diff -U0 -- "${files[@]}" | head -80
+          } > diag.log 2>&1
+          exit 0
+
+      - name: Report
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          echo "::notice::format-exit=${{ steps.fmt.outputs.exit }}"
+          n=0
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            n=$((n+1))
+            [[ $n -gt 12 ]] && break
+            echo "::error::fmt :: ${line:0:800}"
+          done < diag.log
+          exit 0
