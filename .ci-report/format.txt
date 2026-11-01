@@ -1,4 +1,2 @@
-Formatted tool/asr_quality_report.dart
-Formatted test/tool/asr_quality_report_test.dart
-Formatted 2 files (2 changed) in 0.03 seconds.
+Formatted 2 files (0 changed) in 0.04 seconds.
 format exit: 0
