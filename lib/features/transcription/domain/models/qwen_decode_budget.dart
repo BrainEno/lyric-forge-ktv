@@ -28,11 +28,6 @@ const int qwenDecodeBaseTokens = 256;
 /// up with a smaller allowance than before.
 const int qwenDecodeMinimumTokens = 1024;
 
-/// Upper bound. The runtime never hands the decoder more than
-/// [qwenRuntimeMaxChunk] of audio, so the derived value tops out well below
-/// this; the ceiling only protects against a caller passing an absurd duration.
-const int qwenDecodeMaximumTokens = 16384;
-
 /// Duration of the normalized ASR input described by [wavBytes].
 ///
 /// Normalization writes 16 kHz, mono, signed 16-bit PCM, so the payload grows by
@@ -51,15 +46,23 @@ Duration normalizedPcmWavDuration(int wavBytes) {
 /// than one chunk to the decoder at a time, so a longer file does not need a
 /// larger per-request budget (and asking for one would only inflate the
 /// allocation without ever being used).
+///
+/// The largest budget this can return.
+///
+/// There is no separate ceiling: clamping the audio length to
+/// [qwenRuntimeMaxChunk] already bounds the result, and a second cap that could
+/// never bind would only be dead code.
+int get qwenDecodeCeilingTokens =>
+    qwenDecodeBaseTokens +
+    qwenRuntimeMaxChunk.inSeconds * qwenDecodeTokensPerAudioSecond;
+
 int qwenMaxNewTokensFor(Duration audioDuration) {
   final effectiveSeconds = audioDuration.inSeconds <= 0
       ? 0
       : audioDuration.inSeconds.clamp(0, qwenRuntimeMaxChunk.inSeconds).toInt();
   final derived =
       qwenDecodeBaseTokens + effectiveSeconds * qwenDecodeTokensPerAudioSecond;
-  return derived
-      .clamp(qwenDecodeMinimumTokens, qwenDecodeMaximumTokens)
-      .toInt();
+  return derived < qwenDecodeMinimumTokens ? qwenDecodeMinimumTokens : derived;
 }
 
 /// Convenience for the common case: the budget for a normalized WAV file.

@@ -143,11 +143,12 @@ cover a whole chunk of lyrics rather than one line. LyricForge therefore derives
 it from the normalized input length instead of hard-coding a value:
 
 ```text
-max_new_tokens = clamp(256 + audio_seconds * 8, 1024, 16384)
+max_new_tokens = max(1024, 256 + min(audio_seconds, 1200) * 8)
 ```
 
-with `audio_seconds` read from the 16 kHz mono PCM WAV (32 000 bytes per second)
-and capped at the runtime's 1200 s chunk. Eight tokens per second covers roughly
+with `audio_seconds` read from the 16 kHz mono PCM WAV (32 000 bytes per second).
+The `min(audio_seconds, 1200)` is the runtime's own chunk cap, so the formula tops
+out at 9 856 tokens and needs no separate ceiling. Eight tokens per second covers roughly
 five CJK characters per second with headroom; the 1024 floor is the value this
 replaced, so no request can end up with a smaller allowance than before. The
 applied value is recorded as `maxNewTokens` in the document metadata, together

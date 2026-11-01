@@ -60,16 +60,18 @@ void main() {
       // The runtime never hands the decoder more than one 1200 s chunk, so a
       // longer file must not inflate the per-request budget.
       final atLimit = qwenMaxNewTokensFor(qwenRuntimeMaxChunk);
-      expect(qwenMaxNewTokensFor(const Duration(minutes: 40)), atLimit);
       expect(atLimit, 256 + 1200 * 8);
-      expect(atLimit, lessThan(qwenDecodeMaximumTokens));
+      expect(atLimit, qwenDecodeCeilingTokens);
+      expect(qwenMaxNewTokensFor(const Duration(minutes: 40)), atLimit);
     });
 
     test('is bounded even for an absurd duration', () {
       expect(
         qwenMaxNewTokensFor(const Duration(days: 30)),
-        qwenDecodeMaximumTokens,
+        qwenDecodeCeilingTokens,
       );
+      // Comfortably inside what a decoder can actually emit per chunk.
+      expect(qwenDecodeCeilingTokens, lessThan(10000));
     });
 
     test('is computed from the WAV bytes end to end', () {
