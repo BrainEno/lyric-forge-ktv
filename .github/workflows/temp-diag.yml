@@ -25,9 +25,9 @@ jobs:
         run: |
           set +e
           status=0
-          for attempt in $(seq 1 20); do
+          for attempt in $(seq 1 25); do
             out="/tmp/repeat_${attempt}.txt"
-            flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart > "$out" 2>&1
+            flutter test --no-pub --reporter expanded test/tool/forced_alignment_eval_test.dart > "$out" 2>&1
             code=$?
             echo "repeat ${attempt} exit=${code}" >> /tmp/attempts.txt
             if [ "$code" -ne 0 ]; then status=1; fi
@@ -41,7 +41,7 @@ jobs:
         run: |
           set +e
           status=0
-          for attempt in $(seq 1 4); do
+          for attempt in $(seq 1 1); do
             bash scripts/quality_gate.sh --skip-pub-get > "/tmp/suite_${attempt}.txt" 2>&1
             code=$?
             echo "suite ${attempt} exit=${code}" >> /tmp/attempts.txt
@@ -60,20 +60,25 @@ jobs:
               for line in open('/tmp/attempts.txt').read().strip().splitlines():
                   if 'exit=1' in line or 'status=1' in line:
                       emit(line)
-          candidates = [(f'suite{i}', f'/tmp/suite_{i}.txt') for i in range(1, 5)] + [
-                  (f'repeat{n}', f'/tmp/repeat_{n}.txt') for n in range(1, 21)]
+          candidates = [(f'suite{i}', f'/tmp/suite_{i}.txt') for i in range(1, 2)] + [
+                  (f'repeat{n}', f'/tmp/repeat_{n}.txt') for n in range(1, 26)]
           shown = 0
           for name, path in candidates:
-              if not os.path.exists(path) or shown >= 3:
+              if not os.path.exists(path) or shown >= 4:
                   continue
               text = open(path, encoding='utf-8', errors='replace').read()
               if 'All tests passed' in text:
                   continue
               shown += 1
               lines = [l.rstrip() for l in text.splitlines() if l.strip()]
-              tail = lines[-14:] if len(lines) > 14 else lines
-              for line in tail:
-                  emit(f'{name}| {line[:600]}')
+              marks = [i for i, l in enumerate(lines) if '[E]' in l]
+              if not marks:
+                  for line in lines[-10:]:
+                      emit(f'{name}(no-E)| {line[:500]}')
+                  continue
+              for index in marks[:2]:
+                  for line in lines[index:index + 7]:
+                      emit(f'{name}| {line[:600]}')
           PY
       - name: Fail if anything failed
         if: steps.repeats.outcome == 'failure' || steps.suite.outcome == 'failure'
