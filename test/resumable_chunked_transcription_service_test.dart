@@ -439,7 +439,7 @@ class _FfmpegStub {
   _FfmpegStub({required this.durationLabel});
 
   final String durationLabel;
-  int chunkStartRequests;
+  int chunkStartRequests = 0;
 
   AsrProcessSupervisor get supervisor => AsrProcessSupervisor(
     startProcess: (_, arguments) async {
