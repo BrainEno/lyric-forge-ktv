@@ -126,14 +126,36 @@ POST /v1/align
 ```
 
 The currently evaluated reference implementation is the Rust/Candle
-`qwen3-asr-rs` CLI. Its forced-aligner path mirrors the official Qwen
-implementation: long audio is split into chunks no longer than 180 seconds,
-timestamps are offset back to the original song timeline, merged, and repaired
-for cross-chunk monotonicity. LyricForge therefore sends the full song once and
-does not add a second competing chunking layer: the resumable wrapper in front of
-this service only splits audio longer than 20 minutes
+`qwen3-asr-rs` CLI. It splits long audio into chunks and offsets the timestamps
+back to the original song timeline, merging and repairing them for cross-chunk
+monotonicity. The chunk cap is `MAX_ASR_INPUT_SECONDS = 1200.0`
+(`qwen3_asr/src/inference/utils.rs`), i.e. 20 minutes; earlier revisions of this
+document said 180 seconds, which does not appear anywhere in the current upstream
+source. LyricForge therefore sends the full song once and does not add a second
+competing chunking layer: the resumable wrapper in front of this service only
+splits audio longer than 20 minutes
 (`ResumableChunkedTranscriptionService.defaultChunkDuration`), which no song
-reaches.
+reaches and which matches the runtime's own limit.
+
+`max_new_tokens` is a **per-chunk** budget inside that runtime
+(`run_asr_on_chunks_batched` passes it to every chunk in the batch), so it has to
+cover a whole chunk of lyrics rather than one line. LyricForge therefore derives
+it from the normalized input length instead of hard-coding a value:
+
+```text
+max_new_tokens = max(1024, 256 + min(audio_seconds, 1200) * 8)
+```
+
+with `audio_seconds` read from the 16 kHz mono PCM WAV (32 000 bytes per second).
+The `min(audio_seconds, 1200)` is the runtime's own chunk cap, so the formula tops
+out at 9 856 tokens and needs no separate ceiling. Eight tokens per second covers roughly
+five CJK characters per second with headroom; the 1024 floor is the value this
+replaced, so no request can end up with a smaller allowance than before. The
+applied value is recorded as `maxNewTokens` in the document metadata, together
+with `transcriptCoverage` — the fraction of the audio the recognised lyrics
+reach — because a transcript that stops well before the end of the audio is the
+only visible symptom of a budget that ran out. Neither field is a verdict: songs
+routinely end with an instrumental outro.
 
 Request body:
 
