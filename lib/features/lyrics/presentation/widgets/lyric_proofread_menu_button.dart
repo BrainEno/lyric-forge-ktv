@@ -20,7 +20,7 @@ enum LyricProofreadAction {
 ///
 /// The editor used to expose four to six separate buttons for this, each with a
 /// label the user had to decode before understanding the difference. The flows
-/// themselves are unchanged; only the入口 is now a single menu, so the two
+/// themselves are unchanged; only the entry point is now a single menu, so the two
 /// distinct strategies (with and without reference lyrics) are described next to
 /// each other instead of hidden in different corners of the toolbar.
 class LyricProofreadMenuButton extends StatelessWidget {
