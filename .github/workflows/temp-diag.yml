@@ -9,7 +9,7 @@ on:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
@@ -21,9 +21,9 @@ jobs:
         run: |
           set +e
           status=0
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5 6 7 8; do
             out="/tmp/suite_${attempt}.txt"
-            flutter test --no-pub --reporter expanded > "$out" 2>&1
+            bash scripts/quality_gate.sh --skip-pub-get > "$out" 2>&1
             code=$?
             echo "attempt ${attempt} exit=${code}" >> /tmp/attempts.txt
             if [ "$code" -ne 0 ]; then status=1; fi
@@ -42,12 +42,12 @@ jobs:
           attempts = open('/tmp/attempts.txt').read() if os.path.exists('/tmp/attempts.txt') else 'no attempts recorded'
           for line in attempts.strip().splitlines():
               emit(line)
-          for attempt in (1, 2, 3):
+          for attempt in range(1, 9):
               path = f'/tmp/suite_{attempt}.txt'
               if not os.path.exists(path):
                   continue
               text = open(path, encoding='utf-8', errors='replace').read()
-              if 'All tests passed' in text or 'All other tests passed' in text:
+              if 'quality gate (all) passed' in text:
                   emit(f'attempt{attempt}: PASSED')
                   continue
               lines = text.splitlines()
