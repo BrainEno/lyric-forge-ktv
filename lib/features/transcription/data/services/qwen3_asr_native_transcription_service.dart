@@ -560,8 +560,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   /// A file that cannot be measured falls back to the previous fixed budget:
   /// the request fails on its own merits, and inflating the budget would only
   /// make that failure slower to surface.
-  Future<({int maxNewTokens, Duration audioDuration})>
-  _measureNormalizedInput(String audioPath) async {
+  Future<({int maxNewTokens, Duration audioDuration})> _measureNormalizedInput(
+    String audioPath,
+  ) async {
     try {
       final bytes = await File(audioPath).length();
       return (
@@ -741,9 +742,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         // stops well before the end is the only visible symptom of a decode
         // budget that ran out, so the number is recorded rather than inferred.
         'transcriptCoverage': _coverage(
-          lines
-              .map((line) => line.endTime)
-              .reduce((a, b) => a > b ? a : b),
+          lines.map((line) => line.endTime).reduce((a, b) => a > b ? a : b),
           audioDuration,
         ),
         'rawJsonPath': rawJsonPath,

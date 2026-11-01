@@ -60,10 +60,7 @@ void main() {
       // The runtime never hands the decoder more than one 1200 s chunk, so a
       // longer file must not inflate the per-request budget.
       final atLimit = qwenMaxNewTokensFor(qwenRuntimeMaxChunk);
-      expect(
-        qwenMaxNewTokensFor(const Duration(minutes: 40)),
-        atLimit,
-      );
+      expect(qwenMaxNewTokensFor(const Duration(minutes: 40)), atLimit);
       expect(atLimit, 256 + 1200 * 8);
       expect(atLimit, lessThan(qwenDecodeMaximumTokens));
     });

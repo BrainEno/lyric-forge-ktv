@@ -54,12 +54,12 @@ Duration normalizedPcmWavDuration(int wavBytes) {
 int qwenMaxNewTokensFor(Duration audioDuration) {
   final effectiveSeconds = audioDuration.inSeconds <= 0
       ? 0
-      : audioDuration.inSeconds
-            .clamp(0, qwenRuntimeMaxChunk.inSeconds)
-            .toInt();
+      : audioDuration.inSeconds.clamp(0, qwenRuntimeMaxChunk.inSeconds).toInt();
   final derived =
       qwenDecodeBaseTokens + effectiveSeconds * qwenDecodeTokensPerAudioSecond;
-  return derived.clamp(qwenDecodeMinimumTokens, qwenDecodeMaximumTokens).toInt();
+  return derived
+      .clamp(qwenDecodeMinimumTokens, qwenDecodeMaximumTokens)
+      .toInt();
 }
 
 /// Convenience for the common case: the budget for a normalized WAV file.
