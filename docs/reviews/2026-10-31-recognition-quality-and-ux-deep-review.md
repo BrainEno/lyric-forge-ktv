@@ -21,10 +21,10 @@
 
 | 级别 | 编号 | 问题 | 用户可感知后果 |
 |---|---|---|---|
-| **P0** | R1 | 所有识别都被 3 分钟分片包住（`service_locator.dart:271`），与文档「整首一次送入」直接矛盾 | 接缝处半句/重复；耗时 2–3 倍；复核证据被逐片重置 |
+| **P0** | R1 | 所有识别都被 3 分钟分片包住（`service_locator.dart:271`），与文档「整首一次送入」直接矛盾 | 接缝处半句/重复；耗时 2–3 倍；复核证据被逐片重置。**已修复**（阈值 20 分钟，歌曲整首一次） |
 | **P0** | R2 | 次引擎碎片因「字符比例时间估计」被误判为不匹配而插入（`high_quality_transcription_service.dart:879`） | 实测粒度差 4 倍时 **12 行 → 27 行**（插入 15 行，精确率 44%）；**已修复** |
-| **P0** | R3 | 分片合并只保留 `mergeStrategy` 一个 metadata（`resumable_chunked_transcription_service.dart:483`） | 双引擎候选、模型身份、可疑行索引全部丢失；≥3 分钟的歌等于没有双引擎复核 |
-| **P0** | R4 | 分片检查点指纹不含 ASR 配置（同文件 `:83` / `:495`） | 换模型/换引擎顺序后「重新识别」静默返回旧结果 |
+| **P0** | R3 | 分片合并只保留 `mergeStrategy` 一个 metadata（`resumable_chunked_transcription_service.dart:483`） | 双引擎候选、模型身份、可疑行索引全部丢失；≥3 分钟的歌等于没有双引擎复核。**已修复** |
+| **P0** | R4 | 分片检查点指纹不含 ASR 配置（同文件 `:83` / `:495`） | 换模型/换引擎顺序后「重新识别」静默返回旧结果。**已修复** |
 | **P0** | R5 | 自动安装只认 RTX 5080 / Intel Mac（`managed_asr_runtime_manager.dart:1314`） | 绝大多数机器「一键准备」直接报错，连 Whisper 单模型也装不了 |
 | **P0** | R6 | 最高质量模式在 Qwen 不可用时整体失败，不做降级（`high_quality_transcription_service.dart:64`） | 驱动更新/显存不足 = 一首歌都识别不出来，而 Whisper 本来能跑 |
 | **P1** | R7 | Whisper 参数从未优化：贪心解码、无 `--prompt`、无 VAD、`-l auto` | 精度上限被锁死；乐器段幻觉；专有名词全错 |
@@ -118,6 +118,16 @@ this.overlap = const Duration(seconds: 8),
 
 **建议**：取消歌曲流程的全局分片（或把阈值提高到 15–20 分钟并显式提示）。断点续跑应该做在**引擎内部**，而不是包在「双引擎 + 融合」外面。
 
+**处理（2026-11-01）**
+
+采用「提高阈值」而不是「彻底删除包装」：`chunkDuration` 默认 3 分钟 → **20 分钟**，`defaultChunkDuration` 成为具名常量。包装器保留的唯一理由是让超长音频（演唱会、有声书）能断点续跑；对任何正常长度的歌，它现在只做一次时长探测就原样转交，**不再创建 `chunk_session` 目录**。
+
+为什么不删：删掉包装器会同时删掉断点续跑，而 R1 的问题不是「有包装器」，是「包装器的阈值低于歌曲长度」。20 分钟对一首歌来说等于「永不触发」，对 40 分钟的现场录音仍然有用。
+
+顺带修掉本节列出的第 4 条后果：每片的 `<id>_work/` 目录（含整片归一化 WAV）在检查点写好之后会被删除，不再无限增长。
+
+**未处理**：`whisperOnly` 与最高质量模式仍然共用同一条包装路径 —— 现在共用的是「整首一次送入」，这是正确行为，无需拆分。
+
 ---
 
 ### R2【P0】融合阶段的行数膨胀（已实测，结论已按实测更正）
@@ -198,6 +208,20 @@ LyricDocument _mergeDocuments(List<LyricDocument> documents) {
 
 **建议**：合并时按「文档级 metadata 取首片 + 汇总各类计数/索引」的方式显式重建；`fallbackCandidates` 需要按分片索引偏移重映射（代码里已有类似的 `_remapCandidateIndices`，可直接复用）。
 
+**处理（2026-11-01）**
+
+`_mergeDocuments` 现在同时产出「每个分片的行索引 → 合并后行索引」映射（去重与排序都要穿过），`_mergeMetadata` 据此重建：
+
+- `fallbackCandidates`：逐片拼接，`lineIndex` 按映射重写；同一行只保留一条（编辑器按行查找）。
+- `secondaryOnlyLineIndices` / `suspiciousLineIndexes`：重映射后去重排序。
+- `fallbackCandidateCount` / `secondaryOnlyLineCount` / `fallbackAppliedCount`：**按合并后的数据重算**，不再原样沿用首片。
+- 文档级字段（`primaryEngine`、`alignmentEngine`、`fallbackEngine`、`qualityMode`、`fusionPolicy`）保留首片值。
+- `qwenRawJsonPath` / `whisperRawJsonPath` 被显式删除 —— 它们指向某一分片的工作目录，对合并结果来说是假信息。
+
+另外 `_shiftDocument` 现在也会平移候选里的 `startMs` / `endMs`，否则第二片之后的候选时间戳会停留在该片的局部时间（今天没有 UI 读这两个键，但留着就是一颗定时炸弹）。
+
+**注意**：修复后 ≥20 分钟音频才走合并路径，正常歌曲根本不经过这里。这项修复的价值在「超长音频也必须保留复核证据」，而不是「拯救普通歌曲」。
+
 ---
 
 ### R4【P0】检查点不随配置失效 ⇒「重新识别」静默返回旧结果
@@ -216,6 +240,14 @@ final compatible = manifest != null &&
 所以：用户改成 Whisper 单模型、或换了更大的 Qwen 模型、或修好了 runtime，再点「重新识别歌词」→ 逐片命中旧 JSON → **输出与上次逐字相同**。这会被用户直接解读为「这软件识别能力不行」。
 
 **建议**：把「影响结果的配置」纳入 session 版本键（或直接删掉冲突的 session 目录）；至少接入模型身份（仓库里已有 `TranscriptionModelIdentity`）。
+
+**处理（2026-11-01）**
+
+manifest 版本 1 → 2，新增 `configFingerprint`：`sha256(mode | engineOrder | qwen 可执行文件/模型/对齐模型/设备/dtype | whisper 可执行文件/模型 | language | 两个复核阈值)`。用哈希而不是明文，避免把绝对路径写进工程目录。任何一项变化都会让检查点整体失效并重建 `chunks/`。
+
+**取舍**：`ffmpegExecutable` 与 `downloadProxy` 不计入 —— 前者影响归一化参数但我们没有版本号可依赖，后者与识别结果无关。宁可少失效一次，也不要在无关设置变动时把用户的进度清空。
+
+**升级影响**：版本号变更会让**所有**旧检查点失效一次。这是有意的：旧检查点没有记录配置，无法判断它是否对应当前设置，继续复用就是在重复 R4 本身的错误。
 
 ---
 

@@ -130,7 +130,10 @@ The currently evaluated reference implementation is the Rust/Candle
 implementation: long audio is split into chunks no longer than 180 seconds,
 timestamps are offset back to the original song timeline, merged, and repaired
 for cross-chunk monotonicity. LyricForge therefore sends the full song once and
-does not add a second competing chunking layer.
+does not add a second competing chunking layer: the resumable wrapper in front of
+this service only splits audio longer than 20 minutes
+(`ResumableChunkedTranscriptionService.defaultChunkDuration`), which no song
+reaches.
 
 Request body:
 
