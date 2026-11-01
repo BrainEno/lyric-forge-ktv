@@ -1,0 +1,76 @@
+name: Temp toolchain report
+
+# Temporary: runs the pinned Flutter toolchain in CI to format the new tool and
+# capture analyze/test output as committable report files. Deleted before the
+# pull request is merged.
+
+on:
+  push:
+    branches:
+      - 'arena/b3b7e45e-lyric-forge-ktv'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-toolchain-report
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format target files
+        run: |
+          mkdir -p .ci-report
+          set +e
+          dart format tool/asr_quality_report.dart \
+            test/tool/asr_quality_report_test.dart \
+            > .ci-report/format.txt 2>&1
+          echo "format exit: $?" >> .ci-report/format.txt
+          cat .ci-report/format.txt
+
+      - name: Analyze
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos lib test \
+            > .ci-report/analyze.txt 2>&1
+          echo "analyze exit: $?" >> .ci-report/analyze.txt
+          tail -60 .ci-report/analyze.txt
+
+      - name: Test new tool
+        run: |
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/tool/asr_quality_report_test.dart \
+            > .ci-report/test.txt 2>&1
+          echo "test exit: $?" >> .ci-report/test.txt
+          tail -100 .ci-report/test.txt
+
+      - name: Publish report back to the branch
+        run: |
+          set -euo pipefail
+          git config user.name 'ci-toolchain-report'
+          git config user.email 'ci-toolchain-report@users.noreply.github.com'
+          git add -A -- .ci-report tool test lib docs .gitignore
+          if git diff --cached --quiet; then
+            echo 'Nothing to publish.'
+            exit 0
+          fi
+          git commit -m 'chore: ci toolchain report [skip ci]'
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
