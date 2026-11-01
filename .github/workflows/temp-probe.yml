@@ -18,6 +18,12 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Resolve packages
         run: flutter pub get
+      - name: Regenerate work log and dump the diff
+        run: |
+          set +e
+          dart tool/work_log.dart write > /tmp/wlog.txt 2>&1
+          echo "write exit=$?" >> /tmp/wlog.txt
+          git --no-pager diff -- docs/work_log.md docs/work_log_archive.md docs/work_log_index.md > /tmp/wlog_diff.txt 2>&1
       - name: Format check
         id: format
         continue-on-error: true
@@ -117,6 +123,12 @@ jobs:
                   return []
               return [l.rstrip() for l in open(path, encoding='utf-8', errors='replace').read().splitlines()]
 
+          if os.path.exists('/tmp/wlog.txt'):
+              note('worklog: ' + ' | '.join(lines_of('/tmp/wlog.txt'))[:300])
+          if os.path.exists('/tmp/wlog_diff.txt'):
+              diff = lines_of('/tmp/wlog_diff.txt')
+              for start in range(0, len(diff), 25):
+                  emit(f'wlog[{start}]\n' + '\n'.join(diff[start:start + 25])[:2500])
           for name in ['format', 'analyze', 'targeted', 'full']:
               text = lines_of(f'/tmp/{name}.txt')
               if not text:
