@@ -40,10 +40,10 @@
 
 **结论：当前应用调用路径不能把任意参考文本传给 ForcedAligner。** 当前启动本地 sidecar 时通过 `--forced-aligner <model>` 指定模型，但请求 `POST /v1/transcribe` 的 body 是音频路径、`return_timestamps: true`、生成/批处理选项，以及可选 context 和 language；没有 `text` / transcript 参数。这里的 `context` 是提示上下文，不能据此认定为“强制对齐指定参考文本”。sidecar 也可能有其他接口，但当前仓库没有调用或验证它们，所以按现有合同应视为“尚不能传任意文本”。
 
-- 请求：`audio`、`return_timestamps`、`max_new_tokens`、`max_batch_size`、`bucket_by_length`，可选 `context` 与 `language`。源码路径：`lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart:297-315, 402-447`。
+- 请求：`audio`、`return_timestamps`、`max_new_tokens`（按标准化音频时长推导，见 `lib/features/transcription/domain/models/qwen_decode_budget.dart`）、`max_batch_size`、`bucket_by_length`，可选 `context` 与 `language`。
 - 语言：配置值 `zh/en/ja/ko` 分别映射为 `Chinese/English/Japanese/Korean`；其他值会省略 language，交由运行时自动检测。源码路径：`lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart:480-484`。
 - 响应：优先解包 `results[0]`；接受 segment 形态以及 `words`、`time_stamps`、`timestamps.word(s/items/list)` 等形态。时间项可用 `text/word` 和 `start/start_time/begin`、`end/end_time/finish` 字段。源码路径：`lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart:463-478, 565-612, 617-653`。
-- 时长：应用层把整首标准化音频一次提交，当前没有由 Dart 请求器强制的单次秒数上限。仓库文档描述的被评估 Rust/Candle sidecar 会把长音频内部切成**每段不超过 180 秒**的块并修正回全曲时间轴；这是当前参考实现的内部行为，不应误写成所有未来 adapter 的通用保证。证据：`docs/high_quality_asr.md:83-100`。
+- 时长：应用层把整首标准化音频一次提交，当前没有由 Dart 请求器强制的单次秒数上限。仓库文档描述的被评估 Rust/Candle sidecar 会把长音频内部切成**每段不超过 1200 秒**（`MAX_ASR_INPUT_SECONDS`）的块并修正回全曲时间轴；这是当前参考实现的内部行为，不应误写成所有未来 adapter 的通用保证。证据：`docs/high_quality_asr.md`「Qwen native runtime contract」小节。
 
 ### Q3. vocal stem 路径从哪里取？没有分离时怎么办？
 

@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/asr_confidence.dart';
+import '../../domain/models/qwen_decode_budget.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -98,10 +99,12 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         0.34,
         '${_modelLabel(request.config.qwenModelPath)} 正在识别歌曲',
       );
+      final input = await _measureNormalizedInput(normalizedPath);
       final response = await _requestTranscription(
         audioPath: normalizedPath,
         config: request.config,
         context: request.context,
+        maxNewTokens: input.maxNewTokens,
       );
       _throwIfCancelled();
 
@@ -116,6 +119,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         normalizedAudioPath: normalizedPath,
         rawJsonPath: rawJsonPath,
         modelPath: request.config.qwenModelPath,
+        maxNewTokens: input.maxNewTokens,
+        audioDuration: input.audioDuration,
       );
 
       _emit(TranscriptionStage.completed, 1.0, 'Qwen3-ASR 高质量识别完成');
@@ -549,10 +554,33 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     }
   }
 
+  /// Measures the normalized input once for the decode budget and the
+  /// transcript-coverage record.
+  ///
+  /// A file that cannot be measured falls back to the previous fixed budget:
+  /// the request fails on its own merits, and inflating the budget would only
+  /// make that failure slower to surface.
+  Future<({int maxNewTokens, Duration audioDuration})>
+  _measureNormalizedInput(String audioPath) async {
+    try {
+      final bytes = await File(audioPath).length();
+      return (
+        maxNewTokens: qwenMaxNewTokensForPcmWav(bytes),
+        audioDuration: normalizedPcmWavDuration(bytes),
+      );
+    } on FileSystemException {
+      return (
+        maxNewTokens: qwenDecodeMinimumTokens,
+        audioDuration: Duration.zero,
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> _requestTranscription({
     required String audioPath,
     required TranscriptionConfig config,
     required String context,
+    required int maxNewTokens,
   }) async {
     final port = _serverPort;
     if (port == null) {
@@ -591,7 +619,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       final body = <String, dynamic>{
         'audio': audioPath,
         'return_timestamps': true,
-        'max_new_tokens': 1024,
+        'max_new_tokens': maxNewTokens,
         'max_batch_size': 4,
         'bucket_by_length': true,
         if (context.trim().isNotEmpty) 'context': context.trim(),
@@ -674,6 +702,8 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     required String normalizedAudioPath,
     required String rawJsonPath,
     required String modelPath,
+    required int maxNewTokens,
+    required Duration audioDuration,
   }) {
     final language = _normalizeLanguage(response['language']?.toString());
 
@@ -706,6 +736,16 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'segmentCount': lines.length,
         'suspiciousLineIndexes': suspiciousIndexes,
         'confidenceSource': 'per-line: model|heuristic|unscored',
+        'maxNewTokens': maxNewTokens,
+        // How far the recognised lyrics reach into the audio. A transcript that
+        // stops well before the end is the only visible symptom of a decode
+        // budget that ran out, so the number is recorded rather than inferred.
+        'transcriptCoverage': _coverage(
+          lines
+              .map((line) => line.endTime)
+              .reduce((a, b) => a > b ? a : b),
+          audioDuration,
+        ),
         'rawJsonPath': rawJsonPath,
       },
     );
@@ -716,6 +756,16 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       rawJsonPath: rawJsonPath,
       detectedLanguage: language,
     );
+  }
+
+  /// Fraction of the audio covered by the recognised lyrics, in [0, 1].
+  ///
+  /// Returns null when the audio length is unknown, because "unknown" must not
+  /// look like "the transcript stops at the very beginning".
+  double? _coverage(Duration lastLineEnd, Duration audioDuration) {
+    if (audioDuration <= Duration.zero) return null;
+    final ratio = lastLineEnd.inMilliseconds / audioDuration.inMilliseconds;
+    return ratio.clamp(0.0, 1.0).toDouble();
   }
 
   String _modelLabel(String modelPath) {

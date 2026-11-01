@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../domain/models/qwen_decode_budget.dart';
+
 typedef AsrProcessStarter =
     Future<Process> Function(String executable, List<String> arguments);
 typedef ActiveAsrProcessChanged = void Function(Process? process);
@@ -207,8 +209,6 @@ abstract final class AsrProcessTimeoutPolicy {
   static const Duration _inferenceMaximum = Duration(minutes: 120);
 
   static const int _bytesPerMebibyte = 1024 * 1024;
-  static const int _pcmWavHeaderBytes = 44;
-  static const int _normalizedPcmBytesPerSecond = 16000 * 1 * 2;
 
   /// Gives larger source files more FFmpeg time, with a hard upper bound.
   static Duration ffmpegPreprocessingForBytes(int sourceBytes) {
@@ -238,12 +238,7 @@ abstract final class AsrProcessTimeoutPolicy {
       _inferenceForPcmWavBytes(wavBytes);
 
   static Duration _inferenceForPcmWavBytes(int wavBytes) {
-    final payloadBytes = wavBytes > _pcmWavHeaderBytes
-        ? wavBytes - _pcmWavHeaderBytes
-        : 0;
-    final audioSeconds =
-        (payloadBytes + _normalizedPcmBytesPerSecond - 1) ~/
-        _normalizedPcmBytesPerSecond;
+    final audioSeconds = normalizedPcmWavDuration(wavBytes).inSeconds;
     final seconds = (180 + audioSeconds * 10)
         .clamp(_inferenceMinimum.inSeconds, _inferenceMaximum.inSeconds)
         .toInt();
