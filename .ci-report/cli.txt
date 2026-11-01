@@ -1,1 +1,16 @@
+--- generated inputs ---
+total 8
+-rw-r--r-- 1 runner runner 124 Nov  1 05:49 fused.lrc
+-rw-r--r-- 1 runner runner 117 Nov  1 05:49 reference.lrc
+[ti:smoke]
+[00:10.00]we are dancing through the night
+[00:15.00]sing a little song
+[00:20.00]until the morning light
+[00:10.00]we are dancing through the night
+[00:10.50]dancing
+[00:15.00]sing a little song
+[00:20.30]until the morning light
 FAILED: single pair expected exit 0, got 2
+--- /tmp/quality-smoke/pair.txt ---
+Running build hooks...Running build hooks...Invalid lyric quality input: Invalid group
+--- end ---
