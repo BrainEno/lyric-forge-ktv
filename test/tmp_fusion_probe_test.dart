@@ -151,15 +151,14 @@ void main() {
           TranscriptionEngineOrder.whisperPrimary,
           TranscriptionEngineOrder.qwenPrimary,
         ]) {
-          final primaryDoc = order == TranscriptionEngineOrder.whisperPrimary
-              ? reference
-              : secondary;
-          final secondaryDoc = order == TranscriptionEngineOrder.whisperPrimary
-              ? secondary
-              : reference;
+          // The service field names are engine-bound, not order-bound:
+          // `primary` always runs the Qwen engine and `fallback` always runs
+          // Whisper. `engineOrder` only decides which one is authoritative.
+          final qwenDoc = secondary;
+          final whisperDoc = reference;
           final service = HighQualityTranscriptionService(
-            primary: _Fake(_result(primaryDoc)),
-            fallback: _Fake(_result(secondaryDoc)),
+            primary: _Fake(_result(qwenDoc)),
+            fallback: _Fake(_result(whisperDoc)),
           );
           final result = await service.transcribe(_request(temp.path, order));
           final out = result.lyrics.lines;
@@ -177,9 +176,9 @@ void main() {
             '${pct(score['linePrecision'])} | ${num2(score['lineCountRatio'])}'
             '   [${order == TranscriptionEngineOrder.whisperPrimary ? "whisperPrimary" : "qwenPrimary"}]',
           );
-          if (combo[0] == 8 && combo[1] == 4 && order == TranscriptionEngineOrder.whisperPrimary) {
+          if (combo[0] == 8 && combo[1] == 4 && !typo) {
             // ignore: avoid_print
-            print('  primary=${primaryDoc.length} secondary=${secondaryDoc.length} meta=${result.lyrics.metadata.keys.toList()}');
+            print('  qwen=${qwenDoc.length} whisper=${whisperDoc.length} applied=${result.lyrics.metadata['fallbackAppliedCount']}');
             for (final line in out.take(8)) {
               // ignore: avoid_print
               print('   OUT ${line.startTime.inMilliseconds}-${line.endTime.inMilliseconds} "${line.text}" c=${line.confidence}');
