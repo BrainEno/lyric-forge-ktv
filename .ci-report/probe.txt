@@ -6,8 +6,26 @@ PRIMARY_SEC | FRAG_SEC | TYPO | OUT | INSERTED | DUP_RATE | RECALL | PRECISION |
 8 | 8 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
 8 | 8 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
 8 | 4 | false | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [whisperPrimary]
+  primary=12 secondary=24 meta=[draft, qualityMode, primaryEngine, alignmentEngine, fallbackEngine, fallbackAlignmentEngine, fallbackStrategy, fallbackStatus, fallbackCandidateCount, fallbackAppliedCount, fallbackCandidates, secondaryOnlyLineCount, secondaryOnlyLineIndices, fusionPolicy, qwenRawJsonPath]
+   OUT 0-4000 "we are dancing" c=95
+   OUT 4000-8000 "through the night" c=95
+   OUT 8000-12000 "sing a little" c=95
+   OUT 12000-16000 "song for me" c=95
+   OUT 16000-20000 "the morning light" c=95
+   OUT 20000-24000 "is breaking" c=95
+   OUT 24000-28000 "i hear the" c=95
+   OUT 28000-32000 "city waking" c=95
 8 | 4 | false | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [qwenPrimary]
 8 | 4 | true | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [whisperPrimary]
+  primary=12 secondary=24 meta=[draft, qualityMode, primaryEngine, alignmentEngine, fallbackEngine, fallbackAlignmentEngine, fallbackStrategy, fallbackStatus, fallbackCandidateCount, fallbackAppliedCount, fallbackCandidates, secondaryOnlyLineCount, secondaryOnlyLineIndices, fusionPolicy, qwenRawJsonPath]
+   OUT 0-4000 "we are dancing" c=95
+   OUT 4000-8000 "through the nigh" c=95
+   OUT 8000-12000 "sing a little" c=95
+   OUT 12000-16000 "song for m" c=95
+   OUT 16000-20000 "the morning light" c=95
+   OUT 20000-24000 "is breakin" c=95
+   OUT 24000-28000 "i hear the" c=95
+   OUT 28000-32000 "city wakin" c=95
 8 | 4 | true | 24 | 0 | 0.0% | 33.3% | 16.7% | 2.00   [qwenPrimary]
 10 | 3 | false | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [whisperPrimary]
 10 | 3 | false | 32 | 0 | 0.0% | 16.7% | 6.3% | 2.67   [qwenPrimary]
@@ -17,14 +35,13 @@ PRIMARY_SEC | FRAG_SEC | TYPO | OUT | INSERTED | DUP_RATE | RECALL | PRECISION |
 6 | 6 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
 6 | 6 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
 6 | 6 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
-00:00 +0 -1: fusion granularity probe [E]
-  Unsupported operation: Infinity or NaN toInt
-  dart:core                               double.ceil
-  test/tmp_fusion_probe_test.dart 43:44   fragmented
-  test/tmp_fusion_probe_test.dart 149:27  main.<fn>
-  
-00:00 +0 -1: Some tests failed.
-
-Failing tests:
-  /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tmp_fusion_probe_test.dart: fusion granularity probe
-probe exit: 1
+4 | 10 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+4 | 10 | false | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+4 | 10 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [whisperPrimary]
+4 | 10 | true | 12 | 0 | 0.0% | 100.0% | 100.0% | 1.00   [qwenPrimary]
+12 | 3 | false | 40 | 0 | 0.0% | 0.0% | 0.0% | 3.33   [whisperPrimary]
+12 | 3 | false | 40 | 0 | 0.0% | 0.0% | 0.0% | 3.33   [qwenPrimary]
+12 | 3 | true | 40 | 0 | 0.0% | 0.0% | 0.0% | 3.33   [whisperPrimary]
+12 | 3 | true | 40 | 0 | 0.0% | 0.0% | 0.0% | 3.33   [qwenPrimary]
+00:00 +1: All tests passed!
+probe exit: 0
