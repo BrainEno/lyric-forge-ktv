@@ -142,16 +142,32 @@ jobs:
               statuses[name] = rows[-1] if rows else 'no output'
               emit('notice', f'{name}: ' + statuses[name][:250])
 
-          def tail_of(title, path, size=45, limit=2400):
-              # Only the end matters: the expanded reporter prints one line per
-              # passing test, so the failure is always in the tail.
-              rows = [row for row in lines_of(path) if row.strip()]
-              window = rows[-size:]
-              if window:
+          def failures_of(title, path, limit=2400):
+              # The expanded reporter prints one line per passing test, so pick
+              # the failure evidence by content instead of by position.
+              rows = lines_of(path)
+              picked = []
+              capture = 0
+              for row in rows:
+                  if '[E]' in row:
+                      picked.append(row)
+                      capture = 12
+                      continue
+                  if capture > 0:
+                      picked.append(row)
+                      capture -= 1
+                  elif row.strip().startswith(
+                      ('Expected:', 'Actual:', 'Which:', 'Error:', 'Test failed')
+                  ):
+                      picked.append(row)
+              if picked:
+                  emit('error', f'{title} failures\n' + '\n'.join(picked)[:limit])
+              else:
+                  window = [row for row in rows if row.strip()][-20:]
                   emit('error', f'{title} tail\n' + '\n'.join(window)[:limit])
 
           if 'exit=0' not in statuses['format']:
-              tail_of('format', '/tmp/format_diff.txt')
+              failures_of('format', '/tmp/format_diff.txt')
           if 'exit=0' not in statuses['analyze']:
               rows = lines_of('/tmp/analyze.txt')
               problems = [
@@ -161,7 +177,7 @@ jobs:
               body = '\n'.join(problems[:40]) or '\n'.join(rows[-40:])
               emit('error', 'analyze-problems\n' + body[:2400])
           if 'exit=0' not in statuses['targeted']:
-              tail_of('targeted', '/tmp/targeted.txt')
+              failures_of('targeted', '/tmp/targeted.txt')
           if 'exit=0' not in statuses['full']:
-              tail_of('full', '/tmp/full.txt')
+              failures_of('full', '/tmp/full.txt')
           PY
