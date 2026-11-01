@@ -11,7 +11,6 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
-import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -49,6 +48,7 @@ import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
 import '../widgets/unsaved_lyric_edits_dialog.dart';
 
@@ -58,8 +58,6 @@ import '../widgets/unsaved_lyric_edits_dialog.dart';
 /// same as "the model was unsure", and mixing them turned the review queue into
 /// the whole song.
 const int _reviewConfidenceThreshold = 70;
-
-enum _ReviewFilter { all, needsReview, lowConfidence, smartReview }
 
 /// 参考对齐应用前的完整内存快照，用于立即撤销（不写磁盘）。
 class _AlignmentUndoSnapshot {
@@ -115,7 +113,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   bool _hasChanges = false;
   bool _followPlayback = true;
   int? _selectedLineIndex;
-  _ReviewFilter _filter = _ReviewFilter.all;
+  LyricReviewFilter _filter = LyricReviewFilter.all;
 
   /// 插入新行后递增，用于让列表/检查器知道"该聚焦这个新行"。
   int _focusRequestId = 0;
@@ -206,7 +204,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _editingDocument = updated;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
-      _filter = _ReviewFilter.smartReview;
+      _filter = LyricReviewFilter.smartReview;
       _refreshReviewPriorityCache(updated, project.audioAsset?.duration);
       _selectedLineIndex = _reviewPriorityByIndex.isEmpty
           ? null
@@ -515,7 +513,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = snapshot;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       if (result.corrections.isNotEmpty) {
         _selectedLineIndex = result.corrections.first.asrLineIndex;
       } else if (result.insertions.isNotEmpty) {
@@ -1208,7 +1206,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = snapshot;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       _selectedLineIndex = after.lines.isEmpty ? null : 0;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
@@ -1244,7 +1242,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = snapshot;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       _selectedLineIndex = applied.changedDraftIndices.first;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
@@ -1323,7 +1321,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _selectedLineIndex = snapshot.selectedLineIndex;
       _hasChanges = snapshot.hasChanges;
       _alignmentUndoSnapshot = null;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1390,7 +1388,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _activeLineAudition = null;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       final lastIndex = restored.lines.length - 1;
       if (lastIndex < 0) {
         _selectedLineIndex = null;
@@ -1433,7 +1431,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         current.copyWith(lines: lines, metadata: metadata),
       );
       _selectedLineIndex = lines.length - 1;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
     });
@@ -1459,7 +1457,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ),
       );
       _selectedLineIndex = insertion.index;
-      _filter = _ReviewFilter.all;
+      _filter = LyricReviewFilter.all;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
       _focusRequestId++;
@@ -2005,7 +2003,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               filter: _filter,
               onFilterChanged: (value) => setState(() {
                 _filter = value;
-                if (value != _ReviewFilter.smartReview) {
+                if (value != LyricReviewFilter.smartReview) {
                   _loopCurrentLineAudition = false;
                 }
               }),
@@ -2121,8 +2119,8 @@ class _LyricEditorContent extends StatelessWidget {
   final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
   final bool followPlayback;
   final int? selectedLineIndex;
-  final _ReviewFilter filter;
-  final ValueChanged<_ReviewFilter> onFilterChanged;
+  final LyricReviewFilter filter;
+  final ValueChanged<LyricReviewFilter> onFilterChanged;
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
   final void Function(int, bool) onReviewDecision;
@@ -2226,16 +2224,18 @@ class _LyricEditorContent extends StatelessWidget {
     for (var index = 0; index < document.lines.length; index++) {
       final line = document.lines[index];
       final include = switch (filter) {
-        _ReviewFilter.all => true,
-        _ReviewFilter.needsReview => _needsReview(index),
-        _ReviewFilter.lowConfidence => line.isLowConfidence(
+        LyricReviewFilter.all => true,
+        LyricReviewFilter.needsReview => _needsReview(index),
+        LyricReviewFilter.lowConfidence => line.isLowConfidence(
           _reviewConfidenceThreshold,
         ),
-        _ReviewFilter.smartReview => reviewPriorityByIndex.containsKey(index),
+        LyricReviewFilter.smartReview => reviewPriorityByIndex.containsKey(
+          index,
+        ),
       };
       if (include) indices.add(index);
     }
-    if (filter == _ReviewFilter.smartReview) {
+    if (filter == LyricReviewFilter.smartReview) {
       indices.sort((left, right) {
         final byPriority = (reviewPriorityByIndex[right]?.score ?? 0).compareTo(
           reviewPriorityByIndex[left]?.score ?? 0,
@@ -2383,12 +2383,19 @@ class _LyricEditorContent extends StatelessWidget {
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,
                 ),
-              if (document.lines.isNotEmpty)
-                IconButton(
-                  tooltip: '导出 LRC',
-                  onPressed: onExport,
-                  icon: const Icon(Icons.download_rounded),
-                ),
+              LyricEditorOverflowMenu(
+                canExport: document.lines.isNotEmpty,
+                onExport: onExport,
+                onInsertAtPlayback: playbackBelongsToProject
+                    ? onInsertAtPlayback
+                    : null,
+                onOpenPlayer: project.canPlay
+                    ? () => Navigator.pushNamed(
+                        context,
+                        Routes.playerPath(project.id),
+                      )
+                    : null,
+              ),
               if (hasChanges)
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
@@ -2409,7 +2416,7 @@ class _LyricEditorContent extends StatelessWidget {
           body: SafeArea(
             child: Column(
               children: [
-                _EditorToolbar(
+                LyricEditorToolbar(
                   document: document,
                   playback: playback,
                   playbackBelongsToProject: playbackBelongsToProject,
@@ -2425,9 +2432,6 @@ class _LyricEditorContent extends StatelessWidget {
                   onFollowPlaybackChanged: onFollowPlaybackChanged,
                   onUpdateOffset: onUpdateOffset,
                   onTogglePlayback: onTogglePlayback,
-                  onInsertAtPlayback: playbackBelongsToProject
-                      ? onInsertAtPlayback
-                      : null,
                   onSeekPlayback: onSeekPlayback,
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
@@ -2435,12 +2439,6 @@ class _LyricEditorContent extends StatelessWidget {
                   onUndoReferenceAlignment: onUndoReferenceAlignment,
                   onViewAlignmentComparison: onViewAlignmentComparison,
                   onRestoreAlignment: onRestoreAlignment,
-                  onOpenPlayer: project.canPlay
-                      ? () => Navigator.pushNamed(
-                          context,
-                          Routes.playerPath(project.id),
-                        )
-                      : null,
                 ),
                 Expanded(
                   child: document.lines.isEmpty
@@ -2545,9 +2543,6 @@ class _LyricEditorContent extends StatelessWidget {
                   visibleLines: visibleIndices.length,
                   hasChanges: hasChanges,
                   onAddLine: onAddLine,
-                  onInsertAtPlayback: playbackBelongsToProject
-                      ? onInsertAtPlayback
-                      : null,
                 ),
               ],
             ),
@@ -2558,275 +2553,11 @@ class _LyricEditorContent extends StatelessWidget {
   }
 }
 
-class _EditorToolbar extends StatelessWidget {
-  final LyricDocument document;
-  final PlaybackState playback;
-  final bool playbackBelongsToProject;
-  final int lowConfidenceCount;
-  final int reviewCount;
-  final int smartReviewCount;
-  final _ReviewFilter filter;
-  final bool loopCurrentLineAudition;
-  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
-  final bool followPlayback;
-  final ValueChanged<_ReviewFilter> onFilterChanged;
-  final ValueChanged<bool> onFollowPlaybackChanged;
-  final ValueChanged<Duration> onUpdateOffset;
-  final VoidCallback onTogglePlayback;
-  final VoidCallback? onInsertAtPlayback;
-  final ValueChanged<Duration> onSeekPlayback;
-  final VoidCallback? onReferenceAlignment;
-  final VoidCallback? onReferenceProofread;
-  final VoidCallback? onProofreadV2;
-  final VoidCallback? onUndoReferenceAlignment;
-  final VoidCallback? onViewAlignmentComparison;
-  final VoidCallback? onRestoreAlignment;
-  final VoidCallback? onOpenPlayer;
-
-  const _EditorToolbar({
-    required this.document,
-    required this.playback,
-    required this.playbackBelongsToProject,
-    required this.lowConfidenceCount,
-    required this.reviewCount,
-    required this.smartReviewCount,
-    required this.filter,
-    required this.loopCurrentLineAudition,
-    required this.onLoopCurrentLineAuditionChanged,
-    required this.followPlayback,
-    required this.onFilterChanged,
-    required this.onFollowPlaybackChanged,
-    required this.onUpdateOffset,
-    required this.onTogglePlayback,
-    required this.onInsertAtPlayback,
-    required this.onSeekPlayback,
-    required this.onReferenceAlignment,
-    required this.onReferenceProofread,
-    required this.onProofreadV2,
-    required this.onUndoReferenceAlignment,
-    required this.onViewAlignmentComparison,
-    required this.onRestoreAlignment,
-    required this.onOpenPlayer,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final offset = document.globalOffset ?? Duration.zero;
-    final compactControls = spec.isCompactOrMedium || spec.isShort;
-    final horizontalPadding = spec.pageGutter.clamp(12, 24).toDouble();
-
-    Widget adaptiveControls(List<Widget> children) {
-      if (!compactControls) {
-        return Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: children,
-        );
-      }
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (var index = 0; index < children.length; index++) ...[
-              if (index > 0) const SizedBox(width: AppSpacing.sm),
-              children[index],
-            ],
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        horizontalPadding,
-        AppSpacing.sm,
-        horizontalPadding,
-        AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.bgElevated,
-        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          adaptiveControls([
-            _MetricPill(
-              icon: Icons.format_list_numbered_rounded,
-              label: '${document.lines.length} 行',
-            ),
-            _MetricPill(
-              icon: Icons.language_rounded,
-              label: document.language.toUpperCase(),
-            ),
-            _MetricPill(
-              icon: Icons.rule_rounded,
-              label: '待复核 $reviewCount',
-              emphasized: reviewCount > 0,
-            ),
-            _MetricPill(
-              icon: Icons.warning_amber_rounded,
-              label: '低置信度 $lowConfidenceCount',
-              warning: lowConfidenceCount > 0,
-            ),
-            Tooltip(
-              message: '按低置信度、双引擎分歧、可疑重复和时间轴异常排序。分值仅表示复核优先级，不代表错误概率。',
-              child: ChoiceChip(
-                selected: filter == _ReviewFilter.smartReview,
-                onSelected: (_) => onFilterChanged(_ReviewFilter.smartReview),
-                label: Text('智能复核 $smartReviewCount'),
-              ),
-            ),
-            ChoiceChip(
-              selected: filter == _ReviewFilter.all,
-              onSelected: (_) => onFilterChanged(_ReviewFilter.all),
-              label: const Text('全部'),
-            ),
-            ChoiceChip(
-              selected: filter == _ReviewFilter.needsReview,
-              onSelected: (_) => onFilterChanged(_ReviewFilter.needsReview),
-              label: const Text('待复核'),
-            ),
-            ChoiceChip(
-              selected: filter == _ReviewFilter.lowConfidence,
-              onSelected: (_) => onFilterChanged(_ReviewFilter.lowConfidence),
-              label: const Text('低置信度'),
-            ),
-          ]),
-          const SizedBox(height: AppSpacing.sm),
-          adaptiveControls([
-            SizedBox(
-              width: spec.minimumInteractiveExtent,
-              height: spec.minimumInteractiveExtent,
-              child: IconButton(
-                tooltip: playbackBelongsToProject && playback.isPlaying
-                    ? '暂停试听'
-                    : '继续试听',
-                onPressed: onTogglePlayback,
-                icon: Icon(
-                  playbackBelongsToProject && playback.isPlaying
-                      ? Icons.pause_circle_filled_rounded
-                      : Icons.play_circle_fill_rounded,
-                ),
-              ),
-            ),
-            if (!playbackBelongsToProject)
-              Text(
-                '尚未开始试听',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            if (!spec.isCompactOrMedium)
-              Tooltip(
-                message: onInsertAtPlayback == null
-                    ? '先试听本工程后可在当前时间插入'
-                    : '在当前试听时间插入一行',
-                child: FilledButton.tonalIcon(
-                  onPressed: onInsertAtPlayback,
-                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                  label: const Text('在播放位置插入'),
-                ),
-              ),
-            // All proofreading flows live behind one entry point: the toolbar
-            // used to carry six separate buttons whose differences were only
-            // visible in their tooltips. Narrow layouts already show the same
-            // menu in the app bar, so they do not get a second copy here.
-            if (!compactControls)
-              LyricProofreadMenuButton(
-                onProofreadV2: onProofreadV2,
-                onReferenceAlignment: onReferenceAlignment,
-                onReferenceProofread: onReferenceProofread,
-                onViewComparison: onViewAlignmentComparison,
-                onUndoAlignment: onUndoReferenceAlignment,
-                onRestoreBackup: onRestoreAlignment,
-              ),
-            if (filter == _ReviewFilter.smartReview)
-              Tooltip(
-                message: LyricReviewStrings.loopCurrentLineHelp,
-                child: FilterChip(
-                  selected: loopCurrentLineAudition,
-                  onSelected: onLoopCurrentLineAuditionChanged,
-                  avatar: const Icon(Icons.repeat_rounded, size: 16),
-                  label: const Text(LyricReviewStrings.loopCurrentLineLabel),
-                ),
-              ),
-            FilterChip(
-              selected: followPlayback,
-              onSelected: onFollowPlaybackChanged,
-              avatar: Icon(
-                followPlayback
-                    ? Icons.my_location_rounded
-                    : Icons.location_disabled_rounded,
-                size: 16,
-              ),
-              label: const Text('跟随播放'),
-            ),
-            if (onOpenPlayer != null)
-              TextButton.icon(
-                onPressed: onOpenPlayer,
-                icon: const Icon(Icons.open_in_full_rounded, size: 17),
-                label: Text(spec.isCompact ? '播放器' : '完整播放器'),
-              ),
-            Text(
-              '全局偏移',
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.textTertiary),
-            ),
-            _OffsetButton(
-              label: '-100ms',
-              onPressed: () =>
-                  onUpdateOffset(offset - const Duration(milliseconds: 100)),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.bgSurface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-              ),
-              child: Text(
-                _formatSignedDuration(offset),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            _OffsetButton(
-              label: '+100ms',
-              onPressed: () =>
-                  onUpdateOffset(offset + const Duration(milliseconds: 100)),
-            ),
-            if (offset != Duration.zero)
-              TextButton(
-                onPressed: () => onUpdateOffset(Duration.zero),
-                child: const Text('归零'),
-              ),
-          ]),
-          if (playbackBelongsToProject) ...[
-            const SizedBox(height: AppSpacing.xs),
-            SeekableProgressBar(
-              state: playback,
-              onSeek: onSeekPlayback,
-              compact: true,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _LyricListPane extends StatefulWidget {
   final LyricDocument document;
   final List<int> visibleIndices;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
-  final _ReviewFilter filter;
+  final LyricReviewFilter filter;
   final int? activeAuditionLineIndex;
   final bool auditionPlaying;
   final int? selectedIndex;
@@ -2926,12 +2657,12 @@ class _LyricListPaneState extends State<_LyricListPane> {
           }).toList(),
           _filteredIndices,
         );
-    if (widget.filter == _ReviewFilter.smartReview &&
+    if (widget.filter == LyricReviewFilter.smartReview &&
         (oldWidget.filter != widget.filter ||
             visibleIndicesChanged ||
             searchChanged)) {
       _scheduleScrollToTop();
-    } else if (widget.filter != _ReviewFilter.smartReview &&
+    } else if (widget.filter != LyricReviewFilter.smartReview &&
         widget.followPlayback &&
         (!oldWidget.followPlayback ||
             oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
@@ -2981,7 +2712,7 @@ class _LyricListPaneState extends State<_LyricListPane> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           !widget.followPlayback ||
-          widget.filter == _ReviewFilter.smartReview ||
+          widget.filter == LyricReviewFilter.smartReview ||
           !_scrollController.hasClients) {
         return;
       }
@@ -3107,7 +2838,7 @@ class _LyricListPaneState extends State<_LyricListPane> {
   @override
   Widget build(BuildContext context) {
     if (widget.visibleIndices.isEmpty) {
-      if (widget.filter == _ReviewFilter.smartReview) {
+      if (widget.filter == LyricReviewFilter.smartReview) {
         return _SmartReviewEmptyState(
           reviewedCount: const LyricReviewDecisionService()
               .reviewedIndices(widget.document)
@@ -4521,14 +4252,11 @@ class _BottomBar extends StatelessWidget {
   final int visibleLines;
   final bool hasChanges;
   final VoidCallback onAddLine;
-  final VoidCallback? onInsertAtPlayback;
-
   const _BottomBar({
     required this.totalLines,
     required this.visibleLines,
     required this.hasChanges,
     required this.onAddLine,
-    required this.onInsertAtPlayback,
   });
 
   @override
@@ -4563,14 +4291,6 @@ class _BottomBar extends StatelessWidget {
             const _TinyBadge(label: '有未保存修改', warning: true),
           ],
           const Spacer(),
-          if (spec.isCompactOrMedium)
-            IconButton(
-              tooltip: onInsertAtPlayback == null
-                  ? '先试听本工程后可在当前时间插入'
-                  : '在播放位置插入歌词行',
-              onPressed: onInsertAtPlayback,
-              icon: const Icon(Icons.playlist_add_rounded),
-            ),
           if (spec.isCompact)
             IconButton.filledTonal(
               tooltip: '添加歌词行',
@@ -4706,52 +4426,6 @@ class _FilteredEmptyState extends StatelessWidget {
   }
 }
 
-class _MetricPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool emphasized;
-  final bool warning;
-
-  const _MetricPill({
-    required this.icon,
-    required this.label,
-    this.emphasized = false,
-    this.warning = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = warning
-        ? AppColors.warning
-        : emphasized
-        ? AppColors.accent
-        : AppColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withAlpha(18),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: color),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TinyBadge extends StatelessWidget {
   final String label;
   final bool accent;
@@ -4782,27 +4456,6 @@ class _TinyBadge extends StatelessWidget {
           context,
         ).textTheme.labelSmall?.copyWith(color: color, fontSize: 10),
       ),
-    );
-  }
-}
-
-class _OffsetButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
-
-  const _OffsetButton({required this.label, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        minimumSize: Size(0, spec.minimumInteractiveExtent),
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      ),
-      child: Text(label),
     );
   }
 }
@@ -4848,14 +4501,4 @@ String _formatCompactDuration(Duration duration) {
     return '${(safe.inMilliseconds / 1000).toStringAsFixed(1)}s';
   }
   return '${safe.inMilliseconds}ms';
-}
-
-String _formatSignedDuration(Duration duration) {
-  if (duration == Duration.zero) return '0ms';
-  final sign = duration.isNegative ? '-' : '+';
-  final milliseconds = duration.inMilliseconds.abs();
-  if (milliseconds >= 1000) {
-    return '$sign${(milliseconds / 1000).toStringAsFixed(1)}s';
-  }
-  return '$sign${milliseconds}ms';
 }
