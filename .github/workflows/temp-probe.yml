@@ -28,8 +28,8 @@ jobs:
         run: |
           set +e
           dart format lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart > /tmp/format.txt 2>&1
-          git --no-pager diff > /tmp/format_diff.txt 2>&1
-          if git diff --quiet; then code=0; else code=1; fi
+          git --no-pager diff -- lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart > /tmp/format_diff.txt 2>&1
+          if git diff --quiet -- lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart; then code=0; else code=1; fi
           echo "exit=$code" >> /tmp/format.txt
           exit $code
       - name: Analyze
@@ -80,8 +80,8 @@ jobs:
               note('worklog: ' + ' | '.join(lines_of('/tmp/wlog.txt'))[:400])
           if os.path.exists('/tmp/wlog_diff.txt'):
               diff = lines_of('/tmp/wlog_diff.txt')
-              if diff:
-                  emit('worklog-diff:\n' + '\n'.join(diff)[:12000])
+              for start in range(0, len(diff), 40):
+                  emit(f'worklog-diff[{start}]\n' + '\n'.join(diff[start:start + 40])[:3000])
           for name in ['format', 'analyze', 'targeted', 'full']:
               text = lines_of(f'/tmp/{name}.txt')
               if not text:

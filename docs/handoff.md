@@ -52,3 +52,5 @@
 2. Phase 1.6：Whisper 解码参数与 `--prompt`（R7），需要用 `--baseline --fail-on-regression` 验收。
 3. 需要用户提供 5–10 首人工校对语料后，用 `--baseline --fail-on-regression` 出真实基线并填进报告的 Phase 0 验收行。
 4. 复现并修掉剩下的那个偶发失败（`forced_alignment_eval_test.dart` 附近，14 次门禁出现 1 次）。
+
+最后更新：2026-11-01 20:05（Asia/Taipei）
