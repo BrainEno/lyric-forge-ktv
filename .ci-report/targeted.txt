@@ -1,64 +1,52 @@
 00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart
 00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService shares one prepared WAV with both engines in either engine order
 00:00 +1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
-00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService inserts Whisper-only lines as reviewable rows and remaps candidates
-00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService inserts Whisper-only lines as reviewable rows and remaps candidates
-00:00 +4: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a whole extra line lowers precision and line count ratio
-00:00 +5: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService keeps Whisper primary output and inserts Qwen-only review rows
-00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService keeps Whisper primary output and inserts Qwen-only review rows
-00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches a word of a line emitted as its own row
-00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService reports configured model identities in fusion metadata
-00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line
-00:00 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line
-00:00 +10 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService replaces only clearly weak Qwen text and preserves Qwen timing
-00:00 +11 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService surfaces Ashin versus passion as a review candidate without auto-applying
-00:00 +12 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService surfaces the same disagreement when Whisper is primary
-00:00 +13 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService uses Whisper primary and Qwen second opinion on Intel Mac
-00:00 +14 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService preserves a novel secondary lyric inside an overlapping primary segment for both engine orders
-00:00 +14 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line [E]
-  Expected: an object with length of <2>
-    Actual: [Instance of 'DuplicateGroup']
-     Which: has length of <1>
-  
-  package:matcher                                     expect
-  package:flutter_test/src/widget_tester.dart 473:18  expect
-  test/tool/asr_quality_report_test.dart 133:7        main.<fn>.<fn>
-  
-00:00 +15 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection a chorus that repeats a minute later is not a duplicate
-00:00 +16 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
-00:00 +17 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
-00:00 +18 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
-00:00 +19 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
-00:00 +20 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection very short fragments are ignored
-00:00 +21 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService still keeps a genuinely new line that only the second engine heard
-00:00 +22 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService still keeps a genuinely new line that only the second engine heard
-00:00 +23 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps end-time error is reported when both sides carry end times
-00:00 +24 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +25 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +26 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +27 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +28 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +29 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +30 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +31 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +32 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +33 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +34 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +35 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +36 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +37 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +38 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
-00:00 +39 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: baseline comparison flags inserted duplicates as a regression
-00:00 +40 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +41 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +42 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +43 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +44 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +45 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +46 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +47 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
-00:00 +48 -1: Some tests failed.
-
-Failing tests:
-  /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line
-targeted exit: 1
+00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+00:00 +4: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+00:00 +5: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService replaces only clearly weak Qwen text and preserves Qwen timing
+00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a missing line lowers recall but not precision
+00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService surfaces Ashin versus passion as a review candidate without auto-applying
+00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService surfaces Ashin versus passion as a review candidate without auto-applying
+00:00 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics character error rate ignores case, punctuation and spacing
+00:00 +11: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService surfaces the same disagreement when Whisper is primary
+00:00 +12: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches a word of a line emitted as its own row
+00:00 +13: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService uses Whisper primary and Qwen second opinion on Intel Mac
+00:00 +14: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService uses Whisper primary and Qwen second opinion on Intel Mac
+00:00 +15: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection a chorus that repeats a minute later is not a duplicate
+00:00 +16: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService preserves a novel secondary lyric inside an overlapping primary segment for both engine orders
+00:00 +17: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService preserves a novel secondary lyric inside an overlapping primary segment for both engine orders
+00:00 +18: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService preserves a novel secondary lyric inside an overlapping primary segment for both engine orders
+00:00 +19: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService preserves a novel secondary lyric inside an overlapping primary segment for both engine orders
+00:00 +20: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection very short fragments are ignored
+00:00 +21: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
+00:00 +22: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
+00:00 +23: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
+00:00 +24: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService never duplicates lyrics when the second engine segments more finely
+00:00 +25: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC timestamps, metadata and repeated stamps are expanded
+00:00 +26: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService still keeps a genuinely new line that only the second engine heard
+00:00 +27: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC fractions are read as centiseconds and milliseconds
+00:00 +28: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +29: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +30: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +31: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +32: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +33: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +34: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +35: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +36: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +37: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +38: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +39: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +40: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +41: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +42: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService normalization timeout is an environment failure and removes partial WAV
+00:00 +43: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: report rendering text report lists engines, songs and duplicate samples
+00:00 +44: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
+00:00 +45: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
+00:00 +46: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
+00:00 +47: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
+00:00 +48: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/high_quality_transcription_service_test.dart: HighQualityTranscriptionService cancelling shared normalization escalates and removes partial WAV
+00:00 +49: All tests passed!
+targeted exit: 0

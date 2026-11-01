@@ -1,0 +1,46 @@
+Analyzing 2 items...                                            
+
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart:113:56 • curly_braces_in_flow_control_structures
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/lyrics/presentation/screens/lyric_editor_screen.dart:3603:25 • prefer_interpolation_to_compose_strings
+   info • Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this.message') to initialize the field • lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart:237:7 • prefer_initializing_formals
+   info • Unnecessary use of multiple underscores. Try using '_' • lib/features/lyrics/presentation/widgets/reference_proofread_review_dialog.dart:95:39 • unnecessary_underscores
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/player/presentation/screens/local_collections_screen.dart:515:19 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/player/presentation/screens/player_screen.dart:261:7 • curly_braces_in_flow_control_structures
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/player/presentation/widgets/playback_queue_panel.dart:87:25 • deprecated_member_use
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/transcription/domain/models/transcription_model_identity.dart:77:7 • prefer_interpolation_to_compose_strings
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:180:96 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:267:25 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:314:27 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:376:30 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:413:96 • unnecessary_brace_in_string_interps
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:13:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:41:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:63:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:81:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:104:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:129:29 • unnecessary_underscores
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/managed_model_asr_runtime_manager_http_test.dart:67:32 • unnecessary_brace_in_string_interps
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/qwen3_asr_native_transcription_service_test.dart:43:29 • unnecessary_underscores
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:33:46 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:52:19 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:321:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:341:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:363:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:380:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:401:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:423:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:464:18 • prefer_interpolation_to_compose_strings
+   info • String literals shouldn't be concatenated by the '+' operator. Try removing the operator to use adjacent strings • test/features/transfer/media_hub_discovery_reconnect_test.dart:112:49 • prefer_adjacent_string_concatenation
+   info • Unnecessary use of multiple underscores. Try using '_' • test/resumable_chunked_transcription_service_test.dart:73:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/resumable_chunked_transcription_service_test.dart:113:31 • unnecessary_underscores
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tmp_fusion_probe_test.dart:133:37 • prefer_interpolation_to_compose_strings
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/tool/asr_transcript_eval_test.dart:184:11 • use_null_aware_elements
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:365:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:366:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:367:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:368:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:445:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:446:31 • prefer_interpolation_to_compose_strings
+
+41 issues found. (ran in 16.8s)
+analyze exit: 0
