@@ -286,13 +286,15 @@ void main() {
     expect(find.text('循环本行'), findsOneWidget);
   });
 
-  testWidgets('更多的三个入口按可用性出现', (tester) async {
+  testWidgets('更多的入口按可用性出现', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           appBar: AppBar(
             actions: [
               LyricEditorOverflowMenu(
+                onUndo: null,
+                onRedo: null,
                 canExport: true,
                 onExport: () => calls.add('export'),
                 onInsertAtPlayback: null,
@@ -327,5 +329,72 @@ void main() {
     await tester.tap(find.text('完整播放器'));
     await tester.pumpAndSettle();
     expect(calls, contains('player'));
+  });
+
+  testWidgets('撤销与重做在没有历史时置灰，并说明快捷键', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            actions: [
+              LyricEditorOverflowMenu(
+                canExport: false,
+                onExport: () {},
+                onInsertAtPlayback: null,
+                onOpenPlayer: null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+
+    MenuItemButton entryFor(String label) => tester.widget<MenuItemButton>(
+      find.ancestor(
+        of: find.text(label),
+        matching: find.byType(MenuItemButton),
+      ),
+    );
+
+    expect(entryFor('撤销').onPressed, isNull);
+    expect(entryFor('重做').onPressed, isNull);
+    expect(find.text('没有可撤销的修改'), findsOneWidget);
+    expect(find.text('没有可重做的修改'), findsOneWidget);
+  });
+
+  testWidgets('撤销菜单项说明这一步会撤掉什么', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(
+            actions: [
+              LyricEditorOverflowMenu(
+                onUndo: () => calls.add('undo'),
+                onRedo: () => calls.add('redo'),
+                undoLabel: '修改第 3 行',
+                redoLabel: '删除第 2 行',
+                canExport: false,
+                onExport: () {},
+                onInsertAtPlayback: null,
+                onOpenPlayer: null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('更多'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('修改第 3 行（Ctrl/Cmd+Z）'), findsOneWidget);
+    expect(find.text('删除第 2 行（Ctrl/Cmd+Shift+Z）'), findsOneWidget);
+
+    await tester.tap(find.text('撤销'));
+    await tester.pumpAndSettle();
+    expect(calls, contains('undo'));
   });
 }
