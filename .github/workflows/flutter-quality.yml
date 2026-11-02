@@ -71,4 +71,32 @@ jobs:
           exit 1
 
       - name: Run repository quality gate
-        run: bash scripts/quality_gate.sh --skip-pub-get
+        shell: bash
+        run: |
+          mkdir -p build
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee build/quality-gate.log
+
+      # A failing gate used to surface as nothing but `Process completed with
+      # exit code 1`: job logs are not reachable from every environment that
+      # debugs this repo, and a bare exit code cannot be turned back into a
+      # test name afterwards. Republish the interesting lines as annotations so
+      # the failure identifies itself.
+      - name: Publish gate failures
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          log=build/quality-gate.log
+          if [[ ! -f "$log" ]]; then
+            echo "::error::quality gate failed before producing a log"
+            exit 0
+          fi
+          {
+            grep -nE "error •|warning •" "$log" | head -20
+            grep -n "\[E\]" "$log" | head -20
+            grep -n -A8 "The following assertion was thrown" "$log" | head -40
+            tail -5 "$log"
+          } | while IFS= read -r line; do
+            echo "::error::${line:0:900}"
+          done
+          exit 0

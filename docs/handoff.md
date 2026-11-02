@@ -8,37 +8,21 @@
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/29adf058-lyric-forge-ktv`（Arena 会话分支；每次新任务都在这条分支上从 `origin/main` 起步）。
-- Phase 4.3（`AudioPreviewService` + 双向互斥装饰器；KTV 录音结果 sheet 抽出并注入服务；presentation 不再 import `just_audio`；分层棘轮新增一条禁令）已合入 `main`（PR #288，合并提交 `24306cf`），紧随其后的 push 门禁 run 41497914967 为绿；本文件相对 `main` 无差异，工作区应为 clean。
-- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
+- 本分支当前包含「让失败的 gate 自己报出失败用例」这一改动（`.github/workflows/flutter-quality.yml`）：gate 输出落盘到 `build/quality-gate.log`，失败时由 `Publish gate failures` 步骤转成 annotation。触发原因是 2026-11-03 晚两次 `main` push 门禁变红却只有 `Process completed with exit code 1`（run 41485065687、41498901477）。
+- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（Phase 4.3 交接文档，PR #289）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
 
 ## 已改文件
 
-- `lib/features/player/domain/models/audio_preview_state.dart` — 新增：试听状态（`isLoaded` / `isPlaying` / `position` / `duration`），刻意比 `PlaybackState` 小，不含队列与音源概念。
-- `lib/features/player/domain/services/audio_preview_service.dart` — 新增：试听通道接口（`loadFile / play / pause / stop / seek / stateStream`）。
-- `lib/features/player/data/services/just_audio_audio_preview_service.dart` — 新增：`just_audio` 实现，复用桌面解码后端；`play()` 不等待播放结束（`just_audio` 的 future 是播完才完成）。
-- `lib/features/player/data/services/exclusive_audio_preview_service.dart` — 新增：双向互斥装饰器（试听前暂停歌曲；歌曲开播则暂停试听）。
-- `lib/core/services/service_locator.dart` — 注册 `audioPreviewService`。
-- `lib/features/player/presentation/widgets/ktv_take_result_sheet.dart` — 新增：从 `player_screen.dart` 抽出的 KTV 录音结果 sheet，服务走构造注入，文件存在性检查可注入（`previewFileExists`）。
-- `lib/features/player/presentation/widgets/playback_error_banner.dart`、`.../ktv_control_label.dart`、`lib/features/player/presentation/recording_time_format.dart` — 新增：播放页与 sheet 共用的错误条、滑杆标签、时间格式化。
-- `lib/features/player/presentation/screens/player_screen.dart` — 删除自建 `AudioPlayer` 与三个私有组件（3,091 → 2,633 行），改调 `KtvTakeResultSheet`。
-- `test/features/player/audio_preview_exclusivity_test.dart` — 新增，6 例，锁调用顺序与两个方向。
-- `test/features/player/presentation/widgets/ktv_take_result_sheet_test.dart` — 新增，6 例，假试听服务 + 假录音服务。
-- `test/architecture_layer_imports_contract_test.dart` — 新增一条规则：presentation 不许 import `just_audio` / `just_audio_media_kit` / `audio_service` / `flutter_soloud` / `record`。
-- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` — §3.6 处理记录（并纠正原文「行试听」的误标）、计划表 4.3 标为完成。
-- `docs/log/entries/2026-11-03-0206-audition-service.md` — 本任务工作日志条目。
+- `.github/workflows/flutter-quality.yml` — 质量门禁那一步改为 `mkdir -p build && bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee build/quality-gate.log`；新增 `if: failure()` 的 `Publish gate failures` 步骤，把 `error •`/`warning •`、`[E]` 用例行、断言上下文与日志尾部发成 annotation。GitHub 的 bash 默认带 `pipefail`，所以红门禁仍然是红步骤。
+- `docs/log/entries/2026-11-03-0220-gate-failure-annotations.md` — 本任务工作日志条目。
 - `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md` — 生成同步。
 - `docs/handoff.md` — 本文件。
 
 ## 检查结果
 
-- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证，随后删除该 workflow（最终 diff 不含任何 CI 文件）：
-  - `dart format`（PR 相对 main 的全部改动文件）=> 0 changed（首轮由流程里的格式化步骤自动提交了一次）。
-  - `flutter analyze --no-pub --no-fatal-infos lib test` => exit 0。**首轮曾红**：sheet 只 import 了 `audio_preview_service.dart`（接口文件不 re-export 状态类），`AudioPreviewState` 被当成未知类型；补 import 后通过。
-  - 4 个目标测试文件 => 全通过；`bash scripts/quality_gate.sh --skip-pub-get`（全量，含工作日志契约）=> 通过。
-- `audio_preview_exclusivity_test.dart` 断言：歌曲在播时 `play()` 的记录顺序为 `song.pause` → `preview.play`；歌曲已暂停时不重复 pause；歌曲开播时试听被 pause；歌曲的暂停事件不打断试听；试听本就没响时不做多余动作；释放后不再响应。
-- `ktv_take_result_sheet_test.dart` 覆盖：默认加载人声 stem、有混音时默认加载混音并可切回、播放/暂停跟随服务状态、文件缺失给出原因且不调用服务、导出后自动切到混音、关闭即停。
-- 逐行复刻 `tool/work_log.dart` 语义的本地脚本：生成文件一致 + 条目均被引用 + 无断链。
-- PR #288 的 8 项检查（含 Flutter Quality Gate）全部通过后合并；合并后 `main` 的 push 门禁 run 41497914967 通过。
+- 本改动只能由 workflow 自己验证：本分支的 PR 门禁会跑改动后的 `Run repository quality gate`（含 `tee` 与 `pipefail`），绿色即证明改动没有破坏门禁语义；`Publish gate failures` 只在失败时执行。
+- `build/` 在 `.gitignore` 中（`/build/`），抓取的日志不会进 diff 或提交。
+- 合并后 `main` 的 push 门禁若再次变红，annotation 里应直接出现失败用例名与断言文本，而不是 `Process completed with exit code 1`。
 
 ## 已知风险
 
@@ -46,6 +30,7 @@
 - 融合修复（R2）的取舍：若和声真的在主行覆盖的时间窗内重复同一批词，该行会并入主行并失去独立时间戳（不丢词）。这是有意的。
 - 降级（R6）的取舍：`input` 类错误与取消不降级；降级后 `qualityMode` 仍记为请求的模式，真实情况看 `degraded` / `degradationReason`。降级后的草稿质量**等同 Whisper 单模型**，UI 已明确标注，不要把它当成双引擎结果去做质量对比。
 - 工具栏（Phase 3.2）的取舍：**不可用项置灰而不是隐藏**（「在播放位置插入」会写明「先试听本工程」），**筛选与偏移改成菜单但保留计数与当前值**，只读指标降级为文本。没有任何功能被删除；「下一处问题」按钮在原代码中不存在，因此没有新增。
+- **两次 `main` 门禁失败仍未定位**（run 41485065687、41498901477）：同一棵树在 PR 门禁与分支上的全量门禁都是绿的，最可能是 `main` 推送时 22 个专项 workflow 并发、跑满同一台 runner 导致的时序类用例抖动，但这是推断而不是结论。从下一轮起失败会自己报出用例名；在那之前不要把它们写成「已修复」。
 - 试听（Phase 4.3）的取舍：**试听不进入队列，也不会冒充「当前播放项」**。理由是把录音载入 app 级播放器会让播放条/歌词页/队列继续描述一首已经没在响的歌，全 App 的 `seek` 会跳到录音里。代价是：试听期间歌曲被暂停，关掉 sheet 后**保持暂停**（不会自动接着放）——这是有意的行为变化，不是回归。互斥放在服务层而非 widget，因为 sheet 可能中途消失。
 - **试听文件存在性检查可注入**（`previewFileExists`）：`testWidgets` 跑在 fake-async 区里，真实文件 I/O 的 future 永远不会完成，不注入就没法测这个 sheet。
 - 导航（Phase 3.5）的取舍：**导航挂在 `MaterialApp.builder` 外层**（因此需要 `navigatorKey`），因为按屏安装无法解决「不知道用户从哪来」；**设备互传不设为去向**（是流程不是目的地），这些页面与沉浸 KTV 一律不显示导航；**音乐库放弃自带导航**，5 个分区改为内容顶部分行——否则桌面侧栏套侧栏、移动底栏叠底栏，且「设置」出现两次。刻意没做：每个去向独立的嵌套 Navigator（会让 Android 返回键语义变复杂）。
@@ -76,4 +61,4 @@
 5. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 6. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 02:12（Asia/Taipei）
+最后更新：2026-11-03 02:20（Asia/Taipei）
