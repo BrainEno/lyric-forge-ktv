@@ -8,8 +8,8 @@
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/29adf058-lyric-forge-ktv`（Arena 会话分支；每次新任务都在这条分支上从 `origin/main` 起步）。
-- 本分支包含 Phase 4.3（`AudioPreviewService` + 双向互斥装饰器；KTV 录音结果 sheet 抽出并注入服务；presentation 不再 import `just_audio`；分层棘轮新增一条禁令）。合并后本文件相对 `main` 应无差异，工作区应为 clean。
-- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
+- Phase 4.3（`AudioPreviewService` + 双向互斥装饰器；KTV 录音结果 sheet 抽出并注入服务；presentation 不再 import `just_audio`；分层棘轮新增一条禁令）已合入 `main`（PR #288，合并提交 `24306cf`），紧随其后的 push 门禁 run 41497914967 为绿；本文件相对 `main` 无差异，工作区应为 clean。
+- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
 
 ## 已改文件
 
@@ -38,7 +38,7 @@
 - `audio_preview_exclusivity_test.dart` 断言：歌曲在播时 `play()` 的记录顺序为 `song.pause` → `preview.play`；歌曲已暂停时不重复 pause；歌曲开播时试听被 pause；歌曲的暂停事件不打断试听；试听本就没响时不做多余动作；释放后不再响应。
 - `ktv_take_result_sheet_test.dart` 覆盖：默认加载人声 stem、有混音时默认加载混音并可切回、播放/暂停跟随服务状态、文件缺失给出原因且不调用服务、导出后自动切到混音、关闭即停。
 - 逐行复刻 `tool/work_log.dart` 语义的本地脚本：生成文件一致 + 条目均被引用 + 无断链。
-- PR 的 Flutter Quality Gate 在合并前等待通过。
+- PR #288 的 8 项检查（含 Flutter Quality Gate）全部通过后合并；合并后 `main` 的 push 门禁 run 41497914967 通过。
 
 ## 已知风险
 
@@ -76,4 +76,4 @@
 5. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 6. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 02:10（Asia/Taipei）
+最后更新：2026-11-03 02:12（Asia/Taipei）
