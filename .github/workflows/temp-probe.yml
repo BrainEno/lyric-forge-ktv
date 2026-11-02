@@ -82,6 +82,7 @@ jobs:
             --test-path test/features/lyrics/presentation/screens/review_inbox_screen_test.dart \
             --test-path test/features/player/presentation/screens/local_music_library_shell_test.dart \
             --test-path test/widget_test.dart \
+            --test-path test/features/settings/transcription_settings_contract_test.dart \
             > targeted.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           {
