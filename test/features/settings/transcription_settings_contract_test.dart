@@ -47,7 +47,10 @@ void main() {
     ).readAsStringSync();
 
     expect(destinations, contains("AppDestination.settings => '设置'"));
-    expect(destinations, contains('AppDestination.settings => Routes.settings'));
+    expect(
+      destinations,
+      contains('AppDestination.settings => Routes.settings'),
+    );
     // And the library no longer renders its own rail or bottom bar.
     expect(shell, isNot(contains('NavigationRail(')));
     expect(shell, isNot(contains('NavigationBar(')));
