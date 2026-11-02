@@ -90,19 +90,13 @@ void main() {
       expect(queue.canFilterByConfidence, isTrue);
       expect(queue.unscoredLines, 0);
       // The defining invariant: low confidence is a subset of the queue.
-      expect(
-        queue.lowConfidenceIndices.difference(queue.indices),
-        isEmpty,
-      );
+      expect(queue.lowConfidenceIndices.difference(queue.indices), isEmpty);
     });
 
     test('a healthy document reports nothing to review', () {
       final healthy = LyricDocument(
         language: 'zh',
-        lines: [
-          _line('月亮代表我的心'),
-          _line('今天天气真好', startSeconds: 4),
-        ],
+        lines: [_line('月亮代表我的心'), _line('今天天气真好', startSeconds: 4)],
       );
 
       final queue = LyricReviewQueue.build(healthy);

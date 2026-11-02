@@ -71,10 +71,7 @@ class LyricReviewQueue {
     if (document.lines.isEmpty) {
       return LyricReviewQueue.empty;
     }
-    final ranked = priorityService.rank(
-      document,
-      audioDuration: audioDuration,
-    );
+    final ranked = priorityService.rank(document, audioDuration: audioDuration);
     final lowConfidence = <int>{};
     for (final priority in ranked) {
       final index = priority.lineIndex;
@@ -87,7 +84,9 @@ class LyricReviewQueue {
       items: ranked,
       lowConfidenceIndices: Set<int>.unmodifiable(lowConfidence),
       totalLines: document.lines.length,
-      scoredLines: document.lines.where((line) => line.hasConfidenceScore).length,
+      scoredLines: document.lines
+          .where((line) => line.hasConfidenceScore)
+          .length,
       reviewedLines: decisionService.reviewedIndices(document).length,
       confidenceThreshold: confidenceThreshold,
     );
@@ -124,5 +123,6 @@ class LyricReviewQueue {
 
   bool needsReview(int lineIndex) => byIndex.containsKey(lineIndex);
 
-  bool isLowConfidence(int lineIndex) => lowConfidenceIndices.contains(lineIndex);
+  bool isLowConfidence(int lineIndex) =>
+      lowConfidenceIndices.contains(lineIndex);
 }

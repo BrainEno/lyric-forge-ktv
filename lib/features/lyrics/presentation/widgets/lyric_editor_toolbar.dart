@@ -300,7 +300,8 @@ class _StatusLine extends StatelessWidget {
           item(
             '未评分 ${review.unscoredLines}',
             AppColors.textTertiary,
-            tooltip: '引擎没有为这些行返回分数，因此它们不计入"低置信度"；'
+            tooltip:
+                '引擎没有为这些行返回分数，因此它们不计入"低置信度"；'
                 '需要复核时按结构与时间轴证据排队。',
           ),
         ],
@@ -328,19 +329,18 @@ class _FilterMenu extends StatelessWidget {
     return switch (value) {
       LyricReviewFilter.all => '全部',
       LyricReviewFilter.needsReview => '待复核 ${review.needsReviewCount}',
-      LyricReviewFilter.lowConfidence =>
-        '低置信度 ${review.lowConfidenceCount}',
+      LyricReviewFilter.lowConfidence => '低置信度 ${review.lowConfidenceCount}',
     };
   }
 
   String? _detail(LyricReviewFilter value) {
     return switch (value) {
       LyricReviewFilter.all => null,
-      LyricReviewFilter.needsReview =>
-        '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长',
-      LyricReviewFilter.lowConfidence => review.canFilterByConfidence
-          ? '引擎给出分数且低于 ${review.confidenceThreshold} 的行；是待复核的子集'
-          : '本稿的识别引擎没有返回分数，无从判断',
+      LyricReviewFilter.needsReview => '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长',
+      LyricReviewFilter.lowConfidence =>
+        review.canFilterByConfidence
+            ? '引擎给出分数且低于 ${review.confidenceThreshold} 的行；是待复核的子集'
+            : '本稿的识别引擎没有返回分数，无从判断',
     };
   }
 

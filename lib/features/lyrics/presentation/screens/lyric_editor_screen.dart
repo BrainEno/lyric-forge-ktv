@@ -173,10 +173,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   /// raw scores, a "needs review" predicate, and the priority queue length —
   /// which meant the three could disagree and, for an unscored engine, all
   /// equalled the line count. [LyricReviewQueue] makes them one set.
-  void _refreshReviewQueue(
-    LyricDocument document,
-    Duration? audioDuration,
-  ) {
+  void _refreshReviewQueue(LyricDocument document, Duration? audioDuration) {
     if (identical(_reviewPrioritySource, document) &&
         _reviewPriorityAudioDuration == audioDuration) {
       return;
@@ -1966,10 +1963,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           _selectedLineIndex = 0;
         }
 
-        _refreshReviewQueue(
-          _editingDocument!,
-          project.audioAsset?.duration,
-        );
+        _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
         final restoreProbe = const ReferenceAlignmentRestoreService()
             .probeBackup(_editingDocument!);
         final canRestore = restoreProbe is ReferenceAlignmentBackupAvailable;
