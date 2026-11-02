@@ -10,10 +10,7 @@ void main() {
 
   setUp(() => selected = <AppDestination>[]);
 
-  Widget buildShell({
-    String? route = Routes.home,
-    bool hidden = false,
-  }) {
+  Widget buildShell({String? route = Routes.home, bool hidden = false}) {
     return MaterialApp(
       home: AppNavigationShell(
         currentRoute: route,
@@ -71,7 +68,10 @@ void main() {
     );
 
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
-    expect(bar.selectedIndex, AppDestination.values.indexOf(AppDestination.review));
+    expect(
+      bar.selectedIndex,
+      AppDestination.values.indexOf(AppDestination.review),
+    );
   });
 
   testWidgets('隐藏时不渲染任何导航', (tester) async {

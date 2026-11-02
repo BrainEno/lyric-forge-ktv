@@ -13,12 +13,7 @@ import 'app_router.dart';
 /// Device transfer did not become a destination: it is something you do from
 /// inside the library, not a place you live. It stays reachable from both the
 /// library shell and the dashboard header.
-enum AppDestination {
-  projects,
-  library,
-  review,
-  settings,
-}
+enum AppDestination { projects, library, review, settings }
 
 extension AppDestinationX on AppDestination {
   String get label => switch (this) {
@@ -80,7 +75,9 @@ AppDestination? destinationForRoute(String? routeName) {
     return AppDestination.library;
   }
 
-  if (path == Routes.home || path == Routes.dashboard || path == Routes.import) {
+  if (path == Routes.home ||
+      path == Routes.dashboard ||
+      path == Routes.import) {
     return AppDestination.projects;
   }
 

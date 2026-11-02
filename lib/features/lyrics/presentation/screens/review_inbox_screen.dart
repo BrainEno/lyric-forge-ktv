@@ -46,7 +46,8 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
   @override
   void initState() {
     super.initState();
-    _projects = widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
+    _projects =
+        widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
     _entriesFuture = _load();
   }
 
@@ -234,10 +235,7 @@ class _ReviewInboxTile extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               if (pending > 0)
-                _Badge(
-                  label: '待复核 $pending',
-                  color: AppColors.accent,
-                )
+                _Badge(label: '待复核 $pending', color: AppColors.accent)
               else
                 const _Badge(label: '已复核', color: AppColors.textTertiary),
               if (lowConfidence > 0) ...[
@@ -287,9 +285,7 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-        ),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color),
       ),
     );
   }
@@ -326,17 +322,17 @@ class _Message extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.md),
               FilledButton.tonal(onPressed: onAction, child: Text(action)),

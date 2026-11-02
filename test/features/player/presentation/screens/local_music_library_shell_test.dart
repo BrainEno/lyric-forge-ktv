@@ -4,15 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/presentation/screens/local_music_library_shell.dart';
 
 void main() {
-  Future<void> pumpAt(WidgetTester tester, Size size, {int initialIndex = 0}) async {
+  Future<void> pumpAt(
+    WidgetTester tester,
+    Size size, {
+    int initialIndex = 0,
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      MaterialApp(
-        home: LocalMusicLibraryShell(initialIndex: initialIndex),
-      ),
+      MaterialApp(home: LocalMusicLibraryShell(initialIndex: initialIndex)),
     );
     await tester.pump();
   }

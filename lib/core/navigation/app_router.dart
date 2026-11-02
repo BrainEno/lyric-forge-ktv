@@ -60,16 +60,28 @@ class AppRouter {
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
       case Routes.libraryArtists:
-        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 1), settings);
+        return _fadeRoute(
+          const LocalMusicLibraryShell(initialIndex: 1),
+          settings,
+        );
 
       case Routes.libraryAlbums:
-        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 2), settings);
+        return _fadeRoute(
+          const LocalMusicLibraryShell(initialIndex: 2),
+          settings,
+        );
 
       case Routes.collections:
-        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 3), settings);
+        return _fadeRoute(
+          const LocalMusicLibraryShell(initialIndex: 3),
+          settings,
+        );
 
       case Routes.playlists:
-        return _fadeRoute(const LocalMusicLibraryShell(initialIndex: 4), settings);
+        return _fadeRoute(
+          const LocalMusicLibraryShell(initialIndex: 4),
+          settings,
+        );
 
       case Routes.quickPlay:
         final history = settings.arguments is PlayHistory
@@ -78,7 +90,8 @@ class AppRouter {
         if (history != null) {
           return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
         }
-        final current = ServiceLocatorGlobal.I
+        final current = ServiceLocatorGlobal
+            .I
             .playbackSessionService
             .currentState
             .currentItem;

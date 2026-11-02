@@ -10,7 +10,10 @@ void main() {
       expect(destinationForRoute(Routes.dashboard), AppDestination.projects);
       expect(destinationForRoute(Routes.import), AppDestination.projects);
       expect(destinationForRoute('/project/abc'), AppDestination.projects);
-      expect(destinationForRoute('/project/abc/player'), AppDestination.projects);
+      expect(
+        destinationForRoute('/project/abc/player'),
+        AppDestination.projects,
+      );
     });
 
     test('the lyric editor maps to 校对, not 工程', () {
@@ -21,7 +24,10 @@ void main() {
 
     test('every library sub-route maps to 音乐库', () {
       expect(destinationForRoute(Routes.library), AppDestination.library);
-      expect(destinationForRoute(Routes.libraryArtists), AppDestination.library);
+      expect(
+        destinationForRoute(Routes.libraryArtists),
+        AppDestination.library,
+      );
       expect(destinationForRoute(Routes.collections), AppDestination.library);
       expect(destinationForRoute(Routes.playlists), AppDestination.library);
       expect(destinationForRoute(Routes.quickPlay), AppDestination.library);
