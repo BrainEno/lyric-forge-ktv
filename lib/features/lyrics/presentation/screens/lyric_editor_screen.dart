@@ -220,7 +220,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
     setState(() {
       _editingDocument = snapshot.document;
-      _selectedLineIndex = snapshot.selectedLineIndex != null &&
+      _selectedLineIndex =
+          snapshot.selectedLineIndex != null &&
               snapshot.selectedLineIndex! >= 0 &&
               snapshot.selectedLineIndex! < snapshot.document.lines.length
           ? snapshot.selectedLineIndex
@@ -243,7 +244,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
     setState(() {
       _editingDocument = snapshot.document;
-      _selectedLineIndex = snapshot.selectedLineIndex != null &&
+      _selectedLineIndex =
+          snapshot.selectedLineIndex != null &&
               snapshot.selectedLineIndex! >= 0 &&
               snapshot.selectedLineIndex! < snapshot.document.lines.length
           ? snapshot.selectedLineIndex

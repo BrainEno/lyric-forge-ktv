@@ -40,11 +40,8 @@ class LyricEditShortcuts extends StatelessWidget {
           control: true,
           shift: true,
         ): onRedo,
-        const SingleActivator(
-          LogicalKeyboardKey.keyZ,
-          meta: true,
-          shift: true,
-        ): onRedo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
+            onRedo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true): onRedo,
       },
       child: child,

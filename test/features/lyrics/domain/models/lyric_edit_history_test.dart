@@ -56,10 +56,7 @@ void main() {
         mergeKey: 'line:$index',
       );
       current = _document(
-        List<String>.generate(
-          5,
-          (i) => i == index ? '错$i' : previous[i],
-        ),
+        List<String>.generate(5, (i) => i == index ? '错$i' : previous[i]),
       );
     }
     expect(history.undoDepth, 5);
