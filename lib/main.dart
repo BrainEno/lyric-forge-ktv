@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'core/layout/app_responsive.dart';
 import 'core/navigation/app_chrome_controller.dart';
+import 'core/navigation/app_destinations.dart';
+import 'core/navigation/app_navigation_shell.dart';
 import 'core/navigation/app_router.dart';
 import 'core/navigation/current_route_observer.dart';
 import 'core/services/service_locator.dart';
@@ -15,6 +17,28 @@ import 'features/player/presentation/widgets/playback_lyrics_availability_sync.d
 import 'features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 
 final _appRouteObserver = CurrentRouteObserver();
+
+/// Needed because the navigation shell lives *outside* the navigator: it wraps
+/// the whole app, so `Navigator.of(context)` from there finds nothing.
+final _navigatorKey = GlobalKey<NavigatorState>();
+
+/// Sends the user to a top-level destination from anywhere.
+///
+/// 「工程」 is the root route, so it pops back to it instead of stacking another
+/// copy; the other three are pushed on top of the root so that one press of
+/// back returns to the previous place rather than exiting the app.
+void _goToDestination(AppDestination destination) {
+  final navigator = _navigatorKey.currentState;
+  if (navigator == null) return;
+  if (destination == AppDestination.projects) {
+    navigator.popUntil((route) => route.isFirst);
+    return;
+  }
+  navigator.pushNamedAndRemoveUntil(
+    destination.route,
+    (route) => route.isFirst,
+  );
+}
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +87,7 @@ class ElysiumPlayerApp extends StatelessWidget {
       title: 'Elysium Player',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      navigatorKey: _navigatorKey,
       navigatorObservers: <NavigatorObserver>[_appRouteObserver],
       onGenerateRoute: AppRouter.onGenerateRoute,
       initialRoute: Routes.home,
@@ -76,6 +101,13 @@ class ElysiumPlayerApp extends StatelessWidget {
           valueListenable: _appRouteObserver.routeName,
           builder: (context, routeName, _) {
             final suppressPlayerBar = routeName == Routes.nowPlaying;
+            // The four top-level destinations are always one press away; the
+            // immersive player and the KTV view are the two places where a
+            // persistent rail would cover what the user is watching.
+            final showNavigation = destinationForRoute(routeName) != null;
+            final selectedDestination = destinationForRoute(routeName);
+            final layout = AppResponsive.of(context);
+            final useRail = layout.useNavigationRail;
 
             if (!desktopChrome) {
               return ValueListenableBuilder<bool>(
@@ -83,11 +115,17 @@ class ElysiumPlayerApp extends StatelessWidget {
                 builder: (context, immersive, _) {
                   final keyboardVisible =
                       MediaQuery.viewInsetsOf(context).bottom > 0;
+                  final showChrome = !immersive && !keyboardVisible;
                   return Column(
                     children: [
                       Expanded(child: syncedShell),
-                      if (!immersive && !keyboardVisible && !suppressPlayerBar)
+                      if (showChrome && !suppressPlayerBar)
                         const MobileGlobalPlayerBar(),
+                      if (showChrome && showNavigation)
+                        AppBottomNavigation(
+                          selected: selectedDestination,
+                          onSelect: _goToDestination,
+                        ),
                     ],
                   );
                 },
@@ -102,13 +140,26 @@ class ElysiumPlayerApp extends StatelessWidget {
                     return ValueListenableBuilder<bool>(
                       valueListenable: AppChromeController.immersive,
                       builder: (context, immersive, _) {
-                        return Column(
+                        final content = Column(
                           children: [
                             Expanded(child: syncedShell),
                             if (!immersive) ...[
                               const GlobalTranscriptionQueueBar(),
                               if (!suppressPlayerBar) const GlobalPlayerBar(),
                             ],
+                          ],
+                        );
+                        if (immersive || !showNavigation || !useRail) {
+                          return content;
+                        }
+                        return Row(
+                          children: [
+                            AppNavigationRail(
+                              selected: selectedDestination,
+                              onSelect: _goToDestination,
+                            ),
+                            const VerticalDivider(width: 1, thickness: 1),
+                            Expanded(child: content),
                           ],
                         );
                       },
