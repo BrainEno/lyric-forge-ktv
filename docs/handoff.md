@@ -57,8 +57,12 @@
 - 20 分钟阈值是**策略选择而非实测结论**：没有真实语料证明 20 分钟比 3 分钟在长音频上更好，只是对歌曲而言两者等价于「整首一次」。若将来出现超长现场录音的质量投诉，先看接缝，而不是直接把阈值调回去。
 - 检查点版本升到 2 会让所有旧检查点失效一次（有意的：旧检查点没有配置指纹）。
 - 真机行为（Windows/macOS 上的 FFmpeg 进程树、GPU 显存、设备端播放）仍未在本环境验证。
-- **还有 1 个未定位的偶发失败**：14 次完整门禁里有 1 次（run 41295405781）在 `test/tool/forced_alignment_eval_test.dart` 的 provenance 输出附近失败；该文件单独跑 25 次不复现，之后的门禁也全绿，抓到的日志尾部不含失败用例自己的错误行，是**未知原因而非已修复**。若再次出现，先用临时工作流把 `[E]` 行转成 annotation 再抓（本环境无法下载 Actions 日志）。
-- 历史遗留：PR #271 曾让 `main` 门禁变红（格式 + 死代码），已修复；现基线为绿。
+- **两次未定位的偶发失败**，都不是已修复：
+  - run 41295405781（14 次完整门禁中的 1 次）在 `test/tool/forced_alignment_eval_test.dart` 的 provenance 输出附近失败；该文件单独跑 25 次不复现。
+  - run 41485065687（PR #285 合并后的 `main` push 门禁）在 `scripts/quality_gate.sh --skip-pub-get` 步骤退出 1，**同一棵树**在 3 分钟前的 PR 门禁通过、随后的临时工作流连跑两遍全量门禁也全绿，因此判定为偶发而非回归。两个 run 都抓不到失败用例名：本环境无法下载 Actions 日志，该 workflow 又不上传测试报告，annotation 里只有 `Process completed with exit code 1`。
+  - 复现方法：把临时工作流加回分支（`scripts/quality_gate.sh --skip-pub-get` 跑两遍，把 `[E]` 行与断言上下文发成 annotation），确认后立刻删除。
+  - `main` 的门禁**无法重跑**：`gh run rerun` 报 `cannot be rerun; its workflow file may be broken`，`gh workflow run` 返回 403（token 无 dispatch 权限）。要让 `main` 重新变绿，只能开一个改写文档的 PR 再合并一次。
+- `main` 基线：`efde4b5`（PR #285 合并）之后的 push 门禁 run 41485065687 变红且原因未定位（见上）；本条改动就是为重新触发该门禁而开的文档 PR，合并后再看 run 结果决定是否需要第三次触发。
 
 ## 下一步
 
