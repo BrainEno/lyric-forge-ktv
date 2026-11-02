@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/lyric_review_queue.dart';
 import '../lyric_review_strings.dart';
 import 'lyric_proofread_menu_button.dart';
 
@@ -13,7 +14,13 @@ import 'lyric_proofread_menu_button.dart';
 ///
 /// Public because [LyricEditorToolbar] renders it; the filter itself is pure
 /// view state and never leaves the presentation layer.
-enum LyricReviewFilter { all, needsReview, lowConfidence, smartReview }
+///
+/// There is one review concept, not three: [needsReview] is the queue built by
+/// [LyricReviewQueue], and [lowConfidence] is a subset of that same queue. The
+/// old fourth filter ("smart review") was a second spelling of [needsReview]
+/// with its own count, which is why the toolbar could show three numbers that
+/// always agreed.
+enum LyricReviewFilter { all, needsReview, lowConfidence }
 
 /// The editor's control strip.
 ///
@@ -32,9 +39,7 @@ class LyricEditorToolbar extends StatelessWidget {
   final LyricDocument document;
   final PlaybackState playback;
   final bool playbackBelongsToProject;
-  final int lowConfidenceCount;
-  final int reviewCount;
-  final int smartReviewCount;
+  final LyricReviewQueue review;
   final LyricReviewFilter filter;
   final ValueChanged<LyricReviewFilter> onFilterChanged;
   final bool loopCurrentLineAudition;
@@ -56,9 +61,7 @@ class LyricEditorToolbar extends StatelessWidget {
     required this.document,
     required this.playback,
     required this.playbackBelongsToProject,
-    required this.lowConfidenceCount,
-    required this.reviewCount,
-    required this.smartReviewCount,
+    required this.review,
     required this.filter,
     required this.onFilterChanged,
     required this.loopCurrentLineAudition,
@@ -102,8 +105,7 @@ class LyricEditorToolbar extends StatelessWidget {
           _StatusLine(
             lineCount: document.lines.length,
             language: document.language,
-            reviewCount: reviewCount,
-            lowConfidenceCount: lowConfidenceCount,
+            review: review,
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
@@ -135,9 +137,7 @@ class LyricEditorToolbar extends StatelessWidget {
                 ),
               _FilterMenu(
                 filter: filter,
-                reviewCount: reviewCount,
-                lowConfidenceCount: lowConfidenceCount,
-                smartReviewCount: smartReviewCount,
+                review: review,
                 onChanged: onFilterChanged,
               ),
               FilterChip(
@@ -152,7 +152,7 @@ class LyricEditorToolbar extends StatelessWidget {
                 label: const Text('跟随播放'),
               ),
               _OffsetMenu(offset: offset, onChanged: onUpdateOffset),
-              if (filter == LyricReviewFilter.smartReview)
+              if (filter == LyricReviewFilter.needsReview)
                 Tooltip(
                   message: LyricReviewStrings.loopCurrentLineHelp,
                   child: FilterChip(
@@ -252,25 +252,33 @@ class LyricEditorOverflowMenu extends StatelessWidget {
 }
 
 /// Read-only line statistics, as one line of text instead of four pills.
+///
+/// One review number, not three. "未评分 N" is information, not a warning: it
+/// says the engine returned no probabilities for those lines, which is why the
+/// low-confidence filter has nothing to offer — instead of showing a red `0`
+/// that reads like "everything was checked and is fine".
 class _StatusLine extends StatelessWidget {
   final int lineCount;
   final String language;
-  final int reviewCount;
-  final int lowConfidenceCount;
+  final LyricReviewQueue review;
 
   const _StatusLine({
     required this.lineCount,
     required this.language,
-    required this.reviewCount,
-    required this.lowConfidenceCount,
+    required this.review,
   });
 
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).textTheme.labelSmall;
-    Widget item(String text, Color color) =>
-        Text(text, style: base?.copyWith(color: color));
+    Widget item(String text, Color color, {String? tooltip}) {
+      final label = Text(text, style: base?.copyWith(color: color));
+      if (tooltip == null) return label;
+      return Tooltip(message: tooltip, child: label);
+    }
+
     const separator = Text('·');
+    final needsReview = review.needsReviewCount;
 
     return Wrap(
       spacing: AppSpacing.xs,
@@ -281,50 +289,58 @@ class _StatusLine extends StatelessWidget {
         item(language.toUpperCase(), AppColors.textTertiary),
         separator,
         item(
-          '待复核 $reviewCount',
-          reviewCount > 0 ? AppColors.accent : AppColors.textTertiary,
+          '待复核 $needsReview',
+          needsReview > 0 ? AppColors.accent : AppColors.textTertiary,
+          tooltip: review.hasAnyScore
+              ? '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长与低分。'
+              : '本稿的识别引擎没有返回分数，队列只按结构证据排序（双引擎分歧、时间轴异常、重复、异常时长）。',
         ),
-        separator,
-        item(
-          '低置信度 $lowConfidenceCount',
-          lowConfidenceCount > 0 ? AppColors.warning : AppColors.textTertiary,
-        ),
+        if (review.unscoredLines > 0) ...[
+          separator,
+          item(
+            '未评分 ${review.unscoredLines}',
+            AppColors.textTertiary,
+            tooltip: '引擎没有为这些行返回分数，因此它们不计入"低置信度"；'
+                '需要复核时按结构与时间轴证据排队。',
+          ),
+        ],
       ],
     );
   }
 }
 
-/// The four review filters, collapsed from a row of chips into one menu.
+/// The review filters, collapsed from a row of chips into one menu.
+///
+/// Every entry is derived from [LyricReviewQueue], so the counts cannot drift
+/// apart: 低置信度 is a subset of 待复核 by construction.
 class _FilterMenu extends StatelessWidget {
   final LyricReviewFilter filter;
-  final int reviewCount;
-  final int lowConfidenceCount;
-  final int smartReviewCount;
+  final LyricReviewQueue review;
   final ValueChanged<LyricReviewFilter> onChanged;
 
   const _FilterMenu({
     required this.filter,
-    required this.reviewCount,
-    required this.lowConfidenceCount,
-    required this.smartReviewCount,
+    required this.review,
     required this.onChanged,
   });
 
   String _label(LyricReviewFilter value) {
     return switch (value) {
       LyricReviewFilter.all => '全部',
-      LyricReviewFilter.needsReview => '待复核 $reviewCount',
-      LyricReviewFilter.lowConfidence => '低置信度 $lowConfidenceCount',
-      LyricReviewFilter.smartReview => '智能复核 $smartReviewCount',
+      LyricReviewFilter.needsReview => '待复核 ${review.needsReviewCount}',
+      LyricReviewFilter.lowConfidence =>
+        '低置信度 ${review.lowConfidenceCount}',
     };
   }
 
   String? _detail(LyricReviewFilter value) {
     return switch (value) {
       LyricReviewFilter.all => null,
-      LyricReviewFilter.needsReview => '引擎不确定或低于阈值的行',
-      LyricReviewFilter.lowConfidence => '按引擎给出的分值筛选',
-      LyricReviewFilter.smartReview => '按低置信度、双引擎分歧与时间轴异常排序',
+      LyricReviewFilter.needsReview =>
+        '按证据强度排序：双引擎分歧、时间轴异常、重复、异常时长',
+      LyricReviewFilter.lowConfidence => review.canFilterByConfidence
+          ? '引擎给出分数且低于 ${review.confidenceThreshold} 的行；是待复核的子集'
+          : '本稿的识别引擎没有返回分数，无从判断',
     };
   }
 
@@ -334,7 +350,13 @@ class _FilterMenu extends StatelessWidget {
       menuChildren: [
         for (final value in LyricReviewFilter.values)
           MenuItemButton(
-            onPressed: () => onChanged(value),
+            // An option with nothing behind it stays visible but disabled, and
+            // its second line says why — the same rule as the overflow menu.
+            onPressed:
+                value == LyricReviewFilter.lowConfidence &&
+                    !review.canFilterByConfidence
+                ? null
+                : () => onChanged(value),
             leadingIcon: Icon(
               value == filter
                   ? Icons.check_circle_rounded

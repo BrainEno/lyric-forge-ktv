@@ -16,6 +16,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
+import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
 import '../../domain/proofreading/asr_first_pipeline.dart';
@@ -129,6 +130,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   /// 仅当歌词文档发生变化时重新计算，避免播放进度流触发每帧风险排序。
   LyricDocument? _reviewPrioritySource;
   Duration? _reviewPriorityAudioDuration;
+  LyricReviewQueue _reviewQueue = LyricReviewQueue.empty;
   Map<int, LyricReviewPriority> _reviewPriorityByIndex = const {};
 
   late final StreamSubscription<Duration> _auditionPositionSubscription;
@@ -165,7 +167,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     return _lineMarkers.protectedIndices(document, _manuallyEditedLineIds);
   }
 
-  void _refreshReviewPriorityCache(
+  /// Rebuilds the one review queue every counter and filter reads from.
+  ///
+  /// The toolbar used to derive three numbers here — a low-confidence count from
+  /// raw scores, a "needs review" predicate, and the priority queue length —
+  /// which meant the three could disagree and, for an unscored engine, all
+  /// equalled the line count. [LyricReviewQueue] makes them one set.
+  void _refreshReviewQueue(
     LyricDocument document,
     Duration? audioDuration,
   ) {
@@ -175,13 +183,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
     _reviewPrioritySource = document;
     _reviewPriorityAudioDuration = audioDuration;
-    final ranked = const LyricReviewPriorityService().rank(
+    _reviewQueue = LyricReviewQueue.build(
       document,
       audioDuration: audioDuration,
+      confidenceThreshold: _reviewConfidenceThreshold,
     );
-    _reviewPriorityByIndex = Map<int, LyricReviewPriority>.unmodifiable({
-      for (final priority in ranked) priority.lineIndex: priority,
-    });
+    _reviewPriorityByIndex = Map<int, LyricReviewPriority>.unmodifiable(
+      _reviewQueue.byIndex,
+    );
   }
 
   void _setLineReviewDecision(
@@ -204,8 +213,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _editingDocument = updated;
       _hasChanges = true;
       _alignmentUndoSnapshot = null;
-      _filter = LyricReviewFilter.smartReview;
-      _refreshReviewPriorityCache(updated, project.audioAsset?.duration);
+      _filter = LyricReviewFilter.needsReview;
+      _refreshReviewQueue(updated, project.audioAsset?.duration);
       _selectedLineIndex = _reviewPriorityByIndex.isEmpty
           ? null
           : (_reviewPriorityByIndex.values.toList()..sort((left, right) {
@@ -221,9 +230,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final remaining = _reviewPriorityByIndex.length;
     final message = reviewed
         ? remaining == 0
-              ? '已确认第 ${index + 1} 行；智能复核队列已清空。保存后会保留本次确认。'
-              : '已确认第 ${index + 1} 行；已跳到下一条优先复核项（剩余 $remaining 行）。'
-        : '已取消第 ${index + 1} 行的复核标记；该行已重新进入复核队列。';
+              ? '已确认第 ${index + 1} 行；待复核队列已清空。保存后会保留本次确认。'
+              : '已确认第 ${index + 1} 行；已跳到下一条待复核行（剩余 $remaining 行）。'
+        : '已取消第 ${index + 1} 行的复核标记；该行已重新进入待复核队列。';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
     );
@@ -1957,7 +1966,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           _selectedLineIndex = 0;
         }
 
-        _refreshReviewPriorityCache(
+        _refreshReviewQueue(
           _editingDocument!,
           project.audioAsset?.duration,
         );
@@ -1982,6 +1991,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               playbackBelongsToProject: playbackBelongsToProject,
               hasChanges: _hasChanges,
               reviewPriorityByIndex: _reviewPriorityByIndex,
+              reviewQueue: _reviewQueue,
               activeAuditionLineIndex: _activeAuditionLineIndex,
               auditionPlaying: playbackBelongsToProject && playback.isPlaying,
               loopCurrentLineAudition: _loopCurrentLineAudition,
@@ -2003,7 +2013,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               filter: _filter,
               onFilterChanged: (value) => setState(() {
                 _filter = value;
-                if (value != LyricReviewFilter.smartReview) {
+                if (value != LyricReviewFilter.needsReview) {
                   _loopCurrentLineAudition = false;
                 }
               }),
@@ -2113,6 +2123,7 @@ class _LyricEditorContent extends StatelessWidget {
   final bool playbackBelongsToProject;
   final bool hasChanges;
   final Map<int, LyricReviewPriority> reviewPriorityByIndex;
+  final LyricReviewQueue reviewQueue;
   final int? activeAuditionLineIndex;
   final bool auditionPlaying;
   final bool loopCurrentLineAudition;
@@ -2153,6 +2164,7 @@ class _LyricEditorContent extends StatelessWidget {
     required this.playbackBelongsToProject,
     required this.hasChanges,
     required this.reviewPriorityByIndex,
+    required this.reviewQueue,
     required this.activeAuditionLineIndex,
     required this.auditionPlaying,
     required this.loopCurrentLineAudition,
@@ -2201,13 +2213,6 @@ class _LyricEditorContent extends StatelessWidget {
   bool _isLineReviewed(int index) =>
       const LyricReviewDecisionService().isReviewed(document, index);
 
-  bool _needsReview(int index) {
-    if (_isLineReviewed(index)) return false;
-    final line = document.lines[index];
-    return line.isLowConfidence(_reviewConfidenceThreshold) ||
-        (line.confidence < 100 && _fallbackCandidateFor(index) != null);
-  }
-
   int? _currentPlaybackLineIndex() {
     if (!playbackBelongsToProject || document.lines.isEmpty) return null;
     final offset = document.globalOffset ?? Duration.zero;
@@ -2222,20 +2227,14 @@ class _LyricEditorContent extends StatelessWidget {
   List<int> _visibleIndices() {
     final indices = <int>[];
     for (var index = 0; index < document.lines.length; index++) {
-      final line = document.lines[index];
       final include = switch (filter) {
         LyricReviewFilter.all => true,
-        LyricReviewFilter.needsReview => _needsReview(index),
-        LyricReviewFilter.lowConfidence => line.isLowConfidence(
-          _reviewConfidenceThreshold,
-        ),
-        LyricReviewFilter.smartReview => reviewPriorityByIndex.containsKey(
-          index,
-        ),
+        LyricReviewFilter.needsReview => reviewQueue.needsReview(index),
+        LyricReviewFilter.lowConfidence => reviewQueue.isLowConfidence(index),
       };
       if (include) indices.add(index);
     }
-    if (filter == LyricReviewFilter.smartReview) {
+    if (filter != LyricReviewFilter.all) {
       indices.sort((left, right) {
         final byPriority = (reviewPriorityByIndex[right]?.score ?? 0).compareTo(
           reviewPriorityByIndex[left]?.score ?? 0,
@@ -2312,13 +2311,6 @@ class _LyricEditorContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final lowConfidenceCount = document.lines
-        .where((line) => line.isLowConfidence(_reviewConfidenceThreshold))
-        .length;
-    final reviewCount = List<int>.generate(
-      document.lines.length,
-      (i) => i,
-    ).where(_needsReview).length;
     final currentPlaybackLine = _currentPlaybackLineIndex();
     final visibleIndices = _visibleIndices();
     final selectedIndex =
@@ -2420,9 +2412,7 @@ class _LyricEditorContent extends StatelessWidget {
                   document: document,
                   playback: playback,
                   playbackBelongsToProject: playbackBelongsToProject,
-                  lowConfidenceCount: lowConfidenceCount,
-                  reviewCount: reviewCount,
-                  smartReviewCount: reviewPriorityByIndex.length,
+                  review: reviewQueue,
                   filter: filter,
                   loopCurrentLineAudition: loopCurrentLineAudition,
                   onLoopCurrentLineAuditionChanged:
@@ -2657,12 +2647,12 @@ class _LyricListPaneState extends State<_LyricListPane> {
           }).toList(),
           _filteredIndices,
         );
-    if (widget.filter == LyricReviewFilter.smartReview &&
+    if (widget.filter == LyricReviewFilter.needsReview &&
         (oldWidget.filter != widget.filter ||
             visibleIndicesChanged ||
             searchChanged)) {
       _scheduleScrollToTop();
-    } else if (widget.filter != LyricReviewFilter.smartReview &&
+    } else if (widget.filter != LyricReviewFilter.needsReview &&
         widget.followPlayback &&
         (!oldWidget.followPlayback ||
             oldWidget.currentPlaybackLine != widget.currentPlaybackLine ||
@@ -2712,7 +2702,7 @@ class _LyricListPaneState extends State<_LyricListPane> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted ||
           !widget.followPlayback ||
-          widget.filter == LyricReviewFilter.smartReview ||
+          widget.filter == LyricReviewFilter.needsReview ||
           !_scrollController.hasClients) {
         return;
       }
@@ -2838,8 +2828,8 @@ class _LyricListPaneState extends State<_LyricListPane> {
   @override
   Widget build(BuildContext context) {
     if (widget.visibleIndices.isEmpty) {
-      if (widget.filter == LyricReviewFilter.smartReview) {
-        return _SmartReviewEmptyState(
+      if (widget.filter == LyricReviewFilter.needsReview) {
+        return _ReviewQueueEmptyState(
           reviewedCount: const LyricReviewDecisionService()
               .reviewedIndices(widget.document)
               .length,
@@ -3479,9 +3469,6 @@ class _LyricReviewRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final needsReview =
-        line.isLowConfidence(_reviewConfidenceThreshold) ||
-        (line.confidence < 100 && fallbackCandidate != null);
     final background = selected
         ? AppColors.bgSurface
         : playing
@@ -3681,14 +3668,6 @@ class _LyricReviewRow extends StatelessWidget {
                         label: spec.isCompact ? '复核' : '优先 ${priority!.score}',
                         warning: priority!.score >= 45,
                       ),
-                    ),
-                  ] else if (needsReview) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    _TinyBadge(
-                      label: line.hasConfidenceScore
-                          ? '${line.confidence}'
-                          : '未评分',
-                      warning: line.isLowConfidence(_reviewConfidenceThreshold),
                     ),
                   ],
                   if (selected && onDoubleTap != null && !spec.isCompact) ...[
@@ -4360,10 +4339,10 @@ class _EmptyLyricsState extends StatelessWidget {
   }
 }
 
-class _SmartReviewEmptyState extends StatelessWidget {
+class _ReviewQueueEmptyState extends StatelessWidget {
   final int reviewedCount;
 
-  const _SmartReviewEmptyState({required this.reviewedCount});
+  const _ReviewQueueEmptyState({required this.reviewedCount});
 
   @override
   Widget build(BuildContext context) {
@@ -4384,7 +4363,7 @@ class _SmartReviewEmptyState extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                completed ? '本轮智能复核已完成' : '暂未发现明显风险行',
+                completed ? '本轮复核已完成' : '暂未发现明显风险行',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -4393,8 +4372,8 @@ class _SmartReviewEmptyState extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 completed
-                    ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入复核队列。请保存以保留确认记录。'
-                    : '当前没有达到智能复核阈值的明显问题。自动评分不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
+                    ? '已确认 $reviewedCount 行。若修改了歌词文本或时间轴，该行会自动重新进入待复核队列。请保存以保留确认记录。'
+                    : '当前没有达到复核阈值的明显问题。自动排序只看结构与时间轴证据，不能判断歌词语义是否正确，仍可结合试听和个人听感检查。',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
