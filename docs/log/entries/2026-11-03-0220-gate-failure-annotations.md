@@ -1,0 +1,9 @@
+# [2026-11-03 02:20] Let a failing quality gate name its own failure
+
+- Scope: CI diagnosability, prompted by two red `main` push gates in one evening (runs 41485065687 and 41498901477) whose entire evidence was `Process completed with exit code 1`. Both times the same tree had passed the pull-request gate minutes earlier, and once the identical tree passed a full gate twice on a branch, so neither was a code regression — but neither could be named either. Job logs cannot be downloaded from the working environment and the workflow uploads no test report, which left "unexplained intermittent failure" as the only honest verdict. That is a poor place to keep stopping.
+- Files: `.github/workflows/flutter-quality.yml` (gate output now captured to `build/quality-gate.log`; new `Publish gate failures` step), `docs/log/entries/2026-11-03-0220-gate-failure-annotations.md`, `docs/handoff.md`, `docs/work_log.md`, `docs/work_log_archive.md`, `docs/work_log_index.md`.
+- Validation:
+  - The pull-request gate run for this branch exercises the change end to end: the gate step now pipes through `tee` (GitHub's bash runs with `pipefail`, so a red gate still fails the step) and the publish step only runs on failure.
+  - `build/` is already gitignored, so the captured log cannot leak into a diff or a commit.
+- Notes: scope was kept deliberately small — capture the output, republish the lines that identify a failure (`error •`/`warning •` from the analyzer, `[E]` test headers, the assertion block, the tail), and leave the gate's own semantics untouched. What this buys: the next red `main` gate answers "which test" instead of "exit code 1", which is the difference between fixing a flaky test and guessing at one. What it does not buy: an explanation for the two failures already recorded. They stay recorded as unexplained in the handoff rather than being quietly closed.
+- Commit: `ci: let a failing gate name its own failing test`
