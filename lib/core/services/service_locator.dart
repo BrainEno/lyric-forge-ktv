@@ -10,6 +10,8 @@ import '../../features/player/data/repositories/file_local_media_metadata_reposi
 import '../../features/player/data/repositories/file_play_history_repository.dart';
 import '../../features/player/data/repositories/file_playback_session_store.dart';
 import '../../features/player/data/services/default_playback_session_service.dart';
+import '../../features/player/data/services/exclusive_audio_preview_service.dart';
+import '../../features/player/data/services/just_audio_audio_preview_service.dart';
 import '../../features/player/data/services/file_audio_path_canonicalizer.dart';
 import '../../features/player/data/services/file_ktv_microphone_preference_store.dart';
 import '../../features/player/data/services/file_ktv_take_history_store.dart';
@@ -28,6 +30,7 @@ import '../../features/player/domain/repositories/play_history_repository.dart';
 import '../../features/player/domain/repositories/playback_session_store.dart';
 import '../../features/player/domain/services/audio_library_import_service.dart';
 import '../../features/player/domain/services/audio_path_canonicalizer.dart';
+import '../../features/player/domain/services/audio_preview_service.dart';
 import '../../features/player/domain/services/audio_player_service.dart';
 import '../../features/player/domain/services/ktv_microphone_service.dart';
 import '../../features/player/domain/services/ktv_recording_service.dart';
@@ -91,6 +94,11 @@ class ServiceLocator {
 
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
+
+  /// App-scoped audition channel for loose files (KTV takes, exported mixes).
+  /// Separate from [audioPlayerService] on purpose: an audition must never be
+  /// mistaken for the queue's current item, but the two must not sound at once.
+  late final AudioPreviewService audioPreviewService;
   late final KtvMicrophoneService ktvMicrophoneService;
   late final KtvRecordingService ktvRecordingService;
   late final KtvTakeHistoryStore ktvTakeHistoryStore;
@@ -155,6 +163,10 @@ class ServiceLocator {
       delegate: rawAudioPlayer,
       client: mediaHubClientService,
       connectionStore: mediaHubConnectionStore,
+    );
+    audioPreviewService = ExclusiveAudioPreviewService(
+      delegate: JustAudioAudioPreviewService(),
+      primaryPlayer: audioPlayerService,
     );
 
     embeddedAudioMetadataReader = const PureDartEmbeddedAudioMetadataReader();

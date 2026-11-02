@@ -19,6 +19,20 @@ const Set<String> _platformBaseline = <String>{};
 
 const Set<String> _presentationBaseline = <String>{};
 
+/// Audio implementation packages that belong in the data layer.
+///
+/// Phase 4.3: the KTV take sheet used to build its own `just_audio` player in
+/// presentation, which let a take play over the still-running song with no
+/// single pause control. Auditions now go through `AudioPreviewService`; this
+/// rule stops the next hand-rolled player from sneaking back into the UI.
+const List<String> _audioImplementationPackages = <String>[
+  'package:just_audio/',
+  'package:just_audio_media_kit/',
+  'package:audio_service/',
+  'package:flutter_soloud/',
+  'package:record/',
+];
+
 final RegExp _importPattern = RegExp(r'''^\s*import\s+['"]([^'"]+)['"]''');
 final RegExp _layerPattern = RegExp(
   r'^lib/features/[^/]+/(domain|data|presentation)/',
@@ -70,6 +84,7 @@ void main() {
     final domainLayer = <String>{};
     final presentationData = <String>{};
     final dataPresentation = <String>{};
+    final presentationAudioImplementation = <String>{};
 
     setUpAll(() async {
       final files = Directory('lib/features')
@@ -104,6 +119,10 @@ void main() {
           if (layer == 'data' && targetLayer == 'presentation') {
             dataPresentation.add('$importer -> $target');
           }
+          if (layer == 'presentation' &&
+              _audioImplementationPackages.any(uri.startsWith)) {
+            presentationAudioImplementation.add('$importer -> $uri');
+          }
         }
       }
     });
@@ -130,6 +149,17 @@ void main() {
 
     test('presentation does not import data implementations', () {
       _expectRatchet(presentationData, _presentationBaseline);
+    });
+
+    test('presentation does not import audio implementation packages', () {
+      expect(
+        presentationAudioImplementation.toList()..sort(),
+        isEmpty,
+        reason:
+            'Playback and audition go through domain services '
+            '(AudioPlayerService / AudioPreviewService); the UI must not '
+            'construct audio players of its own.',
+      );
     });
 
     test('data does not import the presentation layer', () {
