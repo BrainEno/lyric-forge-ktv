@@ -94,10 +94,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          bash scripts/quality_gate.sh --skip-pub-get --skip-docs > full.log 2>&1
+          bash scripts/quality_gate.sh --skip-pub-get > full.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           {
-            grep -nE "Expected:|Actual:|Which:|was thrown running a test" full.log | head -8
+            grep -nE "Expected:|Actual:|Which:|was thrown running a test|\[work-log\]|summary-stale|entry-" full.log | head -8
             grep -n "\[E\]" full.log | head -6
           } > diag-full.log
           cat diag-full.log
