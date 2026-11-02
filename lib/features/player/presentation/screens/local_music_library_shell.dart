@@ -181,38 +181,38 @@ class _SectionStrip extends StatelessWidget {
           vertical: AppSpacing.sm,
         ),
         child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var index = 0; index < sections.length; index++) ...[
-                    if (index > 0) const SizedBox(width: AppSpacing.xs),
-                    ChoiceChip(
-                      selected: index == selectedIndex,
-                      onSelected: (_) => onSelected(index),
-                      avatar: Icon(
-                        index == selectedIndex
-                            ? sections[index].selectedIcon
-                            : sections[index].icon,
-                        size: 16,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (var index = 0; index < sections.length; index++) ...[
+                      if (index > 0) const SizedBox(width: AppSpacing.xs),
+                      ChoiceChip(
+                        selected: index == selectedIndex,
+                        onSelected: (_) => onSelected(index),
+                        avatar: Icon(
+                          index == selectedIndex
+                              ? sections[index].selectedIcon
+                              : sections[index].icon,
+                          size: 16,
+                        ),
+                        label: Text(sections[index].label),
                       ),
-                      label: Text(sections[index].label),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          if (showTransfer) ...[
-            const SizedBox(width: AppSpacing.sm),
-            IconButton.filledTonal(
-              tooltip: '跨设备传输',
-              onPressed: onOpenTransfer,
-              icon: const Icon(Icons.devices_rounded),
-            ),
-          ],
+            if (showTransfer) ...[
+              const SizedBox(width: AppSpacing.sm),
+              IconButton.filledTonal(
+                tooltip: '跨设备传输',
+                onPressed: onOpenTransfer,
+                icon: const Icon(Icons.devices_rounded),
+              ),
+            ],
           ],
         ),
       ),
