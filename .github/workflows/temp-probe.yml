@@ -1,0 +1,96 @@
+name: Temp Probe
+
+# Temporary harness: job logs are not reachable from the agent sandbox, so the
+# gate result is republished as annotations. Deleted again as soon as the cause
+# of the red main gate is known.
+
+on:
+  push:
+    branches:
+      - arena/77e0ffaf-lyric-forge-ktv
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Full gate pass 1
+        id: full1
+        shell: bash
+        run: |
+          set +e
+          bash scripts/quality_gate.sh --skip-pub-get > full1.log 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          {
+            grep -n "\[E\]" full1.log | head -10
+            grep -n -A12 "The following assertion was thrown" full1.log | head -30
+            grep -nE "Expected:|Actual:|Which:" full1.log | head -16
+            grep -nE "Some tests failed|All tests passed|tests? failed" full1.log | head -6
+            tail -25 full1.log
+          } > diag-full1.log
+          cat diag-full1.log
+          exit 0
+
+      - name: Full gate pass 2
+        id: full2
+        shell: bash
+        run: |
+          set +e
+          bash scripts/quality_gate.sh --skip-pub-get > full2.log 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          {
+            grep -n "\[E\]" full2.log | head -10
+            grep -n -A12 "The following assertion was thrown" full2.log | head -30
+            grep -nE "Expected:|Actual:|Which:" full2.log | head -16
+            grep -nE "Some tests failed|All tests passed|tests? failed" full2.log | head -6
+            tail -25 full2.log
+          } > diag-full2.log
+          cat diag-full2.log
+          exit 0
+
+      - name: Report
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          echo "::notice::pass1=${{ steps.full1.outputs.exit }} pass2=${{ steps.full2.outputs.exit }}"
+          emit() {
+            stage="$1"; code="$2"; diag="$3"
+            if [[ "$code" == "0" ]]; then
+              echo "::notice::${stage} ok"
+              return 0
+            fi
+            echo "::error::${stage} failed (exit=${code})"
+            [[ -f "$diag" ]] || return 0
+            local n=0
+            while IFS= read -r line; do
+              [[ -z "$line" ]] && continue
+              n=$((n+1))
+              [[ $n -gt 20 ]] && break
+              echo "::error::${stage} :: ${line:0:800}"
+            done < "$diag"
+            return 0
+          }
+          emit pass1 "${{ steps.full1.outputs.exit }}" diag-full1.log
+          emit pass2 "${{ steps.full2.outputs.exit }}" diag-full2.log
+          exit 0
