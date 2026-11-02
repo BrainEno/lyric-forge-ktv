@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/models/audio_preview_state.dart';
 import '../../domain/models/ktv_recording_session.dart';
 import '../../domain/services/audio_preview_service.dart';
 import '../../domain/services/ktv_recording_service.dart';
