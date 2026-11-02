@@ -16,6 +16,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
+import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
@@ -49,6 +50,7 @@ import '../widgets/reference_alignment_result_comparison.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_row_audition_button.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/lyric_edit_shortcuts.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
 import '../widgets/unsaved_lyric_edits_dialog.dart';
@@ -131,6 +133,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   LyricDocument? _reviewPrioritySource;
   Duration? _reviewPriorityAudioDuration;
   LyricReviewQueue _reviewQueue = LyricReviewQueue.empty;
+  final LyricEditHistory _editHistory = LyricEditHistory();
   Map<int, LyricReviewPriority> _reviewPriorityByIndex = const {};
 
   late final StreamSubscription<Duration> _auditionPositionSubscription;
@@ -190,6 +193,76 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
+  /// Records the document as it is *now*, before an edit mutates it.
+  ///
+  /// Every user-visible change calls this first, so the undo stack is a record
+  /// of what the user actually did rather than of what the code happened to
+  /// touch. Loading a project clears it, because undo must never walk back into
+  /// a different song.
+  void _recordEdit(String label, {String? mergeKey}) {
+    final document = _editingDocument;
+    if (document == null) return;
+    _editHistory.record(
+      document,
+      label: label,
+      mergeKey: mergeKey,
+      selectedLineIndex: _selectedLineIndex,
+    );
+  }
+
+  void _undo() {
+    final current = _editingDocument;
+    if (current == null) return;
+    final snapshot = _editHistory.undo(current);
+    if (snapshot == null) {
+      _showEditHint('没有可撤销的修改');
+      return;
+    }
+    setState(() {
+      _editingDocument = snapshot.document;
+      _selectedLineIndex = snapshot.selectedLineIndex != null &&
+              snapshot.selectedLineIndex! >= 0 &&
+              snapshot.selectedLineIndex! < snapshot.document.lines.length
+          ? snapshot.selectedLineIndex
+          : null;
+      _hasChanges = true;
+      _alignmentUndoSnapshot = null;
+      _activeLineAudition = null;
+      _refreshReviewQueue(snapshot.document, _reviewPriorityAudioDuration);
+    });
+    _showEditHint('已撤销：${snapshot.label}');
+  }
+
+  void _redo() {
+    final current = _editingDocument;
+    if (current == null) return;
+    final snapshot = _editHistory.redo(current);
+    if (snapshot == null) {
+      _showEditHint('没有可重做的修改');
+      return;
+    }
+    setState(() {
+      _editingDocument = snapshot.document;
+      _selectedLineIndex = snapshot.selectedLineIndex != null &&
+              snapshot.selectedLineIndex! >= 0 &&
+              snapshot.selectedLineIndex! < snapshot.document.lines.length
+          ? snapshot.selectedLineIndex
+          : null;
+      _hasChanges = true;
+      _alignmentUndoSnapshot = null;
+      _activeLineAudition = null;
+      _refreshReviewQueue(snapshot.document, _reviewPriorityAudioDuration);
+    });
+    _showEditHint('已重做：${snapshot.label}');
+  }
+
+  void _showEditHint(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   void _setLineReviewDecision(
     ProjectManifest project,
     int index, {
@@ -205,6 +278,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       reviewed: reviewed,
     );
     if (identical(updated, document)) return;
+    _recordEdit(
+      reviewed ? '标记第 ${index + 1} 行为已复核' : '取消第 ${index + 1} 行的复核标记',
+    );
 
     setState(() {
       _editingDocument = updated;
@@ -514,6 +590,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('应用参考歌词对齐');
     setState(() {
       _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);
       _activeLineAudition = null;
@@ -1207,6 +1284,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('应用校对提案');
     setState(() {
       _editingDocument = after;
       _activeLineAudition = null;
@@ -1243,6 +1321,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('应用逐行纠错');
     setState(() {
       _editingDocument = applied.after;
       _activeLineAudition = null;
@@ -1318,6 +1397,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('撤销参考对齐');
     setState(() {
       _editingDocument = snapshot.document;
       _activeLineAudition = null;
@@ -1378,6 +1458,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             activeAudition.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('恢复对齐前版本');
     setState(() {
       // 备份文档保留了各行的稳定标识：会话内标记按标识取交集继续生效，
       // 备份元数据中持久化的标记一并恢复；旧版本备份没有标识时自然失配。
@@ -1416,6 +1497,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _addNewLine() {
+    _recordEdit('添加歌词行');
     setState(() {
       final lines = List<LyricLine>.from(_editingDocument?.lines ?? []);
       final lastEndTime = lines.isNotEmpty
@@ -1455,6 +1537,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final lines = List<LyricLine>.from(current.lines)
       ..insert(insertion.index, insertion.line);
 
+    _recordEdit('在播放位置插入一行');
     setState(() {
       _editingDocument = _lineMarkers.assignMissingLineIds(
         current.copyWith(
@@ -1525,6 +1608,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             active.projectId &&
         _audioService.currentState.isPlaying;
 
+    // Repeated edits to one line inside the merge window are a single undo
+    // step: retyping a lyric should not cost one undo per keystroke burst.
+    _recordEdit('修改第 ${index + 1} 行', mergeKey: 'line:$index');
     setState(() {
       final lines = List<LyricLine>.from(document.lines);
       lines[index] = updatedLine;
@@ -1583,6 +1669,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             active.projectId &&
         _audioService.currentState.isPlaying;
 
+    _recordEdit('删除第 ${index + 1} 行');
     setState(() {
       final lines = List<LyricLine>.from(document.lines)..removeAt(index);
       _editingDocument = document.copyWith(
@@ -1623,6 +1710,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         _playbackSession.currentState.currentItem?.projectId ==
             active.projectId &&
         _audioService.currentState.isPlaying;
+    _recordEdit('调整全局偏移', mergeKey: 'offset');
     setState(() {
       _editingDocument = _editingDocument?.copyWith(globalOffset: offset);
       _activeLineAudition = null;
@@ -1954,6 +2042,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               const LyricDocument(language: 'zh', lines: []);
           // 统一补齐稳定行标识，并恢复上次保存的手工编辑保护标记。
           _editingDocument = _lineMarkers.assignMissingLineIds(loaded);
+          // A freshly loaded document is a new baseline: undoing across a
+          // project load would restore lines from a different song.
+          _editHistory.clear();
           _manuallyEditedLineIds
             ..clear()
             ..addAll(_lineMarkers.restore(_editingDocument!));
@@ -2018,6 +2109,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onReviewDecision: (index, reviewed) =>
                   _setLineReviewDecision(project, index, reviewed: reviewed),
               onSave: () => _saveChanges(project),
+              onUndo: _undo,
+              onRedo: _redo,
+              canUndo: _editHistory.canUndo,
+              canRedo: _editHistory.canRedo,
+              undoLabel: _editHistory.undoLabel,
+              redoLabel: _editHistory.redoLabel,
               onExport: () => _exportLyrics(project),
               onReferenceAlignment: _editingDocument!.lines.isEmpty
                   ? null
@@ -2130,6 +2227,12 @@ class _LyricEditorContent extends StatelessWidget {
   final ValueChanged<int> onSelectLine;
   final void Function(int, bool) onReviewDecision;
   final VoidCallback onSave;
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
+  final bool canUndo;
+  final bool canRedo;
+  final String? undoLabel;
+  final String? redoLabel;
   final VoidCallback onExport;
   final VoidCallback? onReferenceAlignment;
   final VoidCallback? onReferenceProofread;
@@ -2171,6 +2274,12 @@ class _LyricEditorContent extends StatelessWidget {
     required this.onSelectLine,
     required this.onReviewDecision,
     required this.onSave,
+    required this.onUndo,
+    required this.onRedo,
+    required this.canUndo,
+    required this.canRedo,
+    required this.undoLabel,
+    required this.redoLabel,
     required this.onExport,
     required this.onReferenceAlignment,
     required this.onReferenceProofread,
@@ -2334,11 +2443,10 @@ class _LyricEditorContent extends StatelessWidget {
             break;
         }
       },
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.keyS, control: true): onSave,
-          const SingleActivator(LogicalKeyboardKey.keyS, meta: true): onSave,
-        },
+      child: LyricEditShortcuts(
+        onUndo: onUndo,
+        onRedo: onRedo,
+        onSave: onSave,
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -2370,6 +2478,10 @@ class _LyricEditorContent extends StatelessWidget {
                   onRestoreBackup: onRestoreAlignment,
                 ),
               LyricEditorOverflowMenu(
+                onUndo: canUndo ? onUndo : null,
+                onRedo: canRedo ? onRedo : null,
+                undoLabel: canUndo ? undoLabel : null,
+                redoLabel: canRedo ? redoLabel : null,
                 canExport: document.lines.isNotEmpty,
                 onExport: onExport,
                 onInsertAtPlayback: playbackBelongsToProject

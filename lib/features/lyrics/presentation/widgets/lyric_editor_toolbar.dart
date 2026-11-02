@@ -193,6 +193,12 @@ class LyricEditorToolbar extends StatelessWidget {
 /// (insert at playback position appeared in two places at once). One menu keeps
 /// them reachable without asking the user to scan for them on every screenshot.
 class LyricEditorOverflowMenu extends StatelessWidget {
+  /// Null when there is nothing to undo/redo; the entry then stays visible but
+  /// disabled, so the shortcut is discoverable before it is needed.
+  final VoidCallback? onUndo;
+  final VoidCallback? onRedo;
+  final String? undoLabel;
+  final String? redoLabel;
   final bool canExport;
   final VoidCallback onExport;
   final VoidCallback? onInsertAtPlayback;
@@ -200,6 +206,10 @@ class LyricEditorOverflowMenu extends StatelessWidget {
 
   const LyricEditorOverflowMenu({
     super.key,
+    this.onUndo,
+    this.onRedo,
+    this.undoLabel,
+    this.redoLabel,
     required this.canExport,
     required this.onExport,
     required this.onInsertAtPlayback,
@@ -209,8 +219,31 @@ class LyricEditorOverflowMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final openPlayer = onOpenPlayer;
+    final undo = onUndo;
+    final redo = onRedo;
     return MenuAnchor(
       menuChildren: [
+        MenuItemButton(
+          onPressed: undo,
+          leadingIcon: const Icon(Icons.undo_rounded, size: 18),
+          child: _OverflowLabel(
+            title: '撤销',
+            detail: undo == null
+                ? '没有可撤销的修改'
+                : '${undoLabel ?? '上一步修改'}（Ctrl/Cmd+Z）',
+          ),
+        ),
+        MenuItemButton(
+          onPressed: redo,
+          leadingIcon: const Icon(Icons.redo_rounded, size: 18),
+          child: _OverflowLabel(
+            title: '重做',
+            detail: redo == null
+                ? '没有可重做的修改'
+                : '${redoLabel ?? '上一步撤销'}（Ctrl/Cmd+Shift+Z）',
+          ),
+        ),
+        const Divider(height: 1),
         MenuItemButton(
           onPressed: onInsertAtPlayback,
           leadingIcon: const Icon(Icons.playlist_add_rounded, size: 18),
