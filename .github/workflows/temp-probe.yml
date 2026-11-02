@@ -85,7 +85,8 @@ jobs:
             > targeted.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           {
-            grep -nE "Expected:|Actual:|Which:|was thrown running a test" targeted.log | head -8
+            grep -n -A5 "The following assertion was thrown" targeted.log | head -14
+            grep -nE "Expected:|Actual:|Which:" targeted.log | head -8
             grep -n "\[E\]" targeted.log | head -6
           } > diag-targeted.log
           cat diag-targeted.log
@@ -99,7 +100,8 @@ jobs:
           bash scripts/quality_gate.sh --skip-pub-get > full.log 2>&1
           echo "exit=$?" >> "$GITHUB_OUTPUT"
           {
-            grep -nE "Expected:|Actual:|Which:|was thrown running a test|summary-stale|entry-" full.log | head -8
+            grep -n -A5 "The following assertion was thrown" full.log | head -14
+            grep -nE "Expected:|Actual:|Which:|summary-stale|entry-" full.log | head -8
             grep -n "\[E\]" full.log | head -6
           } > diag-full.log
           cat diag-full.log
