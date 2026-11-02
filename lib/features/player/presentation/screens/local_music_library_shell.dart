@@ -22,7 +22,15 @@ import 'local_library_explorer_screen.dart';
 class LocalMusicLibraryShell extends StatefulWidget {
   final int initialIndex;
 
-  const LocalMusicLibraryShell({super.key, this.initialIndex = 0});
+  /// Section bodies. Injected by tests, which cannot stand up the library
+  /// repositories; production always uses the real screens.
+  final List<Widget>? sections;
+
+  const LocalMusicLibraryShell({
+    super.key,
+    this.initialIndex = 0,
+    this.sections,
+  });
 
   @override
   State<LocalMusicLibraryShell> createState() => _LocalMusicLibraryShellState();
@@ -82,13 +90,15 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     );
   }
 
-  List<Widget> get _pages => const [
+  static const List<Widget> _defaultPages = [
     LocalLibraryExplorerScreen(),
     LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
     LocalArtistAlbumBrowserScreen(view: LocalCatalogView.albums),
     LocalCollectionsScreen(view: LocalCollectionView.favorites),
     LocalCollectionsScreen(view: LocalCollectionView.playlists),
   ];
+
+  List<Widget> get _pages => widget.sections ?? _defaultPages;
 
   @override
   Widget build(BuildContext context) {

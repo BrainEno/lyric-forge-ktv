@@ -14,7 +14,18 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      MaterialApp(home: LocalMusicLibraryShell(initialIndex: initialIndex)),
+      MaterialApp(
+        home: LocalMusicLibraryShell(
+          initialIndex: initialIndex,
+          sections: const [
+            Center(child: Text('歌曲内容')),
+            Center(child: Text('艺人内容')),
+            Center(child: Text('专辑内容')),
+            Center(child: Text('收藏内容')),
+            Center(child: Text('歌单内容')),
+          ],
+        ),
+      ),
     );
     await tester.pump();
   }
@@ -47,6 +58,8 @@ void main() {
 
     expect(chipFor('专辑').selected, isTrue);
     expect(chipFor('歌曲').selected, isFalse);
+    // The section body actually swapped, not just the chip.
+    expect(find.text('专辑内容'), findsOneWidget);
   });
 
   testWidgets('initialIndex 打开对应分区', (tester) async {

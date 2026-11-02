@@ -82,14 +82,17 @@ void main() {
     expect(find.text('内容'), findsOneWidget);
   });
 
-  testWidgets('设备互传页面不高亮任何一项', (tester) async {
+  testWidgets('不属于四个去向的页面不显示导航', (tester) async {
+    // Device transfer is something you do from inside the library, not a place
+    // you live; a rail with nothing highlighted would only add noise.
     await pumpAt(
       tester,
       buildShell(route: Routes.mediaSharing),
       const Size(1400, 900),
     );
 
-    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    expect(rail.selectedIndex, isNull);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text('内容'), findsOneWidget);
   });
 }

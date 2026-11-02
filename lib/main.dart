@@ -123,7 +123,7 @@ class ElysiumPlayerApp extends StatelessWidget {
                         const MobileGlobalPlayerBar(),
                       if (showChrome && showNavigation)
                         AppBottomNavigation(
-                          selected: selectedDestination,
+                          selected: selectedDestination!,
                           onSelect: _goToDestination,
                         ),
                     ],

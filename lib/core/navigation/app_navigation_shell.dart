@@ -45,6 +45,10 @@ class AppNavigationShell extends StatelessWidget {
     if (hidden) return child;
     final layout = AppResponsive.of(context);
     final selected = destinationForRoute(currentRoute);
+    // No destination means this route is not part of the four places — device
+    // transfer and the immersive player. Showing a navigation with nothing
+    // highlighted would only ask the user where they are.
+    if (selected == null) return child;
 
     if (layout.useNavigationRail) {
       return Row(
@@ -129,7 +133,7 @@ class AppNavigationRail extends StatelessWidget {
 
 /// Horizontal navigation for narrow windows.
 class AppBottomNavigation extends StatelessWidget {
-  final AppDestination? selected;
+  final AppDestination selected;
   final ValueChanged<AppDestination> onSelect;
 
   const AppBottomNavigation({
@@ -142,9 +146,7 @@ class AppBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return NavigationBar(
       backgroundColor: AppColors.bgElevated,
-      selectedIndex: selected == null
-          ? null
-          : AppDestination.values.indexOf(selected!),
+      selectedIndex: AppDestination.values.indexOf(selected),
       onDestinationSelected: (index) => onSelect(AppDestination.values[index]),
       destinations: [
         for (final destination in AppDestination.values)
