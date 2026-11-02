@@ -35,18 +35,26 @@ void main() {
     },
   );
 
-  test(
-    'desktop rail has a Settings entry without changing mobile bottom navigation',
-    () {
-      final source = File(
-        'lib/features/player/presentation/screens/local_music_library_shell.dart',
-      ).readAsStringSync();
+  test('Settings is one of the app-wide destinations, not a library section', () {
+    // The library shell used to carry its own rail with a Settings entry, which
+    // put 设置 in two places once the app grew persistent navigation. Settings
+    // now lives in the shell that renders on every screen.
+    final destinations = File(
+      'lib/core/navigation/app_destinations.dart',
+    ).readAsStringSync();
+    final shell = File(
+      'lib/features/player/presentation/screens/local_music_library_shell.dart',
+    ).readAsStringSync();
 
-      expect(source, contains("label: Text('设置')"));
-      expect(source, contains('Navigator.pushNamed(context, Routes.settings)'));
-      expect(source, contains('static const _bottomDestinations'));
-    },
-  );
+    expect(destinations, contains("AppDestination.settings => '设置'"));
+    expect(
+      destinations,
+      contains('AppDestination.settings => Routes.settings'),
+    );
+    // And the library no longer renders its own rail or bottom bar.
+    expect(shell, isNot(contains('NavigationRail(')));
+    expect(shell, isNot(contains('NavigationBar(')));
+  });
 
   test(
     'settings and project recognition share the same persisted transcription store',
