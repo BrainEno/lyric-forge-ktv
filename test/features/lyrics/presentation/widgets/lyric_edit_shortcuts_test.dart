@@ -16,11 +16,15 @@ void main() {
           onUndo: () => calls.add('undo'),
           onRedo: () => calls.add('redo'),
           onSave: onSave,
-          child: const Scaffold(body: SizedBox.expand()),
+          // Key events bubble up from the focused node, and CallbackShortcuts
+          // only sees events raised inside its subtree, so the harness gives
+          // it a focusable child the way the editor's list does.
+          child: const Scaffold(
+            body: Focus(autofocus: true, child: SizedBox.expand()),
+          ),
         ),
       ),
     );
-    // CallbackShortcuts only fires for the focused subtree.
     await tester.pump();
   }
 
