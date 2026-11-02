@@ -168,16 +168,19 @@ class _SectionStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final layout = AppResponsive.of(context);
     final gutter = layout.pageGutter.clamp(12, 24).toDouble();
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.bgElevated,
-        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: gutter,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
+    // Material, not Container: the section chips need a Material ancestor, and
+    // the wide layout of this screen no longer sits inside a Scaffold.
+    return Material(
+      color: AppColors.bgElevated,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: gutter,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -210,7 +213,8 @@ class _SectionStrip extends StatelessWidget {
               icon: const Icon(Icons.devices_rounded),
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

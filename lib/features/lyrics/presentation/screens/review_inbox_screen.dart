@@ -76,7 +76,11 @@ class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _entriesFuture = future);
+    // Block body on purpose: an arrow here returns the assignment's value,
+    // which is a Future, and setState rejects callbacks that return futures.
+    setState(() {
+      _entriesFuture = future;
+    });
     await future;
   }
 
