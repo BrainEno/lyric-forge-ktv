@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-01 20:39] Let highest quality degrade to Whisper instead of refusing the song ([entry](log/entries/2026-11-01-2039-degrade-when-second-engine-missing.md))
 - [2026-11-01 20:05] Recognise songs whole, keep chunk metadata, invalidate stale checkpoints ([entry](log/entries/2026-11-01-2005-whole-song-recognition.md))
 - [2026-11-01 18:20] Stop the upload timeout test racing the teardown it is waiting for ([entry](log/entries/2026-11-01-1820-upload-timeout-test-flake.md))
 - [2026-11-01 17:00] Stop fusion from duplicating lyrics across mismatched segmentation ([entry](log/entries/2026-11-01-1700-fusion-duplicate-rows.md))

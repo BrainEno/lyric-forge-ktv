@@ -567,7 +567,26 @@ class ServiceLocator {
 ### 3.6 双播放栈 + UI 内自建 AudioPlayer
 
 - 播放：`just_audio` + `just_audio_media_kit`（Windows/Linux）+ `audio_service`；录音：`record`；监听：`flutter_soloud`。三套原生音频栈，各有平台差异（这本身有合理理由）。
-- 但 `player_screen.dart:5` 在 **presentation 层** 直接 `import 'package:just_audio/just_audio.dart'` 并 `new AudioPlayer()`（`:1965`）做行试听，完全绕过 `AudioPlayerService`：两套播放器可以同时出声、状态不同步、无法统一暂停，也违反 `AGENTS.md`「one app-scoped playback/session model」。
+- 但 `player_screen.dart:5` 在 **presentation 层** 直接 `import 'package:just_audio/just_audio.dart'` 并 `new AudioPlayer()`（`:1965`）做试听，完全绕过 `AudioPlayerService`：两套播放器可以同时出声、状态不同步、无法统一暂停，也违反 `AGENTS.md`「one app-scoped playback/session model」。
+
+**处理（2026-11-03）**
+
+先把对象弄清楚了：那个 `AudioPlayer` **不是行试听**。歌词编辑器的行试听（`_startAuditionWindow` / 校对对话框逐行逐词）一直走 `PlaybackSessionService` + `AudioPlayerService`，还带自己的窗口循环。越层的是 **KTV 录音成品的 A/B 试听**（`_KtvTakeResultSheetState`），而且后果比原文写的更直接：
+
+- `stopRecording()`（`local_ktv_recording_service.dart:220`）**不停主播放**；录完立刻弹出结果 sheet。
+- 点「播放原始人声」时，**正在播放的歌和被录的人声同时出声**，两条进度条各说各话。
+- 全屏 KTV 已 `enterImmersive()`，`main.dart` 里 `if (!immersive)` 让全局播放条不渲染——用户连「暂停那首歌」的入口都看不到。
+
+修法不是把录音塞进 `AudioPlayerService`。那个播放器永远代表「当前队列项」：把录音载进去，播放条、歌词编辑器、队列会继续描述一首已经没在响的歌，全 App 的 `seek` 都会跳到录音里——用一个新的一致性谎言换掉旧的不一致。
+
+- 新增 app 级**试听通道** `AudioPreviewService`（domain 接口 + `just_audio` 实现 + 注册进 `ServiceLocator`），只播单个松散文件：`loadFile / play / pause / stop / seek / stateStream`。
+- `ExclusiveAudioPreviewService` 负责互斥，**双向**：试听开始先暂停歌曲；歌曲开始播放则暂停试听。放在服务层而不是 widget 里，因为 sheet 可能中途消失（关闭、返回），不变量不能依赖 widget 活着。
+- sheet 从 `player_screen.dart`（3,091 行）抽出为 `widgets/ktv_take_result_sheet.dart`，服务走构造注入——私有 widget 里自建播放器是它至今没有测试的根本原因。
+- presentation 不再 import `just_audio`（全仓只剩 data 层一处），并加了一条分层棘轮：presentation 不许 import `just_audio` / `just_audio_media_kit` / `audio_service` / `flutter_soloud` / `record`。
+
+**行为变化（有意的）**：试听录音会暂停歌曲；关掉 sheet 后歌曲保持暂停，不会自己接着放。
+
+**验收**：`audio_preview_exclusivity_test.dart` 断言调用顺序为 `song.pause` 然后 `preview.play`，以及反向（歌曲开播 → 试听暂停）；`ktv_take_result_sheet_test.dart` 用假服务覆盖加载、切换、播放/暂停、文件缺失、导出后切换、关闭即停共 6 例；分层棘轮新增一条 presentation 音频实现禁令。
 
 ### 3.7 文档 / 代码漂移
 
@@ -791,7 +810,7 @@ class ServiceLocator {
 |---|---|
 | 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar |
 | 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` |
-| 4.3 | 行试听统一走 `AudioPlayerService`，删除 UI 内自建 `AudioPlayer` |
+| 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
 | 4.5 | 合并/退役 22 个专项 workflow，保留主门禁 + 原生构建 + runtime 发布 + 图标 |
 
