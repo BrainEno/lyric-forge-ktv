@@ -8,21 +8,24 @@
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/29adf058-lyric-forge-ktv`（Arena 会话分支；每次新任务都在这条分支上从 `origin/main` 起步）。
-- 本分支当前包含「让失败的 gate 自己报出失败用例」这一改动（`.github/workflows/flutter-quality.yml`）：gate 输出落盘到 `build/quality-gate.log`，失败时由 `Publish gate failures` 步骤转成 annotation。触发原因是 2026-11-03 晚两次 `main` push 门禁变红却只有 `Process completed with exit code 1`（run 41485065687、41498901477）。
-- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（Phase 4.3 交接文档，PR #289）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
+- 已完成并合入：Phase 4.3（PR #288，合并提交 `24306cf`）、Phase 4.3 交接文档（PR #289，`300412d`）、「让失败的 gate 自己报出失败用例」（PR #290，`06052a7`）。`main` 当前为 `06052a7`，其 push 门禁 run 41500175468 为绿。本文件相对 `main` 无差异，工作区应为 clean。
+- 已合并：`854a554`（Phase 3.4 撤销栈，PR #284）、`efde4b5`（Phase 3.5 统一导航，PR #285）、`c484655`（偶发失败记录，PR #286）、`376339a`（Phase 3.5 交接文档，PR #287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（Phase 4.3 交接文档，PR #289）、`06052a7`（gate 失败自述，PR #290）、`fb99f4f`（Phase 0 工具，PR #274）、`f54f292`（R2 融合重复行，PR #275）、`f2d2f63`（上传用例 flake，PR #276）、`bade954`（整首一次识别 + 分片 metadata + 检查点指纹，PR #277）、`037a431`（Phase 1.5 降级，PR #278）、`dea805b`（R8 置信度语义，PR #279）、`beb52f1`（R9 Qwen 解码预算，PR #280）、`5330a36`（Phase 3.1 校对入口合一 + 「保存并返回」修复，PR #281）、`d189f6f`（Phase 3.2 工具栏重排，PR #282）、`974bcf3`（Phase 3.3 复核语义统一，PR #283）。
 
 ## 已改文件
 
-- `.github/workflows/flutter-quality.yml` — 质量门禁那一步改为 `mkdir -p build && bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee build/quality-gate.log`；新增 `if: failure()` 的 `Publish gate failures` 步骤，把 `error •`/`warning •`、`[E]` 用例行、断言上下文与日志尾部发成 annotation。GitHub 的 bash 默认带 `pipefail`，所以红门禁仍然是红步骤。
-- `docs/log/entries/2026-11-03-0220-gate-failure-annotations.md` — 本任务工作日志条目。
-- `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md` — 生成同步。
+下列改动都已合入 `main`，清单用于回溯「改动落在哪里」。
+
+- `.github/workflows/flutter-quality.yml` — 门禁步骤改为 `mkdir -p build && bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee build/quality-gate.log`；新增 `if: failure()` 的 `Publish gate failures`，把 `error •`/`warning •`、`[E]` 用例行、断言上下文与日志尾部发成 annotation。GitHub 的 bash 默认 `pipefail`，红门禁依旧是红步骤。
+- Phase 4.3 的代码与测试（`AudioPreviewService`、互斥装饰器、抽出的 `KtvTakeResultSheet`、6+6 个用例、分层棘轮那条禁令）见 `docs/log/entries/2026-11-03-0206-audition-service.md`。
+- `docs/log/entries/2026-11-03-0206-audition-service.md`、`docs/log/entries/2026-11-03-0220-gate-failure-annotations.md` — 两条工作日志条目。
+- `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md` — 生成同步（166 条）。
 - `docs/handoff.md` — 本文件。
 
 ## 检查结果
 
-- 本改动只能由 workflow 自己验证：本分支的 PR 门禁会跑改动后的 `Run repository quality gate`（含 `tee` 与 `pipefail`），绿色即证明改动没有破坏门禁语义；`Publish gate failures` 只在失败时执行。
-- `build/` 在 `.gitignore` 中（`/build/`），抓取的日志不会进 diff 或提交。
-- 合并后 `main` 的 push 门禁若再次变红，annotation 里应直接出现失败用例名与断言文本，而不是 `Process completed with exit code 1`。
+- Phase 4.3：临时 CI workflow（Flutter 3.47.7 / Dart 3.13.5）上 `dart format` 0 changed、`flutter analyze` exit 0、4 个目标测试文件通过、全量 `scripts/quality_gate.sh --skip-pub-get` 通过；PR #288 的 8 项检查全绿后合并，`main` push 门禁 run 41497914967 绿。
+- gate 自述改动：PR #290 门禁（改动后的 workflow 自身）通过，合并后 `main` push 门禁 run 41500175468 绿——`tee` 没有改变失败/成功语义。
+- 仍未验证的部分：那两次 `main` 门禁失败（run 41485065687、41498901477）的原因依然未知；新的 annotation 只在**下一次**失败时才有信息。
 
 ## 已知风险
 
@@ -61,4 +64,4 @@
 5. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 6. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 02:20（Asia/Taipei）
+最后更新：2026-11-03 02:27（Asia/Taipei）
