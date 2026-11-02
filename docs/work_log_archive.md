@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-01 17:00] Stop fusion from duplicating lyrics across mismatched segmentation ([entry](log/entries/2026-11-01-1700-fusion-duplicate-rows.md))
 - [2026-11-01 13:54] Add a line-level lyric quality baseline tool ([entry](log/entries/2026-11-01-1354-line-quality-baseline-tool.md))
 - [2026-11-01 12:21] Restore a green quality gate after the inline-editing overhaul ([entry](log/entries/2026-11-01-1221-restore-green-quality-gate.md))
 - [2026-11-01 11:56] Review recognition quality and UI complexity ([entry](log/entries/2026-11-01-1156-recognition-quality-ux-review.md))
