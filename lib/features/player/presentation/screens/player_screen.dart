@@ -2204,7 +2204,6 @@ class _KtvAudioControlsSheet extends StatelessWidget {
   }
 }
 
-
 class _CompactSourceMenu extends StatelessWidget {
   final List<AudioSourceType> availableSources;
   final AudioSourceType? currentSource;
@@ -2557,7 +2556,6 @@ class _PlayerModeControls extends StatelessWidget {
   }
 }
 
-
 class _NoLyricsState extends StatelessWidget {
   const _NoLyricsState();
 
@@ -2608,7 +2606,6 @@ int? _currentLyricIndex(LyricDocument? document, Duration position) {
   }
   return 0;
 }
-
 
 String _sourceLabel(AudioSourceType source) {
   return switch (source) {

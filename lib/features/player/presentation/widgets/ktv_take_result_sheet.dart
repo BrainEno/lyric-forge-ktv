@@ -83,9 +83,7 @@ class _KtvTakeResultSheetState extends State<KtvTakeResultSheet> {
     _backingVolume = _session.backingVolume;
     _previewKind = _hasMix ? KtvTakePreviewKind.mix : KtvTakePreviewKind.voice;
     _previewDuration = _session.duration;
-    _previewSubscription = widget.previewService.stateStream.listen((
-      preview,
-    ) {
+    _previewSubscription = widget.previewService.stateStream.listen((preview) {
       if (!mounted) return;
       setState(() {
         _previewPosition = preview.position;
