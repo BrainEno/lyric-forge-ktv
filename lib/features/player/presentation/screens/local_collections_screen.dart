@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -15,6 +14,7 @@ import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import '../widgets/local_collection_actions.dart';
 
 enum LocalCollectionView { favorites, playlists }
@@ -22,7 +22,14 @@ enum LocalCollectionView { favorites, playlists }
 class LocalCollectionsScreen extends StatefulWidget {
   final LocalCollectionView view;
 
-  const LocalCollectionsScreen({super.key, required this.view});
+  /// Supplied by `LocalMusicLibraryShell`.
+  final LocalLibraryDependencies dependencies;
+
+  const LocalCollectionsScreen({
+    super.key,
+    required this.view,
+    required this.dependencies,
+  });
 
   @override
   State<LocalCollectionsScreen> createState() => _LocalCollectionsScreenState();
@@ -47,11 +54,11 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _collections = services.localMediaCollectionRepository;
-    _library = services.localMediaLibraryRepository;
-    _metadata = services.localMediaMetadataRepository;
-    _session = services.playbackSessionService;
+    final dependencies = widget.dependencies;
+    _collections = dependencies.collectionRepository;
+    _library = dependencies.libraryRepository;
+    _metadata = dependencies.metadataRepository;
+    _session = dependencies.playbackSession;
     _collectionSubscription = _collections.changes.listen((_) {
       unawaited(_reload());
     });

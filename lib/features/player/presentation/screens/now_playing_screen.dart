@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
+import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
 import '../widgets/now_playing_lyrics_project_action.dart';
@@ -72,6 +73,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
           ),
           child: PlaybackQueuePanel(
             session: _session,
+            collectionRepository: widget.dependencies.localCollectionRepository,
             height: height,
             allowClearAll: true,
           ),
@@ -117,6 +119,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                         item: item,
                         lyricsResolver: widget.dependencies.lyricsResolver,
                         immersiveKtv: widget.dependencies.immersiveKtv,
+                        collectionRepository:
+                            widget.dependencies.localCollectionRepository,
                         sessionState: session,
                         playback: playback,
                         session: _session,
@@ -176,6 +180,7 @@ class _NowPlayingBody extends StatelessWidget {
   final PlaybackItem item;
   final PlaybackLyricsResolver lyricsResolver;
   final ImmersiveKtvDependencies immersiveKtv;
+  final LocalMediaCollectionRepository collectionRepository;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -187,6 +192,7 @@ class _NowPlayingBody extends StatelessWidget {
     required this.item,
     required this.lyricsResolver,
     required this.immersiveKtv,
+    required this.collectionRepository,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -233,6 +239,7 @@ class _NowPlayingBody extends StatelessWidget {
                       width: layout.sidePanelWidth,
                       child: PlaybackQueuePanel(
                         session: session,
+                        collectionRepository: collectionRepository,
                         height: queueHeight,
                         allowClearAll: true,
                       ),

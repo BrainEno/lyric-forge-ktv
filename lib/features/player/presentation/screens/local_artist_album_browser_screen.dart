@@ -3,15 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/local_media_metadata.dart';
+import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import '../widgets/local_collection_actions.dart';
 
 enum LocalCatalogView { artists, albums }
@@ -19,7 +20,14 @@ enum LocalCatalogView { artists, albums }
 class LocalArtistAlbumBrowserScreen extends StatefulWidget {
   final LocalCatalogView view;
 
-  const LocalArtistAlbumBrowserScreen({super.key, required this.view});
+  /// Supplied by `LocalMusicLibraryShell`.
+  final LocalLibraryDependencies dependencies;
+
+  const LocalArtistAlbumBrowserScreen({
+    super.key,
+    required this.view,
+    required this.dependencies,
+  });
 
   @override
   State<LocalArtistAlbumBrowserScreen> createState() =>
@@ -41,10 +49,10 @@ class _LocalArtistAlbumBrowserScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _library = services.localMediaLibraryRepository;
-    _metadata = services.localMediaMetadataRepository;
-    _session = services.playbackSessionService;
+    final dependencies = widget.dependencies;
+    _library = dependencies.libraryRepository;
+    _metadata = dependencies.metadataRepository;
+    _session = dependencies.playbackSession;
     _reload();
   }
 
@@ -364,6 +372,8 @@ class _LocalArtistAlbumBrowserScreenState
                 (index) => _CatalogSongTile(
                   song: songs[index],
                   index: index,
+                  collectionRepository:
+                      widget.dependencies.collectionRepository,
                   onPlay: () => _playSongs(songs, requestedIndex: index),
                   onEnqueue: () => _enqueue(songs[index]),
                 ),
@@ -416,6 +426,7 @@ class _LocalArtistAlbumBrowserScreenState
             itemBuilder: (context, index) => _CatalogSongTile(
               song: songs[index],
               index: index,
+              collectionRepository: widget.dependencies.collectionRepository,
               onPlay: () => _playSongs(songs, requestedIndex: index),
               onEnqueue: () => _enqueue(songs[index]),
               showTrackNumber: true,
@@ -631,6 +642,7 @@ class _CatalogHero extends StatelessWidget {
 class _CatalogSongTile extends StatelessWidget {
   final _CatalogSong song;
   final int index;
+  final LocalMediaCollectionRepository collectionRepository;
   final VoidCallback onPlay;
   final VoidCallback onEnqueue;
   final bool showTrackNumber;
@@ -638,6 +650,7 @@ class _CatalogSongTile extends StatelessWidget {
   const _CatalogSongTile({
     required this.song,
     required this.index,
+    required this.collectionRepository,
     required this.onPlay,
     required this.onEnqueue,
     this.showTrackNumber = false,
@@ -662,6 +675,7 @@ class _CatalogSongTile extends StatelessWidget {
               context,
               sourcePath: song.entry.sourcePath,
               title: song.title,
+              repository: collectionRepository,
             ),
       icon: const Icon(Icons.playlist_add_rounded),
     );
@@ -696,6 +710,7 @@ class _CatalogSongTile extends StatelessWidget {
               children: [
                 LocalFavoriteButton(
                   sourcePath: song.entry.sourcePath,
+                  repository: collectionRepository,
                   iconSize: 20,
                 ),
                 PopupMenuButton<String>(
@@ -706,6 +721,7 @@ class _CatalogSongTile extends StatelessWidget {
                         context,
                         sourcePath: song.entry.sourcePath,
                         title: song.title,
+                        repository: collectionRepository,
                       );
                     }
                     if (value == 'queue' && item != null) onEnqueue();
@@ -723,6 +739,7 @@ class _CatalogSongTile extends StatelessWidget {
               children: [
                 LocalFavoriteButton(
                   sourcePath: song.entry.sourcePath,
+                  repository: collectionRepository,
                   iconSize: 20,
                 ),
                 playlistAction,

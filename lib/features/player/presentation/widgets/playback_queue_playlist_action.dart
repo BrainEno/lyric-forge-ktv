@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
@@ -40,13 +39,12 @@ List<String> localQueuePlaylistPaths(PlaybackSessionState state) {
 Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
   BuildContext context,
   PlaybackSessionState state, {
-  LocalMediaCollectionRepository? repository,
+  required LocalMediaCollectionRepository repository,
 }) async {
   final paths = localQueuePlaylistPaths(state);
   if (paths.isEmpty) return null;
 
-  final collections =
-      repository ?? AppServices.instance.localMediaCollectionRepository;
+  final collections = repository;
   final playlists = await collections.getPlaylists();
   if (!context.mounted) return null;
 

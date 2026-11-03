@@ -1,4 +1,5 @@
 import '../../project/domain/repositories/project_repository.dart';
+import '../domain/repositories/local_media_collection_repository.dart';
 import '../domain/repositories/local_media_metadata_repository.dart';
 import '../domain/services/audio_path_canonicalizer.dart';
 import '../domain/services/audio_player_service.dart';
@@ -48,6 +49,9 @@ class NowPlayingDependencies {
   final AudioPlayerService audioPlayer;
   final PlaybackLyricsResolver lyricsResolver;
 
+  /// Only used by the queue panel's "save queue as playlist".
+  final LocalMediaCollectionRepository localCollectionRepository;
+
   /// Only used when opening the fullscreen KTV view from Now Playing.
   final ImmersiveKtvDependencies immersiveKtv;
 
@@ -55,6 +59,7 @@ class NowPlayingDependencies {
     required this.playbackSession,
     required this.audioPlayer,
     required this.lyricsResolver,
+    required this.localCollectionRepository,
     required this.immersiveKtv,
   });
 }

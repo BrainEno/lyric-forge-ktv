@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
@@ -11,6 +12,10 @@ import 'playback_queue_playlist_action.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
   final PlaybackSessionService session;
+
+  /// Only needed by "save queue as playlist"; required so the panel cannot fall
+  /// back to the app-wide locator when a caller forgets it.
+  final LocalMediaCollectionRepository collectionRepository;
   final double height;
   final bool allowClearAll;
   final bool showBorder;
@@ -18,6 +23,7 @@ class PlaybackQueuePanel extends StatelessWidget {
   const PlaybackQueuePanel({
     super.key,
     required this.session,
+    required this.collectionRepository,
     this.height = 360,
     this.allowClearAll = false,
     this.showBorder = true,
@@ -27,7 +33,11 @@ class PlaybackQueuePanel extends StatelessWidget {
     BuildContext context,
     PlaybackSessionState state,
   ) async {
-    final result = await savePlaybackQueueToPlaylist(context, state);
+    final result = await savePlaybackQueueToPlaylist(
+      context,
+      state,
+      repository: collectionRepository,
+    );
     if (!context.mounted || result == null) return;
 
     final skipped = result.skippedCount > 0
@@ -55,7 +65,9 @@ class PlaybackQueuePanel extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.bgElevated,
             borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            border: showBorder ? Border.all(color: AppColors.borderMuted) : null,
+            border: showBorder
+                ? Border.all(color: AppColors.borderMuted)
+                : null,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -87,7 +99,8 @@ class PlaybackQueuePanel extends StatelessWidget {
                         onReorder: (oldIndex, newIndex) {
                           var target = newIndex;
                           if (target > oldIndex) target -= 1;
-                          if (target < 0 || target >= state.queue.length) return;
+                          if (target < 0 || target >= state.queue.length)
+                            return;
                           session.moveItem(oldIndex, target);
                         },
                         itemBuilder: (context, index) {
@@ -154,15 +167,13 @@ class _QueueHeader extends StatelessWidget {
               Expanded(
                 child: Text(
                   '播放队列',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               IconButton(
-                tooltip: onSaveQueue == null
-                    ? '当前队列没有可保存的本地歌曲'
-                    : '保存队列到播放列表',
+                tooltip: onSaveQueue == null ? '当前队列没有可保存的本地歌曲' : '保存队列到播放列表',
                 onPressed: onSaveQueue,
                 icon: const Icon(Icons.playlist_add_rounded),
                 iconSize: 20,
@@ -178,14 +189,11 @@ class _QueueHeader extends StatelessWidget {
                       ? '暂无歌曲'
                       : '${state.queue.length} 首 · 待播 ${state.upcomingCount} 首',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
-              TextButton(
-                onPressed: onClearUpcoming,
-                child: const Text('清空待播'),
-              ),
+              TextButton(onPressed: onClearUpcoming, child: const Text('清空待播')),
               if (allowClearAll)
                 IconButton(
                   tooltip: '停止并清空全部',
@@ -263,7 +271,8 @@ class _QueueRow extends StatelessWidget {
                             item.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: isCurrent
                                       ? AppColors.accent
                                       : AppColors.textPrimary,
@@ -280,15 +289,15 @@ class _QueueRow extends StatelessWidget {
                       item.artist?.trim().isNotEmpty == true
                           ? item.artist!
                           : item.projectId != null
-                              ? '歌词工程'
-                              : item.isRemoteStream
-                                  ? '桌面音乐库'
-                                  : '本地音乐',
+                          ? '歌词工程'
+                          : item.isRemoteStream
+                          ? '桌面音乐库'
+                          : '本地音乐',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -326,8 +335,8 @@ class _QueueArtwork extends StatelessWidget {
     final hasArtwork = file != null && file.existsSync();
     final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
     final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
-    final validRemote = remote != null &&
-        (remote.scheme == 'http' || remote.scheme == 'https');
+    final validRemote =
+        remote != null && (remote.scheme == 'http' || remote.scheme == 'https');
 
     final fallback = Icon(
       item.isRemoteStream ? Icons.cloud_rounded : Icons.music_note_rounded,
@@ -344,12 +353,12 @@ class _QueueArtwork extends StatelessWidget {
         child: hasArtwork
             ? Image.file(file, fit: BoxFit.cover)
             : validRemote
-                ? Image.network(
-                    remote.toString(),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => fallback,
-                  )
-                : fallback,
+            ? Image.network(
+                remote.toString(),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              )
+            : fallback,
       ),
     );
   }
@@ -369,9 +378,9 @@ class _CurrentBadge extends StatelessWidget {
       child: Text(
         '当前',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.accent,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.accent,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -396,9 +405,9 @@ class _EmptyQueue extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               '播放队列为空',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),

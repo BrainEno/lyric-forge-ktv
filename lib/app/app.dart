@@ -13,6 +13,7 @@ import '../features/player/presentation/widgets/playback_lyrics_availability_syn
 import '../features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 import 'app_router.dart';
 import 'app_services.dart';
+import 'local_library_assembly.dart';
 import 'playback_assembly.dart';
 
 final _appRouteObserver = CurrentRouteObserver();
@@ -62,6 +63,12 @@ class ElysiumPlayerApp extends StatelessWidget {
         desktopChromeOverride ?? AppResponsive.isDesktopTarget();
     final services = this.services ?? AppServices.instance;
     final router = AppRouter(services);
+    // The two player bars are chrome, built by this shell rather than routed, so
+    // they get their own bundle instead of reaching for the locator. Skipped
+    // before bootstrap for the same reason the lyric sync is.
+    final localLibrary = services.isInitialized
+        ? assembleLocalLibraryDependencies(services)
+        : null;
 
     return MaterialApp(
       title: 'Elysium Player',
@@ -107,8 +114,10 @@ class ElysiumPlayerApp extends StatelessWidget {
                   return Column(
                     children: [
                       Expanded(child: syncedShell),
-                      if (showChrome && !suppressPlayerBar)
-                        const MobileGlobalPlayerBar(),
+                      if (showChrome &&
+                          !suppressPlayerBar &&
+                          localLibrary != null)
+                        MobileGlobalPlayerBar(dependencies: localLibrary),
                       if (showChrome && showNavigation)
                         AppBottomNavigation(
                           selected: selectedDestination!,
@@ -133,7 +142,8 @@ class ElysiumPlayerApp extends StatelessWidget {
                             Expanded(child: syncedShell),
                             if (!immersive) ...[
                               const GlobalTranscriptionQueueBar(),
-                              if (!suppressPlayerBar) const GlobalPlayerBar(),
+                              if (!suppressPlayerBar && localLibrary != null)
+                                GlobalPlayerBar(dependencies: localLibrary),
                             ],
                           ],
                         );

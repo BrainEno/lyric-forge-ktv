@@ -17,6 +17,7 @@ import '../features/transfer/presentation/screens/media_hub_qr_scanner_screen.da
 import '../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
 import 'app_services.dart';
+import 'local_library_assembly.dart';
 import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
 
@@ -32,6 +33,13 @@ class AppRouter {
 
   final AppServices services;
 
+  /// The music library is one screen with five sections; each route only
+  /// differs in which section is selected.
+  Widget _libraryShell(int initialIndex) => LocalMusicLibraryShell(
+    initialIndex: initialIndex,
+    dependencies: assembleLocalLibraryDependencies(services),
+  );
+
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final uri = Uri.parse(settings.name ?? Routes.home);
 
@@ -44,38 +52,32 @@ class AppRouter {
         return _fadeRoute(const TranscriptionReadyImportScreen(), settings);
 
       case Routes.library:
-        return _fadeRoute(const LocalMusicLibraryShell(), settings);
+        return _fadeRoute(_libraryShell(0), settings);
 
       case Routes.libraryArtists:
-        return _fadeRoute(
-          const LocalMusicLibraryShell(initialIndex: 1),
-          settings,
-        );
+        return _fadeRoute(_libraryShell(1), settings);
 
       case Routes.libraryAlbums:
-        return _fadeRoute(
-          const LocalMusicLibraryShell(initialIndex: 2),
-          settings,
-        );
+        return _fadeRoute(_libraryShell(2), settings);
 
       case Routes.collections:
-        return _fadeRoute(
-          const LocalMusicLibraryShell(initialIndex: 3),
-          settings,
-        );
+        return _fadeRoute(_libraryShell(3), settings);
 
       case Routes.playlists:
-        return _fadeRoute(
-          const LocalMusicLibraryShell(initialIndex: 4),
-          settings,
-        );
+        return _fadeRoute(_libraryShell(4), settings);
 
       case Routes.quickPlay:
         final history = settings.arguments is PlayHistory
             ? settings.arguments as PlayHistory
             : null;
         if (history != null) {
-          return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
+          return _fadeRoute(
+            QuickPlayScreen(
+              initialHistory: history,
+              dependencies: assembleLocalLibraryDependencies(services),
+            ),
+            settings,
+          );
         }
         final current =
             services.playbackSessionService.currentState.currentItem;
@@ -88,9 +90,14 @@ class AppRouter {
           );
         }
         if (current != null) {
-          return _fadeRoute(const QuickPlayScreen(), settings);
+          return _fadeRoute(
+            QuickPlayScreen(
+              dependencies: assembleLocalLibraryDependencies(services),
+            ),
+            settings,
+          );
         }
-        return _fadeRoute(const LocalMusicLibraryShell(), settings);
+        return _fadeRoute(_libraryShell(0), settings);
 
       case Routes.nowPlaying:
         return _fadeRoute(

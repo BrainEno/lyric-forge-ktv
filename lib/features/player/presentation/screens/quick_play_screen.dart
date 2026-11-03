@@ -5,15 +5,16 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/play_history.dart';
 import '../../domain/models/playback_state.dart';
+import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 import '../widgets/playback_queue_panel.dart';
@@ -27,7 +28,14 @@ import '../widgets/seekable_progress_bar.dart';
 class QuickPlayScreen extends StatefulWidget {
   final PlayHistory? initialHistory;
 
-  const QuickPlayScreen({super.key, this.initialHistory});
+  /// Supplied by the routing table (`lib/app/local_library_assembly.dart`).
+  final LocalLibraryDependencies dependencies;
+
+  const QuickPlayScreen({
+    super.key,
+    this.initialHistory,
+    required this.dependencies,
+  });
 
   @override
   State<QuickPlayScreen> createState() => _QuickPlayScreenState();
@@ -46,9 +54,10 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   @override
   void initState() {
     super.initState();
-    _audio = AppServices.instance.audioPlayerService;
-    _importer = AppServices.instance.audioLibraryImportService;
-    _session = AppServices.instance.playbackSessionService;
+    final dependencies = widget.dependencies;
+    _audio = dependencies.audioPlayer;
+    _importer = dependencies.libraryImportService;
+    _session = dependencies.playbackSession;
 
     final current = _session.currentState.currentItem;
     if (current != null && current.projectId == null) {
@@ -261,6 +270,7 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
           ),
           child: PlaybackQueuePanel(
             session: _session,
+            collectionRepository: widget.dependencies.collectionRepository,
             height: height,
             allowClearAll: true,
           ),
@@ -318,6 +328,7 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
             : _PlayerWorkspace(
                 audio: _audio,
                 session: _session,
+                collectionRepository: widget.dependencies.collectionRepository,
                 item: localItem,
                 format: _extension(file.path).toUpperCase(),
                 fileName: _fileName(file.path),
@@ -325,10 +336,17 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
                 error: _error,
                 onSkipBack: () => _seekRelative(const Duration(seconds: -10)),
                 onSkipForward: () => _seekRelative(const Duration(seconds: 10)),
-                onEditMetadata: () =>
-                    showLocalMediaMetadataDialog(context, localItem),
-                onLyrics: () =>
-                    importLyricsForLocalPlaybackItem(context, localItem),
+                onEditMetadata: () => showLocalMediaMetadataDialog(
+                  context,
+                  localItem,
+                  repository: widget.dependencies.metadataRepository,
+                  session: widget.dependencies.playbackSession,
+                ),
+                onLyrics: () => importLyricsForLocalPlaybackItem(
+                  context,
+                  localItem,
+                  widget.dependencies.lyricsImport,
+                ),
               ),
       ),
     );
@@ -481,6 +499,7 @@ class _EmptyPlayer extends StatelessWidget {
 class _PlayerWorkspace extends StatelessWidget {
   final AudioPlayerService audio;
   final PlaybackSessionService session;
+  final LocalMediaCollectionRepository collectionRepository;
   final PlaybackItem item;
   final String format;
   final String fileName;
@@ -494,6 +513,7 @@ class _PlayerWorkspace extends StatelessWidget {
   const _PlayerWorkspace({
     required this.audio,
     required this.session,
+    required this.collectionRepository,
     required this.item,
     required this.format,
     required this.fileName,
@@ -567,6 +587,7 @@ class _PlayerWorkspace extends StatelessWidget {
                         SizedBox(height: layout.sectionGap),
                         PlaybackQueuePanel(
                           session: session,
+                          collectionRepository: collectionRepository,
                           height: queueHeight,
                           allowClearAll: true,
                         ),
@@ -599,6 +620,7 @@ class _PlayerWorkspace extends StatelessWidget {
                         width: layout.sidePanelWidth,
                         child: PlaybackQueuePanel(
                           session: session,
+                          collectionRepository: collectionRepository,
                           height: availableQueueHeight,
                           allowClearAll: true,
                         ),

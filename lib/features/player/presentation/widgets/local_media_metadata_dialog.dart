@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -14,19 +13,35 @@ import '../../domain/services/playback_session_service.dart';
 
 Future<void> showLocalMediaMetadataDialog(
   BuildContext context,
-  PlaybackItem item,
-) {
+  PlaybackItem item, {
+  required LocalMediaMetadataRepository repository,
+  required PlaybackSessionService session,
+}) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => LocalMediaMetadataDialog(item: item),
+    builder: (_) => LocalMediaMetadataDialog(
+      item: item,
+      repository: repository,
+      session: session,
+    ),
   );
 }
 
 class LocalMediaMetadataDialog extends StatefulWidget {
   final PlaybackItem item;
 
-  const LocalMediaMetadataDialog({super.key, required this.item});
+  /// The two collaborators this dialog writes through: the metadata store it
+  /// edits and the session whose queue item must be re-labelled afterwards.
+  final LocalMediaMetadataRepository repository;
+  final PlaybackSessionService session;
+
+  const LocalMediaMetadataDialog({
+    super.key,
+    required this.item,
+    required this.repository,
+    required this.session,
+  });
 
   @override
   State<LocalMediaMetadataDialog> createState() =>
@@ -51,8 +66,8 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
   @override
   void initState() {
     super.initState();
-    _repository = AppServices.instance.localMediaMetadataRepository;
-    _session = AppServices.instance.playbackSessionService;
+    _repository = widget.repository;
+    _session = widget.session;
     _titleController = TextEditingController(text: widget.item.title);
     _artistController = TextEditingController(text: widget.item.artist ?? '');
     _albumController = TextEditingController();

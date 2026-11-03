@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import 'local_collection_actions.dart';
 import 'local_media_metadata_dialog.dart';
 import 'local_song_lyrics_import_action.dart';
@@ -19,7 +19,10 @@ import 'playback_queue_panel.dart';
 import 'seekable_progress_bar.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
-  const GlobalPlayerBar({super.key});
+  /// Supplied by the app shell (`lib/app/app.dart`).
+  final LocalLibraryDependencies dependencies;
+
+  const GlobalPlayerBar({super.key, required this.dependencies});
 
   @override
   State<GlobalPlayerBar> createState() => _GlobalPlayerBarState();
@@ -33,8 +36,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   @override
   void initState() {
     super.initState();
-    _session = AppServices.instance.playbackSessionService;
-    _audio = AppServices.instance.audioPlayerService;
+    _session = widget.dependencies.playbackSession;
+    _audio = widget.dependencies.audioPlayer;
   }
 
   Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {
@@ -43,6 +46,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
       context,
       sourcePath: item.audioAsset.originalPath,
       title: item.title,
+      repository: widget.dependencies.collectionRepository,
     );
     if (!context.mounted || playlist == null) return;
     ScaffoldMessenger.of(
@@ -67,12 +71,21 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
         return;
       case 'lyrics':
         if (!item.isRemoteStream) {
-          await importLyricsForLocalPlaybackItem(context, item);
+          await importLyricsForLocalPlaybackItem(
+            context,
+            item,
+            widget.dependencies.lyricsImport,
+          );
         }
         return;
       case 'edit':
         if (!item.isRemoteStream) {
-          await showLocalMediaMetadataDialog(context, item);
+          await showLocalMediaMetadataDialog(
+            context,
+            item,
+            repository: widget.dependencies.metadataRepository,
+            session: widget.dependencies.playbackSession,
+          );
         }
         return;
     }
@@ -140,6 +153,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               child: PlaybackQueuePanel(
                                 session: _session,
+                                collectionRepository:
+                                    widget.dependencies.collectionRepository,
                                 height: queueHeight,
                                 showBorder: false,
                               ),
@@ -255,6 +270,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                   'favorite:${item.audioAsset.originalPath}',
                                 ),
                                 sourcePath: item.audioAsset.originalPath,
+                                repository:
+                                    widget.dependencies.collectionRepository,
                               ),
                             if (localSong && !compact) ...[
                               IconButton(
@@ -268,6 +285,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                     importLyricsForLocalPlaybackItem(
                                       context,
                                       item,
+                                      widget.dependencies.lyricsImport,
                                     ),
                                 icon: Icon(
                                   item.hasLyrics
@@ -277,8 +295,13 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               IconButton(
                                 tooltip: '编辑歌曲资料与封面',
-                                onPressed: () =>
-                                    showLocalMediaMetadataDialog(context, item),
+                                onPressed: () => showLocalMediaMetadataDialog(
+                                  context,
+                                  item,
+                                  repository:
+                                      widget.dependencies.metadataRepository,
+                                  session: widget.dependencies.playbackSession,
+                                ),
                                 icon: const Icon(Icons.edit_outlined),
                               ),
                             ],

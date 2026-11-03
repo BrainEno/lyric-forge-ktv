@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
@@ -12,9 +11,14 @@ class LocalFavoriteButton extends StatefulWidget {
   final String sourcePath;
   final double? iconSize;
 
+  /// Required: the button used to fetch this from the app-wide locator, which
+  /// made it impossible to render without the real on-disk collection store.
+  final LocalMediaCollectionRepository repository;
+
   const LocalFavoriteButton({
     super.key,
     required this.sourcePath,
+    required this.repository,
     this.iconSize,
   });
 
@@ -23,7 +27,7 @@ class LocalFavoriteButton extends StatefulWidget {
 }
 
 class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
-  late final LocalMediaCollectionRepository _collections;
+  late LocalMediaCollectionRepository _collections;
   StreamSubscription<int>? _changeSubscription;
   bool _favorite = false;
   bool _loading = true;
@@ -31,19 +35,28 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
   @override
   void initState() {
     super.initState();
-    _collections = AppServices.instance.localMediaCollectionRepository;
-    _changeSubscription = _collections.changes.listen((_) {
-      unawaited(_load());
-    });
-    unawaited(_load());
+    _subscribe(widget.repository);
   }
 
   @override
   void didUpdateWidget(covariant LocalFavoriteButton oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.repository, widget.repository)) {
+      unawaited(_changeSubscription?.cancel());
+      _subscribe(widget.repository);
+      return;
+    }
     if (oldWidget.sourcePath != widget.sourcePath) {
       unawaited(_load());
     }
+  }
+
+  void _subscribe(LocalMediaCollectionRepository repository) {
+    _collections = repository;
+    _changeSubscription = _collections.changes.listen((_) {
+      unawaited(_load());
+    });
+    unawaited(_load());
   }
 
   @override
@@ -93,10 +106,9 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
 
 Future<LocalPlaylist?> showCreateLocalPlaylistDialog(
   BuildContext context, {
-  LocalMediaCollectionRepository? repository,
+  required LocalMediaCollectionRepository repository,
 }) async {
-  final collections =
-      repository ?? AppServices.instance.localMediaCollectionRepository;
+  final collections = repository;
   final controller = TextEditingController();
   String? validationMessage;
 
@@ -168,10 +180,9 @@ Future<LocalPlaylist?> showCreateLocalPlaylistDialog(
 Future<LocalPlaylist?> showRenameLocalPlaylistDialog(
   BuildContext context,
   LocalPlaylist playlist, {
-  LocalMediaCollectionRepository? repository,
+  required LocalMediaCollectionRepository repository,
 }) async {
-  final collections =
-      repository ?? AppServices.instance.localMediaCollectionRepository;
+  final collections = repository;
   final controller = TextEditingController(text: playlist.name);
   String? validationMessage;
 
@@ -243,10 +254,9 @@ Future<LocalPlaylist?> showAddToLocalPlaylistDialog(
   BuildContext context, {
   required String sourcePath,
   required String title,
-  LocalMediaCollectionRepository? repository,
+  required LocalMediaCollectionRepository repository,
 }) async {
-  final collections =
-      repository ?? AppServices.instance.localMediaCollectionRepository;
+  final collections = repository;
   final playlists = await collections.getPlaylists();
   if (!context.mounted) return null;
 

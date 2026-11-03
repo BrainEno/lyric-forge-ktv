@@ -5,39 +5,39 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
-import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_lyrics_project_linker.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 
+/// Attaches a lyric file to a local song that does not have a lyric project yet.
+///
+/// [dependencies] replaced five app-wide service lookups: the action is a
+/// function, not a widget, so it had nowhere to receive its collaborators from
+/// and simply reached into the process-wide locator. Every caller — the library,
+/// quick play and both player bars — now passes the bundle it already holds.
 Future<void> importLyricsForLocalPlaybackItem(
   BuildContext context,
   PlaybackItem item,
+  LyricsImportDependencies dependencies,
 ) async {
   if (item.projectId != null) return;
 
-  final importer = AppServices.instance.lyricFileImportService;
-  final projectRepository = AppServices.instance.projectRepository;
-  final mediaMetadataRepository =
-      AppServices.instance.localMediaMetadataRepository;
-  final playbackSession = AppServices.instance.playbackSessionService;
-  final pathCanonicalizer = AppServices.instance.audioPathCanonicalizer;
+  final importer = dependencies.importer;
+  final resolver = dependencies.lyricsResolver;
+  final projectRepository = resolver.projectRepository;
+  final mediaMetadataRepository = resolver.metadataRepository;
+  final playbackSession = resolver.playbackSession;
+  final pathCanonicalizer = resolver.pathCanonicalizer;
 
   // Resolve through the shared resolver so a dead link is repaired or cleared
   // and the queue's lyric flag is retracted, matching every playback surface.
-  final resolution = await resolveAndSyncPlaybackLyrics(
-    item: item,
-    projectRepository: projectRepository,
-    metadataRepository: mediaMetadataRepository,
-    playbackSession: playbackSession,
-    pathCanonicalizer: pathCanonicalizer,
-  );
+  final resolution = await resolver.resolveAndSync(item);
   if (!context.mounted) return;
 
   if (resolution.projectId != null) {

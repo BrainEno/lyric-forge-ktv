@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -18,11 +17,16 @@ import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 
 class LocalLibraryExplorerScreen extends StatefulWidget {
-  const LocalLibraryExplorerScreen({super.key});
+  /// Supplied by `LocalMusicLibraryShell`, which gets it from the routing table
+  /// (`lib/app/local_library_assembly.dart`).
+  final LocalLibraryDependencies dependencies;
+
+  const LocalLibraryExplorerScreen({super.key, required this.dependencies});
 
   @override
   State<LocalLibraryExplorerScreen> createState() =>
@@ -53,14 +57,14 @@ class _LocalLibraryExplorerScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _library = services.localMediaLibraryRepository;
-    _metadata = services.localMediaMetadataRepository;
-    _collections = services.localMediaCollectionRepository;
-    _history = services.playHistoryRepository;
-    _importer = services.audioLibraryImportService;
-    _relink = services.localMediaRelinkService;
-    _session = services.playbackSessionService;
+    final dependencies = widget.dependencies;
+    _library = dependencies.libraryRepository;
+    _metadata = dependencies.metadataRepository;
+    _collections = dependencies.collectionRepository;
+    _history = dependencies.playHistoryRepository;
+    _importer = dependencies.libraryImportService;
+    _relink = dependencies.relinkService;
+    _session = dependencies.playbackSession;
     _searchController = TextEditingController();
     _collectionSubscription = _collections.changes.listen((_) {
       unawaited(_reload(showLoading: false));
@@ -226,13 +230,22 @@ class _LocalLibraryExplorerScreenState
 
   Future<void> _edit(_ExplorerSong song) async {
     if (!song.playable) return;
-    await showLocalMediaMetadataDialog(context, song.playbackItem);
+    await showLocalMediaMetadataDialog(
+      context,
+      song.playbackItem,
+      repository: widget.dependencies.metadataRepository,
+      session: widget.dependencies.playbackSession,
+    );
     await _reload(showLoading: false);
   }
 
   Future<void> _lyrics(_ExplorerSong song) async {
     if (!song.playable) return;
-    await importLyricsForLocalPlaybackItem(context, song.playbackItem);
+    await importLyricsForLocalPlaybackItem(
+      context,
+      song.playbackItem,
+      widget.dependencies.lyricsImport,
+    );
     await _reload(showLoading: false);
   }
 

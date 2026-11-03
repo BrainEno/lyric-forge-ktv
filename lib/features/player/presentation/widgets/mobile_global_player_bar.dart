@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../local_library_dependencies.dart';
 import 'playback_action_feedback.dart';
 import 'seekable_progress_bar.dart';
 
@@ -18,7 +18,10 @@ import 'seekable_progress_bar.dart';
 /// player, remote library and desktop player bar. Route changes therefore never
 /// create a second playback stack or desynchronised transport state.
 class MobileGlobalPlayerBar extends StatefulWidget {
-  const MobileGlobalPlayerBar({super.key});
+  /// Supplied by the app shell (`lib/app/app.dart`).
+  final LocalLibraryDependencies dependencies;
+
+  const MobileGlobalPlayerBar({super.key, required this.dependencies});
 
   @override
   State<MobileGlobalPlayerBar> createState() => _MobileGlobalPlayerBarState();
@@ -31,8 +34,8 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
   @override
   void initState() {
     super.initState();
-    _session = AppServices.instance.playbackSessionService;
-    _audio = AppServices.instance.audioPlayerService;
+    _session = widget.dependencies.playbackSession;
+    _audio = widget.dependencies.audioPlayer;
   }
 
   @override
