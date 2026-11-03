@@ -77,6 +77,26 @@ class AsrRuntimeStatus {
   /// the optional second engine is missing or broken.
   bool get isBaselineReady => _ready(baselineComponents);
 
+  /// Whether every component in [required] is installed and ready.
+  ///
+  /// Optional capabilities ask for a subset instead of the whole profile: the
+  /// forced aligner needs `qwenRuntime` + `qwenAligner`, and a ready Qwen model
+  /// is irrelevant to it. Callers used to re-derive this from `components` and
+  /// drift from [isReady], which requires everything.
+  ///
+  /// Unlike [isBaselineReady], a component that is absent from `components`
+  /// counts as *not* ready here. [isBaselineReady] treats absent components as
+  /// "not needed by this profile"; an optional capability asked for on demand
+  /// has no such excuse — if the runtime was never reported, it was never
+  /// verified.
+  bool hasReadyComponents(Set<AsrRuntimeComponent> required) => required.every(
+    (component) => components.any(
+      (status) =>
+          status.component == component &&
+          status.state == AsrRuntimeComponentState.ready,
+    ),
+  );
+
   /// Baseline components that would block recognition, for error messages.
   List<AsrRuntimeComponentStatus> get missingBaselineComponents => components
       .where(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/proofread_result.dart';
+import '../../domain/proofreading/proofread_review_proposal.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
 
 class ProofreadV2RunOptions {
@@ -168,61 +169,6 @@ class _ProofreadV2RunOptionsDialogState
       ],
     );
   }
-}
-
-enum LyricProofreadReviewVerdict { locked, green, amber }
-
-class LyricProofreadV2ReviewItem {
-  final int proposalIndex;
-  final int? sourceIndex;
-  final LyricLine proposedLine;
-  final LyricLine? originalLine;
-  final LyricProofreadReviewVerdict verdict;
-  final String reasonLabel;
-  final List<TimedLyricToken> alignmentTokens;
-
-  const LyricProofreadV2ReviewItem({
-    required this.proposalIndex,
-    required this.sourceIndex,
-    required this.proposedLine,
-    required this.originalLine,
-    required this.verdict,
-    required this.reasonLabel,
-    this.alignmentTokens = const [],
-  });
-
-  bool get hasChange {
-    final original = originalLine;
-    if (original == null) return true;
-    return original.text != proposedLine.text ||
-        original.startTime != proposedLine.startTime ||
-        original.endTime != proposedLine.endTime ||
-        original.isChorus != proposedLine.isChorus ||
-        original.confidence != proposedLine.confidence;
-  }
-}
-
-class LyricProofreadV2DroppedItem {
-  final int sourceIndex;
-  final LyricLine line;
-  final String reasonLabel;
-
-  const LyricProofreadV2DroppedItem({
-    required this.sourceIndex,
-    required this.line,
-    required this.reasonLabel,
-  });
-}
-
-class LyricProofreadV2Selection {
-  final Set<int> acceptedProposalIndices;
-  final Set<int> restoredDraftIndices;
-
-  LyricProofreadV2Selection({
-    required Set<int> acceptedProposalIndices,
-    required Set<int> restoredDraftIndices,
-  }) : acceptedProposalIndices = Set.unmodifiable(acceptedProposalIndices),
-       restoredDraftIndices = Set.unmodifiable(restoredDraftIndices);
 }
 
 class ProofreadTimedLinePreviewResult {

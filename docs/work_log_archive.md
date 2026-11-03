@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-01 22:59] One「校对」entry point instead of six ([entry](log/entries/2026-11-01-2259-single-proofread-entry.md))
 - [2026-11-01 22:37] Size the Qwen decode budget from the song, not from a constant ([entry](log/entries/2026-11-01-2237-qwen-decode-budget.md))
 - [2026-11-01 21:11] Stop counting "no score" as "low score" ([entry](log/entries/2026-11-01-2111-unscored-confidence.md))
 - [2026-11-01 20:39] Let highest quality degrade to Whisper instead of refusing the song ([entry](log/entries/2026-11-01-2039-degrade-when-second-engine-missing.md))

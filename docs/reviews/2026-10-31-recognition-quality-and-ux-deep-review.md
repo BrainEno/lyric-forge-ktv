@@ -804,7 +804,7 @@ class ServiceLocator {
 | 3.4 | 撤销栈（≥50 步，Ctrl+Z）+ 修复「保存并返回」 | 误改 5 行可整体回退。**已完成 2026-11-03**：「保存并返回」在 3.1 修完；撤销栈 50 步、Ctrl/Cmd+Z 与 Ctrl/Cmd+Shift+Z、Ctrl+Y |
 | 3.5 | 加统一导航（桌面 NavigationRail / 移动底部导航）：音乐库 / 工程 / 校对 / 设置 | 任意页面 1 次点击回到主线。**已完成 2026-11-03**：全局侧栏/底栏 + 新增「校对」收件箱；音乐库不再自带第二套导航 |
 
-### 4.1 现状补充（2026-11-03 第一步）
+### 4.1 现状补充（2026-11-03，两步）
 
 `LyricEditorScreen` 原为 4,591 行、**零 widget 测试**，因为所有状态都在一个 2,067 行的 `State` 里，任何行为都只能靠驱动整个编辑器来验证。第一步做了两件互不依赖的事：
 
@@ -813,13 +813,23 @@ class ServiceLocator {
 
 顺带消掉一个重复常量：编辑器里的 `_reviewConfidenceThreshold = 70` 与 `LyricReviewQueue` 里的默认值原本是两份，现在统一为 `kLyricReviewConfidenceThreshold`。
 
-屏幕从 4,591 → 2,597 行。**仍然留在 `_LyricEditorScreenState` 里的是最大的两块**：校对编排（`_openProofreadV2` 一族约 600 行，含策略选择、管线调用与提案提交）与文档编辑/撤销/保存流程。这两块是下一步 `LyricEditorController` 的对象，但它们与对话框、`ServiceLocator`、prooflread 管线耦合更深，值得单独一轮，而不是继续机械搬运。
+屏幕从 4,591 → 2,597 行。剩下的两块是校对编排（`_openProofreadV2` 一族约 600 行）与文档编辑/撤销/保存流程。
+
+**第二步（同日）把校对编排里的纯逻辑搬进 domain。** `_openProofreadV2` 原先在一个函数里做了四件事：解析第二份转写稿、跑管线、把管线结果翻译成审核行、再把用户的勾选拼回文档。后两件事与 UI 无关，却只能靠整个编辑器验证，因此拆成三个文件：
+
+- `proofread_review_proposal.dart`：审核行/被删行/用户选择的类型（原先住在对话框 widget 文件里，导致 domain 无法引用——分层棘轮禁止 domain 依赖 presentation）。
+- `proofread_v2_review_assembler.dart`：把两种策略的管线输出翻译成审核行、被删行与说明文案，并生成头部摘要。参考优先与被删行使用「参考索引」空间、ASR 优先使用「草稿索引」空间，所以是两条独立入口而不是一个带分支的函数。
+- `proofread_v2_document_composer.dart`：把勾选结果拼回文档——locked 行无条件应用、未勾选行保留原文、被删行只在显式恢复时按时间戳插回、时间溯源跟着存活的行 id 走、参考优先改过时间才把 globalOffset 归零。
+
+同时修掉一个真实的判定缺陷：`ForcedAligner` 是否可用原先在屏幕里内联判断「qwenRuntime 与 qwenAligner 都 ready」，而 `AsrRuntimeStatus.isBaselineReady` 的语义是「缺项当作该 profile 不需要」。这两套语义混在一起很危险——一个从未被 inspect 报出的组件会被当成可用。现在 `AsrRuntimeStatus.hasReadyComponents(Set)` 显式要求「必须报出且 ready」，供可选能力使用；baseline 语义保持不变。
+
+屏幕 2,597 → 2,298 行（`_openProofreadV2` 从 358 行降到约 180 行，且只剩对话框与提交流程）。新增 36 个用例：assembler 16、composer 14（`isDifferent` 覆盖文本/时间/置信度/偏移/增删行）、语言映射 4，另加 runtime 判定 2 条。**仍未拆**：文档编辑/撤销/保存（`LyricEditorController` 的对象）与强制对齐 runner 的装配（它需要 `ServiceLocator`）。
 
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
-| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行的屏幕；行试听状态机抽成 `LineAuditionController`（13 例测试），列表 pane / inspector pane / 共享原子部件独立成文件并带 widget 测试。**未完成**：编辑与校对编排仍在屏幕的 `State` 里，`LyricEditorController` 尚未建立 |
+| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例新测试）。**未完成**：文档编辑/撤销/保存仍在屏幕的 `State` 里，`LyricEditorController` 尚未建立 |
 | 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
