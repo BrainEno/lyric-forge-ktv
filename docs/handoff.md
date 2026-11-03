@@ -2,41 +2,40 @@
 
 ## 目标
 
-Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成并合入 `main`：最后 5 个 ASR/settings/queue consumer 均改成必填构造注入，并由 `lib/app/` 装配。设置存储实例、ASR runtime/preflight、模型恢复、配置保存、下载代理和队列 protective-pause/recovery 语义保持不变；没有修改识别算法、歌词处理或 UI 布局。
+按代码审查建议推进 Phase 4.4：给歌词编辑会话引入局部、可选择订阅的状态管理，同时复用播放器现有 session 状态，不复制播放服务或全局队列。当前实现已推送到活动分支，PR / 最终 CI 尚待创建与验证。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 活动分支：`arena/2cf82e60-lyric-forge-ktv`。
-- PR #311 功能改动已合并，merge commit `cc307c6`；PR #312 文档同步已合并，merge commit `c0f82e3`。
-- 合并后 `main` Flutter Quality Gate run `41630265190` 通过。当前没有待合并的功能或文档改动。
+- 活动分支：`arena/746aa31e-lyric-forge-ktv`（active）。
+- 基线：`fb877b3`（PR #313 合并到 main 后的提交）。
+- 本地分支已推送；当前有尚未提交的 Phase 4.4 代码与文档修改。
+- 该功能包含实质代码改动；必须通过最终 PR Flutter Quality Gate 后才可合并。
 
 ## 已改文件
 
-- `lib/app/transcription_assembly.dart`：新增配置 dialog、runtime setup 和 Settings 屏幕依赖装配。
-- `lib/features/transcription/presentation/transcription_screen_dependencies.dart`、`lib/features/settings/presentation/settings_screen_dependencies.dart`：新增必填依赖对象。
-- `TranscriptionConfigDialog`、`AsrRuntimeSetupDialog`、设置区、E2E smoke 卡片、全局转写队列条移除 singleton 查询；Dashboard、导入、项目详情和 App 壳透传 app 层提供的依赖。
-- 队列面板继续通过原 `TranscriptionQueueEnvironmentRecovery` 完成恢复；同一 settings store/runtime 对象复用。
-- 更新架构棘轮、settings/队列保护契约与 dashboard widget test，ratchet 从 5/5 降为 0/0。
-- 更新架构说明、识别/架构评审记录、work-log 和本 handoff。
+- `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`：状态 controller 改为 `ChangeNotifier`，只在成功状态变化后通知。
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：由局部 Provider/Selector 订阅文档、脏标记、选中行、撤销/重做及批量快照；将项目文档初始化移出 FutureBuilder build。
+- `lib/features/player/presentation/widgets/global_player_bar.dart`、`playback_queue_panel.dart`、`playback_mode_controls.dart`：桌面条把现有 session 快照继续传给队列/模式控件，避免子组件重复订阅。
+- `pubspec.yaml`、`pubspec.lock`：加入 Provider。
+- `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart`、`test/features/player/presentation/widgets/playback_queue_panel_state_test.dart`：覆盖通知语义及使用提供快照时不重复订阅。
+- `docs/decisions.md`、识别/UX review、work-log index 已补 Phase 4.4 约束与进度；work-log entry 尚需在最终代码验证后补一条更正/收尾记录。
 
 ## 检查结果
 
-- PR #311 最终 head `b6c61c0`：Flutter Quality Gate run `41629406817` 通过（变更文件 format、analyze、全量质量门禁测试、work-log preflight）。
-- 最终 head 的 10 个专项 check 全绿：ASR install experience、managed storage location、protective pause、queue inline repair、readiness、settings contract、smoke contract、storage preflight、ASR client、widget root。
-- 合并后 `main` Flutter Quality Gate run `41630265190` 通过。
-- 本地 `git diff --check` clean；相对 Dart import 扫描 0 missing paths；feature executable singleton scan 0 calls。
-- 本地无 Flutter/Dart SDK，因此没有本地运行 `dart format`、`flutter analyze`、`flutter test` 或 work-log harness；相应检查由 CI 使用固定工具链完成。没有真实歌曲准确率或设备硬件测试声明。
+- Provider lockfile 由固定 Flutter CI 解析，`flutter pub get --enforce-lockfile` 通过。
+- 对前一版实施形态的完整门禁 run `41639843885` 通过；其后缩小了播放条改动并新增 queue snapshot 测试，因此**该 run 不代表当前最终树**。
+- 当前最终树尚未经过最终格式、分析、全量测试及 work-log preflight；本地无 Flutter/Dart SDK。
+- 未改 ASR、歌词识别/融合/编辑业务语义；未进行真实歌曲准确率或真机测试。
 
 ## 下一步
 
-1. Phase 4.2 singleton 迁移及其文档同步均已完成，不需再补交接 PR。
-2. 下一项可按 roadmap 进入 Phase 4.4（编辑器与播放条的最小状态管理）；真实语料 / 硬件依赖的验证仍遵守既定边界，不用合成 fixture 冒充真实歌曲结果，也不要求用户执行真机测试。
+1. 更新本 handoff 与 work-log 收尾记录后创建 PR；等待最终 head 的 Flutter Quality Gate，通过后再合并。
 
 ## 已知风险
 
-- 真实歌曲准确率未在本轮测量；本次没有 ASR 算法改动，也不宣称歌词质量改善。
-- 本轮没有改麦克风、播放器或原生行为；无需设备测试作为合并门槛。
-- Flutter/Dart SDK 本地不可用；格式、分析、Flutter tests 与 work-log harness 均以 CI 为验证来源。
+- 加入可通知 controller 后，编辑器文档加载已提前到 Future 完成回调，以免监听者在 build 阶段收到通知；最终 widget/CI 测试必须验证这一时序。
+- Provider 仅作用于编辑器子树；播放器与 session 服务仍为唯一事实来源。移动播放条继续用 StreamBuilder，桌面条只复用其现有 session 快照。
+- 本地无法执行 Dart/Flutter 命令，最终验证依赖固定工具链 CI。
 
-最后更新：2026-11-03 19:45（Asia/Taipei）
+最后更新：2026-11-03 21:02（Asia/Taipei）

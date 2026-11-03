@@ -1320,47 +1320,45 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<LyricEditorDocumentController>.value(
-      value: _editor,
-      child: Builder(
-        builder: (context) {
-          context.select<
+    return FutureBuilder<ProjectManifest?>(
+      future: _projectFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _LoadingState();
+        }
+
+        if (snapshot.hasError || snapshot.data == null) {
+          return _ErrorState(onRetry: () => setState(_loadProject));
+        }
+
+        final project = snapshot.data!;
+        return ChangeNotifierProvider<LyricEditorDocumentController>.value(
+          value: _editor,
+          child: Selector<
             LyricEditorDocumentController,
-            (
-              LyricDocument?,
-              bool,
-              int?,
-              bool,
-              bool,
-              String?,
-              String?,
-              LyricEditorSnapshot?,
-            )
+            ({
+              LyricDocument? document,
+              bool hasChanges,
+              int? selectedLineIndex,
+              bool canUndo,
+              bool canRedo,
+              String? undoLabel,
+              String? redoLabel,
+              LyricEditorSnapshot? alignmentSnapshot,
+            })
           >(
-            (controller) => (
-              controller.document,
-              controller.hasChanges,
-              controller.selectedLineIndex,
-              controller.canUndo,
-              controller.canRedo,
-              controller.undoLabel,
-              controller.redoLabel,
-              controller.alignmentSnapshot,
+            selector: (context, controller) => (
+              document: controller.document,
+              hasChanges: controller.hasChanges,
+              selectedLineIndex: controller.selectedLineIndex,
+              canUndo: controller.canUndo,
+              canRedo: controller.canRedo,
+              undoLabel: controller.undoLabel,
+              redoLabel: controller.redoLabel,
+              alignmentSnapshot: controller.alignmentSnapshot,
             ),
-          );
-          return FutureBuilder<ProjectManifest?>(
-            future: _projectFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const _LoadingState();
-              }
-
-              if (snapshot.hasError || snapshot.data == null) {
-                return _ErrorState(onRetry: () => setState(_loadProject));
-              }
-
-              final project = snapshot.data!;
-              final document = _editingDocument!;
+            builder: (context, editorState, child) {
+              final document = editorState.document!;
               _refreshReviewQueue(document, project.audioAsset?.duration);
               final restoreProbe = const ReferenceAlignmentRestoreService()
                   .probeBackup(document);
@@ -1382,7 +1380,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                     document: document,
                     playback: playback,
                     playbackBelongsToProject: playbackBelongsToProject,
-                    hasChanges: _hasChanges,
+                    hasChanges: editorState.hasChanges,
                     reviewPriorityByIndex: _reviewPriorityByIndex,
                     reviewQueue: _reviewQueue,
                     activeAuditionLineIndex: _activeAuditionLineIndex,
@@ -1403,7 +1401,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                       );
                     },
                     followPlayback: _followPlayback,
-                    selectedLineIndex: _selectedLineIndex,
+                    selectedLineIndex: editorState.selectedLineIndex,
                     filter: _filter,
                     onFilterChanged: (value) => setState(() {
                       _filter = value;
@@ -1415,18 +1413,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                         setState(() => _followPlayback = value),
                     onSelectLine: _editor.select,
                     onReviewDecision: (index, reviewed) =>
-                        _setLineReviewDecision(
-                          project,
-                          index,
-                          reviewed: reviewed,
-                        ),
+                        _setLineReviewDecision(project, index, reviewed: reviewed),
                     onSave: () => _saveChanges(project),
                     onUndo: _undo,
                     onRedo: _redo,
-                    canUndo: _editor.canUndo,
-                    canRedo: _editor.canRedo,
-                    undoLabel: _editor.undoLabel,
-                    redoLabel: _editor.redoLabel,
+                    canUndo: editorState.canUndo,
+                    canRedo: editorState.canRedo,
+                    undoLabel: editorState.undoLabel,
+                    redoLabel: editorState.redoLabel,
                     onExport: () => _exportLyrics(project),
                     onReferenceAlignment: document.lines.isEmpty
                         ? null
@@ -1437,14 +1431,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                     onProofreadV2: document.lines.isEmpty
                         ? null
                         : () => _openProofreadV2(project),
-                    onUndoReferenceAlignment: _editor.alignmentSnapshot == null
-                        ? null
-                        : _undoAlignmentApply,
+                    onUndoReferenceAlignment:
+                        editorState.alignmentSnapshot == null
+                            ? null
+                            : _undoAlignmentApply,
                     onViewAlignmentComparison:
-                        _editor.alignmentSnapshot == null ||
-                            _editor.alignmentSnapshot!.isReferenceProofread
-                        ? null
-                        : () => _showAlignmentComparison(project),
+                        editorState.alignmentSnapshot == null ||
+                                editorState.alignmentSnapshot!.isReferenceProofread
+                            ? null
+                            : () => _showAlignmentComparison(project),
                     onRestoreAlignment: canRestore
                         ? _restoreAlignmentBackup
                         : null,
@@ -1465,9 +1460,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 },
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
