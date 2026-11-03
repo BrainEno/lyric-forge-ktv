@@ -6,6 +6,7 @@
   - `git diff --check` => clean; relative Dart import scan => 0 missing paths; feature singleton source scan => 0 executable `AppServices.instance` calls.
   - PR #311 final code head `7144c79`: Flutter Quality Gate run `41628333438` passed, including changed-file formatting, `flutter analyze --no-pub --no-fatal-infos lib test`, full quality gate tests, and work-log preflight.
   - All 10 scoped CI checks also passed: ASR install experience, managed storage location, protective pause, queue inline repair, readiness, settings, smoke contract, storage preflight, ASR client, and widget root.
+  - PR #311 was merged as `cc307c6`; the post-merge main Flutter Quality Gate run `41630265190` passed.
   - Flutter/Dart commands were not available locally; no physical-device or real-song accuracy test was run or claimed.
 - Notes: The config dialog, setup/settings surfaces, smoke card, and global queue bar now receive required dependencies. Project/import/dashboard dependencies and app assembly pass the same settings/runtime instances through; queue recovery still uses the existing recovery service. No ASR algorithm, lyrics, UI layout, runtime installation, proxy, or persistence semantics changed. The architecture ratchet is now 0 calls / 0 feature files.
 - Commit: `refactor: inject remaining ASR screen dependencies`
