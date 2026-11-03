@@ -1,4 +1,4 @@
-name: Temporary Dart formatter diagnosis
+name: Temporary Dart formatter
 
 on:
   pull_request:
@@ -8,28 +8,32 @@ on:
       - '.github/workflows/temp-format.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: ./.github/actions/setup-flutter
-      - name: Reproduce the quality-gate format check
+      - name: Match the quality-gate formatter environment
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          TARGET_SHA: ${{ github.sha }}
+          HEAD_BRANCH: ${{ github.head_ref }}
         run: |
-          git fetch --no-tags origin "$BASE_SHA"
-          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$TARGET_SHA" -- '*.dart')
-          printf 'Files: %s\n' "${dart_files[*]}"
-          set +e
-          output=$(dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1)
-          result=$?
-          set -e
-          if (( result == 0 )); then
-            echo '::notice::Exact combined formatter check passes.'
-          else
-            echo "::error::Exact combined formatter rc=${result}: ${output//$'\n'/ }"
+          git fetch --no-tags --unshallow origin "+refs/heads/${HEAD_BRANCH}:refs/remotes/origin/${HEAD_BRANCH}"
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock analysis_options.yaml
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          printf 'Formatting %s changed Dart files.\n' "${#dart_files[@]}"
+          dart format "${dart_files[@]}"
+          git add "${dart_files[@]}"
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'chore: dart format'
+            git push origin "HEAD:${HEAD_BRANCH}"
           fi
