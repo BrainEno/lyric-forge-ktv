@@ -926,7 +926,7 @@ class ServiceLocator {
 
 代码审查确认剩余五个 singleton consumer 应收必填依赖，而不是放宽调用点或给 widget 增加 optional fallback：配置 dialog 收 profile resolver、下载连通性检查器与 proxy store；runtime setup / 设置区复用同一个 setup dependencies 包（runtime manager、storage preflight、managed storage service、settings store 及其配置 dialog dependencies）；真实音频 smoke-test 卡片直接收 smoke service；全局队列条由 app 壳传入同一队列服务。Dashboard、项目详情、导入 readiness 与队列修复均由 `lib/app/` 装配/传递。
 
-**保持既有语义**：设置存储实例、runtime repair/preflight/install、模型恢复、配置保存、下载代理与队列 protective-pause/recovery 流程均未改变；没有改识别算法、歌词、UI 布局或交互。队列仍只在 runtime/settings 修复后走原 recovery service 恢复。新增注入契约，并将架构测试收紧为 features 不导入 `lib/app/`；singleton 棘轮 **5/5 → 0/0**。PR #311 最终 head `7144c79` 的 Flutter Quality Gate run 41628333438 与所有 10 个专项 check 全绿。真实歌曲准确率不属于本次验证，也没有硬件测试要求。
+**保持既有语义**：设置存储实例、runtime repair/preflight/install、模型恢复、配置保存、下载代理与队列 protective-pause/recovery 流程均未改变；没有改识别算法、歌词、UI 布局或交互。队列仍只在 runtime/settings 修复后走原 recovery service 恢复。新增注入契约，并将架构测试收紧为 features 不导入 `lib/app/`；singleton 棘轮 **5/5 → 0/0**。PR #311 最终 head `b6c61c0` 的 Flutter Quality Gate run 41629406817 与所有 10 个专项 check 全绿；PR 已合并为 `cc307c6`，合并后 `main` 质量门禁 run 41630265190 通过。真实歌曲准确率不属于本次验证，也没有硬件测试要求。
 
 ### Phase 4：架构收敛（持续，2–3 周）
 
