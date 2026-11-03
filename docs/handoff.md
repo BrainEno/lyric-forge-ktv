@@ -7,9 +7,9 @@
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 分支：`arena/d24c2c5b-lyric-forge-ktv`（Arena 会话分支；从 `main` = `0583b6f` 起步）。
-- 本分支包含 Phase 4.1 第三步：`LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史）+ 43 例测试；屏幕 2,298 → 2,064 行。
-- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）。
+- 分支：`arena/d24c2c5b-lyric-forge-ktv`。
+- Phase 4.1 第三步已合入 `main`（PR #296，合并提交 `e39dac6`），其 push 门禁 run 41577288153 为绿；`main` 之后工作区应为 clean。
+- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
 
@@ -26,7 +26,7 @@
 - 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证，随后删除该 workflow（最终 diff 不含任何 CI 文件）：`dart format`（相对 main 的改动文件）、`flutter analyze --no-pub --no-fatal-infos lib test`、目标测试（文档控制器 43 例 + 试听控制器 + 编辑历史 + 分层棘轮）、以及 `bash scripts/quality_gate.sh --skip-pub-get` 全量，**首次运行即全绿**（run 41576455387）。
 - 控制器覆盖：载入（补齐 id、恢复持久化标记、清空历史、选中首行、空文档无选中）；撤销/重做（文档与选中行一起回滚、空栈提示、新编辑清空重做、越界选中不恢复）；改行（只有改文字才算手工编辑、同行输入合并为一步、跨窗口另起一步、越界无操作、只有改时间才让试听失效）；删行（选中行夹取/前移/清空、手工标记移除、按下标索引的 fallback 元数据被丢弃、删到正在试听的行才丢高亮）；加行/插入（空文档 5 秒处、接在末行之后、按时间插到正确位置、丢弃 fallback 元数据、可撤销）；全局偏移（保持选中、合并为一步）；复核标记（可撤销、重复标记不再凭空多一步、取消标记可撤销）；批量更改（普通编辑使其失效、整体撤销恢复文档/标记/选中/脏标记、可清空选中）；恢复备份（只保留仍存在的标记、读取备份内持久化标记、夹取选中）；保存（持久化本次标记、无文档时抛错、markSaved 保留历史）；受保护行索引随行 id 走。
 - 逐行复刻 `tool/work_log.dart` 语义的本地脚本：生成文件一致 + 条目均被引用 + 无断链。
-- PR 的 Flutter Quality Gate 在合并前等待通过。
+- PR #296 的 Flutter Quality Gate 通过后合并；合并后 `main` 的 push 门禁 run 41577288153 通过。
 
 ## 已知风险
 
@@ -70,4 +70,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 11:04（Asia/Taipei）
+最后更新：2026-11-03 12:31（Asia/Taipei）
