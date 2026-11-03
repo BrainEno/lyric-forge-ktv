@@ -229,6 +229,34 @@ void main() {
       // the services it was given, not from the singleton.
       final app = File('lib/app/app.dart').readAsStringSync();
       expect(app, contains('buildPlaybackLyricsResolver(services)'));
+
+      // The KTV studio (microphone, recording, take history, audition channel)
+      // is assembled here as well — the screen takes the bundle, it does not
+      // build it. That is the difference between "recording code exists" and
+      // "recording is reachable".
+      expect(
+        assembly,
+        contains('microphoneService: services.ktvMicrophoneService'),
+      );
+      expect(
+        assembly,
+        contains('recordingService: services.ktvRecordingService'),
+      );
+      expect(
+        assembly,
+        contains('takeHistoryStore: services.ktvTakeHistoryStore'),
+      );
+      expect(
+        assembly,
+        contains('previewService: services.audioPreviewService'),
+      );
+
+      final immersive = File(
+        'lib/features/player/presentation/screens/immersive_ktv_screen.dart',
+      ).readAsStringSync();
+      expect(immersive, contains('required this.dependencies'));
+      expect(immersive, contains('KtvRecordingToolbar('));
+      expect(immersive, contains('KtvTakeHistorySheet('));
     });
 
     test('the KTV surface has a single owner', () {
