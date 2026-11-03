@@ -1206,93 +1206,6 @@ class _KtvModeTile extends StatelessWidget {
   }
 }
 
-class _CompactSourceMenu extends StatelessWidget {
-  final List<AudioSourceType> availableSources;
-  final AudioSourceType? currentSource;
-  final ValueChanged<AudioSourceType> onSourceChanged;
-  final bool ktvLabels;
-
-  const _CompactSourceMenu({
-    required this.availableSources,
-    required this.currentSource,
-    required this.onSourceChanged,
-    this.ktvLabels = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return SizedBox(
-      width: spec.minimumInteractiveExtent,
-      height: spec.minimumInteractiveExtent,
-      child: PopupMenuButton<AudioSourceType>(
-        tooltip: ktvLabels ? '切换 KTV 音轨' : '切换音源',
-        icon: const Icon(Icons.tune_rounded),
-        onSelected: onSourceChanged,
-        itemBuilder: (context) => availableSources
-            .map(
-              (source) => CheckedPopupMenuItem<AudioSourceType>(
-                value: source,
-                checked: source == currentSource,
-                child: Text(
-                  ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
-                ),
-              ),
-            )
-            .toList(growable: false),
-      ),
-    );
-  }
-}
-
-class _FullscreenLyric extends StatelessWidget {
-  final LyricLine? line;
-  final TextStyle? style;
-  final int maxLines;
-
-  const _FullscreenLyric({
-    required this.line,
-    required this.style,
-    this.maxLines = 3,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      child: Text(
-        line?.text ?? '',
-        key: ValueKey<String?>(line?.text),
-        textAlign: TextAlign.center,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      ),
-    );
-  }
-}
-
-class _FullscreenNoLyrics extends StatelessWidget {
-  const _FullscreenNoLyrics();
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(spec.pageGutter),
-        child: Text(
-          '当前歌曲没有可用歌词',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(color: AppColors.textTertiary),
-        ),
-      ),
-    );
-  }
-}
-
 class _ProjectArtwork extends StatelessWidget {
   final String? path;
   final bool loading;
@@ -1475,14 +1388,12 @@ class _AudioSourceSelector extends StatelessWidget {
   final AudioSourceType? currentSource;
   final ValueChanged<AudioSourceType> onSourceChanged;
   final bool compact;
-  final bool ktvLabels;
 
   const _AudioSourceSelector({
     required this.availableSources,
     required this.currentSource,
     required this.onSourceChanged,
     this.compact = false,
-    this.ktvLabels = false,
   });
 
   @override
@@ -1497,9 +1408,7 @@ class _AudioSourceSelector extends StatelessWidget {
               selected: source == currentSource,
               onSelected: (_) => onSourceChanged(source),
               visualDensity: compact ? VisualDensity.compact : null,
-              label: Text(
-                ktvLabels ? _ktvSourceLabel(source) : _sourceLabel(source),
-              ),
+              label: Text(_sourceLabel(source)),
             );
           })
           .toList(growable: false),
@@ -1617,13 +1526,6 @@ String _sourceLabel(AudioSourceType source) {
   };
 }
 
-String _ktvSourceLabel(AudioSourceType source) {
-  return switch (source) {
-    AudioSourceType.original => KtvBackingMode.guideVocal.label,
-    AudioSourceType.instrumental => KtvBackingMode.instrumental.label,
-    AudioSourceType.vocals => '人声试听',
-  };
-}
 
 String _formatTime(Duration value) {
   final minutes = value.inMinutes.toString().padLeft(2, '0');
