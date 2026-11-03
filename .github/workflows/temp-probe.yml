@@ -1,0 +1,98 @@
+name: Temp Probe
+
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format changed Dart files
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=$(git merge-base HEAD origin/main)
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$base" HEAD -- '*.dart')
+          if (( ${#files[@]} == 0 )); then
+            echo "format=skip"; exit 0
+          fi
+          dart format "${files[@]}"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "probe"
+            git config user.email "probe@example.com"
+            git add -A
+            git commit -m "chore: apply dart format [skip ci]"
+            git push
+          fi
+          echo "format=0"
+
+      - name: Analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos lib test > analyze.log 2>&1
+          code=$?
+          tail -40 analyze.log
+          grep -E "error •|warning •" analyze.log | head -40 | while IFS= read -r line; do
+            echo "::error::${line:0:900}"
+          done
+          echo "analyze=$code"
+          exit $code
+
+      - name: Targeted tests
+        shell: bash
+        run: |
+          set +e
+          failed=0
+          for file in \
+            test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart \
+            test/features/lyrics/presentation/controllers/line_audition_controller_test.dart \
+            test/features/lyrics/domain/models/lyric_edit_history_test.dart \
+            test/architecture_layer_imports_contract_test.dart; do
+            flutter test --no-pub -r expanded "$file" > run.log 2>&1
+            code=$?
+            echo "$(basename "$file")=$code"
+            if [[ $code -ne 0 ]]; then
+              failed=1
+              echo "::error::$file failed"
+              grep -E "\[E\]|Expected:|Actual:|Which:|Error:|error:" run.log | head -12 | while IFS= read -r line; do
+                echo "::error::${line:0:900}"
+              done
+              tail -15 run.log | while IFS= read -r line; do
+                echo "::error::${line:0:900}"
+              done
+            fi
+          done
+          echo "targeted=$failed"
+          exit $failed
+
+      - name: Full gate
+        shell: bash
+        run: |
+          set +e
+          bash scripts/quality_gate.sh --skip-pub-get > full.log 2>&1
+          code=$?
+          tail -40 full.log
+          grep -n "\[E\]" full.log | head -20 | while IFS= read -r line; do
+            echo "::error::${line:0:900}"
+          done
+          echo "full=$code"
+          exit $code
