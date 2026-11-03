@@ -43,3 +43,35 @@ Future<PlaybackLyricsResolution> resolveAndSyncPlaybackLyrics({
   }
   return resolution;
 }
+
+/// The four collaborators of [resolveAndSyncPlaybackLyrics], bound once.
+///
+/// Every playback surface needs exactly the same quartet: the app-shell sync
+/// widget, Now Playing's lyric action and the library's "import lyrics" action.
+/// Passing them as four separate constructor arguments meant each widget held
+/// four nullable fields with the same locator fallback; binding them here means
+/// a widget declares one dependency, and the assembly layer
+/// (`lib/app/playback_assembly.dart`) decides what it is made of.
+class PlaybackLyricsResolver {
+  const PlaybackLyricsResolver({
+    required this.projectRepository,
+    required this.metadataRepository,
+    required this.playbackSession,
+    required this.pathCanonicalizer,
+  });
+
+  final ProjectRepository projectRepository;
+  final LocalMediaMetadataRepository metadataRepository;
+  final PlaybackSessionService playbackSession;
+  final AudioPathCanonicalizer pathCanonicalizer;
+
+  Future<PlaybackLyricsResolution> resolveAndSync(PlaybackItem item) {
+    return resolveAndSyncPlaybackLyrics(
+      item: item,
+      projectRepository: projectRepository,
+      metadataRepository: metadataRepository,
+      playbackSession: playbackSession,
+      pathCanonicalizer: pathCanonicalizer,
+    );
+  }
+}

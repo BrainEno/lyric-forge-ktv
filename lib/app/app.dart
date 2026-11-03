@@ -13,6 +13,7 @@ import '../features/player/presentation/widgets/playback_lyrics_availability_syn
 import '../features/transcription/presentation/widgets/global_transcription_queue_bar.dart';
 import 'app_router.dart';
 import 'app_services.dart';
+import 'playback_assembly.dart';
 
 final _appRouteObserver = CurrentRouteObserver();
 
@@ -59,7 +60,8 @@ class ElysiumPlayerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final desktopChrome =
         desktopChromeOverride ?? AppResponsive.isDesktopTarget();
-    final router = AppRouter(services ?? AppServices.instance);
+    final services = this.services ?? AppServices.instance;
+    final router = AppRouter(services);
 
     return MaterialApp(
       title: 'Elysium Player',
@@ -72,9 +74,17 @@ class ElysiumPlayerApp extends StatelessWidget {
       builder: (context, child) {
         // Keep the queue's lyric flag aligned with the resolved lyric project
         // for the current song, whichever route is visible.
-        final syncedShell = PlaybackLyricsAvailabilitySync(
-          child: child ?? const SizedBox.shrink(),
-        );
+        //
+        // Skipped when the shell is built without bootstrap (widget tests that
+        // only inspect the MaterialApp): there is no session to listen to yet.
+        final shell = child ?? const SizedBox.shrink();
+        final syncedShell = services.isInitialized
+            ? PlaybackLyricsAvailabilitySync(
+                lyricsResolver: buildPlaybackLyricsResolver(services),
+                playbackSession: services.playbackSessionService,
+                child: shell,
+              )
+            : shell;
         return ValueListenableBuilder<String?>(
           valueListenable: _appRouteObserver.routeName,
           builder: (context, routeName, _) {

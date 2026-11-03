@@ -175,6 +175,27 @@ void main() {
     expect(session.updates, isEmpty);
   });
 
+  test('the resolver bundle forwards all four collaborators', () async {
+    // The four services used to be four separate fields with the same locator
+    // fallback in every playback widget. The bundle is only useful if it really
+    // passes each of them through, so this drives one resolution end to end.
+    final session = _RecordingSession();
+    final resolver = PlaybackLyricsResolver(
+      projectRepository: _FakeProjectRepository([project('project-1')]),
+      metadataRepository: _FakeMetadataRepository(),
+      playbackSession: session,
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
+    );
+
+    final resolution = await resolver.resolveAndSync(
+      item(hasLyrics: false, projectId: 'project-1'),
+    );
+
+    expect(resolution.projectId, 'project-1');
+    expect(resolution.hasLyrics, isTrue);
+    expect(session.updates.single.hasLyrics, isTrue);
+  });
+
   testWidgets('syncs the current queue item when the session changes', (
     tester,
   ) async {
@@ -185,19 +206,22 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: PlaybackLyricsAvailabilitySync(
-          pathCanonicalizer: const FileAudioPathCanonicalizer(),
           playbackSession: session,
-          projectRepository: _FakeProjectRepository([
-            project('project-late', path: '/music/other.mp3'),
-          ]),
-          metadataRepository: _FakeMetadataRepository(
-            LocalMediaMetadata(
-              sourcePath: audioPath,
-              updatedAt: DateTime(2026),
-              metadata: const {
-                'linkedProjectId': 'project-deleted',
-                'hasLyrics': true,
-              },
+          lyricsResolver: PlaybackLyricsResolver(
+            pathCanonicalizer: const FileAudioPathCanonicalizer(),
+            playbackSession: session,
+            projectRepository: _FakeProjectRepository([
+              project('project-late', path: '/music/other.mp3'),
+            ]),
+            metadataRepository: _FakeMetadataRepository(
+              LocalMediaMetadata(
+                sourcePath: audioPath,
+                updatedAt: DateTime(2026),
+                metadata: const {
+                  'linkedProjectId': 'project-deleted',
+                  'hasLyrics': true,
+                },
+              ),
             ),
           ),
           child: const SizedBox.shrink(),

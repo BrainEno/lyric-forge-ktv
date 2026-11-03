@@ -1,28 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
-import '../../../project/domain/repositories/project_repository.dart';
-import '../../domain/repositories/local_media_metadata_repository.dart';
-import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
-import '../../domain/services/playback_session_service.dart';
 import '../screens/immersive_ktv_screen.dart';
 
 class NowPlayingLyricsProjectAction extends StatefulWidget {
   final PlaybackItem item;
-  final ProjectRepository? projectRepository;
-  final LocalMediaMetadataRepository? metadataRepository;
-  final PlaybackSessionService? playbackSession;
-  final AudioPathCanonicalizer? pathCanonicalizer;
+
+  /// Resolves the lyric project behind [item] (and repairs the queue flag).
+  final PlaybackLyricsResolver lyricsResolver;
 
   const NowPlayingLyricsProjectAction({
     super.key,
     required this.item,
-    this.projectRepository,
-    this.metadataRepository,
-    this.playbackSession,
-    this.pathCanonicalizer,
+    required this.lyricsResolver,
   });
 
   @override
@@ -33,19 +24,6 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
 class _NowPlayingLyricsProjectActionState
     extends State<NowPlayingLyricsProjectAction> {
   late Future<String?> _projectIdFuture;
-
-  ProjectRepository get _projects =>
-      widget.projectRepository ?? AppServices.instance.projectRepository;
-
-  LocalMediaMetadataRepository get _metadata =>
-      widget.metadataRepository ??
-      AppServices.instance.localMediaMetadataRepository;
-
-  PlaybackSessionService get _session =>
-      widget.playbackSession ?? AppServices.instance.playbackSessionService;
-
-  AudioPathCanonicalizer get _pathCanonicalizer =>
-      widget.pathCanonicalizer ?? AppServices.instance.audioPathCanonicalizer;
 
   @override
   void initState() {
@@ -62,9 +40,7 @@ class _NowPlayingLyricsProjectActionState
         oldItem.projectId != nextItem.projectId ||
         oldItem.hasLyrics != nextItem.hasLyrics ||
         oldItem.audioAsset.originalPath != nextItem.audioAsset.originalPath ||
-        oldWidget.projectRepository != widget.projectRepository ||
-        oldWidget.metadataRepository != widget.metadataRepository ||
-        oldWidget.pathCanonicalizer != widget.pathCanonicalizer) {
+        oldWidget.lyricsResolver != widget.lyricsResolver) {
       _projectIdFuture = _resolve();
     }
   }
@@ -72,12 +48,8 @@ class _NowPlayingLyricsProjectActionState
   Future<String?> _resolve() async {
     // Resolution also retracts a stale `hasLyrics` flag on the queue item, so
     // opening Now Playing fixes the player bar and quick-play labels too.
-    final resolution = await resolveAndSyncPlaybackLyrics(
-      item: widget.item,
-      projectRepository: _projects,
-      metadataRepository: _metadata,
-      playbackSession: _session,
-      pathCanonicalizer: _pathCanonicalizer,
+    final resolution = await widget.lyricsResolver.resolveAndSync(
+      widget.item,
     );
     return resolution.projectId;
   }

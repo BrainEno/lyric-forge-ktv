@@ -2,10 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_services.dart';
-import '../../../project/domain/repositories/project_repository.dart';
-import '../../domain/repositories/local_media_metadata_repository.dart';
-import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
 
@@ -21,19 +17,17 @@ class PlaybackLyricsAvailabilitySync extends StatefulWidget {
   const PlaybackLyricsAvailabilitySync({
     super.key,
     required this.child,
-    this.projectRepository,
-    this.metadataRepository,
-    this.playbackSession,
-    this.pathCanonicalizer,
+    required this.lyricsResolver,
+    required this.playbackSession,
   });
 
   final Widget child;
 
-  /// Optional overrides for tests; production uses the app service locator.
-  final ProjectRepository? projectRepository;
-  final LocalMediaMetadataRepository? metadataRepository;
-  final PlaybackSessionService? playbackSession;
-  final AudioPathCanonicalizer? pathCanonicalizer;
+  /// Resolves (and repairs) the lyric project behind the current item.
+  final PlaybackLyricsResolver lyricsResolver;
+
+  /// Only listened to, so the widget re-resolves when the current item changes.
+  final PlaybackSessionService playbackSession;
 
   @override
   State<PlaybackLyricsAvailabilitySync> createState() =>
@@ -48,15 +42,9 @@ class _PlaybackLyricsAvailabilitySyncState
   @override
   void initState() {
     super.initState();
-    try {
-      final session =
-          widget.playbackSession ?? AppServices.instance.playbackSessionService;
-      _subscription = session.stateStream.listen(_handleSession);
-      _handleSession(session.currentState);
-    } catch (_) {
-      // The shell is also built in isolation by shell tests, before services
-      // exist. Availability sync simply stays idle there.
-    }
+    final session = widget.playbackSession;
+    _subscription = session.stateStream.listen(_handleSession);
+    _handleSession(session.currentState);
   }
 
   @override
@@ -83,20 +71,7 @@ class _PlaybackLyricsAvailabilitySyncState
 
   Future<void> _sync(PlaybackItem item) async {
     try {
-      await resolveAndSyncPlaybackLyrics(
-        item: item,
-        projectRepository:
-            widget.projectRepository ?? AppServices.instance.projectRepository,
-        metadataRepository:
-            widget.metadataRepository ??
-            AppServices.instance.localMediaMetadataRepository,
-        playbackSession:
-            widget.playbackSession ??
-            AppServices.instance.playbackSessionService,
-        pathCanonicalizer:
-            widget.pathCanonicalizer ??
-            AppServices.instance.audioPathCanonicalizer,
-      );
+      await widget.lyricsResolver.resolveAndSync(item);
     } catch (_) {
       // A rebuild-path availability refresh is best effort; playback and the
       // already-rendered UI must keep working when storage is unavailable.

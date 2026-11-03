@@ -15,10 +15,13 @@ import 'package:flutter_test/flutter_test.dart';
 ///   * the remaining `AppServices.instance` call sites are counted, and the
 ///     count only goes down as screens migrate to constructor injection.
 ///
-/// The numbers below are a freeze of the 4.2 landing state, not a target. Fix
-/// the call site and lower the number in the same change; never raise it.
-const int _frozenSingletonFiles = 34;
-const int _frozenSingletonCalls = 72;
+/// The numbers below are a freeze of the current migration state, not a target.
+/// Fix the call site and lower the number in the same change; never raise it.
+/// Step 1 (editor, review inbox, routing table, app shell): 80 -> 72 calls in
+/// 37 -> 34 files. Step 2 (player screen, Now Playing, the app-shell lyric sync
+/// and Now Playing's lyric action): 72 -> 55 calls in 34 -> 30 files.
+const int _frozenSingletonFiles = 30;
+const int _frozenSingletonCalls = 55;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.
@@ -187,6 +190,55 @@ void main() {
         reason: 'The review inbox is routed with an explicit repository.',
       );
       expect(inbox, contains('required this.projectRepository'));
+    });
+
+    test('playback surfaces take their dependencies', () {
+      const screens = <String>[
+        'lib/features/player/presentation/screens/player_screen.dart',
+        'lib/features/player/presentation/screens/now_playing_screen.dart',
+        'lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart',
+        'lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart',
+      ];
+      for (final path in screens) {
+        expect(
+          File(path).readAsStringSync(),
+          isNot(contains('AppServices')),
+          reason: '$path is routed with explicit dependencies.',
+        );
+      }
+
+      final router = File('lib/app/app_router.dart').readAsStringSync();
+      expect(
+        router,
+        contains('NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services))'),
+      );
+      expect(router, contains('dependencies: assemblePlayerScreenDependencies(services)'));
+
+      final assembly = File('lib/app/playback_assembly.dart').readAsStringSync();
+      expect(assembly, contains('PlaybackLyricsResolver('));
+      expect(assembly, contains('audioPathCanonicalizer: services.audioPathCanonicalizer'));
+
+      // The app shell owns the one sync widget; it must build the resolver from
+      // the services it was given, not from the singleton.
+      final app = File('lib/app/app.dart').readAsStringSync();
+      expect(app, contains('buildPlaybackLyricsResolver(services)'));
+    });
+
+    test('the KTV surface has a single owner', () {
+      // `_FullScreenKtvView` was replaced by `ImmersiveKtvScreen` but stayed in
+      // player_screen.dart as unreachable code (~1,000 lines, three locator
+      // lookups). A second fullscreen KTV surface is how the two playback
+      // models drifted apart in the first place.
+      final player = File(
+        'lib/features/player/presentation/screens/player_screen.dart',
+      ).readAsStringSync();
+      expect(player, isNot(contains('_FullScreenKtvView')));
+      expect(player, isNot(contains('KtvRecordingService')));
+
+      final immersive = File(
+        'lib/features/player/presentation/screens/immersive_ktv_screen.dart',
+      );
+      expect(immersive.existsSync(), isTrue);
     });
 
     test('the routing table builds the editor dependencies', () {

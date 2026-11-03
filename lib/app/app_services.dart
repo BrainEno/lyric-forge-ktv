@@ -100,6 +100,16 @@ class AppServices {
   static final AppServices instance = AppServices._();
   AppServices._();
 
+  bool _initialized = false;
+
+  /// Whether [initialize] has run, i.e. whether the `late final` services can
+  /// be read.
+  ///
+  /// The app shell can be built before bootstrap in tests (`ElysiumPlayerApp`
+  /// renders a `MaterialApp` without pumping routes); reading a service then
+  /// would throw `LateInitializationError` instead of leaving the shell idle.
+  bool get isInitialized => _initialized;
+
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
 
@@ -142,6 +152,7 @@ class AppServices {
   late final MediaTransferQueueService mediaTransferQueueService;
 
   void initialize() {
+    _initialized = true;
     // Connection state and discovery exist before the player is built so a
     // restored remote session can recover a moved/restarted desktop from its
     // stable paired device identity at the lowest audio-load layer.
