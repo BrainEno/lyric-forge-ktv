@@ -61,20 +61,30 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter test --no-pub \
+          failed=0
+          for file in \
             test/features/lyrics/domain/proofreading/proofread_v2_review_assembler_test.dart \
             test/features/lyrics/domain/proofreading/proofread_v2_document_composer_test.dart \
             test/features/lyrics/domain/proofreading/forced_alignment_language_test.dart \
             test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart \
             test/asr_runtime_status_test.dart \
-            test/architecture_layer_imports_contract_test.dart > targeted.log 2>&1
-          code=$?
-          tail -80 targeted.log
-          grep -n "\[E\]" targeted.log | head -20 | while IFS= read -r line; do
-            echo "::error::${line:0:900}"
+            test/architecture_layer_imports_contract_test.dart; do
+            flutter test --no-pub -r expanded "$file" > run.log 2>&1
+            code=$?
+            echo "$(basename "$file")=$code"
+            if [[ $code -ne 0 ]]; then
+              failed=1
+              echo "::error::$file failed"
+              grep -E "\[E\]|Expected:|Actual:|Which:|Error:|error:" run.log | head -12 | while IFS= read -r line; do
+                echo "::error::${line:0:900}"
+              done
+              tail -15 run.log | while IFS= read -r line; do
+                echo "::error::${line:0:900}"
+              done
+            fi
           done
-          echo "targeted=$code"
-          exit $code
+          echo "targeted=$failed"
+          exit $failed
 
       - name: Full gate
         shell: bash
