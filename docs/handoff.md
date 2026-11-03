@@ -9,7 +9,7 @@
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/e8db9f50-lyric-forge-ktv`（基于 `main` = `5007612`）。
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
-- 本轮（Phase 4.2 第一步）改动尚未合并：提交 `refactor: move the assembly layer into lib/app and inject the lyric editor`。
+- Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`）；其 push 门禁 run 41584530251 为绿。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
@@ -30,7 +30,9 @@
 
 ## 检查结果
 
-- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证，**首次运行即全绿**（run 41582433217）：`dart format`（相对 main 的改动文件）无 diff、`dart tool/work_log.dart check` 通过、`flutter analyze --no-pub --no-fatal-infos lib test` clean、`bash scripts/quality_gate.sh --skip-pub-get` 全量通过（含改动过的 widget / 契约测试与新增棘轮）。验证后该 workflow 从分支删除。
+- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证（run 41582433217、41582847227，两次全绿），验证后该 workflow 从分支删除：`flutter analyze --no-pub --no-fatal-infos lib test` clean、`bash scripts/quality_gate.sh --skip-pub-get` 全量通过（含改动过的 widget / 契约测试与新增棘轮）。
+- `dart format` 第一次跑就把 30 个被触碰文件的**历史格式债**落成 `7cbafb3`（tall style 会重排整个文件；1141/1132 行，纯格式化）。之后的 probe 与 PR 门禁的 format check 均无 diff。这是触碰这些文件的必然代价，不是重写。
+- PR #298：15 个 check 全绿后合并（最后一次质量门禁 run 41583801374）。前两次门禁（41583186817、41583477693）都挂在那条已知偶发用例上，同一棵树在临时工作流里连过两遍。合并后 `main` 的 push 门禁 run 41584530251 通过。
 - 静态自检（无 SDK 时可用）：全仓库相对 import 全部解析到存在的文件（0 处断链）；测试里 68 个 `lib/...` 源码路径全部存在；`transcription_settings_contract_test` / `asr_managed_storage_contract_test` / `asr_storage_preflight_contract_test` / `transcription_ready_import_contract_test` 断言的字符串在新文件里逐条命中。
 - 棘轮首跑即命中冻结值（72 处 / 34 文件），无基线例外。
 - 逐行复刻 `tool/work_log.dart write` 语义的本地脚本：生成的三份文件与提交内容一致。
@@ -79,4 +81,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 13:52（Asia/Taipei）
+最后更新：2026-11-03 14:26（Asia/Taipei）
