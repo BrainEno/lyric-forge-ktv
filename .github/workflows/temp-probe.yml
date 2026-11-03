@@ -90,12 +90,28 @@ jobs:
           cat diag-targeted.log
           exit 0
 
+      - name: Full gate
+        id: full
+        shell: bash
+        run: |
+          set +e
+          bash scripts/quality_gate.sh --skip-pub-get > full.log 2>&1
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          {
+            grep -n "\[E\]" full.log | head -10
+            grep -n -A10 "The following assertion was thrown" full.log | head -30
+            grep -nE "Expected:|Actual:|Which:|summary-stale|entry-" full.log | head -16
+            tail -12 full.log
+          } > diag-full.log
+          cat diag-full.log
+          exit 0
+
       - name: Report
         if: always()
         shell: bash
         run: |
           set +e
-          echo "::notice::format=${{ steps.format.outputs.exit }} analyze=${{ steps.analyze.outputs.exit }} targeted=${{ steps.targeted.outputs.exit }}"
+          echo "::notice::format=${{ steps.format.outputs.exit }} analyze=${{ steps.analyze.outputs.exit }} targeted=${{ steps.targeted.outputs.exit }} full=${{ steps.full.outputs.exit }}"
           emit() {
             stage="$1"; code="$2"; diag="$3"
             if [[ "$code" == "0" ]]; then
@@ -116,4 +132,5 @@ jobs:
           emit format "${{ steps.format.outputs.exit }}" ""
           emit analyze "${{ steps.analyze.outputs.exit }}" diag-analyze.log
           emit targeted "${{ steps.targeted.outputs.exit }}" diag-targeted.log
+          emit full "${{ steps.full.outputs.exit }}" diag-full.log
           exit 0
