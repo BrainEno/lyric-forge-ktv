@@ -16,7 +16,6 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../../transcription/domain/services/asr_runtime_manager.dart';
-import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
@@ -37,7 +36,6 @@ import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
-import '../../domain/services/lyric_timeline_insertion_service.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_alignment_applier.dart';
 import '../../domain/services/reference_alignment_provenance_builder.dart';
@@ -51,6 +49,7 @@ import '../widgets/reference_proofread_timing_review_dialog.dart';
 import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
+import '../controllers/lyric_editor_document_controller.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_inspector_pane.dart';
@@ -60,23 +59,6 @@ import '../widgets/lyric_edit_shortcuts.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
 import '../widgets/unsaved_lyric_edits_dialog.dart';
-
-/// 参考对齐应用前的完整内存快照，用于立即撤销（不写磁盘）。
-class _AlignmentUndoSnapshot {
-  final LyricDocument document;
-  final Set<String> manuallyEditedLineIds;
-  final int? selectedLineIndex;
-  final bool hasChanges;
-  final bool isReferenceProofread;
-
-  const _AlignmentUndoSnapshot({
-    required this.document,
-    required this.manuallyEditedLineIds,
-    required this.selectedLineIndex,
-    required this.hasChanges,
-    this.isReferenceProofread = false,
-  });
-}
 
 class LyricEditorScreen extends StatefulWidget {
   final String projectId;
@@ -97,28 +79,25 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
 
-  LyricDocument? _editingDocument;
-  bool _hasChanges = false;
+  /// Owns the document, its dirty flag, the selected row, the manual-edit marks
+  /// and the undo history; this screen only decides what to show.
+  late final LyricEditorDocumentController _editor;
+
   bool _followPlayback = true;
-  int? _selectedLineIndex;
   LyricReviewFilter _filter = LyricReviewFilter.all;
+
+  LyricDocument? get _editingDocument => _editor.document;
+  bool get _hasChanges => _editor.hasChanges;
+  int? get _selectedLineIndex => _editor.selectedLineIndex;
 
   /// 插入新行后递增，用于让列表/检查器知道"该聚焦这个新行"。
   int _focusRequestId = 0;
   int? _focusLineIndex;
 
-  /// 本次编辑器会话中手动改过文字的行标识（基于稳定 lineId）；
-  /// 插入/删除/对齐后标识不随索引漂移，参考对齐默认跳过这些行。
-  final Set<String> _manuallyEditedLineIds = {};
-
-  /// 最近一次参考对齐应用前的内存快照；任何后续手动编辑都会使其失效。
-  _AlignmentUndoSnapshot? _alignmentUndoSnapshot;
-
   /// 仅当歌词文档发生变化时重新计算，避免播放进度流触发每帧风险排序。
   LyricDocument? _reviewPrioritySource;
   Duration? _reviewPriorityAudioDuration;
   LyricReviewQueue _reviewQueue = LyricReviewQueue.empty;
-  final LyricEditHistory _editHistory = LyricEditHistory();
   Map<int, LyricReviewPriority> _reviewPriorityByIndex = const {};
 
   late final LineAuditionController _audition;
@@ -132,11 +111,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   /// 受保护行的当前索引视图：按稳定标识在现有行序中重新定位，供逐行确认使用。
-  Set<int> get _manuallyEditedLineIndices {
-    final document = _editingDocument;
-    if (document == null) return const <int>{};
-    return _lineMarkers.protectedIndices(document, _manuallyEditedLineIds);
-  }
+  Set<int> get _manuallyEditedLineIndices => _editor.protectedIndices;
 
   /// Rebuilds the one review queue every counter and filter reads from.
   ///
@@ -161,69 +136,23 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  /// Records the document as it is *now*, before an edit mutates it.
-  ///
-  /// Every user-visible change calls this first, so the undo stack is a record
-  /// of what the user actually did rather than of what the code happened to
-  /// touch. Loading a project clears it, because undo must never walk back into
-  /// a different song.
-  void _recordEdit(String label, {String? mergeKey}) {
-    final document = _editingDocument;
-    if (document == null) return;
-    _editHistory.record(
-      document,
-      label: label,
-      mergeKey: mergeKey,
-      selectedLineIndex: _selectedLineIndex,
-    );
-  }
+  void _undo() => _applyHistoryEdit(_editor.undo());
 
-  void _undo() {
-    final current = _editingDocument;
-    if (current == null) return;
-    final snapshot = _editHistory.undo(current);
-    if (snapshot == null) {
-      _showEditHint('没有可撤销的修改');
+  void _redo() => _applyHistoryEdit(_editor.redo());
+
+  /// Shared tail of undo/redo: the document already changed inside the
+  /// controller, so this only refreshes what the screen derives from it.
+  void _applyHistoryEdit(LyricEditResult result) {
+    final hint = result.hint;
+    if (!result.applied) {
+      if (hint != null) _showEditHint(hint);
       return;
     }
     setState(() {
-      _editingDocument = snapshot.document;
-      _selectedLineIndex =
-          snapshot.selectedLineIndex != null &&
-              snapshot.selectedLineIndex! >= 0 &&
-              snapshot.selectedLineIndex! < snapshot.document.lines.length
-          ? snapshot.selectedLineIndex
-          : null;
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
       _audition.clear();
-      _refreshReviewQueue(snapshot.document, _reviewPriorityAudioDuration);
+      _refreshReviewQueue(_editingDocument!, _reviewPriorityAudioDuration);
     });
-    _showEditHint('已撤销：${snapshot.label}');
-  }
-
-  void _redo() {
-    final current = _editingDocument;
-    if (current == null) return;
-    final snapshot = _editHistory.redo(current);
-    if (snapshot == null) {
-      _showEditHint('没有可重做的修改');
-      return;
-    }
-    setState(() {
-      _editingDocument = snapshot.document;
-      _selectedLineIndex =
-          snapshot.selectedLineIndex != null &&
-              snapshot.selectedLineIndex! >= 0 &&
-              snapshot.selectedLineIndex! < snapshot.document.lines.length
-          ? snapshot.selectedLineIndex
-          : null;
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
-      _audition.clear();
-      _refreshReviewQueue(snapshot.document, _reviewPriorityAudioDuration);
-    });
-    _showEditHint('已重做：${snapshot.label}');
+    if (hint != null) _showEditHint(hint);
   }
 
   void _showEditHint(String message) {
@@ -238,36 +167,23 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     int index, {
     required bool reviewed,
   }) {
-    final document = _editingDocument;
-    if (document == null || index < 0 || index >= document.lines.length) {
-      return;
-    }
-    final updated = const LyricReviewDecisionService().setReviewed(
-      document,
-      index,
-      reviewed: reviewed,
-    );
-    if (identical(updated, document)) return;
-    _recordEdit(
-      reviewed ? '标记第 ${index + 1} 行为已复核' : '取消第 ${index + 1} 行的复核标记',
-    );
+    if (!_editor.setLineReviewed(index, reviewed: reviewed).applied) return;
 
     setState(() {
-      _editingDocument = updated;
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
       _filter = LyricReviewFilter.needsReview;
-      _refreshReviewQueue(updated, project.audioAsset?.duration);
-      _selectedLineIndex = _reviewPriorityByIndex.isEmpty
-          ? null
-          : (_reviewPriorityByIndex.values.toList()..sort((left, right) {
-                  final byScore = right.score.compareTo(left.score);
-                  return byScore != 0
-                      ? byScore
-                      : left.lineIndex.compareTo(right.lineIndex);
-                }))
-                .first
-                .lineIndex;
+      _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
+      _editor.select(
+        _reviewPriorityByIndex.isEmpty
+            ? null
+            : (_reviewPriorityByIndex.values.toList()..sort((left, right) {
+                    final byScore = right.score.compareTo(left.score);
+                    return byScore != 0
+                        ? byScore
+                        : left.lineIndex.compareTo(right.lineIndex);
+                  }))
+                  .first
+                  .lineIndex,
+      );
     });
 
     final remaining = _reviewPriorityByIndex.length;
@@ -294,6 +210,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     )..addListener(_handleAuditionChanged);
     _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
     _lineMarkers = const LyricManualEditMarkerService();
+    _editor = LyricEditorDocumentController(markerService: _lineMarkers);
     _referenceParser = ReferenceLyricTextParser(
       ServiceLocatorGlobal.I.lyricFileImportService,
     );
@@ -318,13 +235,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   Future<void> _saveChanges(ProjectManifest project) async {
-    final document = _editingDocument;
-    if (document == null) return;
+    if (_editingDocument == null) return;
 
     final updated = project.copyWith(
-      lyricDocument: document.copyWith(
-        metadata: _lineMarkers.persist(document, _manuallyEditedLineIds),
-      ),
+      lyricDocument: _editor.documentForSave(),
       status: ProjectStatus.editing,
       currentStage: ProcessingStage.lyricsEdited,
     );
@@ -332,10 +246,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     await _repository.updateProject(updated);
     if (!mounted) return;
 
-    setState(() {
-      _hasChanges = false;
-      _alignmentUndoSnapshot = null;
-    });
+    setState(_editor.markSaved);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('歌词已保存'), duration: Duration(seconds: 2)),
     );
@@ -440,13 +351,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!mounted || keep != true) return;
     }
 
-    final snapshot = _AlignmentUndoSnapshot(
-      document: document,
-      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
-      selectedLineIndex: _selectedLineIndex,
-      hasChanges: _hasChanges,
-    );
-
     final appliedDocument = decision.applyReferenceTiming
         ? result.document.copyWith(globalOffset: Duration.zero)
         : result.document;
@@ -490,19 +394,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         appliedDocument: appliedWithLineIds,
       );
 
+    final selection = result.corrections.isNotEmpty
+        ? result.corrections.first.asrLineIndex
+        : result.insertions.isNotEmpty
+        ? result.insertions.first.asrLineIndex
+        : _selectedLineIndex;
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('应用参考歌词对齐');
     setState(() {
-      _editingDocument = appliedWithLineIds.copyWith(metadata: metadata);
+      _editor.replaceDocument(
+        appliedWithLineIds.copyWith(metadata: metadata),
+        label: '应用参考歌词对齐',
+        selectedLineIndex: selection,
+        keepBatchSnapshot: true,
+      );
       _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = snapshot;
       _filter = LyricReviewFilter.all;
-      if (result.corrections.isNotEmpty) {
-        _selectedLineIndex = result.corrections.first.asrLineIndex;
-      } else if (result.insertions.isNotEmpty) {
-        _selectedLineIndex = result.insertions.first.asrLineIndex;
-      }
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
 
@@ -576,7 +482,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         protectedDraftIndices: protectedIndices,
       );
       _commitReferenceProofreadChange(
-        document,
         applied,
         message:
             '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；'
@@ -614,7 +519,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       protectedDraftIndices: protectedIndices,
     );
     _commitReferenceProofreadChange(
-      document,
       applied,
       message:
           '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
@@ -861,7 +765,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         );
         if (!mounted || keep != true) return;
       }
-      _commitProofreadV2Document(document, after);
+      _commitProofreadV2Document(after);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -870,23 +774,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
   }
 
-  void _commitProofreadV2Document(LyricDocument before, LyricDocument after) {
-    final snapshot = _AlignmentUndoSnapshot(
-      document: before,
-      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
-      selectedLineIndex: _selectedLineIndex,
-      hasChanges: _hasChanges,
-      isReferenceProofread: true,
-    );
+  void _commitProofreadV2Document(LyricDocument after) {
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('应用校对提案');
     setState(() {
-      _editingDocument = after;
+      _editor.replaceDocument(
+        after,
+        label: '应用校对提案',
+        selectedLineIndex: after.lines.isEmpty ? null : 0,
+        keepBatchSnapshot: true,
+        isReferenceProofread: true,
+      );
       _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = snapshot;
       _filter = LyricReviewFilter.all;
-      _selectedLineIndex = after.lines.isEmpty ? null : 0;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
@@ -899,26 +798,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _commitReferenceProofreadChange(
-    LyricDocument before,
     ReferenceProofreadAppliedChange applied, {
     required String message,
   }) {
-    final snapshot = _AlignmentUndoSnapshot(
-      document: before,
-      manuallyEditedLineIds: Set<String>.from(_manuallyEditedLineIds),
-      selectedLineIndex: _selectedLineIndex,
-      hasChanges: _hasChanges,
-      isReferenceProofread: true,
-    );
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('应用逐行纠错');
     setState(() {
-      _editingDocument = applied.after;
+      _editor.replaceDocument(
+        applied.after,
+        label: '应用逐行纠错',
+        selectedLineIndex: applied.changedDraftIndices.isEmpty
+            ? _selectedLineIndex
+            : applied.changedDraftIndices.first,
+        keepBatchSnapshot: true,
+        isReferenceProofread: true,
+      );
       _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = snapshot;
       _filter = LyricReviewFilter.all;
-      _selectedLineIndex = applied.changedDraftIndices.first;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
@@ -966,7 +861,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   Future<void> _showAlignmentComparison(ProjectManifest project) async {
-    final before = _alignmentUndoSnapshot?.document;
+    final before = _editor.alignmentSnapshot?.document;
     final after = _editingDocument;
     if (before == null || after == null) return;
 
@@ -979,19 +874,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _undoAlignmentApply() {
-    final snapshot = _alignmentUndoSnapshot;
-    if (snapshot == null) return;
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('撤销参考对齐');
+    if (!_editor.undoBatchChange().applied) return;
     setState(() {
-      _editingDocument = snapshot.document;
       _audition.clear();
-      _manuallyEditedLineIds
-        ..clear()
-        ..addAll(snapshot.manuallyEditedLineIds);
-      _selectedLineIndex = snapshot.selectedLineIndex;
-      _hasChanges = snapshot.hasChanges;
-      _alignmentUndoSnapshot = null;
       _filter = LyricReviewFilter.all;
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
@@ -1038,30 +924,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     if (restored == null || !mounted) return;
 
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('恢复对齐前版本');
     setState(() {
-      // 备份文档保留了各行的稳定标识：会话内标记按标识取交集继续生效，
-      // 备份元数据中持久化的标记一并恢复；旧版本备份没有标识时自然失配。
-      final restoredDocument = _lineMarkers.assignMissingLineIds(restored);
-      final sessionSurvivors = _lineMarkers.prune(
-        restoredDocument,
-        _manuallyEditedLineIds,
-      );
-      _manuallyEditedLineIds
-        ..clear()
-        ..addAll(sessionSurvivors)
-        ..addAll(_lineMarkers.restore(restoredDocument));
-      _editingDocument = restoredDocument;
+      _editor.restoreDocument(restored, label: '恢复对齐前版本');
       _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
       _filter = LyricReviewFilter.all;
-      final lastIndex = restored.lines.length - 1;
-      if (lastIndex < 0) {
-        _selectedLineIndex = null;
-      } else if (_selectedLineIndex != null) {
-        _selectedLineIndex = _selectedLineIndex!.clamp(0, lastIndex).toInt();
-      }
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
 
@@ -1077,60 +943,20 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _addNewLine() {
-    _recordEdit('添加歌词行');
-    setState(() {
-      final lines = List<LyricLine>.from(_editingDocument?.lines ?? []);
-      final lastEndTime = lines.isNotEmpty
-          ? lines.last.endTime
-          : const Duration(seconds: 5);
-
-      lines.add(
-        LyricLine(
-          text: '',
-          startTime: lastEndTime,
-          endTime: lastEndTime + const Duration(seconds: 5),
-        ),
-      );
-
-      final current =
-          _editingDocument ?? const LyricDocument(language: 'zh', lines: []);
-      final metadata = _clearIndexedReviewMetadata(current.metadata);
-      _editingDocument = _lineMarkers.assignMissingLineIds(
-        current.copyWith(lines: lines, metadata: metadata),
-      );
-      _selectedLineIndex = lines.length - 1;
-      _filter = LyricReviewFilter.all;
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
-    });
+    _editor.addLine();
+    setState(() => _filter = LyricReviewFilter.all);
   }
 
   /// 在当前试听位置插入一行，按开始时间落到正确索引。
   void _insertLineAtPlayback() {
-    final current =
-        _editingDocument ?? const LyricDocument(language: 'zh', lines: []);
     final position = _timelinePositionFromPlayback();
-    final insertion = const LyricTimelineInsertionService().insertAtPlayback(
-      lines: current.lines,
-      position: position,
-    );
-    final lines = List<LyricLine>.from(current.lines)
-      ..insert(insertion.index, insertion.line);
-
-    _recordEdit('在播放位置插入一行');
+    final result = _editor.insertLineAt(position);
     setState(() {
-      _editingDocument = _lineMarkers.assignMissingLineIds(
-        current.copyWith(
-          lines: lines,
-          metadata: _clearIndexedReviewMetadata(current.metadata),
-        ),
-      );
-      _selectedLineIndex = insertion.index;
       _filter = LyricReviewFilter.all;
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
-      _focusRequestId++;
-      _focusLineIndex = insertion.index;
+      if (result.insertedLineIndex != null) {
+        _focusRequestId++;
+        _focusLineIndex = result.insertedLineIndex;
+      }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1160,42 +986,34 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _updateLine(int index, LyricLine updatedLine) {
-    final document = _editingDocument;
-    if (document == null || index < 0 || index >= document.lines.length) {
-      return;
-    }
-
-    final previousLine = document.lines[index];
-    if (previousLine.text != updatedLine.text) {
-      final lineId = previousLine.id;
-      if (lineId != null) _manuallyEditedLineIds.add(lineId);
-    }
-
-    final active = _audition.active;
-    final isActiveLine =
-        active != null &&
-        active.projectId == widget.projectId &&
-        (active.lineId != null
-            ? active.lineId == previousLine.id
-            : active.lineIndex == index);
-    final timingChanged =
-        previousLine.startTime != updatedLine.startTime ||
-        previousLine.endTime != updatedLine.endTime;
-    final invalidateAudition = isActiveLine && timingChanged;
-    final shouldPauseAudition = invalidateAudition && _audition.isSounding;
-
-    // Repeated edits to one line inside the merge window are a single undo
-    // step: retyping a lyric should not cost one undo per keystroke burst.
-    _recordEdit('修改第 ${index + 1} 行', mergeKey: 'line:$index');
+    final result = _editor.updateLine(
+      index,
+      updatedLine,
+      auditionTarget: _isAuditionTarget(index),
+    );
+    if (!result.applied) return;
+    final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
     setState(() {
-      final lines = List<LyricLine>.from(document.lines);
-      lines[index] = updatedLine;
-      _editingDocument = document.copyWith(lines: lines);
-      if (invalidateAudition) _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
+      if (result.clearsAudition) _audition.clear();
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
+  }
+
+  /// Whether the row at [index] is the one the bounded audition is playing.
+  ///
+  /// Resolved through the audition request's line id when it has one, so the
+  /// check keeps describing the same row after insertions and deletions.
+  bool _isAuditionTarget(int index) {
+    final active = _audition.active;
+    if (active == null || active.projectId != widget.projectId) return false;
+    final document = _editingDocument;
+    final lineId =
+        document == null || index < 0 || index >= document.lines.length
+        ? null
+        : document.lines[index].id;
+    return active.lineId != null
+        ? active.lineId == lineId
+        : active.lineIndex == index;
   }
 
   void _setLineStartFromPlayback(int index) {
@@ -1226,64 +1044,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _deleteLine(int index) {
-    final document = _editingDocument;
-    if (document == null || index < 0 || index >= document.lines.length) {
-      return;
-    }
-
-    final removedLine = document.lines[index];
-    final active = _audition.active;
-    final isActiveLine =
-        active != null &&
-        active.projectId == widget.projectId &&
-        (active.lineId != null
-            ? active.lineId == removedLine.id
-            : active.lineIndex == index);
-    final shouldPauseAudition = isActiveLine && _audition.isSounding;
-
-    _recordEdit('删除第 ${index + 1} 行');
+    final result = _editor.deleteLine(
+      index,
+      auditionTarget: _isAuditionTarget(index),
+    );
+    if (!result.applied) return;
+    final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
     setState(() {
-      final lines = List<LyricLine>.from(document.lines)..removeAt(index);
-      _editingDocument = document.copyWith(
-        lines: lines,
-        metadata: _clearIndexedReviewMetadata(document.metadata),
-      );
-      if (removedLine.id != null) {
-        _manuallyEditedLineIds.remove(removedLine.id);
-      }
-      if (isActiveLine) _audition.clear();
-
-      _alignmentUndoSnapshot = null;
-      if (lines.isEmpty) {
-        _selectedLineIndex = null;
-      } else if (_selectedLineIndex == index) {
-        _selectedLineIndex = index.clamp(0, lines.length - 1).toInt();
-      } else if (_selectedLineIndex != null && _selectedLineIndex! > index) {
-        _selectedLineIndex = _selectedLineIndex! - 1;
-      }
-      _hasChanges = true;
+      if (result.clearsAudition) _audition.clear();
     });
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
-  Map<String, dynamic> _clearIndexedReviewMetadata(
-    Map<String, dynamic> metadata,
-  ) {
-    return Map<String, dynamic>.from(metadata)
-      ..remove('fallbackCandidates')
-      ..remove('fallbackCandidateCount')
-      ..remove('fallbackAppliedCount');
-  }
-
   void _updateGlobalOffset(Duration offset) {
     final shouldPauseAudition = _audition.isSounding;
-    _recordEdit('调整全局偏移', mergeKey: 'offset');
-    setState(() {
-      _editingDocument = _editingDocument?.copyWith(globalOffset: offset);
-      _audition.clear();
-      _hasChanges = true;
-      _alignmentUndoSnapshot = null;
-    });
+    _editor.updateGlobalOffset(offset);
+    setState(_audition.clear);
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
@@ -1395,7 +1171,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!mounted) return;
       switch (result.action) {
         case LineAuditionAction.started:
-          setState(() => _selectedLineIndex = index);
+          setState(() => _editor.select(index));
         case LineAuditionAction.invalid:
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1503,7 +1279,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     switch (result.action) {
       case LineAuditionAction.started:
-        setState(() => _selectedLineIndex = index);
+        setState(() => _editor.select(index));
         return null;
       case LineAuditionAction.invalid:
         if (showError) {
@@ -1574,21 +1350,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
         final project = snapshot.data!;
         if (_editingDocument == null) {
-          final loaded =
-              project.lyricDocument ??
-              const LyricDocument(language: 'zh', lines: []);
-          // 统一补齐稳定行标识，并恢复上次保存的手工编辑保护标记。
-          _editingDocument = _lineMarkers.assignMissingLineIds(loaded);
-          // A freshly loaded document is a new baseline: undoing across a
-          // project load would restore lines from a different song.
-          _editHistory.clear();
-          _manuallyEditedLineIds
-            ..clear()
-            ..addAll(_lineMarkers.restore(_editingDocument!));
-        }
-
-        if (_editingDocument!.lines.isNotEmpty && _selectedLineIndex == null) {
-          _selectedLineIndex = 0;
+          // 首次构建时装载文档：补齐稳定行标识、恢复上次保存的手工编辑保护
+          // 标记，并清空撤销历史（撤销不能跨到另一首歌）。
+          _editor.load(
+            project.lyricDocument ??
+                const LyricDocument(language: 'zh', lines: <LyricLine>[]),
+          );
         }
 
         _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
@@ -1641,17 +1408,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               }),
               onFollowPlaybackChanged: (value) =>
                   setState(() => _followPlayback = value),
-              onSelectLine: (index) =>
-                  setState(() => _selectedLineIndex = index),
+              onSelectLine: (index) => setState(() => _editor.select(index)),
               onReviewDecision: (index, reviewed) =>
                   _setLineReviewDecision(project, index, reviewed: reviewed),
               onSave: () => _saveChanges(project),
               onUndo: _undo,
               onRedo: _redo,
-              canUndo: _editHistory.canUndo,
-              canRedo: _editHistory.canRedo,
-              undoLabel: _editHistory.undoLabel,
-              redoLabel: _editHistory.redoLabel,
+              canUndo: _editor.canUndo,
+              canRedo: _editor.canRedo,
+              undoLabel: _editor.undoLabel,
+              redoLabel: _editor.redoLabel,
               onExport: () => _exportLyrics(project),
               onReferenceAlignment: _editingDocument!.lines.isEmpty
                   ? null
@@ -1662,12 +1428,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onProofreadV2: _editingDocument!.lines.isEmpty
                   ? null
                   : () => _openProofreadV2(project),
-              onUndoReferenceAlignment: _alignmentUndoSnapshot == null
+              onUndoReferenceAlignment: _editor.alignmentSnapshot == null
                   ? null
                   : _undoAlignmentApply,
               onViewAlignmentComparison:
-                  _alignmentUndoSnapshot == null ||
-                      _alignmentUndoSnapshot!.isReferenceProofread
+                  _editor.alignmentSnapshot == null ||
+                      _editor.alignmentSnapshot!.isReferenceProofread
                   ? null
                   : () => _showAlignmentComparison(project),
               onRestoreAlignment: canRestore ? _restoreAlignmentBackup : null,

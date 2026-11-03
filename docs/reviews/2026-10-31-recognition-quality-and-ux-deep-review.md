@@ -804,7 +804,7 @@ class ServiceLocator {
 | 3.4 | 撤销栈（≥50 步，Ctrl+Z）+ 修复「保存并返回」 | 误改 5 行可整体回退。**已完成 2026-11-03**：「保存并返回」在 3.1 修完；撤销栈 50 步、Ctrl/Cmd+Z 与 Ctrl/Cmd+Shift+Z、Ctrl+Y |
 | 3.5 | 加统一导航（桌面 NavigationRail / 移动底部导航）：音乐库 / 工程 / 校对 / 设置 | 任意页面 1 次点击回到主线。**已完成 2026-11-03**：全局侧栏/底栏 + 新增「校对」收件箱；音乐库不再自带第二套导航 |
 
-### 4.1 现状补充（2026-11-03，两步）
+### 4.1 现状补充（2026-11-03，三步）
 
 `LyricEditorScreen` 原为 4,591 行、**零 widget 测试**，因为所有状态都在一个 2,067 行的 `State` 里，任何行为都只能靠驱动整个编辑器来验证。第一步做了两件互不依赖的事：
 
@@ -823,13 +823,23 @@ class ServiceLocator {
 
 同时修掉一个真实的判定缺陷：`ForcedAligner` 是否可用原先在屏幕里内联判断「qwenRuntime 与 qwenAligner 都 ready」，而 `AsrRuntimeStatus.isBaselineReady` 的语义是「缺项当作该 profile 不需要」。这两套语义混在一起很危险——一个从未被 inspect 报出的组件会被当成可用。现在 `AsrRuntimeStatus.hasReadyComponents(Set)` 显式要求「必须报出且 ready」，供可选能力使用；baseline 语义保持不变。
 
-屏幕 2,597 → 2,298 行（`_openProofreadV2` 从 358 行降到约 180 行，且只剩对话框与提交流程）。新增 36 个用例：assembler 16、composer 14（`isDifferent` 覆盖文本/时间/置信度/偏移/增删行）、语言映射 4，另加 runtime 判定 2 条。**仍未拆**：文档编辑/撤销/保存（`LyricEditorController` 的对象）与强制对齐 runner 的装配（它需要 `ServiceLocator`）。
+屏幕 2,597 → 2,298 行（`_openProofreadV2` 从 358 行降到约 180 行，且只剩对话框与提交流程）。新增 36 个用例：assembler 16、composer 14（`isDifferent` 覆盖文本/时间/置信度/偏移/增删行）、语言映射 4，另加 runtime 判定 2 条。
+
+**第三步（同日）把编辑会话本身搬出去。** 屏幕里剩下的六个字段——当前文档、脏标记、选中行、手工编辑标记、批量更改快照、撤销历史——由二十多处 `setState` 各自改一部分，规则写在"谁先跑到谁算"的位置：
+
+- `LyricEditorDocumentController`（`presentation/controllers/`）接管这六个字段，并用 `LyricEditResult` 回答调用方唯一还需要知道的 UI 问题：这次编辑要不要丢掉正在试听的高亮。
+- 试听耦合被**反转**而不是搬移：控制器不认识试听，屏幕用 `_isAuditionTarget`（沿用原有语义：按请求的 lineId 定位，没有 id 才退回索引）回答"这一行是不是正在播的那行"，只有**改时间**才让试听失效——改文字不会。
+- 规则从隐式变成可测：只有改文字才算手工编辑（微调时间戳不算）；删行会一并删掉它的手工标记；删除后的选中行跟随接替它的那一行；同一行连续输入合并成一步撤销、不同行不合并；撤销绝不恢复已不存在的选中行；插入/删除会丢掉按下标索引的 `fallbackCandidates`；加载工程清空历史并恢复持久化的保护标记；保存时把本次会话的手工标记写回 metadata；对齐/提案这类批量更改可以整体撤销，而之后任何普通编辑都会让它失效。
+- 顺带修掉一个真实的空转：`setLineReviewed` 原先只靠 `identical()` 判断"没变化"，但复核服务即使状态不变也会返回带新时间戳的文档，于是重复标记同一行会凭空多出一步撤销。现在先比对当前复核状态。
+- 屏幕 2,298 → 2,064 行，新增 43 个用例。刻意留在屏幕的是复核队列、筛选、跟随播放与聚焦请求——它们是从文档派生的视图状态，不属于文档。
+
+**仍未拆**：强制对齐 runner 的装配（需要 `ServiceLocator`），留到 4.2。
 
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
-| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例新测试）。**未完成**：文档编辑/撤销/保存仍在屏幕的 `State` 里，`LyricEditorController` 尚未建立 |
+| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例）。第三步（同日）：编辑会话 → `LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史），屏幕 2,298 → 2,064 行（43 例）。**三步合计 4,591 → 2,064 行**。剩余：强制对齐 runner 装配（属 4.2） |
 | 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |

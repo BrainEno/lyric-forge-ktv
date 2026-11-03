@@ -2,44 +2,31 @@
 
 ## 目标
 
-「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 第一、二步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain）已完成；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
+「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）已完成；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 分支：`arena/b0768890-lyric-forge-ktv`。
-- Phase 4.1 第二步已合入 `main`（PR #294，合并提交 `95da409`），其 push 门禁 run 41568282203 为绿；`main` 之后的工作区应为 clean。
-- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（4.1 交接文档，PR #293）、`95da409`（4.1 第二步，PR #294）。
+- 分支：`arena/d24c2c5b-lyric-forge-ktv`（Arena 会话分支；从 `main` = `0583b6f` 起步）。
+- 本分支包含 Phase 4.1 第三步：`LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史）+ 43 例测试；屏幕 2,298 → 2,064 行。
+- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart` — 新增：审核行/被删行/用户选择的类型，从对话框 widget 迁入 domain（domain 不允许依赖 presentation）。
-- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart` — 新增：把两种策略的管线输出翻译成审核行、被删行、说明文案与头部摘要；参考优先与被删行用参考索引空间，ASR 优先用草稿索引空间，故为两条入口。
-- `lib/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart` — 新增：把勾选结果拼回文档（locked 无条件应用、未勾选保留原文、被删行按时间戳插回、时间溯源跟随存活 id、参考优先改时间才归零偏移）；`isDifferent` 取代屏幕里的 `_sameProofreadLines`。
-- `lib/features/lyrics/domain/proofreading/forced_alignment_language.dart` — 新增：工程语言 → ForcedAligner 语言名，未支持的语言抛错而不是回退。
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` — 2,597 → 2,298 行；`_openProofreadV2` 只剩对话框与提交流程，删除 `_composeProofreadV2Document` / `_sameProofreadLines` / `_forcedAlignmentLanguage` / 三个标签函数。
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart` — 审核类型移出，改为 import domain。
-- `lib/features/transcription/domain/services/asr_runtime_manager.dart` — 新增 `hasReadyComponents(Set)`：可选能力必须「报出且 ready」，与 baseline 的「缺项视为不需要」语义区分开。
-- `test/features/lyrics/domain/proofreading/proofread_v2_review_assembler_test.dart` — 新增 16 例。
-- `test/features/lyrics/domain/proofreading/proofread_v2_document_composer_test.dart` — 新增 14 例。
-- `test/features/lyrics/domain/proofreading/forced_alignment_language_test.dart` — 新增 4 例。
-- `test/asr_runtime_status_test.dart` — 新增 2 例。
-- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` — §4.1 第二步记录、计划表 4.1 更新。
-- `docs/log/entries/2026-11-03-1040-proofread-proposal-domain.md` — 本任务工作日志条目。
+- `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart` — 新增：`LyricEditorDocumentController`（文档、脏标记、选中行、手工编辑标记、批量更改快照、撤销/重做历史）、`LyricEditorSnapshot`、`LyricEditResult`；时钟可注入，撤销合并窗口因此可确定地测试。
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` — 2,298 → 2,064 行；删除 `_AlignmentUndoSnapshot`、`_recordEdit`、`_clearIndexedReviewMetadata` 及六个字段的内联修改，改为三个只读 getter + `_editor` 调用。
+- `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart` — 新增 43 例。
+- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` — §4.1 第三步记录、计划表 4.1 更新（三步合计 4,591 → 2,064 行）。
+- `docs/log/entries/2026-11-03-1213-editor-document-controller.md` — 本任务工作日志条目。
 - `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md` — 生成同步。
 - `docs/handoff.md` — 本文件。
 
 ## 检查结果
 
-- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证，随后删除该 workflow（最终 diff 不含任何 CI 文件）：
-  - 探测脚本本身红过两次：第一次是 `git merge-base HEAD origin/main` 在浅克隆上退出 128（改成 `fetch-depth: 0`）；第二次是 `hasReadyComponents` 把「组件未列出」当成 ready（`Set.every` 空集为真），用例抓到这个真实缺陷后才改成现在的实现。
-  - `dart format`（相对 main 的改动文件）=> 0 changed（过程中被探测工作流自动格式化过一次并已 rebase 吸收）。
-  - `flutter analyze --no-pub --no-fatal-infos lib test` => exit 0。
-  - 目标测试：assembler 16 + composer 14 + 语言映射 4 + 对话框 + runtime 判定 2 + 分层棘轮 => 全通过。
-  - `bash scripts/quality_gate.sh --skip-pub-get`（全量，含工作日志契约）=> 通过（run 41567177240 绿）。
-- assembler 覆盖：参考顺序而非草稿顺序、插值行无草稿来源且保持琥珀色、受保护行变 locked、提案文档丢弃 globalOffset、被删行仍可见、覆盖率说明只在自动策略出现、参考警告按条数说明；ASR 优先的一一对应、低分行、受保护行、强制对齐有无词级证据两种标签、四种说明文案与警告透传；摘要计数与覆盖率可选项；标签枚举全覆盖。
-- composer 覆盖：接受即替换、未接受保留草稿、locked 无条件应用、无来源新行按审核顺序插入、被删行仅显式恢复且按时间戳插回、参考优先改时间才归零偏移（文本改动与 ASR 优先不动偏移）、时间溯源只跟随存活 id、缺 id 自动补齐；`isDifferent` 识别文本/时间/置信度/偏移/增删行。
-- PR #294 的 Flutter Quality Gate 通过后合并；合并后 `main` 的 push 门禁 run 41568282203 通过。
+- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证，随后删除该 workflow（最终 diff 不含任何 CI 文件）：`dart format`（相对 main 的改动文件）、`flutter analyze --no-pub --no-fatal-infos lib test`、目标测试（文档控制器 43 例 + 试听控制器 + 编辑历史 + 分层棘轮）、以及 `bash scripts/quality_gate.sh --skip-pub-get` 全量，**首次运行即全绿**（run 41576455387）。
+- 控制器覆盖：载入（补齐 id、恢复持久化标记、清空历史、选中首行、空文档无选中）；撤销/重做（文档与选中行一起回滚、空栈提示、新编辑清空重做、越界选中不恢复）；改行（只有改文字才算手工编辑、同行输入合并为一步、跨窗口另起一步、越界无操作、只有改时间才让试听失效）；删行（选中行夹取/前移/清空、手工标记移除、按下标索引的 fallback 元数据被丢弃、删到正在试听的行才丢高亮）；加行/插入（空文档 5 秒处、接在末行之后、按时间插到正确位置、丢弃 fallback 元数据、可撤销）；全局偏移（保持选中、合并为一步）；复核标记（可撤销、重复标记不再凭空多一步、取消标记可撤销）；批量更改（普通编辑使其失效、整体撤销恢复文档/标记/选中/脏标记、可清空选中）；恢复备份（只保留仍存在的标记、读取备份内持久化标记、夹取选中）；保存（持久化本次标记、无文档时抛错、markSaved 保留历史）；受保护行索引随行 id 走。
+- 逐行复刻 `tool/work_log.dart` 语义的本地脚本：生成文件一致 + 条目均被引用 + 无断链。
+- PR 的 Flutter Quality Gate 在合并前等待通过。
 
 ## 已知风险
 
@@ -48,6 +35,7 @@
 - 降级（R6）的取舍：`input` 类错误与取消不降级；降级后 `qualityMode` 仍记为请求的模式，真实情况看 `degraded` / `degradationReason`。降级后的草稿质量**等同 Whisper 单模型**，UI 已明确标注，不要把它当成双引擎结果去做质量对比。
 - 工具栏（Phase 3.2）的取舍：**不可用项置灰而不是隐藏**（「在播放位置插入」会写明「先试听本工程」），**筛选与偏移改成菜单但保留计数与当前值**，只读指标降级为文本。没有任何功能被删除；「下一处问题」按钮在原代码中不存在，因此没有新增。
 - **两次 `main` 门禁失败仍未定位**（run 41485065687、41498901477）：同一棵树在 PR 门禁与分支上的全量门禁都是绿的，最可能是 `main` 推送时 22 个专项 workflow 并发、跑满同一台 runner 导致的时序类用例抖动，但这是推断而不是结论。从下一轮起失败会自己报出用例名；在那之前不要把它们写成「已修复」。
+- 编辑会话（4.1 第三步）的取舍：**试听耦合是反转的，不是搬移的。** 控制器不认识试听，只回答「这次编辑是否让试听失效」；「这一行是不是正在播的那行」仍由屏幕判断（沿用原来的 lineId/索引语义）。因此改文字不会打断试听，改时间才会——与重构前逐字一致。另一个**有意的行为变化**：`setLineReviewed` 先比对当前复核状态，因为复核服务即使状态不变也会返回带新时间戳的新文档，旧的 `identical()` 判断抓不到，重复标记同一行会凭空多出一步撤销。刻意留在屏幕的是复核队列、筛选、跟随播放与聚焦请求——它们是从文档派生的视图状态。
 - 校对提案（4.1 第二步）的取舍：**审核行的中文标签跟着类型进 domain**。它们是复核载荷的一部分（对话框只负责渲染），代价是 domain 里出现用户可见文案；换来的是「管线输出 → 审核行」这段翻译可以被测试，而不必启动整个编辑器。另一个有意的行为收窄：ASR 优先在 `draft.lines[index]` 越界时不再抛 `RangeError`（原实现会让整次校对以「无法生成或应用校对提案」失败），而是把 `originalLine` 记为 null——管线本身保证一一对应，这里只是防御。
 - 强制对齐就绪判定的修正：`hasReadyComponents` 要求「组件被报出且 ready」，而 `isBaselineReady` 保留「缺项视为该 profile 不需要」的既有语义（有测试依赖它）。两者混用会把从未 inspect 到的组件当成可用，所以不要用 baseline 的写法改写可选能力检查。
 - 编辑器拆分（4.1 第一步）的取舍：**只搬不改**——pane 的参数列表原样保留，所以这一步没有改变任何渲染或交互；真正有逻辑变化的是试听状态机换成了控制器（行为逐条对应原实现，仅新增「释放后不再通知」这一保护）。**仍未拆的两块**是校对编排（`_openProofreadV2` 一族约 600 行）与文档编辑/撤销/保存流程，它们与对话框、`ServiceLocator`、proofread 管线耦合更深，下一步单独做 `LyricEditorController` 时应先拆校对编排。
@@ -74,8 +62,8 @@
 
 ## 下一步
 
-1. 下一步：4.1 第三步——文档编辑/撤销/保存的 `LyricEditorController`。屏幕里剩下的是 `_recordEdit`/`_undo`/`_redo`、行增删改、时间轴编辑、全局偏移与保存流程（约 900 行），它们与 `LyricEditHistory`、`_AlignmentUndoSnapshot`、播放位置强耦合；先抽「编辑操作 → 新文档 + 历史快照」这一层，UI 只负责触发与展示。若继续往下，再考虑把强制对齐 runner 的装配（现在内联在 `_openProofreadV2`，需要 `ServiceLocator`）移到可注入的工厂。
-2. 再之后：4.2 把装配层移到 `lib/app/`，逐步用构造注入替掉 `ServiceLocatorGlobal.I`（4.1/4.3 已经示范「注入服务 + 私有 widget 变公开可测」）。
+1. 下一步：4.2 把装配层移到 `lib/app/`，逐步用构造注入替掉 `ServiceLocatorGlobal.I`（4.1/4.3 已经示范「注入服务 + 私有 widget 变公开可测」）。编辑器侧剩下的唯一装配耦合是强制对齐 runner（内联在 `_openProofreadV2` 里读 `transcriptionSettingsStore` / `transcriptionProfileResolver` / `asrRuntimeManager`），它应该和 4.2 一起变成可注入的工厂，而不是继续留在屏幕里。
+2. 再之后：4.4 引入最小状态管理时，`LyricEditorDocumentController` 与 `LineAuditionController` 已经是可以直接接管的 ChangeNotifier 形态（前者是纯 Dart 对象，改动成本很低）。
 3. 需要硬件或真实语料的部分不变：Phase 2 首启动、1.6 的 Whisper 参数、R5 可安装性。
 4. Phase 1.6 剩下的 Whisper 解码参数与 `--prompt`（R7）需要用 `--baseline --fail-on-regression` 验收，等真实语料。
 5. 需要用户提供 5–10 首人工校对语料后，用 `--baseline --fail-on-regression` 出真实基线并填进报告的 Phase 0 验收行。
