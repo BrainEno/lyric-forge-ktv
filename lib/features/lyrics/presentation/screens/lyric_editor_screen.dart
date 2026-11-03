@@ -2594,4 +2594,3 @@ class _EmptyLyricsState extends StatelessWidget {
     );
   }
 }
-
