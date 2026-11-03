@@ -75,7 +75,15 @@ class AsrRuntimeStatus {
 
   /// The Whisper baseline is installed, so a run can produce a draft even if
   /// the optional second engine is missing or broken.
-  bool get isBaselineReady => _ready(baselineComponents);
+  bool get isBaselineReady => areReady(baselineComponents);
+
+  /// Whether every component in [required] is installed and ready.
+  ///
+  /// Optional capabilities ask for a subset instead of the whole profile: the
+  /// forced aligner needs `qwenRuntime` + `qwenAligner`, and a ready Qwen model
+  /// is irrelevant to it. Callers that re-derive this from `components` tend to
+  /// drift from [isReady], which requires everything.
+  bool areReady(Set<AsrRuntimeComponent> required) => _ready(required);
 
   /// Baseline components that would block recognition, for error messages.
   List<AsrRuntimeComponentStatus> get missingBaselineComponents => components

@@ -137,5 +137,68 @@ void main() {
         AsrRuntimeComponent.whisperModel,
       ]);
     });
+
+    test('areReady answers for an optional subset, not the whole profile', () {
+      const status = AsrRuntimeStatus(
+        profile: profile,
+        managedRoot: '/tmp/runtime',
+        components: [
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.qwenRuntime,
+            state: AsrRuntimeComponentState.ready,
+            label: 'Qwen runtime',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.qwenAligner,
+            state: AsrRuntimeComponentState.ready,
+            label: 'Qwen aligner',
+            detail: 'ready',
+          ),
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.qwenModel,
+            state: AsrRuntimeComponentState.missing,
+            label: 'Qwen model',
+            detail: 'missing',
+          ),
+        ],
+      );
+
+      // The aligner does not need the Qwen ASR model, so a profile that is not
+      // "fully ready" can still satisfy this capability.
+      expect(status.isReady, isFalse);
+      expect(
+        status.areReady(const {
+          AsrRuntimeComponent.qwenRuntime,
+          AsrRuntimeComponent.qwenAligner,
+        }),
+        isTrue,
+      );
+      expect(
+        status.areReady(const {
+          AsrRuntimeComponent.qwenRuntime,
+          AsrRuntimeComponent.qwenModel,
+        }),
+        isFalse,
+      );
+    });
+
+    test('areReady is false when a required component is absent entirely', () {
+      const status = AsrRuntimeStatus(
+        profile: profile,
+        managedRoot: '/tmp/runtime',
+        components: [
+          AsrRuntimeComponentStatus(
+            component: AsrRuntimeComponent.ffmpeg,
+            state: AsrRuntimeComponentState.ready,
+            label: 'FFmpeg',
+            detail: 'ready',
+          ),
+        ],
+      );
+
+      expect(status.areReady(const {AsrRuntimeComponent.qwenAligner}), isFalse);
+      expect(status.areReady(const {AsrRuntimeComponent.ffmpeg}), isTrue);
+    });
   });
 }
