@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -98,7 +97,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   LyricReviewFilter _filter = LyricReviewFilter.all;
 
   LyricDocument? get _editingDocument => _editor.document;
-  bool get _hasChanges => _editor.hasChanges;
   int? get _selectedLineIndex => _editor.selectedLineIndex;
 
   /// 插入新行后递增，用于让列表/检查器知道"该聚焦这个新行"。
