@@ -868,12 +868,28 @@ class ServiceLocator {
 
 **棘轮**：`AppServices.instance` 调用点 72 → **54**（34 → 29 个文件）；新增断言——播放面五个文件零 `AppServices`、路由表必须调用对应 assembler、`player_screen.dart` 不得再声明 `_FullScreenKtvView`、`immersive_ktv_screen.dart` 是全屏 KTV 的唯一实现。
 
+### 4.2 第三步（2026-11-03，KTV 录音回到全屏 KTV）
+
+第二步把「KTV 录音/导出/历史没有入口」这件事摆到了台面上。这一步把它补回去，位置按产品决定：**沉浸式 KTV**（`ImmersiveKtvScreen`），不另建第二套全屏面。
+
+**九个协作者一个包**。全屏 KTV 需要的不是五个服务，而是九个：工程仓库、媒体元数据仓库、播放器、播放会话、路径规范化器，加上麦克风、录音、演唱历史、试听。`ImmersiveKtvDependencies` 把它们绑成一个对象，由 `lib/app/playback_assembly.dart` 的 `assembleImmersiveKtvDependencies` 装配；`ImmersiveKtvScreen` 只收一个 `required this.dependencies`，播放器屏与 Now Playing 各自持一份这个包。顺带把 `PlayerScreenDependencies` 里只为全屏 KTV 存在的 `metadataRepository` / `pathCanonicalizer` 两个字段收进包里（5 字段 → 4），少一个「这个字段到底谁在用」的问题。
+
+**界面的三段迁移**（都来自被删的 `_FullScreenKtvView`，行为逐条对应）：
+
+- `KtvRecordingToolbar`：录音/停止、录音时长、演唱历史、麦克风四个入口。导出中禁用录音，录音或导出中禁用历史。
+- `KtvMicrophoneSheet`：原 `_KtvAudioControlsSheet` 原样搬家（设备切换/刷新、实时监听、麦克风/歌曲/监听延迟三个滑块，以及录音期间锁设备与歌曲音量）。
+- `KtvTakeHistorySheet`：列表、收藏、重命名、删除、点开成品；中断录音的恢复提示从「打开前的 SnackBar」改成表内横幅——扫描现在发生在列表那里，提示也就该在那里。
+
+**变更锁是这一步真正的交付物**。`_takeMutationLocked` 的语义（`isRecording || isExporting` 期间不许删除/重命名/收藏）与两句话术逐字恢复，并且照旧在重命名对话框、删除确认框 **await 之后**再判一次——导出可能正好在这期间开始。与旧实现的两点差别：锁放在 `KtvTakeHistorySheet` 而不是屏幕上（这样测试可以直接把录音服务置为 `isExporting` 观察拒绝，而不必扫源码找函数名），以及录音/导出期间屏幕顶部常显一个指示胶囊（控制层会淡出，否则录制中的 take 既看不见也停不下来）。
+
+**没有改变的东西**：录音开始/停止、导出与试听仍然全部走 `KtvRecordingService` 与 `AudioPreviewService`，录音不进入播放队列，4.3 的 `exclusive_preview` 语义未被触碰。**棘轮不动**：54 处 / 29 文件——这四个 KTV 服务在第二步已随死代码离开 `lib/features`，本步没有新的单例可迁，也就不能声称减了。
+
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
 | 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例）。第三步（同日）：编辑会话 → `LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史），屏幕 2,298 → 2,064 行（43 例）。**三步合计 4,591 → 2,064 行**。剩余：强制对齐 runner 装配（属 4.2） |
-| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口（见上文），待产品决定 | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
+| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口。第三步（同日）：`ImmersiveKtvDependencies`（9 个协作者）+ `lib/app/playback_assembly.dart` 装配，录音工具条 / 麦克风 sheet / 演唱历史 sheet 回到 `ImmersiveKtvScreen`，恢复 `isRecording || isExporting` 变更锁；棘轮维持 54 处 / 29 文件 | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
 | 4.5 | 合并/退役 22 个专项 workflow，保留主门禁 + 原生构建 + runtime 发布 + 图标 |
