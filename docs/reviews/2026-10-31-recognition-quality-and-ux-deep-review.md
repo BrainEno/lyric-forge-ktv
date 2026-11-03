@@ -804,11 +804,22 @@ class ServiceLocator {
 | 3.4 | 撤销栈（≥50 步，Ctrl+Z）+ 修复「保存并返回」 | 误改 5 行可整体回退。**已完成 2026-11-03**：「保存并返回」在 3.1 修完；撤销栈 50 步、Ctrl/Cmd+Z 与 Ctrl/Cmd+Shift+Z、Ctrl+Y |
 | 3.5 | 加统一导航（桌面 NavigationRail / 移动底部导航）：音乐库 / 工程 / 校对 / 设置 | 任意页面 1 次点击回到主线。**已完成 2026-11-03**：全局侧栏/底栏 + 新增「校对」收件箱；音乐库不再自带第二套导航 |
 
+### 4.1 现状补充（2026-11-03 第一步）
+
+`LyricEditorScreen` 原为 4,591 行、**零 widget 测试**，因为所有状态都在一个 2,067 行的 `State` 里，任何行为都只能靠驱动整个编辑器来验证。第一步做了两件互不依赖的事：
+
+1. **把行试听的状态机搬出去。** `LineAuditionController`（`presentation/controllers/`）接管"当前在试听哪一行、是否循环、到达窗口结尾该暂停还是回到起点、动作未完成时忽略重复的边界事件、队列换到别的工程就丢弃高亮"。这些规则此前只能用整个编辑器去碰，现在有 13 个用例直接覆盖，包括调用顺序（先 seek 起播位置再 play）、同窗口的暂停/继续/重播、循环回跳、重复边界事件被吞掉、以及边界动作抛错时上报而不是静默吞掉。
+2. **把三个 pane 拆成文件。** `lyric_list_pane.dart`（列表 + 行内编辑 + 时间戳对话框 + 复核行）、`lyric_inspector_pane.dart`（检查器 + 时间轴编辑 + 候选卡）、`lyric_editor_atoms.dart`（徽章、微调按钮、时间格式化）。参数一个没改，行为逐字保留；`_LyricListPane` 等私有类因此变成可测试的公开部件，并新增 5 个 widget 测试（渲染、点击选中、两种空状态、搜索过滤）。
+
+顺带消掉一个重复常量：编辑器里的 `_reviewConfidenceThreshold = 70` 与 `LyricReviewQueue` 里的默认值原本是两份，现在统一为 `kLyricReviewConfidenceThreshold`。
+
+屏幕从 4,591 → 2,597 行。**仍然留在 `_LyricEditorScreenState` 里的是最大的两块**：校对编排（`_openProofreadV2` 一族约 600 行，含策略选择、管线调用与提案提交）与文档编辑/撤销/保存流程。这两块是下一步 `LyricEditorController` 的对象，但它们与对话框、`ServiceLocator`、prooflread 管线耦合更深，值得单独一轮，而不是继续机械搬运。
+
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
-| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar |
+| 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行的屏幕；行试听状态机抽成 `LineAuditionController`（13 例测试），列表 pane / inspector pane / 共享原子部件独立成文件并带 widget 测试。**未完成**：编辑与校对编排仍在屏幕的 `State` 里，`LyricEditorController` 尚未建立 |
 | 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
