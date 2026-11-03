@@ -1,0 +1,26 @@
+name: Temporary Provider lock resolution
+
+on:
+  push:
+    branches:
+      - arena/746aa31e-lyric-forge-ktv
+
+permissions:
+  contents: read
+
+env:
+  PUB_ENVIRONMENT: github-actions
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve dependencies
+        run: flutter pub get
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resolved-provider-pubspec-lock
+          path: pubspec.lock
+          if-no-files-found: error

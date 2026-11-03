@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
@@ -80,7 +82,7 @@ class LyricEditResult {
 /// * undo/redo never restore a selection that no longer exists;
 /// * any ordinary edit invalidates the batch-change snapshot, because undoing a
 ///   batch on top of a later edit would silently discard that edit.
-class LyricEditorDocumentController {
+class LyricEditorDocumentController extends ChangeNotifier {
   LyricEditorDocumentController({
     this.markerService = const LyricManualEditMarkerService(),
     this.reviewDecisionService = const LyricReviewDecisionService(),
@@ -137,7 +139,9 @@ class LyricEditorDocumentController {
   String? get redoLabel => history.redoLabel;
 
   void select(int? index) {
+    if (_selectedLineIndex == index) return;
     _selectedLineIndex = index;
+    notifyListeners();
   }
 
   /// A freshly loaded document is a new baseline: undo must never walk back into
@@ -157,12 +161,15 @@ class LyricEditorDocumentController {
         _selectedLineIndex! >= document.lines.length) {
       _selectedLineIndex = 0;
     }
+    notifyListeners();
     return document;
   }
 
   void markSaved() {
+    if (!_hasChanges && _alignmentSnapshot == null) return;
     _hasChanges = false;
     _alignmentSnapshot = null;
+    notifyListeners();
   }
 
   /// The document as it should be written to disk, with this session's manual
@@ -185,6 +192,7 @@ class LyricEditorDocumentController {
       return const LyricEditResult.notApplied(message: '没有可撤销的修改');
     }
     _restoreHistoryEntry(snapshot);
+    notifyListeners();
     return LyricEditResult(hint: '已撤销：${snapshot.label}', clearsAudition: true);
   }
 
@@ -196,6 +204,7 @@ class LyricEditorDocumentController {
       return const LyricEditResult.notApplied(message: '没有可重做的修改');
     }
     _restoreHistoryEntry(snapshot);
+    notifyListeners();
     return LyricEditResult(hint: '已重做：${snapshot.label}', clearsAudition: true);
   }
 
@@ -224,6 +233,7 @@ class LyricEditorDocumentController {
     );
     _selectedLineIndex = lines.length - 1;
     _markEdited();
+    notifyListeners();
     return const LyricEditResult();
   }
 
@@ -247,6 +257,7 @@ class LyricEditorDocumentController {
     );
     _selectedLineIndex = insertion.index;
     _markEdited();
+    notifyListeners();
     return LyricEditResult(insertedLineIndex: insertion.index);
   }
 
@@ -284,6 +295,7 @@ class LyricEditorDocumentController {
     lines[index] = updatedLine;
     _document = document.copyWith(lines: lines);
     _markEdited();
+    notifyListeners();
     return LyricEditResult(clearsAudition: invalidateAudition);
   }
 
@@ -312,6 +324,7 @@ class LyricEditorDocumentController {
       _selectedLineIndex = _selectedLineIndex! - 1;
     }
     _markEdited();
+    notifyListeners();
     return LyricEditResult(clearsAudition: auditionTarget);
   }
 
@@ -319,6 +332,7 @@ class LyricEditorDocumentController {
     _recordEdit('调整全局偏移', mergeKey: 'offset');
     _document = _document?.copyWith(globalOffset: offset);
     _markEdited();
+    notifyListeners();
     return const LyricEditResult(clearsAudition: true);
   }
 
@@ -347,6 +361,7 @@ class LyricEditorDocumentController {
     );
     _document = updated;
     _markEdited();
+    notifyListeners();
     return const LyricEditResult();
   }
 
@@ -369,6 +384,7 @@ class LyricEditorDocumentController {
     _selectedLineIndex = selectedLineIndex;
     _markEdited();
     _alignmentSnapshot = snapshot;
+    notifyListeners();
     return const LyricEditResult(clearsAudition: true);
   }
 
@@ -400,6 +416,7 @@ class LyricEditorDocumentController {
           .clamp(0, document.lines.length - 1)
           .toInt();
     }
+    notifyListeners();
     return const LyricEditResult(clearsAudition: true);
   }
 
@@ -416,6 +433,7 @@ class LyricEditorDocumentController {
     _selectedLineIndex = snapshot.selectedLineIndex;
     _hasChanges = snapshot.hasChanges;
     _alignmentSnapshot = null;
+    notifyListeners();
     return const LyricEditResult(clearsAudition: true);
   }
 

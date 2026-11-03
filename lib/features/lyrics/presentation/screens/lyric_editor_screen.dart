@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
@@ -158,10 +159,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (hint != null) _showEditHint(hint);
       return;
     }
-    setState(() {
-      _audition.clear();
-      _refreshReviewQueue(_editingDocument!, _reviewPriorityAudioDuration);
-    });
+    _audition.clear();
     if (hint != null) _showEditHint(hint);
   }
 
@@ -240,7 +238,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   }
 
   void _loadProject() {
-    _projectFuture = _repository.getProjectById(widget.projectId);
+    _projectFuture = _repository.getProjectById(widget.projectId).then((project) {
+      if (!mounted || project == null || _editor.document != null) {
+        return project;
+      }
+      _editor.load(
+        project.lyricDocument ??
+            const LyricDocument(language: 'zh', lines: <LyricLine>[]),
+      );
+      return project;
+    });
   }
 
   Future<void> _saveChanges(ProjectManifest project) async {
@@ -255,7 +262,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     await _repository.updateProject(updated);
     if (!mounted) return;
 
-    setState(_editor.markSaved);
+    _editor.markSaved();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('歌词已保存'), duration: Duration(seconds: 2)),
     );
@@ -949,7 +956,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   Future<void> _seekPlayback(Duration position) async {
     try {
       if (_audition.isActive && mounted) {
-        setState(_audition.clear);
+        _audition.clear();
       }
       if (_audioService.currentState.isPlaying) {
         await _audioService.pause();
@@ -971,9 +978,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
     if (!result.applied) return;
     final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
-    setState(() {
-      if (result.clearsAudition) _audition.clear();
-    });
+    if (result.clearsAudition) _audition.clear();
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
@@ -1028,16 +1033,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
     if (!result.applied) return;
     final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
-    setState(() {
-      if (result.clearsAudition) _audition.clear();
-    });
+    if (result.clearsAudition) _audition.clear();
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
   void _updateGlobalOffset(Duration offset) {
     final shouldPauseAudition = _audition.isSounding;
     _editor.updateGlobalOffset(offset);
-    setState(_audition.clear);
+    _audition.clear();
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
 
@@ -1149,7 +1152,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!mounted) return;
       switch (result.action) {
         case LineAuditionAction.started:
-          setState(() => _editor.select(index));
+          _editor.select(index);
         case LineAuditionAction.invalid:
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1257,7 +1260,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     switch (result.action) {
       case LineAuditionAction.started:
-        setState(() => _editor.select(index));
+        _editor.select(index);
         return null;
       case LineAuditionAction.invalid:
         if (showError) {
@@ -1302,7 +1305,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           playback.position >= active.window.endAt!) {
         // The editor-wide transport resumes the whole track after a bounded
         // line audition has completed; the row button remains the replay action.
-        setState(_audition.clear);
+        _audition.clear();
       }
       await _playbackSession.togglePlayPause();
     } catch (error) {
@@ -1315,9 +1318,37 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ProjectManifest?>(
-      future: _projectFuture,
-      builder: (context, snapshot) {
+    return ChangeNotifierProvider<LyricEditorDocumentController>.value(
+      value: _editor,
+      child: Builder(
+        builder: (context) {
+          context.select<
+            LyricEditorDocumentController,
+            (
+              LyricDocument?,
+              bool,
+              int?,
+              bool,
+              bool,
+              String?,
+              String?,
+              LyricEditorSnapshot?,
+            )
+          >(
+            (controller) => (
+              controller.document,
+              controller.hasChanges,
+              controller.selectedLineIndex,
+              controller.canUndo,
+              controller.canRedo,
+              controller.undoLabel,
+              controller.redoLabel,
+              controller.alignmentSnapshot,
+            ),
+          );
+          return FutureBuilder<ProjectManifest?>(
+            future: _projectFuture,
+            builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _LoadingState();
         }
@@ -1327,18 +1358,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         }
 
         final project = snapshot.data!;
-        if (_editingDocument == null) {
-          // 首次构建时装载文档：补齐稳定行标识、恢复上次保存的手工编辑保护
-          // 标记，并清空撤销历史（撤销不能跨到另一首歌）。
-          _editor.load(
-            project.lyricDocument ??
-                const LyricDocument(language: 'zh', lines: <LyricLine>[]),
-          );
-        }
-
-        _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
+        final document = _editingDocument!;
+        _refreshReviewQueue(document, project.audioAsset?.duration);
         final restoreProbe = const ReferenceAlignmentRestoreService()
-            .probeBackup(_editingDocument!);
+            .probeBackup(document);
         final canRestore = restoreProbe is ReferenceAlignmentBackupAvailable;
 
         return StreamBuilder<PlaybackState>(
@@ -1353,7 +1376,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
             return _LyricEditorContent(
               project: project,
-              document: _editingDocument!,
+              document: document,
               playback: playback,
               playbackBelongsToProject: playbackBelongsToProject,
               hasChanges: _hasChanges,
@@ -1363,7 +1386,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               auditionPlaying: playbackBelongsToProject && playback.isPlaying,
               loopCurrentLineAudition: _audition.loopEnabled,
               onLoopCurrentLineAuditionChanged: (value) {
-                setState(() => _audition.loopEnabled = value);
+                _audition.loopEnabled = value;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -1386,7 +1409,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               }),
               onFollowPlaybackChanged: (value) =>
                   setState(() => _followPlayback = value),
-              onSelectLine: (index) => setState(() => _editor.select(index)),
+              onSelectLine: _editor.select,
               onReviewDecision: (index, reviewed) =>
                   _setLineReviewDecision(project, index, reviewed: reviewed),
               onSave: () => _saveChanges(project),
@@ -1397,13 +1420,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               undoLabel: _editor.undoLabel,
               redoLabel: _editor.redoLabel,
               onExport: () => _exportLyrics(project),
-              onReferenceAlignment: _editingDocument!.lines.isEmpty
+              onReferenceAlignment: document.lines.isEmpty
                   ? null
                   : () => _openReferenceAlignment(project),
-              onReferenceProofread: _editingDocument!.lines.isEmpty
+              onReferenceProofread: document.lines.isEmpty
                   ? null
                   : () => _openReferenceProofread(project),
-              onProofreadV2: _editingDocument!.lines.isEmpty
+              onProofreadV2: document.lines.isEmpty
                   ? null
                   : () => _openProofreadV2(project),
               onUndoReferenceAlignment: _editor.alignmentSnapshot == null
@@ -1429,9 +1452,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               onTogglePlayback: () => _togglePlayback(project),
               manuallyEditedLineIndices: _manuallyEditedLineIndices,
             );
-          },
-        );
-      },
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -1443,6 +1467,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
     _audition.removeListener(_handleAuditionChanged);
     _audition.dispose();
+    _editor.dispose();
     super.dispose();
   }
 }

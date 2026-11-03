@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
@@ -16,6 +17,7 @@ import 'local_song_lyrics_import_action.dart';
 import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
 import 'playback_queue_panel.dart';
+import 'playback_session_state_scope.dart';
 import 'seekable_progress_bar.dart';
 
 class GlobalPlayerBar extends StatefulWidget {
@@ -95,11 +97,11 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   Widget build(BuildContext context) {
     if (!AppResponsive.isDesktopTarget()) return const SizedBox.shrink();
 
-    return StreamBuilder<PlaybackSessionState>(
-      stream: _session.stateStream,
-      initialData: _session.currentState,
-      builder: (context, sessionSnapshot) {
-        final session = sessionSnapshot.data ?? const PlaybackSessionState();
+    return PlaybackSessionStateScope(
+      session: _session,
+      child: Builder(
+        builder: (context) {
+          final session = context.watch<PlaybackSessionState>();
         final item = session.currentItem;
         if (item == null) {
           if (_queueExpanded) {
@@ -153,6 +155,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               child: PlaybackQueuePanel(
                                 session: _session,
+                                sessionState: session,
                                 collectionRepository:
                                     widget.dependencies.collectionRepository,
                                 height: queueHeight,
@@ -340,6 +343,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             if (!compact)
                               PlaybackModeControls(
                                 session: _session,
+                                sessionState: session,
                                 compact: true,
                               ),
                             if (!minimal)
@@ -422,9 +426,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                 );
               },
             );
-          },
-        );
-      },
+        },
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -10,6 +11,7 @@ import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import 'playback_action_feedback.dart';
+import 'playback_session_state_scope.dart';
 import 'seekable_progress_bar.dart';
 
 /// Compact Spotify-style player chrome for mobile.
@@ -40,11 +42,11 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<PlaybackSessionState>(
-      stream: _session.stateStream,
-      initialData: _session.currentState,
-      builder: (context, sessionSnapshot) {
-        final session = sessionSnapshot.data ?? const PlaybackSessionState();
+    return PlaybackSessionStateScope(
+      session: _session,
+      child: Builder(
+        builder: (context) {
+          final session = context.watch<PlaybackSessionState>();
         final item = session.currentItem;
         if (item == null) return const SizedBox.shrink();
 
@@ -192,7 +194,8 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
             );
           },
         );
-      },
+        },
+      ),
     );
   }
 }

@@ -30,6 +30,9 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Scoped dependency injection and listenable state selection for presentation.
+  provider: ^6.1.2
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
