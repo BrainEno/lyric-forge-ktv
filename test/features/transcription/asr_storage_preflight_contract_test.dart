@@ -4,23 +4,26 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('service locator wraps production runtime with storage guard', () {
-    final locator = File('lib/core/services/service_locator.dart').readAsStringSync();
+    final assembly = File('lib/app/app_services.dart').readAsStringSync();
 
-    expect(locator, contains('LocalAsrStoragePreflightService('));
-    expect(locator, contains('StoragePreflightAsrRuntimeManager('));
-    expect(locator, contains('asrStoragePreflightService'));
+    expect(assembly, contains('LocalAsrStoragePreflightService('));
+    expect(assembly, contains('StoragePreflightAsrRuntimeManager('));
+    expect(assembly, contains('asrStoragePreflightService'));
   });
 
-  test('first-run setup shows storage budget and blocks insufficient install', () {
-    final setup = File(
-      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-    ).readAsStringSync();
+  test(
+    'first-run setup shows storage budget and blocks insufficient install',
+    () {
+      final setup = File(
+        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
+      ).readAsStringSync();
 
-    expect(setup, contains('AsrStoragePreflightCard('));
-    expect(setup, contains('_ensureStorageBeforeInstall()'));
-    expect(setup, contains('storageBlocked'));
-    expect(setup, contains("'空间不足'"));
-  });
+      expect(setup, contains('AsrStoragePreflightCard('));
+      expect(setup, contains('_ensureStorageBeforeInstall()'));
+      expect(setup, contains('storageBlocked'));
+      expect(setup, contains("'空间不足'"));
+    },
+  );
 
   test('settings shows storage budget and rechecks before install', () {
     final settings = File(

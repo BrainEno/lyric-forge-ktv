@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
@@ -33,8 +33,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   @override
   void initState() {
     super.initState();
-    _session = ServiceLocatorGlobal.I.playbackSessionService;
-    _audio = ServiceLocatorGlobal.I.audioPlayerService;
+    _session = AppServices.instance.playbackSessionService;
+    _audio = AppServices.instance.audioPlayerService;
   }
 
   Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {
@@ -45,9 +45,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
       title: item.title,
     );
     if (!context.mounted || playlist == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已加入“${playlist.name}”')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('已加入“${playlist.name}”')));
   }
 
   Future<void> _handleSongAction(
@@ -103,7 +103,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
           stream: _audio.stateStream,
           initialData: _audio.currentState,
           builder: (context, playbackSnapshot) {
-            final playback = playbackSnapshot.data ?? const PlaybackState.idle();
+            final playback =
+                playbackSnapshot.data ?? const PlaybackState.idle();
 
             return LayoutBuilder(
               builder: (context, constraints) {
@@ -134,7 +135,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                           child: Align(
                             alignment: Alignment.centerRight,
                             child: ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: queueMaxWidth),
+                              constraints: BoxConstraints(
+                                maxWidth: queueMaxWidth,
+                              ),
                               child: PlaybackQueuePanel(
                                 session: _session,
                                 height: queueHeight,
@@ -157,22 +160,37 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                         child: Row(
                           children: [
                             InkWell(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                              onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
+                              borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusSmall,
+                              ),
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                Routes.nowPlaying,
+                              ),
                               child: _Artwork(
                                 item: item,
                                 extent: minimal ? 40 : 48,
                               ),
                             ),
-                            SizedBox(width: minimal ? AppSpacing.sm : AppSpacing.md),
+                            SizedBox(
+                              width: minimal ? AppSpacing.sm : AppSpacing.md,
+                            ),
                             Expanded(
                               child: InkWell(
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                                onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusSmall,
+                                ),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  Routes.nowPlaying,
+                                ),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 4,
+                                  ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
@@ -182,7 +200,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleSmall
-                                            ?.copyWith(fontWeight: FontWeight.w700),
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                       ),
                                       if (!compact) ...[
                                         const SizedBox(height: 2),
@@ -190,16 +210,18 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                           item.artist?.trim().isNotEmpty == true
                                               ? item.artist!
                                               : item.projectId != null
-                                                  ? '歌词工程'
-                                                  : item.isRemoteStream
-                                                      ? '远程音乐'
-                                                      : '本地音乐',
+                                              ? '歌词工程'
+                                              : item.isRemoteStream
+                                              ? '远程音乐'
+                                              : '本地音乐',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodySmall
-                                              ?.copyWith(color: AppColors.textTertiary),
+                                              ?.copyWith(
+                                                color: AppColors.textTertiary,
+                                              ),
                                         ),
                                       ],
                                     ],
@@ -210,18 +232,28 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             if (!compact)
                               IconButton(
                                 tooltip: '音乐库',
-                                onPressed: () => Navigator.pushNamed(context, Routes.library),
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  Routes.library,
+                                ),
                                 icon: const Icon(Icons.library_music_rounded),
                               ),
                             if (!compact)
                               IconButton(
                                 tooltip: '收藏与播放列表',
-                                onPressed: () => Navigator.pushNamed(context, Routes.collections),
-                                icon: const Icon(Icons.collections_bookmark_outlined),
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  Routes.collections,
+                                ),
+                                icon: const Icon(
+                                  Icons.collections_bookmark_outlined,
+                                ),
                               ),
                             if (localSong)
                               LocalFavoriteButton(
-                                key: ValueKey('favorite:${item.audioAsset.originalPath}'),
+                                key: ValueKey(
+                                  'favorite:${item.audioAsset.originalPath}',
+                                ),
                                 sourcePath: item.audioAsset.originalPath,
                               ),
                             if (localSong && !compact) ...[
@@ -232,7 +264,11 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               IconButton(
                                 tooltip: item.hasLyrics ? '打开歌词' : '导入歌词文件',
-                                onPressed: () => importLyricsForLocalPlaybackItem(context, item),
+                                onPressed: () =>
+                                    importLyricsForLocalPlaybackItem(
+                                      context,
+                                      item,
+                                    ),
                                 icon: Icon(
                                   item.hasLyrics
                                       ? Icons.lyrics_rounded
@@ -241,14 +277,16 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               IconButton(
                                 tooltip: '编辑歌曲资料与封面',
-                                onPressed: () => showLocalMediaMetadataDialog(context, item),
+                                onPressed: () =>
+                                    showLocalMediaMetadataDialog(context, item),
                                 icon: const Icon(Icons.edit_outlined),
                               ),
                             ],
                             if (localSong && compact)
                               PopupMenuButton<String>(
                                 tooltip: '更多歌曲操作',
-                                onSelected: (value) => _handleSongAction(context, item, value),
+                                onSelected: (value) =>
+                                    _handleSongAction(context, item, value),
                                 itemBuilder: (_) => [
                                   if (minimal)
                                     const PopupMenuItem(
@@ -265,7 +303,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                   ),
                                   PopupMenuItem(
                                     value: 'lyrics',
-                                    child: Text(item.hasLyrics ? '打开歌词' : '导入歌词文件'),
+                                    child: Text(
+                                      item.hasLyrics ? '打开歌词' : '导入歌词文件',
+                                    ),
                                   ),
                                   const PopupMenuItem(
                                     value: 'edit',
@@ -284,9 +324,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 tooltip: '上一首 / 重新开始',
                                 onPressed: session.canSkipPrevious
                                     ? () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.skipPrevious,
-                                        )
+                                        context,
+                                        _session.skipPrevious,
+                                      )
                                     : null,
                                 icon: const Icon(Icons.skip_previous_rounded),
                               ),
@@ -298,9 +338,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 onPressed: playback.isBuffering
                                     ? null
                                     : () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.togglePlayPause,
-                                        ),
+                                        context,
+                                        _session.togglePlayPause,
+                                      ),
                                 style: IconButton.styleFrom(
                                   backgroundColor: AppColors.pureWhite,
                                   foregroundColor: AppColors.pureBlack,
@@ -326,13 +366,15 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                                 tooltip: '下一首',
                                 onPressed: session.canSkipNext
                                     ? () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.skipNext,
-                                        )
+                                        context,
+                                        _session.skipNext,
+                                      )
                                     : null,
                                 icon: const Icon(Icons.skip_next_rounded),
                               ),
-                            SizedBox(width: minimal ? AppSpacing.xs : AppSpacing.sm),
+                            SizedBox(
+                              width: minimal ? AppSpacing.xs : AppSpacing.sm,
+                            ),
                             TextButton.icon(
                               onPressed: () => setState(
                                 () => _queueExpanded = !_queueExpanded,
@@ -368,10 +410,7 @@ class _Artwork extends StatelessWidget {
   final PlaybackItem item;
   final double extent;
 
-  const _Artwork({
-    required this.item,
-    this.extent = 48,
-  });
+  const _Artwork({required this.item, this.extent = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +421,8 @@ class _Artwork extends StatelessWidget {
     final hasArtwork = file != null && file.existsSync();
     final rawRemote = item.audioAsset.metadata['remoteArtworkUri'];
     final remote = rawRemote is String ? Uri.tryParse(rawRemote.trim()) : null;
-    final hasRemote = item.isRemoteStream &&
+    final hasRemote =
+        item.isRemoteStream &&
         remote != null &&
         (remote.scheme == 'http' || remote.scheme == 'https');
 
@@ -400,12 +440,12 @@ class _Artwork extends StatelessWidget {
         child: hasArtwork
             ? Image.file(file, fit: BoxFit.cover)
             : hasRemote
-                ? Image.network(
-                    remote.toString(),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => fallback,
-                  )
-                : fallback,
+            ? Image.network(
+                remote.toString(),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              )
+            : fallback,
       ),
     );
   }

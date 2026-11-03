@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
@@ -21,10 +21,7 @@ enum RemoteCatalogView { artists, albums }
 class MobileRemoteGroupedLibraryScreen extends StatefulWidget {
   final RemoteCatalogView view;
 
-  const MobileRemoteGroupedLibraryScreen({
-    super.key,
-    required this.view,
-  });
+  const MobileRemoteGroupedLibraryScreen({super.key, required this.view});
 
   @override
   State<MobileRemoteGroupedLibraryScreen> createState() =>
@@ -43,12 +40,12 @@ class _MobileRemoteGroupedLibraryScreenState
   bool _loading = false;
   String? _error;
 
-  RemoteCatalogGrouping get _grouping => widget.view == RemoteCatalogView.artists
+  RemoteCatalogGrouping get _grouping =>
+      widget.view == RemoteCatalogView.artists
       ? RemoteCatalogGrouping.artists
       : RemoteCatalogGrouping.albums;
 
-  String get _title =>
-      widget.view == RemoteCatalogView.artists ? '艺人' : '专辑';
+  String get _title => widget.view == RemoteCatalogView.artists ? '艺人' : '专辑';
 
   IconData get _fallbackIcon => widget.view == RemoteCatalogView.artists
       ? Icons.person_rounded
@@ -57,7 +54,7 @@ class _MobileRemoteGroupedLibraryScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _client = services.mediaHubClientService;
     _localLibrary = services.localMediaLibraryRepository;
     _session = services.playbackSessionService;
@@ -100,7 +97,8 @@ class _MobileRemoteGroupedLibraryScreenState
       final localByTrack = <String, LocalMediaLibraryEntry>{};
       for (final track in tracks) {
         for (final entry in entries) {
-          if (!entry.isMissing && remoteTrackMatchesDownloadedEntry(track, entry)) {
+          if (!entry.isMissing &&
+              remoteTrackMatchesDownloadedEntry(track, entry)) {
             localByTrack[track.id] = entry;
             break;
           }
@@ -121,11 +119,13 @@ class _MobileRemoteGroupedLibraryScreenState
   List<RemoteAudioTrack> get _visibleTracks {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return _tracks;
-    return _tracks.where((track) {
-      return track.title.toLowerCase().contains(query) ||
-          (track.artist?.toLowerCase().contains(query) ?? false) ||
-          (track.album?.toLowerCase().contains(query) ?? false);
-    }).toList(growable: false);
+    return _tracks
+        .where((track) {
+          return track.title.toLowerCase().contains(query) ||
+              (track.artist?.toLowerCase().contains(query) ?? false) ||
+              (track.album?.toLowerCase().contains(query) ?? false);
+        })
+        .toList(growable: false);
   }
 
   PlaybackItem _itemFor(RemoteAudioTrack track) {
@@ -238,16 +238,12 @@ class _MobileRemoteGroupedLibraryScreenState
                               name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
+                              style: Theme.of(context).textTheme.titleLarge
                                   ?.copyWith(fontWeight: FontWeight.w900),
                             ),
                             Text(
                               '${tracks.length} 首歌曲',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppColors.textTertiary),
                             ),
                           ],
@@ -286,11 +282,11 @@ class _MobileRemoteGroupedLibraryScreenState
                         subtitle: Text(
                           widget.view == RemoteCatalogView.artists
                               ? (track.album?.trim().isNotEmpty == true
-                                  ? track.album!
-                                  : track.format.toUpperCase())
+                                    ? track.album!
+                                    : track.format.toUpperCase())
                               : (track.artist?.trim().isNotEmpty == true
-                                  ? track.artist!
-                                  : track.format.toUpperCase()),
+                                    ? track.artist!
+                                    : track.format.toUpperCase()),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -437,10 +433,9 @@ class _DisconnectedCatalogState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               '请先在“歌曲”页连接电脑',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.xs),
             const Text(
@@ -502,18 +497,16 @@ class _CatalogGroupCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 2),
               Text(
                 '$count 首',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ),

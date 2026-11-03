@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
@@ -15,7 +14,6 @@ import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
-import '../../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
@@ -50,6 +48,7 @@ import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
 import '../controllers/lyric_editor_document_controller.dart';
+import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_inspector_pane.dart';
@@ -63,7 +62,18 @@ import '../widgets/unsaved_lyric_edits_dialog.dart';
 class LyricEditorScreen extends StatefulWidget {
   final String projectId;
 
-  const LyricEditorScreen({super.key, required this.projectId});
+  /// Everything this screen talks to, decided by the assembly layer.
+  ///
+  /// Required rather than defaulted to the app singleton: the editor is the
+  /// first feature migrated off the global locator (Phase 4.2), and a default
+  /// would quietly bring it back.
+  final LyricEditorDependencies dependencies;
+
+  const LyricEditorScreen({
+    super.key,
+    required this.projectId,
+    required this.dependencies,
+  });
 
   @override
   State<LyricEditorScreen> createState() => _LyricEditorScreenState();
@@ -200,20 +210,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = ServiceLocatorGlobal.I.projectRepository;
-    _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
-    _audioService = ServiceLocatorGlobal.I.audioPlayerService;
+    final dependencies = widget.dependencies;
+    _repository = dependencies.projectRepository;
+    _playbackSession = dependencies.playbackSession;
+    _audioService = dependencies.audioPlayer;
     _audition = LineAuditionController(
       audioService: _audioService,
       playbackSession: _playbackSession,
       onBoundaryError: _showAuditionError,
     )..addListener(_handleAuditionChanged);
-    _exportService = ServiceLocatorGlobal.I.lyricFileExportService;
+    _exportService = dependencies.lyricFileExport;
     _lineMarkers = const LyricManualEditMarkerService();
     _editor = LyricEditorDocumentController(markerService: _lineMarkers);
-    _referenceParser = ReferenceLyricTextParser(
-      ServiceLocatorGlobal.I.lyricFileImportService,
-    );
+    _referenceParser = ReferenceLyricTextParser(dependencies.lyricFileImport);
     _loadProject();
   }
 
@@ -639,43 +648,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               audioDuration <= Duration.zero) {
             throw StateError('ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。');
           }
-          final locator = ServiceLocator();
           final language = ForcedAlignmentLanguage.resolve(document.language);
+          // The runner (settings store, profile resolver, runtime inspection,
+          // native aligner) is assembled in `lib/app/lyric_editor_assembly.dart`;
+          // this screen only supplies the request.
           final alignmentService = ForcedAlignmentProofreadService(
-            runner:
-                ({
-                  required String audioPath,
-                  required String text,
-                  required String language,
-                  required Duration audioDuration,
-                }) async {
-                  final savedConfig = await locator.transcriptionSettingsStore
-                      .load();
-                  if (savedConfig == null) {
-                    throw Exception('尚未配置本地转写运行时。');
-                  }
-                  final resolved = await locator.transcriptionProfileResolver
-                      .resolve(savedConfig);
-                  final runtimeStatus = await locator.asrRuntimeManager.inspect(
-                    resolved.config,
-                  );
-                  final runtimeReady = runtimeStatus.hasReadyComponents(const {
-                    AsrRuntimeComponent.qwenRuntime,
-                    AsrRuntimeComponent.qwenAligner,
-                  });
-                  if (!runtimeReady) {
-                    throw Exception(
-                      'Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。',
-                    );
-                  }
-                  return locator.qwenNativeTranscriptionService.alignReference(
-                    audioPath: audioPath,
-                    text: text,
-                    language: language,
-                    audioDuration: audioDuration,
-                    config: resolved.config,
-                  );
-                },
+            runner: widget.dependencies.forcedAlignmentRunner,
           );
           alignmentOutcome = await alignmentService.buildReview(
             draft: document,

@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -21,10 +21,7 @@ import 'import_audio_screen.dart';
 class TranscriptionReadyImportScreen extends StatefulWidget {
   final bool? desktopOverride;
 
-  const TranscriptionReadyImportScreen({
-    super.key,
-    this.desktopOverride,
-  });
+  const TranscriptionReadyImportScreen({super.key, this.desktopOverride});
 
   @override
   State<TranscriptionReadyImportScreen> createState() =>
@@ -46,7 +43,7 @@ class _TranscriptionReadyImportScreenState
   void initState() {
     super.initState();
     if (_isDesktop) {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       _preflight = TranscriptionEnvironmentPreflight(
         settingsStore: services.transcriptionSettingsStore,
         runtimeManager: services.asrRuntimeManager,
@@ -61,7 +58,7 @@ class _TranscriptionReadyImportScreenState
     final wasDesktop =
         oldWidget.desktopOverride ?? AppResponsive.isDesktopTarget();
     if (!wasDesktop && _isDesktop && _preflight == null) {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       _preflight = TranscriptionEnvironmentPreflight(
         settingsStore: services.transcriptionSettingsStore,
         runtimeManager: services.asrRuntimeManager,
@@ -104,17 +101,16 @@ class _TranscriptionReadyImportScreenState
     });
 
     try {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       final current =
-          _readiness?.config ?? await services.transcriptionSettingsStore.load();
+          _readiness?.config ??
+          await services.transcriptionSettingsStore.load();
       if (!mounted) return;
 
       final updated = await showDialog<TranscriptionConfig>(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AsrRuntimeSetupDialog(
-          initialConfig: current,
-        ),
+        builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
       );
       if (updated != null) {
         await services.transcriptionSettingsStore.save(updated);
@@ -124,9 +120,9 @@ class _TranscriptionReadyImportScreenState
       if (readiness?.isReady == true) {
         await _resumeEnvironmentBlockedQueueIfNeeded();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('本地歌词识别环境已准备好')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('本地歌词识别环境已准备好')));
         }
       }
     } catch (error) {
@@ -139,7 +135,7 @@ class _TranscriptionReadyImportScreenState
   }
 
   Future<void> _resumeEnvironmentBlockedQueueIfNeeded() async {
-    final queue = ServiceLocatorGlobal.I.transcriptionQueue;
+    final queue = AppServices.instance.transcriptionQueue;
     final snapshot = queue.current;
     if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;
     await queue.resume();
@@ -203,8 +199,7 @@ class _ReadinessOnboarding extends StatelessWidget {
     final config = readiness?.config;
 
     final title = switch (state) {
-      TranscriptionEnvironmentReadinessState.needsSetup =>
-        '本地识别环境还没有准备完整',
+      TranscriptionEnvironmentReadinessState.needsSetup => '本地识别环境还没有准备完整',
       TranscriptionEnvironmentReadinessState.failed => '暂时无法确认识别环境',
       _ => '第一次识别前，先准备本地 AI 环境',
     };
@@ -235,8 +230,7 @@ class _ReadinessOnboarding extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   gradient: AppColors.cardGradient,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusXLarge),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
                   border: Border.all(color: AppColors.borderMuted),
                 ),
                 child: Column(
@@ -247,14 +241,16 @@ class _ReadinessOnboarding extends StatelessWidget {
                       height: 52,
                       decoration: BoxDecoration(
                         color: AppColors.accent.withAlpha(24),
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusLarge),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusLarge,
+                        ),
                       ),
                       child: Icon(
                         state == TranscriptionEnvironmentReadinessState.failed
                             ? Icons.warning_amber_rounded
                             : Icons.auto_awesome_rounded,
-                        color: state ==
+                        color:
+                            state ==
                                 TranscriptionEnvironmentReadinessState.failed
                             ? AppColors.warning
                             : AppColors.accent,
@@ -263,17 +259,16 @@ class _ReadinessOnboarding extends StatelessWidget {
                     const SizedBox(height: AppSpacing.md),
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       description,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.5,
-                          ),
+                        color: AppColors.textSecondary,
+                        height: 1.5,
+                      ),
                     ),
                     if (checking) ...[
                       const SizedBox(height: AppSpacing.lg),
@@ -287,8 +282,7 @@ class _ReadinessOnboarding extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: AppColors.bgElevated,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusLarge),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
                   border: Border.all(color: AppColors.borderMuted),
                 ),
                 child: Column(
@@ -297,8 +291,8 @@ class _ReadinessOnboarding extends StatelessWidget {
                     Text(
                       '当前检测结果',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _ReadinessRow(
@@ -309,7 +303,8 @@ class _ReadinessOnboarding extends StatelessWidget {
                     _ReadinessRow(
                       icon: Icons.memory_rounded,
                       label: '推荐配置',
-                      value: status?.profile.label ??
+                      value:
+                          status?.profile.label ??
                           (config == null ? '尚未配置' : '等待检测'),
                     ),
                     _ReadinessRow(
@@ -344,17 +339,18 @@ class _ReadinessOnboarding extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.error.withAlpha(16),
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                     border: Border.all(color: AppColors.error.withAlpha(70)),
                   ),
                   child: Text(
                     actionError ?? readiness!.error!,
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.error,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppColors.error),
                   ),
                 ),
               ],
@@ -374,9 +370,7 @@ class _ReadinessOnboarding extends StatelessWidget {
                             ),
                           )
                         : const Icon(Icons.download_for_offline_rounded),
-                    label: Text(
-                      openingSetup ? '正在准备...' : '一键准备识别环境',
-                    ),
+                    label: Text(openingSetup ? '正在准备...' : '一键准备识别环境'),
                   );
                   final settings = OutlinedButton.icon(
                     onPressed: openingSetup ? null : onOpenSettings,
@@ -432,9 +426,9 @@ class _ReadinessOnboarding extends StatelessWidget {
               Text(
                 '已有后台任务不会丢失。如果队列之前因为缺少模型而自动暂停，环境准备完成后会自动继续；用户手动暂停的队列不会被擅自恢复。',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                      height: 1.45,
-                    ),
+                  color: AppColors.textTertiary,
+                  height: 1.45,
+                ),
               ),
             ],
           ),
@@ -479,9 +473,9 @@ class _ReadinessRow extends StatelessWidget {
             width: 88,
             child: Text(
               label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -491,9 +485,9 @@ class _ReadinessRow extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontFamily: monospace ? 'monospace' : null,
-                    color: AppColors.textPrimary,
-                  ),
+                fontFamily: monospace ? 'monospace' : null,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
         ],

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/audio_path_canonicalizer.dart';
@@ -50,8 +50,7 @@ class _PlaybackLyricsAvailabilitySyncState
     super.initState();
     try {
       final session =
-          widget.playbackSession ??
-          ServiceLocatorGlobal.I.playbackSessionService;
+          widget.playbackSession ?? AppServices.instance.playbackSessionService;
       _subscription = session.stateStream.listen(_handleSession);
       _handleSession(session.currentState);
     } catch (_) {
@@ -87,17 +86,16 @@ class _PlaybackLyricsAvailabilitySyncState
       await resolveAndSyncPlaybackLyrics(
         item: item,
         projectRepository:
-            widget.projectRepository ??
-            ServiceLocatorGlobal.I.projectRepository,
+            widget.projectRepository ?? AppServices.instance.projectRepository,
         metadataRepository:
             widget.metadataRepository ??
-            ServiceLocatorGlobal.I.localMediaMetadataRepository,
+            AppServices.instance.localMediaMetadataRepository,
         playbackSession:
             widget.playbackSession ??
-            ServiceLocatorGlobal.I.playbackSessionService,
+            AppServices.instance.playbackSessionService,
         pathCanonicalizer:
             widget.pathCanonicalizer ??
-            ServiceLocatorGlobal.I.audioPathCanonicalizer,
+            AppServices.instance.audioPathCanonicalizer,
       );
     } catch (_) {
       // A rebuild-path availability refresh is best effort; playback and the

@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'lib/core/navigation/app_router.dart'
+      - 'lib/core/navigation/routes.dart'
+      - 'lib/app/**'
       - 'lib/features/import/presentation/screens/**'
       - 'lib/features/transcription/domain/services/transcription_environment_preflight.dart'
       - 'lib/features/transcription/data/services/file_batch_transcription_queue.dart'
@@ -30,7 +31,7 @@ jobs:
       - name: Analyze readiness integration
         run: >-
           flutter analyze
-          lib/core/navigation/app_router.dart
+          lib/app
           lib/features/import/presentation/screens/transcription_ready_import_screen.dart
           lib/features/transcription/domain/services/transcription_environment_preflight.dart
           test/features/import/transcription_ready_import_contract_test.dart

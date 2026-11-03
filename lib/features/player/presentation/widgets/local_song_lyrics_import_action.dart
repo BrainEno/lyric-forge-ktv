@@ -4,8 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../lyrics/domain/services/lyric_file_import_service.dart';
@@ -22,12 +22,12 @@ Future<void> importLyricsForLocalPlaybackItem(
 ) async {
   if (item.projectId != null) return;
 
-  final importer = ServiceLocatorGlobal.I.lyricFileImportService;
-  final projectRepository = ServiceLocatorGlobal.I.projectRepository;
+  final importer = AppServices.instance.lyricFileImportService;
+  final projectRepository = AppServices.instance.projectRepository;
   final mediaMetadataRepository =
-      ServiceLocatorGlobal.I.localMediaMetadataRepository;
-  final playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
-  final pathCanonicalizer = ServiceLocatorGlobal.I.audioPathCanonicalizer;
+      AppServices.instance.localMediaMetadataRepository;
+  final playbackSession = AppServices.instance.playbackSessionService;
+  final pathCanonicalizer = AppServices.instance.audioPathCanonicalizer;
 
   // Resolve through the shared resolver so a dead link is repaired or cleared
   // and the queue's lyric flag is retracted, matching every playback surface.

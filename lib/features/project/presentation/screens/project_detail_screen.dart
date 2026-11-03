@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
@@ -47,12 +47,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = ServiceLocatorGlobal.I.projectRepository;
-    _transcriptionWorkflow =
-        ServiceLocatorGlobal.I.projectTranscriptionWorkflow;
+    _repository = AppServices.instance.projectRepository;
+    _transcriptionWorkflow = AppServices.instance.projectTranscriptionWorkflow;
     _transcriptionSettingsStore =
-        ServiceLocatorGlobal.I.transcriptionSettingsStore;
-    _asrRuntimeManager = ServiceLocatorGlobal.I.asrRuntimeManager;
+        AppServices.instance.transcriptionSettingsStore;
+    _asrRuntimeManager = AppServices.instance.asrRuntimeManager;
     _loadProject();
 
     _progressSubscription = _transcriptionWorkflow.progressStream.listen((

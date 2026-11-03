@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
-import 'package:lyric_forge_ktv/core/navigation/app_router.dart';
-import 'package:lyric_forge_ktv/main.dart';
+import 'package:lyric_forge_ktv/app/app.dart';
+import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 
 void main() {
   testWidgets('Elysium Player app root keeps production shell wiring', (
@@ -42,9 +42,11 @@ void main() {
         MaterialApp(
           home: Builder(
             builder: (context) {
-              builtApp = const ElysiumPlayerApp(
-                desktopChromeOverride: false,
-              ).build(context) as MaterialApp;
+              builtApp =
+                  const ElysiumPlayerApp(
+                        desktopChromeOverride: false,
+                      ).build(context)
+                      as MaterialApp;
               return const SizedBox.shrink();
             },
           ),

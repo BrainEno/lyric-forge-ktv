@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -27,10 +27,7 @@ import '../widgets/seekable_progress_bar.dart';
 class QuickPlayScreen extends StatefulWidget {
   final PlayHistory? initialHistory;
 
-  const QuickPlayScreen({
-    super.key,
-    this.initialHistory,
-  });
+  const QuickPlayScreen({super.key, this.initialHistory});
 
   @override
   State<QuickPlayScreen> createState() => _QuickPlayScreenState();
@@ -49,9 +46,9 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   @override
   void initState() {
     super.initState();
-    _audio = ServiceLocatorGlobal.I.audioPlayerService;
-    _importer = ServiceLocatorGlobal.I.audioLibraryImportService;
-    _session = ServiceLocatorGlobal.I.playbackSessionService;
+    _audio = AppServices.instance.audioPlayerService;
+    _importer = AppServices.instance.audioLibraryImportService;
+    _session = AppServices.instance.playbackSessionService;
 
     final current = _session.currentState.currentItem;
     if (current != null && current.projectId == null) {
@@ -147,9 +144,9 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
         await _session.enqueue(item);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已添加 ${items.length} 首到播放队列')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('已添加 ${items.length} 首到播放队列')));
       }
       return;
     }
@@ -276,7 +273,9 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   Widget build(BuildContext context) {
     final file = _selectedFile;
     final current = _session.currentState.currentItem;
-    final localItem = current != null && current.projectId == null ? current : null;
+    final localItem = current != null && current.projectId == null
+        ? current
+        : null;
     final screenLayout = AppResponsive.of(context);
 
     return Scaffold(
@@ -324,10 +323,8 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
                 fileName: _fileName(file.path),
                 isLoading: _isLoading,
                 error: _error,
-                onSkipBack: () =>
-                    _seekRelative(const Duration(seconds: -10)),
-                onSkipForward: () =>
-                    _seekRelative(const Duration(seconds: 10)),
+                onSkipBack: () => _seekRelative(const Duration(seconds: -10)),
+                onSkipForward: () => _seekRelative(const Duration(seconds: 10)),
                 onEditMetadata: () =>
                     showLocalMediaMetadataDialog(context, localItem),
                 onLyrics: () =>
@@ -367,8 +364,8 @@ class _EmptyPlayer extends StatelessWidget {
         final heroExtent = layout.isShort
             ? 92.0
             : layout.isCompact
-                ? 112.0
-                : 156.0;
+            ? 112.0
+            : 156.0;
         final cardPadding = layout.isCompact ? AppSpacing.md : AppSpacing.xl;
 
         return Center(
@@ -392,8 +389,9 @@ class _EmptyPlayer extends StatelessWidget {
                       height: heroExtent,
                       decoration: BoxDecoration(
                         color: AppColors.bgSurface,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusXLarge),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusXLarge,
+                        ),
                       ),
                       child: Icon(
                         Icons.library_music_rounded,
@@ -407,17 +405,16 @@ class _EmptyPlayer extends StatelessWidget {
                     Text(
                       '你的本地音乐',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       '先像普通播放器一样打开音乐。歌词、AI 识别、KTV 和工程制作都是需要时再使用的能力。',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     if (error != null) ...[
                       const SizedBox(height: AppSpacing.md),
@@ -536,8 +533,8 @@ class _PlayerWorkspace extends StatelessWidget {
             final queueHeight = layout.isShort
                 ? 220.0
                 : layout.isCompact
-                    ? 300.0
-                    : 360.0;
+                ? 300.0
+                : 360.0;
 
             if (layout.isCompact) {
               final playerWidth = (constraints.maxWidth - layout.pageGutter * 2)
@@ -549,10 +546,7 @@ class _PlayerWorkspace extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.topCenter,
-                    child: SizedBox(
-                      width: playerWidth,
-                      child: player,
-                    ),
+                    child: SizedBox(width: playerWidth, child: player),
                   ),
                 ),
               );
@@ -562,8 +556,9 @@ class _PlayerWorkspace extends StatelessWidget {
               return Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints:
-                      BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                  constraints: BoxConstraints(
+                    maxWidth: layout.playerContentMaxWidth,
+                  ),
                   child: SingleChildScrollView(
                     padding: EdgeInsets.all(layout.pageGutter),
                     child: Column(
@@ -584,24 +579,21 @@ class _PlayerWorkspace extends StatelessWidget {
 
             final availableQueueHeight = constraints.maxHeight.isFinite
                 ? (constraints.maxHeight - layout.pageGutter * 2)
-                    .clamp(260.0, 720.0)
-                    .toDouble()
+                      .clamp(260.0, 720.0)
+                      .toDouble()
                 : 520.0;
             return Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
-                constraints:
-                    BoxConstraints(maxWidth: layout.playerContentMaxWidth),
+                constraints: BoxConstraints(
+                  maxWidth: layout.playerContentMaxWidth,
+                ),
                 child: Padding(
                   padding: EdgeInsets.all(layout.pageGutter),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: player,
-                        ),
-                      ),
+                      Expanded(child: SingleChildScrollView(child: player)),
                       SizedBox(width: layout.sectionGap),
                       SizedBox(
                         width: layout.sidePanelWidth,
@@ -656,18 +648,19 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final horizontal = !layout.isShort &&
+    final horizontal =
+        !layout.isShort &&
         (layout.isExpanded || layout.isLarge || layout.isExtraLarge);
     final artworkExtent = layout.isCompact
         ? (layout.height * 0.28).clamp(180.0, 240.0).toDouble()
         : horizontal
-            ? layout.playerArtworkMaxExtent.clamp(210.0, 300.0).toDouble()
-            : layout.playerArtworkMaxExtent.clamp(200.0, 360.0).toDouble();
+        ? layout.playerArtworkMaxExtent.clamp(210.0, 300.0).toDouble()
+        : layout.playerArtworkMaxExtent.clamp(200.0, 360.0).toDouble();
     final cardPadding = layout.isCompact
         ? AppSpacing.md
         : layout.isMedium
-            ? AppSpacing.lg
-            : AppSpacing.xl;
+        ? AppSpacing.lg
+        : AppSpacing.xl;
 
     final artwork = SizedBox(
       width: artworkExtent,
@@ -758,14 +751,15 @@ class _PlayerDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artist = item.artist?.trim();
-    final titleStyle = (layout.isCompact
-            ? Theme.of(context).textTheme.headlineSmall
-            : Theme.of(context).textTheme.headlineMedium)
-        ?.copyWith(
-      fontWeight: FontWeight.w900,
-      height: 1.08,
-      letterSpacing: -0.5,
-    );
+    final titleStyle =
+        (layout.isCompact
+                ? Theme.of(context).textTheme.headlineSmall
+                : Theme.of(context).textTheme.headlineMedium)
+            ?.copyWith(
+              fontWeight: FontWeight.w900,
+              height: 1.08,
+              letterSpacing: -0.5,
+            );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,9 +768,9 @@ class _PlayerDetails extends StatelessWidget {
         Text(
           '本地音乐',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w800,
-              ),
+            color: AppColors.accent,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
@@ -791,9 +785,9 @@ class _PlayerDetails extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
@@ -810,9 +804,9 @@ class _PlayerDetails extends StatelessWidget {
           fileName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textTertiary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
         ),
         if (error != null) ...[
           const SizedBox(height: AppSpacing.md),
@@ -823,10 +817,7 @@ class _PlayerDetails extends StatelessWidget {
               color: AppColors.error.withAlpha(18),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             ),
-            child: Text(
-              error!,
-              style: const TextStyle(color: AppColors.error),
-            ),
+            child: Text(error!, style: const TextStyle(color: AppColors.error)),
           ),
         ],
         SizedBox(height: layout.isShort ? AppSpacing.md : AppSpacing.xl),
@@ -905,10 +896,7 @@ class _Artwork extends StatelessWidget {
   final String? path;
   final bool isLoading;
 
-  const _Artwork({
-    required this.path,
-    required this.isLoading,
-  });
+  const _Artwork({required this.path, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
@@ -933,15 +921,15 @@ class _Artwork extends StatelessWidget {
           child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : hasArtwork
-                  ? Image.file(file, fit: BoxFit.cover)
-                  : Container(
-                      color: AppColors.bgSurface,
-                      child: const Icon(
-                        Icons.album_rounded,
-                        size: 96,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
+              ? Image.file(file, fit: BoxFit.cover)
+              : Container(
+                  color: AppColors.bgSurface,
+                  child: const Icon(
+                    Icons.album_rounded,
+                    size: 96,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
         ),
       ),
     );
@@ -967,9 +955,9 @@ class _InfoChip extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

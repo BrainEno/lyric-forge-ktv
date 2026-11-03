@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -45,8 +45,8 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   @override
   void initState() {
     super.initState();
-    _mediaHubService = ServiceLocatorGlobal.I.mediaHubService;
-    _projectRepository = ServiceLocatorGlobal.I.projectRepository;
+    _mediaHubService = AppServices.instance.mediaHubService;
+    _projectRepository = AppServices.instance.projectRepository;
     _hubState = _mediaHubService.currentState;
     _stateSubscription = _mediaHubService.stateStream.listen((state) {
       if (mounted) setState(() => _hubState = state);
@@ -75,8 +75,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
       final useUnfilteredMacPicker = Platform.isMacOS;
       final result = await FilePicker.platform.pickFiles(
         type: useUnfilteredMacPicker ? FileType.any : FileType.custom,
-        allowedExtensions:
-            useUnfilteredMacPicker ? null : supportedExtensions,
+        allowedExtensions: useUnfilteredMacPicker ? null : supportedExtensions,
         allowMultiple: true,
         dialogTitle: '选择要共享的音频文件',
         withData: false,
@@ -92,8 +91,9 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
         final file = File(path);
         if (!await file.exists()) continue;
 
-        final fileName =
-            file.uri.pathSegments.isEmpty ? path : file.uri.pathSegments.last;
+        final fileName = file.uri.pathSegments.isEmpty
+            ? path
+            : file.uri.pathSegments.last;
         final extension = _extensionOf(fileName);
         if (!_isSupportedFormat(extension)) continue;
 
@@ -196,9 +196,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
         _tracks.removeWhere((item) => item.id == track.id);
         _tracks.add(track);
       });
-      _showMessage(selected.hasLyrics
-          ? '已加入工程音频和歌词'
-          : '已加入工程音频');
+      _showMessage(selected.hasLyrics ? '已加入工程音频和歌词' : '已加入工程音频');
     } catch (error) {
       _showMessage('读取工程失败：$error', error: true);
     } finally {
@@ -233,9 +231,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   }
 
   Future<void> _copyPairingUri(MediaHubSession session) async {
-    await Clipboard.setData(
-      ClipboardData(text: session.pairingUri.toString()),
-    );
+    await Clipboard.setData(ClipboardData(text: session.pairingUri.toString()));
     _showMessage('配对信息已复制');
   }
 
@@ -266,8 +262,15 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   }
 
   bool _isSupportedFormat(String extension) {
-    return const {'mp3', 'flac', 'wav', 'm4a', 'mp4', 'ogg', 'aac'}
-        .contains(extension);
+    return const {
+      'mp3',
+      'flac',
+      'wav',
+      'm4a',
+      'mp4',
+      'ogg',
+      'aac',
+    }.contains(extension);
   }
 
   String _formatBytes(int bytes) {
@@ -328,10 +331,10 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                       onPressed: _busy
                           ? null
                           : running
-                              ? _stopSharing
-                              : _tracks.isEmpty
-                                  ? null
-                                  : _startSharing,
+                          ? _stopSharing
+                          : _tracks.isEmpty
+                          ? null
+                          : _startSharing,
                       icon: _busy
                           ? const SizedBox(
                               width: 18,
@@ -367,7 +370,9 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
             Row(
               children: [
                 Icon(
-                  running ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                  running
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
                   color: running ? AppColors.success : AppColors.textTertiary,
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -383,9 +388,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                       remoteAvailable ? Icons.public : Icons.lan_outlined,
                       size: 16,
                     ),
-                    label: Text(
-                      remoteAvailable ? 'Tailscale 远程可用' : '仅局域网',
-                    ),
+                    label: Text(remoteAvailable ? 'Tailscale 远程可用' : '仅局域网'),
                   ),
               ],
             ),
@@ -405,8 +408,9 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: AppColors.pureWhite,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                   ),
                   child: QrImageView(
                     data: session.pairingUri.toString(),
@@ -423,8 +427,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: AppColors.bgSurface,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMedium),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 ),
                 child: Row(
                   children: [
@@ -448,9 +451,9 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 _hubState.error!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.error,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.error),
               ),
             ],
           ],
@@ -512,8 +515,7 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.bgElevated,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMedium),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
                 ),
                 child: const Column(
                   children: [

@@ -3,7 +3,7 @@ name: ASR managed storage location validation
 on:
   pull_request:
     paths:
-      - "lib/core/services/service_locator.dart"
+      - "lib/app/app_services.dart"
       - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
       - "lib/features/transcription/data/services/local_asr_managed_storage_service.dart"
       - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
@@ -20,7 +20,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "lib/core/services/service_locator.dart"
+      - "lib/app/app_services.dart"
       - "lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart"
       - "lib/features/transcription/data/services/local_asr_managed_storage_service.dart"
       - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
@@ -50,7 +50,7 @@ jobs:
       - name: Analyze managed storage changes
         run: >-
           flutter analyze --no-fatal-infos
-          lib/core/services/service_locator.dart
+          lib/app/app_services.dart
           lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart
           lib/features/transcription/data/services/local_asr_managed_storage_service.dart
           lib/features/transcription/data/services/local_asr_storage_preflight_service.dart

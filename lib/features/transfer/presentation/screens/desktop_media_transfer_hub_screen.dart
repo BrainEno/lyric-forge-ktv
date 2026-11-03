@@ -8,7 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
@@ -48,7 +48,7 @@ class _DesktopMediaTransferHubScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _hub = services.mediaHubService;
     _projects = services.projectRepository;
     _audioImport = services.audioLibraryImportService;
@@ -75,7 +75,9 @@ class _DesktopMediaTransferHubScreenState
         if (!existing.add(path)) continue;
         final file = File(path);
         if (!await file.exists()) continue;
-        final fileName = file.uri.pathSegments.isEmpty ? path : file.uri.pathSegments.last;
+        final fileName = file.uri.pathSegments.isEmpty
+            ? path
+            : file.uri.pathSegments.last;
         added.add(
           SharedAudioTrack(
             id: _uuid.v4(),
@@ -256,7 +258,9 @@ class _DesktopMediaTransferHubScreenState
                   session: session,
                   onStart: _start,
                   onStop: _stop,
-                  onCopyPairing: session == null ? null : () => _copyPairing(session),
+                  onCopyPairing: session == null
+                      ? null
+                      : () => _copyPairing(session),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (session != null) ...[
@@ -325,8 +329,8 @@ class _StatusCard extends StatelessWidget {
                       Text(
                         running ? '跨设备传输已开启' : '电脑 ↔ 手机双向传送',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -334,8 +338,8 @@ class _StatusCard extends StatelessWidget {
                             ? '手机可以下载电脑共享音乐，也可以把本地歌曲传回这台电脑。'
                             : '即使不共享任何歌曲，也可以启动纯接收模式，让手机向电脑批量发送音乐。',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -348,14 +352,22 @@ class _StatusCard extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 FilledButton.icon(
-                  onPressed: busy ? null : running ? onStop : onStart,
+                  onPressed: busy
+                      ? null
+                      : running
+                      ? onStop
+                      : onStart,
                   icon: busy
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(running ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                      : Icon(
+                          running
+                              ? Icons.stop_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
                   label: Text(running ? '停止传输服务' : '启动传输服务'),
                 ),
                 if (running && onCopyPairing != null)
@@ -404,7 +416,9 @@ class _PairingCard extends StatelessWidget {
         for (final endpoint in session.endpoints)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Text('${endpoint.kind.name}: ${endpoint.host}:${endpoint.port}'),
+            child: Text(
+              '${endpoint.kind.name}: ${endpoint.host}:${endpoint.port}',
+            ),
           ),
       ],
     );
@@ -415,11 +429,19 @@ class _PairingCard extends StatelessWidget {
         child: layout.isCompactOrMedium
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [qr, const SizedBox(height: AppSpacing.md), details],
+                children: [
+                  qr,
+                  const SizedBox(height: AppSpacing.md),
+                  details,
+                ],
               )
             : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [qr, const SizedBox(width: AppSpacing.lg), Expanded(child: details)],
+                children: [
+                  qr,
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(child: details),
+                ],
               ),
       ),
     );
@@ -483,9 +505,9 @@ class _SharedLibraryCard extends StatelessWidget {
               running
                   ? '服务运行时共享列表锁定；手机可以在线播放或批量下载这些歌曲。'
                   : '可选。即使这里为空，也可以启动纯接收模式。',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             Wrap(
@@ -515,7 +537,11 @@ class _SharedLibraryCard extends StatelessWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.music_note_rounded),
-                  title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  title: Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   subtitle: Text(
                     [
                       track.format.toUpperCase(),

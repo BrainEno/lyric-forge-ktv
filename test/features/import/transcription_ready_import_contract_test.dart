@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('import route is guarded by desktop transcription readiness', () {
-    final router = File('lib/core/navigation/app_router.dart').readAsStringSync();
+    final router = File('lib/app/app_router.dart').readAsStringSync();
     final gate = File(
       'lib/features/import/presentation/screens/'
       'transcription_ready_import_screen.dart',
@@ -49,7 +49,9 @@ void main() {
     expect(queue, contains('error.blocksQueue'));
     expect(
       gate,
-      contains('if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;'),
+      contains(
+        'if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;',
+      ),
       reason: 'only structured environment pauses may auto-resume after setup',
     );
     expect(

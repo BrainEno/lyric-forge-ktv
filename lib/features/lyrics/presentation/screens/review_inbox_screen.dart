@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -31,23 +30,24 @@ class ReviewInboxEntry {
 /// 40 unreviewed lines is what the user came here for, not the one they saved
 /// five minutes ago.
 class ReviewInboxScreen extends StatefulWidget {
-  final ProjectRepository? projectRepository;
+  /// Supplied by the routing table; the review inbox is migrated off the global
+  /// service locator together with the lyric editor (Phase 4.2).
+  final ProjectRepository projectRepository;
 
-  const ReviewInboxScreen({super.key, this.projectRepository});
+  const ReviewInboxScreen({super.key, required this.projectRepository});
 
   @override
   State<ReviewInboxScreen> createState() => _ReviewInboxScreenState();
 }
 
 class _ReviewInboxScreenState extends State<ReviewInboxScreen> {
-  late ProjectRepository _projects;
+  late final ProjectRepository _projects;
   late Future<List<ReviewInboxEntry>> _entriesFuture;
 
   @override
   void initState() {
     super.initState();
-    _projects =
-        widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
+    _projects = widget.projectRepository;
     _entriesFuture = _load();
   }
 

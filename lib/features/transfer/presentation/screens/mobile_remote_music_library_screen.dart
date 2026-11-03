@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
@@ -57,7 +57,7 @@ class _MobileRemoteMusicLibraryScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _client = services.mediaHubClientService;
     _connectionStore = services.mediaHubConnectionStore;
     _transferQueue = services.mediaTransferQueueService;
@@ -95,7 +95,8 @@ class _MobileRemoteMusicLibraryScreenState
     if (!mounted) return;
     var completedNewDownload = false;
     for (final item in snapshot.completed) {
-      if (item.direction != MediaTransferDirection.downloadFromDesktop) continue;
+      if (item.direction != MediaTransferDirection.downloadFromDesktop)
+        continue;
       if (_handledCompletedTasks.add(item.id)) completedNewDownload = true;
     }
     setState(() {});
@@ -104,20 +105,22 @@ class _MobileRemoteMusicLibraryScreenState
 
   List<RemoteAudioTrack> get _visibleTracks {
     final query = _searchController.text.trim().toLowerCase();
-    return _tracks.where((track) {
-      if (_filter == _RemoteLibraryFilter.downloaded &&
-          !_downloaded.containsKey(track.id)) {
-        return false;
-      }
-      if (_filter == _RemoteLibraryFilter.lyrics && !track.hasLyrics) {
-        return false;
-      }
-      if (query.isEmpty) return true;
-      return track.title.toLowerCase().contains(query) ||
-          (track.artist?.toLowerCase().contains(query) ?? false) ||
-          (track.album?.toLowerCase().contains(query) ?? false) ||
-          track.format.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return _tracks
+        .where((track) {
+          if (_filter == _RemoteLibraryFilter.downloaded &&
+              !_downloaded.containsKey(track.id)) {
+            return false;
+          }
+          if (_filter == _RemoteLibraryFilter.lyrics && !track.hasLyrics) {
+            return false;
+          }
+          if (query.isEmpty) return true;
+          return track.title.toLowerCase().contains(query) ||
+              (track.artist?.toLowerCase().contains(query) ?? false) ||
+              (track.album?.toLowerCase().contains(query) ?? false) ||
+              track.format.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   Future<void> _restoreConnection() async {
@@ -128,8 +131,10 @@ class _MobileRemoteMusicLibraryScreenState
   }
 
   Future<void> _scan() async {
-    final value =
-        await Navigator.pushNamed<String>(context, Routes.mediaHubScanner);
+    final value = await Navigator.pushNamed<String>(
+      context,
+      Routes.mediaHubScanner,
+    );
     if (!mounted || value == null || value.trim().isEmpty) return;
     _pairingController.text = value.trim();
     await _connectRaw(value.trim());
@@ -183,9 +188,7 @@ class _MobileRemoteMusicLibraryScreenState
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = quiet
-            ? '上次桌面端暂时无法连接，可以重试或重新扫码。'
-            : '无法连接桌面端：$error';
+        _error = quiet ? '上次桌面端暂时无法连接，可以重试或重新扫码。' : '无法连接桌面端：$error';
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -216,7 +219,8 @@ class _MobileRemoteMusicLibraryScreenState
     final next = <String, LocalMediaLibraryEntry>{};
     for (final track in _tracks) {
       for (final entry in entries) {
-        if (!entry.isMissing && remoteTrackMatchesDownloadedEntry(track, entry)) {
+        if (!entry.isMissing &&
+            remoteTrackMatchesDownloadedEntry(track, entry)) {
           next[track.id] = entry;
           break;
         }
@@ -361,7 +365,9 @@ class _MobileRemoteMusicLibraryScreenState
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -427,19 +433,17 @@ class _MobileRemoteMusicLibraryScreenState
                 Text(
                   '连接你的桌面音乐库',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   '连接后可以搜索、在线播放，并把歌曲加入持久化下载队列。',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(color: AppColors.textSecondary),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton.icon(
@@ -450,8 +454,9 @@ class _MobileRemoteMusicLibraryScreenState
                 if (_savedConnection != null) ...[
                   const SizedBox(height: AppSpacing.sm),
                   OutlinedButton.icon(
-                    onPressed:
-                        _busy ? null : () => _connectTo(_savedConnection!),
+                    onPressed: _busy
+                        ? null
+                        : () => _connectTo(_savedConnection!),
                     icon: const Icon(Icons.history_rounded),
                     label: Text('重新连接 ${_savedConnection!.host}'),
                   ),
@@ -532,17 +537,14 @@ class _MobileRemoteMusicLibraryScreenState
                         connection.host,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       Text(
                         '${_tracks.length} 首歌曲 · ${_downloaded.length} 首已下载',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -586,9 +588,8 @@ class _MobileRemoteMusicLibraryScreenState
                 ChoiceChip(
                   label: const Text('已下载'),
                   selected: _filter == _RemoteLibraryFilter.downloaded,
-                  onSelected: (_) => setState(
-                    () => _filter = _RemoteLibraryFilter.downloaded,
-                  ),
+                  onSelected: (_) =>
+                      setState(() => _filter = _RemoteLibraryFilter.downloaded),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 ChoiceChip(
@@ -663,18 +664,21 @@ class _RemoteTrackTile extends StatelessWidget {
     final transferring = status == MediaTransferQueueStatus.transferring;
     final failed = status == MediaTransferQueueStatus.failed;
     final destination = queueItem?.destinationPath;
-    final completedFileExists = destination != null && File(destination).existsSync();
-    final completed = status == MediaTransferQueueStatus.completed &&
+    final completedFileExists =
+        destination != null && File(destination).existsSync();
+    final completed =
+        status == MediaTransferQueueStatus.completed &&
         (downloaded || completedFileExists);
-    final staleCompleted = status == MediaTransferQueueStatus.completed &&
+    final staleCompleted =
+        status == MediaTransferQueueStatus.completed &&
         !downloaded &&
         !completedFileExists;
     final total = queueItem?.totalBytes;
     final fraction = total == null || total <= 0
         ? null
         : ((queueItem?.bytesTransferred ?? 0) / total)
-            .clamp(0.0, 1.0)
-            .toDouble();
+              .clamp(0.0, 1.0)
+              .toDouble();
 
     return Material(
       color: AppColors.bgElevated,
@@ -701,10 +705,9 @@ class _RemoteTrackTile extends StatelessWidget {
                       track.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -717,14 +720,15 @@ class _RemoteTrackTile extends StatelessWidget {
                       ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                     if (queued || transferring) ...[
                       const SizedBox(height: 6),
-                      LinearProgressIndicator(value: transferring ? fraction : null),
+                      LinearProgressIndicator(
+                        value: transferring ? fraction : null,
+                      ),
                     ],
                     if (failed || staleCompleted) ...[
                       const SizedBox(height: 4),
@@ -734,10 +738,11 @@ class _RemoteTrackTile extends StatelessWidget {
                             : '本地文件已不存在，可重新下载',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: failed ? AppColors.error : AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: failed
+                              ? AppColors.error
+                              : AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ],
@@ -757,12 +762,12 @@ class _RemoteTrackTile extends StatelessWidget {
                 tooltip: downloaded || completed
                     ? '已下载到手机'
                     : failed || staleCompleted
-                        ? '重新下载'
-                        : queued
-                            ? '等待下载'
-                            : transferring
-                                ? '正在下载'
-                                : '下载到手机',
+                    ? '重新下载'
+                    : queued
+                    ? '等待下载'
+                    : transferring
+                    ? '正在下载'
+                    : '下载到手机',
                 onPressed: downloaded || completed || queued || transferring
                     ? null
                     : onDownload,
@@ -776,10 +781,10 @@ class _RemoteTrackTile extends StatelessWidget {
                         downloaded || completed
                             ? Icons.download_done_rounded
                             : failed || staleCompleted
-                                ? Icons.refresh_rounded
-                                : queued
-                                    ? Icons.schedule_rounded
-                                    : Icons.download_rounded,
+                            ? Icons.refresh_rounded
+                            : queued
+                            ? Icons.schedule_rounded
+                            : Icons.download_rounded,
                       ),
               ),
             ],
@@ -794,5 +799,4 @@ class _RemoteTrackTile extends StatelessWidget {
 bool remoteTrackMatchesLocalEntry(
   RemoteAudioTrack track,
   LocalMediaLibraryEntry entry,
-) =>
-    remoteTrackMatchesDownloadedEntry(track, entry);
+) => remoteTrackMatchesDownloadedEntry(track, entry);

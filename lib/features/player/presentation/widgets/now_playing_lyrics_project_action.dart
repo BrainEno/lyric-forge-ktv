@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/audio_path_canonicalizer.dart';
@@ -35,17 +35,17 @@ class _NowPlayingLyricsProjectActionState
   late Future<String?> _projectIdFuture;
 
   ProjectRepository get _projects =>
-      widget.projectRepository ?? ServiceLocatorGlobal.I.projectRepository;
+      widget.projectRepository ?? AppServices.instance.projectRepository;
 
   LocalMediaMetadataRepository get _metadata =>
       widget.metadataRepository ??
-      ServiceLocatorGlobal.I.localMediaMetadataRepository;
+      AppServices.instance.localMediaMetadataRepository;
 
   PlaybackSessionService get _session =>
-      widget.playbackSession ?? ServiceLocatorGlobal.I.playbackSessionService;
+      widget.playbackSession ?? AppServices.instance.playbackSessionService;
 
   AudioPathCanonicalizer get _pathCanonicalizer =>
-      widget.pathCanonicalizer ?? ServiceLocatorGlobal.I.audioPathCanonicalizer;
+      widget.pathCanonicalizer ?? AppServices.instance.audioPathCanonicalizer;
 
   @override
   void initState() {

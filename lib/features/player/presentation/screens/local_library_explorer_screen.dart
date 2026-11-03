@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -53,7 +53,7 @@ class _LocalLibraryExplorerScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _library = services.localMediaLibraryRepository;
     _metadata = services.localMediaMetadataRepository;
     _collections = services.localMediaCollectionRepository;
@@ -96,8 +96,9 @@ class _LocalLibraryExplorerScreenState
 
       final entries = await _library.getAll();
       final overrides = await _metadata.getAll();
-      final histories =
-          await _history.getRecentPlayHistory(limit: maxHistoryCount);
+      final histories = await _history.getRecentPlayHistory(
+        limit: maxHistoryCount,
+      );
       final playlists = await _collections.getPlaylists();
 
       final overrideByPath = <String, LocalMediaMetadata>{
@@ -145,12 +146,12 @@ class _LocalLibraryExplorerScreenState
   }
 
   List<_ExplorerSong> get _visibleSongs => queryLocalLibrary<_ExplorerSong>(
-        items: _songs,
-        browseItem: (song) => song.browseItem,
-        query: _query,
-        smartView: _smartView,
-        sortMode: _sortMode,
-      );
+    items: _songs,
+    browseItem: (song) => song.browseItem,
+    query: _query,
+    smartView: _smartView,
+    sortMode: _sortMode,
+  );
 
   int _smartCount(LocalLibrarySmartView view) {
     final now = DateTime.now();
@@ -186,14 +187,14 @@ class _LocalLibraryExplorerScreenState
   }
 
   Future<void> _addFiles() => _withWork(() async {
-        final paths = await _importer.pickAudioFiles();
-        if (paths.isNotEmpty) await _reload(showLoading: false);
-      });
+    final paths = await _importer.pickAudioFiles();
+    if (paths.isNotEmpty) await _reload(showLoading: false);
+  });
 
   Future<void> _addFolder() => _withWork(() async {
-        final paths = await _importer.pickAudioDirectory();
-        if (paths.isNotEmpty) await _reload(showLoading: false);
-      });
+    final paths = await _importer.pickAudioDirectory();
+    if (paths.isNotEmpty) await _reload(showLoading: false);
+  });
 
   Future<void> _play(_ExplorerSong song) async {
     if (!song.playable) return;
@@ -236,21 +237,17 @@ class _LocalLibraryExplorerScreenState
   }
 
   Future<void> _relinkMissing(_ExplorerSong song) => _withWork(() async {
-        if (song.playable) return;
-        final result = await _relink.pickReplacementAndRelink(
-          song.entry.sourcePath,
-        );
-        if (result == null) return;
-        await _reload(showLoading: false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留',
-            ),
-          ),
-        );
-      });
+    if (song.playable) return;
+    final result = await _relink.pickReplacementAndRelink(
+      song.entry.sourcePath,
+    );
+    if (result == null) return;
+    await _reload(showLoading: false);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已重新定位“${song.title}”，收藏、播放列表、资料和播放进度已保留')),
+    );
+  });
 
   Future<void> _remove(_ExplorerSong song) async {
     await _library.remove(song.entry.sourcePath);
@@ -308,8 +305,8 @@ class _LocalLibraryExplorerScreenState
               onPressed: _working
                   ? null
                   : () => _withWork(
-                        () => _reload(rescan: true, showLoading: false),
-                      ),
+                      () => _reload(rescan: true, showLoading: false),
+                    ),
               icon: const Icon(Icons.refresh_rounded),
             ),
             IconButton(
@@ -317,8 +314,8 @@ class _LocalLibraryExplorerScreenState
               onPressed: _working
                   ? null
                   : () => _withWork(
-                        () => _reload(forceTags: true, showLoading: false),
-                      ),
+                      () => _reload(forceTags: true, showLoading: false),
+                    ),
               icon: const Icon(Icons.manage_search_rounded),
             ),
             IconButton(
@@ -360,9 +357,9 @@ class _LocalLibraryExplorerScreenState
               onCleanMissing: missingCount == 0
                   ? null
                   : () => _withWork(() async {
-                        await _library.removeMissing();
-                        await _reload(showLoading: false);
-                      }),
+                      await _library.removeMissing();
+                      await _reload(showLoading: false);
+                    }),
             ),
             if (_working) const LinearProgressIndicator(minHeight: 2),
             if (_error != null)
@@ -377,28 +374,28 @@ class _LocalLibraryExplorerScreenState
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _songs.isEmpty
-                      ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
-                      : songs.isEmpty
-                          ? const _NoResults()
-                          : _grid
-                              ? _ExplorerGrid(
-                                  songs: songs,
-                                  onPlay: _play,
-                                  onEnqueue: _enqueue,
-                                  onEdit: _edit,
-                                  onLyrics: _lyrics,
-                                  onRelink: _relinkMissing,
-                                  onRemove: _remove,
-                                )
-                              : _ExplorerList(
-                                  songs: songs,
-                                  onPlay: _play,
-                                  onEnqueue: _enqueue,
-                                  onEdit: _edit,
-                                  onLyrics: _lyrics,
-                                  onRelink: _relinkMissing,
-                                  onRemove: _remove,
-                                ),
+                  ? _EmptyLibrary(onFiles: _addFiles, onFolder: _addFolder)
+                  : songs.isEmpty
+                  ? const _NoResults()
+                  : _grid
+                  ? _ExplorerGrid(
+                      songs: songs,
+                      onPlay: _play,
+                      onEnqueue: _enqueue,
+                      onEdit: _edit,
+                      onLyrics: _lyrics,
+                      onRelink: _relinkMissing,
+                      onRemove: _remove,
+                    )
+                  : _ExplorerList(
+                      songs: songs,
+                      onPlay: _play,
+                      onEnqueue: _enqueue,
+                      onEdit: _edit,
+                      onLyrics: _lyrics,
+                      onRelink: _relinkMissing,
+                      onRemove: _remove,
+                    ),
             ),
           ],
         ),
@@ -422,14 +419,15 @@ class _ExplorerSong {
 
   String get fileName => entry.sourcePath.split(Platform.pathSeparator).last;
   String get fallbackTitle => fileName.replaceAll(
-        RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
-        '',
-      );
-  String get title => override?.resolvedTitle(
-            entry.embeddedTitle?.trim().isNotEmpty == true
-                ? entry.embeddedTitle!
-                : fallbackTitle,
-          ) ??
+    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+    '',
+  );
+  String get title =>
+      override?.resolvedTitle(
+        entry.embeddedTitle?.trim().isNotEmpty == true
+            ? entry.embeddedTitle!
+            : fallbackTitle,
+      ) ??
       (entry.embeddedTitle?.trim().isNotEmpty == true
           ? entry.embeddedTitle!
           : fallbackTitle);
@@ -445,38 +443,38 @@ class _ExplorerSong {
   bool get playable => !entry.isMissing && File(entry.sourcePath).existsSync();
 
   LocalLibraryBrowseItem get browseItem => LocalLibraryBrowseItem(
-        sourcePath: entry.sourcePath,
-        title: title,
-        artist: artist,
-        album: album,
-        genres: entry.embeddedGenres,
-        playlistNames: playlistNames,
-        addedAt: entry.addedAt,
-        lastPlayedAt: lastPlayedAt,
-        hasLyrics: hasLyrics,
-        hasUserOverride: hasUserOverride,
-        isMissing: entry.isMissing,
-      );
+    sourcePath: entry.sourcePath,
+    title: title,
+    artist: artist,
+    album: album,
+    genres: entry.embeddedGenres,
+    playlistNames: playlistNames,
+    addedAt: entry.addedAt,
+    lastPlayedAt: lastPlayedAt,
+    hasLyrics: hasLyrics,
+    hasUserOverride: hasUserOverride,
+    isMissing: entry.isMissing,
+  );
 
   String get secondary => [
-        if (artist?.trim().isNotEmpty == true) artist!,
-        if (album?.trim().isNotEmpty == true) album!,
-        entry.format.toUpperCase(),
-      ].join(' · ');
+    if (artist?.trim().isNotEmpty == true) artist!,
+    if (album?.trim().isNotEmpty == true) album!,
+    entry.format.toUpperCase(),
+  ].join(' · ');
 
   PlaybackItem get playbackItem => PlaybackItem(
-        id: 'local:${entry.sourcePath}',
-        title: title,
-        artist: artist,
-        artworkPath: artworkPath,
-        hasLyrics: hasLyrics,
-        audioAsset: AudioAsset(
-          originalPath: entry.sourcePath,
-          format: entry.format,
-          thumbnailPath: artworkPath,
-        ),
-        preferredSource: AudioSourceType.original,
-      );
+    id: 'local:${entry.sourcePath}',
+    title: title,
+    artist: artist,
+    artworkPath: artworkPath,
+    hasLyrics: hasLyrics,
+    audioAsset: AudioAsset(
+      originalPath: entry.sourcePath,
+      format: entry.format,
+      thumbnailPath: artworkPath,
+    ),
+    preferredSource: AudioSourceType.original,
+  );
 }
 
 class _ExplorerHeader extends StatelessWidget {
@@ -525,9 +523,7 @@ class _ExplorerHeader extends StatelessWidget {
           controller: controller,
           onChanged: onQuery,
           decoration: InputDecoration(
-            hintText: layout.isCompact
-                ? '搜索音乐库'
-                : '搜索歌曲、艺人、专辑、流派、文件名或歌单',
+            hintText: layout.isCompact ? '搜索音乐库' : '搜索歌曲、艺人、专辑、流派、文件名或歌单',
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: query.isEmpty
                 ? null
@@ -558,10 +554,7 @@ class _ExplorerHeader extends StatelessWidget {
             ),
             SegmentedButton<bool>(
               segments: const [
-                ButtonSegment(
-                  value: true,
-                  icon: Icon(Icons.grid_view_rounded),
-                ),
+                ButtonSegment(value: true, icon: Icon(Icons.grid_view_rounded)),
                 ButtonSegment(
                   value: false,
                   icon: Icon(Icons.view_list_rounded),
@@ -612,19 +605,21 @@ class _ExplorerHeader extends StatelessWidget {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: LocalLibrarySmartView.values.map((view) {
-                    final selected = view == smartView;
-                    final count = countFor(view);
-                    return Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.xs),
-                      child: FilterChip(
-                        selected: selected,
-                        onSelected: (_) => onSmartView(view),
-                        avatar: Icon(_smartIcon(view), size: 18),
-                        label: Text('${_smartLabel(view)}  $count'),
-                      ),
-                    );
-                  }).toList(growable: false),
+                  children: LocalLibrarySmartView.values
+                      .map((view) {
+                        final selected = view == smartView;
+                        final count = countFor(view);
+                        return Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.xs),
+                          child: FilterChip(
+                            selected: selected,
+                            onSelected: (_) => onSmartView(view),
+                            avatar: Icon(_smartIcon(view), size: 18),
+                            label: Text('${_smartLabel(view)}  $count'),
+                          ),
+                        );
+                      })
+                      .toList(growable: false),
                 ),
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -658,32 +653,32 @@ class _ExplorerHeader extends StatelessWidget {
   }
 
   static String _smartLabel(LocalLibrarySmartView view) => switch (view) {
-        LocalLibrarySmartView.all => '全部',
-        LocalLibrarySmartView.recentlyAdded => '最近添加',
-        LocalLibrarySmartView.recentlyPlayed => '最近播放',
-        LocalLibrarySmartView.withLyrics => '有歌词',
-        LocalLibrarySmartView.withoutLyrics => '无歌词',
-        LocalLibrarySmartView.editedMetadata => '已编辑资料',
-        LocalLibrarySmartView.missingFiles => '文件不可用',
-      };
+    LocalLibrarySmartView.all => '全部',
+    LocalLibrarySmartView.recentlyAdded => '最近添加',
+    LocalLibrarySmartView.recentlyPlayed => '最近播放',
+    LocalLibrarySmartView.withLyrics => '有歌词',
+    LocalLibrarySmartView.withoutLyrics => '无歌词',
+    LocalLibrarySmartView.editedMetadata => '已编辑资料',
+    LocalLibrarySmartView.missingFiles => '文件不可用',
+  };
 
   static IconData _smartIcon(LocalLibrarySmartView view) => switch (view) {
-        LocalLibrarySmartView.all => Icons.library_music_rounded,
-        LocalLibrarySmartView.recentlyAdded => Icons.fiber_new_rounded,
-        LocalLibrarySmartView.recentlyPlayed => Icons.history_rounded,
-        LocalLibrarySmartView.withLyrics => Icons.lyrics_rounded,
-        LocalLibrarySmartView.withoutLyrics => Icons.lyrics_outlined,
-        LocalLibrarySmartView.editedMetadata => Icons.edit_note_rounded,
-        LocalLibrarySmartView.missingFiles => Icons.link_off_rounded,
-      };
+    LocalLibrarySmartView.all => Icons.library_music_rounded,
+    LocalLibrarySmartView.recentlyAdded => Icons.fiber_new_rounded,
+    LocalLibrarySmartView.recentlyPlayed => Icons.history_rounded,
+    LocalLibrarySmartView.withLyrics => Icons.lyrics_rounded,
+    LocalLibrarySmartView.withoutLyrics => Icons.lyrics_outlined,
+    LocalLibrarySmartView.editedMetadata => Icons.edit_note_rounded,
+    LocalLibrarySmartView.missingFiles => Icons.link_off_rounded,
+  };
 
   static String _sortLabel(LocalLibrarySortMode mode) => switch (mode) {
-        LocalLibrarySortMode.title => '标题 A-Z',
-        LocalLibrarySortMode.artist => '按艺人',
-        LocalLibrarySortMode.album => '按专辑',
-        LocalLibrarySortMode.recentlyAdded => '最近添加',
-        LocalLibrarySortMode.recentlyPlayed => '最近播放',
-      };
+    LocalLibrarySortMode.title => '标题 A-Z',
+    LocalLibrarySortMode.artist => '按艺人',
+    LocalLibrarySortMode.album => '按专辑',
+    LocalLibrarySortMode.recentlyAdded => '最近添加',
+    LocalLibrarySortMode.recentlyPlayed => '最近播放',
+  };
 }
 
 class _ExplorerGrid extends StatelessWidget {
@@ -888,10 +883,10 @@ class _ExplorerCard extends StatelessWidget {
   }
 
   String entryLabel(_ExplorerSong song) => [
-        if (song.entry.embeddedTrackNumber != null)
-          '#${song.entry.embeddedTrackNumber}',
-        song.entry.format.toUpperCase(),
-      ].join(' · ');
+    if (song.entry.embeddedTrackNumber != null)
+      '#${song.entry.embeddedTrackNumber}',
+    song.entry.format.toUpperCase(),
+  ].join(' · ');
 }
 
 class _SongMenu extends StatelessWidget {
@@ -1028,16 +1023,12 @@ class _EmptyLibrary extends StatelessWidget {
             Text(
               '建立你的本地音乐库',
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.sm),
-            const Text(
-              '导入后自动读取标题、艺人、专辑和内嵌封面。',
-              textAlign: TextAlign.center,
-            ),
+            const Text('导入后自动读取标题、艺人、专辑和内嵌封面。', textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.lg),
             Wrap(
               spacing: AppSpacing.sm,

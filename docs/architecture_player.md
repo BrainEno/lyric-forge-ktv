@@ -5,7 +5,7 @@
 > 主要分叉（提案 → 已实现）：
 > - 跨端传输：shelf HTTP 服务 → `dart:io` 的 `HttpServer.bindSecure`（TLS 证书指纹固定、Bearer 令牌），实现为 `HttpMediaHubService`；不绑定 `0.0.0.0`，只绑定局域网/Tailscale/loopback 接口。
 > - 本地存储：移动端 Hive → 全平台统一的 JSON 文件存储，经 `AtomicJsonFile` 做校验、备份轮换与原子替换。
-> - 状态管理：flutter_bloc/BLoC → 无第三方状态框架，使用 `setState` + `StreamController`，由 `lib/core/services/service_locator.dart` 集中装配。
+> - 状态管理：flutter_bloc/BLoC → 无第三方状态框架，使用 `setState` + `StreamController`，由 `lib/app/app_services.dart` 集中装配。
 > - 传输协议：`/connect`、`/download` → 见下文「API 端点（已实现）」的 `/v1/*` 接口。
 
 ## 整体架构图
@@ -289,7 +289,7 @@ POST /v1/incoming/audio?filename=...     回传音频（2 GiB 等限额，见实
 
 ## 状态管理策略（已实现）
 
-未采用 BLoC 或任何第三方状态管理框架：界面状态以 `setState` 为主，播放/队列/会话等长生命周期状态由领域服务以 `Stream` 暴露，播放会话收敛为单一 app 级模型（`PlaybackSessionService`）；依赖装配集中在 `lib/core/services/service_locator.dart` 手工完成。相关取舍与后续重构诉求见 issue #235。
+未采用 BLoC 或任何第三方状态管理框架：界面状态以 `setState` 为主，播放/队列/会话等长生命周期状态由领域服务以 `Stream` 暴露，播放会话收敛为单一 app 级模型（`PlaybackSessionService`）；依赖装配集中在 `lib/app/app_services.dart` 手工完成（Phase 4.2 从 `lib/core/services/service_locator.dart` 迁出，装配层整体位于 `lib/app/`：服务图、路由表、App widget 与各屏的依赖装配）；屏幕逐步改为构造注入，尚未迁移的屏幕仍通过 `AppServices.instance` 过渡。相关取舍与后续重构诉求见 issue #235。
 
 ## 依赖清单（已实现快照，以 pubspec.yaml 为准）
 

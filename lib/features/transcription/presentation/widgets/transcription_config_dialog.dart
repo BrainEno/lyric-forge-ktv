@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_download_connection_checker.dart';
@@ -54,7 +54,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _profileResolver = services.transcriptionProfileResolver;
     _downloadConnectionChecker = services.asrDownloadConnectionChecker;
     _downloadProxyStore = services.transcriptionDownloadProxyStore;

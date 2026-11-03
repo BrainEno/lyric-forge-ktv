@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
@@ -46,7 +46,7 @@ Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
   if (paths.isEmpty) return null;
 
   final collections =
-      repository ?? ServiceLocatorGlobal.I.localMediaCollectionRepository;
+      repository ?? AppServices.instance.localMediaCollectionRepository;
   final playlists = await collections.getPlaylists();
   if (!context.mounted) return null;
 
@@ -55,9 +55,8 @@ Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
     builder: (dialogContext) {
       final spec = AppResponsive.of(dialogContext);
       final media = MediaQuery.of(dialogContext);
-      final availableHeight = media.size.height -
-          media.viewInsets.bottom -
-          spec.pageGutter * 2;
+      final availableHeight =
+          media.size.height - media.viewInsets.bottom - spec.pageGutter * 2;
       final listMaxHeight = (availableHeight * (spec.isShort ? 0.46 : 0.58))
           .clamp(160.0, 420.0)
           .toDouble();
@@ -69,8 +68,8 @@ Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
           constraints: BoxConstraints(
             maxWidth: spec.isCompact
                 ? (spec.width - spec.pageGutter * 2)
-                    .clamp(260.0, 460.0)
-                    .toDouble()
+                      .clamp(260.0, 460.0)
+                      .toDouble()
                 : 460,
           ),
           child: Column(
