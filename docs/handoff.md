@@ -82,4 +82,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 10:58（Asia/Taipei）
+最后更新：2026-11-03 11:04（Asia/Taipei）
