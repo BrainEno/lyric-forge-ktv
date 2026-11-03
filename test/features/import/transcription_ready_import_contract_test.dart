@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('import route is guarded by desktop transcription readiness', () {
-    final router = File('lib/core/navigation/app_router.dart').readAsStringSync();
+    final router = File('lib/app/app_router.dart').readAsStringSync();
     final gate = File(
       'lib/features/import/presentation/screens/'
       'transcription_ready_import_screen.dart',

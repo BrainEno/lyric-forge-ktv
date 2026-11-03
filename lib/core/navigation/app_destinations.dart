@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app_router.dart';
+import 'routes.dart';
 
 /// The four places the app can be, as far as the user is concerned.
 ///

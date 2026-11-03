@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
@@ -27,7 +27,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
 
   Future<void> _pickFiles() async {
     await _runPicker(() async {
-      final paths = await ServiceLocatorGlobal.I.audioLibraryImportService
+      final paths = await AppServices.instance.audioLibraryImportService
           .pickAudioFiles();
       _mergeSelection(paths);
     });
@@ -35,7 +35,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
 
   Future<void> _pickDirectory() async {
     await _runPicker(() async {
-      final paths = await ServiceLocatorGlobal.I.audioLibraryImportService
+      final paths = await AppServices.instance.audioLibraryImportService
           .pickAudioDirectory();
       _mergeSelection(paths);
       if (mounted && paths.isEmpty) {
@@ -79,7 +79,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
     if (_selectedPaths.isEmpty || _isEnqueueing) return;
     setState(() => _isEnqueueing = true);
     try {
-      final added = await ServiceLocatorGlobal.I.transcriptionQueue
+      final added = await AppServices.instance.transcriptionQueue
           .enqueuePaths(_selectedPaths);
       if (!mounted) return;
       setState(_selectedPaths.clear);

@@ -3,7 +3,7 @@ name: ASR storage preflight validation
 on:
   pull_request:
     paths:
-      - "lib/core/services/service_locator.dart"
+      - "lib/app/app_services.dart"
       - "lib/features/transcription/domain/services/asr_storage_preflight_service.dart"
       - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
@@ -18,7 +18,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "lib/core/services/service_locator.dart"
+      - "lib/app/app_services.dart"
       - "lib/features/transcription/domain/services/asr_storage_preflight_service.dart"
       - "lib/features/transcription/data/services/local_asr_storage_preflight_service.dart"
       - "lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart"
@@ -46,7 +46,7 @@ jobs:
       - name: Analyze storage preflight changes
         run: >-
           flutter analyze --no-fatal-infos
-          lib/core/services/service_locator.dart
+          lib/app/app_services.dart
           lib/features/transcription/domain/services/asr_storage_preflight_service.dart
           lib/features/transcription/data/services/local_asr_storage_preflight_service.dart
           lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart

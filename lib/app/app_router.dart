@@ -1,51 +1,37 @@
 import 'package:flutter/material.dart';
-import '../services/service_locator.dart';
-import '../../features/home/presentation/screens/dashboard_screen.dart';
-import '../../features/player/domain/models/play_history.dart';
-import '../../features/player/presentation/screens/local_music_library_shell.dart';
-import '../../features/player/presentation/screens/now_playing_screen.dart';
-import '../../features/player/presentation/screens/quick_play_screen.dart';
-import '../../features/project/presentation/screens/project_detail_screen.dart';
-import '../../features/import/presentation/screens/transcription_ready_import_screen.dart';
-import '../../features/lyrics/presentation/screens/lyric_editor_screen.dart';
-import '../../features/lyrics/presentation/screens/review_inbox_screen.dart';
-import '../../features/player/presentation/screens/player_screen.dart';
-import '../../features/settings/presentation/screens/settings_screen.dart';
-import '../../features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart';
-import '../../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
-import '../../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
-import '../../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
 
-abstract class Routes {
-  static const String home = '/';
-  static const String dashboard = '/dashboard';
-  static const String import = '/import';
-  static const String library = '/library';
-  static const String libraryArtists = '/library/artists';
-  static const String libraryAlbums = '/library/albums';
-  static const String collections = '/collections';
-  static const String playlists = '/playlists';
-  static const String quickPlay = '/quick-play';
-  static const String nowPlaying = '/now-playing';
-  static const String projectDetail = '/project/:id';
-  static const String lyricEditor = '/project/:id/lyrics';
-  static const String player = '/project/:id/player';
-  static const String review = '/review';
-  static const String settings = '/settings';
-  static const String mediaSharing = '/media-sharing';
-  static const String remoteLibrary = '/remote-library';
-  static const String remoteBrowse = '/remote-library/browse';
-  static const String mediaHubScanner = '/media-hub-scanner';
+import '../core/navigation/routes.dart';
+import '../features/home/presentation/screens/dashboard_screen.dart';
+import '../features/import/presentation/screens/transcription_ready_import_screen.dart';
+import '../features/lyrics/presentation/screens/lyric_editor_screen.dart';
+import '../features/lyrics/presentation/screens/review_inbox_screen.dart';
+import '../features/player/domain/models/play_history.dart';
+import '../features/player/presentation/screens/local_music_library_shell.dart';
+import '../features/player/presentation/screens/now_playing_screen.dart';
+import '../features/player/presentation/screens/player_screen.dart';
+import '../features/player/presentation/screens/quick_play_screen.dart';
+import '../features/project/presentation/screens/project_detail_screen.dart';
+import '../features/settings/presentation/screens/settings_screen.dart';
+import '../features/transfer/presentation/screens/desktop_media_transfer_hub_v2_screen.dart';
+import '../features/transfer/presentation/screens/media_hub_qr_scanner_screen.dart';
+import '../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
+import '../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
+import 'app_services.dart';
+import 'lyric_editor_assembly.dart';
 
-  static String projectDetailPath(String id) => '/project/$id';
-  static String lyricEditorPath(String id) => '/project/$id/lyrics';
-  static String playerPath(String id) => '/project/$id/player';
-}
-
+/// The routing table: route name in, screen out.
+///
+/// This is assembly, not navigation. It was `AppRouter.onGenerateRoute`, a
+/// static function that reached into the service locator for the one route that
+/// needs live state (`/quick-play`). Taking [services] as a constructor argument
+/// keeps that lookup explicit and lets a screen be handed exactly the
+/// dependencies it declares instead of finding them itself (Phase 4.2).
 class AppRouter {
-  const AppRouter._();
+  const AppRouter(this.services);
 
-  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+  final AppServices services;
+
+  Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final uri = Uri.parse(settings.name ?? Routes.home);
 
     switch (uri.path) {
@@ -90,11 +76,7 @@ class AppRouter {
         if (history != null) {
           return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
         }
-        final current = ServiceLocatorGlobal
-            .I
-            .playbackSessionService
-            .currentState
-            .currentItem;
+        final current = services.playbackSessionService.currentState.currentItem;
         if (current?.isRemoteStream == true) {
           return _fadeRoute(const NowPlayingScreen(), settings);
         }
@@ -107,7 +89,10 @@ class AppRouter {
         return _fadeRoute(const NowPlayingScreen(), settings);
 
       case Routes.review:
-        return _fadeRoute(const ReviewInboxScreen(), settings);
+        return _fadeRoute(
+          ReviewInboxScreen(projectRepository: services.projectRepository),
+          settings,
+        );
 
       case Routes.settings:
         return _fadeRoute(const SettingsScreen(), settings);
@@ -139,7 +124,10 @@ class AppRouter {
             switch (uri.pathSegments[2]) {
               case 'lyrics':
                 return _fadeRoute(
-                  LyricEditorScreen(projectId: projectId),
+                  LyricEditorScreen(
+                    projectId: projectId,
+                    dependencies: assembleLyricEditorDependencies(services),
+                  ),
                   settings,
                 );
               case 'player':

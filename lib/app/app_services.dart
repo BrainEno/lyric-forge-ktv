@@ -1,96 +1,104 @@
 import 'dart:async';
 
-import '../../features/lyrics/data/services/local_lyric_file_export_service.dart';
-import '../../features/lyrics/data/services/local_lyric_file_import_service.dart';
-import '../../features/lyrics/domain/services/lyric_file_export_service.dart';
-import '../../features/lyrics/domain/services/lyric_file_import_service.dart';
-import '../../features/player/data/repositories/file_local_media_collection_repository.dart';
-import '../../features/player/data/repositories/file_local_media_library_repository.dart';
-import '../../features/player/data/repositories/file_local_media_metadata_repository.dart';
-import '../../features/player/data/repositories/file_play_history_repository.dart';
-import '../../features/player/data/repositories/file_playback_session_store.dart';
-import '../../features/player/data/services/default_playback_session_service.dart';
-import '../../features/player/data/services/exclusive_audio_preview_service.dart';
-import '../../features/player/data/services/just_audio_audio_preview_service.dart';
-import '../../features/player/data/services/file_audio_path_canonicalizer.dart';
-import '../../features/player/data/services/file_ktv_microphone_preference_store.dart';
-import '../../features/player/data/services/file_ktv_take_history_store.dart';
-import '../../features/player/data/services/file_local_media_relink_service.dart';
-import '../../features/player/data/services/record_soloud_ktv_microphone_service.dart';
-import '../../features/player/data/services/local_ktv_recording_service.dart';
-import '../../features/player/data/services/just_audio_player_service.dart';
-import '../../features/player/data/services/library_metadata_playback_session_service.dart';
-import '../../features/player/data/services/local_audio_library_import_service.dart';
-import '../../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
-import '../../features/player/data/services/remote_rebinding_playback_session_service.dart';
-import '../../features/player/domain/repositories/local_media_collection_repository.dart';
-import '../../features/player/domain/repositories/local_media_library_repository.dart';
-import '../../features/player/domain/repositories/local_media_metadata_repository.dart';
-import '../../features/player/domain/repositories/play_history_repository.dart';
-import '../../features/player/domain/repositories/playback_session_store.dart';
-import '../../features/player/domain/services/audio_library_import_service.dart';
-import '../../features/player/domain/services/audio_path_canonicalizer.dart';
-import '../../features/player/domain/services/audio_preview_service.dart';
-import '../../features/player/domain/services/audio_player_service.dart';
-import '../../features/player/domain/services/ktv_microphone_service.dart';
-import '../../features/player/domain/services/ktv_recording_service.dart';
-import '../../features/player/domain/services/ktv_take_history_store.dart';
-import '../../features/player/domain/services/embedded_audio_metadata_reader.dart';
-import '../../features/player/domain/services/local_media_relink_service.dart';
-import '../../features/player/domain/services/playback_session_service.dart';
-import '../../features/project/data/repositories/file_project_repository.dart';
-import '../../features/project/domain/repositories/project_repository.dart';
-import '../../features/transcription/data/services/file_batch_transcription_queue.dart';
-import '../../features/transcription/data/services/file_transcription_settings_store.dart';
-import '../../features/transcription/data/services/asr_download_connection_checker.dart';
-import '../../features/transcription/data/services/asr_download_http_client_factory.dart';
-import '../../features/transcription/data/services/high_quality_transcription_service.dart';
-import '../../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
-import '../../features/transcription/data/services/local_asr_managed_storage_service.dart';
-import '../../features/transcription/data/services/local_asr_storage_preflight_service.dart';
-import '../../features/transcription/data/services/local_project_transcription_workflow.dart';
-import '../../features/transcription/data/services/managed_asr_runtime_manager.dart';
-import '../../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
-import '../../features/transcription/data/services/native_transcription_profile_resolver.dart';
-import '../../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
-import '../../features/transcription/data/services/resilient_asr_runtime_manager.dart';
-import '../../features/transcription/data/services/resumable_chunked_transcription_service.dart';
-import '../../features/transcription/data/services/retrying_asr_runtime_manager.dart';
-import '../../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
-import '../../features/transcription/data/services/whisper_cpp_transcription_service.dart';
-import '../../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
-import '../../features/transcription/domain/services/asr_download_connection_checker.dart';
-import '../../features/transcription/domain/services/asr_runtime_manager.dart';
-import '../../features/transcription/domain/services/asr_storage_preflight_service.dart';
-import '../../features/transcription/domain/services/batch_transcription_queue.dart';
-import '../../features/transcription/domain/services/project_transcription_workflow.dart';
-import '../../features/transcription/domain/services/transcription_profile_resolver.dart';
-import '../../features/transcription/domain/services/transcription_service.dart';
-import '../../features/transcription/domain/services/transcription_settings_store.dart';
-import '../../features/transfer/data/services/discoverable_media_hub_service.dart';
-import '../../features/transfer/data/services/file_media_hub_connection_store.dart';
-import '../../features/transfer/data/services/file_media_hub_device_identity_store.dart';
-import '../../features/transfer/data/services/file_media_transfer_queue_service.dart';
-import '../../features/transfer/data/services/http_media_hub_client_service.dart';
-import '../../features/transfer/data/services/http_media_hub_service.dart';
-import '../../features/transfer/data/services/local_library_media_share_catalog.dart';
-import '../../features/transfer/data/services/local_media_transfer_service.dart';
-import '../../features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
-import '../../features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
-import '../../features/transfer/data/services/udp_media_hub_discovery_service.dart';
-import '../../features/transfer/domain/services/media_hub_client_service.dart';
-import '../../features/transfer/domain/services/media_hub_connection_store.dart';
-import '../../features/transfer/domain/services/media_hub_service.dart';
-import '../../features/transfer/domain/services/media_share_catalog.dart';
-import '../../features/transfer/domain/services/media_transfer_queue_service.dart';
-import '../../features/transfer/domain/services/media_transfer_service.dart';
+import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
+import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
+import '../features/lyrics/domain/services/lyric_file_export_service.dart';
+import '../features/lyrics/domain/services/lyric_file_import_service.dart';
+import '../features/player/data/repositories/file_local_media_collection_repository.dart';
+import '../features/player/data/repositories/file_local_media_library_repository.dart';
+import '../features/player/data/repositories/file_local_media_metadata_repository.dart';
+import '../features/player/data/repositories/file_play_history_repository.dart';
+import '../features/player/data/repositories/file_playback_session_store.dart';
+import '../features/player/data/services/default_playback_session_service.dart';
+import '../features/player/data/services/exclusive_audio_preview_service.dart';
+import '../features/player/data/services/just_audio_audio_preview_service.dart';
+import '../features/player/data/services/file_audio_path_canonicalizer.dart';
+import '../features/player/data/services/file_ktv_microphone_preference_store.dart';
+import '../features/player/data/services/file_ktv_take_history_store.dart';
+import '../features/player/data/services/file_local_media_relink_service.dart';
+import '../features/player/data/services/record_soloud_ktv_microphone_service.dart';
+import '../features/player/data/services/local_ktv_recording_service.dart';
+import '../features/player/data/services/just_audio_player_service.dart';
+import '../features/player/data/services/library_metadata_playback_session_service.dart';
+import '../features/player/data/services/local_audio_library_import_service.dart';
+import '../features/player/data/services/pure_dart_embedded_audio_metadata_reader.dart';
+import '../features/player/data/services/remote_rebinding_playback_session_service.dart';
+import '../features/player/domain/repositories/local_media_collection_repository.dart';
+import '../features/player/domain/repositories/local_media_library_repository.dart';
+import '../features/player/domain/repositories/local_media_metadata_repository.dart';
+import '../features/player/domain/repositories/play_history_repository.dart';
+import '../features/player/domain/repositories/playback_session_store.dart';
+import '../features/player/domain/services/audio_library_import_service.dart';
+import '../features/player/domain/services/audio_path_canonicalizer.dart';
+import '../features/player/domain/services/audio_preview_service.dart';
+import '../features/player/domain/services/audio_player_service.dart';
+import '../features/player/domain/services/ktv_microphone_service.dart';
+import '../features/player/domain/services/ktv_recording_service.dart';
+import '../features/player/domain/services/ktv_take_history_store.dart';
+import '../features/player/domain/services/embedded_audio_metadata_reader.dart';
+import '../features/player/domain/services/local_media_relink_service.dart';
+import '../features/player/domain/services/playback_session_service.dart';
+import '../features/project/data/repositories/file_project_repository.dart';
+import '../features/project/domain/repositories/project_repository.dart';
+import '../features/transcription/data/services/file_batch_transcription_queue.dart';
+import '../features/transcription/data/services/file_transcription_settings_store.dart';
+import '../features/transcription/data/services/asr_download_connection_checker.dart';
+import '../features/transcription/data/services/asr_download_http_client_factory.dart';
+import '../features/transcription/data/services/high_quality_transcription_service.dart';
+import '../features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart';
+import '../features/transcription/data/services/local_asr_managed_storage_service.dart';
+import '../features/transcription/data/services/local_asr_storage_preflight_service.dart';
+import '../features/transcription/data/services/local_project_transcription_workflow.dart';
+import '../features/transcription/data/services/managed_asr_runtime_manager.dart';
+import '../features/transcription/data/services/managed_model_asr_runtime_manager.dart';
+import '../features/transcription/data/services/native_transcription_profile_resolver.dart';
+import '../features/transcription/data/services/qwen3_asr_native_transcription_service.dart';
+import '../features/transcription/data/services/resilient_asr_runtime_manager.dart';
+import '../features/transcription/data/services/resumable_chunked_transcription_service.dart';
+import '../features/transcription/data/services/retrying_asr_runtime_manager.dart';
+import '../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
+import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
+import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
+import '../features/transcription/domain/services/asr_download_connection_checker.dart';
+import '../features/transcription/domain/services/asr_runtime_manager.dart';
+import '../features/transcription/domain/services/asr_storage_preflight_service.dart';
+import '../features/transcription/domain/services/batch_transcription_queue.dart';
+import '../features/transcription/domain/services/project_transcription_workflow.dart';
+import '../features/transcription/domain/services/transcription_profile_resolver.dart';
+import '../features/transcription/domain/services/transcription_service.dart';
+import '../features/transcription/domain/services/transcription_settings_store.dart';
+import '../features/transfer/data/services/discoverable_media_hub_service.dart';
+import '../features/transfer/data/services/file_media_hub_connection_store.dart';
+import '../features/transfer/data/services/file_media_hub_device_identity_store.dart';
+import '../features/transfer/data/services/file_media_transfer_queue_service.dart';
+import '../features/transfer/data/services/http_media_hub_client_service.dart';
+import '../features/transfer/data/services/http_media_hub_service.dart';
+import '../features/transfer/data/services/local_library_media_share_catalog.dart';
+import '../features/transfer/data/services/local_media_transfer_service.dart';
+import '../features/transfer/data/services/media_hub_rebinding_audio_player_service.dart';
+import '../features/transfer/data/services/media_hub_remote_playback_item_resolver.dart';
+import '../features/transfer/data/services/udp_media_hub_discovery_service.dart';
+import '../features/transfer/domain/services/media_hub_client_service.dart';
+import '../features/transfer/domain/services/media_hub_connection_store.dart';
+import '../features/transfer/domain/services/media_hub_service.dart';
+import '../features/transfer/domain/services/media_share_catalog.dart';
+import '../features/transfer/domain/services/media_transfer_queue_service.dart';
+import '../features/transfer/domain/services/media_transfer_service.dart';
 
-/// Simple service locator for dependency injection.
-/// Replaced with proper DI (e.g., get_it, injectable) as project grows.
-class ServiceLocator {
-  static final ServiceLocator _instance = ServiceLocator._internal();
-  factory ServiceLocator() => _instance;
-  ServiceLocator._internal();
+/// The composition root's product: every app-scoped service, built once.
+///
+/// Phase 4.2 moved this out of `lib/core/services/service_locator.dart`. The
+/// construction order below *is* the dependency graph, so it belongs in the
+/// assembly layer (`lib/app/`) rather than in `core/`, which the rest of the app
+/// is allowed to depend on without also depending on concrete implementations.
+///
+/// [instance] is the transitional global. Screens should take what they need as
+/// constructor parameters (see `LyricEditorScreen.dependencies`); the ratchet in
+/// `test/architecture/app_assembly_contract_test.dart` only lets the number of
+/// callers shrink.
+class AppServices {
+  static final AppServices instance = AppServices._();
+  AppServices._();
 
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
@@ -336,10 +344,4 @@ bool _isSupportedIncomingAudio(String path) {
     'ogg',
     'aac',
   }.contains(extension);
-}
-
-/// Global accessor for services.
-/// Usage: `ServiceLocator.I.projectRepository`
-extension ServiceLocatorGlobal on ServiceLocator {
-  static ServiceLocator get I => ServiceLocator();
 }

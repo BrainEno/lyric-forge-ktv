@@ -4,17 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('all managed ASR writers use the shared root resolver', () async {
-    final locator = await File(
-      'lib/core/services/service_locator.dart',
-    ).readAsString();
+    final assembly = await File('lib/app/app_services.dart').readAsString();
     expect(
-      locator,
+      assembly,
       contains('asrManagedStorageService = LocalAsrManagedStorageService()'),
     );
     expect(
       RegExp(
         r'managedRootResolver: asrManagedStorageService\.resolveRoot',
-      ).allMatches(locator).length,
+      ).allMatches(assembly).length,
       4,
     );
 

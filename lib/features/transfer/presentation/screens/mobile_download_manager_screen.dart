@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
@@ -38,7 +38,7 @@ class _MobileDownloadManagerScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _library = services.localMediaLibraryRepository;
     _session = services.playbackSessionService;
     _queue = services.mediaTransferQueueService;

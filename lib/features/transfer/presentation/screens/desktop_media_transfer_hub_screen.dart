@@ -8,7 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
@@ -48,7 +48,7 @@ class _DesktopMediaTransferHubScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _hub = services.mediaHubService;
     _projects = services.projectRepository;
     _audioImport = services.audioLibraryImportService;

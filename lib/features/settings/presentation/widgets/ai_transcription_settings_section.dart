@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -72,7 +72,7 @@ class _AiTranscriptionSettingsSectionState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _settingsStore = services.transcriptionSettingsStore;
     _runtimeManager = services.asrRuntimeManager;
     _storagePreflightService = services.asrStoragePreflightService;

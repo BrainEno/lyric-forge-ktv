@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -46,7 +46,7 @@ class _TranscriptionReadyImportScreenState
   void initState() {
     super.initState();
     if (_isDesktop) {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       _preflight = TranscriptionEnvironmentPreflight(
         settingsStore: services.transcriptionSettingsStore,
         runtimeManager: services.asrRuntimeManager,
@@ -61,7 +61,7 @@ class _TranscriptionReadyImportScreenState
     final wasDesktop =
         oldWidget.desktopOverride ?? AppResponsive.isDesktopTarget();
     if (!wasDesktop && _isDesktop && _preflight == null) {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       _preflight = TranscriptionEnvironmentPreflight(
         settingsStore: services.transcriptionSettingsStore,
         runtimeManager: services.asrRuntimeManager,
@@ -104,7 +104,7 @@ class _TranscriptionReadyImportScreenState
     });
 
     try {
-      final services = ServiceLocatorGlobal.I;
+      final services = AppServices.instance;
       final current =
           _readiness?.config ?? await services.transcriptionSettingsStore.load();
       if (!mounted) return;
@@ -139,7 +139,7 @@ class _TranscriptionReadyImportScreenState
   }
 
   Future<void> _resumeEnvironmentBlockedQueueIfNeeded() async {
-    final queue = ServiceLocatorGlobal.I.transcriptionQueue;
+    final queue = AppServices.instance.transcriptionQueue;
     final snapshot = queue.current;
     if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;
     await queue.resume();

@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/play_history.dart';
@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         widget.playbackSessionService == null ||
         widget.audioPlayerService == null ||
         widget.transcriptionQueue == null;
-    final services = needsGlobalServices ? ServiceLocatorGlobal.I : null;
+    final services = needsGlobalServices ? AppServices.instance : null;
     _projects = widget.projectRepository ?? services!.projectRepository;
     _history = widget.playHistoryRepository ?? services!.playHistoryRepository;
     _playbackSession =
@@ -79,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _refresh() async => setState(_loadData);
 
   Future<void> _openModelSettings() async {
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     try {
       final initialConfig =
           await services.transcriptionSettingsStore.load() ??

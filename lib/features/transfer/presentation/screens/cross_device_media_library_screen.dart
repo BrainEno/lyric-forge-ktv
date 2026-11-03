@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
@@ -58,7 +58,7 @@ class _CrossDeviceMediaLibraryScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _client = services.mediaHubClientService;
     _connectionStore = services.mediaHubConnectionStore;
     _transfers = services.mediaTransferService;

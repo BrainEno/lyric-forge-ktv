@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_chrome_controller.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -61,7 +61,7 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
         widget.audioService == null ||
         widget.playbackSession == null ||
         widget.pathCanonicalizer == null;
-    final services = needsGlobal ? ServiceLocatorGlobal.I : null;
+    final services = needsGlobal ? AppServices.instance : null;
     _projects = widget.projectRepository ?? services!.projectRepository;
     _metadata =
         widget.metadataRepository ?? services!.localMediaMetadataRepository;

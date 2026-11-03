@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('service locator wraps production runtime with storage guard', () {
-    final locator = File('lib/core/services/service_locator.dart').readAsStringSync();
+    final assembly = File('lib/app/app_services.dart').readAsStringSync();
 
-    expect(locator, contains('LocalAsrStoragePreflightService('));
-    expect(locator, contains('StoragePreflightAsrRuntimeManager('));
-    expect(locator, contains('asrStoragePreflightService'));
+    expect(assembly, contains('LocalAsrStoragePreflightService('));
+    expect(assembly, contains('StoragePreflightAsrRuntimeManager('));
+    expect(assembly, contains('asrStoragePreflightService'));
   });
 
   test('first-run setup shows storage budget and blocks insufficient install', () {

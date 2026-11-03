@@ -68,20 +68,20 @@ void main() {
       final workflow = File(
         'lib/features/transcription/data/services/local_project_transcription_workflow.dart',
       ).readAsStringSync();
-      final locator = File(
-        'lib/core/services/service_locator.dart',
+      final services = File(
+        'lib/app/app_services.dart',
       ).readAsStringSync();
 
       expect(settings, contains('services.transcriptionSettingsStore'));
       expect(settings, contains('await _settingsStore.save'));
       expect(
         project,
-        contains('ServiceLocatorGlobal.I.transcriptionSettingsStore'),
+        contains('AppServices.instance.transcriptionSettingsStore'),
       );
       expect(project, contains("label: const Text('识别环境与高级设置')"));
       expect(workflow, contains('final config = await _settingsStore.load()'));
       expect(
-        locator,
+        services,
         contains('settingsStore: transcriptionSettingsStore'),
         reason: 'workflow must receive the same store instance exposed to UI',
       );

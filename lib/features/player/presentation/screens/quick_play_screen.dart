@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -49,9 +49,9 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
   @override
   void initState() {
     super.initState();
-    _audio = ServiceLocatorGlobal.I.audioPlayerService;
-    _importer = ServiceLocatorGlobal.I.audioLibraryImportService;
-    _session = ServiceLocatorGlobal.I.playbackSessionService;
+    _audio = AppServices.instance.audioPlayerService;
+    _importer = AppServices.instance.audioLibraryImportService;
+    _session = AppServices.instance.playbackSessionService;
 
     final current = _session.currentState.currentItem;
     if (current != null && current.projectId == null) {

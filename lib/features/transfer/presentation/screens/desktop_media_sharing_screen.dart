@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -45,8 +45,8 @@ class _DesktopMediaSharingScreenState extends State<DesktopMediaSharingScreen> {
   @override
   void initState() {
     super.initState();
-    _mediaHubService = ServiceLocatorGlobal.I.mediaHubService;
-    _projectRepository = ServiceLocatorGlobal.I.projectRepository;
+    _mediaHubService = AppServices.instance.mediaHubService;
+    _projectRepository = AppServices.instance.projectRepository;
     _hubState = _mediaHubService.currentState;
     _stateSubscription = _mediaHubService.stateStream.listen((state) {
       if (mounted) setState(() => _hubState = state);

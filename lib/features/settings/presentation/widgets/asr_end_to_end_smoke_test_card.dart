@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -33,7 +33,7 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
   @override
   void initState() {
     super.initState();
-    _smokeTestService = ServiceLocatorGlobal.I.asrEndToEndSmokeTestService;
+    _smokeTestService = AppServices.instance.asrEndToEndSmokeTestService;
     _progressSubscription = _smokeTestService.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _progress = progress);

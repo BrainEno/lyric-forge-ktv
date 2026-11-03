@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
@@ -32,7 +32,7 @@ class _MobileMediaTransferHubScreenState
   @override
   void initState() {
     super.initState();
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     _client = services.mediaHubClientService;
     _queue = services.mediaTransferQueueService;
     _audioImport = services.audioLibraryImportService;

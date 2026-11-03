@@ -5,7 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_media_metadata.dart';
@@ -54,8 +54,8 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
   @override
   void initState() {
     super.initState();
-    _repository = ServiceLocatorGlobal.I.localMediaMetadataRepository;
-    _session = ServiceLocatorGlobal.I.playbackSessionService;
+    _repository = AppServices.instance.localMediaMetadataRepository;
+    _session = AppServices.instance.playbackSessionService;
     _titleController = TextEditingController(text: widget.item.title);
     _artistController = TextEditingController(text: widget.item.artist ?? '');
     _albumController = TextEditingController();

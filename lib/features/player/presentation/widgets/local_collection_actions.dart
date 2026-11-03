@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
@@ -31,7 +31,7 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
   @override
   void initState() {
     super.initState();
-    _collections = ServiceLocatorGlobal.I.localMediaCollectionRepository;
+    _collections = AppServices.instance.localMediaCollectionRepository;
     _changeSubscription = _collections.changes.listen((_) {
       unawaited(_load());
     });
@@ -96,7 +96,7 @@ Future<LocalPlaylist?> showCreateLocalPlaylistDialog(
   LocalMediaCollectionRepository? repository,
 }) async {
   final collections =
-      repository ?? ServiceLocatorGlobal.I.localMediaCollectionRepository;
+      repository ?? AppServices.instance.localMediaCollectionRepository;
   final controller = TextEditingController();
   String? validationMessage;
 
@@ -175,7 +175,7 @@ Future<LocalPlaylist?> showRenameLocalPlaylistDialog(
   LocalMediaCollectionRepository? repository,
 }) async {
   final collections =
-      repository ?? ServiceLocatorGlobal.I.localMediaCollectionRepository;
+      repository ?? AppServices.instance.localMediaCollectionRepository;
   final controller = TextEditingController(text: playlist.name);
   String? validationMessage;
 
@@ -250,7 +250,7 @@ Future<LocalPlaylist?> showAddToLocalPlaylistDialog(
   LocalMediaCollectionRepository? repository,
 }) async {
   final collections =
-      repository ?? ServiceLocatorGlobal.I.localMediaCollectionRepository;
+      repository ?? AppServices.instance.localMediaCollectionRepository;
   final playlists = await collections.getPlaylists();
   if (!context.mounted) return null;
 

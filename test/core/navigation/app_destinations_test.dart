@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:lyric_forge_ktv/core/navigation/app_destinations.dart';
-import 'package:lyric_forge_ktv/core/navigation/app_router.dart';
+import 'package:lyric_forge_ktv/core/navigation/routes.dart';
 
 void main() {
   group('destinationForRoute', () {

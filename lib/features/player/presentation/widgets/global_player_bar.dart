@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
@@ -33,8 +33,8 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
   @override
   void initState() {
     super.initState();
-    _session = ServiceLocatorGlobal.I.playbackSessionService;
-    _audio = ServiceLocatorGlobal.I.audioPlayerService;
+    _session = AppServices.instance.playbackSessionService;
+    _audio = AppServices.instance.audioPlayerService;
   }
 
   Future<void> _addToPlaylist(BuildContext context, PlaybackItem item) async {

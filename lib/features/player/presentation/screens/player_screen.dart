@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/app_chrome_controller.dart';
-import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/service_locator.dart';
+import '../../../../core/navigation/routes.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
@@ -48,9 +48,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = ServiceLocatorGlobal.I.projectRepository;
-    _audioService = ServiceLocatorGlobal.I.audioPlayerService;
-    _playbackSession = ServiceLocatorGlobal.I.playbackSessionService;
+    _repository = AppServices.instance.projectRepository;
+    _audioService = AppServices.instance.audioPlayerService;
+    _playbackSession = AppServices.instance.playbackSessionService;
     _activeProjectId = widget.projectId;
     _loadProject(_activeProjectId);
     _sessionSubscription = _playbackSession.stateStream.listen(
@@ -1236,9 +1236,9 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
   void initState() {
     super.initState();
     _project = widget.initialProject;
-    _microphoneService = ServiceLocatorGlobal.I.ktvMicrophoneService;
-    _recordingService = ServiceLocatorGlobal.I.ktvRecordingService;
-    _takeHistoryStore = ServiceLocatorGlobal.I.ktvTakeHistoryStore;
+    _microphoneService = AppServices.instance.ktvMicrophoneService;
+    _recordingService = AppServices.instance.ktvRecordingService;
+    _takeHistoryStore = AppServices.instance.ktvTakeHistoryStore;
     AppChromeController.enterImmersive();
     _sessionSubscription = widget.playbackSession.stateStream.listen(
       _handleSessionChange,
@@ -1303,7 +1303,7 @@ class _FullScreenKtvViewState extends State<_FullScreenKtvView> {
       builder: (context) => KtvTakeResultSheet(
         initialSession: session,
         recordingService: _recordingService,
-        previewService: ServiceLocatorGlobal.I.audioPreviewService,
+        previewService: AppServices.instance.audioPreviewService,
       ),
     );
   }

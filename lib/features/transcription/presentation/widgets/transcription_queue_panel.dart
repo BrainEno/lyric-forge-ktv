@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/services/service_locator.dart';
+import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
@@ -16,7 +16,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final service = queue ?? ServiceLocatorGlobal.I.transcriptionQueue;
+    final service = queue ?? AppServices.instance.transcriptionQueue;
     return StreamBuilder<TranscriptionQueueSnapshot>(
       stream: service.snapshots,
       initialData: service.current,
@@ -226,7 +226,7 @@ class TranscriptionQueuePanel extends StatelessWidget {
     BuildContext context,
     BatchTranscriptionQueue queue,
   ) async {
-    final services = ServiceLocatorGlobal.I;
+    final services = AppServices.instance;
     final store = services.transcriptionSettingsStore;
 
     try {
