@@ -17,7 +17,7 @@ import '../local_library_dependencies.dart';
 
 /// Attaches a lyric file to a local song that does not have a lyric project yet.
 ///
-/// [dependencies] replaced five `AppServices.instance` lookups: the action is a
+/// [dependencies] replaced five app-wide service lookups: the action is a
 /// function, not a widget, so it had nowhere to receive its collaborators from
 /// and simply reached into the process-wide locator. Every caller — the library,
 /// quick play and both player bars — now passes the bundle it already holds.

@@ -31,7 +31,7 @@ class LyricsImportDependencies {
 ///
 /// One bundle for the whole area — the five library sections (songs, artists,
 /// albums, favourites, playlists), the two player bars and quick play. They used
-/// to each reach for `AppServices.instance` in `initState`, which is why none of
+/// to each reach for the app-wide singleton in `initState`, which is why none of
 /// them could be built in a test without the real on-disk library, the real
 /// audio engine and the real session.
 ///
