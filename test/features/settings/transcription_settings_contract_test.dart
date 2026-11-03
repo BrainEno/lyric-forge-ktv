@@ -39,8 +39,9 @@ void main() {
     // The library shell used to carry its own rail with a Settings entry, which
     // put 设置 in two places once the app grew persistent navigation. Settings
     // now lives in the shell that renders on every screen.
-    final destinations = File('lib/core/navigation/app_destinations.dart')
-        .readAsStringSync();
+    final destinations = File(
+      'lib/core/navigation/app_destinations.dart',
+    ).readAsStringSync();
     final shell = File(
       'lib/features/player/presentation/screens/local_music_library_shell.dart',
     ).readAsStringSync();
@@ -55,28 +56,34 @@ void main() {
     expect(shell, isNot(contains('NavigationBar(')));
   });
 
-  test('settings and project recognition share the same persisted transcription store', () {
-    final settings = File(
-      'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
-    ).readAsStringSync();
-    final project = File(
-      'lib/features/project/presentation/screens/project_detail_screen.dart',
-    ).readAsStringSync();
-    final workflow = File(
-      'lib/features/transcription/data/services/local_project_transcription_workflow.dart',
-    ).readAsStringSync();
-    final services = File('lib/app/app_services.dart').readAsStringSync();
+  test(
+    'settings and project recognition share the same persisted transcription store',
+    () {
+      final settings = File(
+        'lib/features/settings/presentation/widgets/ai_transcription_settings_section.dart',
+      ).readAsStringSync();
+      final project = File(
+        'lib/features/project/presentation/screens/project_detail_screen.dart',
+      ).readAsStringSync();
+      final workflow = File(
+        'lib/features/transcription/data/services/local_project_transcription_workflow.dart',
+      ).readAsStringSync();
+      final services = File('lib/app/app_services.dart').readAsStringSync();
 
-    expect(settings, contains('services.transcriptionSettingsStore'));
-    expect(settings, contains('await _settingsStore.save'));
-    expect(project, contains('widget.dependencies.transcriptionSettingsStore'));
-    expect(project, isNot(contains('AppServices.instance')));
-    expect(project, contains("label: const Text('识别环境与高级设置')"));
-    expect(workflow, contains('final config = await _settingsStore.load()'));
-    expect(
-      services,
-      contains('settingsStore: transcriptionSettingsStore'),
-      reason: 'workflow must receive the same store instance exposed to UI',
-    );
-  });
+      expect(settings, contains('services.transcriptionSettingsStore'));
+      expect(settings, contains('await _settingsStore.save'));
+      expect(
+        project,
+        contains('widget.dependencies.transcriptionSettingsStore'),
+      );
+      expect(project, isNot(contains('AppServices.instance')));
+      expect(project, contains("label: const Text('识别环境与高级设置')"));
+      expect(workflow, contains('final config = await _settingsStore.load()'));
+      expect(
+        services,
+        contains('settingsStore: transcriptionSettingsStore'),
+        reason: 'workflow must receive the same store instance exposed to UI',
+      );
+    },
+  );
 }

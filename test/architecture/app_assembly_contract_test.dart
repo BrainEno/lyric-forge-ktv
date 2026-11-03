@@ -218,8 +218,9 @@ void main() {
       expect(router, contains('assembleNowPlayingDependencies(services)'));
       expect(router, contains('assemblePlayerScreenDependencies(services)'));
 
-      final assembly = File('lib/app/playback_assembly.dart')
-          .readAsStringSync();
+      final assembly = File(
+        'lib/app/playback_assembly.dart',
+      ).readAsStringSync();
       expect(assembly, contains('PlaybackLyricsResolver('));
       expect(
         assembly,
@@ -289,8 +290,9 @@ void main() {
       expect(router, contains('assembleLocalLibraryDependencies(services)'));
       expect(router, contains('_libraryShell('));
 
-      final assembly = File('lib/app/local_library_assembly.dart')
-          .readAsStringSync();
+      final assembly = File(
+        'lib/app/local_library_assembly.dart',
+      ).readAsStringSync();
       for (final service in [
         'services.localMediaLibraryRepository',
         'services.localMediaCollectionRepository',
@@ -355,8 +357,9 @@ void main() {
         ),
       );
 
-      final assembly = File('lib/app/lyric_editor_assembly.dart')
-          .readAsStringSync();
+      final assembly = File(
+        'lib/app/lyric_editor_assembly.dart',
+      ).readAsStringSync();
       // The forced-alignment runner used to be inlined in the editor screen.
       expect(
         assembly,

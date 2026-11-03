@@ -266,16 +266,19 @@ class TranscriptionQueuePanel extends StatelessWidget {
         return;
       }
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('识别环境已恢复，后台队列已继续。')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('识别环境已恢复，后台队列已继续。')));
     } on TranscriptionException catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('识别环境仍需处理：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('识别环境仍需处理：$error')));
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('检查识别环境失败：$error')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('检查识别环境失败：$error')));
     }
   }
 
@@ -356,8 +359,10 @@ class _EnvironmentBlockedCard extends StatelessWidget {
                       : '本地识别 runtime、模型或配置暂不可用。队列已停止在当前歌曲，修复后可从这里继续。',
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textSecondary, height: 1.4),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 FilledButton.tonalIcon(
@@ -406,15 +411,18 @@ class _EmptyQueueState extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             '后台队列还没有歌曲',
-            style: Theme.of(context).textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '从上方选择音频或音乐文件夹。加入后可以离开此页面，LyricForge 会继续逐首生成歌词。',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: AppColors.textTertiary, height: 1.4),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textTertiary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -445,8 +453,9 @@ class _CountPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: foreground),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: foreground),
           ),
         ],
       ),
@@ -470,8 +479,10 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall
-            ?.copyWith(color: color, fontWeight: FontWeight.w700),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -558,8 +569,9 @@ class _QueueItemTile extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
-                        style: Theme.of(context).textTheme.labelSmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ],
@@ -590,8 +602,9 @@ class _QueueItemTile extends StatelessWidget {
                     item.error!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(color: AppColors.textTertiary),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ],

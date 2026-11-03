@@ -41,8 +41,9 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
           .pickAudioDirectory();
       _mergeSelection(paths);
       if (mounted && paths.isEmpty) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('所选文件夹里没有找到支持的音频文件')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('所选文件夹里没有找到支持的音频文件')));
       }
     });
   }
@@ -220,8 +221,10 @@ class _ImportHero extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           '选择歌曲后交给后台队列逐首创建工程和生成歌词。离开此页面不会中断任务，单首失败也不会卡住后面的歌曲。',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(color: AppColors.textSecondary, height: 1.45),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppColors.textSecondary,
+            height: 1.45,
+          ),
         ),
         if (!spec.isShort) ...[
           const SizedBox(height: AppSpacing.md),
@@ -290,8 +293,9 @@ class _FeaturePill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -411,8 +415,9 @@ class _ImportActionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -438,8 +443,9 @@ class _ImportActionCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       actionLabel,
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 )
@@ -507,13 +513,15 @@ class _SelectionPanel extends StatelessWidget {
                   children: [
                     Text(
                       '准备加入队列',
-                      style: Theme.of(context).textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(
                       '${paths.length} 首 · ${_formatBytes(totalBytes)}',
-                      style: Theme.of(context).textTheme.labelSmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -555,8 +563,9 @@ class _SelectionPanel extends StatelessWidget {
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
                 '另外 $hiddenCount 首已选中，为保持页面紧凑暂不展开；加入队列时会全部处理。',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ),
         ],
@@ -608,8 +617,9 @@ class _SelectedPathTile extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text(
               _formatBytes(size),
-              style: Theme.of(context).textTheme.labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
           SizedBox(
