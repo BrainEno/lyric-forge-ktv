@@ -1,0 +1,46 @@
+name: Temporary Dart formatter
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.dart'
+      - '.github/workflows/temp-format.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/setup-flutter
+      - name: Check and apply Dart formatting
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          git fetch --no-tags --unshallow origin "+refs/heads/${HEAD_BRANCH}:refs/remotes/origin/${HEAD_BRANCH}"
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          printf 'Checking %s changed Dart files.\n' "${#dart_files[@]}"
+          for file in "${dart_files[@]}"; do
+            set +e
+            output=$(dart format --output=none --set-exit-if-changed "$file" 2>&1)
+            result=$?
+            set -e
+            if (( result != 0 )); then
+              echo "::error file=${file}::format check rc=${result}: ${output//$'\n'/ }"
+            fi
+            dart format "$file"
+          done
+          git add "${dart_files[@]}"
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'chore: dart format'
+            git push origin "HEAD:${HEAD_BRANCH}"
+          fi
