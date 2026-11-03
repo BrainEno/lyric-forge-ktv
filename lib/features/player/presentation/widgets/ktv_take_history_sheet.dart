@@ -22,6 +22,11 @@ import 'ktv_take_result_sheet.dart';
 /// the caller) so a widget test can put the recording service in `isExporting`
 /// and see the refusal.
 class KtvTakeHistorySheet extends StatefulWidget {
+  /// Shown when the take directory is busy. Public so the screen that opens
+  /// this sheet refuses with exactly the same sentence.
+  static const lockedExportMessage = '混音正在导出，完成前不能删除、重命名或收藏录音';
+  static const lockedRecordingMessage = '录音进行中，停止录音后再管理演唱历史';
+
   final ProjectManifest project;
   final KtvTakeHistoryStore takeHistoryStore;
   final KtvRecordingService recordingService;
@@ -40,9 +45,6 @@ class KtvTakeHistorySheet extends StatefulWidget {
 }
 
 class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
-  static const lockedExportMessage = '混音正在导出，完成前不能删除、重命名或收藏录音';
-  static const lockedRecordingMessage = '录音进行中，停止录音后再管理演唱历史';
-
   KtvTakeHistoryScanResult? _scan;
   Object? _error;
   bool _loading = true;
@@ -103,8 +105,8 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
       SnackBar(
         content: Text(
           _recordingState.isExporting
-              ? lockedExportMessage
-              : lockedRecordingMessage,
+              ? KtvTakeHistorySheet.lockedExportMessage
+              : KtvTakeHistorySheet.lockedRecordingMessage,
         ),
       ),
     );
@@ -254,8 +256,8 @@ class _KtvTakeHistorySheetState extends State<KtvTakeHistorySheet> {
             icon: Icons.lock_clock_rounded,
             color: AppColors.warning,
             message: _recordingState.isExporting
-                ? lockedExportMessage
-                : lockedRecordingMessage,
+                ? KtvTakeHistorySheet.lockedExportMessage
+                : KtvTakeHistorySheet.lockedRecordingMessage,
           ),
         ],
         if (scan != null && scan.recoveredCount > 0) ...[

@@ -297,12 +297,6 @@ class _FakePlaybackSession implements PlaybackSessionService {
   PlaybackState get playbackState => const PlaybackState.idle();
 
   @override
-  bool get canSkipPrevious => false;
-
-  @override
-  bool get canSkipNext => false;
-
-  @override
   Future<void> seek(Duration position) async {}
 
   @override
@@ -318,6 +312,11 @@ class _FakePlaybackSession implements PlaybackSessionService {
   Future<void> dispose() async {
     await _states.close();
   }
+
+  /// The screen only touches the transport calls above; the rest of the
+  /// session contract is irrelevant here.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeProjectRepository implements ProjectRepository {
