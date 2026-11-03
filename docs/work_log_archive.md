@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 00:02] An undo stack for the lyric editor ([entry](log/entries/2026-11-03-0002-lyric-editor-undo-stack.md))
 - [2026-11-02 10:31] One review queue instead of three review numbers ([entry](log/entries/2026-11-02-1031-single-review-queue.md))
 - [2026-11-02 01:35] Cut the editor toolbar down to its daily controls ([entry](log/entries/2026-11-02-0135-editor-toolbar-reorg.md))
 - [2026-11-01 22:59] One「校对」entry point instead of six ([entry](log/entries/2026-11-01-2259-single-proofread-entry.md))
