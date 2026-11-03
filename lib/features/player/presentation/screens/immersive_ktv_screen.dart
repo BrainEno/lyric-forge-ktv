@@ -79,7 +79,11 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
     _recording = dependencies.recordingService;
     _takeHistory = dependencies.takeHistoryStore;
     _preview = dependencies.previewService;
-    AppChromeController.enterImmersive();
+    // App chrome is observed above the Navigator, so notifying it while this
+    // route is mounting would ask an ancestor to rebuild during its build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AppChromeController.enterImmersive();
+    });
     unawaited(_loadProject(widget.initialProjectId));
     _sessionSub = _session.stateStream.listen(_syncProjectToPlayback);
   }
@@ -232,7 +236,9 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   void dispose() {
     _sessionSub?.cancel();
     unawaited(_shutdownKtvAudio());
-    AppChromeController.exitImmersive();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppChromeController.exitImmersive();
+    });
     super.dispose();
   }
 
