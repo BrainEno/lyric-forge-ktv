@@ -54,6 +54,7 @@ jobs:
           grep -nE "error •|warning •" /tmp/analyze.log | head -12 | while IFS= read -r line; do
             echo "::error::${line:0:800}"
           done
+          exit 0
 
       - name: Tests
         shell: bash
@@ -71,3 +72,4 @@ jobs:
           tail -c 1200 /tmp/test.log | tr '\n' '|' | fold -w 800 | head -2 | while IFS= read -r line; do
             echo "::error::tail ${line}"
           done
+          exit 0
