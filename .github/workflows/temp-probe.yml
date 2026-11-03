@@ -58,8 +58,8 @@ jobs:
           set +e
           flutter analyze --no-pub --no-fatal-infos lib test > /tmp/analyze.log 2>&1
           status=$?
-          grep -nE "error •" /tmp/analyze.log | head -40 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
-          tail -15 /tmp/analyze.log
+          grep -nE "error •|warning •|info •" /tmp/analyze.log | head -60 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+          tail -25 /tmp/analyze.log
           exit $status
 
       - name: Quality gate
