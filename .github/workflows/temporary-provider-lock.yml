@@ -19,6 +19,8 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Print the generated lockfile delta
+        run: git diff -- pubspec.lock
       - uses: actions/upload-artifact@v4
         with:
           name: resolved-provider-pubspec-lock
