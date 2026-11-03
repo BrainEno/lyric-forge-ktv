@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 14:33] Put KTV recording back on the fullscreen surface ([entry](log/entries/2026-11-03-1433-immersive-ktv-recording.md))
 - [2026-11-03 14:05] Inject the playback surfaces and delete the unreachable KTV view ([entry](log/entries/2026-11-03-1405-playback-assembly-injection.md))
 - [2026-11-03 13:20] Move the assembly layer into lib/app and inject the lyric editor ([entry](log/entries/2026-11-03-1320-app-assembly-layer.md))
 - [2026-11-03 12:13] Move the editing session out of the lyric editor widget ([entry](log/entries/2026-11-03-1213-editor-document-controller.md))
