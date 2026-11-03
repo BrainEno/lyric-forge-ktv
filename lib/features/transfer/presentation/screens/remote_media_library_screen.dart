@@ -439,9 +439,8 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       _error!,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AppColors.error),
                     ),
                   ],
                   const SizedBox(height: AppSpacing.md),
@@ -493,9 +492,8 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
             const SizedBox(height: AppSpacing.sm),
             Text(
               _error!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.error),
             ),
           ],
           const SizedBox(height: AppSpacing.md),

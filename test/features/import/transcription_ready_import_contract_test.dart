@@ -10,10 +10,7 @@ void main() {
       'transcription_ready_import_screen.dart',
     ).readAsStringSync();
 
-    expect(
-      router,
-      contains('TranscriptionReadyImportScreen('),
-    );
+    expect(router, contains('TranscriptionReadyImportScreen('));
     expect(gate, contains('TranscriptionEnvironmentPreflight('));
     expect(gate, contains('AsrRuntimeSetupDialog('));
     expect(gate, contains('Navigator.pushNamed(context, Routes.settings)'));

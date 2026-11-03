@@ -94,9 +94,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
     await _transcriptionSettingsStore.save(config);
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('本地歌词识别环境已保存')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('本地歌词识别环境已保存')));
     }
     return config;
   }
@@ -155,9 +154,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       await _transcriptionWorkflow.transcribeProject(project.id);
       await _refreshProject();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('歌词草稿已生成，请进入编辑器校对')));
       }
     } on TranscriptionException catch (error) {
       if (mounted) {
@@ -255,9 +253,8 @@ class _ErrorState extends StatelessWidget {
             Text(
               '工程文件暂时无法读取，请重新加载。',
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: AppSpacing.lg),
             FilledButton.tonalIcon(
@@ -442,10 +439,8 @@ class _ProjectHero extends StatelessWidget {
           children: [
             Text(
               '歌曲工程',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: AppColors.textTertiary,
-                letterSpacing: 0.6,
-              ),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: AppColors.textTertiary, letterSpacing: 0.6),
             ),
             _StatusPill(status: project.status),
             if (project.lyricDocument?.lines.isNotEmpty == true)
@@ -471,9 +466,8 @@ class _ProjectHero extends StatelessWidget {
           _subtitle(project),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         Wrap(
@@ -599,10 +593,8 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         _statusLabel(status),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -635,9 +627,8 @@ class _MiniPill extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -705,18 +696,16 @@ class _ProcessingProgress extends StatelessWidget {
                   children: [
                     Text(
                       '制作进度',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       displayLabel,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textTertiary),
                     ),
                   ],
                 ),
@@ -854,18 +843,16 @@ class _LyricStatusCard extends StatelessWidget {
                   children: [
                     Text(
                       hasLyrics ? '歌词草稿已生成' : '还没有歌词草稿',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       hasLyrics
                           ? '自动识别结果仍建议进入歌词编辑器逐行校对。'
                           : '在桌面端完成本地识别后，会在这里生成可编辑时间轴。',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textTertiary),
                     ),
                   ],
                 ),
@@ -916,9 +903,8 @@ class _MetricChip extends StatelessWidget {
       ),
       child: Text(
         '$label · $value',
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -957,16 +943,14 @@ class _ActionPanel extends StatelessWidget {
         children: [
           Text(
             '下一步',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 2),
           Text(
             _nextStepText(project),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.textTertiary),
           ),
           const SizedBox(height: AppSpacing.md),
           if (project.hasLyrics)
@@ -1066,9 +1050,8 @@ class _DesktopRequiredNotice extends StatelessWidget {
       ),
       child: Text(
         '本地歌词自动识别需要在桌面端完成。',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -1136,9 +1119,8 @@ class _ProjectMetadata extends StatelessWidget {
               Expanded(
                 child: Text(
                   '工程信息',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               Tooltip(
@@ -1186,16 +1168,14 @@ class _MetadataRow extends StatelessWidget {
           children: [
             Text(
               row.label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: 2),
             Text(
               row.value,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -1211,9 +1191,8 @@ class _MetadataRow extends StatelessWidget {
             width: 74,
             child: Text(
               row.label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -1221,9 +1200,8 @@ class _MetadataRow extends StatelessWidget {
             child: Text(
               row.value,
               textAlign: TextAlign.right,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],

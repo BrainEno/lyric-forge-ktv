@@ -61,8 +61,7 @@ class _TranscriptionReadyImportScreenState
     super.didUpdateWidget(oldWidget);
     final wasDesktop =
         oldWidget.desktopOverride ?? AppResponsive.isDesktopTarget();
-    final dependenciesChanged =
-        oldWidget.dependencies != widget.dependencies;
+    final dependenciesChanged = oldWidget.dependencies != widget.dependencies;
     if (_isDesktop &&
         (dependenciesChanged || (!wasDesktop && _preflight == null))) {
       _preflight = TranscriptionEnvironmentPreflight(
@@ -125,9 +124,8 @@ class _TranscriptionReadyImportScreenState
       if (readiness?.isReady == true) {
         await _resumeEnvironmentBlockedQueueIfNeeded();
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('本地歌词识别环境已准备好')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('本地歌词识别环境已准备好')));
         }
       }
     } catch (error) {
@@ -297,9 +295,8 @@ class _ReadinessOnboarding extends StatelessWidget {
                   children: [
                     Text(
                       '当前检测结果',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _ReadinessRow(
@@ -355,9 +352,8 @@ class _ReadinessOnboarding extends StatelessWidget {
                     actionError ?? readiness!.error!,
                     maxLines: 5,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: AppColors.error),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppColors.error),
                   ),
                 ),
               ],
@@ -432,10 +428,8 @@ class _ReadinessOnboarding extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Text(
                 '已有后台任务不会丢失。如果队列之前因为缺少模型而自动暂停，环境准备完成后会自动继续；用户手动暂停的队列不会被擅自恢复。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                  height: 1.45,
-                ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textTertiary, height: 1.45),
               ),
             ],
           ),
@@ -480,9 +474,8 @@ class _ReadinessRow extends StatelessWidget {
             width: 88,
             child: Text(
               label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelMedium?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
