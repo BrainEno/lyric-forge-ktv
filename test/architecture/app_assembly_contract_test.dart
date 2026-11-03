@@ -210,16 +210,11 @@ void main() {
       }
 
       final router = File('lib/app/app_router.dart').readAsStringSync();
-      expect(
-        router,
-        contains(
-          'NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services))',
-        ),
-      );
-      expect(
-        router,
-        contains('dependencies: assemblePlayerScreenDependencies(services)'),
-      );
+      // The formatter decides where these wrap, so match the constructor and
+      // the assembler separately.
+      expect(router, contains('NowPlayingScreen('));
+      expect(router, contains('assembleNowPlayingDependencies(services)'));
+      expect(router, contains('assemblePlayerScreenDependencies(services)'));
 
       final assembly = File(
         'lib/app/playback_assembly.dart',

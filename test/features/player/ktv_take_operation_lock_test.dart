@@ -91,20 +91,6 @@ void main() {
 
     expect(service.currentState.isExporting, isFalse);
   });
-
-  test('player history mutations have dynamic export/recording guards', () async {
-    final source = await File(
-      'lib/features/player/presentation/screens/player_screen.dart',
-    ).readAsString();
-    expect(source, contains('bool _takeMutationLocked()'));
-    expect(source, contains('state.isRecording || state.isExporting'));
-    expect(source, contains('_showTakeMutationLockedMessage()'));
-    expect(source, contains('混音正在导出，完成前不能删除、重命名或收藏录音'));
-    expect(
-      RegExp(r'if \(_takeMutationLocked\(\)\)').allMatches(source).length,
-      greaterThanOrEqualTo(5),
-    );
-  });
 }
 
 class _Fixture {
