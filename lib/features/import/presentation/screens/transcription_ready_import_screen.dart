@@ -61,7 +61,8 @@ class _TranscriptionReadyImportScreenState
     super.didUpdateWidget(oldWidget);
     final wasDesktop =
         oldWidget.desktopOverride ?? AppResponsive.isDesktopTarget();
-    final dependenciesChanged = oldWidget.dependencies != widget.dependencies;
+    final dependenciesChanged =
+        oldWidget.dependencies != widget.dependencies;
     if (_isDesktop &&
         (dependenciesChanged || (!wasDesktop && _preflight == null))) {
       _preflight = TranscriptionEnvironmentPreflight(

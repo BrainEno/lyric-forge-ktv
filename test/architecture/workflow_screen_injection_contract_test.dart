@@ -39,7 +39,10 @@ void main() {
     expect(importing, contains('required this.dependencies'));
     expect(queuePanel, contains('required this.settingsStore'));
     expect(queuePanel, contains('required this.runtimeManager'));
-    expect(router, contains('assembleTranscriptionImportDependencies(services)'));
+    expect(
+      router,
+      contains('assembleTranscriptionImportDependencies(services)'),
+    );
   });
 
   test('remote media library receives explicit dependencies', () {

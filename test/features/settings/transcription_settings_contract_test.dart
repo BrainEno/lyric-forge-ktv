@@ -74,8 +74,9 @@ void main() {
       expect(settings, contains('await _settingsStore.save'));
       expect(
         project,
-        contains('AppServices.instance.transcriptionSettingsStore'),
+        contains('widget.dependencies.transcriptionSettingsStore'),
       );
+      expect(project, isNot(contains('AppServices.instance')));
       expect(project, contains("label: const Text('识别环境与高级设置')"));
       expect(workflow, contains('final config = await _settingsStore.load()'));
       expect(
