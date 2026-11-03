@@ -26,10 +26,7 @@ Future<void> showLocalMediaMetadataDialog(
 class LocalMediaMetadataDialog extends StatefulWidget {
   final PlaybackItem item;
 
-  const LocalMediaMetadataDialog({
-    super.key,
-    required this.item,
-  });
+  const LocalMediaMetadataDialog({super.key, required this.item});
 
   @override
   State<LocalMediaMetadataDialog> createState() =>
@@ -72,14 +69,12 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
       setState(() {
         _stored = stored;
         if (stored != null) {
-          _titleController.text =
-              stored.title?.trim().isNotEmpty == true
-                  ? stored.title!
-                  : widget.item.title;
+          _titleController.text = stored.title?.trim().isNotEmpty == true
+              ? stored.title!
+              : widget.item.title;
           _artistController.text = stored.artist ?? widget.item.artist ?? '';
           _albumController.text = stored.album ?? '';
-          _previewArtworkPath =
-              stored.artworkPath ?? widget.item.artworkPath;
+          _previewArtworkPath = stored.artworkPath ?? widget.item.artworkPath;
         }
         _loading = false;
       });
@@ -169,7 +164,8 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
             widget.item.audioAsset.thumbnailPath,
           ),
           clearArtist: saved.artist == null,
-          clearArtwork: saved.artworkPath == null &&
+          clearArtwork:
+              saved.artworkPath == null &&
               widget.item.audioAsset.thumbnailPath == null,
         ),
       );
@@ -204,15 +200,16 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
     final maxDialogWidth = spec.isCompact
         ? (spec.width - spec.pageGutter * 2).clamp(280.0, 560.0).toDouble()
         : spec.isMedium
-            ? 560.0
-            : 680.0;
+        ? 560.0
+        : 680.0;
     final chromeReserve = spec.isShort ? 132.0 : 156.0;
-    final maxDialogHeight = (media.size.height -
-            media.viewInsets.bottom -
-            spec.pageGutter * 2 -
-            chromeReserve)
-        .clamp(64.0, 760.0)
-        .toDouble();
+    final maxDialogHeight =
+        (media.size.height -
+                media.viewInsets.bottom -
+                spec.pageGutter * 2 -
+                chromeReserve)
+            .clamp(64.0, 760.0)
+            .toDouble();
 
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
@@ -258,8 +255,9 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
                       compact: compact,
                       saving: _saving,
                       onPick: _pickArtwork,
-                      onClear:
-                          _previewArtworkPath == null ? null : _clearArtwork,
+                      onClear: _previewArtworkPath == null
+                          ? null
+                          : _clearArtwork,
                     ),
                     SizedBox(
                       height: spec.isShort ? AppSpacing.md : AppSpacing.xl,
@@ -270,8 +268,7 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
                         labelText: '歌曲名称',
-                        helperText:
-                            '支持中文、日文、emoji；以 UTF-8 保存，不写回原文件标签。',
+                        helperText: '支持中文、日文、emoji；以 UTF-8 保存，不写回原文件标签。',
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -297,8 +294,9 @@ class _LocalMediaMetadataDialogState extends State<LocalMediaMetadataDialog> {
                         padding: const EdgeInsets.all(AppSpacing.sm),
                         decoration: BoxDecoration(
                           color: AppColors.error.withAlpha(18),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusMedium),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMedium,
+                          ),
                         ),
                         child: Text(
                           _error!,
@@ -366,25 +364,22 @@ class _ArtworkEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final preview = _ArtworkPreview(
-      path: path,
-      extent: compact ? 112 : 132,
-    );
+    final preview = _ArtworkPreview(path: path, extent: compact ? 112 : 132);
     final copy = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           '封面图片',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           '图片会复制到 LyricForge 自己的媒体目录，不修改原音频文件。',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         Wrap(
@@ -439,10 +434,7 @@ class _ArtworkPreview extends StatelessWidget {
   final String? path;
   final double extent;
 
-  const _ArtworkPreview({
-    this.path,
-    required this.extent,
-  });
+  const _ArtworkPreview({this.path, required this.extent});
 
   @override
   Widget build(BuildContext context) {

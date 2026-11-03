@@ -19,10 +19,7 @@ enum LocalCatalogView { artists, albums }
 class LocalArtistAlbumBrowserScreen extends StatefulWidget {
   final LocalCatalogView view;
 
-  const LocalArtistAlbumBrowserScreen({
-    super.key,
-    required this.view,
-  });
+  const LocalArtistAlbumBrowserScreen({super.key, required this.view});
 
   @override
   State<LocalArtistAlbumBrowserScreen> createState() =>
@@ -101,10 +98,13 @@ class _LocalArtistAlbumBrowserScreenState
     for (final song in _songs) {
       grouped.putIfAbsent(song.artistDisplay, () => <_CatalogSong>[]).add(song);
     }
-    final result = grouped.entries
-        .map((entry) => _ArtistGroup(name: entry.key, songs: entry.value))
-        .toList(growable: false)
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final result =
+        grouped.entries
+            .map((entry) => _ArtistGroup(name: entry.key, songs: entry.value))
+            .toList(growable: false)
+          ..sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
     return result;
   }
 
@@ -115,20 +115,25 @@ class _LocalArtistAlbumBrowserScreenState
     for (final song in songs) {
       grouped.putIfAbsent(song.albumKey, () => <_CatalogSong>[]).add(song);
     }
-    final result = grouped.entries.map((entry) {
-      final first = entry.value.first;
-      return _AlbumGroup(
-        key: entry.key,
-        title: first.albumDisplay,
-        artist: first.artistDisplay,
-        songs: entry.value,
-      );
-    }).toList(growable: false)
-      ..sort((a, b) {
-        final byArtist = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
-        if (byArtist != 0) return byArtist;
-        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-      });
+    final result =
+        grouped.entries
+            .map((entry) {
+              final first = entry.value.first;
+              return _AlbumGroup(
+                key: entry.key,
+                title: first.albumDisplay,
+                artist: first.artistDisplay,
+                songs: entry.value,
+              );
+            })
+            .toList(growable: false)
+          ..sort((a, b) {
+            final byArtist = a.artist.toLowerCase().compareTo(
+              b.artist.toLowerCase(),
+            );
+            if (byArtist != 0) return byArtist;
+            return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          });
     return result;
   }
 
@@ -189,8 +194,8 @@ class _LocalArtistAlbumBrowserScreenState
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? _CatalogError(message: _error!, onRetry: _reload)
-              : _buildContent(),
+          ? _CatalogError(message: _error!, onRetry: _reload)
+          : _buildContent(),
     );
   }
 
@@ -305,8 +310,8 @@ class _LocalArtistAlbumBrowserScreenState
     final miniWidth = layout.isCompact
         ? 132.0
         : layout.isMedium
-            ? 148.0
-            : 160.0;
+        ? 148.0
+        : 160.0;
     final shelfHeight = miniWidth + 58;
 
     return Column(
@@ -381,12 +386,13 @@ class _LocalArtistAlbumBrowserScreenState
         return a.title.toLowerCase().compareTo(b.title.toLowerCase());
       });
     final playable = songs.where((song) => song.playbackItem != null).length;
-    final years = songs
-        .map((song) => song.entry.embeddedYear)
-        .whereType<int>()
-        .toSet()
-        .toList()
-      ..sort();
+    final years =
+        songs
+            .map((song) => song.entry.embeddedYear)
+            .whereType<int>()
+            .toSet()
+            .toList()
+          ..sort();
     final yearText = years.isEmpty ? '' : ' · ${years.first}';
 
     return Column(
@@ -429,9 +435,9 @@ class _CatalogSong {
 
   String get fileName => entry.sourcePath.split(Platform.pathSeparator).last;
   String get fallbackTitle => fileName.replaceAll(
-        RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
-        '',
-      );
+    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+    '',
+  );
   String get embeddedTitle => entry.embeddedTitle?.trim().isNotEmpty == true
       ? entry.embeddedTitle!
       : fallbackTitle;
@@ -538,28 +544,30 @@ class _CatalogHero extends StatelessWidget {
         final artworkSize = layout.isShort
             ? 96.0
             : layout.isCompact
-                ? 112.0
-                : layout.isMedium
-                    ? 128.0
-                    : 150.0;
+            ? 112.0
+            : layout.isMedium
+            ? 128.0
+            : 150.0;
         final artwork = _CatalogArtwork(
           path: artworkPath,
           size: artworkSize,
           round: roundArtwork,
         );
         final info = Column(
-          crossAxisAlignment:
-              compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment: compact
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
             Text(
               title,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: compact ? TextAlign.center : TextAlign.start,
-              style: (layout.isCompact
-                      ? Theme.of(context).textTheme.headlineSmall
-                      : Theme.of(context).textTheme.headlineMedium)
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style:
+                  (layout.isCompact
+                          ? Theme.of(context).textTheme.headlineSmall
+                          : Theme.of(context).textTheme.headlineMedium)
+                      ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -651,10 +659,10 @@ class _CatalogSongTile extends StatelessWidget {
       onPressed: item == null
           ? null
           : () => showAddToLocalPlaylistDialog(
-                context,
-                sourcePath: song.entry.sourcePath,
-                title: song.title,
-              ),
+              context,
+              sourcePath: song.entry.sourcePath,
+              title: song.title,
+            ),
       icon: const Icon(Icons.playlist_add_rounded),
     );
 
@@ -677,9 +685,7 @@ class _CatalogSongTile extends StatelessWidget {
       ),
       title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        item == null
-            ? '文件不可用'
-            : '${song.artistDisplay} · ${song.albumDisplay}',
+        item == null ? '文件不可用' : '${song.artistDisplay} · ${song.albumDisplay}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -705,14 +711,8 @@ class _CatalogSongTile extends StatelessWidget {
                     if (value == 'queue' && item != null) onEnqueue();
                   },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'playlist',
-                      child: Text('加入播放列表'),
-                    ),
-                    PopupMenuItem(
-                      value: 'queue',
-                      child: Text('加入播放队列'),
-                    ),
+                    PopupMenuItem(value: 'playlist', child: Text('加入播放列表')),
+                    PopupMenuItem(value: 'queue', child: Text('加入播放队列')),
                   ],
                   icon: const Icon(Icons.more_horiz_rounded),
                 ),
@@ -882,10 +882,9 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Text(
         text,
-        style: Theme.of(context)
-            .textTheme
-            .titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800),
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
       ),
     );
   }

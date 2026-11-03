@@ -49,7 +49,11 @@ class ElysiumPlayerApp extends StatelessWidget {
   final bool? desktopChromeOverride;
   final AppServices? services;
 
-  const ElysiumPlayerApp({super.key, this.desktopChromeOverride, this.services});
+  const ElysiumPlayerApp({
+    super.key,
+    this.desktopChromeOverride,
+    this.services,
+  });
 
   @override
   Widget build(BuildContext context) {

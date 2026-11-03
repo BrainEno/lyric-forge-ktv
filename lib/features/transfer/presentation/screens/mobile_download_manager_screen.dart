@@ -66,14 +66,15 @@ class _MobileDownloadManagerScreenState
     });
     try {
       final entries = await _library.getAll();
-      final downloads = entries
-          .where(
-            (entry) =>
-                !entry.isMissing &&
-                isManagedRemoteDownloadPath(entry.sourcePath),
-          )
-          .toList(growable: false)
-        ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+      final downloads =
+          entries
+              .where(
+                (entry) =>
+                    !entry.isMissing &&
+                    isManagedRemoteDownloadPath(entry.sourcePath),
+              )
+              .toList(growable: false)
+            ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
       if (mounted) setState(() => _downloads = downloads);
     } catch (error) {
       if (mounted) setState(() => _error = '读取下载内容失败：$error');
@@ -85,13 +86,15 @@ class _MobileDownloadManagerScreenState
   List<LocalMediaLibraryEntry> get _visibleDownloads {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return _downloads;
-    return _downloads.where((entry) {
-      final fileName = _fileName(entry.sourcePath).toLowerCase();
-      return fileName.contains(query) ||
-          (entry.embeddedTitle?.toLowerCase().contains(query) ?? false) ||
-          (entry.embeddedArtist?.toLowerCase().contains(query) ?? false) ||
-          (entry.embeddedAlbum?.toLowerCase().contains(query) ?? false);
-    }).toList(growable: false);
+    return _downloads
+        .where((entry) {
+          final fileName = _fileName(entry.sourcePath).toLowerCase();
+          return fileName.contains(query) ||
+              (entry.embeddedTitle?.toLowerCase().contains(query) ?? false) ||
+              (entry.embeddedArtist?.toLowerCase().contains(query) ?? false) ||
+              (entry.embeddedAlbum?.toLowerCase().contains(query) ?? false);
+        })
+        .toList(growable: false);
   }
 
   String _fileName(String path) {
@@ -177,9 +180,9 @@ class _MobileDownloadManagerScreenState
       await _library.remove(entry.sourcePath);
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已删除本地下载')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已删除本地下载')));
       }
     } catch (error) {
       if (mounted) setState(() => _error = '删除失败：$error');
@@ -192,9 +195,9 @@ class _MobileDownloadManagerScreenState
   }
 
   int get _totalBytes => _downloads.fold<int>(
-        0,
-        (total, entry) => total + (entry.sourceSizeBytes ?? 0),
-      );
+    0,
+    (total, entry) => total + (entry.sourceSizeBytes ?? 0),
+  );
 
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
@@ -266,17 +269,13 @@ class _MobileDownloadManagerScreenState
                         children: [
                           Text(
                             '${_downloads.length} 首已下载',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w900),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             _formatBytes(_totalBytes),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textTertiary),
                           ),
                         ],
@@ -298,11 +297,13 @@ class _MobileDownloadManagerScreenState
                 builder: (context, snapshot) {
                   final state =
                       snapshot.data ?? const MediaTransferQueueSnapshot();
-                  final downloads = state.items.where((item) {
-                    return item.direction ==
-                            MediaTransferDirection.downloadFromDesktop &&
-                        item.status != MediaTransferQueueStatus.completed;
-                  }).toList(growable: false);
+                  final downloads = state.items
+                      .where((item) {
+                        return item.direction ==
+                                MediaTransferDirection.downloadFromDesktop &&
+                            item.status != MediaTransferQueueStatus.completed;
+                      })
+                      .toList(growable: false);
                   if (downloads.isEmpty) return const SizedBox.shrink();
                   return _DownloadTasksCard(
                     items: downloads,
@@ -327,10 +328,7 @@ class _MobileDownloadManagerScreenState
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: AppColors.error),
-                ),
+                Text(_error!, style: const TextStyle(color: AppColors.error)),
               ],
               const SizedBox(height: AppSpacing.md),
               if (_loading && _downloads.isEmpty)
@@ -401,10 +399,9 @@ class _DownloadTasksCard extends StatelessWidget {
         children: [
           Text(
             '下载任务',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.sm),
           for (final item in items) ...[
@@ -423,19 +420,15 @@ class _DownloadTasksCard extends StatelessWidget {
                         item.status == MediaTransferQueueStatus.failed
                             ? item.error ?? '下载失败'
                             : item.totalBytes == null
-                                ? item.status.name
-                                : '${formatBytes(item.bytesTransferred)} / ${formatBytes(item.totalBytes!)}',
+                            ? item.status.name
+                            : '${formatBytes(item.bytesTransferred)} / ${formatBytes(item.totalBytes!)}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: item.status ==
-                                      MediaTransferQueueStatus.failed
-                                  ? AppColors.error
-                                  : AppColors.textTertiary,
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: item.status == MediaTransferQueueStatus.failed
+                              ? AppColors.error
+                              : AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -454,8 +447,8 @@ class _DownloadTasksCard extends StatelessWidget {
                 value: item.totalBytes == null || item.totalBytes == 0
                     ? null
                     : (item.bytesTransferred / item.totalBytes!)
-                        .clamp(0.0, 1.0)
-                        .toDouble(),
+                          .clamp(0.0, 1.0)
+                          .toDouble(),
               ),
             const SizedBox(height: AppSpacing.sm),
           ],
@@ -518,11 +511,7 @@ class _DownloadedTrackTile extends StatelessWidget {
           ),
         ),
         title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'delete') onDelete();

@@ -24,7 +24,9 @@ const int _frozenSingletonCalls = 72;
 /// on the singleton. Everything else in `lib/app/` is assembly.
 const String _allowedAppImportForFeatures = 'lib/app/app_services.dart';
 
-final RegExp _importPattern = RegExp(r'''^\s*(?:import|export)\s+['"]([^'"]+)['"]''');
+final RegExp _importPattern = RegExp(
+  r'''^\s*(?:import|export)\s+['"]([^'"]+)['"]''',
+);
 final RegExp _singletonPattern = RegExp(r'AppServices\s*\.\s*instance');
 
 String _resolve(String uri, String importer) {
@@ -114,8 +116,7 @@ void main() {
       final offenders = <String>[];
       for (final file in _dartFilesUnder('lib/app')) {
         final path = _normalize(file);
-        if (path == 'lib/app/app.dart' ||
-            path == 'lib/app/app_services.dart') {
+        if (path == 'lib/app/app.dart' || path == 'lib/app/app_services.dart') {
           continue;
         }
         if (_singletonPattern.hasMatch(file.readAsStringSync())) {
@@ -199,12 +200,19 @@ void main() {
       );
       expect(
         router,
-        contains('ReviewInboxScreen(projectRepository: services.projectRepository)'),
+        contains(
+          'ReviewInboxScreen(projectRepository: services.projectRepository)',
+        ),
       );
 
-      final assembly = File('lib/app/lyric_editor_assembly.dart').readAsStringSync();
+      final assembly = File(
+        'lib/app/lyric_editor_assembly.dart',
+      ).readAsStringSync();
       // The forced-alignment runner used to be inlined in the editor screen.
-      expect(assembly, contains('services.qwenNativeTranscriptionService.alignReference'));
+      expect(
+        assembly,
+        contains('services.qwenNativeTranscriptionService.alignReference'),
+      );
       expect(assembly, contains("throw Exception('尚未配置本地转写运行时。')"));
       expect(assembly, contains('AsrRuntimeComponent.qwenAligner'));
     });

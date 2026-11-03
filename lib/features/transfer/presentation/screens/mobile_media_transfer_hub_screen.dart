@@ -128,7 +128,8 @@ class _MobileMediaTransferHubScreenState
                   initialData: _queue.currentState,
                   builder: (context, snapshot) {
                     return _PersistentTransferQueueCard(
-                      snapshot: snapshot.data ?? const MediaTransferQueueSnapshot(),
+                      snapshot:
+                          snapshot.data ?? const MediaTransferQueueSnapshot(),
                       queue: _queue,
                     );
                   },
@@ -173,8 +174,8 @@ class _ConnectionCard extends StatelessWidget {
                   Text(
                     connected ? '已连接电脑' : '尚未连接电脑',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -182,17 +183,14 @@ class _ConnectionCard extends StatelessWidget {
                         ? host!
                         : '扫描电脑端“跨设备传输中心”的二维码即可连接。',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             if (!connected)
-              TextButton(
-                onPressed: onConnect,
-                child: const Text('连接'),
-              ),
+              TextButton(onPressed: onConnect, child: const Text('连接')),
           ],
         ),
       ),
@@ -220,7 +218,9 @@ class _TransferActionCard extends StatelessWidget {
     final layout = AppResponsive.of(context);
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.lg),
+        padding: EdgeInsets.all(
+          layout.isCompact ? AppSpacing.md : AppSpacing.lg,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -232,7 +232,9 @@ class _TransferActionCard extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     color: AppColors.bgSurface,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusMedium,
+                    ),
                   ),
                   child: Icon(icon, color: AppColors.accent),
                 ),
@@ -243,17 +245,16 @@ class _TransferActionCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         subtitle,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -307,8 +308,8 @@ class _PersistentTransferQueueCard extends StatelessWidget {
                   child: Text(
                     '传输队列',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 if (snapshot.isPaused)
@@ -320,17 +321,17 @@ class _PersistentTransferQueueCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '等待 $pending · 失败 $failed · 已完成 $completed',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
             ),
             if (snapshot.pauseReason != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 snapshot.pauseReason!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
             if (active != null) ...[
@@ -376,14 +377,15 @@ class _PersistentTransferQueueCard extends StatelessWidget {
             ),
             if (recent.isNotEmpty) ...[
               const Divider(height: AppSpacing.lg),
-              for (final item in recent) _QueueItemRow(item: item, queue: queue),
+              for (final item in recent)
+                _QueueItemRow(item: item, queue: queue),
             ] else ...[
               const SizedBox(height: AppSpacing.md),
               Text(
                 '还没有传输任务。选择本机音乐后会从这里进入后台队列。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ],
@@ -408,14 +410,26 @@ class _QueueItemRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, label, color) = switch (item.status) {
-      MediaTransferQueueStatus.queued =>
-        (Icons.schedule_rounded, '等待', AppColors.textSecondary),
-      MediaTransferQueueStatus.transferring =>
-        (Icons.sync_rounded, '传输中', AppColors.accent),
-      MediaTransferQueueStatus.completed =>
-        (Icons.check_circle_rounded, '完成', AppColors.success),
-      MediaTransferQueueStatus.failed =>
-        (Icons.error_rounded, '失败', AppColors.error),
+      MediaTransferQueueStatus.queued => (
+        Icons.schedule_rounded,
+        '等待',
+        AppColors.textSecondary,
+      ),
+      MediaTransferQueueStatus.transferring => (
+        Icons.sync_rounded,
+        '传输中',
+        AppColors.accent,
+      ),
+      MediaTransferQueueStatus.completed => (
+        Icons.check_circle_rounded,
+        '完成',
+        AppColors.success,
+      ),
+      MediaTransferQueueStatus.failed => (
+        Icons.error_rounded,
+        '失败',
+        AppColors.error,
+      ),
     };
     final direction = item.direction == MediaTransferDirection.uploadToDesktop
         ? '发送到电脑'
@@ -427,7 +441,9 @@ class _QueueItemRow extends StatelessWidget {
       leading: Icon(icon, color: color),
       title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        item.error == null ? '$direction · $label' : '$direction · ${item.error}',
+        item.error == null
+            ? '$direction · $label'
+            : '$direction · ${item.error}',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -438,12 +454,12 @@ class _QueueItemRow extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded),
             )
           : item.status == MediaTransferQueueStatus.completed
-              ? IconButton(
-                  tooltip: '从队列移除',
-                  onPressed: () => queue.remove(item.id),
-                  icon: const Icon(Icons.close_rounded),
-                )
-              : null,
+          ? IconButton(
+              tooltip: '从队列移除',
+              onPressed: () => queue.remove(item.id),
+              icon: const Icon(Icons.close_rounded),
+            )
+          : null,
     );
   }
 }

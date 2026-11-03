@@ -34,8 +34,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
         final overall = total == 0
             ? 0.0
             : ((state.completedCount + (running?.progress ?? 0)) / total)
-                .clamp(0.0, 1.0)
-                .toDouble();
+                  .clamp(0.0, 1.0)
+                  .toDouble();
 
         return Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -55,8 +55,9 @@ class TranscriptionQueuePanel extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: AppColors.bgSurface,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMedium),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusMedium,
+                      ),
                     ),
                     child: Icon(
                       state.isPaused
@@ -65,8 +66,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
                       color: state.isEnvironmentBlocked
                           ? AppColors.error
                           : state.isPaused
-                              ? AppColors.warning
-                              : AppColors.accent,
+                          ? AppColors.warning
+                          : AppColors.accent,
                       size: 20,
                     ),
                   ),
@@ -77,20 +78,16 @@ class TranscriptionQueuePanel extends StatelessWidget {
                       children: [
                         Text(
                           '后台解析队列',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _summaryText(state, running),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textTertiary,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textTertiary),
                         ),
                       ],
                     ),
@@ -100,13 +97,13 @@ class TranscriptionQueuePanel extends StatelessWidget {
                     label: state.isEnvironmentBlocked
                         ? '环境阻塞'
                         : state.isPaused
-                            ? (state.isProcessing ? '正在暂停' : '已暂停')
-                            : (state.isProcessing ? '处理中' : '等待中'),
+                        ? (state.isProcessing ? '正在暂停' : '已暂停')
+                        : (state.isProcessing ? '处理中' : '等待中'),
                     color: state.isEnvironmentBlocked
                         ? AppColors.error
                         : state.isPaused
-                            ? AppColors.warning
-                            : AppColors.accent,
+                        ? AppColors.warning
+                        : AppColors.accent,
                   ),
                 ],
               ),
@@ -125,17 +122,18 @@ class TranscriptionQueuePanel extends StatelessWidget {
                       value: overall,
                       minHeight: 4,
                       backgroundColor: AppColors.bgHighlight,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusCircular),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusCircular,
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     '${(overall * 100).round()}%',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -170,8 +168,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
                         state.isProcessing
                             ? '正在保存进度'
                             : state.isEnvironmentBlocked
-                                ? '修复后继续'
-                                : '继续',
+                            ? '修复后继续'
+                            : '继续',
                       ),
                     )
                   else
@@ -191,8 +189,10 @@ class TranscriptionQueuePanel extends StatelessWidget {
                   if (state.completedCount > 0)
                     TextButton.icon(
                       onPressed: () => service.clearCompleted(),
-                      icon: const Icon(Icons.cleaning_services_outlined,
-                          size: 18),
+                      icon: const Icon(
+                        Icons.cleaning_services_outlined,
+                        size: 18,
+                      ),
                       label: const Text('清理已完成'),
                     ),
                 ],
@@ -249,37 +249,31 @@ class TranscriptionQueuePanel extends StatelessWidget {
       if (!context.mounted) return;
 
       if (!result.ready) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('识别环境仍未完全就绪，队列继续保持暂停。'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('识别环境仍未完全就绪，队列继续保持暂停。')));
         return;
       }
       if (!result.resumed) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('识别环境已恢复；队列状态已被其他操作改变，因此没有自动继续。'),
-          ),
+          const SnackBar(content: Text('识别环境已恢复；队列状态已被其他操作改变，因此没有自动继续。')),
         );
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('识别环境已恢复，后台队列已继续。'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('识别环境已恢复，后台队列已继续。')));
     } on TranscriptionException catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('识别环境仍需处理：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('识别环境仍需处理：$error')));
     } catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('检查识别环境失败：$error')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('检查识别环境失败：$error')));
     }
   }
 
@@ -349,9 +343,9 @@ class _EnvironmentBlockedCard extends StatelessWidget {
                 Text(
                   '识别环境需要修复',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -361,9 +355,9 @@ class _EnvironmentBlockedCard extends StatelessWidget {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                        height: 1.4,
-                      ),
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 FilledButton.tonalIcon(
@@ -412,18 +406,18 @@ class _EmptyQueueState extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             '后台队列还没有歌曲',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             '从上方选择音频或音乐文件夹。加入后可以离开此页面，LyricForge 会继续逐首生成歌词。',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                  height: 1.4,
-                ),
+              color: AppColors.textTertiary,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -436,11 +430,7 @@ class _CountPill extends StatelessWidget {
   final String label;
   final Color? emphasis;
 
-  const _CountPill({
-    required this.icon,
-    required this.label,
-    this.emphasis,
-  });
+  const _CountPill({required this.icon, required this.label, this.emphasis});
 
   @override
   Widget build(BuildContext context) {
@@ -448,9 +438,7 @@ class _CountPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: emphasis == null
-            ? AppColors.bgSurface
-            : emphasis!.withAlpha(20),
+        color: emphasis == null ? AppColors.bgSurface : emphasis!.withAlpha(20),
         borderRadius: BorderRadius.circular(AppSpacing.radiusCircular),
       ),
       child: Row(
@@ -460,9 +448,9 @@ class _CountPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: foreground,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: foreground),
           ),
         ],
       ),
@@ -487,9 +475,9 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -519,15 +507,15 @@ class _QueueItemTile extends StatelessWidget {
         color: running
             ? AppColors.accent.withAlpha(12)
             : failed
-                ? AppColors.error.withAlpha(10)
-                : AppColors.bgBase,
+            ? AppColors.error.withAlpha(10)
+            : AppColors.bgBase,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
         border: Border.all(
           color: running
               ? AppColors.accent.withAlpha(50)
               : failed
-                  ? AppColors.error.withAlpha(40)
-                  : AppColors.borderMuted,
+              ? AppColors.error.withAlpha(40)
+              : AppColors.borderMuted,
         ),
       ),
       child: Row(
@@ -540,11 +528,7 @@ class _QueueItemTile extends StatelessWidget {
               color: statusColor.withAlpha(20),
               borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
             ),
-            child: Icon(
-              _icon(item.status),
-              size: 17,
-              color: statusColor,
-            ),
+            child: Icon(_icon(item.status), size: 17, color: statusColor),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -559,29 +543,30 @@ class _QueueItemTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight:
-                                  running ? FontWeight.w700 : FontWeight.w500,
-                              color: completed
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
-                            ),
+                          fontWeight: running
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: completed
+                              ? AppColors.textSecondary
+                              : AppColors.textPrimary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       _statusLabel(item.status),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: statusColor,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (running) ...[
                       const SizedBox(width: 6),
                       Text(
                         '${(item.progress.clamp(0.0, 1.0) * 100).round()}%',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ],
@@ -592,10 +577,8 @@ class _QueueItemTile extends StatelessWidget {
                   maxLines: failed ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: failed
-                            ? AppColors.error
-                            : AppColors.textTertiary,
-                      ),
+                    color: failed ? AppColors.error : AppColors.textTertiary,
+                  ),
                 ),
                 if (running) ...[
                   const SizedBox(height: 7),
@@ -603,8 +586,9 @@ class _QueueItemTile extends StatelessWidget {
                     value: item.progress.clamp(0.0, 1.0).toDouble(),
                     minHeight: 3,
                     backgroundColor: AppColors.bgHighlight,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusCircular),
+                    borderRadius: BorderRadius.circular(
+                      AppSpacing.radiusCircular,
+                    ),
                   ),
                 ],
                 if (failed && item.error != null) ...[
@@ -614,8 +598,8 @@ class _QueueItemTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ],

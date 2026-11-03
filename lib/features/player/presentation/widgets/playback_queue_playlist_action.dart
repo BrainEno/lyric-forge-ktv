@@ -55,9 +55,8 @@ Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
     builder: (dialogContext) {
       final spec = AppResponsive.of(dialogContext);
       final media = MediaQuery.of(dialogContext);
-      final availableHeight = media.size.height -
-          media.viewInsets.bottom -
-          spec.pageGutter * 2;
+      final availableHeight =
+          media.size.height - media.viewInsets.bottom - spec.pageGutter * 2;
       final listMaxHeight = (availableHeight * (spec.isShort ? 0.46 : 0.58))
           .clamp(160.0, 420.0)
           .toDouble();
@@ -69,8 +68,8 @@ Future<QueuePlaylistSaveResult?> savePlaybackQueueToPlaylist(
           constraints: BoxConstraints(
             maxWidth: spec.isCompact
                 ? (spec.width - spec.pageGutter * 2)
-                    .clamp(260.0, 460.0)
-                    .toDouble()
+                      .clamp(260.0, 460.0)
+                      .toDouble()
                 : 460,
           ),
           child: Column(

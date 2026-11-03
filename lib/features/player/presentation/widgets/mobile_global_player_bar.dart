@@ -49,8 +49,10 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
           stream: _audio.stateStream,
           initialData: _audio.currentState,
           builder: (context, playbackSnapshot) {
-            final playback = playbackSnapshot.data ?? const PlaybackState.idle();
-            final rawRemoteArtwork = item.audioAsset.metadata['remoteArtworkUri'];
+            final playback =
+                playbackSnapshot.data ?? const PlaybackState.idle();
+            final rawRemoteArtwork =
+                item.audioAsset.metadata['remoteArtworkUri'];
             final remoteArtwork = rawRemoteArtwork is String
                 ? Uri.tryParse(rawRemoteArtwork)
                 : null;
@@ -71,7 +73,8 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                     SizedBox(
                       height: 66,
                       child: InkWell(
-                        onTap: () => Navigator.pushNamed(context, Routes.nowPlaying),
+                        onTap: () =>
+                            Navigator.pushNamed(context, Routes.nowPlaying),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
@@ -97,21 +100,25 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleSmall
-                                          ?.copyWith(fontWeight: FontWeight.w800),
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       item.artist?.trim().isNotEmpty == true
                                           ? item.artist!
                                           : item.isRemoteStream
-                                              ? '桌面音乐库'
-                                              : '本地音乐',
+                                          ? '桌面音乐库'
+                                          : '本地音乐',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
-                                          ?.copyWith(color: AppColors.textTertiary),
+                                          ?.copyWith(
+                                            color: AppColors.textTertiary,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -120,9 +127,9 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                 tooltip: '上一首',
                                 onPressed: session.canSkipPrevious
                                     ? () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.skipPrevious,
-                                        )
+                                        context,
+                                        _session.skipPrevious,
+                                      )
                                     : null,
                                 icon: const Icon(Icons.skip_previous_rounded),
                               ),
@@ -131,18 +138,21 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                 height: 44,
                                 child: IconButton(
                                   tooltip: playback.isPlaying ? '暂停' : '播放',
-                                  onPressed: playback.isBuffering || playback.isLoading
+                                  onPressed:
+                                      playback.isBuffering || playback.isLoading
                                       ? null
                                       : () => runPlaybackActionWithFeedback(
-                                            context,
-                                            _session.togglePlayPause,
-                                          ),
+                                          context,
+                                          _session.togglePlayPause,
+                                        ),
                                   style: IconButton.styleFrom(
                                     backgroundColor: AppColors.pureWhite,
                                     foregroundColor: AppColors.pureBlack,
-                                    disabledBackgroundColor: AppColors.textDisabled,
+                                    disabledBackgroundColor:
+                                        AppColors.textDisabled,
                                   ),
-                                  icon: playback.isBuffering || playback.isLoading
+                                  icon:
+                                      playback.isBuffering || playback.isLoading
                                       ? const SizedBox(
                                           width: 18,
                                           height: 18,
@@ -162,9 +172,9 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
                                 tooltip: '下一首',
                                 onPressed: session.canSkipNext
                                     ? () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.skipNext,
-                                        )
+                                        context,
+                                        _session.skipNext,
+                                      )
                                     : null,
                                 icon: const Icon(Icons.skip_next_rounded),
                               ),
@@ -213,12 +223,12 @@ class _MobileArtwork extends StatelessWidget {
         child: hasArtwork
             ? Image.file(file, fit: BoxFit.cover)
             : remoteUri == null
-                ? fallback
-                : Image.network(
-                    remoteUri.toString(),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => fallback,
-                  ),
+            ? fallback
+            : Image.network(
+                remoteUri.toString(),
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              ),
       ),
     );
   }

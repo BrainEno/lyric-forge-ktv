@@ -107,7 +107,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                     stream: _audio.stateStream,
                     initialData: _audio.currentState,
                     builder: (context, playbackSnapshot) {
-                      final playback = playbackSnapshot.data ?? _audio.currentState;
+                      final playback =
+                          playbackSnapshot.data ?? _audio.currentState;
                       return _NowPlayingBody(
                         item: item,
                         sessionState: session,
@@ -147,17 +148,14 @@ class _EmptyNowPlaying extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               '当前没有正在播放的音乐',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
-              onPressed: () => Navigator.pushReplacementNamed(
-                context,
-                Routes.library,
-              ),
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, Routes.library),
               icon: const Icon(Icons.library_music_rounded),
               label: const Text('打开音乐库'),
             ),
@@ -205,8 +203,8 @@ class _NowPlayingBody extends StatelessWidget {
         if (layout.supportsTwoPane) {
           final queueHeight = constraints.maxHeight.isFinite
               ? (constraints.maxHeight - layout.pageGutter * 2)
-                  .clamp(360.0, 760.0)
-                  .toDouble()
+                    .clamp(360.0, 760.0)
+                    .toDouble()
               : 560.0;
           return Align(
             alignment: Alignment.topCenter,
@@ -278,7 +276,9 @@ class _NowPlayingCard extends StatelessWidget {
       ),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.xl),
+        padding: EdgeInsets.all(
+          layout.isCompact ? AppSpacing.md : AppSpacing.xl,
+        ),
         decoration: BoxDecoration(
           gradient: AppColors.cardGradient,
           borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
@@ -301,11 +301,11 @@ class _NowPlayingCard extends StatelessWidget {
             if (vertical) {
               final artworkExtent = constraints.maxHeight.isFinite
                   ? (constraints.maxHeight * 0.42)
-                      .clamp(150.0, 340.0)
-                      .toDouble()
+                        .clamp(150.0, 340.0)
+                        .toDouble()
                   : (constraints.maxWidth - AppSpacing.md * 2)
-                      .clamp(180.0, 340.0)
-                      .toDouble();
+                        .clamp(180.0, 340.0)
+                        .toDouble();
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -377,9 +377,9 @@ class _NowPlayingDetails extends StatelessWidget {
         Text(
           source.label,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: AppColors.accent,
-                fontWeight: FontWeight.w800,
-              ),
+            color: AppColors.accent,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -387,9 +387,9 @@ class _NowPlayingDetails extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                height: 1.08,
-              ),
+            fontWeight: FontWeight.w900,
+            height: 1.08,
+          ),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
@@ -397,9 +397,9 @@ class _NowPlayingDetails extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         if (album != null) ...[
           const SizedBox(height: 2),
@@ -407,10 +407,9 @@ class _NowPlayingDetails extends StatelessWidget {
             album!,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
         ],
         const SizedBox(height: AppSpacing.sm),
@@ -499,12 +498,12 @@ class _PlaybackArtwork extends StatelessWidget {
           child: hasLocal
               ? Image.file(local, fit: BoxFit.cover)
               : remote != null
-                  ? Image.network(
-                      remote.toString(),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => fallback,
-                    )
-                  : fallback,
+              ? Image.network(
+                  remote.toString(),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => fallback,
+                )
+              : fallback,
         ),
       ),
     );
@@ -606,9 +605,9 @@ class _InfoChip extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

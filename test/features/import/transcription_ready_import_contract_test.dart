@@ -49,7 +49,9 @@ void main() {
     expect(queue, contains('error.blocksQueue'));
     expect(
       gate,
-      contains('if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;'),
+      contains(
+        'if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;',
+      ),
       reason: 'only structured environment pauses may auto-resume after setup',
     );
     expect(

@@ -48,8 +48,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   void initState() {
     super.initState();
     _repository = AppServices.instance.projectRepository;
-    _transcriptionWorkflow =
-        AppServices.instance.projectTranscriptionWorkflow;
+    _transcriptionWorkflow = AppServices.instance.projectTranscriptionWorkflow;
     _transcriptionSettingsStore =
         AppServices.instance.transcriptionSettingsStore;
     _asrRuntimeManager = AppServices.instance.asrRuntimeManager;

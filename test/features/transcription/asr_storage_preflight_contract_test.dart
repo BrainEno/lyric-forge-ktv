@@ -11,16 +11,19 @@ void main() {
     expect(assembly, contains('asrStoragePreflightService'));
   });
 
-  test('first-run setup shows storage budget and blocks insufficient install', () {
-    final setup = File(
-      'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
-    ).readAsStringSync();
+  test(
+    'first-run setup shows storage budget and blocks insufficient install',
+    () {
+      final setup = File(
+        'lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart',
+      ).readAsStringSync();
 
-    expect(setup, contains('AsrStoragePreflightCard('));
-    expect(setup, contains('_ensureStorageBeforeInstall()'));
-    expect(setup, contains('storageBlocked'));
-    expect(setup, contains("'空间不足'"));
-  });
+      expect(setup, contains('AsrStoragePreflightCard('));
+      expect(setup, contains('_ensureStorageBeforeInstall()'));
+      expect(setup, contains('storageBlocked'));
+      expect(setup, contains("'空间不足'"));
+    },
+  );
 
   test('settings shows storage budget and rechecks before install', () {
     final settings = File(

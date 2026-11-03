@@ -12,7 +12,8 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = !kIsWeb &&
+    final isDesktop =
+        !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.windows ||
             defaultTargetPlatform == TargetPlatform.macOS ||
             defaultTargetPlatform == TargetPlatform.linux);
@@ -24,9 +25,11 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
       initialData: queue.current,
       builder: (context, snapshot) {
         final state = snapshot.data ?? queue.current;
-        final visibleItems = state.items.where((item) {
-          return item.status != TranscriptionQueueItemStatus.completed;
-        }).toList(growable: false);
+        final visibleItems = state.items
+            .where((item) {
+              return item.status != TranscriptionQueueItemStatus.completed;
+            })
+            .toList(growable: false);
         if (visibleItems.isEmpty) return const SizedBox.shrink();
 
         final running = _firstWithStatus(
@@ -39,13 +42,13 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
         final overall = total == 0
             ? 0.0
             : ((done + (running?.progress ?? 0)) / total)
-                .clamp(0.0, 1.0)
-                .toDouble();
+                  .clamp(0.0, 1.0)
+                  .toDouble();
         final statusColor = state.failedCount > 0
             ? AppColors.warning
             : state.isPaused
-                ? AppColors.warning
-                : AppColors.accent;
+            ? AppColors.warning
+            : AppColors.accent;
 
         return Material(
           color: AppColors.bgBase,
@@ -97,14 +100,10 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                state.isPaused
-                                    ? '后台解析已暂停'
-                                    : '正在后台解析',
+                                state.isPaused ? '后台解析已暂停' : '正在后台解析',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
+                                style: Theme.of(context).textTheme.labelMedium
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                             ),
@@ -120,12 +119,8 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                                 focus.projectName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ),
                           ],
@@ -135,19 +130,17 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
                         const SizedBox(width: AppSpacing.sm),
                         Text(
                           '${state.failedCount} 首失败',
-                          style:
-                              Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: AppColors.warning,
-                                  ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: AppColors.warning),
                         ),
                       ],
                       const SizedBox(width: AppSpacing.md),
                       Text(
                         '$done / $total',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.textTertiary,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          color: AppColors.textTertiary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       if (state.isPaused)

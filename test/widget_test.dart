@@ -42,9 +42,11 @@ void main() {
         MaterialApp(
           home: Builder(
             builder: (context) {
-              builtApp = const ElysiumPlayerApp(
-                desktopChromeOverride: false,
-              ).build(context) as MaterialApp;
+              builtApp =
+                  const ElysiumPlayerApp(
+                        desktopChromeOverride: false,
+                      ).build(context)
+                      as MaterialApp;
               return const SizedBox.shrink();
             },
           ),

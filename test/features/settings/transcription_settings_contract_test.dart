@@ -68,9 +68,7 @@ void main() {
       final workflow = File(
         'lib/features/transcription/data/services/local_project_transcription_workflow.dart',
       ).readAsStringSync();
-      final services = File(
-        'lib/app/app_services.dart',
-      ).readAsStringSync();
+      final services = File('lib/app/app_services.dart').readAsStringSync();
 
       expect(settings, contains('services.transcriptionSettingsStore'));
       expect(settings, contains('await _settingsStore.save'));

@@ -50,8 +50,7 @@ class _PlaybackLyricsAvailabilitySyncState
     super.initState();
     try {
       final session =
-          widget.playbackSession ??
-          AppServices.instance.playbackSessionService;
+          widget.playbackSession ?? AppServices.instance.playbackSessionService;
       _subscription = session.stateStream.listen(_handleSession);
       _handleSession(session.currentState);
     } catch (_) {
@@ -87,8 +86,7 @@ class _PlaybackLyricsAvailabilitySyncState
       await resolveAndSyncPlaybackLyrics(
         item: item,
         projectRepository:
-            widget.projectRepository ??
-            AppServices.instance.projectRepository,
+            widget.projectRepository ?? AppServices.instance.projectRepository,
         metadataRepository:
             widget.metadataRepository ??
             AppServices.instance.localMediaMetadataRepository,

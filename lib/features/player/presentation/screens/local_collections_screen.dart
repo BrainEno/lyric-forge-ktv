@@ -22,10 +22,7 @@ enum LocalCollectionView { favorites, playlists }
 class LocalCollectionsScreen extends StatefulWidget {
   final LocalCollectionView view;
 
-  const LocalCollectionsScreen({
-    super.key,
-    required this.view,
-  });
+  const LocalCollectionsScreen({super.key, required this.view});
 
   @override
   State<LocalCollectionsScreen> createState() => _LocalCollectionsScreenState();
@@ -175,8 +172,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     }
 
     if (playable.isEmpty) return;
-    final startIndex =
-        playableBeforeRequested.clamp(0, playable.length - 1).toInt();
+    final startIndex = playableBeforeRequested
+        .clamp(0, playable.length - 1)
+        .toInt();
     await _session.setQueue(playable, startIndex: startIndex);
   }
 
@@ -254,10 +252,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     final current = _session.currentState.currentItem;
     if (current == null || current.projectId != null) return;
     await _withWork(() async {
-      await _collections.addToPlaylist(
-        playlist.id,
-        [current.audioAsset.originalPath],
-      );
+      await _collections.addToPlaylist(playlist.id, [
+        current.audioAsset.originalPath,
+      ]);
       await _reload();
     });
   }
@@ -288,8 +285,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
-    final title =
-        widget.view == LocalCollectionView.favorites ? '已收藏' : '播放列表';
+    final title = widget.view == LocalCollectionView.favorites ? '已收藏' : '播放列表';
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
@@ -355,8 +351,8 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : widget.view == LocalCollectionView.favorites
-                    ? _buildFavorites(spec)
-                    : _buildPlaylists(spec),
+                ? _buildFavorites(spec)
+                : _buildPlaylists(spec),
           ),
         ],
       ),
@@ -373,8 +369,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       );
     }
 
-    final playableCount =
-        songs.where((song) => song.playbackItem != null).length;
+    final playableCount = songs
+        .where((song) => song.playbackItem != null)
+        .length;
     return Column(
       children: [
         _CollectionHero(
@@ -438,8 +435,8 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     final cardHeight = spec.isCompact
         ? 190.0
         : spec.isMedium
-            ? 205.0
-            : 220.0;
+        ? 205.0
+        : 220.0;
 
     return GridView.builder(
       padding: EdgeInsets.all(spec.pageGutter),
@@ -453,8 +450,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       itemBuilder: (context, index) {
         final playlist = _playlists[index];
         final songs = playlist.sourcePaths.map(_song).toList(growable: false);
-        final missing =
-            songs.where((song) => song.playbackItem == null).length;
+        final missing = songs.where((song) => song.playbackItem == null).length;
         final artwork = songs
             .map((song) => song.artworkPath)
             .whereType<String>()
@@ -472,13 +468,11 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     );
   }
 
-  Widget _buildPlaylistDetail(
-    LocalPlaylist playlist,
-    AppLayoutSpec spec,
-  ) {
+  Widget _buildPlaylistDetail(LocalPlaylist playlist, AppLayoutSpec spec) {
     final songs = playlist.sourcePaths.map(_song).toList(growable: false);
-    final playableCount =
-        songs.where((song) => song.playbackItem != null).length;
+    final playableCount = songs
+        .where((song) => song.playbackItem != null)
+        .length;
     final current = _session.currentState.currentItem;
     final canAddCurrent = current != null && current.projectId == null;
 
@@ -523,17 +517,13 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
                         leadingIndex: index + 1,
                         onTap: song.playbackItem == null
                             ? null
-                            : () => _playSongs(
-                                  songs,
-                                  requestedIndex: index,
-                                ),
+                            : () => _playSongs(songs, requestedIndex: index),
                         trailing: _PlaylistSongActions(
                           index: index,
                           compact: spec.isCompactOrMedium,
                           canPlay: song.playbackItem != null,
                           onEnqueue: () => _enqueue(song),
-                          onRemove: () =>
-                              _removeFromPlaylist(playlist, song),
+                          onRemove: () => _removeFromPlaylist(playlist, song),
                         ),
                       ),
                     );
@@ -576,15 +566,9 @@ class _FavoriteActions extends StatelessWidget {
             enabled: canPlay,
             child: const Text('加入播放队列'),
           ),
-          const PopupMenuItem(
-            value: 'playlist',
-            child: Text('加入播放列表'),
-          ),
+          const PopupMenuItem(value: 'playlist', child: Text('加入播放列表')),
           const PopupMenuDivider(),
-          const PopupMenuItem(
-            value: 'unfavorite',
-            child: Text('取消收藏'),
-          ),
+          const PopupMenuItem(value: 'unfavorite', child: Text('取消收藏')),
         ],
       );
     }
@@ -658,10 +642,7 @@ class _PlaylistSongActions extends StatelessWidget {
                 child: const Text('加入播放队列'),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'remove',
-                child: Text('从播放列表移除'),
-              ),
+              const PopupMenuItem(value: 'remove', child: Text('从播放列表移除')),
             ],
           ),
           dragHandle,
@@ -703,12 +684,9 @@ class _CollectionSong {
   String get fileName => sourcePath.split(Platform.pathSeparator).last;
 
   String get fallbackTitle => fileName.replaceAll(
-        RegExp(
-          r'\.(mp3|flac|wav|m4a|aac|ogg)$',
-          caseSensitive: false,
-        ),
-        '',
-      );
+    RegExp(r'\.(mp3|flac|wav|m4a|aac|ogg)$', caseSensitive: false),
+    '',
+  );
 
   String get embeddedTitle => entry?.embeddedTitle?.trim().isNotEmpty == true
       ? entry!.embeddedTitle!
@@ -796,9 +774,7 @@ class _CollectionHero extends StatelessWidget {
       padding: EdgeInsets.all(spec.pageGutter),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(
-          spec.isCompact ? AppSpacing.md : AppSpacing.lg,
-        ),
+        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.md : AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -830,10 +806,7 @@ class _CollectionHero extends StatelessWidget {
                   _HeroIcon(icon: icon, extent: extent),
                   const SizedBox(width: AppSpacing.lg),
                   Expanded(
-                    child: _HeroText(
-                      title: title,
-                      subtitle: subtitle,
-                    ),
+                    child: _HeroText(title: title, subtitle: subtitle),
                   ),
                   const SizedBox(width: AppSpacing.lg),
                   button,
@@ -848,10 +821,7 @@ class _HeroIcon extends StatelessWidget {
   final IconData icon;
   final double extent;
 
-  const _HeroIcon({
-    required this.icon,
-    required this.extent,
-  });
+  const _HeroIcon({required this.icon, required this.extent});
 
   @override
   Widget build(BuildContext context) {
@@ -887,10 +857,11 @@ class _HeroText extends StatelessWidget {
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: (compact
-                  ? Theme.of(context).textTheme.titleLarge
-                  : Theme.of(context).textTheme.headlineSmall)
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              (compact
+                      ? Theme.of(context).textTheme.titleLarge
+                      : Theme.of(context).textTheme.headlineSmall)
+                  ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
@@ -1014,10 +985,7 @@ class _PlaylistDetailHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: _PlaylistTitleBlock(
-                    name: name,
-                    subtitle: subtitle,
-                  ),
+                  child: _PlaylistTitleBlock(name: name, subtitle: subtitle),
                 ),
                 playButton,
                 const SizedBox(width: AppSpacing.sm),
@@ -1050,10 +1018,11 @@ class _PlaylistTitleBlock extends StatelessWidget {
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: (compact
-                  ? Theme.of(context).textTheme.titleLarge
-                  : Theme.of(context).textTheme.headlineSmall)
-              ?.copyWith(fontWeight: FontWeight.w800),
+          style:
+              (compact
+                      ? Theme.of(context).textTheme.titleLarge
+                      : Theme.of(context).textTheme.headlineSmall)
+                  ?.copyWith(fontWeight: FontWeight.w800),
         ),
         Text(
           subtitle,
@@ -1083,8 +1052,7 @@ class _CollectionSongTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
     final artworkExtent = spec.isCompact ? 44.0 : 48.0;
-    final leadingWidth =
-        artworkExtent + (leadingIndex == null ? 0 : 28.0);
+    final leadingWidth = artworkExtent + (leadingIndex == null ? 0 : 28.0);
 
     return ListTile(
       onTap: onTap,
@@ -1114,11 +1082,7 @@ class _CollectionSongTile extends StatelessWidget {
           ],
         ),
       ),
-      title: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
         song.secondary,
         maxLines: spec.isCompact ? 1 : 2,
@@ -1154,9 +1118,7 @@ class _PlaylistCard extends StatelessWidget {
       onTap: onOpen,
       borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
       child: Container(
-        padding: EdgeInsets.all(
-          spec.isCompact ? AppSpacing.sm : AppSpacing.md,
-        ),
+        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.sm : AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.bgElevated,
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -1174,8 +1136,9 @@ class _PlaylistCard extends StatelessWidget {
                     alignment: Alignment.topRight,
                     child: Material(
                       color: AppColors.pureBlack.withAlpha(90),
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusCircular),
+                      borderRadius: BorderRadius.circular(
+                        AppSpacing.radiusCircular,
+                      ),
                       child: PopupMenuButton<String>(
                         tooltip: '播放列表操作',
                         onSelected: (value) {
@@ -1183,15 +1146,9 @@ class _PlaylistCard extends StatelessWidget {
                           if (value == 'delete') onDelete();
                         },
                         itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'rename',
-                            child: Text('重命名'),
-                          ),
+                          PopupMenuItem(value: 'rename', child: Text('重命名')),
                           PopupMenuDivider(),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Text('删除播放列表'),
-                          ),
+                          PopupMenuItem(value: 'delete', child: Text('删除播放列表')),
                         ],
                       ),
                     ),
@@ -1215,8 +1172,7 @@ class _PlaylistCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color:
-                    missing > 0 ? AppColors.error : AppColors.textTertiary,
+                color: missing > 0 ? AppColors.error : AppColors.textTertiary,
               ),
             ),
           ],
@@ -1230,17 +1186,13 @@ class _CollectionArtwork extends StatelessWidget {
   final String? path;
   final bool large;
 
-  const _CollectionArtwork({
-    this.path,
-    this.large = false,
-  });
+  const _CollectionArtwork({this.path, this.large = false});
 
   @override
   Widget build(BuildContext context) {
     final file = path == null ? null : File(path!);
     return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(large ? AppSpacing.radiusLarge : 8),
+      borderRadius: BorderRadius.circular(large ? AppSpacing.radiusLarge : 8),
       child: Container(
         color: AppColors.bgSurface,
         alignment: Alignment.center,
@@ -1296,10 +1248,11 @@ class _CollectionEmptyState extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: (spec.isCompact
-                        ? Theme.of(context).textTheme.titleLarge
-                        : Theme.of(context).textTheme.headlineSmall)
-                    ?.copyWith(fontWeight: FontWeight.w800),
+                style:
+                    (spec.isCompact
+                            ? Theme.of(context).textTheme.titleLarge
+                            : Theme.of(context).textTheme.headlineSmall)
+                        ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -1314,8 +1267,7 @@ class _CollectionEmptyState extends StatelessWidget {
                   icon: const Icon(Icons.add_rounded),
                   label: Text(actionLabel!),
                   style: FilledButton.styleFrom(
-                    minimumSize:
-                        Size(0, spec.minimumInteractiveExtent),
+                    minimumSize: Size(0, spec.minimumInteractiveExtent),
                   ),
                 ),
               ],

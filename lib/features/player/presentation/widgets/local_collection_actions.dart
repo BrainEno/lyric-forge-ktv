@@ -125,9 +125,7 @@ Future<LocalPlaylist?> showCreateLocalPlaylistDialog(
               onSubmitted: (value) {
                 final trimmed = value.trim();
                 if (trimmed.isEmpty) {
-                  setDialogState(
-                    () => validationMessage = '请输入播放列表名称',
-                  );
+                  setDialogState(() => validationMessage = '请输入播放列表名称');
                   return;
                 }
                 Navigator.pop(dialogContext, trimmed);
@@ -146,9 +144,7 @@ Future<LocalPlaylist?> showCreateLocalPlaylistDialog(
               onPressed: () {
                 final trimmed = controller.text.trim();
                 if (trimmed.isEmpty) {
-                  setDialogState(
-                    () => validationMessage = '请输入播放列表名称',
-                  );
+                  setDialogState(() => validationMessage = '请输入播放列表名称');
                   return;
                 }
                 Navigator.pop(dialogContext, trimmed);
@@ -259,9 +255,8 @@ Future<LocalPlaylist?> showAddToLocalPlaylistDialog(
     builder: (dialogContext) {
       final spec = AppResponsive.of(dialogContext);
       final media = MediaQuery.of(dialogContext);
-      final availableHeight = media.size.height -
-          media.viewInsets.bottom -
-          spec.pageGutter * 2;
+      final availableHeight =
+          media.size.height - media.viewInsets.bottom - spec.pageGutter * 2;
       final listMaxHeight = (availableHeight * (spec.isShort ? 0.48 : 0.58))
           .clamp(160.0, 420.0)
           .toDouble();
@@ -297,9 +292,7 @@ Future<LocalPlaylist?> showAddToLocalPlaylistDialog(
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                          '${playlist.sourcePaths.length} 首歌曲',
-                        ),
+                        subtitle: Text('${playlist.sourcePaths.length} 首歌曲'),
                         onTap: () => Navigator.pop(dialogContext, playlist),
                       );
                     },
@@ -315,10 +308,8 @@ Future<LocalPlaylist?> showAddToLocalPlaylistDialog(
             child: const Text('取消'),
           ),
           TextButton.icon(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              _CreatePlaylistIntent.instance,
-            ),
+            onPressed: () =>
+                Navigator.pop(dialogContext, _CreatePlaylistIntent.instance),
             style: TextButton.styleFrom(
               minimumSize: Size(0, spec.minimumInteractiveExtent),
             ),
@@ -350,9 +341,7 @@ double _collectionDialogWidth(
   required double desktopMax,
 }) {
   if (!spec.isCompact) return desktopMax;
-  return (spec.width - spec.pageGutter * 2)
-      .clamp(260.0, desktopMax)
-      .toDouble();
+  return (spec.width - spec.pageGutter * 2).clamp(260.0, desktopMax).toDouble();
 }
 
 class _CreatePlaylistIntent {

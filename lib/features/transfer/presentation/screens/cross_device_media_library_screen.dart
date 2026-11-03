@@ -87,7 +87,10 @@ class _CrossDeviceMediaLibraryScreenState
 
   Future<void> _scan() async {
     if (_busy) return;
-    final value = await Navigator.pushNamed<String>(context, Routes.mediaHubScanner);
+    final value = await Navigator.pushNamed<String>(
+      context,
+      Routes.mediaHubScanner,
+    );
     if (!mounted || value == null || value.trim().isEmpty) return;
     _pairingController.text = value.trim();
     await _connectRaw(value.trim());
@@ -132,9 +135,9 @@ class _CrossDeviceMediaLibraryScreenState
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = quiet
-          ? '上次桌面端暂时无法连接，可重试或重新扫码。'
-          : '无法连接桌面端：$error');
+      setState(
+        () => _error = quiet ? '上次桌面端暂时无法连接，可重试或重新扫码。' : '无法连接桌面端：$error',
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -233,7 +236,8 @@ class _CrossDeviceMediaLibraryScreenState
           metadata: {
             'transferSource': 'media-hub-stream',
             'remoteTrackId': track.id,
-            if (track.album?.trim().isNotEmpty == true) 'album': track.album!.trim(),
+            if (track.album?.trim().isNotEmpty == true)
+              'album': track.album!.trim(),
           },
         ),
       );
@@ -409,12 +413,12 @@ class _CrossDeviceMediaLibraryScreenState
               onDownloadAndPlay: () => _downloadSelected(playAfter: true),
             )
           : _streamingTrack == null
-              ? null
-              : _RemoteMiniPlayer(
-                  track: _streamingTrack!,
-                  lyrics: _streamingLyrics,
-                  audio: _audio,
-                ),
+          ? null
+          : _RemoteMiniPlayer(
+              track: _streamingTrack!,
+              lyrics: _streamingLyrics,
+              audio: _audio,
+            ),
       body: SafeArea(
         child: connection == null || !_client.isConnected
             ? _buildConnectState()
@@ -432,13 +436,23 @@ class _CrossDeviceMediaLibraryScreenState
           constraints: const BoxConstraints(maxWidth: 560),
           child: Card(
             child: Padding(
-              padding: EdgeInsets.all(layout.isCompact ? AppSpacing.md : AppSpacing.lg),
+              padding: EdgeInsets.all(
+                layout.isCompact ? AppSpacing.md : AppSpacing.lg,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.devices_rounded, size: 52, color: AppColors.accent),
+                  const Icon(
+                    Icons.devices_rounded,
+                    size: 52,
+                    color: AppColors.accent,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  Text('连接桌面音乐库', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    '连接桌面音乐库',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   const Text(
                     '连接后可以直接在线播放，也可以多选歌曲批量传到本机并自动加入本地音乐库。',
@@ -453,7 +467,9 @@ class _CrossDeviceMediaLibraryScreenState
                   if (_savedConnection != null) ...[
                     const SizedBox(height: AppSpacing.sm),
                     OutlinedButton.icon(
-                      onPressed: _busy ? null : () => _connectTo(_savedConnection!),
+                      onPressed: _busy
+                          ? null
+                          : () => _connectTo(_savedConnection!),
                       icon: const Icon(Icons.history_rounded),
                       label: Text('重试上次桌面 · ${_savedConnection!.host}'),
                     ),
@@ -476,13 +492,20 @@ class _CrossDeviceMediaLibraryScreenState
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: AppSpacing.sm),
-                    Text(_error!, style: const TextStyle(color: AppColors.error)),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: AppColors.error),
+                    ),
                   ],
                   const SizedBox(height: AppSpacing.md),
                   OutlinedButton.icon(
                     onPressed: _busy ? null : _connectRaw,
                     icon: _busy
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Icon(Icons.link_rounded),
                     label: Text(_busy ? '连接中...' : '使用配对信息连接'),
                   ),
@@ -532,9 +555,11 @@ class _CrossDeviceMediaLibraryScreenState
   Widget _buildTrackTile(RemoteAudioTrack track) {
     final selected = _selectedIds.contains(track.id);
     final progress = _progress[track.id];
-    final downloaded = _downloadedPaths.containsKey(track.id) ||
+    final downloaded =
+        _downloadedPaths.containsKey(track.id) ||
         progress?.status == MediaTransferItemStatus.completed;
-    final transferring = progress?.status == MediaTransferItemStatus.transferring ||
+    final transferring =
+        progress?.status == MediaTransferItemStatus.transferring ||
         progress?.status == MediaTransferItemStatus.queued;
     final subtitle = [
       if (track.artist?.isNotEmpty == true) track.artist!,
@@ -552,7 +577,9 @@ class _CrossDeviceMediaLibraryScreenState
         leading: _selectionMode
             ? Checkbox(
                 value: selected,
-                onChanged: _transferBusy ? null : (_) => _toggleSelection(track.id),
+                onChanged: _transferBusy
+                    ? null
+                    : (_) => _toggleSelection(track.id),
               )
             : const SizedBox(
                 width: 48,
@@ -587,7 +614,9 @@ class _CrossDeviceMediaLibraryScreenState
                     ? null
                     : () => _downloadOne(track),
                 icon: Icon(
-                  downloaded ? Icons.download_done_rounded : Icons.download_rounded,
+                  downloaded
+                      ? Icons.download_done_rounded
+                      : Icons.download_rounded,
                 ),
               ),
       ),
@@ -627,11 +656,16 @@ class _RemoteLibraryHeader extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           SizedBox(
-            width: layout.isCompact ? layout.width - layout.pageGutter * 4 : 420,
+            width: layout.isCompact
+                ? layout.width - layout.pageGutter * 4
+                : 420,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('来自 ${connection.host}', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  '来自 ${connection.host}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 Text('$count 首共享音乐 · 长按歌曲开始多选批量传送'),
               ],
@@ -681,7 +715,11 @@ class _SelectionTransferBar extends StatelessWidget {
               FilledButton.icon(
                 onPressed: busy ? null : onDownloadAndPlay,
                 icon: busy
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.play_arrow_rounded),
                 label: const Text('下载并播放'),
               ),
@@ -726,9 +764,14 @@ class _RemoteMiniPlayer extends StatelessWidget {
             top: false,
             child: ListTile(
               leading: const Icon(Icons.cloud_queue_rounded),
-              title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(
+                track.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               subtitle: Text(
-                line?.text ?? '${state.formattedPosition} / ${state.formattedDuration}',
+                line?.text ??
+                    '${state.formattedPosition} / ${state.formattedDuration}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -741,7 +784,11 @@ class _RemoteMiniPlayer extends StatelessWidget {
                     await audio.play();
                   }
                 },
-                icon: Icon(state.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                icon: Icon(
+                  state.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                ),
               ),
             ),
           ),

@@ -233,20 +233,21 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
       );
       await directory.create(recursive: true);
 
-      final idSuffix =
-          track.id.length > 8 ? track.id.substring(0, 8) : track.id;
+      final idSuffix = track.id.length > 8
+          ? track.id.substring(0, 8)
+          : track.id;
       final fileName =
           '${_safeFileName(track.title)}_$idSuffix.${track.format}';
-      final destination =
-          directory.path + Platform.pathSeparator + fileName;
+      final destination = directory.path + Platform.pathSeparator + fileName;
 
       await _client.downloadTrack(
         track: track,
         destinationPath: destination,
         onProgress: (transferred, total) {
           if (!mounted) return;
-          final progress =
-              total == null || total <= 0 ? null : transferred / total;
+          final progress = total == null || total <= 0
+              ? null
+              : transferred / total;
           setState(() => _downloadProgress[track.id] = progress);
         },
       );
@@ -356,20 +357,15 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                 }
               },
               itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'disconnect',
-                  child: Text('断开连接'),
-                ),
-                PopupMenuItem(
-                  value: 'forget',
-                  child: Text('忘记此桌面端'),
-                ),
+                PopupMenuItem(value: 'disconnect', child: Text('断开连接')),
+                PopupMenuItem(value: 'forget', child: Text('忘记此桌面端')),
               ],
             ),
         ],
       ),
-      bottomNavigationBar:
-          _currentTrack == null ? null : _buildMiniPlayer(_currentTrack!),
+      bottomNavigationBar: _currentTrack == null
+          ? null
+          : _buildMiniPlayer(_currentTrack!),
       body: SafeArea(
         child: _client.isConnected && connection != null
             ? _buildLibrary(connection)
@@ -418,9 +414,7 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                     OutlinedButton.icon(
                       onPressed: _busy ? null : _retrySavedConnection,
                       icon: const Icon(Icons.history),
-                      label: Text(
-                        '重试上次桌面 · ${_savedConnection!.host}',
-                      ),
+                      label: Text('重试上次桌面 · ${_savedConnection!.host}'),
                     ),
                   ],
                   const SizedBox(height: AppSpacing.lg),
@@ -443,9 +437,9 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       _error!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.error,
-                          ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.error),
                     ),
                   ],
                   const SizedBox(height: AppSpacing.md),
@@ -497,9 +491,9 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
             const SizedBox(height: AppSpacing.sm),
             Text(
               _error!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.error,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.error),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
@@ -549,16 +543,8 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
             color: selected ? AppColors.accent : AppColors.textSecondary,
           ),
         ),
-        title: Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          subtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
