@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/media_transfer_batch.dart';
 import '../../domain/models/media_transfer_queue.dart';
@@ -14,7 +14,12 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_transfer_queue_service.dart';
 
 class MobileMediaTransferHubScreen extends StatefulWidget {
-  const MobileMediaTransferHubScreen({super.key});
+  final MobileMediaTransferDependencies dependencies;
+
+  const MobileMediaTransferHubScreen({
+    super.key,
+    required this.dependencies,
+  });
 
   @override
   State<MobileMediaTransferHubScreen> createState() =>
@@ -32,10 +37,9 @@ class _MobileMediaTransferHubScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _client = services.mediaHubClientService;
-    _queue = services.mediaTransferQueueService;
-    _audioImport = services.audioLibraryImportService;
+    _client = widget.dependencies.client;
+    _queue = widget.dependencies.transferQueue;
+    _audioImport = widget.dependencies.audioLibraryImport;
     if (_client.isConnected) unawaited(_queue.resume());
   }
 

@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -20,8 +20,13 @@ enum RemoteCatalogView { artists, albums }
 
 class MobileRemoteGroupedLibraryScreen extends StatefulWidget {
   final RemoteCatalogView view;
+  final MobileRemoteLibraryDependencies dependencies;
 
-  const MobileRemoteGroupedLibraryScreen({super.key, required this.view});
+  const MobileRemoteGroupedLibraryScreen({
+    super.key,
+    required this.view,
+    required this.dependencies,
+  });
 
   @override
   State<MobileRemoteGroupedLibraryScreen> createState() =>
@@ -54,10 +59,9 @@ class _MobileRemoteGroupedLibraryScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _client = services.mediaHubClientService;
-    _localLibrary = services.localMediaLibraryRepository;
-    _session = services.playbackSessionService;
+    _client = widget.dependencies.client;
+    _localLibrary = widget.dependencies.localLibrary;
+    _session = widget.dependencies.playbackSession;
     _searchController.addListener(_onSearchChanged);
     unawaited(_load());
   }

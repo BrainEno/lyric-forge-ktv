@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import 'mobile_download_manager_screen.dart';
 import 'mobile_remote_grouped_library_screen.dart';
 import 'mobile_remote_music_library_screen.dart';
 
 class MobileRemoteLibraryShell extends StatefulWidget {
-  const MobileRemoteLibraryShell({super.key});
+  final MobileRemoteLibraryDependencies dependencies;
+
+  const MobileRemoteLibraryShell({
+    super.key,
+    required this.dependencies,
+  });
 
   @override
   State<MobileRemoteLibraryShell> createState() =>
@@ -18,10 +24,16 @@ class _MobileRemoteLibraryShellState extends State<MobileRemoteLibraryShell> {
 
   Widget _pageForIndex() {
     return switch (_index) {
-      0 => const MobileRemoteMusicLibraryScreen(),
-      1 => const MobileRemoteGroupedLibraryScreen(view: RemoteCatalogView.artists),
-      2 => const MobileRemoteGroupedLibraryScreen(view: RemoteCatalogView.albums),
-      _ => const MobileDownloadManagerScreen(),
+      0 => MobileRemoteMusicLibraryScreen(dependencies: widget.dependencies),
+      1 => MobileRemoteGroupedLibraryScreen(
+        view: RemoteCatalogView.artists,
+        dependencies: widget.dependencies,
+      ),
+      2 => MobileRemoteGroupedLibraryScreen(
+        view: RemoteCatalogView.albums,
+        dependencies: widget.dependencies,
+      ),
+      _ => MobileDownloadManagerScreen(dependencies: widget.dependencies),
     };
   }
 

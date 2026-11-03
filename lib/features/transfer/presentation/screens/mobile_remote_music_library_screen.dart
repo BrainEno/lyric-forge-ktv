@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -24,7 +24,12 @@ import '../widgets/remote_media_artwork.dart';
 import 'remote_catalog_utils.dart';
 
 class MobileRemoteMusicLibraryScreen extends StatefulWidget {
-  const MobileRemoteMusicLibraryScreen({super.key});
+  final MobileRemoteLibraryDependencies dependencies;
+
+  const MobileRemoteMusicLibraryScreen({
+    super.key,
+    required this.dependencies,
+  });
 
   @override
   State<MobileRemoteMusicLibraryScreen> createState() =>
@@ -57,12 +62,11 @@ class _MobileRemoteMusicLibraryScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _client = services.mediaHubClientService;
-    _connectionStore = services.mediaHubConnectionStore;
-    _transferQueue = services.mediaTransferQueueService;
-    _localLibrary = services.localMediaLibraryRepository;
-    _playbackSession = services.playbackSessionService;
+    _client = widget.dependencies.client;
+    _connectionStore = widget.dependencies.connectionStore;
+    _transferQueue = widget.dependencies.transferQueue;
+    _localLibrary = widget.dependencies.localLibrary;
+    _playbackSession = widget.dependencies.playbackSession;
     _searchController.addListener(_refreshSearch);
 
     _handledCompletedTasks.addAll(

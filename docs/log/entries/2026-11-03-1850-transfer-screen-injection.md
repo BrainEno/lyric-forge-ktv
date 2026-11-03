@@ -1,0 +1,9 @@
+# [2026-11-03 18:50] Inject dependencies into active transfer screens
+
+- Scope: Phase 4.2, seventh step — require explicit dependencies for the desktop V2 Media Hub, mobile transfer home and remote-library surfaces; retire the two transfer screens confirmed to have no production construction sites. Preserve security confirmation, persisted transfer queue recovery, remote playback and download-to-library behavior. No UI, service behavior, ASR or lyric-recognition changes.
+- Files: `lib/features/transfer/presentation/transfer_screen_dependencies.dart` (new), `lib/app/transfer_assembly.dart` (new), `lib/app/app_router.dart`, the six active transfer screens under `lib/features/transfer/presentation/screens/`, delete `cross_device_media_library_screen.dart` and `desktop_media_transfer_hub_screen.dart`, `test/architecture/app_assembly_contract_test.dart` (ratchet 12/12 → 5/5), `test/architecture/workflow_screen_injection_contract_test.dart`, `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`, `docs/handoff.md`, and generated work-log navigation.
+- Validation:
+  - `git diff --check` passed; changed Dart relative imports resolve; static route/assembly/retired-screen contracts passed; singleton ratchet is 5 calls / 5 files.
+  - Flutter format, analysis, full tests and specialized CI contracts: pending PR CI; the sandbox has no Flutter/Dart SDK.
+- Notes: The old screens had no production call sites. `/mediaSharing` remains on V2; route configuration now assembles and passes required bundles, and the remote-library shell forwards its bundle to its selected child page. This is dependency wiring only; real-device tests are not required and no synthetic or real-song quality claim is made.
+- Commit: `refactor: inject transfer screen dependencies`

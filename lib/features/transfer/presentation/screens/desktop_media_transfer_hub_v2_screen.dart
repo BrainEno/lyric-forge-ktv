@@ -7,9 +7,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
@@ -20,7 +20,12 @@ import '../../domain/services/media_share_catalog.dart';
 /// Opening this screen loads the local Library preview but does not expose the
 /// network service until the user reviews and accepts the HTTPS sharing scope.
 class DesktopMediaTransferHubV2Screen extends StatefulWidget {
-  const DesktopMediaTransferHubV2Screen({super.key});
+  final DesktopMediaHubDependencies dependencies;
+
+  const DesktopMediaTransferHubV2Screen({
+    super.key,
+    required this.dependencies,
+  });
 
   @override
   State<DesktopMediaTransferHubV2Screen> createState() =>
@@ -48,9 +53,8 @@ class _DesktopMediaTransferHubV2ScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _hub = services.mediaHubService;
-    _catalog = services.mediaShareCatalog;
+    _hub = widget.dependencies.hub;
+    _catalog = widget.dependencies.catalog;
     _hubState = _hub.currentState;
     _hubSubscription = _hub.stateStream.listen((state) {
       if (mounted) setState(() => _hubState = state);

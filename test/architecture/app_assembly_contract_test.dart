@@ -17,14 +17,14 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// The numbers below are a freeze of the current migration state, not a target.
 /// Fix the call site and lower the number in the same change; never raise it.
-/// Step 1 (editor, review inbox, routing table, app shell): 80 -> 72 calls in
-/// 37 -> 34 files. Step 2 (playback surfaces): 72 -> 54 calls in 34 -> 29 files.
-/// Step 3 (local music library): 54 -> 32 calls in 29 -> 19 files. Step 4
-/// (project/import/remote workflows): 32 -> 16 calls in 19 -> 14 files. Step 5
-/// (dashboard injection and retirement of the unreachable legacy sharing
-/// screen): 16 -> 12 calls in 14 -> 12 files.
-const int _frozenSingletonFiles = 12;
-const int _frozenSingletonCalls = 12;
+/// Step 1 (editor/review/app shell): 80 -> 72 calls in 37 -> 34 files. Step 2
+/// (playback): 72 -> 54 calls in 34 -> 29 files. Step 3 (library): 54 -> 32
+/// in 29 -> 19. Step 4 (project/import): 32 -> 16 in 19 -> 14. Step 5
+/// (dashboard + retired legacy share screen): 16 -> 12 in 14 -> 12. Step 6
+/// (active transfer screens injected, two dead screens retired): 12 -> 5 in
+/// 12 -> 5 files.
+const int _frozenSingletonFiles = 5;
+const int _frozenSingletonCalls = 5;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.
