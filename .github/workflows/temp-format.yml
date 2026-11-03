@@ -21,10 +21,10 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Format changed files and push formatter output
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
-          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "HEAD" -- '*.dart')
+          git fetch --no-tags origin main
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
           if (( ${#dart_files[@]} == 0 )); then exit 0; fi
           dart format "${dart_files[@]}"
           if ! git diff --quiet -- "${dart_files[@]}"; then
