@@ -824,8 +824,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             : (index, line, globalOffset) =>
                   _previewTimedLine(project, index, line, globalOffset),
         originalGlobalOffset: document.globalOffset ?? Duration.zero,
-        proposedGlobalOffset: assembly.proposalDocument.globalOffset ??
-            Duration.zero,
+        proposedGlobalOffset:
+            assembly.proposalDocument.globalOffset ?? Duration.zero,
         onPreviewAlignmentToken: project.audioAsset == null
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),

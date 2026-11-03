@@ -13,14 +13,19 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 void main() {
   const assembler = ProofreadV2ReviewAssembler();
 
-  LyricLine row(String text, int start, int end, {String? id, int confidence = 100}) =>
-      LyricLine(
-        text: text,
-        startTime: Duration(milliseconds: start),
-        endTime: Duration(milliseconds: end),
-        confidence: confidence,
-        id: id,
-      );
+  LyricLine row(
+    String text,
+    int start,
+    int end, {
+    String? id,
+    int confidence = 100,
+  }) => LyricLine(
+    text: text,
+    startTime: Duration(milliseconds: start),
+    endTime: Duration(milliseconds: end),
+    confidence: confidence,
+    id: id,
+  );
 
   LyricDocument doc(List<LyricLine> lines, {Duration? offset}) =>
       LyricDocument(language: 'en', lines: lines, globalOffset: offset);
@@ -49,14 +54,11 @@ void main() {
     late LyricDocument draft;
 
     setUp(() {
-      draft = doc(
-        [
-          row('第一句歌词', 0, 2000, id: 'a'),
-          row('unrelated recognition noise', 2000, 2500, id: 'b'),
-          row('第三句歌词', 4000, 6000, id: 'c'),
-        ],
-        offset: const Duration(milliseconds: 250),
-      );
+      draft = doc([
+        row('第一句歌词', 0, 2000, id: 'a'),
+        row('unrelated recognition noise', 2000, 2500, id: 'b'),
+        row('第三句歌词', 4000, 6000, id: 'c'),
+      ], offset: const Duration(milliseconds: 250));
     });
 
     ProofreadV2ReviewAssembly assemble({
@@ -66,10 +68,11 @@ void main() {
     }) {
       final result = const ReferenceFirstPipeline().build(
         draft: draft,
-        reference: reference(
-          [ref('第一句歌词'), ref('第二句歌词'), ref('第三句歌词')],
-          warnings: warnings,
-        ),
+        reference: reference([
+          ref('第一句歌词'),
+          ref('第二句歌词'),
+          ref('第三句歌词'),
+        ], warnings: warnings),
         protectedDraftIndices: protected,
         audioDuration: const Duration(seconds: 8),
       );
@@ -84,27 +87,31 @@ void main() {
       final assembly = assemble();
 
       expect(assembly.items, hasLength(3));
-      expect(
-        assembly.proposalDocument.lines.map((line) => line.text),
-        ['第一句歌词', '第二句歌词', '第三句歌词'],
-      );
+      expect(assembly.proposalDocument.lines.map((line) => line.text), [
+        '第一句歌词',
+        '第二句歌词',
+        '第三句歌词',
+      ]);
       expect(assembly.items.map((item) => item.proposalIndex), [0, 1, 2]);
-      expect(
-        assembly.items.map((item) => item.sourceIndex).whereType<int>(),
-        [0, 2],
-      );
+      expect(assembly.items.map((item) => item.sourceIndex).whereType<int>(), [
+        0,
+        2,
+      ]);
       expect(assembly.items.first.originalLine?.id, 'a');
     });
 
-    test('an interpolated reference line has no draft source and stays amber', () {
-      final interpolated = assemble().items.singleWhere(
-        (item) => item.sourceIndex == null,
-      );
+    test(
+      'an interpolated reference line has no draft source and stays amber',
+      () {
+        final interpolated = assemble().items.singleWhere(
+          (item) => item.sourceIndex == null,
+        );
 
-      expect(interpolated.originalLine, isNull);
-      expect(interpolated.verdict, LyricProofreadReviewVerdict.amber);
-      expect(interpolated.reasonLabel, contains('插值时间需复核'));
-    });
+        expect(interpolated.originalLine, isNull);
+        expect(interpolated.verdict, LyricProofreadReviewVerdict.amber);
+        expect(interpolated.reasonLabel, contains('插值时间需复核'));
+      },
+    );
 
     test('a protected draft line arrives as a locked row', () {
       final assembly = assemble(protected: {2});
@@ -222,7 +229,10 @@ void main() {
         assemble(hasSecondary: true).explanation,
         contains('已将第二份带时间戳的转写稿作为独立证据'),
       );
-      expect(assemble(fellBack: true).explanation, contains('低于 25% 而退回 ASR 优先'));
+      expect(
+        assemble(fellBack: true).explanation,
+        contains('低于 25% 而退回 ASR 优先'),
+      );
       expect(assemble().explanation, contains('应用按钮会保持禁用'));
     });
 
@@ -242,19 +252,21 @@ void main() {
   });
 
   group('summary', () {
-    LyricProofreadV2ReviewItem item(LyricProofreadReviewVerdict verdict, int index) =>
-        LyricProofreadV2ReviewItem(
-          proposalIndex: index,
-          sourceIndex: index,
-          proposedLine: const LyricLine(
-            text: 'x',
-            startTime: Duration.zero,
-            endTime: Duration(seconds: 1),
-          ),
-          originalLine: null,
-          verdict: verdict,
-          reasonLabel: '',
-        );
+    LyricProofreadV2ReviewItem item(
+      LyricProofreadReviewVerdict verdict,
+      int index,
+    ) => LyricProofreadV2ReviewItem(
+      proposalIndex: index,
+      sourceIndex: index,
+      proposedLine: const LyricLine(
+        text: 'x',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 1),
+      ),
+      originalLine: null,
+      verdict: verdict,
+      reasonLabel: '',
+    );
 
     test('counts every group and includes coverage when provided', () {
       final text = assembler.summary(
@@ -298,7 +310,10 @@ void main() {
       expect(ProofreadV2ReviewAssembler.reasonLabel(reason), isNotEmpty);
     }
     for (final reason in ReferenceFirstReason.values) {
-      expect(ProofreadV2ReviewAssembler.referenceReasonLabel(reason), isNotEmpty);
+      expect(
+        ProofreadV2ReviewAssembler.referenceReasonLabel(reason),
+        isNotEmpty,
+      );
     }
     for (final strategy in LyricSourceStrategy.values) {
       expect(ProofreadV2ReviewAssembler.strategyLabel(strategy), isNotEmpty);

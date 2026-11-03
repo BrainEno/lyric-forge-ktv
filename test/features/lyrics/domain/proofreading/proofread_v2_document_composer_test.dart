@@ -7,14 +7,19 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 void main() {
   const composer = ProofreadV2DocumentComposer();
 
-  LyricLine line(String text, int start, int end, {String? id, int confidence = 100}) =>
-      LyricLine(
-        text: text,
-        startTime: Duration(milliseconds: start),
-        endTime: Duration(milliseconds: end),
-        confidence: confidence,
-        id: id,
-      );
+  LyricLine line(
+    String text,
+    int start,
+    int end, {
+    String? id,
+    int confidence = 100,
+  }) => LyricLine(
+    text: text,
+    startTime: Duration(milliseconds: start),
+    endTime: Duration(milliseconds: end),
+    confidence: confidence,
+    id: id,
+  );
 
   LyricProofreadV2ReviewItem item({
     required int proposalIndex,
@@ -155,55 +160,62 @@ void main() {
       expect(after.lines.single.text, 'locked proposal');
     });
 
-    test('a new proposal without a draft source is appended in review order', () {
-      final before = LyricDocument(
-        language: 'en',
-        lines: [
-          line('first', 0, 1000, id: 'a'),
-          line('third', 2000, 3000, id: 'c'),
-        ],
-      );
-      final proposal = before.copyWith(
-        lines: [
-          line('first', 0, 1000, id: 'a'),
-          line('second', 1000, 2000, id: 'b'),
-          line('third', 2000, 3000, id: 'c'),
-        ],
-      );
+    test(
+      'a new proposal without a draft source is appended in review order',
+      () {
+        final before = LyricDocument(
+          language: 'en',
+          lines: [
+            line('first', 0, 1000, id: 'a'),
+            line('third', 2000, 3000, id: 'c'),
+          ],
+        );
+        final proposal = before.copyWith(
+          lines: [
+            line('first', 0, 1000, id: 'a'),
+            line('second', 1000, 2000, id: 'b'),
+            line('third', 2000, 3000, id: 'c'),
+          ],
+        );
 
-      final after = composer.compose(
-        before: before,
-        proposalDocument: proposal,
-        items: [
-          item(
-            proposalIndex: 0,
-            sourceIndex: 0,
-            proposed: proposal.lines[0],
-            original: before.lines[0],
-            verdict: LyricProofreadReviewVerdict.green,
-          ),
-          item(
-            proposalIndex: 1,
-            sourceIndex: null,
-            proposed: proposal.lines[1],
-            original: null,
-            verdict: LyricProofreadReviewVerdict.amber,
-          ),
-          item(
-            proposalIndex: 2,
-            sourceIndex: 1,
-            proposed: proposal.lines[2],
-            original: before.lines[1],
-            verdict: LyricProofreadReviewVerdict.green,
-          ),
-        ],
-        droppedItems: const [],
-        selection: selection(accepted: {1}),
-        effectiveStrategy: LyricSourceStrategy.referenceFirst,
-      );
+        final after = composer.compose(
+          before: before,
+          proposalDocument: proposal,
+          items: [
+            item(
+              proposalIndex: 0,
+              sourceIndex: 0,
+              proposed: proposal.lines[0],
+              original: before.lines[0],
+              verdict: LyricProofreadReviewVerdict.green,
+            ),
+            item(
+              proposalIndex: 1,
+              sourceIndex: null,
+              proposed: proposal.lines[1],
+              original: null,
+              verdict: LyricProofreadReviewVerdict.amber,
+            ),
+            item(
+              proposalIndex: 2,
+              sourceIndex: 1,
+              proposed: proposal.lines[2],
+              original: before.lines[1],
+              verdict: LyricProofreadReviewVerdict.green,
+            ),
+          ],
+          droppedItems: const [],
+          selection: selection(accepted: {1}),
+          effectiveStrategy: LyricSourceStrategy.referenceFirst,
+        );
 
-      expect(after.lines.map((line) => line.text), ['first', 'second', 'third']);
-    });
+        expect(after.lines.map((line) => line.text), [
+          'first',
+          'second',
+          'third',
+        ]);
+      },
+    );
 
     test('a dropped draft line is removed unless the user restored it', () {
       final before = LyricDocument(
@@ -273,44 +285,47 @@ void main() {
       expect(restored.lines.map((line) => line.id), ['a', 'b', 'c']);
     });
 
-    test('a restored line is re-inserted by timestamp, not by review order', () {
-      final before = LyricDocument(
-        language: 'en',
-        lines: [
-          line('late proposal', 5000, 6000, id: 'a'),
-          line('early restored', 1000, 2000, id: 'b'),
-        ],
-      );
-      final proposal = before.copyWith(lines: [before.lines[0]]);
+    test(
+      'a restored line is re-inserted by timestamp, not by review order',
+      () {
+        final before = LyricDocument(
+          language: 'en',
+          lines: [
+            line('late proposal', 5000, 6000, id: 'a'),
+            line('early restored', 1000, 2000, id: 'b'),
+          ],
+        );
+        final proposal = before.copyWith(lines: [before.lines[0]]);
 
-      final after = composer.compose(
-        before: before,
-        proposalDocument: proposal,
-        items: [
-          item(
-            proposalIndex: 0,
-            sourceIndex: 0,
-            proposed: proposal.lines[0],
-            original: before.lines[0],
-            verdict: LyricProofreadReviewVerdict.green,
-          ),
-        ],
-        droppedItems: [
-          LyricProofreadV2DroppedItem(
-            sourceIndex: 1,
-            line: before.lines[1],
-            reasonLabel: '',
-          ),
-        ],
-        selection: selection(restored: {1}),
-        effectiveStrategy: LyricSourceStrategy.referenceFirst,
-      );
+        final after = composer.compose(
+          before: before,
+          proposalDocument: proposal,
+          items: [
+            item(
+              proposalIndex: 0,
+              sourceIndex: 0,
+              proposed: proposal.lines[0],
+              original: before.lines[0],
+              verdict: LyricProofreadReviewVerdict.green,
+            ),
+          ],
+          droppedItems: [
+            LyricProofreadV2DroppedItem(
+              sourceIndex: 1,
+              line: before.lines[1],
+              reasonLabel: '',
+            ),
+          ],
+          selection: selection(restored: {1}),
+          effectiveStrategy: LyricSourceStrategy.referenceFirst,
+        );
 
-      expect(after.lines.map((line) => line.text), [
-        'early restored',
-        'late proposal',
-      ]);
-    });
+        expect(after.lines.map((line) => line.text), [
+          'early restored',
+          'late proposal',
+        ]);
+      },
+    );
 
     test('reference-first timing changes reset the global offset', () {
       final before = LyricDocument(
@@ -526,9 +541,7 @@ void main() {
       expect(
         composer.isDifferent(
           base,
-          base.copyWith(
-            lines: [base.lines.single.copyWith(confidence: 42)],
-          ),
+          base.copyWith(lines: [base.lines.single.copyWith(confidence: 42)]),
         ),
         isTrue,
       );
@@ -543,7 +556,10 @@ void main() {
 
     test('detects added and removed lines', () {
       final longer = base.copyWith(
-        lines: [...base.lines, line('extra', 2000, 3000, id: 'b')],
+        lines: [
+          ...base.lines,
+          line('extra', 2000, 3000, id: 'b'),
+        ],
       );
 
       expect(composer.isDifferent(base, longer), isTrue);
