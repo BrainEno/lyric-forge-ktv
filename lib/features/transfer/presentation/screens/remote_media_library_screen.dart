@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
+import '../remote_media_library_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
@@ -18,7 +18,9 @@ import '../../domain/services/media_hub_client_service.dart';
 import '../../domain/services/media_hub_connection_store.dart';
 
 class RemoteMediaLibraryScreen extends StatefulWidget {
-  const RemoteMediaLibraryScreen({super.key});
+  final RemoteMediaLibraryDependencies dependencies;
+
+  const RemoteMediaLibraryScreen({super.key, required this.dependencies});
 
   @override
   State<RemoteMediaLibraryScreen> createState() =>
@@ -45,9 +47,9 @@ class _RemoteMediaLibraryScreenState extends State<RemoteMediaLibraryScreen> {
   @override
   void initState() {
     super.initState();
-    _client = AppServices.instance.mediaHubClientService;
-    _audioService = AppServices.instance.audioPlayerService;
-    _connectionStore = AppServices.instance.mediaHubConnectionStore;
+    _client = widget.dependencies.client;
+    _audioService = widget.dependencies.audioPlayer;
+    _connectionStore = widget.dependencies.connectionStore;
 
     if (_client.isConnected) {
       unawaited(_loadTracks());

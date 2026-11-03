@@ -20,6 +20,7 @@ import 'app_services.dart';
 import 'local_library_assembly.dart';
 import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
+import 'screen_assembly.dart';
 
 /// The routing table: route name in, screen out.
 ///
@@ -49,7 +50,12 @@ class AppRouter {
         return _fadeRoute(const DashboardScreen(), settings);
 
       case Routes.import:
-        return _fadeRoute(const TranscriptionReadyImportScreen(), settings);
+        return _fadeRoute(
+          TranscriptionReadyImportScreen(
+            dependencies: assembleTranscriptionImportDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.library:
         return _fadeRoute(_libraryShell(0), settings);
@@ -134,7 +140,10 @@ class AppRouter {
 
           if (uri.pathSegments.length == 2) {
             return _fadeRoute(
-              ProjectDetailScreen(projectId: projectId),
+              ProjectDetailScreen(
+                projectId: projectId,
+                dependencies: assembleProjectDetailDependencies(services),
+              ),
               settings,
             );
           }

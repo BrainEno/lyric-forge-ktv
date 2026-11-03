@@ -23,8 +23,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// 34 -> 29 files. Step 3 (the local-music library: five sections, quick play,
 /// both player bars, the queue panel and its dialogs): 54 -> 32 calls in
 /// 29 -> 19 files — the whole player feature now takes its dependencies.
-const int _frozenSingletonFiles = 19;
-const int _frozenSingletonCalls = 32;
+const int _frozenSingletonFiles = 14;
+const int _frozenSingletonCalls = 16;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.

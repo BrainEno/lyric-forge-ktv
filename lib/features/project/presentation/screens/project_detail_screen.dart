@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
+import '../project_detail_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_degradation.dart';
@@ -20,8 +20,13 @@ import '../../domain/repositories/project_repository.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final String projectId;
+  final ProjectDetailDependencies dependencies;
 
-  const ProjectDetailScreen({super.key, required this.projectId});
+  const ProjectDetailScreen({
+    super.key,
+    required this.projectId,
+    required this.dependencies,
+  });
 
   @override
   State<ProjectDetailScreen> createState() => _ProjectDetailScreenState();
@@ -47,11 +52,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _repository = AppServices.instance.projectRepository;
-    _transcriptionWorkflow = AppServices.instance.projectTranscriptionWorkflow;
+    _repository = widget.dependencies.projectRepository;
+    _transcriptionWorkflow = widget.dependencies.transcriptionWorkflow;
     _transcriptionSettingsStore =
-        AppServices.instance.transcriptionSettingsStore;
-    _asrRuntimeManager = AppServices.instance.asrRuntimeManager;
+        widget.dependencies.transcriptionSettingsStore;
+    _asrRuntimeManager = widget.dependencies.asrRuntimeManager;
     _loadProject();
 
     _progressSubscription = _transcriptionWorkflow.progressStream.listen((
