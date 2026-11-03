@@ -110,7 +110,9 @@ void main() {
     await pumpScreen(tester);
 
     await tester.tap(find.byKey(KtvRecordingToolbar.recordButtonKey));
-    await tester.pump();
+    // The surface also listens for double taps, so a single tap only resolves
+    // after the double-tap timeout.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(recording.log, ['start:song']);
 
