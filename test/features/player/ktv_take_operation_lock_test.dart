@@ -57,7 +57,10 @@ void main() {
       displayName: '高音最好的一次',
       isFavorite: true,
     );
-    await fixture.manifest.writeAsString(jsonEncode(changed.toJson()), flush: true);
+    await fixture.manifest.writeAsString(
+      jsonEncode(changed.toJson()),
+      flush: true,
+    );
     await File(ffmpegArgs!.last).writeAsBytes([1, 2, 3], flush: true);
     gate.complete(ProcessResult(123, 0, '', ''));
 
@@ -202,10 +205,16 @@ class _FakeAudioPlayerService implements AudioPlayerService {
   Future<void> dispose() => _states.close();
 
   @override
-  Future<void> loadAudioUri({required Uri uri, AudioSourceType source = AudioSourceType.original}) async {}
+  Future<void> loadAudioUri({
+    required Uri uri,
+    AudioSourceType source = AudioSourceType.original,
+  }) async {}
 
   @override
-  Future<void> loadProjectAudio({required AudioAsset audioAsset, AudioSourceType preferredSource = AudioSourceType.instrumental}) async {}
+  Future<void> loadProjectAudio({
+    required AudioAsset audioAsset,
+    AudioSourceType preferredSource = AudioSourceType.instrumental,
+  }) async {}
 
   @override
   Future<void> pause() async {}
@@ -226,7 +235,8 @@ class _FakeAudioPlayerService implements AudioPlayerService {
 class _FakeMicrophoneService implements KtvMicrophoneService {
   final StreamController<KtvMicrophoneState> _states =
       StreamController<KtvMicrophoneState>.broadcast();
-  final StreamController<Uint8List> _pcm = StreamController<Uint8List>.broadcast();
+  final StreamController<Uint8List> _pcm =
+      StreamController<Uint8List>.broadcast();
 
   @override
   KtvMicrophoneState get currentState => const KtvMicrophoneState();
@@ -239,6 +249,7 @@ class _FakeMicrophoneService implements KtvMicrophoneService {
     await _states.close();
     await _pcm.close();
   }
+
   @override
   Future<void> refreshInputDevices() async {}
   @override
