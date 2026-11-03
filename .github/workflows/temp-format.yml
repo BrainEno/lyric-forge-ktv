@@ -19,18 +19,28 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: ./.github/actions/setup-flutter
-      - name: Format changed files and push formatter output
+      - name: Format changed files, report and push formatter output
         env:
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
           if (( ${#dart_files[@]} == 0 )); then exit 0; fi
-          dart format "${dart_files[@]}"
-          if ! git diff --quiet -- "${dart_files[@]}"; then
+          printf 'Dart files (%s):\n%s\n' "${#dart_files[@]}" "${dart_files[*]}" > temp-format-report.txt
+          set +e
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}" > /tmp/format-check.txt 2>&1
+          check=$?
+          set -e
+          printf '\nFORMAT_CHECK_EXIT=%s\n' "$check" >> temp-format-report.txt
+          cat /tmp/format-check.txt >> temp-format-report.txt
+          dart format "${dart_files[@]}" > /tmp/format-apply.txt 2>&1
+          printf '\nFORMAT_APPLY:\n' >> temp-format-report.txt
+          cat /tmp/format-apply.txt >> temp-format-report.txt
+          git diff -- "${dart_files[@]}" > temp-format-diff.patch
+          if ! git diff --quiet -- "${dart_files[@]}" || [[ -s temp-format-report.txt ]]; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add "${dart_files[@]}"
-            git commit -m 'chore: dart format'
+            git add "${dart_files[@]}" temp-format-report.txt temp-format-diff.patch
+            git commit -m 'chore: capture Dart formatter output'
             git push origin "HEAD:${HEAD_BRANCH}"
           fi
