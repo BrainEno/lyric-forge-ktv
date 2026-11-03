@@ -1526,7 +1526,6 @@ String _sourceLabel(AudioSourceType source) {
   };
 }
 
-
 String _formatTime(Duration value) {
   final minutes = value.inMinutes.toString().padLeft(2, '0');
   final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
