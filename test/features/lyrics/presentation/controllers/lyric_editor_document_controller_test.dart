@@ -34,9 +34,7 @@ void main() {
     LyricDocument? loaded,
   }) {
     var now = DateTime.utc(2026, 11, 3, 12);
-    final controller = LyricEditorDocumentController(
-      clock: () => now,
-    );
+    final controller = LyricEditorDocumentController(clock: () => now);
     if (loaded != null) controller.load(loaded);
     return (
       controller: controller,
@@ -51,8 +49,10 @@ void main() {
         {'b'},
       );
       final entry = build(
-        loaded: document([line('a', id: 'a'), line('b', id: 'b')])
-            .copyWith(metadata: persisted),
+        loaded: document([
+          line('a', id: 'a'),
+          line('b', id: 'b'),
+        ]).copyWith(metadata: persisted),
       );
 
       expect(entry.controller.document!.lines.map((row) => row.id), ['a', 'b']);
@@ -92,7 +92,10 @@ void main() {
         loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
       );
       entry.controller.select(1);
-      entry.controller.updateLine(1, line('b edited', startMs: 1000, endMs: 2000, id: 'b'));
+      entry.controller.updateLine(
+        1,
+        line('b edited', startMs: 1000, endMs: 2000, id: 'b'),
+      );
 
       final undone = entry.controller.undo();
 
@@ -191,7 +194,10 @@ void main() {
         loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
       );
       entry.controller.updateLine(0, line('a1', id: 'a'));
-      entry.controller.updateLine(1, line('b1', startMs: 1000, endMs: 2000, id: 'b'));
+      entry.controller.updateLine(
+        1,
+        line('b1', startMs: 1000, endMs: 2000, id: 'b'),
+      );
 
       expect(entry.controller.history.undoDepth, 2);
     });
@@ -226,7 +232,11 @@ void main() {
       );
       expect(
         entry.controller
-            .updateLine(0, line('a2', startMs: 10, id: 'a'), auditionTarget: true)
+            .updateLine(
+              0,
+              line('a2', startMs: 10, id: 'a'),
+              auditionTarget: true,
+            )
             .clearsAudition,
         isTrue,
       );
@@ -244,17 +254,20 @@ void main() {
   });
 
   group('deleteLine', () {
-    test('deleting the selected last row clamps the selection to the new end', () {
-      final entry = build(
-        loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
-      );
-      entry.controller.select(1);
+    test(
+      'deleting the selected last row clamps the selection to the new end',
+      () {
+        final entry = build(
+          loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+        );
+        entry.controller.select(1);
 
-      entry.controller.deleteLine(1);
+        entry.controller.deleteLine(1);
 
-      expect(entry.controller.document!.lines.map((row) => row.text), ['a']);
-      expect(entry.controller.selectedLineIndex, 0);
-    });
+        expect(entry.controller.document!.lines.map((row) => row.text), ['a']);
+        expect(entry.controller.selectedLineIndex, 0);
+      },
+    );
 
     test('deleting a row above the selection keeps the same row selected', () {
       final entry = build(
@@ -290,7 +303,10 @@ void main() {
       final entry = build(
         loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
       );
-      entry.controller.updateLine(1, line('b fixed', startMs: 1000, endMs: 2000, id: 'b'));
+      entry.controller.updateLine(
+        1,
+        line('b fixed', startMs: 1000, endMs: 2000, id: 'b'),
+      );
       expect(entry.controller.manuallyEditedLineIds, {'b'});
 
       entry.controller.deleteLine(1);
@@ -475,7 +491,10 @@ void main() {
 
       // The decision service would hand back a fresh document (new timestamp)
       // even when nothing changed, so the controller has to notice first.
-      expect(entry.controller.setLineReviewed(0, reviewed: true).applied, isFalse);
+      expect(
+        entry.controller.setLineReviewed(0, reviewed: true).applied,
+        isFalse,
+      );
       expect(
         entry.controller.setLineReviewed(9, reviewed: false).applied,
         isFalse,
@@ -518,38 +537,47 @@ void main() {
       expect(entry.controller.undoBatchChange().applied, isFalse);
     });
 
-    test('undoing the batch restores document, marks, selection and dirtiness', () {
-      final original = document([line('a', id: 'a'), line('b', id: 'b')]);
-      final entry = build(loaded: original);
-      entry.controller.updateLine(1, line('b fixed', startMs: 1000, endMs: 2000, id: 'b'));
-      entry.controller.select(0);
-      final dirtyBefore = entry.controller.hasChanges;
+    test(
+      'undoing the batch restores document, marks, selection and dirtiness',
+      () {
+        final original = document([line('a', id: 'a'), line('b', id: 'b')]);
+        final entry = build(loaded: original);
+        entry.controller.updateLine(
+          1,
+          line('b fixed', startMs: 1000, endMs: 2000, id: 'b'),
+        );
+        entry.controller.select(0);
+        final dirtyBefore = entry.controller.hasChanges;
 
-      entry.controller.replaceDocument(
-        document([line('merged', id: 'm')]),
-        label: '应用校对提案',
-        selectedLineIndex: 0,
-        keepBatchSnapshot: true,
-        isReferenceProofread: true,
-      );
-      expect(entry.controller.alignmentSnapshot!.isReferenceProofread, isTrue);
-      expect(entry.controller.manuallyEditedLineIds, {'b'});
+        entry.controller.replaceDocument(
+          document([line('merged', id: 'm')]),
+          label: '应用校对提案',
+          selectedLineIndex: 0,
+          keepBatchSnapshot: true,
+          isReferenceProofread: true,
+        );
+        expect(
+          entry.controller.alignmentSnapshot!.isReferenceProofread,
+          isTrue,
+        );
+        expect(entry.controller.manuallyEditedLineIds, {'b'});
 
-      final undone = entry.controller.undoBatchChange();
+        final undone = entry.controller.undoBatchChange();
 
-      expect(undone.applied, isTrue);
-      expect(undone.clearsAudition, isTrue);
-      expect(entry.controller.document!.lines.map((row) => row.text), [
-        'a',
-        'b fixed',
-      ]);
-      expect(entry.controller.manuallyEditedLineIds, {'b'});
-      expect(entry.controller.selectedLineIndex, 0);
-      expect(entry.controller.hasChanges, dirtyBefore);
-      expect(entry.controller.alignmentSnapshot, isNull);
-      // The reversal is itself an edit, so it appears in the history.
-      expect(entry.controller.undoLabel, '撤销参考对齐');
-    });
+        expect(undone.applied, isTrue);
+        expect(undone.clearsAudition, isTrue);
+        expect(entry.controller.document!.lines.map((row) => row.text), [
+          'a',
+          'b fixed',
+        ]);
+        expect(entry.controller.manuallyEditedLineIds, {'b'});
+        expect(entry.controller.selectedLineIndex, 0);
+        expect(entry.controller.hasChanges, dirtyBefore);
+        expect(entry.controller.alignmentSnapshot, isNull);
+        // The reversal is itself an edit, so it appears in the history.
+        expect(entry.controller.undoLabel, '撤销参考对齐');
+      },
+    );
 
     test('a selection can be cleared by the replacement', () {
       final entry = build(loaded: document([line('a', id: 'a')]));
@@ -590,10 +618,7 @@ void main() {
       final entry = build(loaded: document([line('*', id: '*')]));
 
       entry.controller.restoreDocument(
-        document(
-          [line('a', id: 'a'), line('b', id: 'b')],
-          metadata: restored,
-        ),
+        document([line('a', id: 'a'), line('b', id: 'b')], metadata: restored),
         label: '恢复对齐前版本',
       );
 
@@ -638,21 +663,24 @@ void main() {
       expect(entry.controller.documentForSave, throwsStateError);
     });
 
-    test('markSaved clears dirtiness and the batch snapshot but keeps history', () {
-      final entry = build(loaded: document([line('a', id: 'a')]));
-      entry.controller.replaceDocument(
-        document([line('a2', id: 'a')]),
-        label: '应用校对提案',
-        selectedLineIndex: 0,
-        keepBatchSnapshot: true,
-      );
+    test(
+      'markSaved clears dirtiness and the batch snapshot but keeps history',
+      () {
+        final entry = build(loaded: document([line('a', id: 'a')]));
+        entry.controller.replaceDocument(
+          document([line('a2', id: 'a')]),
+          label: '应用校对提案',
+          selectedLineIndex: 0,
+          keepBatchSnapshot: true,
+        );
 
-      entry.controller.markSaved();
+        entry.controller.markSaved();
 
-      expect(entry.controller.hasChanges, isFalse);
-      expect(entry.controller.alignmentSnapshot, isNull);
-      expect(entry.controller.canUndo, isTrue);
-    });
+        expect(entry.controller.hasChanges, isFalse);
+        expect(entry.controller.alignmentSnapshot, isNull);
+        expect(entry.controller.canUndo, isTrue);
+      },
+    );
   });
 
   group('protectedIndices', () {
@@ -660,7 +688,10 @@ void main() {
       final entry = build(
         loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
       );
-      entry.controller.updateLine(1, line('b fixed', startMs: 1000, endMs: 2000, id: 'b'));
+      entry.controller.updateLine(
+        1,
+        line('b fixed', startMs: 1000, endMs: 2000, id: 'b'),
+      );
       expect(entry.controller.protectedIndices, {1});
 
       entry.controller.replaceDocument(

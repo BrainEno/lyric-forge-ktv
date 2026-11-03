@@ -1007,7 +1007,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final active = _audition.active;
     if (active == null || active.projectId != widget.projectId) return false;
     final document = _editingDocument;
-    final lineId = document == null || index < 0 || index >= document.lines.length
+    final lineId =
+        document == null || index < 0 || index >= document.lines.length
         ? null
         : document.lines[index].id;
     return active.lineId != null
@@ -1407,8 +1408,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               }),
               onFollowPlaybackChanged: (value) =>
                   setState(() => _followPlayback = value),
-              onSelectLine: (index) =>
-                  setState(() => _editor.select(index)),
+              onSelectLine: (index) => setState(() => _editor.select(index)),
               onReviewDecision: (index, reviewed) =>
                   _setLineReviewDecision(project, index, reviewed: reviewed),
               onSave: () => _saveChanges(project),
