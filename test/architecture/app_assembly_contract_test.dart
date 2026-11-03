@@ -238,12 +238,18 @@ void main() {
         assembly,
         contains('microphoneService: services.ktvMicrophoneService'),
       );
-      expect(assembly, contains('recordingService: services.ktvRecordingService'));
+      expect(
+        assembly,
+        contains('recordingService: services.ktvRecordingService'),
+      );
       expect(
         assembly,
         contains('takeHistoryStore: services.ktvTakeHistoryStore'),
       );
-      expect(assembly, contains('previewService: services.audioPreviewService'));
+      expect(
+        assembly,
+        contains('previewService: services.audioPreviewService'),
+      );
 
       final immersive = File(
         'lib/features/player/presentation/screens/immersive_ktv_screen.dart',

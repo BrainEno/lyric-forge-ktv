@@ -20,7 +20,10 @@ void main() {
     name: 'Song',
     createdAt: DateTime.utc(2026, 10, 10),
     updatedAt: DateTime.utc(2026, 10, 10),
-    audioAsset: const AudioAsset(originalPath: '/music/backing.wav', format: 'wav'),
+    audioAsset: const AudioAsset(
+      originalPath: '/music/backing.wav',
+      format: 'wav',
+    ),
   );
 
   setUp(() {
@@ -86,7 +89,9 @@ void main() {
   testWidgets('未锁定时收藏会写回项目并刷新列表', (tester) async {
     await pumpSheet(tester);
 
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.star_border_rounded));
+    await tester.tap(
+      find.widgetWithIcon(IconButton, Icons.star_border_rounded),
+    );
     await tester.pump();
     await tester.pump();
 
@@ -142,12 +147,16 @@ class _FakeTakeHistoryStore implements KtvTakeHistoryStore {
   @override
   Future<KtvTakeHistoryScanResult> scanProject(ProjectManifest project) async {
     scanCount += 1;
-    return KtvTakeHistoryScanResult(takes: _takes, recoveredCount: recoveredCount);
+    return KtvTakeHistoryScanResult(
+      takes: _takes,
+      recoveredCount: recoveredCount,
+    );
   }
 
   @override
-  Future<List<KtvRecordingSession>> listProject(ProjectManifest project) async =>
-      _takes;
+  Future<List<KtvRecordingSession>> listProject(
+    ProjectManifest project,
+  ) async => _takes;
 
   @override
   Future<KtvRecordingSession> updateProjectTakeMetadata(

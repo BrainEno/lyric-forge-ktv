@@ -47,7 +47,8 @@ class KtvRecordingToolbar extends StatelessWidget {
       stream: recordingService.stateStream,
       initialData: recordingService.currentState,
       builder: (context, recordingSnapshot) {
-        final recording = recordingSnapshot.data ?? recordingService.currentState;
+        final recording =
+            recordingSnapshot.data ?? recordingService.currentState;
         // Recording and exporting both rewrite the take directory, so neither
         // may be interrupted by another one starting on top of it.
         final takeBusy = recording.isRecording || recording.isExporting;
@@ -111,9 +112,7 @@ class KtvRecordingToolbar extends StatelessWidget {
                   height: extent,
                   child: IconButton.filledTonal(
                     key: microphoneButtonKey,
-                    tooltip: microphone.isMonitoring
-                        ? '麦克风监听已开启'
-                        : '麦克风与音量',
+                    tooltip: microphone.isMonitoring ? '麦克风监听已开启' : '麦克风与音量',
                     onPressed: enabled ? onOpenMicrophone : null,
                     icon: Icon(
                       microphone.isMonitoring

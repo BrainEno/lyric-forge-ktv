@@ -191,7 +191,8 @@ class _FakeRecordingService implements KtvRecordingService {
 class _FakeMicrophoneService implements KtvMicrophoneService {
   final StreamController<KtvMicrophoneState> _states =
       StreamController<KtvMicrophoneState>.broadcast();
-  final StreamController<Uint8List> _pcm = StreamController<Uint8List>.broadcast();
+  final StreamController<Uint8List> _pcm =
+      StreamController<Uint8List>.broadcast();
 
   @override
   KtvMicrophoneState get currentState => const KtvMicrophoneState();
@@ -346,8 +347,9 @@ class _FakeTakeHistoryStore implements KtvTakeHistoryStore {
       const KtvTakeHistoryScanResult(takes: [], recoveredCount: 0);
 
   @override
-  Future<List<KtvRecordingSession>> listProject(ProjectManifest project) async =>
-      const [];
+  Future<List<KtvRecordingSession>> listProject(
+    ProjectManifest project,
+  ) async => const [];
 
   @override
   Future<KtvRecordingSession> updateProjectTakeMetadata(
