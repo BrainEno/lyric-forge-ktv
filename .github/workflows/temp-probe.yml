@@ -69,6 +69,12 @@ jobs:
           grep -nE "^[0-9]{2}:[0-9]{2} .*\[E\]|Expected:|Actual:|failed \(|The following .* was thrown" /tmp/test.log | head -12 | while IFS= read -r line; do
             echo "::error::${line:0:800}"
           done
+          grep -nE "Warning|derived an Offset|hit test" /tmp/test.log | head -4 | while IFS= read -r line; do
+            echo "::error::${line:0:800}"
+          done
+          grep -n -A 18 "点击录音按钮用当前工程开始录制 \[E\]" /tmp/test.log | head -22 | while IFS= read -r line; do
+            echo "::error::ctx ${line:0:800}"
+          done
           tail -c 1200 /tmp/test.log | tr '\n' '|' | fold -w 800 | head -2 | while IFS= read -r line; do
             echo "::error::tail ${line}"
           done
