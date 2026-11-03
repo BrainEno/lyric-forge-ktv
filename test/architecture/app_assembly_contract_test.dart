@@ -18,10 +18,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// The numbers below are a freeze of the current migration state, not a target.
 /// Fix the call site and lower the number in the same change; never raise it.
 /// Step 1 (editor, review inbox, routing table, app shell): 80 -> 72 calls in
-/// 37 -> 34 files. Step 2 (player screen, Now Playing, the app-shell lyric sync
-/// and Now Playing's lyric action): 72 -> 55 calls in 34 -> 30 files.
-const int _frozenSingletonFiles = 30;
-const int _frozenSingletonCalls = 55;
+/// 37 -> 34 files. Step 2 (player screen, Now Playing, the app-shell lyric sync,
+/// Now Playing's lyric action and the fullscreen KTV view): 72 -> 54 calls in
+/// 34 -> 29 files.
+const int _frozenSingletonFiles = 29;
+const int _frozenSingletonCalls = 54;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.
@@ -198,6 +199,7 @@ void main() {
         'lib/features/player/presentation/screens/now_playing_screen.dart',
         'lib/features/player/presentation/widgets/playback_lyrics_availability_sync.dart',
         'lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart',
+        'lib/features/player/presentation/screens/immersive_ktv_screen.dart',
       ];
       for (final path in screens) {
         expect(

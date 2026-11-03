@@ -114,6 +114,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           playbackSnapshot.data ?? _audio.currentState;
                       return _NowPlayingBody(
                         item: item,
+                        lyricsResolver: widget.dependencies.lyricsResolver,
                         sessionState: session,
                         playback: playback,
                         session: _session,
@@ -171,6 +172,7 @@ class _EmptyNowPlaying extends StatelessWidget {
 
 class _NowPlayingBody extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -180,6 +182,7 @@ class _NowPlayingBody extends StatelessWidget {
 
   const _NowPlayingBody({
     required this.item,
+    required this.lyricsResolver,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -195,6 +198,7 @@ class _NowPlayingBody extends StatelessWidget {
         final layout = AppResponsive.fromConstraints(constraints);
         final content = _NowPlayingCard(
           item: item,
+          lyricsResolver: lyricsResolver,
           sessionState: sessionState,
           playback: playback,
           session: session,
@@ -246,6 +250,7 @@ class _NowPlayingBody extends StatelessWidget {
 
 class _NowPlayingCard extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -255,6 +260,7 @@ class _NowPlayingCard extends StatelessWidget {
 
   const _NowPlayingCard({
     required this.item,
+    required this.lyricsResolver,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -292,6 +298,7 @@ class _NowPlayingCard extends StatelessWidget {
             final vertical = layout.isCompact || constraints.maxWidth < 680;
             final details = _NowPlayingDetails(
               item: item,
+              lyricsResolver: lyricsResolver,
               album: albumText,
               source: source,
               sessionState: sessionState,
@@ -348,6 +355,7 @@ class _NowPlayingCard extends StatelessWidget {
 
 class _NowPlayingDetails extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final String? album;
   final ({String label, String chip}) source;
   final PlaybackSessionState sessionState;
@@ -359,6 +367,7 @@ class _NowPlayingDetails extends StatelessWidget {
 
   const _NowPlayingDetails({
     required this.item,
+    required this.lyricsResolver,
     required this.album,
     required this.source,
     required this.sessionState,
@@ -464,7 +473,8 @@ class _NowPlayingDetails extends StatelessWidget {
             const Spacer(),
             NowPlayingLyricsProjectAction(
               item: item,
-              lyricsResolver: widget.dependencies.lyricsResolver,
+              lyricsResolver: lyricsResolver,
+              audioPlayer: audio,
             ),
           ],
         ),

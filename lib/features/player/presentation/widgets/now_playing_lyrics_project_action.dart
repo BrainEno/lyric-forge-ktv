@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
+import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_lyrics_availability.dart';
+import '../../domain/services/playback_session_service.dart';
 import '../screens/immersive_ktv_screen.dart';
 
 class NowPlayingLyricsProjectAction extends StatefulWidget {
@@ -10,10 +12,14 @@ class NowPlayingLyricsProjectAction extends StatefulWidget {
   /// Resolves the lyric project behind [item] (and repairs the queue flag).
   final PlaybackLyricsResolver lyricsResolver;
 
+  /// Only used when opening the fullscreen KTV view from this action.
+  final AudioPlayerService audioPlayer;
+
   const NowPlayingLyricsProjectAction({
     super.key,
     required this.item,
     required this.lyricsResolver,
+    required this.audioPlayer,
   });
 
   @override
@@ -69,8 +75,12 @@ class _NowPlayingLyricsProjectActionState
                   MaterialPageRoute<void>(
                     builder: (_) => ImmersiveKtvScreen(
                       initialProjectId: projectId,
-                      projectRepository: _projects,
-                      metadataRepository: _metadata,
+                      projectRepository: widget.lyricsResolver.projectRepository,
+                      metadataRepository: widget.lyricsResolver.metadataRepository,
+                      audioService: widget.audioPlayer,
+                      playbackSession: widget.lyricsResolver.playbackSession,
+                      pathCanonicalizer:
+                          widget.lyricsResolver.pathCanonicalizer,
                     ),
                   ),
                 )

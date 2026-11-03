@@ -26,6 +26,8 @@ PlayerScreenDependencies assemblePlayerScreenDependencies(
     projectRepository: services.projectRepository,
     audioPlayer: services.audioPlayerService,
     playbackSession: services.playbackSessionService,
+    metadataRepository: services.localMediaMetadataRepository,
+    pathCanonicalizer: services.audioPathCanonicalizer,
   );
 }
 

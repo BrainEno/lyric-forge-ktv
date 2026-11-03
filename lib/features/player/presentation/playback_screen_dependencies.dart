@@ -1,4 +1,6 @@
 import '../../project/domain/repositories/project_repository.dart';
+import '../domain/repositories/local_media_metadata_repository.dart';
+import '../domain/services/audio_path_canonicalizer.dart';
 import '../domain/services/audio_player_service.dart';
 import '../domain/services/playback_lyrics_availability.dart';
 import '../domain/services/playback_session_service.dart';
@@ -20,10 +22,16 @@ class PlayerScreenDependencies {
   final AudioPlayerService audioPlayer;
   final PlaybackSessionService playbackSession;
 
+  /// Only used when opening the fullscreen KTV view from this screen.
+  final LocalMediaMetadataRepository metadataRepository;
+  final AudioPathCanonicalizer pathCanonicalizer;
+
   const PlayerScreenDependencies({
     required this.projectRepository,
     required this.audioPlayer,
     required this.playbackSession,
+    required this.metadataRepository,
+    required this.pathCanonicalizer,
   });
 }
 

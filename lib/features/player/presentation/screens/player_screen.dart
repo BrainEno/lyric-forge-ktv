@@ -300,8 +300,10 @@ class _PlayerContentState extends State<_PlayerContent> {
         builder: (_) => ImmersiveKtvScreen(
           initialProjectId: widget.project.id,
           projectRepository: widget.repository,
+          metadataRepository: widget.dependencies.metadataRepository,
           audioService: widget.audioService,
           playbackSession: widget.playbackSession,
+          pathCanonicalizer: widget.dependencies.pathCanonicalizer,
         ),
       ),
     );
