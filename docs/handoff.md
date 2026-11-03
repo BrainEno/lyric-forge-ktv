@@ -8,8 +8,8 @@ Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成并合入 `ma
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 活动分支：`arena/2cf82e60-lyric-forge-ktv`。
-- PR #311 已合并，merge commit `cc307c6`；合并后 `main` Flutter Quality Gate run `41630265190` 通过。
-- 当前 handoff/work-log 状态同步为 follow-up 文档变更；没有新的功能改动或待修代码问题。
+- PR #311 功能改动已合并，merge commit `cc307c6`；PR #312 文档同步已合并，merge commit `c0f82e3`。
+- 合并后 `main` Flutter Quality Gate run `41630265190` 通过。当前没有待合并的功能或文档改动。
 
 ## 已改文件
 
@@ -30,8 +30,8 @@ Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成并合入 `ma
 
 ## 下一步
 
-1. 将本 handoff 与合并后 CI 记录作为 docs-only follow-up 合入 `main`；无需重新验证功能代码。
-2. Phase 4.2 收尾后，再继续 roadmap 中的下一项架构工作；真实语料 / 硬件依赖的验证仍遵守既定边界，不用合成 fixture 冒充真实歌曲结果，也不要求用户执行真机测试。
+1. Phase 4.2 singleton 迁移及其文档同步均已完成，不需再补交接 PR。
+2. 下一项可按 roadmap 进入 Phase 4.4（编辑器与播放条的最小状态管理）；真实语料 / 硬件依赖的验证仍遵守既定边界，不用合成 fixture 冒充真实歌曲结果，也不要求用户执行真机测试。
 
 ## 已知风险
 
