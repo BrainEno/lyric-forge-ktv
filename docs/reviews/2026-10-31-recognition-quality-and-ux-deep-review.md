@@ -920,7 +920,7 @@ class ServiceLocator {
 
 审查确认 `CrossDeviceMediaLibraryScreen` 与旧 `DesktopMediaTransferHubScreen` 没有生产构造点，应删除而非继续注入；实际使用面为桌面 V2、手机传输首页、远程媒体 shell 与歌曲 / 艺人 / 专辑 / 下载子页。新增三类必填依赖包，并在 `lib/app/transfer_assembly.dart` 集中装配，由路由传给活动页面、shell 再把同一依赖包传给对应子屏。
 
-**保持行为不变**：桌面 V2 仍在启动共享前展示安全确认；手机连接后仍恢复持久传输队列；远程播放仍使用原播放会话，下载仍经现有队列入本地媒体库。本轮没有改 UI、服务行为、ASR 或歌词识别。架构契约确认所有活动 transfer screens 不再直接访问 `AppServices`，旧屏文件已移除。单例棘轮 **12/12 → 5/5** 已由质量门禁验证；PR #309 的质量门禁 run 41620977945、readiness 41620977929、widget-root 41620977951 全绿。本地没有 Flutter / Dart SDK，因此格式、分析和测试结果均来自 CI。
+**保持行为不变**：桌面 V2 仍在启动共享前展示安全确认；手机连接后仍恢复持久传输队列；远程播放仍使用原播放会话，下载仍经现有队列入本地媒体库。本轮没有改 UI、服务行为、ASR 或歌词识别。架构契约确认所有活动 transfer screens 不再直接访问 `AppServices`，旧屏文件已移除。单例棘轮 **12/12 → 5/5** 已由质量门禁验证；PR #309 已合并为 `85fa82d`；质量门禁 run 41621483112、readiness 41621483098、widget-root 41621483096 全绿。本地没有 Flutter / Dart SDK，因此格式、分析和测试结果均来自 CI。合并后 main run 41621880411 在既有 upload-deadline 时序测试失败，未改网络服务或其断言。
 
 ### Phase 4：架构收敛（持续，2–3 周）
 
