@@ -79,7 +79,9 @@ void main() {
         ),
       ),
     );
-    // One frame for the project load.
+    // One frame for the project load, one more for the toolbar to rebuild with
+    // the project in hand (until then its entry points are disabled).
+    await tester.pump();
     await tester.pump();
   }
 
