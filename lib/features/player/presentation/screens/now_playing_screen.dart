@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/playback_lyrics_availability.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../playback_screen_dependencies.dart';
 import '../widgets/now_playing_lyrics_project_action.dart';
 import '../widgets/playback_mode_controls.dart';
 import '../widgets/playback_queue_panel.dart';
@@ -21,7 +22,10 @@ import '../widgets/seekable_progress_bar.dart';
 /// desktop Media Hub streams and lyric projects all share the same transport
 /// state while presenting source-appropriate metadata and artwork.
 class NowPlayingScreen extends StatefulWidget {
-  const NowPlayingScreen({super.key});
+  /// Supplied by the routing table (`lib/app/playback_assembly.dart`).
+  final NowPlayingDependencies dependencies;
+
+  const NowPlayingScreen({super.key, required this.dependencies});
 
   @override
   State<NowPlayingScreen> createState() => _NowPlayingScreenState();
@@ -34,9 +38,9 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _session = services.playbackSessionService;
-    _audio = services.audioPlayerService;
+    final dependencies = widget.dependencies;
+    _session = dependencies.playbackSession;
+    _audio = dependencies.audioPlayer;
   }
 
   Future<void> _seekRelative(Duration delta) async {
@@ -111,6 +115,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           playbackSnapshot.data ?? _audio.currentState;
                       return _NowPlayingBody(
                         item: item,
+                        lyricsResolver: widget.dependencies.lyricsResolver,
                         sessionState: session,
                         playback: playback,
                         session: _session,
@@ -168,6 +173,7 @@ class _EmptyNowPlaying extends StatelessWidget {
 
 class _NowPlayingBody extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -177,6 +183,7 @@ class _NowPlayingBody extends StatelessWidget {
 
   const _NowPlayingBody({
     required this.item,
+    required this.lyricsResolver,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -192,6 +199,7 @@ class _NowPlayingBody extends StatelessWidget {
         final layout = AppResponsive.fromConstraints(constraints);
         final content = _NowPlayingCard(
           item: item,
+          lyricsResolver: lyricsResolver,
           sessionState: sessionState,
           playback: playback,
           session: session,
@@ -243,6 +251,7 @@ class _NowPlayingBody extends StatelessWidget {
 
 class _NowPlayingCard extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -252,6 +261,7 @@ class _NowPlayingCard extends StatelessWidget {
 
   const _NowPlayingCard({
     required this.item,
+    required this.lyricsResolver,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -289,6 +299,7 @@ class _NowPlayingCard extends StatelessWidget {
             final vertical = layout.isCompact || constraints.maxWidth < 680;
             final details = _NowPlayingDetails(
               item: item,
+              lyricsResolver: lyricsResolver,
               album: albumText,
               source: source,
               sessionState: sessionState,
@@ -345,6 +356,7 @@ class _NowPlayingCard extends StatelessWidget {
 
 class _NowPlayingDetails extends StatelessWidget {
   final PlaybackItem item;
+  final PlaybackLyricsResolver lyricsResolver;
   final String? album;
   final ({String label, String chip}) source;
   final PlaybackSessionState sessionState;
@@ -356,6 +368,7 @@ class _NowPlayingDetails extends StatelessWidget {
 
   const _NowPlayingDetails({
     required this.item,
+    required this.lyricsResolver,
     required this.album,
     required this.source,
     required this.sessionState,
@@ -459,7 +472,11 @@ class _NowPlayingDetails extends StatelessWidget {
           children: [
             PlaybackModeControls(session: session, compact: true),
             const Spacer(),
-            NowPlayingLyricsProjectAction(item: item),
+            NowPlayingLyricsProjectAction(
+              item: item,
+              lyricsResolver: lyricsResolver,
+              audioPlayer: audio,
+            ),
           ],
         ),
       ],

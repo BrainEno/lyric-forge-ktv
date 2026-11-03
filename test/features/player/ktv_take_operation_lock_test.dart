@@ -57,7 +57,10 @@ void main() {
       displayName: '高音最好的一次',
       isFavorite: true,
     );
-    await fixture.manifest.writeAsString(jsonEncode(changed.toJson()), flush: true);
+    await fixture.manifest.writeAsString(
+      jsonEncode(changed.toJson()),
+      flush: true,
+    );
     await File(ffmpegArgs!.last).writeAsBytes([1, 2, 3], flush: true);
     gate.complete(ProcessResult(123, 0, '', ''));
 
@@ -90,20 +93,6 @@ void main() {
     );
 
     expect(service.currentState.isExporting, isFalse);
-  });
-
-  test('player history mutations have dynamic export/recording guards', () async {
-    final source = await File(
-      'lib/features/player/presentation/screens/player_screen.dart',
-    ).readAsString();
-    expect(source, contains('bool _takeMutationLocked()'));
-    expect(source, contains('state.isRecording || state.isExporting'));
-    expect(source, contains('_showTakeMutationLockedMessage()'));
-    expect(source, contains('混音正在导出，完成前不能删除、重命名或收藏录音'));
-    expect(
-      RegExp(r'if \(_takeMutationLocked\(\)\)').allMatches(source).length,
-      greaterThanOrEqualTo(5),
-    );
   });
 }
 
@@ -216,10 +205,16 @@ class _FakeAudioPlayerService implements AudioPlayerService {
   Future<void> dispose() => _states.close();
 
   @override
-  Future<void> loadAudioUri({required Uri uri, AudioSourceType source = AudioSourceType.original}) async {}
+  Future<void> loadAudioUri({
+    required Uri uri,
+    AudioSourceType source = AudioSourceType.original,
+  }) async {}
 
   @override
-  Future<void> loadProjectAudio({required AudioAsset audioAsset, AudioSourceType preferredSource = AudioSourceType.instrumental}) async {}
+  Future<void> loadProjectAudio({
+    required AudioAsset audioAsset,
+    AudioSourceType preferredSource = AudioSourceType.instrumental,
+  }) async {}
 
   @override
   Future<void> pause() async {}
@@ -240,7 +235,8 @@ class _FakeAudioPlayerService implements AudioPlayerService {
 class _FakeMicrophoneService implements KtvMicrophoneService {
   final StreamController<KtvMicrophoneState> _states =
       StreamController<KtvMicrophoneState>.broadcast();
-  final StreamController<Uint8List> _pcm = StreamController<Uint8List>.broadcast();
+  final StreamController<Uint8List> _pcm =
+      StreamController<Uint8List>.broadcast();
 
   @override
   KtvMicrophoneState get currentState => const KtvMicrophoneState();
@@ -253,6 +249,7 @@ class _FakeMicrophoneService implements KtvMicrophoneService {
     await _states.close();
     await _pcm.close();
   }
+
   @override
   Future<void> refreshInputDevices() async {}
   @override

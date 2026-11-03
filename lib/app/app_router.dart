@@ -18,6 +18,7 @@ import '../features/transfer/presentation/screens/mobile_media_transfer_hub_scre
 import '../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
 import 'app_services.dart';
 import 'lyric_editor_assembly.dart';
+import 'playback_assembly.dart';
 
 /// The routing table: route name in, screen out.
 ///
@@ -76,9 +77,15 @@ class AppRouter {
         if (history != null) {
           return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
         }
-        final current = services.playbackSessionService.currentState.currentItem;
+        final current =
+            services.playbackSessionService.currentState.currentItem;
         if (current?.isRemoteStream == true) {
-          return _fadeRoute(const NowPlayingScreen(), settings);
+          return _fadeRoute(
+            NowPlayingScreen(
+              dependencies: assembleNowPlayingDependencies(services),
+            ),
+            settings,
+          );
         }
         if (current != null) {
           return _fadeRoute(const QuickPlayScreen(), settings);
@@ -86,7 +93,12 @@ class AppRouter {
         return _fadeRoute(const LocalMusicLibraryShell(), settings);
 
       case Routes.nowPlaying:
-        return _fadeRoute(const NowPlayingScreen(), settings);
+        return _fadeRoute(
+          NowPlayingScreen(
+            dependencies: assembleNowPlayingDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.review:
         return _fadeRoute(
@@ -131,7 +143,13 @@ class AppRouter {
                   settings,
                 );
               case 'player':
-                return _fadeRoute(PlayerScreen(projectId: projectId), settings);
+                return _fadeRoute(
+                  PlayerScreen(
+                    projectId: projectId,
+                    dependencies: assemblePlayerScreenDependencies(services),
+                  ),
+                  settings,
+                );
             }
           }
         }

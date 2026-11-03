@@ -2,14 +2,15 @@
 
 ## 目标
 
-「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）已完成；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
+「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）已完成；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/e8db9f50-lyric-forge-ktv`（基于 `main` = `5007612`）。
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
-- Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`）；其 push 门禁 run 41584530251 为绿。
+- Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
+- 本轮（4.2 第二步，播放面注入 + 删除不可达 KTV 视图）在分支 `arena/cb75c5ca-lyric-forge-ktv` 上，尚未合并。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
@@ -26,6 +27,15 @@
 - 38 个 feature 文件 — `ServiceLocatorGlobal.I` → `AppServices.instance`，import 指向 `lib/app/app_services.dart`。
 - `test/architecture/app_assembly_contract_test.dart` — 新增棘轮（`core→app` = 0；features 只许见 `app_services.dart`；单例调用点 ≤72 / ≤34 文件；编辑器与收件箱零 `AppServices`；路由表负责装配编辑器依赖；`main.dart` 不 import `presentation/`、不含 `MaterialApp(`）。
 - 测试与 workflow — 4 个读取源码路径的契约测试、2 个导航测试、`widget_test.dart` 改指向新路径；6 个 workflow 的 `paths`/`analyze` 从 `lib/core/services/service_locator.dart` / 旧 router 改为 `lib/app/app_services.dart` / `lib/app`。
+- `lib/features/player/domain/services/playback_lyrics_availability.dart` — 新增 `PlaybackLyricsResolver`（绑定仓库/元数据仓库/会话/规范化器四个协作者）。
+- `lib/features/player/presentation/playback_screen_dependencies.dart` — 新增 `PlayerScreenDependencies`、`NowPlayingDependencies`。
+- `lib/app/playback_assembly.dart` — 新增 `buildPlaybackLyricsResolver` / `assemblePlayerScreenDependencies` / `assembleNowPlayingDependencies`。
+- `lib/features/player/presentation/screens/player_screen.dart` — 2,630 → 1,533 行：删除 `_FullScreenKtvView`（+State）、`_KtvAudioControlsSheet`、`_CompactSourceMenu`、`_FullscreenLyric`、`_FullscreenNoLyrics`、`_ktvSourceLabel`（全部无引用），剩下的屏幕改收依赖对象。
+- `lib/features/player/presentation/screens/now_playing_screen.dart`、`.../screens/immersive_ktv_screen.dart`、`.../widgets/playback_lyrics_availability_sync.dart`、`.../widgets/now_playing_lyrics_project_action.dart` — 改为构造注入；全屏 KTV 的五个服务由可选变必填。
+- `lib/app/app_services.dart` — 新增 `isInitialized`（bootstrap 之前渲染壳时不挂歌词同步）。
+- `test/architecture/app_assembly_contract_test.dart` — 棘轮降到 54 处 / 29 文件，并新增播放面与「全屏 KTV 唯一实现」断言。
+- `test/features/player/playback_lyrics_availability_test.dart` — resolver 端到端用例 + widget 构造改注入。
+- `test/features/player/ktv_take_operation_lock_test.dart` — 删除「播放器历史操作有保护」这条源码扫描用例（它断言的函数只在不可达视图里）。
 - `docs/architecture_player.md`、`docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`（§4.2 第一步记录 + Phase 4 表更新）、`docs/log/entries/2026-11-03-1320-app-assembly-layer.md`、`docs/work_log*.md`、本文件。
 
 ## 检查结果
@@ -33,6 +43,7 @@
 - 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证（run 41582433217、41582847227，两次全绿），验证后该 workflow 从分支删除：`flutter analyze --no-pub --no-fatal-infos lib test` clean、`bash scripts/quality_gate.sh --skip-pub-get` 全量通过（含改动过的 widget / 契约测试与新增棘轮）。
 - `dart format` 第一次跑就把 30 个被触碰文件的**历史格式债**落成 `7cbafb3`（tall style 会重排整个文件；1141/1132 行，纯格式化）。之后的 probe 与 PR 门禁的 format check 均无 diff。这是触碰这些文件的必然代价，不是重写。
 - PR #298：15 个 check 全绿后合并（最后一次质量门禁 run 41583801374）。前两次门禁（41583186817、41583477693）都挂在那条已知偶发用例上，同一棵树在临时工作流里连过两遍。合并后 `main` 的 push 门禁 run 41584530251 通过。
+- 4.2 第二步：临时工作流上 analyze 连续几轮才干净（先修掉删除死代码后遗留的 6 个 `unused_element` / `unused_element_parameter` 警告，再修两条自己写错的棘轮断言），最终一轮只剩那条已知偶发用例失败；`dart format` 由 probe 落成提交。
 - 静态自检（无 SDK 时可用）：全仓库相对 import 全部解析到存在的文件（0 处断链）；测试里 68 个 `lib/...` 源码路径全部存在；`transcription_settings_contract_test` / `asr_managed_storage_contract_test` / `asr_storage_preflight_contract_test` / `transcription_ready_import_contract_test` 断言的字符串在新文件里逐条命中。
 - 棘轮首跑即命中冻结值（72 处 / 34 文件），无基线例外。
 - 逐行复刻 `tool/work_log.dart write` 语义的本地脚本：生成的三份文件与提交内容一致。
@@ -44,6 +55,7 @@
 - 降级（R6）的取舍：`input` 类错误与取消不降级；降级后 `qualityMode` 仍记为请求的模式，真实情况看 `degraded` / `degradationReason`。降级后的草稿质量**等同 Whisper 单模型**，UI 已明确标注，不要把它当成双引擎结果去做质量对比。
 - 工具栏（Phase 3.2）的取舍：**不可用项置灰而不是隐藏**（「在播放位置插入」会写明「先试听本工程」），**筛选与偏移改成菜单但保留计数与当前值**，只读指标降级为文本。没有任何功能被删除；「下一处问题」按钮在原代码中不存在，因此没有新增。
 - **两次 `main` 门禁失败仍未定位**（run 41485065687、41498901477）：同一棵树在 PR 门禁与分支上的全量门禁都是绿的，最可能是 `main` 推送时 22 个专项 workflow 并发、跑满同一台 runner 导致的时序类用例抖动，但这是推断而不是结论。从下一轮起失败会自己报出用例名；在那之前不要把它们写成「已修复」。
+- **KTV 录音 / 成品导出 / 录音历史目前没有 UI 入口**（2026-11-03 发现）：`KtvRecordingService`、`KtvMicrophoneService`、`KtvTakeHistoryStore`、`KtvTakeResultSheet` 都被构造、都有服务层测试，但没有任何活着的屏幕使用它们。唯一持有这套界面的是 `player_screen.dart` 里的 `_FullScreenKtvView`，而它早已被 `ImmersiveKtvScreen` 取代、再未被构造。4.2 第二步删掉了这段不可达代码，并移除了据此保温的源码扫描断言。**恢复入口是产品决定**（放回沉浸式 KTV？还是别处？），不要在后续轮次里默认它还存在。
 - 装配层（4.2 第一步）的取舍：**`Routes` 留在 `lib/core`，路由表进 `lib/app`**。屏幕要 push 名字，而 `lib/core` 不能反向依赖装配层；把常量留在下层、把表放上层，依赖方向才单向。另一个取舍：**强制对齐 runner 非空且无默认值**——「runtime 是否就绪」只有设置存储与 runtime 检查能回答，给 null 默认等于把静默降级塞回 widget；不可用时抛原有的两句中文文案，由既有错误路径展示。**唯一的行为变化**是复核收件箱的 repository 由可选变必填（路由总会传）与编辑器不再自带 runner 断言。剩余的 `AppServices.instance` 调用是有意的过渡态，不要为了「一次性清理」把 34 个文件塞进同一个改动。
 - 编辑会话（4.1 第三步）的取舍：**试听耦合是反转的，不是搬移的。** 控制器不认识试听，只回答「这次编辑是否让试听失效」；「这一行是不是正在播的那行」仍由屏幕判断（沿用原来的 lineId/索引语义）。因此改文字不会打断试听，改时间才会——与重构前逐字一致。另一个**有意的行为变化**：`setLineReviewed` 先比对当前复核状态，因为复核服务即使状态不变也会返回带新时间戳的新文档，旧的 `identical()` 判断抓不到，重复标记同一行会凭空多出一步撤销。刻意留在屏幕的是复核队列、筛选、跟随播放与聚焦请求——它们是从文档派生的视图状态。
 - 校对提案（4.1 第二步）的取舍：**审核行的中文标签跟着类型进 domain**。它们是复核载荷的一部分（对话框只负责渲染），代价是 domain 里出现用户可见文案；换来的是「管线输出 → 审核行」这段翻译可以被测试，而不必启动整个编辑器。另一个有意的行为收窄：ASR 优先在 `draft.lines[index]` 越界时不再抛 `RangeError`（原实现会让整次校对以「无法生成或应用校对提案」失败），而是把 `originalLine` 记为 null——管线本身保证一一对应，这里只是防御。
@@ -73,7 +85,8 @@
 
 ## 下一步
 
-1. 下一步：4.2 继续按屏替换。装配层与编辑器已完成，剩余 34 个文件仍用 `AppServices.instance`，优先序：`player_screen.dart`（7 处）、`playback_lyrics_availability_sync.dart`（5 处）、`local_song_lyrics_import_action.dart`（5 处）、`project_detail_screen.dart`（4 处）、`transcription_ready_import_screen.dart`（4 处）。每迁一屏就把棘轮上限调低到新值（只能降不能升）。
+1. 下一步：4.2 继续按屏替换。编辑器、播放器屏、Now Playing、歌词同步组件、全屏 KTV 已完成，剩余 29 个文件仍用 `AppServices.instance`，优先序：`local_song_lyrics_import_action.dart`（5 处，四个调用点都要一起改）、`local_collection_actions.dart`（4 处，四个调用点）、`project_detail_screen.dart`（4 处）、`transcription_ready_import_screen.dart`（4 处）。每迁一屏就把棘轮上限调低到新值（只能降不能升）。
+1b. 待产品决定：**KTV 录音 / 导出 / 历史要放回哪个屏幕**（见「已知风险」首条）。决定之后再做，不要顺手在别处重建第二套全屏 KTV。
 2. 再之后：4.4 引入最小状态管理时，`LyricEditorDocumentController` 与 `LineAuditionController` 已经是可以直接接管的 ChangeNotifier 形态（前者是纯 Dart 对象，改动成本很低）。
 3. 需要硬件或真实语料的部分不变：Phase 2 首启动、1.6 的 Whisper 参数、R5 可安装性。
 4. Phase 1.6 剩下的 Whisper 解码参数与 `--prompt`（R7）需要用 `--baseline --fail-on-regression` 验收，等真实语料。
@@ -81,4 +94,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 14:26（Asia/Taipei）
+最后更新：2026-11-03 14:10（Asia/Taipei）

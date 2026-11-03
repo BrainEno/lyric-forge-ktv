@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_chrome_controller.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/project_manifest.dart';
@@ -21,20 +20,25 @@ import '../widgets/seekable_progress_bar.dart';
 /// Immersive lyrics view backed by the app-scoped playback session.
 class ImmersiveKtvScreen extends StatefulWidget {
   final String initialProjectId;
-  final ProjectRepository? projectRepository;
-  final LocalMediaMetadataRepository? metadataRepository;
-  final AudioPlayerService? audioService;
-  final PlaybackSessionService? playbackSession;
-  final AudioPathCanonicalizer? pathCanonicalizer;
+
+  /// All five are required: this is the only fullscreen KTV surface left, and
+  /// it used to fall back to the app-wide locator per field as soon as one of
+  /// them was omitted — which is how the deleted `_FullScreenKtvView` kept its
+  /// own playback wiring alive for a year after it stopped being reachable.
+  final ProjectRepository projectRepository;
+  final LocalMediaMetadataRepository metadataRepository;
+  final AudioPlayerService audioService;
+  final PlaybackSessionService playbackSession;
+  final AudioPathCanonicalizer pathCanonicalizer;
 
   const ImmersiveKtvScreen({
     super.key,
     required this.initialProjectId,
-    this.projectRepository,
-    this.metadataRepository,
-    this.audioService,
-    this.playbackSession,
-    this.pathCanonicalizer,
+    required this.projectRepository,
+    required this.metadataRepository,
+    required this.audioService,
+    required this.playbackSession,
+    required this.pathCanonicalizer,
   });
 
   @override
@@ -55,20 +59,11 @@ class _ImmersiveKtvScreenState extends State<ImmersiveKtvScreen> {
   @override
   void initState() {
     super.initState();
-    final needsGlobal =
-        widget.projectRepository == null ||
-        widget.metadataRepository == null ||
-        widget.audioService == null ||
-        widget.playbackSession == null ||
-        widget.pathCanonicalizer == null;
-    final services = needsGlobal ? AppServices.instance : null;
-    _projects = widget.projectRepository ?? services!.projectRepository;
-    _metadata =
-        widget.metadataRepository ?? services!.localMediaMetadataRepository;
-    _audio = widget.audioService ?? services!.audioPlayerService;
-    _session = widget.playbackSession ?? services!.playbackSessionService;
-    _pathCanonicalizer =
-        widget.pathCanonicalizer ?? services!.audioPathCanonicalizer;
+    _projects = widget.projectRepository;
+    _metadata = widget.metadataRepository;
+    _audio = widget.audioService;
+    _session = widget.playbackSession;
+    _pathCanonicalizer = widget.pathCanonicalizer;
     AppChromeController.enterImmersive();
     unawaited(_loadProject(widget.initialProjectId));
     _sessionSub = _session.stateStream.listen(_syncProjectToPlayback);
