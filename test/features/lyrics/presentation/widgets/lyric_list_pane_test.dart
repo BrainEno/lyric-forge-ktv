@@ -86,12 +86,18 @@ void main() {
   });
 
   testWidgets('超过 8 行时提供搜索框，可过滤到匹配行', (tester) async {
-    final document = _document(10, texts: [
-      for (var index = 0; index < 10; index++)
-        index == 7 ? '唯一的一段副歌' : '普通第 $index 行',
-    ]);
+    final document = _document(
+      10,
+      texts: [
+        for (var index = 0; index < 10; index++)
+          index == 7 ? '唯一的一段副歌' : '普通第 $index 行',
+      ],
+    );
     await tester.pumpWidget(
-      host(document: document, visibleIndices: List<int>.generate(10, (i) => i)),
+      host(
+        document: document,
+        visibleIndices: List<int>.generate(10, (i) => i),
+      ),
     );
 
     expect(find.byType(TextField), findsOneWidget);
