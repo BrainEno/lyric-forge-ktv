@@ -2,39 +2,36 @@
 
 ## 目标
 
-Phase 4.4 的最小状态管理改动已推送到活动分支，并创建 PR #314。编辑器文档 controller 在成功状态变化后通知，通过编辑器子树内的 Provider/Selector 选择性订阅；播放器服务仍是唯一播放状态来源，桌面播放条将现有 session snapshot 传给队列/模式控件，移动播放条继续使用既有 streams。短时控件状态保留在 widget；未改识别、歌词融合或试听语义。
+继续 Phase 4.5（CI workflow 简化）的第一切片：退役重复的 ASR client-only analyze/test workflow。所有 main PR 都已执行 Flutter Quality Gate 全仓分析与全量测试，因此本切片保留覆盖但去掉一份窄范围重复 CI；KTV recovery、原生平台、runtime 发布等专项 workflow 暂不改动。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 活动分支：`arena/746aa31e-lyric-forge-ktv`（active）。
-- 基线：`fb877b3`；PR #314：`https://github.com/BrainEno/lyric-forge-ktv/pull/314`。
-- 当前推送 head：`abdd803`；工作区无未提交改动。
-- 必须等 PR 最终 head 的 required checks 全部通过后才合并。
+- 活动分支：`arena/e0abd96c-lyric-forge-ktv`（active）。
+- 基线/当前提交：`100a472`（Phase 4.4 squash merge）。
+- 开始时工作区干净；当前有本切片的未提交改动，具体见下方。
+- 尚未创建 PR；最终 workflow 合同测试和完整 CI 通过后再创建 PR，按通过结果决定是否合并。
 
 ## 已改文件
 
-- `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`、`lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：observable editor state 及局部 Provider/Selector；project load 在 Future 完成时初始化。
-- `lib/features/player/presentation/widgets/global_player_bar.dart`、`playback_queue_panel.dart`、`playback_mode_controls.dart`：桌面 bar 复用既有 session snapshot；移动 bar 与 playback service 保持 streams。
-- `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart`、`test/features/player/presentation/widgets/playback_queue_panel_state_test.dart`：controller 通知和 queue panel 快照路径回归测试。
-- `docs/decisions.md` D-012、deep review、work-log index 与 [最终 Phase 4.4 work-log entry](log/entries/2026-11-03-2113-phase44-state-management-final.md)。
+- `.github/workflows/asr-client-checks.yml`：删除；其分析和 `resilient_asr_runtime_manager_test.dart` 已包含在全局分析/全量测试中。
+- `test/ci_workflow_contract_test.dart`：新增断言，固定 universal gate 对所有 main PR 生效、执行完整质量门禁，并确认冗余 workflow 不再存在。
+- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`、`docs/work_log_index.md`：记录 Phase 4.5 的首个可验证切片和保留的专项验证边界。
 
 ## 检查结果
 
-- `flutter pub get --enforce-lockfile`、changed-file `dart format` 与完整 `scripts/quality_gate.sh --skip-pub-get` 已由固定 Flutter 工具链成功执行，CI run `41642061545`。门禁包括 analyze、全量测试及 work-log preflight。
-- 此后最后一次提交只更新 handoff / decision 的来源链接；官方 PR checks 对当前 head `abdd803` 尚未全部通过：KTV history/recovery validation、Windows native build 已通过，Flutter Quality Gate 在 work-log preflight 阶段失败，原因是本 handoff 标题未符合固定合同，现已按合同修正，等待重跑。
-- 初次门禁 `41640876877` 因旧 head 的未使用 getter 报 warning 而失败；getter 已移除。此前 run `41639843885` 仅作历史参考，不是当前最终验证。
-- 无真实歌曲识别准确率或真机播放测试主张，也无须以真机测试阻塞。
+- 尚未运行 formatter、测试或质量门禁；本地无 Flutter/Dart SDK，需依赖固定 CI 工具链。
+- 尚未写本切片的 work-log entry；完成 CI 验证后按仓库工具生成并校验。
+- KTV、macOS/Windows、runtime 发布等 workflow 没有改动。
 
 ## 下一步
 
-1. 推送 handoff 合同修正，等待 PR #314 当前 head 的 Flutter Quality Gate、KTV history/recovery validation、Windows native build validation 全部成功；只有 required checks 全绿后才可合并。
-2. 合并后将本 handoff 更新为已合并状态，并记录最终 merge commit / CI 结果。
+1. 格式化并运行 `test/ci_workflow_contract_test.dart` 与全量 Flutter Quality Gate；生成/校验 work-log，再创建 PR。
 
 ## 已知风险
 
-- 加入可通知 controller 后，编辑器文档加载已提前到 Future 完成回调，以免监听者在 build 阶段收到通知；完整 CI 门禁已验证最终代码。
-- Provider 仅作用于编辑器子树；播放器与 session 服务仍为唯一事实来源。移动播放条继续用 StreamBuilder，桌面条只复用其现有 session 快照。
-- 本地没有 Flutter/Dart SDK，格式、分析和测试依赖固定工具链 CI。
+- 本切片只证明 ASR client 检查被 universal gate 覆盖，不代表其余 20+ 专项 workflow 都可安全删除。
+- 不能访问 GitHub branch-protection 配置 API；仓库索引此前记录 branch protection 尚需单独启用，仍应在 PR 上确认实际 check 状态。
+- 不涉及运行时功能、识别质量、真实歌曲或设备验证。
 
-最后更新：2026-11-03 21:28（Asia/Taipei）
+最后更新：2026-11-03 21:29（Asia/Taipei）
