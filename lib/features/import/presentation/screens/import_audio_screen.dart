@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
+import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/presentation/widgets/transcription_queue_panel.dart';
@@ -14,7 +14,9 @@ import '../../../transcription/presentation/widgets/transcription_queue_panel.da
 /// actual project creation and transcription are handled by the persistent
 /// background queue so closing this page does not stop processing.
 class ImportAudioScreen extends StatefulWidget {
-  const ImportAudioScreen({super.key});
+  final TranscriptionImportDependencies dependencies;
+
+  const ImportAudioScreen({super.key, required this.dependencies});
 
   @override
   State<ImportAudioScreen> createState() => _ImportAudioScreenState();
@@ -27,7 +29,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
 
   Future<void> _pickFiles() async {
     await _runPicker(() async {
-      final paths = await AppServices.instance.audioLibraryImportService
+      final paths = await widget.dependencies.audioLibraryImportService
           .pickAudioFiles();
       _mergeSelection(paths);
     });
@@ -35,7 +37,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
 
   Future<void> _pickDirectory() async {
     await _runPicker(() async {
-      final paths = await AppServices.instance.audioLibraryImportService
+      final paths = await widget.dependencies.audioLibraryImportService
           .pickAudioDirectory();
       _mergeSelection(paths);
       if (mounted && paths.isEmpty) {
@@ -79,7 +81,7 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
     if (_selectedPaths.isEmpty || _isEnqueueing) return;
     setState(() => _isEnqueueing = true);
     try {
-      final added = await AppServices.instance.transcriptionQueue.enqueuePaths(
+      final added = await widget.dependencies.transcriptionQueue.enqueuePaths(
         _selectedPaths,
       );
       if (!mounted) return;
@@ -169,7 +171,11 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                   ),
                 ],
                 SizedBox(height: spec.isShort ? AppSpacing.lg : AppSpacing.xl),
-                const TranscriptionQueuePanel(),
+                TranscriptionQueuePanel(
+                  queue: widget.dependencies.transcriptionQueue,
+                  settingsStore: widget.dependencies.transcriptionSettingsStore,
+                  runtimeManager: widget.dependencies.asrRuntimeManager,
+                ),
               ],
             ),
           ),

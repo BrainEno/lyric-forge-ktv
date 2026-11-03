@@ -10,17 +10,14 @@ void main() {
       'transcription_ready_import_screen.dart',
     ).readAsStringSync();
 
-    expect(
-      router,
-      contains('return _fadeRoute(const TranscriptionReadyImportScreen()'),
-    );
+    expect(router, contains('TranscriptionReadyImportScreen('));
     expect(gate, contains('TranscriptionEnvironmentPreflight('));
     expect(gate, contains('AsrRuntimeSetupDialog('));
     expect(gate, contains('Navigator.pushNamed(context, Routes.settings)'));
     expect(
       gate,
-      contains('if (!_isDesktop) return const ImportAudioScreen();'),
-      reason: 'mobile import behavior must stay unchanged',
+      contains('if (!_isDesktop)'),
+      reason: 'mobile import behavior must remain the direct import surface',
     );
     expect(
       gate,

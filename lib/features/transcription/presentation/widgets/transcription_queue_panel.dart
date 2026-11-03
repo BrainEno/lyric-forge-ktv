@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
+import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/batch_transcription_queue.dart';
+import '../../domain/services/transcription_settings_store.dart';
 import '../../domain/services/transcription_queue_environment_recovery.dart';
 import 'asr_runtime_setup_dialog.dart';
 
 class TranscriptionQueuePanel extends StatelessWidget {
-  final BatchTranscriptionQueue? queue;
+  final BatchTranscriptionQueue queue;
+  final TranscriptionSettingsStore settingsStore;
+  final AsrRuntimeManager runtimeManager;
 
-  const TranscriptionQueuePanel({super.key, this.queue});
+  const TranscriptionQueuePanel({
+    super.key,
+    required this.queue,
+    required this.settingsStore,
+    required this.runtimeManager,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final service = queue ?? AppServices.instance.transcriptionQueue;
+    final service = queue;
     return StreamBuilder<TranscriptionQueueSnapshot>(
       stream: service.snapshots,
       initialData: service.current,
@@ -226,11 +234,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
     BuildContext context,
     BatchTranscriptionQueue queue,
   ) async {
-    final services = AppServices.instance;
-    final store = services.transcriptionSettingsStore;
-
     try {
-      final current = await store.load();
+      final current = await settingsStore.load();
       if (!context.mounted) return;
 
       final updated = await showDialog<TranscriptionConfig>(
@@ -241,8 +246,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
       if (updated == null) return;
 
       final recovery = TranscriptionQueueEnvironmentRecovery(
-        settingsStore: store,
-        runtimeManager: services.asrRuntimeManager,
+        settingsStore: settingsStore,
+        runtimeManager: runtimeManager,
         queue: queue,
       );
       final result = await recovery.recover(updated);

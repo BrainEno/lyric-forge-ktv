@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
+import '../transcription_import_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -20,8 +20,13 @@ import 'import_audio_screen.dart';
 /// failed queue after the work has already been submitted.
 class TranscriptionReadyImportScreen extends StatefulWidget {
   final bool? desktopOverride;
+  final TranscriptionImportDependencies dependencies;
 
-  const TranscriptionReadyImportScreen({super.key, this.desktopOverride});
+  const TranscriptionReadyImportScreen({
+    super.key,
+    this.desktopOverride,
+    required this.dependencies,
+  });
 
   @override
   State<TranscriptionReadyImportScreen> createState() =>
@@ -43,10 +48,9 @@ class _TranscriptionReadyImportScreenState
   void initState() {
     super.initState();
     if (_isDesktop) {
-      final services = AppServices.instance;
       _preflight = TranscriptionEnvironmentPreflight(
-        settingsStore: services.transcriptionSettingsStore,
-        runtimeManager: services.asrRuntimeManager,
+        settingsStore: widget.dependencies.transcriptionSettingsStore,
+        runtimeManager: widget.dependencies.asrRuntimeManager,
       );
       unawaited(_refresh());
     }
@@ -57,11 +61,12 @@ class _TranscriptionReadyImportScreenState
     super.didUpdateWidget(oldWidget);
     final wasDesktop =
         oldWidget.desktopOverride ?? AppResponsive.isDesktopTarget();
-    if (!wasDesktop && _isDesktop && _preflight == null) {
-      final services = AppServices.instance;
+    final dependenciesChanged = oldWidget.dependencies != widget.dependencies;
+    if (_isDesktop &&
+        (dependenciesChanged || (!wasDesktop && _preflight == null))) {
       _preflight = TranscriptionEnvironmentPreflight(
-        settingsStore: services.transcriptionSettingsStore,
-        runtimeManager: services.asrRuntimeManager,
+        settingsStore: widget.dependencies.transcriptionSettingsStore,
+        runtimeManager: widget.dependencies.asrRuntimeManager,
       );
       unawaited(_refresh());
     }
@@ -101,10 +106,9 @@ class _TranscriptionReadyImportScreenState
     });
 
     try {
-      final services = AppServices.instance;
       final current =
           _readiness?.config ??
-          await services.transcriptionSettingsStore.load();
+          await widget.dependencies.transcriptionSettingsStore.load();
       if (!mounted) return;
 
       final updated = await showDialog<TranscriptionConfig>(
@@ -113,7 +117,7 @@ class _TranscriptionReadyImportScreenState
         builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
       );
       if (updated != null) {
-        await services.transcriptionSettingsStore.save(updated);
+        await widget.dependencies.transcriptionSettingsStore.save(updated);
       }
 
       final readiness = await _refresh();
@@ -135,7 +139,7 @@ class _TranscriptionReadyImportScreenState
   }
 
   Future<void> _resumeEnvironmentBlockedQueueIfNeeded() async {
-    final queue = AppServices.instance.transcriptionQueue;
+    final queue = widget.dependencies.transcriptionQueue;
     final snapshot = queue.current;
     if (!snapshot.isEnvironmentBlocked || snapshot.isProcessing) return;
     await queue.resume();
@@ -143,11 +147,13 @@ class _TranscriptionReadyImportScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (!_isDesktop) return const ImportAudioScreen();
+    if (!_isDesktop) {
+      return ImportAudioScreen(dependencies: widget.dependencies);
+    }
 
     final readiness = _readiness;
     if (readiness?.isReady == true) {
-      return const ImportAudioScreen();
+      return ImportAudioScreen(dependencies: widget.dependencies);
     }
 
     return Scaffold(

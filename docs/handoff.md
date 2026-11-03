@@ -2,20 +2,23 @@
 
 ## 目标
 
-「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）、第三步（KTV 录音/导出/历史放回全屏 KTV）、第四步（本地音乐库构造注入）已完成；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
+「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）、第三步（KTV 录音/导出/历史放回全屏 KTV）、第四步（本地音乐库构造注入）已完成；第五步（项目 / 导入 / 远程媒体屏构造注入）代码与 CI 已完成，PR #305 待合并；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 分支：`arena/e14a183a-lyric-forge-ktv`（基于 `main` = `884e683`）。
+- 当前分支：`arena/9b88c124-lyric-forge-ktv`，基于 `main` = `78d1f5a`。HEAD `9f88da4`（代码 + 格式化，CI 全绿；文档随后更新）。
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
 - Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
 - Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
 - Phase 4.2 第三步（KTV 录音放回全屏 KTV）已合入 `main`（PR #301，合并提交 `8f1f55d`）：PR 的 5 个 check 全绿（质量门禁 run 41590712440），`main` push 门禁 run 41591171421 为绿；交接文档 PR #302（`884e683`），`main` 门禁 run 41591540954 为绿。
 - Phase 4.2 第四步（本地音乐库构造注入）已合入 `main`（PR #303，合并提交 `bc468c9`）：PR 的 5 个 check 全绿（质量门禁 run 41603297220、KTV history 41603297223、settings 41603297219、readiness 41603297315、widget-root 41603297276），`main` push 门禁 run 41603702731 为绿。
+- Phase 4.2 第五步（项目 / 导入 / 远程媒体屏构造注入）：PR #305，当前 CI head `9f88da4` 的 7 个 check 全绿（质量门禁 41609783247、queue protective pause 41609783387、queue inline repair 41609783501、readiness 41609783607、settings 41609783448、ASR client 41609783235、widget-root 41609783443）；本轮代码门禁已完成，PR 待合并。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
+
+- 本轮 4.2 第五步：`ProjectDetailDependencies`、`TranscriptionImportDependencies`、`RemoteMediaLibraryDependencies`；新增 `lib/app/screen_assembly.dart`，项目详情、导入就绪页、批量导入页、远程媒体库和队列面板改为构造注入；导入就绪与批量导入共用同一依赖包，队列面板显式收队列 / 设置存储 / runtime。架构棘轮 32/19 → 16/14。远程媒体库目前没有路由/调用点，本轮不擅自添加入口。
 
 - `lib/app/app_services.dart` — 新增：原 `lib/core/services/service_locator.dart`（345 行）整体迁入并改名 `AppServices`，访问点 `AppServices.instance`；服务构建顺序逐行不变。旧文件与 `ServiceLocatorGlobal` extension 删除。
 - `lib/app/app.dart` — 新增：`ElysiumPlayerApp` 从 `lib/main.dart` 移出（可选 `services`，缺省取单例），`_navigatorKey` 私有化。
@@ -56,6 +59,9 @@
 - `docs/architecture_player.md`、`docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`（§4.2 第一步记录 + Phase 4 表更新）、`docs/log/entries/2026-11-03-1320-app-assembly-layer.md`、`docs/work_log*.md`、本文件。
 
 ## 检查结果
+
+- PR #305 head `9f88da4`：7 个 check 全绿；quality gate run 41609783247 完成格式检查、analyze、work-log preflight 与全量测试；readiness / settings / queue repair / protective pause / ASR client / widget-root 检查全绿。Flutter/Dart SDK 不在本沙箱，使用临时 CI formatter 与主门禁同一 package 配置格式化；临时 workflow 已在最终门禁前删除。
+- 4.2 第五步没有改 ASR 算法、歌词处理、识别时序或 UI 流程；`AsrRuntimeSetupDialog` 仍是其自身的间接 singleton 消费者，留待后续单独迁移。
 
 - 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证（run 41582433217、41582847227，两次全绿），验证后该 workflow 从分支删除：`flutter analyze --no-pub --no-fatal-infos lib test` clean、`bash scripts/quality_gate.sh --skip-pub-get` 全量通过（含改动过的 widget / 契约测试与新增棘轮）。
 - `dart format` 第一次跑就把 30 个被触碰文件的**历史格式债**落成 `7cbafb3`（tall style 会重排整个文件；1141/1132 行，纯格式化）。之后的 probe 与 PR 门禁的 format check 均无 diff。这是触碰这些文件的必然代价，不是重写。
@@ -107,13 +113,9 @@
 
 ## 下一步
 
-1. 下一步：4.2 继续按屏替换。编辑器、播放面、全屏 KTV、整块本地音乐库已完成（播放器特性内 0 处），剩余 **32 处 / 19 文件** 优先序：`project_detail_screen.dart`（4）、`transcription_ready_import_screen.dart`（4）、`remote_media_library_screen.dart`（3）、`import_audio_screen.dart`（3）、`dashboard_screen.dart`（2）、`transcription_queue_panel.dart`（2）、`desktop_media_sharing_screen.dart`（2），其余 11 个文件各 1 处（转写配置对话框、全局转写队列条、ASR 运行时安装对话框、设置里的两张 ASR 卡片、8 个 transfer 屏）。每迁一屏就把棘轮上限调低到新值（只能降不能升）。
-1b. 已决定并完成：KTV 录音 / 导出 / 历史放回沉浸式 KTV（4.2 第三步，PR #301）。下一步若继续 4.2，按上面四个文件迁移，每迁一屏降一次棘轮（现为 54 处 / 29 文件）。
-2. 再之后：4.4 引入最小状态管理时，`LyricEditorDocumentController` 与 `LineAuditionController` 已经是可以直接接管的 ChangeNotifier 形态（前者是纯 Dart 对象，改动成本很低）。
-3. 需要硬件或真实语料的部分不变：Phase 2 首启动、1.6 的 Whisper 参数、R5 可安装性。
-4. Phase 1.6 剩下的 Whisper 解码参数与 `--prompt`（R7）需要用 `--baseline --fail-on-regression` 验收，等真实语料。
-5. 需要用户提供 5–10 首人工校对语料后，用 `--baseline --fail-on-regression` 出真实基线并填进报告的 Phase 0 验收行。
-6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
-7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
+1. 合并 PR #305（第五步：项目 / 导入 / 远程媒体注入）；合并后确认 `main` push 门禁为绿，再更新交接文档里的 merge SHA / run。
+2. 继续 4.2：剩余 **16 处 / 14 文件**。优先 `dashboard_screen.dart`（2）、`desktop_media_sharing_screen.dart`（2），其余 12 文件各 1 处（ASR setup / config / 全局队列条、设置中的两张卡片、8 个 transfer 屏）。每迁一屏棘轮只降不升。
+3. 不变更既定范围：识别算法与真实语料质量不可在没有用户语料时宣称验证；Phase 1.6 Whisper `--prompt`、Phase 2.1/2.2 硬件首启、2.3、4.4、4.5 仍 deferred。
+4. 4.2 后续应单独迁移 `AsrRuntimeSetupDialog`（它仍直接访问 singleton；本轮项目与导入屏注入没有消除对话框内部的间接服务定位）。
 
-最后更新：2026-11-03 16:40（Asia/Taipei）
+最后更新：2026-11-03 17:20（Asia/Taipei）
