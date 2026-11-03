@@ -7,8 +7,8 @@ Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成：最后 5 �
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 工作分支：`arena/2cf82e60-lyric-forge-ktv`；最新提交 `633399e docs: record completed ASR dependency injection`，功能提交 `7144c79`。
-- 基线 main：`cf9f961`。PR #311 已打开，最终 head 的质量门禁和 10 个专项 CI 全绿，等待按授权流程合并。
+- 工作分支：`arena/2cf82e60-lyric-forge-ktv`；功能提交 `7144c79 refactor: inject remaining ASR screen dependencies`。
+- 基线 main：`cf9f961`。PR #311 已打开；最近一次完整验证的 PR head 为 `32433bf`，质量门禁和 10 个专项 CI 全绿，等待按授权流程合并。
 - PR #311: https://github.com/BrainEno/lyric-forge-ktv/pull/311
 
 ## 已改文件
@@ -22,7 +22,7 @@ Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成：最后 5 �
 
 ## 检查结果
 
-- 最终 PR head `633399e`：Flutter Quality Gate run `41628978061` 通过（变更文件 format、analyze、全量质量门禁测试、work-log preflight）。
+- 最近一次完整 PR head `32433bf`：Flutter Quality Gate run `41629406864` 通过（变更文件 format、analyze、全量质量门禁测试、work-log preflight）。
 - 最终 head 的 10 个专项 check 全绿：ASR install experience、managed storage location、protective pause、queue inline repair、readiness、settings contract、smoke contract、storage preflight、ASR client、widget root。
 - 本地 `git diff --check` clean；相对 Dart import 扫描 0 missing paths；feature executable singleton scan 0 calls。
 - 本地无 Flutter/Dart SDK，因此没有本地运行 `dart format`、`flutter analyze`、`flutter test` 或 work-log harness；相应检查由 PR CI 使用固定工具链完成。没有真实歌曲准确率或设备硬件测试声明。
