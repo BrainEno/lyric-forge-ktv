@@ -110,4 +110,4 @@
 - 决定：编辑器文档 controller 使用 `ChangeNotifier`，仅在成功状态变化后通知，并由局部 `Provider/Selector` 订阅所需快照；加载必须在监听子树构建前完成。播放/session 服务仍是唯一事实源：播放条继续消费现有 streams，桌面条把同一 session 快照传给队列/模式控件以避免重复订阅；短生命周期控件状态继续留在 widget。
 - 影响：Provider 不成为全局 service locator，不创建第二个播放器/队列，也不要求把全部编辑器 UI 状态搬进 store。识别与歌词编辑语义保持由现有 controller/service 测试保护。
 - 状态：生效
-- 来源：本条目对应的 Phase 4.4 交付记录
+- 来源：[Phase 4.4 最终交付记录](log/entries/2026-11-03-2113-phase44-state-management-final.md)
