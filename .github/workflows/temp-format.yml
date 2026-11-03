@@ -24,9 +24,21 @@ jobs:
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          {
+            echo "HEAD=$(git rev-parse HEAD)"
+            echo "MAIN=$(git rev-parse origin/main)"
+            git diff --name-only origin/main...HEAD -- '*.dart'
+          } > temp-format-report.txt
           mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
-          if (( ${#dart_files[@]} == 0 )); then exit 0; fi
-          printf 'Dart files (%s):\n%s\n' "${#dart_files[@]}" "${dart_files[*]}" > temp-format-report.txt
+          printf 'Dart files (%s):\n%s\n' "${#dart_files[@]}" "${dart_files[*]}" >> temp-format-report.txt
+          if (( ${#dart_files[@]} == 0 )); then
+            git add temp-format-report.txt
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'chore: report formatter file list'
+            git push origin "HEAD:${HEAD_BRANCH}"
+            exit 0
+          fi
           set +e
           dart format --output=none --set-exit-if-changed "${dart_files[@]}" > /tmp/format-check.txt 2>&1
           check=$?
