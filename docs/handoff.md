@@ -7,7 +7,7 @@
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 当前工作分支：`arena/df1923be-lyric-forge-ktv`（第七步进行中）；基线 `main` = `33091e6`。
+- 当前工作分支：`arena/df1923be-lyric-forge-ktv`（PR #309；功能变更的必需 CI 已通过，待合并）；基线 `main` = `33091e6`。
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
 - Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
 - Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
@@ -15,7 +15,7 @@
 - Phase 4.2 第四步（本地音乐库构造注入）已合入 `main`（PR #303，合并提交 `bc468c9`）：PR 的 5 个 check 全绿（质量门禁 run 41603297220、KTV history 41603297223、settings 41603297219、readiness 41603297315、widget-root 41603297276），`main` push 门禁 run 41603702731 为绿。
 - Phase 4.2 第五步（项目 / 导入 / 远程媒体屏构造注入）：PR #305 已合入 `main`（合并提交 `61366bc`）：PR 7 个 check 全绿（最终代码检查质量门禁 41610546660、queue protective pause 41610546765、queue inline repair 41610546717、readiness 41610546517、settings 41610546512、ASR client 41610546603、widget-root 41610546751）；合并后 `main` push 门禁 run 41611000594 为绿。
 - Phase 4.2 第六步（Dashboard 构造注入 + 删除不可达的旧桌面分享屏）：PR #307 已合入 `main`（合并提交 `f5bbbba`）；PR 的 3 个 check 全绿（质量门禁 41615427203、readiness 41615427165、widget-root 41615426993），`main` push 门禁 run 41615872789 为绿。
-- Phase 4.2 第七步（活动 transfer screens 构造注入 + 删除无生产调用点的两个旧屏）：PR #309，最终 head `f19c972`；质量门禁 run 41620520861、readiness 41620520749、widget-root 41620520740 均通过。
+- Phase 4.2 第七步（活动 transfer screens 构造注入 + 删除无生产调用点的两个旧屏）：PR #309，质量门禁 run 41620977945、readiness 41620977929、widget-root 41620977951 均通过。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
@@ -65,7 +65,7 @@
 
 ## 检查结果
 
-- PR #309：最终 head `f19c972` 的质量门禁 run 41620520861、readiness 41620520749、widget-root 41620520740 全绿。质量门禁覆盖 work-log preflight、已解析依赖后的格式检查、analyze 与全量 Flutter tests。第一次 formatter 尝试未先解析 packages，未满足主门禁格式结果；按仓库惯例执行 `flutter pub get --enforce-lockfile` 后重新格式化，最终 CI 格式与质量门禁均通过。
+- PR #309：质量门禁 run 41620977945、readiness 41620977929、widget-root 41620977951 全绿。质量门禁覆盖 work-log preflight、已解析依赖后的格式检查、analyze 与全量 Flutter tests。第一次 formatter 尝试未先解析 packages，未满足主门禁格式结果；按仓库惯例执行 `flutter pub get --enforce-lockfile` 后重新格式化，最终 CI 格式与质量门禁均通过。
 - PR #307：质量门禁 run 41615427203、readiness 41615427165、widget-root 41615426993 全绿；全量格式检查、analyze、work-log preflight 与 `flutter test` 通过。合并提交 `f5bbbba` 后 `main` push 门禁 run 41615872789 通过。
 - 4.2 第六步没有改 ASR 算法、歌词处理、识别时序或 UI 流程；共享 `TranscriptionConfigDialog` 仍有自己的 singleton 依赖，留待后续单独迁移。旧桌面分享屏没有调用点，`/mediaSharing` 继续使用 V2。
 
