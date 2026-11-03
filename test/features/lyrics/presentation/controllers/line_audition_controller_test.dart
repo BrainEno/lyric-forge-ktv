@@ -196,12 +196,10 @@ void main() {
 
   group('高亮行定位', () {
     test('按稳定 lineId 跟随行移动', () async {
-      final document = _document(
-        const [
-          _Line(id: 'line-x', text: '别的行'),
-          _Line(id: 'line-a', text: '当前行'),
-        ],
-      );
+      final document = _document(const [
+        _Line(id: 'line-x', text: '别的行'),
+        _Line(id: 'line-a', text: '当前行'),
+      ]);
 
       // Started on line index 0; the document now has it at index 1.
       await controller.start(request: request, prepare: noPrepare);

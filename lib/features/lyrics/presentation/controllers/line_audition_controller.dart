@@ -134,7 +134,9 @@ class LineAuditionController extends ChangeNotifier {
   int? activeLineIndex(LyricDocument? document) {
     final active = _active;
     if (active == null || document == null) return null;
-    if (!active.belongsTo(_playbackSession.currentState.currentItem?.projectId)) {
+    if (!active.belongsTo(
+      _playbackSession.currentState.currentItem?.projectId,
+    )) {
       return null;
     }
     final lineId = active.lineId;
@@ -178,7 +180,9 @@ class LineAuditionController extends ChangeNotifier {
   Future<void> pauseIfSounding() async {
     final active = _active;
     if (active == null) return;
-    if (!active.belongsTo(_playbackSession.currentState.currentItem?.projectId)) {
+    if (!active.belongsTo(
+      _playbackSession.currentState.currentItem?.projectId,
+    )) {
       return;
     }
     if (!_audioService.currentState.isPlaying) return;
@@ -194,7 +198,9 @@ class LineAuditionController extends ChangeNotifier {
     final playbackBelongsToProject = request.belongsTo(
       _playbackSession.currentState.currentItem?.projectId,
     );
-    if (active != null && active.isSameLineAs(request) && playbackBelongsToProject) {
+    if (active != null &&
+        active.isSameLineAs(request) &&
+        playbackBelongsToProject) {
       final playback = _audioService.currentState;
       if (playback.isPlaying) {
         await _audioService.pause();
@@ -239,9 +245,7 @@ class LineAuditionController extends ChangeNotifier {
         await _audioService.play();
       }
       if (!_audioService.currentState.isPlaying) {
-        return LineAuditionResult.failed(
-          '播放器未进入播放状态；请检查音频文件与播放器日志。',
-        );
+        return LineAuditionResult.failed('播放器未进入播放状态；请检查音频文件与播放器日志。');
       }
       return const LineAuditionResult.started();
     } catch (error) {
@@ -277,7 +281,8 @@ class LineAuditionController extends ChangeNotifier {
   Future<void> _handleBoundary(LineAuditionRequest active) async {
     try {
       final playback = _audioService.currentState;
-      final reachedNaturalEndWhileLooping = _loopEnabled && playback.isCompleted;
+      final reachedNaturalEndWhileLooping =
+          _loopEnabled && playback.isCompleted;
       if (_disposed ||
           !identical(_active, active) ||
           !active.belongsTo(

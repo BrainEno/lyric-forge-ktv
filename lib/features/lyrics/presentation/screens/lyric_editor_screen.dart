@@ -309,7 +309,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   void _showAuditionError(Object error) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${LyricReviewStrings.auditionErrorPrefix}$error')),
+      SnackBar(
+        content: Text('${LyricReviewStrings.auditionErrorPrefix}$error'),
+      ),
     );
   }
 
@@ -1638,9 +1640,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         prepare: () => _prepareProjectPlayback(project, audioAsset),
       );
       return switch (result.action) {
-        LineAuditionAction.paused => const ProofreadTimedLinePreviewResult.success(
-          message: '已暂停试听。',
-        ),
+        LineAuditionAction.paused =>
+          const ProofreadTimedLinePreviewResult.success(message: '已暂停试听。'),
         LineAuditionAction.resumed =>
           _audioService.currentState.isPlaying
               ? const ProofreadTimedLinePreviewResult.success()
