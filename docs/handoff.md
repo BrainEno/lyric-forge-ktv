@@ -11,7 +11,7 @@
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
 - Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
 - Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
-- 本轮（4.2 第三步，KTV 录音放回全屏 KTV）在分支 `arena/d137d1cd-lyric-forge-ktv` 上，PR #301，合并提交在下一轮交接文档里补。
+- Phase 4.2 第三步（KTV 录音放回全屏 KTV）已合入 `main`（PR #301，合并提交 `8f1f55d`）：PR 的 5 个 check 全绿（质量门禁 run 41590712440），`main` push 门禁 run 41591171421 为绿。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
@@ -55,6 +55,7 @@
 - 4.2 第二步：临时工作流上 analyze 连续几轮才干净（先修掉删除死代码后遗留的 6 个 `unused_element` / `unused_element_parameter` 警告，再修两条自己写错的棘轮断言），最终一轮只剩那条已知偶发用例失败；`dart format` 由 probe 落成提交。
 - 静态自检（无 SDK 时可用）：全仓库相对 import 全部解析到存在的文件（0 处断链）；测试里 68 个 `lib/...` 源码路径全部存在；`transcription_settings_contract_test` / `asr_managed_storage_contract_test` / `asr_storage_preflight_contract_test` / `transcription_ready_import_contract_test` 断言的字符串在新文件里逐条命中。
 - 棘轮首跑即命中冻结值（72 处 / 34 文件），无基线例外。
+- PR #301：5 个 check 全绿后合并（质量门禁 run 41590712440、KTV history run 41590712395、take-locks 41590712396、readiness 41590712397、widget-root 41590712444），合并后 `main` push 门禁 run 41591171421 通过。
 - 4.2 第三步：三条失败先由临时工作流定位（logs 不可下载，只能靠 `::error::` 注解）：① `lockedExportMessage` / `lockedRecordingMessage` 先声明在私有 State 类上，屏幕取不到 → 提到公开的 `KtvTakeHistorySheet` 上；② 测试的 `_FakePlaybackSession` 缺 6 个成员 → 补 `noSuchMethod`；③ 单次点击在 `FullscreenKtvInteractionSurface` 里要等双击超时才生效 → 测试补 `pump(400ms)`。最后一轮 analyze 无 error、两个新测试文件 + 架构契约 + `widget_test.dart` 全绿（run 41590447968）。验证完临时工作流已从分支删除。
 - 逐行复刻 `tool/work_log.dart write` 语义的本地脚本：生成的三份文件与提交内容一致。
 
@@ -104,4 +105,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 14:40（Asia/Taipei）
+最后更新：2026-11-03 14:50（Asia/Taipei）
