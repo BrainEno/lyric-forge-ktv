@@ -116,6 +116,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                       return _NowPlayingBody(
                         item: item,
                         lyricsResolver: widget.dependencies.lyricsResolver,
+                        immersiveKtv: widget.dependencies.immersiveKtv,
                         sessionState: session,
                         playback: playback,
                         session: _session,
@@ -174,6 +175,7 @@ class _EmptyNowPlaying extends StatelessWidget {
 class _NowPlayingBody extends StatelessWidget {
   final PlaybackItem item;
   final PlaybackLyricsResolver lyricsResolver;
+  final ImmersiveKtvDependencies immersiveKtv;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -184,6 +186,7 @@ class _NowPlayingBody extends StatelessWidget {
   const _NowPlayingBody({
     required this.item,
     required this.lyricsResolver,
+    required this.immersiveKtv,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -200,6 +203,7 @@ class _NowPlayingBody extends StatelessWidget {
         final content = _NowPlayingCard(
           item: item,
           lyricsResolver: lyricsResolver,
+          immersiveKtv: immersiveKtv,
           sessionState: sessionState,
           playback: playback,
           session: session,
@@ -252,6 +256,7 @@ class _NowPlayingBody extends StatelessWidget {
 class _NowPlayingCard extends StatelessWidget {
   final PlaybackItem item;
   final PlaybackLyricsResolver lyricsResolver;
+  final ImmersiveKtvDependencies immersiveKtv;
   final PlaybackSessionState sessionState;
   final PlaybackState playback;
   final PlaybackSessionService session;
@@ -262,6 +267,7 @@ class _NowPlayingCard extends StatelessWidget {
   const _NowPlayingCard({
     required this.item,
     required this.lyricsResolver,
+    required this.immersiveKtv,
     required this.sessionState,
     required this.playback,
     required this.session,
@@ -300,6 +306,7 @@ class _NowPlayingCard extends StatelessWidget {
             final details = _NowPlayingDetails(
               item: item,
               lyricsResolver: lyricsResolver,
+              immersiveKtv: immersiveKtv,
               album: albumText,
               source: source,
               sessionState: sessionState,
@@ -357,6 +364,7 @@ class _NowPlayingCard extends StatelessWidget {
 class _NowPlayingDetails extends StatelessWidget {
   final PlaybackItem item;
   final PlaybackLyricsResolver lyricsResolver;
+  final ImmersiveKtvDependencies immersiveKtv;
   final String? album;
   final ({String label, String chip}) source;
   final PlaybackSessionState sessionState;
@@ -369,6 +377,7 @@ class _NowPlayingDetails extends StatelessWidget {
   const _NowPlayingDetails({
     required this.item,
     required this.lyricsResolver,
+    required this.immersiveKtv,
     required this.album,
     required this.source,
     required this.sessionState,
@@ -475,7 +484,7 @@ class _NowPlayingDetails extends StatelessWidget {
             NowPlayingLyricsProjectAction(
               item: item,
               lyricsResolver: lyricsResolver,
-              audioPlayer: audio,
+              immersiveKtv: immersiveKtv,
             ),
           ],
         ),

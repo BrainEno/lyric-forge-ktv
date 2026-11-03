@@ -12,8 +12,6 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 import '../../domain/models/playback_state.dart';
-import '../../domain/repositories/local_media_metadata_repository.dart';
-import '../../domain/services/audio_path_canonicalizer.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../playback_screen_dependencies.dart';
@@ -152,8 +150,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           repository: _repository,
           audioService: _audioService,
           playbackSession: _playbackSession,
-          metadataRepository: widget.dependencies.metadataRepository,
-          pathCanonicalizer: widget.dependencies.pathCanonicalizer,
+          immersiveKtv: widget.dependencies.immersiveKtv,
           onInitialize: () => _initializeAudio(project),
           onOpenLyricEditor: () => _openLyricEditor(project),
           onPlayPause: _playPause,
@@ -219,8 +216,7 @@ class _PlayerContent extends StatefulWidget {
   final ProjectRepository repository;
   final AudioPlayerService audioService;
   final PlaybackSessionService playbackSession;
-  final LocalMediaMetadataRepository metadataRepository;
-  final AudioPathCanonicalizer pathCanonicalizer;
+  final ImmersiveKtvDependencies immersiveKtv;
   final VoidCallback onInitialize;
   final Future<void> Function() onOpenLyricEditor;
   final VoidCallback onPlayPause;
@@ -235,8 +231,7 @@ class _PlayerContent extends StatefulWidget {
     required this.repository,
     required this.audioService,
     required this.playbackSession,
-    required this.metadataRepository,
-    required this.pathCanonicalizer,
+    required this.immersiveKtv,
     required this.onInitialize,
     required this.onOpenLyricEditor,
     required this.onPlayPause,
@@ -307,11 +302,7 @@ class _PlayerContentState extends State<_PlayerContent> {
       MaterialPageRoute<void>(
         builder: (_) => ImmersiveKtvScreen(
           initialProjectId: widget.project.id,
-          projectRepository: widget.repository,
-          metadataRepository: widget.metadataRepository,
-          audioService: widget.audioService,
-          playbackSession: widget.playbackSession,
-          pathCanonicalizer: widget.pathCanonicalizer,
+          dependencies: widget.immersiveKtv,
         ),
       ),
     );

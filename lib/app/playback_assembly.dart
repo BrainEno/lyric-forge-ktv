@@ -26,8 +26,7 @@ PlayerScreenDependencies assemblePlayerScreenDependencies(
     projectRepository: services.projectRepository,
     audioPlayer: services.audioPlayerService,
     playbackSession: services.playbackSessionService,
-    metadataRepository: services.localMediaMetadataRepository,
-    pathCanonicalizer: services.audioPathCanonicalizer,
+    immersiveKtv: assembleImmersiveKtvDependencies(services),
   );
 }
 
@@ -37,5 +36,28 @@ NowPlayingDependencies assembleNowPlayingDependencies(AppServices services) {
     playbackSession: services.playbackSessionService,
     audioPlayer: services.audioPlayerService,
     lyricsResolver: buildPlaybackLyricsResolver(services),
+    immersiveKtv: assembleImmersiveKtvDependencies(services),
+  );
+}
+
+/// What the one fullscreen KTV surface is made of.
+///
+/// Nine collaborators in one object: the five playback ones it already had,
+/// plus microphone, recording, take history and the audition channel that made
+/// up the KTV studio. Assembled here so the screen never reaches for the
+/// locator and a widget test can hand it fakes instead of hardware.
+ImmersiveKtvDependencies assembleImmersiveKtvDependencies(
+  AppServices services,
+) {
+  return ImmersiveKtvDependencies(
+    projectRepository: services.projectRepository,
+    metadataRepository: services.localMediaMetadataRepository,
+    audioPlayer: services.audioPlayerService,
+    playbackSession: services.playbackSessionService,
+    pathCanonicalizer: services.audioPathCanonicalizer,
+    microphoneService: services.ktvMicrophoneService,
+    recordingService: services.ktvRecordingService,
+    takeHistoryStore: services.ktvTakeHistoryStore,
+    previewService: services.audioPreviewService,
   );
 }
