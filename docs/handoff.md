@@ -2,12 +2,12 @@
 
 ## 目标
 
-「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）、第三步（KTV 录音/导出/历史放回全屏 KTV）、第四步（本地音乐库构造注入）已完成；第五步（项目 / 导入 / 远程媒体屏构造注入，PR #305）与第六步（Dashboard 注入、删除不可达的旧桌面分享屏，PR #307）均已合并；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
+「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）、第三步（KTV 录音/导出/历史放回全屏 KTV）、第四步（本地音乐库构造注入）已完成；第五步（项目 / 导入 / 远程媒体屏构造注入，PR #305）与第六步（Dashboard 注入、删除不可达的旧桌面分享屏，PR #307）均已合并。第七步（活动 transfer screens 构造注入、删除两个不可达旧屏）已完成代码修改，待 CI 验证；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 当前分支：`arena/6aa9521d-lyric-forge-ktv`（本轮 PR #307 已合入）；当前 `main` = `f5bbbba`。
+- 当前工作分支：`arena/df1923be-lyric-forge-ktv`（PR #309；功能变更的必需 CI 已通过，待合并）；基线 `main` = `33091e6`。
 - Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
 - Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
 - Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
@@ -15,11 +15,13 @@
 - Phase 4.2 第四步（本地音乐库构造注入）已合入 `main`（PR #303，合并提交 `bc468c9`）：PR 的 5 个 check 全绿（质量门禁 run 41603297220、KTV history 41603297223、settings 41603297219、readiness 41603297315、widget-root 41603297276），`main` push 门禁 run 41603702731 为绿。
 - Phase 4.2 第五步（项目 / 导入 / 远程媒体屏构造注入）：PR #305 已合入 `main`（合并提交 `61366bc`）：PR 7 个 check 全绿（最终代码检查质量门禁 41610546660、queue protective pause 41610546765、queue inline repair 41610546717、readiness 41610546517、settings 41610546512、ASR client 41610546603、widget-root 41610546751）；合并后 `main` push 门禁 run 41611000594 为绿。
 - Phase 4.2 第六步（Dashboard 构造注入 + 删除不可达的旧桌面分享屏）：PR #307 已合入 `main`（合并提交 `f5bbbba`）；PR 的 3 个 check 全绿（质量门禁 41615427203、readiness 41615427165、widget-root 41615426993），`main` push 门禁 run 41615872789 为绿。
+- Phase 4.2 第七步（活动 transfer screens 构造注入 + 删除无生产调用点的两个旧屏）：PR #309，质量门禁 run 41620977945、readiness 41620977929、widget-root 41620977951 均通过。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
 
 - 本轮 4.2 第六步：新增 `DashboardDependencies`（5 个活动 / 播放协作者 + `TranscriptionSettingsStore`）及 `lib/app/home_assembly.dart`；Dashboard 删除可选依赖和单例 fallback，路由显式装配；删除无生产调用点的旧 `DesktopMediaSharingScreen`（559 行），当前 `/mediaSharing` 仍路由到 V2。棘轮 16/14 → 12/12。
+- 本轮 4.2 第七步（待 CI）：新增 `DesktopMediaHubDependencies` / `MobileMediaTransferDependencies` / `MobileRemoteLibraryDependencies` 与 `lib/app/transfer_assembly.dart`；桌面 V2、手机传输首页、远程歌曲 / 艺人 / 专辑 / 下载页全部收必填依赖，路由装配并向 shell 子页透传；删除无生产构造点的 `CrossDeviceMediaLibraryScreen` 与旧 `DesktopMediaTransferHubScreen`。契约覆盖装配、页面零单例与旧文件退役；棘轮预期 12/12 → 5/5。
 
 - 本轮 4.2 第五步：`ProjectDetailDependencies`、`TranscriptionImportDependencies`、`RemoteMediaLibraryDependencies`；新增 `lib/app/screen_assembly.dart`，项目详情、导入就绪页、批量导入页、远程媒体库和队列面板改为构造注入；导入就绪与批量导入共用同一依赖包，队列面板显式收队列 / 设置存储 / runtime。架构棘轮 32/19 → 16/14。远程媒体库目前没有路由/调用点，本轮不擅自添加入口。
 
@@ -63,6 +65,7 @@
 
 ## 检查结果
 
+- PR #309：质量门禁 run 41620977945、readiness 41620977929、widget-root 41620977951 全绿。质量门禁覆盖 work-log preflight、已解析依赖后的格式检查、analyze 与全量 Flutter tests。第一次 formatter 尝试未先解析 packages，未满足主门禁格式结果；按仓库惯例执行 `flutter pub get --enforce-lockfile` 后重新格式化，最终 CI 格式与质量门禁均通过。
 - PR #307：质量门禁 run 41615427203、readiness 41615427165、widget-root 41615426993 全绿；全量格式检查、analyze、work-log preflight 与 `flutter test` 通过。合并提交 `f5bbbba` 后 `main` push 门禁 run 41615872789 通过。
 - 4.2 第六步没有改 ASR 算法、歌词处理、识别时序或 UI 流程；共享 `TranscriptionConfigDialog` 仍有自己的 singleton 依赖，留待后续单独迁移。旧桌面分享屏没有调用点，`/mediaSharing` 继续使用 V2。
 
@@ -86,8 +89,8 @@
 - 工具栏（Phase 3.2）的取舍：**不可用项置灰而不是隐藏**（「在播放位置插入」会写明「先试听本工程」），**筛选与偏移改成菜单但保留计数与当前值**，只读指标降级为文本。没有任何功能被删除；「下一处问题」按钮在原代码中不存在，因此没有新增。
 - **两次 `main` 门禁失败仍未定位**（run 41485065687、41498901477）：同一棵树在 PR 门禁与分支上的全量门禁都是绿的，最可能是 `main` 推送时 22 个专项 workflow 并发、跑满同一台 runner 导致的时序类用例抖动，但这是推断而不是结论。从下一轮起失败会自己报出用例名；在那之前不要把它们写成「已修复」。
 - **KTV 录音入口已于 4.2 第三步补齐**：4.2 第二步删除不可达的 `_FullScreenKtvView` 时，KTV 录音/导出/历史的 UI 一度完全不可达（服务层与测试都还在）。现已按产品决定放回 `ImmersiveKtvScreen`：录音工具条、麦克风 sheet、演唱历史 sheet、成品 sheet，并恢复 `isRecording || isExporting` 的变更锁。**不要再在别处重建第二套全屏 KTV**，也不要再给这段 UI 写「源码扫描」式断言——保护现在是 `KtvTakeHistorySheet` 里的可测行为。
-- 本地音乐库（4.2 第四步）的取舍：**一个依赖包，不是四个**。五个分区是同一屏幕的五个身体，拆开只会得到四个近似的类；`LyricsImportDependencies` 单独存在是因为它要跟着回调走到三处无关调用点。**两个行为变化**：bootstrap 之前两个播放条不渲染（原本会在 `initState` 读未初始化的 `late final`），以及 `LocalMusicLibraryShell` 必须拿到 `dependencies` 或显式 `sections`，且分区页面只在依赖变化时重建一次（`IndexedStack` 里每帧重建会丢滚动位置并重新加载库）。剩余 32 处单例集中在首页 / 导入 / 工程详情 / 转写相关 widget 与 8 个 transfer 屏，下一轮再动。
-- 装配层（4.2 第一步）的取舍：**`Routes` 留在 `lib/core`，路由表进 `lib/app`**。屏幕要 push 名字，而 `lib/core` 不能反向依赖装配层；把常量留在下层、把表放上层，依赖方向才单向。另一个取舍：**强制对齐 runner 非空且无默认值**——「runtime 是否就绪」只有设置存储与 runtime 检查能回答，给 null 默认等于把静默降级塞回 widget；不可用时抛原有的两句中文文案，由既有错误路径展示。**唯一的行为变化**是复核收件箱的 repository 由可选变必填（路由总会传）与编辑器不再自带 runner 断言。剩余的 `AppServices.instance` 调用是有意的过渡态，不要为了「一次性清理」把 34 个文件塞进同一个改动。
+- 本地音乐库（4.2 第四步）的取舍：**一个依赖包，不是四个**。五个分区是同一屏幕的五个身体，拆开只会得到四个近似的类；`LyricsImportDependencies` 单独存在是因为它要跟着回调走到三处无关调用点。**两个行为变化**：bootstrap 之前两个播放条不渲染（原本会在 `initState` 读未初始化的 `late final`），以及 `LocalMusicLibraryShell` 必须拿到 `dependencies` 或显式 `sections`，且分区页面只在依赖变化时重建一次（`IndexedStack` 里每帧重建会丢滚动位置并重新加载库）。
+- 装配层（4.2 第一步）的取舍：**`Routes` 留在 `lib/core`，路由表进 `lib/app`**。屏幕要 push 名字，而 `lib/core` 不能反向依赖装配层；把常量留在下层、把表放上层，依赖方向才单向。另一个取舍：**强制对齐 runner 非空且无默认值**——「runtime 是否就绪」只有设置存储与 runtime 检查能回答，给 null 默认等于把静默降级塞回 widget；不可用时抛原有的两句中文文案，由既有错误路径展示。**唯一的行为变化**是复核收件箱的 repository 由可选变必填（路由总会传）与编辑器不再自带 runner 断言。
 - 编辑会话（4.1 第三步）的取舍：**试听耦合是反转的，不是搬移的。** 控制器不认识试听，只回答「这次编辑是否让试听失效」；「这一行是不是正在播的那行」仍由屏幕判断（沿用原来的 lineId/索引语义）。因此改文字不会打断试听，改时间才会——与重构前逐字一致。另一个**有意的行为变化**：`setLineReviewed` 先比对当前复核状态，因为复核服务即使状态不变也会返回带新时间戳的新文档，旧的 `identical()` 判断抓不到，重复标记同一行会凭空多出一步撤销。刻意留在屏幕的是复核队列、筛选、跟随播放与聚焦请求——它们是从文档派生的视图状态。
 - 校对提案（4.1 第二步）的取舍：**审核行的中文标签跟着类型进 domain**。它们是复核载荷的一部分（对话框只负责渲染），代价是 domain 里出现用户可见文案；换来的是「管线输出 → 审核行」这段翻译可以被测试，而不必启动整个编辑器。另一个有意的行为收窄：ASR 优先在 `draft.lines[index]` 越界时不再抛 `RangeError`（原实现会让整次校对以「无法生成或应用校对提案」失败），而是把 `originalLine` 记为 null——管线本身保证一一对应，这里只是防御。
 - 强制对齐就绪判定的修正：`hasReadyComponents` 要求「组件被报出且 ready」，而 `isBaselineReady` 保留「缺项视为该 profile 不需要」的既有语义（有测试依赖它）。两者混用会把从未 inspect 到的组件当成可用，所以不要用 baseline 的写法改写可选能力检查。
@@ -116,8 +119,8 @@
 
 ## 下一步
 
-1. 继续 4.2：剩余 **12 处 / 12 个文件**。包含 `TranscriptionConfigDialog`、`AsrRuntimeSetupDialog`、全局转写队列条、设置中的两张 ASR 卡片，以及 7 个 transfer 屏（先逐个审调用点，确认仍可达后再注入；旧桌面分享 V1 已证实不可达并删除）。每迁一屏棘轮只降不升。
-2. 4.2 注入 Dashboard 后，`TranscriptionConfigDialog` 仍是一个由 Dashboard / 设置页 / ASR 设置对话框共用的 singleton consumer；先评估其共享依赖和测试边界，再迁，不要把屏幕里的回退搬进另一个 optional 参数。
+1. Phase 4.2 第七步通过 CI 后再合并。本轮不改网络确认、持久队列恢复、远程播放或下载入库流程；专项契约与全量质量门禁是接受条件。
+2. 后续继续迁移剩余 **5 处 / 5 个文件**的 `AppServices.instance`：`TranscriptionConfigDialog`、`AsrRuntimeSetupDialog`、全局转写队列条与设置中的两张 ASR 卡片；先审查共享调用边界与配置注入，不给 widget 留 optional fallback。每迁一屏棘轮只降不升。
 3. 不变更既定范围：无用户语料时不宣称真实歌曲质量变化；Phase 1.6 Whisper `--prompt`、Phase 2.1/2.2 硬件首启、2.3、4.4、4.5 仍 deferred。
 
-最后更新：2026-11-03 18:05（Asia/Taipei）
+最后更新：2026-11-03 19:10（Asia/Taipei）

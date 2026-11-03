@@ -4,9 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../transfer_screen_dependencies.dart';
 import '../../../player/domain/models/local_media_library_entry.dart';
 import '../../../player/domain/repositories/local_media_library_repository.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -17,7 +17,9 @@ import '../../domain/services/media_transfer_queue_service.dart';
 import 'remote_catalog_utils.dart';
 
 class MobileDownloadManagerScreen extends StatefulWidget {
-  const MobileDownloadManagerScreen({super.key});
+  final MobileRemoteLibraryDependencies dependencies;
+
+  const MobileDownloadManagerScreen({super.key, required this.dependencies});
 
   @override
   State<MobileDownloadManagerScreen> createState() =>
@@ -38,10 +40,9 @@ class _MobileDownloadManagerScreenState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _library = services.localMediaLibraryRepository;
-    _session = services.playbackSessionService;
-    _queue = services.mediaTransferQueueService;
+    _library = widget.dependencies.localLibrary;
+    _session = widget.dependencies.playbackSession;
+    _queue = widget.dependencies.transferQueue;
     _searchController.addListener(_onSearchChanged);
     unawaited(_load());
   }

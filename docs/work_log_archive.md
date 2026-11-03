@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 10:40] Move the proofread proposal logic out of the editor widget ([entry](log/entries/2026-11-03-1040-proofread-proposal-domain.md))
 - [2026-11-03 10:01] Take the first slice out of the 4,591-line lyric editor ([entry](log/entries/2026-11-03-1001-editor-split-step-1.md))
 - [2026-11-03 02:20] Let a failing quality gate name its own failure ([entry](log/entries/2026-11-03-0220-gate-failure-annotations.md))
 - [2026-11-03 02:06] One owner for KTV take auditions, and no second player in the UI ([entry](log/entries/2026-11-03-0206-audition-service.md))

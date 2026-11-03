@@ -22,6 +22,7 @@ import 'local_library_assembly.dart';
 import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
 import 'screen_assembly.dart';
+import 'transfer_assembly.dart';
 
 /// The routing table: route name in, screen out.
 ///
@@ -129,13 +130,28 @@ class AppRouter {
         return _fadeRoute(const SettingsScreen(), settings);
 
       case Routes.mediaSharing:
-        return _fadeRoute(const DesktopMediaTransferHubV2Screen(), settings);
+        return _fadeRoute(
+          DesktopMediaTransferHubV2Screen(
+            dependencies: assembleDesktopMediaHubDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.remoteLibrary:
-        return _fadeRoute(const MobileMediaTransferHubScreen(), settings);
+        return _fadeRoute(
+          MobileMediaTransferHubScreen(
+            dependencies: assembleMobileMediaTransferDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.remoteBrowse:
-        return _fadeRoute(const MobileRemoteLibraryShell(), settings);
+        return _fadeRoute(
+          MobileRemoteLibraryShell(
+            dependencies: assembleMobileRemoteLibraryDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.mediaHubScanner:
         return _fadeRoute(const MediaHubQrScannerScreen(), settings);
