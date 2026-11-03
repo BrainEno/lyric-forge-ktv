@@ -4,22 +4,19 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/models/transcription_queue_models.dart';
-import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/batch_transcription_queue.dart';
-import '../../domain/services/transcription_settings_store.dart';
 import '../../domain/services/transcription_queue_environment_recovery.dart';
+import '../transcription_screen_dependencies.dart';
 import 'asr_runtime_setup_dialog.dart';
 
 class TranscriptionQueuePanel extends StatelessWidget {
   final BatchTranscriptionQueue queue;
-  final TranscriptionSettingsStore settingsStore;
-  final AsrRuntimeManager runtimeManager;
+  final AsrRuntimeSetupDependencies setupDependencies;
 
   const TranscriptionQueuePanel({
     super.key,
     required this.queue,
-    required this.settingsStore,
-    required this.runtimeManager,
+    required this.setupDependencies,
   });
 
   @override
@@ -235,19 +232,22 @@ class TranscriptionQueuePanel extends StatelessWidget {
     BatchTranscriptionQueue queue,
   ) async {
     try {
-      final current = await settingsStore.load();
+      final current = await setupDependencies.transcriptionSettingsStore.load();
       if (!context.mounted) return;
 
       final updated = await showDialog<TranscriptionConfig>(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
+        builder: (context) => AsrRuntimeSetupDialog(
+          initialConfig: current,
+          dependencies: setupDependencies,
+        ),
       );
       if (updated == null) return;
 
       final recovery = TranscriptionQueueEnvironmentRecovery(
-        settingsStore: settingsStore,
-        runtimeManager: runtimeManager,
+        settingsStore: setupDependencies.transcriptionSettingsStore,
+        runtimeManager: setupDependencies.asrRuntimeManager,
         queue: queue,
       );
       final result = await recovery.recover(updated);

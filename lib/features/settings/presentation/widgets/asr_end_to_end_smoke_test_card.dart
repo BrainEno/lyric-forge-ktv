@@ -5,14 +5,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 
 class AsrEndToEndSmokeTestCard extends StatefulWidget {
-  const AsrEndToEndSmokeTestCard({super.key});
+  final AsrEndToEndSmokeTestService smokeTestService;
+
+  const AsrEndToEndSmokeTestCard({super.key, required this.smokeTestService});
 
   @override
   State<AsrEndToEndSmokeTestCard> createState() =>
@@ -33,7 +34,7 @@ class _AsrEndToEndSmokeTestCardState extends State<AsrEndToEndSmokeTestCard> {
   @override
   void initState() {
     super.initState();
-    _smokeTestService = AppServices.instance.asrEndToEndSmokeTestService;
+    _smokeTestService = widget.smokeTestService;
     _progressSubscription = _smokeTestService.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _progress = progress);

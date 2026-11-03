@@ -141,7 +141,10 @@ class ElysiumPlayerApp extends StatelessWidget {
                           children: [
                             Expanded(child: syncedShell),
                             if (!immersive) ...[
-                              const GlobalTranscriptionQueueBar(),
+                              if (services.isInitialized)
+                                GlobalTranscriptionQueueBar(
+                                  queue: services.transcriptionQueue,
+                                ),
                               if (!suppressPlayerBar && localLibrary != null)
                                 GlobalPlayerBar(dependencies: localLibrary),
                             ],

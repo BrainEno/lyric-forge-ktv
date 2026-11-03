@@ -3,17 +3,22 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_download_connection_checker.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import '../transcription_screen_dependencies.dart';
 
 class TranscriptionConfigDialog extends StatefulWidget {
   final TranscriptionConfig? initialConfig;
+  final TranscriptionConfigDialogDependencies dependencies;
 
-  const TranscriptionConfigDialog({super.key, this.initialConfig});
+  const TranscriptionConfigDialog({
+    super.key,
+    this.initialConfig,
+    required this.dependencies,
+  });
 
   @override
   State<TranscriptionConfigDialog> createState() =>
@@ -54,10 +59,9 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _profileResolver = services.transcriptionProfileResolver;
-    _downloadConnectionChecker = services.asrDownloadConnectionChecker;
-    _downloadProxyStore = services.transcriptionDownloadProxyStore;
+    _profileResolver = widget.dependencies.profileResolver;
+    _downloadConnectionChecker = widget.dependencies.downloadConnectionChecker;
+    _downloadProxyStore = widget.dependencies.downloadProxyStore;
 
     final config = widget.initialConfig;
     _mode = config?.mode ?? TranscriptionMode.highestQuality;

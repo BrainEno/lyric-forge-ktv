@@ -23,6 +23,7 @@ import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
 import 'screen_assembly.dart';
 import 'transfer_assembly.dart';
+import 'transcription_assembly.dart';
 
 /// The routing table: route name in, screen out.
 ///
@@ -127,7 +128,12 @@ class AppRouter {
         );
 
       case Routes.settings:
-        return _fadeRoute(const SettingsScreen(), settings);
+        return _fadeRoute(
+          SettingsScreen(
+            dependencies: assembleSettingsScreenDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.mediaSharing:
         return _fadeRoute(

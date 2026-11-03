@@ -22,13 +22,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// in 29 -> 19. Step 4 (project/import): 32 -> 16 in 19 -> 14. Step 5
 /// (dashboard + retired legacy share screen): 16 -> 12 in 14 -> 12. Step 6
 /// (active transfer screens injected, two dead screens retired): 12 -> 5 in
-/// 12 -> 5 files.
-const int _frozenSingletonFiles = 5;
-const int _frozenSingletonCalls = 5;
-
-/// The only part of `lib/app/` a feature may see, and only while it is still
-/// on the singleton. Everything else in `lib/app/` is assembly.
-const String _allowedAppImportForFeatures = 'lib/app/app_services.dart';
+/// 12 -> 5 files. Step 7 (remaining ASR/settings/queue consumers injected):
+/// 5 -> 0 in 5 -> 0 files.
+const int _frozenSingletonFiles = 0;
+const int _frozenSingletonCalls = 0;
 
 final RegExp _importPattern = RegExp(
   r'''^\s*(?:import|export)\s+['"]([^'"]+)['"]''',
@@ -96,12 +93,11 @@ void main() {
       );
     });
 
-    test('features only see the service registry of lib/app', () {
+    test('features do not import the app assembly layer', () {
       final violations = <String>[];
       for (final file in _dartFilesUnder('lib/features')) {
         for (final target in _importsOf(file)) {
-          if (target.startsWith('lib/app/') &&
-              target != _allowedAppImportForFeatures) {
+          if (target.startsWith('lib/app/')) {
             violations.add('${_normalize(file)} -> $target');
           }
         }
@@ -110,9 +106,8 @@ void main() {
         violations,
         isEmpty,
         reason:
-            'A feature must not import the app shell, the routing table or '
-            'an assembler — that would let a screen construct its peers and '
-            're-create the coupling 4.2 removed:\n${violations.join('\n')}',
+            'Features declare their dependencies; lib/app owns the registry, '
+            'routing and assembly:\n${violations.join('\n')}',
       );
     });
 
@@ -157,7 +152,7 @@ void main() {
         lessThanOrEqualTo(_frozenSingletonCalls),
         reason:
             'AppServices.instance now has $calls call sites in lib/features '
-            '($_frozenSingletonFiles files frozen after Phase 4.2). Migrate a '
+            '(target: $_frozenSingletonFiles files after Phase 4.2). Migrate a '
             'screen to constructor injection instead of adding another lookup.',
       );
       expect(

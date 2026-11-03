@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
@@ -16,10 +15,13 @@ import '../../../transcription/presentation/widgets/asr_existing_model_actions.d
 import '../../../transcription/presentation/widgets/asr_install_error_card.dart';
 import '../../../transcription/presentation/widgets/asr_install_progress_card.dart';
 import '../../../transcription/presentation/widgets/asr_storage_preflight_card.dart';
+import '../../../transcription/presentation/transcription_screen_dependencies.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class AiTranscriptionSettingsSection extends StatefulWidget {
-  const AiTranscriptionSettingsSection({super.key});
+  final AsrRuntimeSetupDependencies dependencies;
+
+  const AiTranscriptionSettingsSection({super.key, required this.dependencies});
 
   @override
   State<AiTranscriptionSettingsSection> createState() =>
@@ -72,11 +74,10 @@ class _AiTranscriptionSettingsSectionState
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _settingsStore = services.transcriptionSettingsStore;
-    _runtimeManager = services.asrRuntimeManager;
-    _storagePreflightService = services.asrStoragePreflightService;
-    _managedStorageService = services.asrManagedStorageService;
+    _settingsStore = widget.dependencies.transcriptionSettingsStore;
+    _runtimeManager = widget.dependencies.asrRuntimeManager;
+    _storagePreflightService = widget.dependencies.asrStoragePreflightService;
+    _managedStorageService = widget.dependencies.asrManagedStorageService;
     _progressSubscription = _runtimeManager.progressStream.listen((progress) {
       if (!mounted) return;
       setState(() => _progress = progress);
@@ -520,8 +521,10 @@ class _AiTranscriptionSettingsSectionState
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
       context: context,
-      builder: (context) =>
-          TranscriptionConfigDialog(initialConfig: _config ?? _defaultConfig),
+      builder: (context) => TranscriptionConfigDialog(
+        initialConfig: _config ?? _defaultConfig,
+        dependencies: widget.dependencies.configDialogDependencies,
+      ),
     );
     if (updated == null || !mounted) return;
     await _saveAndRefresh(updated);
