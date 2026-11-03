@@ -115,10 +115,7 @@ void main() {
           gate,
           contains('flutter analyze --no-pub --no-fatal-infos lib test'),
         );
-        expect(
-          gate,
-          contains('flutter test --no-pub --reporter expanded'),
-        );
+        expect(gate, contains('flutter test --no-pub --reporter expanded'));
         expect(
           await File('.github/workflows/asr-client-checks.yml').exists(),
           isFalse,
