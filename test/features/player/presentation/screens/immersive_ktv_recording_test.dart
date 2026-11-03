@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/core/navigation/app_chrome_controller.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/audio_preview_state.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_microphone_state.dart';
@@ -60,25 +61,23 @@ void main() {
     microphone = _FakeMicrophoneService();
   });
 
+  Widget buildScreen() => ImmersiveKtvScreen(
+    initialProjectId: project.id,
+    dependencies: ImmersiveKtvDependencies(
+      projectRepository: _FakeProjectRepository(project),
+      metadataRepository: _FakeMetadataRepository(),
+      audioPlayer: _FakeAudioPlayerService(),
+      playbackSession: _FakePlaybackSession(),
+      pathCanonicalizer: const FileAudioPathCanonicalizer(),
+      microphoneService: microphone,
+      recordingService: recording,
+      takeHistoryStore: _FakeTakeHistoryStore(),
+      previewService: _FakePreviewService(),
+    ),
+  );
+
   Future<void> pumpScreen(WidgetTester tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ImmersiveKtvScreen(
-          initialProjectId: project.id,
-          dependencies: ImmersiveKtvDependencies(
-            projectRepository: _FakeProjectRepository(project),
-            metadataRepository: _FakeMetadataRepository(),
-            audioPlayer: _FakeAudioPlayerService(),
-            playbackSession: _FakePlaybackSession(),
-            pathCanonicalizer: const FileAudioPathCanonicalizer(),
-            microphoneService: microphone,
-            recordingService: recording,
-            takeHistoryStore: _FakeTakeHistoryStore(),
-            previewService: _FakePreviewService(),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: buildScreen()));
     // One frame for the project load, one more for the toolbar to rebuild with
     // the project in hand (until then its entry points are disabled).
     await tester.pump();
@@ -90,6 +89,39 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   }
+
+  testWidgets('全屏 KTV 进出场不会在祖先 build/卸载期间通知应用 chrome', (
+    tester,
+  ) async {
+    var showKtv = true;
+    late StateSetter setHostState;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            setHostState = setState;
+            return ValueListenableBuilder<bool>(
+              valueListenable: AppChromeController.immersive,
+              builder: (_, _, _) =>
+                  showKtv ? buildScreen() : const SizedBox.shrink(),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(AppChromeController.immersive.value, isTrue);
+
+    setHostState(() => showKtv = false);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(AppChromeController.immersive.value, isFalse);
+  });
 
   testWidgets('全屏 KTV 上有录音、演唱历史和麦克风入口', (tester) async {
     await pumpScreen(tester);
