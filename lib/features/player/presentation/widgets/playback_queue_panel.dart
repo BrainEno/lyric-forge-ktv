@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import 'playback_action_feedback.dart';
 import 'playback_mode_controls.dart';
@@ -11,6 +12,10 @@ import 'playback_queue_playlist_action.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
   final PlaybackSessionService session;
+
+  /// Only needed by "save queue as playlist"; required so the panel cannot fall
+  /// back to the app-wide locator when a caller forgets it.
+  final LocalMediaCollectionRepository collectionRepository;
   final double height;
   final bool allowClearAll;
   final bool showBorder;
@@ -18,6 +23,7 @@ class PlaybackQueuePanel extends StatelessWidget {
   const PlaybackQueuePanel({
     super.key,
     required this.session,
+    required this.collectionRepository,
     this.height = 360,
     this.allowClearAll = false,
     this.showBorder = true,
@@ -27,7 +33,11 @@ class PlaybackQueuePanel extends StatelessWidget {
     BuildContext context,
     PlaybackSessionState state,
   ) async {
-    final result = await savePlaybackQueueToPlaylist(context, state);
+    final result = await savePlaybackQueueToPlaylist(
+      context,
+      state,
+      repository: collectionRepository,
+    );
     if (!context.mounted || result == null) return;
 
     final skipped = result.skippedCount > 0

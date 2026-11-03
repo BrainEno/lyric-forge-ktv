@@ -20,9 +20,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// Step 1 (editor, review inbox, routing table, app shell): 80 -> 72 calls in
 /// 37 -> 34 files. Step 2 (player screen, Now Playing, the app-shell lyric sync,
 /// Now Playing's lyric action and the fullscreen KTV view): 72 -> 54 calls in
-/// 34 -> 29 files.
-const int _frozenSingletonFiles = 29;
-const int _frozenSingletonCalls = 54;
+/// 34 -> 29 files. Step 3 (the local-music library: five sections, quick play,
+/// both player bars, the queue panel and its dialogs): 54 -> 32 calls in
+/// 29 -> 19 files — the whole player feature now takes its dependencies.
+const int _frozenSingletonFiles = 19;
+const int _frozenSingletonCalls = 32;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.
@@ -257,6 +259,62 @@ void main() {
       expect(immersive, contains('required this.dependencies'));
       expect(immersive, contains('KtvRecordingToolbar('));
       expect(immersive, contains('KtvTakeHistorySheet('));
+    });
+
+    test('the local library surfaces take their dependencies', () {
+      const surfaces = <String>[
+        'lib/features/player/presentation/screens/local_music_library_shell.dart',
+        'lib/features/player/presentation/screens/local_library_explorer_screen.dart',
+        'lib/features/player/presentation/screens/local_artist_album_browser_screen.dart',
+        'lib/features/player/presentation/screens/local_collections_screen.dart',
+        'lib/features/player/presentation/screens/quick_play_screen.dart',
+        'lib/features/player/presentation/widgets/global_player_bar.dart',
+        'lib/features/player/presentation/widgets/mobile_global_player_bar.dart',
+        'lib/features/player/presentation/widgets/local_collection_actions.dart',
+        'lib/features/player/presentation/widgets/local_media_metadata_dialog.dart',
+        'lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart',
+        'lib/features/player/presentation/widgets/playback_queue_panel.dart',
+        'lib/features/player/presentation/widgets/playback_queue_playlist_action.dart',
+      ];
+      for (final path in surfaces) {
+        expect(
+          File(path).readAsStringSync(),
+          isNot(contains('AppServices.instance')),
+          reason: '$path is handed its collaborators by the assembly layer.',
+        );
+      }
+
+      // The bundle is built in lib/app and the routing table uses it for every
+      // library route, so five sections and quick play share one object.
+      final router = File('lib/app/app_router.dart').readAsStringSync();
+      expect(router, contains('assembleLocalLibraryDependencies(services)'));
+      expect(router, contains('_libraryShell('));
+
+      final assembly = File(
+        'lib/app/local_library_assembly.dart',
+      ).readAsStringSync();
+      for (final service in [
+        'services.localMediaLibraryRepository',
+        'services.localMediaCollectionRepository',
+        'services.localMediaMetadataRepository',
+        'services.playHistoryRepository',
+        'services.localMediaRelinkService',
+        'services.audioLibraryImportService',
+        'services.playbackSessionService',
+        'services.audioPlayerService',
+        'services.lyricFileImportService',
+      ]) {
+        expect(assembly, contains(service), reason: '$service is assembled here');
+      }
+      // One resolver for the whole app: importing lyrics writes the corrected
+      // queue flag back through the session.
+      expect(assembly, contains('buildPlaybackLyricsResolver(services)'));
+
+      // The player bars are chrome, so the shell builds them rather than the
+      // routing table — and must hand them the same bundle.
+      final app = File('lib/app/app.dart').readAsStringSync();
+      expect(app, contains('MobileGlobalPlayerBar(dependencies: localLibrary)'));
+      expect(app, contains('GlobalPlayerBar(dependencies: localLibrary)'));
     });
 
     test('the KTV surface has a single owner', () {

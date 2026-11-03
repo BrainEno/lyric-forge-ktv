@@ -4,6 +4,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
+import '../local_library_dependencies.dart';
 import 'local_artist_album_browser_screen.dart';
 import 'local_collections_screen.dart';
 import 'local_library_explorer_screen.dart';
@@ -22,15 +23,23 @@ import 'local_library_explorer_screen.dart';
 class LocalMusicLibraryShell extends StatefulWidget {
   final int initialIndex;
 
+  /// Supplied by the routing table (`lib/app/local_library_assembly.dart`) and
+  /// handed to each section. Builds only when [sections] is omitted.
+  final LocalLibraryDependencies? dependencies;
+
   /// Section bodies. Injected by tests, which cannot stand up the library
-  /// repositories; production always uses the real screens.
+  /// repositories; production builds them from [dependencies].
   final List<Widget>? sections;
 
   const LocalMusicLibraryShell({
     super.key,
     this.initialIndex = 0,
+    this.dependencies,
     this.sections,
-  });
+  }) : assert(
+         dependencies != null || sections != null,
+         'The shell needs either the library dependencies or explicit sections.',
+       );
 
   @override
   State<LocalMusicLibraryShell> createState() => _LocalMusicLibraryShellState();
@@ -67,10 +76,13 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     ),
   ];
 
+  late List<Widget> _pages;
+
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex.clamp(0, _sections.length - 1).toInt();
+    _pages = _buildPages();
   }
 
   @override
@@ -78,6 +90,10 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialIndex != widget.initialIndex) {
       _index = widget.initialIndex.clamp(0, _sections.length - 1).toInt();
+    }
+    if (!identical(oldWidget.sections, widget.sections) ||
+        !identical(oldWidget.dependencies, widget.dependencies)) {
+      _pages = _buildPages();
     }
   }
 
@@ -90,15 +106,33 @@ class _LocalMusicLibraryShellState extends State<LocalMusicLibraryShell> {
     );
   }
 
-  static const List<Widget> _defaultPages = [
-    LocalLibraryExplorerScreen(),
-    LocalArtistAlbumBrowserScreen(view: LocalCatalogView.artists),
-    LocalArtistAlbumBrowserScreen(view: LocalCatalogView.albums),
-    LocalCollectionsScreen(view: LocalCollectionView.favorites),
-    LocalCollectionsScreen(view: LocalCollectionView.playlists),
-  ];
-
-  List<Widget> get _pages => widget.sections ?? _defaultPages;
+  /// Built once per dependency object: the sections live in an `IndexedStack`,
+  /// so rebuilding them on every parent frame would throw away their scroll
+  /// position and reload the library.
+  List<Widget> _buildPages() {
+    final sections = widget.sections;
+    if (sections != null) return sections;
+    final dependencies = widget.dependencies!;
+    return [
+      LocalLibraryExplorerScreen(dependencies: dependencies),
+      LocalArtistAlbumBrowserScreen(
+        view: LocalCatalogView.artists,
+        dependencies: dependencies,
+      ),
+      LocalArtistAlbumBrowserScreen(
+        view: LocalCatalogView.albums,
+        dependencies: dependencies,
+      ),
+      LocalCollectionsScreen(
+        view: LocalCollectionView.favorites,
+        dependencies: dependencies,
+      ),
+      LocalCollectionsScreen(
+        view: LocalCollectionView.playlists,
+        dependencies: dependencies,
+      ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -36,6 +36,7 @@ NowPlayingDependencies assembleNowPlayingDependencies(AppServices services) {
     playbackSession: services.playbackSessionService,
     audioPlayer: services.audioPlayerService,
     lyricsResolver: buildPlaybackLyricsResolver(services),
+    localCollectionRepository: services.localMediaCollectionRepository,
     immersiveKtv: assembleImmersiveKtvDependencies(services),
   );
 }
