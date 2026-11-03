@@ -755,7 +755,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   final runtimeStatus = await locator.asrRuntimeManager.inspect(
                     resolved.config,
                   );
-                  final runtimeReady = runtimeStatus.areReady(const {
+                  final runtimeReady = runtimeStatus.hasReadyComponents(const {
                     AsrRuntimeComponent.qwenRuntime,
                     AsrRuntimeComponent.qwenAligner,
                   });

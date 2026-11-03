@@ -138,7 +138,7 @@ void main() {
       ]);
     });
 
-    test('areReady answers for an optional subset, not the whole profile', () {
+    test('hasReadyComponents answers for an optional subset', () {
       const status = AsrRuntimeStatus(
         profile: profile,
         managedRoot: '/tmp/runtime',
@@ -168,14 +168,14 @@ void main() {
       // "fully ready" can still satisfy this capability.
       expect(status.isReady, isFalse);
       expect(
-        status.areReady(const {
+        status.hasReadyComponents(const {
           AsrRuntimeComponent.qwenRuntime,
           AsrRuntimeComponent.qwenAligner,
         }),
         isTrue,
       );
       expect(
-        status.areReady(const {
+        status.hasReadyComponents(const {
           AsrRuntimeComponent.qwenRuntime,
           AsrRuntimeComponent.qwenModel,
         }),
@@ -183,7 +183,7 @@ void main() {
       );
     });
 
-    test('areReady is false when a required component is absent entirely', () {
+    test('hasReadyComponents is false when a required component is absent', () {
       const status = AsrRuntimeStatus(
         profile: profile,
         managedRoot: '/tmp/runtime',
@@ -197,8 +197,8 @@ void main() {
         ],
       );
 
-      expect(status.areReady(const {AsrRuntimeComponent.qwenAligner}), isFalse);
-      expect(status.areReady(const {AsrRuntimeComponent.ffmpeg}), isTrue);
+      expect(status.hasReadyComponents(const {AsrRuntimeComponent.qwenAligner}), isFalse);
+      expect(status.hasReadyComponents(const {AsrRuntimeComponent.ffmpeg}), isTrue);
     });
   });
 }
