@@ -884,12 +884,28 @@ class ServiceLocator {
 
 **没有改变的东西**：录音开始/停止、导出与试听仍然全部走 `KtvRecordingService` 与 `AudioPreviewService`，录音不进入播放队列，4.3 的 `exclusive_preview` 语义未被触碰。**棘轮不动**：54 处 / 29 文件——这四个 KTV 服务在第二步已随死代码离开 `lib/features`，本步没有新的单例可迁，也就不能声称减了。
 
+### 4.2 第四步（2026-11-03，本地音乐库）
+
+播放面与 KTV 之后剩下最大的一块：本地音乐库。五个分区（歌曲 / 艺人 / 专辑 / 收藏 / 歌单）、快速播放、两个播放条、队列面板，以及它们打开的四个对话框/动作，全都在 `initState` 或函数体里直接取单例。这一步之后**播放器特性内 0 处**（除文档注释），全仓 **54 处 / 29 文件 → 32 处 / 19 文件**。
+
+**一个包，不是四个**。`LocalLibraryDependencies` 绑定九个协作者（库仓库、收藏歌单仓库、元数据仓库、播放历史仓库、重新定位服务、音频导入服务、会话、播放器）+ `LyricsImportDependencies`（解析器 + 歌词导入器）。与播放面不同（每屏用的子集不同，所以拆成两个对象），音乐库五分区是**同一个屏幕的五个身体**，拆开只会得到四个几乎一样的类。
+
+**三处兜底消失**：
+
+- `showCreateLocalPlaylistDialog` / `showRenameLocalPlaylistDialog` / `showAddToLocalPlaylistDialog` 的 `repository ?? AppServices.instance...` —— 可选参数变成必填参数。调用点早就都传了仓库，兜底只是「忘传时静默退回全局」。
+- `LocalFavoriteButton` 自己取仓库 → 必填 `repository`；`didUpdateWidget` 里仓库变了会重订阅。
+- `PlaybackQueuePanel` 的「保存队列为歌单」→ 必填 `collectionRepository`，代价是 `NowPlayingDependencies` 多一个字段（这个按钮真的需要它，比让面板回落单例诚实）。
+
+**两个行为变化**：① 两个播放条在 bootstrap 之前不渲染（它们原来在 `initState` 读 `late final`，未初始化会抛异常；生产总是先 `initialize()`，app 壳早已用同样理由跳过歌词同步组件）；② `LocalMusicLibraryShell` 从「无参 + `static const` 五个默认页」变成「要 `dependencies` 或显式 `sections`」，且页面只在依赖变化时重建一次——分区装在 `IndexedStack` 里，每帧重建会丢滚动位置并重新加载库。
+
+**棘轮**：54 → **32** 处（29 → 19 文件）；新增断言——12 个库文件零 `AppServices.instance`、路由表必须调 `assembleLocalLibraryDependencies` 并走 `_libraryShell(`、装配层真的绑定九个服务并复用同一个 `buildPlaybackLyricsResolver`、`lib/app/app.dart` 必须把同一个包交给两个播放条。
+
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
 | 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例）。第三步（同日）：编辑会话 → `LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史），屏幕 2,298 → 2,064 行（43 例）。**三步合计 4,591 → 2,064 行**。剩余：强制对齐 runner 装配（属 4.2） |
-| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口。第三步（同日）：`ImmersiveKtvDependencies`（9 个协作者）+ `lib/app/playback_assembly.dart` 装配，录音工具条 / 麦克风 sheet / 演唱历史 sheet 回到 `ImmersiveKtvScreen`，恢复 `isRecording || isExporting` 变更锁；棘轮维持 54 处 / 29 文件 | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
+| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口。第三步（同日）：`ImmersiveKtvDependencies`（9 个协作者）+ `lib/app/playback_assembly.dart` 装配，录音工具条 / 麦克风 sheet / 演唱历史 sheet 回到 `ImmersiveKtvScreen`，恢复 `isRecording || isExporting` 变更锁；棘轮维持 54 处 / 29 文件。第四步（同日，本地音乐库）：`LocalLibraryDependencies`（9 个协作者）+ `lib/app/local_library_assembly.dart`，五个分区 / 快速播放 / 两个播放条 / 队列面板 / 四个对话框全部构造注入，棘轮 54 → 32 处（29 → 19 文件） | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
 | 4.5 | 合并/退役 22 个专项 workflow，保留主门禁 + 原生构建 + runtime 发布 + 图标 |
