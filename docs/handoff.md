@@ -7,9 +7,9 @@
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 分支：`arena/b0768890-lyric-forge-ktv`（Arena 会话分支；从 `main` = `5310f41` 起步）。
-- 本分支包含 Phase 4.1 第二步：`proofread_review_proposal.dart` / `proofread_v2_review_assembler.dart` / `proofread_v2_document_composer.dart` / `forced_alignment_language.dart`（均新增于 `domain/proofreading/`）+ `AsrRuntimeStatus.hasReadyComponents`；屏幕 2,597 → 2,298 行，新增 36 例测试。
-- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（4.1 交接文档，PR #293）。
+- 分支：`arena/b0768890-lyric-forge-ktv`。
+- Phase 4.1 第二步已合入 `main`（PR #294，合并提交 `95da409`），其 push 门禁 run 41568282203 为绿；`main` 之后的工作区应为 clean。
+- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（4.1 交接文档，PR #293）、`95da409`（4.1 第二步，PR #294）。
 
 ## 已改文件
 
@@ -39,7 +39,7 @@
   - `bash scripts/quality_gate.sh --skip-pub-get`（全量，含工作日志契约）=> 通过（run 41567177240 绿）。
 - assembler 覆盖：参考顺序而非草稿顺序、插值行无草稿来源且保持琥珀色、受保护行变 locked、提案文档丢弃 globalOffset、被删行仍可见、覆盖率说明只在自动策略出现、参考警告按条数说明；ASR 优先的一一对应、低分行、受保护行、强制对齐有无词级证据两种标签、四种说明文案与警告透传；摘要计数与覆盖率可选项；标签枚举全覆盖。
 - composer 覆盖：接受即替换、未接受保留草稿、locked 无条件应用、无来源新行按审核顺序插入、被删行仅显式恢复且按时间戳插回、参考优先改时间才归零偏移（文本改动与 ASR 优先不动偏移）、时间溯源只跟随存活 id、缺 id 自动补齐；`isDifferent` 识别文本/时间/置信度/偏移/增删行。
-- PR 的 Flutter Quality Gate 在合并前等待通过。
+- PR #294 的 Flutter Quality Gate 通过后合并；合并后 `main` 的 push 门禁 run 41568282203 通过。
 
 ## 已知风险
 
@@ -82,4 +82,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 10:40（Asia/Taipei）
+最后更新：2026-11-03 11:04（Asia/Taipei）
