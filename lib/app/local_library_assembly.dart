@@ -8,7 +8,9 @@ import 'playback_assembly.dart';
 /// locator from inside its widgets. Its nine collaborators are bound here, in
 /// the assembly layer, so the screens take one object and a widget test can
 /// hand them fakes instead of the on-disk library and the real audio engine.
-LocalLibraryDependencies assembleLocalLibraryDependencies(AppServices services) {
+LocalLibraryDependencies assembleLocalLibraryDependencies(
+  AppServices services,
+) {
   return LocalLibraryDependencies(
     libraryRepository: services.localMediaLibraryRepository,
     collectionRepository: services.localMediaCollectionRepository,
@@ -27,7 +29,9 @@ LocalLibraryDependencies assembleLocalLibraryDependencies(AppServices services) 
 /// Shares the app's single [PlaybackLyricsResolver]: resolution writes the
 /// corrected `hasLyrics` flag back through the session, so the library, the
 /// player bar and Now Playing must not each own their own copy of that logic.
-LyricsImportDependencies assembleLyricsImportDependencies(AppServices services) {
+LyricsImportDependencies assembleLyricsImportDependencies(
+  AppServices services,
+) {
   return LyricsImportDependencies(
     lyricsResolver: buildPlaybackLyricsResolver(services),
     importer: services.lyricFileImportService,

@@ -304,7 +304,11 @@ void main() {
         'services.audioPlayerService',
         'services.lyricFileImportService',
       ]) {
-        expect(assembly, contains(service), reason: '$service is assembled here');
+        expect(
+          assembly,
+          contains(service),
+          reason: '$service is assembled here',
+        );
       }
       // One resolver for the whole app: importing lyrics writes the corrected
       // queue flag back through the session.
@@ -313,7 +317,10 @@ void main() {
       // The player bars are chrome, so the shell builds them rather than the
       // routing table — and must hand them the same bundle.
       final app = File('lib/app/app.dart').readAsStringSync();
-      expect(app, contains('MobileGlobalPlayerBar(dependencies: localLibrary)'));
+      expect(
+        app,
+        contains('MobileGlobalPlayerBar(dependencies: localLibrary)'),
+      );
       expect(app, contains('GlobalPlayerBar(dependencies: localLibrary)'));
     });
 

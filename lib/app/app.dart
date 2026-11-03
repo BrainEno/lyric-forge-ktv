@@ -114,7 +114,9 @@ class ElysiumPlayerApp extends StatelessWidget {
                   return Column(
                     children: [
                       Expanded(child: syncedShell),
-                      if (showChrome && !suppressPlayerBar && localLibrary != null)
+                      if (showChrome &&
+                          !suppressPlayerBar &&
+                          localLibrary != null)
                         MobileGlobalPlayerBar(dependencies: localLibrary),
                       if (showChrome && showNavigation)
                         AppBottomNavigation(

@@ -372,7 +372,8 @@ class _LocalArtistAlbumBrowserScreenState
                 (index) => _CatalogSongTile(
                   song: songs[index],
                   index: index,
-                  collectionRepository: widget.dependencies.collectionRepository,
+                  collectionRepository:
+                      widget.dependencies.collectionRepository,
                   onPlay: () => _playSongs(songs, requestedIndex: index),
                   onEnqueue: () => _enqueue(songs[index]),
                 ),
