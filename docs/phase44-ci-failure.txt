@@ -1,0 +1,58 @@
+Could not format because the source could not be parsed:
+
+line 1458, column 7 of lib/features/lyrics/presentation/screens/lyric_editor_screen.dart: Expected to find ';'.
+     ╷
+1458 │       ),
+     │       ^
+     ╵
+line 1458, column 8 of lib/features/lyrics/presentation/screens/lyric_editor_screen.dart: Expected an identifier.
+     ╷
+1458 │       ),
+     │        ^
+     ╵
+line 1458, column 8 of lib/features/lyrics/presentation/screens/lyric_editor_screen.dart: Unexpected text ';'.
+     ╷
+1458 │       ),
+     │        ^
+     ╵
+line 1459, column 5 of lib/features/lyrics/presentation/screens/lyric_editor_screen.dart: Expected to find '}'.
+     ╷
+1459 │     );
+     │     ^
+     ╵
+line 1459, column 6 of lib/features/lyrics/presentation/screens/lyric_editor_screen.dart: Expected to find ')'.
+     ╷
+1459 │     );
+     │      ^
+     ╵
+Could not format because the source could not be parsed:
+
+line 430, column 7 of lib/features/player/presentation/widgets/global_player_bar.dart: Expected to find ';'.
+    ╷
+430 │       ),
+    │       ^
+    ╵
+line 430, column 8 of lib/features/player/presentation/widgets/global_player_bar.dart: Expected an identifier.
+    ╷
+430 │       ),
+    │        ^
+    ╵
+line 430, column 8 of lib/features/player/presentation/widgets/global_player_bar.dart: Unexpected text ';'.
+    ╷
+430 │       ),
+    │        ^
+    ╵
+line 431, column 5 of lib/features/player/presentation/widgets/global_player_bar.dart: Expected to find '}'.
+    ╷
+431 │     );
+    │     ^
+    ╵
+line 431, column 6 of lib/features/player/presentation/widgets/global_player_bar.dart: Expected to find ')'.
+    ╷
+431 │     );
+    │      ^
+    ╵
+Formatted lib/features/player/presentation/widgets/mobile_global_player_bar.dart
+Formatted lib/features/player/presentation/widgets/playback_mode_controls.dart
+Formatted test/features/player/presentation/widgets/playback_session_state_scope_test.dart
+Formatted 7 files (3 changed) in 0.09 seconds.
