@@ -1,0 +1,70 @@
+name: temp probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: arena/d137d1cd-lyric-forge-ktv
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-flutter
+
+      - name: Pub get
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format (auto-fix and push)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1 || true
+          mapfile -t files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          if (( ${#files[@]} == 0 )); then
+            echo "no changed dart files"
+            exit 0
+          fi
+          if dart format --output=none --set-exit-if-changed "${files[@]}"; then
+            echo "already formatted"
+            exit 0
+          fi
+          dart format "${files[@]}"
+          git config user.name "probe"
+          git config user.email "probe@example.com"
+          git add -A
+          git commit -m "chore: dart format (probe)"
+          git push origin HEAD:arena/d137d1cd-lyric-forge-ktv
+
+      - name: Analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub lib test > /tmp/analyze.log 2>&1
+          echo "exit=$?"
+          grep -nE "error •|warning •" /tmp/analyze.log | head -12 | while IFS= read -r line; do
+            echo "::error::${line:0:800}"
+          done
+
+      - name: Tests
+        shell: bash
+        run: |
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/architecture/app_assembly_contract_test.dart \
+            test/features/player/presentation/screens/immersive_ktv_recording_test.dart \
+            test/features/player/presentation/widgets/ktv_take_history_sheet_test.dart \
+            test/widget_test.dart > /tmp/test.log 2>&1
+          echo "exit=$?"
+          grep -nE "^[0-9]{2}:[0-9]{2} .*\[E\]|Expected:|Actual:|failed \(|The following .* was thrown" /tmp/test.log | head -12 | while IFS= read -r line; do
+            echo "::error::${line:0:800}"
+          done
+          tail -c 1200 /tmp/test.log | tr '\n' '|' | fold -w 800 | head -2 | while IFS= read -r line; do
+            echo "::error::tail ${line}"
+          done
