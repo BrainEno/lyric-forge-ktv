@@ -23,6 +23,12 @@ jobs:
           set -uo pipefail
           mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
           echo "::notice title=FORMAT_FILE_COUNT::${#files[@]}"
+          echo "::notice title=FORMAT_FILES::${files[*]}"
+          if dart format --output=none --set-exit-if-changed "${files[@]}"; then
+            echo '::notice title=COMBINED_FORMAT_CHECK::passed'
+          else
+            echo '::error title=COMBINED_FORMAT_CHECK::failed'
+          fi
           for file in "${files[@]}"; do
             if ! dart format --output=none --set-exit-if-changed "$file" >/dev/null; then
               echo "::error title=NEEDS_FORMAT::$file"
