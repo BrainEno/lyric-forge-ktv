@@ -75,8 +75,10 @@ class _NowPlayingLyricsProjectActionState
                   MaterialPageRoute<void>(
                     builder: (_) => ImmersiveKtvScreen(
                       initialProjectId: projectId,
-                      projectRepository: widget.lyricsResolver.projectRepository,
-                      metadataRepository: widget.lyricsResolver.metadataRepository,
+                      projectRepository:
+                          widget.lyricsResolver.projectRepository,
+                      metadataRepository:
+                          widget.lyricsResolver.metadataRepository,
                       audioService: widget.audioPlayer,
                       playbackSession: widget.lyricsResolver.playbackSession,
                       pathCanonicalizer:
