@@ -1,0 +1,36 @@
+name: Temporary Dart formatter
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.dart'
+      - '.github/workflows/temp-format.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/setup-flutter
+      - name: Format changed files and push formatter output
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "HEAD" -- '*.dart')
+          if (( ${#dart_files[@]} == 0 )); then exit 0; fi
+          dart format "${dart_files[@]}"
+          if ! git diff --quiet -- "${dart_files[@]}"; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add "${dart_files[@]}"
+            git commit -m 'chore: dart format'
+            git push origin "HEAD:${HEAD_BRANCH}"
+          fi
