@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_queue_models.dart';
+import '../../domain/services/batch_transcription_queue.dart';
 
 class GlobalTranscriptionQueueBar extends StatelessWidget {
-  const GlobalTranscriptionQueueBar({super.key});
+  final BatchTranscriptionQueue queue;
+
+  const GlobalTranscriptionQueueBar({super.key, required this.queue});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +21,6 @@ class GlobalTranscriptionQueueBar extends StatelessWidget {
             defaultTargetPlatform == TargetPlatform.linux);
     if (!isDesktop) return const SizedBox.shrink();
 
-    final queue = AppServices.instance.transcriptionQueue;
     return StreamBuilder<TranscriptionQueueSnapshot>(
       stream: queue.snapshots,
       initialData: queue.current,

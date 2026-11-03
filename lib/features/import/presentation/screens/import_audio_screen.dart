@@ -173,8 +173,8 @@ class _ImportAudioScreenState extends State<ImportAudioScreen> {
                 SizedBox(height: spec.isShort ? AppSpacing.lg : AppSpacing.xl),
                 TranscriptionQueuePanel(
                   queue: widget.dependencies.transcriptionQueue,
-                  settingsStore: widget.dependencies.transcriptionSettingsStore,
-                  runtimeManager: widget.dependencies.asrRuntimeManager,
+                  setupDependencies:
+                      widget.dependencies.asrRuntimeSetupDependencies,
                 ),
               ],
             ),

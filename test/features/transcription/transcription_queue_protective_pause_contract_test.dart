@@ -33,7 +33,8 @@ void main() {
       ).readAsString();
 
       expect(panel, contains('state.isEnvironmentBlocked'));
-      expect(panel, contains('AsrRuntimeSetupDialog(initialConfig: current)'));
+      expect(panel, contains('AsrRuntimeSetupDialog('));
+      expect(panel, contains('dependencies: setupDependencies'));
       expect(panel, contains('TranscriptionQueueEnvironmentRecovery('));
       expect(panel, contains('final result = await recovery.recover(updated)'));
       expect(panel, contains('if (!result.ready)'));

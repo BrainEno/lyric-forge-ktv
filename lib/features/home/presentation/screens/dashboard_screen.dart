@@ -76,8 +76,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       final updated = await showDialog<TranscriptionConfig>(
         context: context,
-        builder: (context) =>
-            TranscriptionConfigDialog(initialConfig: initialConfig),
+        builder: (context) => TranscriptionConfigDialog(
+          initialConfig: initialConfig,
+          dependencies: widget.dependencies.configDialogDependencies,
+        ),
       );
       if (updated == null || !mounted) return;
       if (updated.isConfigured) {

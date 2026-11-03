@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../app/app_services.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/transcription_models.dart';
@@ -11,6 +10,7 @@ import '../../domain/services/asr_managed_storage_service.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/asr_storage_preflight_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import '../transcription_screen_dependencies.dart';
 import 'asr_existing_model_actions.dart';
 import 'asr_install_error_card.dart';
 import 'asr_install_progress_card.dart';
@@ -19,8 +19,13 @@ import 'transcription_config_dialog.dart';
 
 class AsrRuntimeSetupDialog extends StatefulWidget {
   final TranscriptionConfig? initialConfig;
+  final AsrRuntimeSetupDependencies dependencies;
 
-  const AsrRuntimeSetupDialog({super.key, this.initialConfig});
+  const AsrRuntimeSetupDialog({
+    super.key,
+    this.initialConfig,
+    required this.dependencies,
+  });
 
   @override
   State<AsrRuntimeSetupDialog> createState() => _AsrRuntimeSetupDialogState();
@@ -49,11 +54,10 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   @override
   void initState() {
     super.initState();
-    final services = AppServices.instance;
-    _runtimeManager = services.asrRuntimeManager;
-    _storagePreflightService = services.asrStoragePreflightService;
-    _managedStorageService = services.asrManagedStorageService;
-    _settingsStore = services.transcriptionSettingsStore;
+    _runtimeManager = widget.dependencies.asrRuntimeManager;
+    _storagePreflightService = widget.dependencies.asrStoragePreflightService;
+    _managedStorageService = widget.dependencies.asrManagedStorageService;
+    _settingsStore = widget.dependencies.transcriptionSettingsStore;
     _config =
         widget.initialConfig ??
         const TranscriptionConfig(
@@ -360,7 +364,10 @@ class _AsrRuntimeSetupDialogState extends State<AsrRuntimeSetupDialog> {
   Future<void> _openAdvanced() async {
     final updated = await showDialog<TranscriptionConfig>(
       context: context,
-      builder: (context) => TranscriptionConfigDialog(initialConfig: _config),
+      builder: (context) => TranscriptionConfigDialog(
+        initialConfig: _config,
+        dependencies: widget.dependencies.configDialogDependencies,
+      ),
     );
     if (updated == null || !mounted) return;
 

@@ -88,7 +88,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     final config = await showDialog<TranscriptionConfig>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AsrRuntimeSetupDialog(initialConfig: current),
+      builder: (context) => AsrRuntimeSetupDialog(
+        initialConfig: current,
+        dependencies: widget.dependencies.asrRuntimeSetupDependencies,
+      ),
     );
     if (config == null) return current;
 

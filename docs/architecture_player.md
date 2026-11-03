@@ -289,7 +289,7 @@ POST /v1/incoming/audio?filename=...     回传音频（2 GiB 等限额，见实
 
 ## 状态管理策略（已实现）
 
-未采用 BLoC 或任何第三方状态管理框架：界面状态以 `setState` 为主，播放/队列/会话等长生命周期状态由领域服务以 `Stream` 暴露，播放会话收敛为单一 app 级模型（`PlaybackSessionService`）；依赖装配集中在 `lib/app/app_services.dart` 手工完成（Phase 4.2 从 `lib/core/services/service_locator.dart` 迁出，装配层整体位于 `lib/app/`：服务图、路由表、App widget 与各屏的依赖装配）；屏幕逐步改为构造注入，尚未迁移的屏幕仍通过 `AppServices.instance` 过渡。相关取舍与后续重构诉求见 issue #235。
+未采用 BLoC 或任何第三方状态管理框架：界面状态以 `setState` 为主，播放/队列/会话等长生命周期状态由领域服务以 `Stream` 暴露，播放会话收敛为单一 app 级模型（`PlaybackSessionService`）；依赖装配集中在 `lib/app/`（Phase 4.2 从 `lib/core/services/service_locator.dart` 迁出，包含服务图、路由表、App widget 与各屏的依赖装配）。所有 feature screen 都经必填构造参数接收依赖，`lib/features/` 不再导入 `lib/app/` 或直接读取 `AppServices.instance`；架构契约将 singleton 调用数约束为 0。相关取舍与后续重构诉求见 issue #235。
 
 ## 依赖清单（已实现快照，以 pubspec.yaml 为准）
 

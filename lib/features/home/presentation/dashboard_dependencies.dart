@@ -4,6 +4,7 @@ import '../../player/domain/services/playback_session_service.dart';
 import '../../project/domain/repositories/project_repository.dart';
 import '../../transcription/domain/services/batch_transcription_queue.dart';
 import '../../transcription/domain/services/transcription_settings_store.dart';
+import '../../transcription/presentation/transcription_screen_dependencies.dart';
 
 /// Collaborators used by the dashboard's recent activity and playback actions.
 class DashboardDependencies {
@@ -13,6 +14,7 @@ class DashboardDependencies {
   final AudioPlayerService audioPlayer;
   final BatchTranscriptionQueue transcriptionQueue;
   final TranscriptionSettingsStore transcriptionSettingsStore;
+  final TranscriptionConfigDialogDependencies configDialogDependencies;
 
   const DashboardDependencies({
     required this.projectRepository,
@@ -21,5 +23,6 @@ class DashboardDependencies {
     required this.audioPlayer,
     required this.transcriptionQueue,
     required this.transcriptionSettingsStore,
+    required this.configDialogDependencies,
   });
 }

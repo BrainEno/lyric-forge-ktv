@@ -13,8 +13,11 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_queue_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_download_connection_checker.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/batch_transcription_queue.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
+import 'package:lyric_forge_ktv/features/transcription/presentation/transcription_screen_dependencies.dart';
 
 void main() {
   late _TestProjectRepository projects;
@@ -42,6 +45,11 @@ void main() {
         audioPlayer: audioPlayer,
         transcriptionQueue: transcriptionQueue,
         transcriptionSettingsStore: transcriptionSettingsStore,
+        configDialogDependencies: TranscriptionConfigDialogDependencies(
+          profileResolver: _UnusedTranscriptionProfileResolver(),
+          downloadConnectionChecker: _UnusedAsrDownloadConnectionChecker(),
+          downloadProxyStore: _UnusedDownloadProxyStore(),
+        ),
       ),
     ),
   );
@@ -166,4 +174,21 @@ class _TestTranscriptionSettingsStore implements TranscriptionSettingsStore {
 
   @override
   Future<void> clear() async {}
+}
+
+class _UnusedTranscriptionProfileResolver
+    implements TranscriptionProfileResolver {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnusedAsrDownloadConnectionChecker
+    implements AsrDownloadConnectionChecker {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnusedDownloadProxyStore implements TranscriptionDownloadProxyStore {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -2,126 +2,40 @@
 
 ## 目标
 
-「不如以前」的识别质量回退，按 `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 的 R1–R11 逐项修复。Phase 0、Phase 1 的前五项、R8（置信度语义）、R9（Qwen 解码预算）、Phase 3.1（校对入口合一）、3.2（工具栏重排）、3.3（复核语义统一）、3.4（撤销栈）、3.5（统一导航）、Phase 4.3（试听统一走服务层）、Phase 4.1 三步（编辑器拆分：试听状态机 + 三个 pane；校对提案逻辑进 domain；编辑会话 → 文档控制器）、Phase 4.2 第一步（装配层迁入 `lib/app/`，编辑器与复核收件箱改为构造注入）、第二步（播放面构造注入 + 删除不可达的全屏 KTV 视图）、第三步（KTV 录音/导出/历史放回全屏 KTV）、第四步（本地音乐库构造注入）已完成；第五步（项目 / 导入 / 远程媒体屏构造注入，PR #305）与第六步（Dashboard 注入、删除不可达的旧桌面分享屏，PR #307）均已合并。第七步（活动 transfer screens 构造注入、删除两个不可达旧屏）已完成代码修改，待 CI 验证；剩 1.6 的 Whisper 参数需真实语料验收，Phase 2 首启动需要真机。
+Phase 4.2 的 `AppServices.instance` consumer 迁移已全部完成：最后 5 个 ASR/settings/queue consumer 均改成必填构造注入，并由 `lib/app/` 装配。设置存储实例、ASR runtime/preflight、模型恢复、配置保存、下载代理和队列 protective-pause/recovery 语义保持不变；没有修改识别算法、歌词处理或 UI 布局。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 当前工作分支：`arena/df1923be-lyric-forge-ktv`；Phase 4.2 第七步已由 PR #309 合并，交接文档记录 main 后续门禁结果；当前 `main` 合并提交为 `85fa82d`。
-- Phase 4.1 第三步与交接文档已合入 `main`（PR #296/#297，`e39dac6` / `5007612`），push 门禁 run 41577890630 为绿。
-- Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
-- Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
-- Phase 4.2 第三步（KTV 录音放回全屏 KTV）已合入 `main`（PR #301，合并提交 `8f1f55d`）：PR 的 5 个 check 全绿（质量门禁 run 41590712440），`main` push 门禁 run 41591171421 为绿；交接文档 PR #302（`884e683`），`main` 门禁 run 41591540954 为绿。
-- Phase 4.2 第四步（本地音乐库构造注入）已合入 `main`（PR #303，合并提交 `bc468c9`）：PR 的 5 个 check 全绿（质量门禁 run 41603297220、KTV history 41603297223、settings 41603297219、readiness 41603297315、widget-root 41603297276），`main` push 门禁 run 41603702731 为绿。
-- Phase 4.2 第五步（项目 / 导入 / 远程媒体屏构造注入）：PR #305 已合入 `main`（合并提交 `61366bc`）：PR 7 个 check 全绿（最终代码检查质量门禁 41610546660、queue protective pause 41610546765、queue inline repair 41610546717、readiness 41610546517、settings 41610546512、ASR client 41610546603、widget-root 41610546751）；合并后 `main` push 门禁 run 41611000594 为绿。
-- Phase 4.2 第六步（Dashboard 构造注入 + 删除不可达的旧桌面分享屏）：PR #307 已合入 `main`（合并提交 `f5bbbba`）；PR 的 3 个 check 全绿（质量门禁 41615427203、readiness 41615427165、widget-root 41615426993），`main` push 门禁 run 41615872789 为绿。
-- Phase 4.2 第七步（活动 transfer screens 构造注入 + 删除无生产调用点的两个旧屏）：PR #309 已合入 `main`（merge commit `85fa82d`）。PR 质量门禁 run 41621483112、readiness 41621483098、widget-root 41621483096 全绿。合并后 main push 质量门禁 run 41621880411 在已知间歇性用例 `http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving` 失败；PR 同一代码版本质量门禁已全绿，按既有记录视为上传时限测试竞态，不据此改服务逻辑。
-- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
+- 工作分支：`arena/2cf82e60-lyric-forge-ktv`；功能提交 `7144c79 refactor: inject remaining ASR screen dependencies`。
+- 基线 main：`cf9f961`。PR #311 已打开；最近一次完整验证的 PR head 为 `32433bf`，质量门禁和 10 个专项 CI 全绿，等待按授权流程合并。
+- PR #311: https://github.com/BrainEno/lyric-forge-ktv/pull/311
 
 ## 已改文件
 
-- 本轮 4.2 第六步：新增 `DashboardDependencies`（5 个活动 / 播放协作者 + `TranscriptionSettingsStore`）及 `lib/app/home_assembly.dart`；Dashboard 删除可选依赖和单例 fallback，路由显式装配；删除无生产调用点的旧 `DesktopMediaSharingScreen`（559 行），当前 `/mediaSharing` 仍路由到 V2。棘轮 16/14 → 12/12。
-- 本轮 4.2 第七步（待 CI）：新增 `DesktopMediaHubDependencies` / `MobileMediaTransferDependencies` / `MobileRemoteLibraryDependencies` 与 `lib/app/transfer_assembly.dart`；桌面 V2、手机传输首页、远程歌曲 / 艺人 / 专辑 / 下载页全部收必填依赖，路由装配并向 shell 子页透传；删除无生产构造点的 `CrossDeviceMediaLibraryScreen` 与旧 `DesktopMediaTransferHubScreen`。契约覆盖装配、页面零单例与旧文件退役；棘轮预期 12/12 → 5/5。
-
-- 本轮 4.2 第五步：`ProjectDetailDependencies`、`TranscriptionImportDependencies`、`RemoteMediaLibraryDependencies`；新增 `lib/app/screen_assembly.dart`，项目详情、导入就绪页、批量导入页、远程媒体库和队列面板改为构造注入；导入就绪与批量导入共用同一依赖包，队列面板显式收队列 / 设置存储 / runtime。架构棘轮 32/19 → 16/14。远程媒体库目前没有路由/调用点，本轮不擅自添加入口。
-
-- `lib/app/app_services.dart` — 新增：原 `lib/core/services/service_locator.dart`（345 行）整体迁入并改名 `AppServices`，访问点 `AppServices.instance`；服务构建顺序逐行不变。旧文件与 `ServiceLocatorGlobal` extension 删除。
-- `lib/app/app.dart` — 新增：`ElysiumPlayerApp` 从 `lib/main.dart` 移出（可选 `services`，缺省取单例），`_navigatorKey` 私有化。
-- `lib/app/app_router.dart` — 新增：`const AppRouter(services)` + 实例 `onGenerateRoute`（取代 `core/navigation/app_router.dart` 的静态方法）；`/review` 与 `/project/:id/lyrics` 显式传依赖。
-- `lib/app/lyric_editor_assembly.dart` — 新增：`assembleLyricEditorDependencies` + `buildForcedAlignmentRunner`（把原先内联在 `_openProofreadV2` 里的设置读取 / profile 解析 / runtime 就绪检查 / 原生 aligner 调用搬出屏幕，两句中文错误文案逐字保留）。
-- `lib/core/navigation/routes.dart` — 新增：`Routes` 常量与三个 path helper。刻意留在 `lib/core`（`app_destinations.dart` 与各屏要在 `lib/app` 之下引用它）。
-- `lib/features/lyrics/presentation/lyric_editor_dependencies.dart` — 新增：`LyricEditorDependencies`（6 字段，runner 非空）。
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart` — 2,064 → 2,042 行：`initState` 的 5 处单例查询与 40 行内联 runner 换成 `widget.dependencies`。
-- `lib/features/lyrics/presentation/screens/review_inbox_screen.dart` — `projectRepository` 由可选变必填，删除单例回退。
-- `lib/main.dart` — 176 → 46 行：只剩 bootstrap 与首帧后的系统媒体会话挂接。
-- 38 个 feature 文件 — `ServiceLocatorGlobal.I` → `AppServices.instance`，import 指向 `lib/app/app_services.dart`。
-- `test/architecture/app_assembly_contract_test.dart` — 新增棘轮（`core→app` = 0；features 只许见 `app_services.dart`；单例调用点 ≤72 / ≤34 文件；编辑器与收件箱零 `AppServices`；路由表负责装配编辑器依赖；`main.dart` 不 import `presentation/`、不含 `MaterialApp(`）。
-- 测试与 workflow — 4 个读取源码路径的契约测试、2 个导航测试、`widget_test.dart` 改指向新路径；6 个 workflow 的 `paths`/`analyze` 从 `lib/core/services/service_locator.dart` / 旧 router 改为 `lib/app/app_services.dart` / `lib/app`。
-- `lib/features/player/domain/services/playback_lyrics_availability.dart` — 新增 `PlaybackLyricsResolver`（绑定仓库/元数据仓库/会话/规范化器四个协作者）。
-- `lib/features/player/presentation/playback_screen_dependencies.dart` — 新增 `PlayerScreenDependencies`、`NowPlayingDependencies`。
-- `lib/app/playback_assembly.dart` — 新增 `buildPlaybackLyricsResolver` / `assemblePlayerScreenDependencies` / `assembleNowPlayingDependencies`。
-- `lib/features/player/presentation/screens/player_screen.dart` — 2,630 → 1,533 行：删除 `_FullScreenKtvView`（+State）、`_KtvAudioControlsSheet`、`_CompactSourceMenu`、`_FullscreenLyric`、`_FullscreenNoLyrics`、`_ktvSourceLabel`（全部无引用），剩下的屏幕改收依赖对象。
-- `lib/features/player/presentation/screens/now_playing_screen.dart`、`.../screens/immersive_ktv_screen.dart`、`.../widgets/playback_lyrics_availability_sync.dart`、`.../widgets/now_playing_lyrics_project_action.dart` — 改为构造注入；全屏 KTV 的五个服务由可选变必填。
-- `lib/app/app_services.dart` — 新增 `isInitialized`（bootstrap 之前渲染壳时不挂歌词同步）。
-- `test/architecture/app_assembly_contract_test.dart` — 棘轮降到 54 处 / 29 文件，并新增播放面与「全屏 KTV 唯一实现」断言。
-- `test/features/player/playback_lyrics_availability_test.dart` — resolver 端到端用例 + widget 构造改注入。
-- `test/features/player/ktv_take_operation_lock_test.dart` — 删除「播放器历史操作有保护」这条源码扫描用例（它断言的函数只在不可达视图里）。
-- `lib/features/player/presentation/playback_screen_dependencies.dart` — 新增 `ImmersiveKtvDependencies`（9 个协作者）；`PlayerScreenDependencies` 用 `immersiveKtv` 取代只服务于全屏 KTV 的 `metadataRepository` / `pathCanonicalizer`，`NowPlayingDependencies` 新增 `immersiveKtv`。
-- `lib/app/playback_assembly.dart` — 新增 `assembleImmersiveKtvDependencies`（麦克风 / 录音 / 演唱历史 / 试听四个 KTV 服务在此装配）。
-- `lib/features/player/presentation/screens/immersive_ktv_screen.dart` — 单一必填 `dependencies`；恢复录音开始/停止、成品 sheet、演唱历史 sheet、麦克风 sheet，`dispose` 时停录音并停监听，控制层新增录音工具条与常显录音指示。
-- `lib/features/player/presentation/widgets/ktv_recording_toolbar.dart` — 新增：录音/停止 + 时长 + 历史 + 麦克风四个入口（导出中禁用录音，录音或导出中禁用历史）。
-- `lib/features/player/presentation/widgets/ktv_microphone_sheet.dart` — 新增：被删的 `_KtvAudioControlsSheet` 原样迁移。
-- `lib/features/player/presentation/widgets/ktv_take_history_sheet.dart` — 新增：列表 / 收藏 / 重命名 / 删除 / 打开成品，内建 `isRecording || isExporting` 变更锁与两句话术。
-- `lib/features/player/presentation/screens/player_screen.dart`、`.../screens/now_playing_screen.dart`、`.../widgets/now_playing_lyrics_project_action.dart` — 传 `ImmersiveKtvDependencies` 而不是五个散装服务。
-- `test/features/player/presentation/screens/immersive_ktv_recording_test.dart`、`test/features/player/presentation/widgets/ktv_take_history_sheet_test.dart` — 新增：入口存在性、录音开始、导出期间禁用、退出时停录音；以及变更锁的拒绝与放行。
-- `lib/features/player/presentation/local_library_dependencies.dart` — 新增：`LocalLibraryDependencies`（9 个协作者）+ `LyricsImportDependencies`（解析器 + 歌词导入器）。
-- `lib/app/local_library_assembly.dart` — 新增：`assembleLocalLibraryDependencies` / `assembleLyricsImportDependencies`（复用全 App 唯一的 `PlaybackLyricsResolver`）。
-- `local_music_library_shell.dart` / `local_library_explorer_screen.dart` / `local_artist_album_browser_screen.dart` / `local_collections_screen.dart` / `quick_play_screen.dart` / `global_player_bar.dart` / `mobile_global_player_bar.dart` / `local_collection_actions.dart` / `local_media_metadata_dialog.dart` / `local_song_lyrics_import_action.dart` / `playback_queue_panel.dart` / `playback_queue_playlist_action.dart` — 全部改为构造注入；三个歌单对话框与 `LocalFavoriteButton`、`PlaybackQueuePanel` 的仓库参数由可选变必填（`?? AppServices.instance` 兜底删除）。
-- `lib/app/app_router.dart` — 五条音乐库路由收敛为 `_libraryShell(initialIndex)`，快速播放收依赖包。
-- `lib/app/app.dart` — bootstrap 前不装配 `localLibrary`，两个播放条因此不渲染（此前会读未初始化的 `late final`）。
-- `lib/features/player/presentation/playback_screen_dependencies.dart`、`lib/app/playback_assembly.dart` — `NowPlayingDependencies` 新增 `localCollectionRepository`（供队列面板保存歌单）。
-- `test/architecture/app_assembly_contract_test.dart` — 棘轮 54/29 → 32/19，新增「12 个库文件零 `AppServices.instance`」「路由表用 `assembleLocalLibraryDependencies`」「app 壳把同一个包交给两个播放条」三条断言。
-- `docs/architecture_player.md`、`docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`（§4.2 第一步记录 + Phase 4 表更新）、`docs/log/entries/2026-11-03-1320-app-assembly-layer.md`、`docs/work_log*.md`、本文件。
+- `lib/app/transcription_assembly.dart`：新增配置 dialog、runtime setup 和 Settings 屏幕依赖装配。
+- `lib/features/transcription/presentation/transcription_screen_dependencies.dart`、`lib/features/settings/presentation/settings_screen_dependencies.dart`：新增必填依赖对象。
+- `TranscriptionConfigDialog`、`AsrRuntimeSetupDialog`、设置区、E2E smoke 卡片、全局转写队列条移除 singleton 查询；Dashboard、导入、项目详情和 App 壳透传 app 层提供的依赖。
+- 队列面板继续通过原 `TranscriptionQueueEnvironmentRecovery` 完成恢复；同一 settings store/runtime 对象复用。
+- 更新架构棘轮、settings/队列保护契约与 dashboard widget test，ratchet 从 5/5 降为 0/0。
+- 更新 `docs/architecture_player.md`、识别/架构评审记录、work-log entry/summary/archive 与本 handoff。
 
 ## 检查结果
 
-- PR #309：质量门禁 run 41621483112、readiness 41621483098、widget-root 41621483096 全绿。质量门禁覆盖 work-log preflight、已解析依赖后的格式检查、analyze 与全量 Flutter tests。第一次 formatter 尝试未先解析 packages，未满足主门禁格式结果；按仓库惯例执行 `flutter pub get --enforce-lockfile` 后重新格式化，最终 CI 格式与质量门禁均通过。
-- 合并后 main push 质量门禁 run 41621880411 失败于 `test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving`；这是与既往同一已知竞态的测试失败。PR 的同一功能树全量门禁通过；未更改测试或网络服务语义来绕过它。
-- PR #307：质量门禁 run 41615427203、readiness 41615427165、widget-root 41615426993 全绿；全量格式检查、analyze、work-log preflight 与 `flutter test` 通过。合并提交 `f5bbbba` 后 `main` push 门禁 run 41615872789 通过。
-- 4.2 第六步没有改 ASR 算法、歌词处理、识别时序或 UI 流程；共享 `TranscriptionConfigDialog` 仍有自己的 singleton 依赖，留待后续单独迁移。旧桌面分享屏没有调用点，`/mediaSharing` 继续使用 V2。
-
-- 本地无 Flutter/Dart SDK，用临时 CI workflow 在固定工具链（Flutter 3.47.7 / Dart 3.13.5）上验证（run 41582433217、41582847227，两次全绿），验证后该 workflow 从分支删除：`flutter analyze --no-pub --no-fatal-infos lib test` clean、`bash scripts/quality_gate.sh --skip-pub-get` 全量通过（含改动过的 widget / 契约测试与新增棘轮）。
-- `dart format` 第一次跑就把 30 个被触碰文件的**历史格式债**落成 `7cbafb3`（tall style 会重排整个文件；1141/1132 行，纯格式化）。之后的 probe 与 PR 门禁的 format check 均无 diff。这是触碰这些文件的必然代价，不是重写。
-- PR #298：15 个 check 全绿后合并（最后一次质量门禁 run 41583801374）。前两次门禁（41583186817、41583477693）都挂在那条已知偶发用例上，同一棵树在临时工作流里连过两遍。合并后 `main` 的 push 门禁 run 41584530251 通过。
-- 4.2 第二步：临时工作流上 analyze 连续几轮才干净（先修掉删除死代码后遗留的 6 个 `unused_element` / `unused_element_parameter` 警告，再修两条自己写错的棘轮断言），最终一轮只剩那条已知偶发用例失败；`dart format` 由 probe 落成提交。
-- 静态自检（无 SDK 时可用）：全仓库相对 import 全部解析到存在的文件（0 处断链）；测试里 68 个 `lib/...` 源码路径全部存在；`transcription_settings_contract_test` / `asr_managed_storage_contract_test` / `asr_storage_preflight_contract_test` / `transcription_ready_import_contract_test` 断言的字符串在新文件里逐条命中。
-- 棘轮首跑即命中冻结值（72 处 / 34 文件），无基线例外。
-- PR #301：5 个 check 全绿后合并（质量门禁 run 41590712440、KTV history run 41590712395、take-locks 41590712396、readiness 41590712397、widget-root 41590712444），合并后 `main` push 门禁 run 41591171421 通过。
-- 4.2 第三步：三条失败先由临时工作流定位（logs 不可下载，只能靠 `::error::` 注解）：① `lockedExportMessage` / `lockedRecordingMessage` 先声明在私有 State 类上，屏幕取不到 → 提到公开的 `KtvTakeHistorySheet` 上；② 测试的 `_FakePlaybackSession` 缺 6 个成员 → 补 `noSuchMethod`；③ 单次点击在 `FullscreenKtvInteractionSurface` 里要等双击超时才生效 → 测试补 `pump(400ms)`。最后一轮 analyze 无 error、两个新测试文件 + 架构契约 + `widget_test.dart` 全绿（run 41590447968）。验证完临时工作流已从分支删除。
-- PR #303：5 个 check 全绿后合并（质量门禁 run 41603297220），合并后 `main` push 门禁 run 41603702731 通过。
-- 4.2 第四步：临时工作流一轮就定位到唯一问题——新断言把文档注释里出现的 `AppServices.instance` 也算成依赖（`local_song_lyrics_import_action.dart` 与 `local_library_dependencies.dart` 的说明文字），改成「app-wide service lookups / 单例」措辞后通过；随后 analyze、架构契约、音乐库 shell 测试、队列歌单测试与 `widget_test.dart` 全绿，`scripts/quality_gate.sh --skip-pub-get` 在 PR 门禁里通过。`dart format` 由 probe 落成提交（只碰 `playback_queue_panel.dart` 等 6 个文件，其中该文件约 69 行历史格式债）。
-- 逐行复刻 `tool/work_log.dart write` 语义的本地脚本：生成的三份文件与提交内容一致。
-
-## 已知风险
-
-- **还没有真实歌曲的基线数字。** 工具就绪，但需要用户提供 5–10 首人工校对歌词（见 `docs/asr_quality_baseline.md` 第 8 节）。报告里旧的「>30%」预测已被实测推翻，不再引用。
-- 融合修复（R2）的取舍：若和声真的在主行覆盖的时间窗内重复同一批词，该行会并入主行并失去独立时间戳（不丢词）。这是有意的。
-- 降级（R6）的取舍：`input` 类错误与取消不降级；降级后 `qualityMode` 仍记为请求的模式，真实情况看 `degraded` / `degradationReason`。降级后的草稿质量**等同 Whisper 单模型**，UI 已明确标注，不要把它当成双引擎结果去做质量对比。
-- 工具栏（Phase 3.2）的取舍：**不可用项置灰而不是隐藏**（「在播放位置插入」会写明「先试听本工程」），**筛选与偏移改成菜单但保留计数与当前值**，只读指标降级为文本。没有任何功能被删除；「下一处问题」按钮在原代码中不存在，因此没有新增。
-- **两次 `main` 门禁失败仍未定位**（run 41485065687、41498901477）：同一棵树在 PR 门禁与分支上的全量门禁都是绿的，最可能是 `main` 推送时 22 个专项 workflow 并发、跑满同一台 runner 导致的时序类用例抖动，但这是推断而不是结论。从下一轮起失败会自己报出用例名；在那之前不要把它们写成「已修复」。
-- **KTV 录音入口已于 4.2 第三步补齐**：4.2 第二步删除不可达的 `_FullScreenKtvView` 时，KTV 录音/导出/历史的 UI 一度完全不可达（服务层与测试都还在）。现已按产品决定放回 `ImmersiveKtvScreen`：录音工具条、麦克风 sheet、演唱历史 sheet、成品 sheet，并恢复 `isRecording || isExporting` 的变更锁。**不要再在别处重建第二套全屏 KTV**，也不要再给这段 UI 写「源码扫描」式断言——保护现在是 `KtvTakeHistorySheet` 里的可测行为。
-- 本地音乐库（4.2 第四步）的取舍：**一个依赖包，不是四个**。五个分区是同一屏幕的五个身体，拆开只会得到四个近似的类；`LyricsImportDependencies` 单独存在是因为它要跟着回调走到三处无关调用点。**两个行为变化**：bootstrap 之前两个播放条不渲染（原本会在 `initState` 读未初始化的 `late final`），以及 `LocalMusicLibraryShell` 必须拿到 `dependencies` 或显式 `sections`，且分区页面只在依赖变化时重建一次（`IndexedStack` 里每帧重建会丢滚动位置并重新加载库）。
-- 装配层（4.2 第一步）的取舍：**`Routes` 留在 `lib/core`，路由表进 `lib/app`**。屏幕要 push 名字，而 `lib/core` 不能反向依赖装配层；把常量留在下层、把表放上层，依赖方向才单向。另一个取舍：**强制对齐 runner 非空且无默认值**——「runtime 是否就绪」只有设置存储与 runtime 检查能回答，给 null 默认等于把静默降级塞回 widget；不可用时抛原有的两句中文文案，由既有错误路径展示。**唯一的行为变化**是复核收件箱的 repository 由可选变必填（路由总会传）与编辑器不再自带 runner 断言。
-- 编辑会话（4.1 第三步）的取舍：**试听耦合是反转的，不是搬移的。** 控制器不认识试听，只回答「这次编辑是否让试听失效」；「这一行是不是正在播的那行」仍由屏幕判断（沿用原来的 lineId/索引语义）。因此改文字不会打断试听，改时间才会——与重构前逐字一致。另一个**有意的行为变化**：`setLineReviewed` 先比对当前复核状态，因为复核服务即使状态不变也会返回带新时间戳的新文档，旧的 `identical()` 判断抓不到，重复标记同一行会凭空多出一步撤销。刻意留在屏幕的是复核队列、筛选、跟随播放与聚焦请求——它们是从文档派生的视图状态。
-- 校对提案（4.1 第二步）的取舍：**审核行的中文标签跟着类型进 domain**。它们是复核载荷的一部分（对话框只负责渲染），代价是 domain 里出现用户可见文案；换来的是「管线输出 → 审核行」这段翻译可以被测试，而不必启动整个编辑器。另一个有意的行为收窄：ASR 优先在 `draft.lines[index]` 越界时不再抛 `RangeError`（原实现会让整次校对以「无法生成或应用校对提案」失败），而是把 `originalLine` 记为 null——管线本身保证一一对应，这里只是防御。
-- 强制对齐就绪判定的修正：`hasReadyComponents` 要求「组件被报出且 ready」，而 `isBaselineReady` 保留「缺项视为该 profile 不需要」的既有语义（有测试依赖它）。两者混用会把从未 inspect 到的组件当成可用，所以不要用 baseline 的写法改写可选能力检查。
-- 编辑器拆分（4.1 第一步）的取舍：**只搬不改**——pane 的参数列表原样保留，所以这一步没有改变任何渲染或交互；真正有逻辑变化的是试听状态机换成了控制器（行为逐条对应原实现，仅新增「释放后不再通知」这一保护）。**仍未拆的两块**是校对编排（`_openProofreadV2` 一族约 600 行）与文档编辑/撤销/保存流程，它们与对话框、`ServiceLocator`、proofread 管线耦合更深，下一步单独做 `LyricEditorController` 时应先拆校对编排。
-- 试听（Phase 4.3）的取舍：**试听不进入队列，也不会冒充「当前播放项」**。理由是把录音载入 app 级播放器会让播放条/歌词页/队列继续描述一首已经没在响的歌，全 App 的 `seek` 会跳到录音里。代价是：试听期间歌曲被暂停，关掉 sheet 后**保持暂停**（不会自动接着放）——这是有意的行为变化，不是回归。互斥放在服务层而非 widget，因为 sheet 可能中途消失。
-- **试听文件存在性检查可注入**（`previewFileExists`）：`testWidgets` 跑在 fake-async 区里，真实文件 I/O 的 future 永远不会完成，不注入就没法测这个 sheet。
-- 导航（Phase 3.5）的取舍：**导航挂在 `MaterialApp.builder` 外层**（因此需要 `navigatorKey`），因为按屏安装无法解决「不知道用户从哪来」；**设备互传不设为去向**（是流程不是目的地），这些页面与沉浸 KTV 一律不显示导航；**音乐库放弃自带导航**，5 个分区改为内容顶部分行——否则桌面侧栏套侧栏、移动底栏叠底栏，且「设置」出现两次。刻意没做：每个去向独立的嵌套 Navigator（会让 Android 返回键语义变复杂）。
-- 撤销栈（Phase 3.4）的取舍：**记录的是「修改前」的文档，且只在用户可见的修改处记录**（含标记复核这类 metadata 修改）；同一行 2 秒内合并为一步，否则重打一行就吃掉全部 50 步额度；**加载工程时清空历史**——跨歌曲撤销比不能撤销更糟。刻意没做：「撤销到上次保存」（和未保存拦截弹窗重叠）与历史持久化（会把文档带回磁盘上已不存在的状态）。
-- 复核语义（Phase 3.3）的取舍：**`待复核` 是唯一人口，`低置信度` 是它的子集，`未评分` 是信息而不是告警**。没有分数时「低置信度」菜单项保留但置灰并说明原因，而不是删掉——删掉会让用户以为功能不存在，显示「0」又会读成「检查过了、没问题」。行徽标只反映队列状态，原始分数回到检查器，避免同一行在两处被两套标准判定。
-- 校对入口（Phase 3.1）的取舍：**只改了入口，没合并算法**。三条路径的输入证据不同（无参考 / 有参考 / 有参考 + 独立校时证据），合并算法属于领域层重写，当前没有语料能证明改写更好（R10）。用户的痛点是「不知道点哪个」，菜单里的两行说明解决的就是这个。
-- 解码预算（R9）的取舍：`max_new_tokens` 在上游是**每分片**预算，分片上限 1200 秒（不是旧文档写的 180 秒）。公式 `max(1024, 256 + min(时长,1200)×8)` 最坏 9856。仍然**拿不到**「模型是否真的撞到上限」的硬信号：`/v1/transcribe` 不返回 `finish_reason` 或 token 数，只有 OpenAI 兼容端点才有；因此只记录 `maxNewTokens` 与 `transcriptCoverage` 两个可观测量，不据此报警。
-- 置信度（R8）的取舍：`LyricLine.confidence` 仍是非空 `int`（117 处读取），用「占位值 + 来源标记」表达「没分数」，而不是改成可空。刻意没改的两处写在审查文档 R8 小节：可疑幻觉清单仍把「无分数 + 无二次证据」列为候选；融合里 `qwenConfidence >= 55` 的采纳门槛保持不变。
-- 已知噪声残留：`secondary == null`（只跑单引擎）时 ASR-first 管线仍把每一行标 `amber`，这是既有且有测试的依据的策略，属于 Phase 3.3 的后续项，不要误以为是 R8 没修干净。
-- 触摸 `project_detail_screen.dart` 会顺带格式化该文件里约 195 行历史格式债（仓库门禁只格式化「本次改动的文件」）。这是格式化器的输出，不是重写；下一个改这个文件的人不会再付一次成本。
-- 权威引擎仍决定全局断句：`qwenPrimary` 时输出就是 Qwen 的细分结果，属 R7 范围（Whisper 参数与 `--prompt` 尚未优化）。
-- 20 分钟阈值是**策略选择而非实测结论**：没有真实语料证明 20 分钟比 3 分钟在长音频上更好，只是对歌曲而言两者等价于「整首一次」。若将来出现超长现场录音的质量投诉，先看接缝，而不是直接把阈值调回去。
-- 检查点版本升到 2 会让所有旧检查点失效一次（有意的：旧检查点没有配置指纹）。
-- 真机行为（Windows/macOS 上的 FFmpeg 进程树、GPU 显存、设备端播放）仍未在本环境验证。
-- **偶发失败，三次都不是已修复**：
-  - run 41295405781（14 次完整门禁中的 1 次）：抓到的日志尾部指向 `forced_alignment_eval_test.dart` 的 provenance 输出附近，但那个位置是**误导**；同类竞态的真实来源是 `test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving`（两种表现：`SecureSocket.connect` 的 `Broken pipe`，以及只收到裸 408 而缺少 `upload_total_timeout`），见「下一步」第 6 条。
-  - run 41485065687（PR #285 合并后的 `main` push 门禁）：`scripts/quality_gate.sh --skip-pub-get` 退出 1，**同一棵树**在 3 分钟前的 PR 门禁通过、随后临时工作流连跑两遍全量门禁也全绿（run 41485674778），故判定偶发而非回归。这个 run 连失败用例名都没拿到：本环境无法下载 Actions 日志，该 workflow 又不上传测试报告，annotation 里只有 `Process completed with exit code 1`。
-  - run 41583186817（4.2 第一步的 PR #298 门禁）：同一条 `http_media_hub_upload_test.dart` 用例，`~1 -1` 并给出该用例名。**同一棵树**在两小时内的临时工作流全量门禁（run 41582433217、41582847227）连续通过两遍，故仍按偶发处理；重触发方式只能再推 commit。
-  - 复现方法：把临时工作流加回分支（跑两遍 `scripts/quality_gate.sh --skip-pub-get`，把 `[E]` 行与断言上下文发成 annotation），确认后立刻删除，不要留在合并 diff 里。
-  - `main` 的门禁**无法重跑**：`gh run rerun` 报 `cannot be rerun; its workflow file may be broken`，`gh workflow run` 返回 403（token 无 dispatch 权限）；要重新触发只能开一个纯文档 PR 并合并。
-- `main` 基线：Phase 3.5 由 PR #285 合入（合并提交 `efde4b5`）。紧随其后的 push 门禁 run 41485065687 变红且原因未定位（见上）；确认方法是在同一棵树上连跑两遍全量门禁（临时工作流 run 41485674778，两遍全绿），随后用文档 PR #286 重新触发，run 41487053012 为绿。若本文件之后 `main` 再次变红，同样先用这个方法排除真实回归，再谈修复。
+- 最近一次完整 PR head `32433bf`：Flutter Quality Gate run `41629406864` 通过（变更文件 format、analyze、全量质量门禁测试、work-log preflight）。
+- 最终 head 的 10 个专项 check 全绿：ASR install experience、managed storage location、protective pause、queue inline repair、readiness、settings contract、smoke contract、storage preflight、ASR client、widget root。
+- 本地 `git diff --check` clean；相对 Dart import 扫描 0 missing paths；feature executable singleton scan 0 calls。
+- 本地无 Flutter/Dart SDK，因此没有本地运行 `dart format`、`flutter analyze`、`flutter test` 或 work-log harness；相应检查由 PR CI 使用固定工具链完成。没有真实歌曲准确率或设备硬件测试声明。
 
 ## 下一步
 
-1. Phase 4.2 第七步通过 CI 后再合并。本轮不改网络确认、持久队列恢复、远程播放或下载入库流程；专项契约与全量质量门禁是接受条件。
-2. 后续继续迁移剩余 **5 处 / 5 个文件**的 `AppServices.instance`：`TranscriptionConfigDialog`、`AsrRuntimeSetupDialog`、全局转写队列条与设置中的两张 ASR 卡片；先审查共享调用边界与配置注入，不给 widget 留 optional fallback。每迁一屏棘轮只降不升。
-3. 不变更既定范围：无用户语料时不宣称真实歌曲质量变化；Phase 1.6 Whisper `--prompt`、Phase 2.1/2.2 硬件首启、2.3、4.4、4.5 仍 deferred。
+1. 合并 PR #311；Phase 4.2 的 singleton consumer 迁移到此结束。
+2. 后续继续 roadmap 中的下一项架构工作；真实语料 / 硬件依赖的验证仍遵守既定边界，不用合成 fixture 冒充真实歌曲结果，也不要求用户执行真机测试。
 
-最后更新：2026-11-03 19:25（Asia/Taipei）
+## 已知风险
+
+- 真实歌曲准确率未在本轮测量；本次没有 ASR 算法改动，也不宣称歌词质量改善。
+- 本轮没有改麦克风、播放器或原生行为；无需设备测试作为合并门槛。
+- Flutter/Dart SDK 本地不可用；格式、分析、Flutter tests 与 work-log harness 均以 CI 为验证来源。
+
+最后更新：2026-11-03 19:35（Asia/Taipei）

@@ -38,8 +38,8 @@ void main() {
       contains('ImportAudioScreen(dependencies: widget.dependencies)'),
     );
     expect(importing, contains('required this.dependencies'));
-    expect(queuePanel, contains('required this.settingsStore'));
-    expect(queuePanel, contains('required this.runtimeManager'));
+    expect(queuePanel, contains('required this.setupDependencies'));
+    expect(queuePanel, contains('dependencies: setupDependencies'));
     expect(
       router,
       contains('assembleTranscriptionImportDependencies(services)'),
@@ -140,4 +140,57 @@ void main() {
       );
     },
   );
+
+  test('remaining ASR consumers receive dependencies from app assembly', () {
+    final configDialog = File(
+      'lib/features/transcription/presentation/widgets/'
+      'transcription_config_dialog.dart',
+    ).readAsStringSync();
+    final runtimeSetup = File(
+      'lib/features/transcription/presentation/widgets/'
+      'asr_runtime_setup_dialog.dart',
+    ).readAsStringSync();
+    final queueBar = File(
+      'lib/features/transcription/presentation/widgets/'
+      'global_transcription_queue_bar.dart',
+    ).readAsStringSync();
+    final settingsSection = File(
+      'lib/features/settings/presentation/widgets/'
+      'ai_transcription_settings_section.dart',
+    ).readAsStringSync();
+    final smokeCard = File(
+      'lib/features/settings/presentation/widgets/'
+      'asr_end_to_end_smoke_test_card.dart',
+    ).readAsStringSync();
+    final settingsScreen = File(
+      'lib/features/settings/presentation/screens/settings_screen.dart',
+    ).readAsStringSync();
+    final app = File('lib/app/app.dart').readAsStringSync();
+    final router = File('lib/app/app_router.dart').readAsStringSync();
+    final assembly = File(
+      'lib/app/transcription_assembly.dart',
+    ).readAsStringSync();
+
+    for (final source in [
+      configDialog,
+      runtimeSetup,
+      queueBar,
+      settingsSection,
+      smokeCard,
+    ]) {
+      expect(source, isNot(contains('AppServices.instance')));
+    }
+    expect(configDialog, contains('required this.dependencies'));
+    expect(runtimeSetup, contains('required this.dependencies'));
+    expect(queueBar, contains('required this.queue'));
+    expect(settingsSection, contains('required this.dependencies'));
+    expect(smokeCard, contains('required this.smokeTestService'));
+    expect(settingsScreen, contains('required this.dependencies'));
+    expect(router, contains('assembleSettingsScreenDependencies(services)'));
+    expect(app, contains('queue: services.transcriptionQueue'));
+    expect(assembly, contains('services.asrRuntimeManager'));
+    expect(assembly, contains('services.asrStoragePreflightService'));
+    expect(assembly, contains('services.asrManagedStorageService'));
+    expect(assembly, contains('services.asrEndToEndSmokeTestService'));
+  });
 }
