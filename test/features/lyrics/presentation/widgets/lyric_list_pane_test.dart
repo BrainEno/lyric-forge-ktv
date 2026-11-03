@@ -60,7 +60,9 @@ void main() {
     );
 
     await tester.tap(find.text('第 2 行'));
-    await tester.pump();
+    // The row also handles double-tap and long-press, so a single tap only
+    // resolves after the double-tap timeout.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(selected, <int>[1]);
   });
