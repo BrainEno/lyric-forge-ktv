@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
@@ -14,18 +14,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: ./.github/actions/setup-flutter
-      - name: Format changed Dart files and report patch chunks
+      - name: Format changed Dart files and commit formatter output
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
-          dart format "${dart_files[@]}"
-          git diff --binary > /tmp/formatter.patch
-          if [[ ! -s /tmp/formatter.patch ]]; then
-            echo 'No formatter patch generated.'
+          git fetch origin main
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          if (( ${#dart_files[@]} == 0 )); then
+            echo 'No changed Dart files.'
             exit 0
           fi
-          base64 -w0 /tmp/formatter.patch | fold -w 3000 | awk '{ printf "::notice title=FORMAT_PATCH_%03d::%s\n", NR, $0 }'
+          dart format "${dart_files[@]}"
+          if git diff --quiet -- "${dart_files[@]}"; then
+            echo 'Changed Dart files are already formatted.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${dart_files[@]}"
+          git commit -m 'style: format transfer screen changes'
+          git fetch origin "$BRANCH"
+          git rebase FETCH_HEAD
+          git push origin "HEAD:$BRANCH"
