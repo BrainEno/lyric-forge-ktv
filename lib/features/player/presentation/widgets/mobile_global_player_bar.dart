@@ -47,153 +47,156 @@ class _MobileGlobalPlayerBarState extends State<MobileGlobalPlayerBar> {
       child: Builder(
         builder: (context) {
           final session = context.watch<PlaybackSessionState>();
-        final item = session.currentItem;
-        if (item == null) return const SizedBox.shrink();
+          final item = session.currentItem;
+          if (item == null) return const SizedBox.shrink();
 
-        return StreamBuilder<PlaybackState>(
-          stream: _audio.stateStream,
-          initialData: _audio.currentState,
-          builder: (context, playbackSnapshot) {
-            final playback =
-                playbackSnapshot.data ?? const PlaybackState.idle();
-            final rawRemoteArtwork =
-                item.audioAsset.metadata['remoteArtworkUri'];
-            final remoteArtwork = rawRemoteArtwork is String
-                ? Uri.tryParse(rawRemoteArtwork)
-                : null;
+          return StreamBuilder<PlaybackState>(
+            stream: _audio.stateStream,
+            initialData: _audio.currentState,
+            builder: (context, playbackSnapshot) {
+              final playback =
+                  playbackSnapshot.data ?? const PlaybackState.idle();
+              final rawRemoteArtwork =
+                  item.audioAsset.metadata['remoteArtworkUri'];
+              final remoteArtwork = rawRemoteArtwork is String
+                  ? Uri.tryParse(rawRemoteArtwork)
+                  : null;
 
-            return Material(
-              color: AppColors.bgElevated,
-              elevation: 12,
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SeekableProgressBar.mini(
-                      state: playback,
-                      onSeek: _session.seek,
-                      hitHeight: 28,
-                    ),
-                    SizedBox(
-                      height: 66,
-                      child: InkWell(
-                        onTap: () =>
-                            Navigator.pushNamed(context, Routes.nowPlaying),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          child: Row(
-                            children: [
-                              _MobileArtwork(
-                                path: item.artworkPath,
-                                remoteUri: remoteArtwork,
-                                remote: item.isRemoteStream,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      item.artist?.trim().isNotEmpty == true
-                                          ? item.artist!
-                                          : item.isRemoteStream
-                                          ? '桌面音乐库'
-                                          : '本地音乐',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: AppColors.textTertiary,
-                                          ),
-                                    ),
-                                  ],
+              return Material(
+                color: AppColors.bgElevated,
+                elevation: 12,
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SeekableProgressBar.mini(
+                        state: playback,
+                        onSeek: _session.seek,
+                        hitHeight: 28,
+                      ),
+                      SizedBox(
+                        height: 66,
+                        child: InkWell(
+                          onTap: () =>
+                              Navigator.pushNamed(context, Routes.nowPlaying),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
+                            child: Row(
+                              children: [
+                                _MobileArtwork(
+                                  path: item.artworkPath,
+                                  remoteUri: remoteArtwork,
+                                  remote: item.isRemoteStream,
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: '上一首',
-                                onPressed: session.canSkipPrevious
-                                    ? () => runPlaybackActionWithFeedback(
-                                        context,
-                                        _session.skipPrevious,
-                                      )
-                                    : null,
-                                icon: const Icon(Icons.skip_previous_rounded),
-                              ),
-                              SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: IconButton(
-                                  tooltip: playback.isPlaying ? '暂停' : '播放',
-                                  onPressed:
-                                      playback.isBuffering || playback.isLoading
-                                      ? null
-                                      : () => runPlaybackActionWithFeedback(
-                                          context,
-                                          _session.togglePlayPause,
-                                        ),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: AppColors.pureWhite,
-                                    foregroundColor: AppColors.pureBlack,
-                                    disabledBackgroundColor:
-                                        AppColors.textDisabled,
+                                const SizedBox(width: AppSpacing.sm),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleSmall
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.artist?.trim().isNotEmpty == true
+                                            ? item.artist!
+                                            : item.isRemoteStream
+                                            ? '桌面音乐库'
+                                            : '本地音乐',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.textTertiary,
+                                            ),
+                                      ),
+                                    ],
                                   ),
-                                  icon:
-                                      playback.isBuffering || playback.isLoading
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.pureBlack,
-                                          ),
-                                        )
-                                      : Icon(
-                                          playback.isPlaying
-                                              ? Icons.pause_rounded
-                                              : Icons.play_arrow_rounded,
-                                        ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: '下一首',
-                                onPressed: session.canSkipNext
-                                    ? () => runPlaybackActionWithFeedback(
-                                        context,
-                                        _session.skipNext,
-                                      )
-                                    : null,
-                                icon: const Icon(Icons.skip_next_rounded),
-                              ),
-                            ],
+                                IconButton(
+                                  tooltip: '上一首',
+                                  onPressed: session.canSkipPrevious
+                                      ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipPrevious,
+                                        )
+                                      : null,
+                                  icon: const Icon(Icons.skip_previous_rounded),
+                                ),
+                                SizedBox(
+                                  width: 44,
+                                  height: 44,
+                                  child: IconButton(
+                                    tooltip: playback.isPlaying ? '暂停' : '播放',
+                                    onPressed:
+                                        playback.isBuffering ||
+                                            playback.isLoading
+                                        ? null
+                                        : () => runPlaybackActionWithFeedback(
+                                            context,
+                                            _session.togglePlayPause,
+                                          ),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: AppColors.pureWhite,
+                                      foregroundColor: AppColors.pureBlack,
+                                      disabledBackgroundColor:
+                                          AppColors.textDisabled,
+                                    ),
+                                    icon:
+                                        playback.isBuffering ||
+                                            playback.isLoading
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AppColors.pureBlack,
+                                            ),
+                                          )
+                                        : Icon(
+                                            playback.isPlaying
+                                                ? Icons.pause_rounded
+                                                : Icons.play_arrow_rounded,
+                                          ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: '下一首',
+                                  onPressed: session.canSkipNext
+                                      ? () => runPlaybackActionWithFeedback(
+                                          context,
+                                          _session.skipNext,
+                                        )
+                                      : null,
+                                  icon: const Icon(Icons.skip_next_rounded),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
+              );
+            },
+          );
         },
       ),
     );

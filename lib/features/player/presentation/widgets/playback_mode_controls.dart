@@ -45,10 +45,8 @@ class PlaybackModeControls extends StatelessWidget {
     return StreamBuilder<PlaybackSessionState>(
       stream: session.stateStream,
       initialData: session.currentState,
-      builder: (context, snapshot) => _buildForState(
-        context,
-        snapshot.data ?? session.currentState,
-      ),
+      builder: (context, snapshot) =>
+          _buildForState(context, snapshot.data ?? session.currentState),
     );
   }
 
@@ -76,9 +74,7 @@ class PlaybackModeControls extends StatelessWidget {
           onPressed: state.currentItem == null
               ? null
               : () => session.setRepeatMode(_nextRepeatMode(repeat)),
-          color: repeat == PlaybackRepeatMode.off
-              ? inactiveColor
-              : activeColor,
+          color: repeat == PlaybackRepeatMode.off ? inactiveColor : activeColor,
           icon: Icon(
             repeat == PlaybackRepeatMode.one
                 ? Icons.repeat_one_rounded

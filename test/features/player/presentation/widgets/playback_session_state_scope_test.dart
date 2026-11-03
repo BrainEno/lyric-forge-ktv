@@ -18,10 +18,9 @@ void main() {
           session: session,
           child: Builder(
             builder: (context) {
-              final queuedCount = context.select<
-                PlaybackSessionState,
-                int
-              >((state) => state.queue.length);
+              final queuedCount = context.select<PlaybackSessionState, int>(
+                (state) => state.queue.length,
+              );
               return Text('$queuedCount');
             },
           ),
@@ -37,7 +36,10 @@ void main() {
           PlaybackItem(
             id: 'one',
             title: 'One',
-            audioAsset: const AudioAsset(originalPath: '/one.wav', format: 'wav'),
+            audioAsset: const AudioAsset(
+              originalPath: '/one.wav',
+              format: 'wav',
+            ),
           ),
         ],
         currentIndex: 0,

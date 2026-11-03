@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 13:20] Move the assembly layer into lib/app and inject the lyric editor ([entry](log/entries/2026-11-03-1320-app-assembly-layer.md))
 - [2026-11-03 12:13] Move the editing session out of the lyric editor widget ([entry](log/entries/2026-11-03-1213-editor-document-controller.md))
 - [2026-11-03 10:40] Move the proofread proposal logic out of the editor widget ([entry](log/entries/2026-11-03-1040-proofread-proposal-domain.md))
 - [2026-11-03 10:01] Take the first slice out of the 4,591-line lyric editor ([entry](log/entries/2026-11-03-1001-editor-split-step-1.md))
