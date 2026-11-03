@@ -20,6 +20,12 @@ import '../services/lyric_review_priority_service.dart';
 ///   [needsReviewCount];
 /// * [unscoredLines] records lines the engine never scored, so the UI can say
 ///   "we do not know" instead of inventing a red badge.
+/// Score below which a line that actually has a score counts as low confidence.
+///
+/// Lines without a score are never "low": see [LyricConfidenceSource.unscored].
+/// One constant so the queue and every badge in the editor agree on the number.
+const int kLyricReviewConfidenceThreshold = 70;
+
 class LyricReviewQueue {
   /// Ranked, unreviewed lines. Order is what the "needs review" filter shows.
   final List<LyricReviewPriority> items;
@@ -54,7 +60,7 @@ class LyricReviewQueue {
     totalLines: 0,
     scoredLines: 0,
     reviewedLines: 0,
-    confidenceThreshold: 70,
+    confidenceThreshold: kLyricReviewConfidenceThreshold,
   );
 
   /// Builds the queue and every derived count in one pass, so no two surfaces
@@ -62,7 +68,7 @@ class LyricReviewQueue {
   factory LyricReviewQueue.build(
     LyricDocument document, {
     Duration? audioDuration,
-    int confidenceThreshold = 70,
+    int confidenceThreshold = kLyricReviewConfidenceThreshold,
     LyricReviewPriorityService priorityService =
         const LyricReviewPriorityService(),
     LyricReviewDecisionService decisionService =
