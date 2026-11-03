@@ -703,7 +703,9 @@ class _TimestampEditDialogState extends State<TimestampEditDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: formatLyricDuration(widget.initial));
+    _controller = TextEditingController(
+      text: formatLyricDuration(widget.initial),
+    );
   }
 
   @override
