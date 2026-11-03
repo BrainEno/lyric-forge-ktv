@@ -357,9 +357,8 @@ class _OverviewCard extends StatelessWidget {
                     children: [
                       Text(
                         running ? '电脑端已准备好配对' : '跨设备传输尚未启动',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -368,9 +367,8 @@ class _OverviewCard extends StatelessWidget {
                             : running
                             ? '二维码就在下方。当前自动共享 $trackCount 首电脑本地音乐。'
                             : '电脑音乐库已读取；点击“启动传输服务”并确认网络风险后才会开放连接。',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: AppColors.textSecondary),
                       ),
                     ],
                   ),
@@ -442,23 +440,20 @@ class _PairingCard extends StatelessWidget {
       children: [
         Text(
           '1. 用手机扫描这个二维码',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           '手机端：跨设备传输 → 连接电脑 → 扫描桌面二维码。',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: AppColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
           '2. 或复制下面的配对码',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: AppSpacing.xs),
         Container(
@@ -487,9 +482,8 @@ class _PairingCard extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 3),
             child: Text(
               '${endpoint.kind.name}: ${endpoint.host}:${endpoint.port}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
           ),
       ],
@@ -616,9 +610,8 @@ class _SharedTracksCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '电脑共享音乐 · ${tracks.length} 首',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
                 Chip(label: Text(running ? '手机可访问' : '服务已停止')),
@@ -627,9 +620,8 @@ class _SharedTracksCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '这里直接来自电脑本地音乐库，不需要再重复选择文件。',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.md),
             if (tracks.isEmpty)
@@ -661,9 +653,8 @@ class _SharedTracksCard extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: Text(
                     '另有 ${tracks.length - visible.length} 首未在此预览；手机端会看到完整列表。',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textTertiary),
                   ),
                 ),
             ],

@@ -9,10 +9,7 @@ import 'mobile_remote_music_library_screen.dart';
 class MobileRemoteLibraryShell extends StatefulWidget {
   final MobileRemoteLibraryDependencies dependencies;
 
-  const MobileRemoteLibraryShell({
-    super.key,
-    required this.dependencies,
-  });
+  const MobileRemoteLibraryShell({super.key, required this.dependencies});
 
   @override
   State<MobileRemoteLibraryShell> createState() =>

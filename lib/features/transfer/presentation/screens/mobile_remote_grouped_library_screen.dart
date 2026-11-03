@@ -437,9 +437,8 @@ class _DisconnectedCatalogState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               '请先在“歌曲”页连接电脑',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.xs),
             const Text(
@@ -501,16 +500,14 @@ class _CatalogGroupCard extends StatelessWidget {
                 name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 2),
               Text(
                 '$count 首',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ),

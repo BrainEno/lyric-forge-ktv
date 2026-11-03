@@ -16,10 +16,7 @@ import '../../domain/services/media_transfer_queue_service.dart';
 class MobileMediaTransferHubScreen extends StatefulWidget {
   final MobileMediaTransferDependencies dependencies;
 
-  const MobileMediaTransferHubScreen({
-    super.key,
-    required this.dependencies,
-  });
+  const MobileMediaTransferHubScreen({super.key, required this.dependencies});
 
   @override
   State<MobileMediaTransferHubScreen> createState() =>
@@ -177,18 +174,16 @@ class _ConnectionCard extends StatelessWidget {
                 children: [
                   Text(
                     connected ? '已连接电脑' : '尚未连接电脑',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     connected && host != null
                         ? host!
                         : '扫描电脑端“跨设备传输中心”的二维码即可连接。',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -311,9 +306,8 @@ class _PersistentTransferQueueCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '传输队列',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
                   ),
                 ),
                 if (snapshot.isPaused)
@@ -325,17 +319,15 @@ class _PersistentTransferQueueCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               '等待 $pending · 失败 $failed · 已完成 $completed',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             if (snapshot.pauseReason != null) ...[
               const SizedBox(height: AppSpacing.xs),
               Text(
                 snapshot.pauseReason!,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textTertiary),
               ),
             ],
             if (active != null) ...[
@@ -387,9 +379,8 @@ class _PersistentTransferQueueCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Text(
                 '还没有传输任务。选择本机音乐后会从这里进入后台队列。',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.textTertiary),
               ),
             ],
           ],

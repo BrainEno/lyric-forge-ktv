@@ -19,10 +19,7 @@ import 'remote_catalog_utils.dart';
 class MobileDownloadManagerScreen extends StatefulWidget {
   final MobileRemoteLibraryDependencies dependencies;
 
-  const MobileDownloadManagerScreen({
-    super.key,
-    required this.dependencies,
-  });
+  const MobileDownloadManagerScreen({super.key, required this.dependencies});
 
   @override
   State<MobileDownloadManagerScreen> createState() =>
@@ -184,9 +181,8 @@ class _MobileDownloadManagerScreenState
       await _library.remove(entry.sourcePath);
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已删除本地下载')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('已删除本地下载')));
       }
     } catch (error) {
       if (mounted) setState(() => _error = '删除失败：$error');
@@ -403,9 +399,8 @@ class _DownloadTasksCard extends StatelessWidget {
         children: [
           Text(
             '下载任务',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: AppSpacing.sm),
           for (final item in items) ...[
