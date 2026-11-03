@@ -23,7 +23,7 @@ jobs:
         env:
           HEAD_BRANCH: ${{ github.head_ref }}
         run: |
-          git fetch --no-tags origin main
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
           if (( ${#dart_files[@]} == 0 )); then exit 0; fi
           dart format "${dart_files[@]}"
