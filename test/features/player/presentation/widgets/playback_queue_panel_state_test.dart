@@ -44,8 +44,9 @@ void main() {
 
 class _UnsubscribableSession implements PlaybackSessionService {
   @override
-  Stream<PlaybackSessionState> get stateStream =>
-      throw StateError('the provided snapshot should avoid another subscription');
+  Stream<PlaybackSessionState> get stateStream => throw StateError(
+    'the provided snapshot should avoid another subscription',
+  );
 
   @override
   PlaybackSessionState get currentState =>

@@ -1332,133 +1332,144 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         final project = snapshot.data!;
         return ChangeNotifierProvider<LyricEditorDocumentController>.value(
           value: _editor,
-          child: Selector<
-            LyricEditorDocumentController,
-            ({
-              LyricDocument? document,
-              bool hasChanges,
-              int? selectedLineIndex,
-              bool canUndo,
-              bool canRedo,
-              String? undoLabel,
-              String? redoLabel,
-              LyricEditorSnapshot? alignmentSnapshot,
-            })
-          >(
-            selector: (context, controller) => (
-              document: controller.document,
-              hasChanges: controller.hasChanges,
-              selectedLineIndex: controller.selectedLineIndex,
-              canUndo: controller.canUndo,
-              canRedo: controller.canRedo,
-              undoLabel: controller.undoLabel,
-              redoLabel: controller.redoLabel,
-              alignmentSnapshot: controller.alignmentSnapshot,
-            ),
-            builder: (context, editorState, child) {
-              final document = editorState.document!;
-              _refreshReviewQueue(document, project.audioAsset?.duration);
-              final restoreProbe = const ReferenceAlignmentRestoreService()
-                  .probeBackup(document);
-              final canRestore =
-                  restoreProbe is ReferenceAlignmentBackupAvailable;
+          child:
+              Selector<
+                LyricEditorDocumentController,
+                ({
+                  LyricDocument? document,
+                  bool hasChanges,
+                  int? selectedLineIndex,
+                  bool canUndo,
+                  bool canRedo,
+                  String? undoLabel,
+                  String? redoLabel,
+                  LyricEditorSnapshot? alignmentSnapshot,
+                })
+              >(
+                selector: (context, controller) => (
+                  document: controller.document,
+                  hasChanges: controller.hasChanges,
+                  selectedLineIndex: controller.selectedLineIndex,
+                  canUndo: controller.canUndo,
+                  canRedo: controller.canRedo,
+                  undoLabel: controller.undoLabel,
+                  redoLabel: controller.redoLabel,
+                  alignmentSnapshot: controller.alignmentSnapshot,
+                ),
+                builder: (context, editorState, child) {
+                  final document = editorState.document!;
+                  _refreshReviewQueue(document, project.audioAsset?.duration);
+                  final restoreProbe = const ReferenceAlignmentRestoreService()
+                      .probeBackup(document);
+                  final canRestore =
+                      restoreProbe is ReferenceAlignmentBackupAvailable;
 
-              return StreamBuilder<PlaybackState>(
-                stream: _audioService.stateStream,
-                initialData: _audioService.currentState,
-                builder: (context, playbackSnapshot) {
-                  final playback =
-                      playbackSnapshot.data ?? const PlaybackState.idle();
-                  final playbackBelongsToProject =
-                      _playbackSession.currentState.currentItem?.projectId ==
-                      project.id;
+                  return StreamBuilder<PlaybackState>(
+                    stream: _audioService.stateStream,
+                    initialData: _audioService.currentState,
+                    builder: (context, playbackSnapshot) {
+                      final playback =
+                          playbackSnapshot.data ?? const PlaybackState.idle();
+                      final playbackBelongsToProject =
+                          _playbackSession
+                              .currentState
+                              .currentItem
+                              ?.projectId ==
+                          project.id;
 
-                  return _LyricEditorContent(
-                    project: project,
-                    document: document,
-                    playback: playback,
-                    playbackBelongsToProject: playbackBelongsToProject,
-                    hasChanges: editorState.hasChanges,
-                    reviewPriorityByIndex: _reviewPriorityByIndex,
-                    reviewQueue: _reviewQueue,
-                    activeAuditionLineIndex: _activeAuditionLineIndex,
-                    auditionPlaying:
-                        playbackBelongsToProject && playback.isPlaying,
-                    loopCurrentLineAudition: _audition.loopEnabled,
-                    onLoopCurrentLineAuditionChanged: (value) {
-                      _audition.loopEnabled = value;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            value
-                                ? LyricReviewStrings.loopCurrentLineEnabled
-                                : LyricReviewStrings.loopCurrentLineDisabled,
-                          ),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    followPlayback: _followPlayback,
-                    selectedLineIndex: editorState.selectedLineIndex,
-                    filter: _filter,
-                    onFilterChanged: (value) => setState(() {
-                      _filter = value;
-                      if (value != LyricReviewFilter.needsReview) {
-                        _audition.loopEnabled = false;
-                      }
-                    }),
-                    onFollowPlaybackChanged: (value) =>
-                        setState(() => _followPlayback = value),
-                    onSelectLine: _editor.select,
-                    onReviewDecision: (index, reviewed) =>
-                        _setLineReviewDecision(project, index, reviewed: reviewed),
-                    onSave: () => _saveChanges(project),
-                    onUndo: _undo,
-                    onRedo: _redo,
-                    canUndo: editorState.canUndo,
-                    canRedo: editorState.canRedo,
-                    undoLabel: editorState.undoLabel,
-                    redoLabel: editorState.redoLabel,
-                    onExport: () => _exportLyrics(project),
-                    onReferenceAlignment: document.lines.isEmpty
-                        ? null
-                        : () => _openReferenceAlignment(project),
-                    onReferenceProofread: document.lines.isEmpty
-                        ? null
-                        : () => _openReferenceProofread(project),
-                    onProofreadV2: document.lines.isEmpty
-                        ? null
-                        : () => _openProofreadV2(project),
-                    onUndoReferenceAlignment:
-                        editorState.alignmentSnapshot == null
+                      return _LyricEditorContent(
+                        project: project,
+                        document: document,
+                        playback: playback,
+                        playbackBelongsToProject: playbackBelongsToProject,
+                        hasChanges: editorState.hasChanges,
+                        reviewPriorityByIndex: _reviewPriorityByIndex,
+                        reviewQueue: _reviewQueue,
+                        activeAuditionLineIndex: _activeAuditionLineIndex,
+                        auditionPlaying:
+                            playbackBelongsToProject && playback.isPlaying,
+                        loopCurrentLineAudition: _audition.loopEnabled,
+                        onLoopCurrentLineAuditionChanged: (value) {
+                          _audition.loopEnabled = value;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                value
+                                    ? LyricReviewStrings.loopCurrentLineEnabled
+                                    : LyricReviewStrings
+                                          .loopCurrentLineDisabled,
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        followPlayback: _followPlayback,
+                        selectedLineIndex: editorState.selectedLineIndex,
+                        filter: _filter,
+                        onFilterChanged: (value) => setState(() {
+                          _filter = value;
+                          if (value != LyricReviewFilter.needsReview) {
+                            _audition.loopEnabled = false;
+                          }
+                        }),
+                        onFollowPlaybackChanged: (value) =>
+                            setState(() => _followPlayback = value),
+                        onSelectLine: _editor.select,
+                        onReviewDecision: (index, reviewed) =>
+                            _setLineReviewDecision(
+                              project,
+                              index,
+                              reviewed: reviewed,
+                            ),
+                        onSave: () => _saveChanges(project),
+                        onUndo: _undo,
+                        onRedo: _redo,
+                        canUndo: editorState.canUndo,
+                        canRedo: editorState.canRedo,
+                        undoLabel: editorState.undoLabel,
+                        redoLabel: editorState.redoLabel,
+                        onExport: () => _exportLyrics(project),
+                        onReferenceAlignment: document.lines.isEmpty
+                            ? null
+                            : () => _openReferenceAlignment(project),
+                        onReferenceProofread: document.lines.isEmpty
+                            ? null
+                            : () => _openReferenceProofread(project),
+                        onProofreadV2: document.lines.isEmpty
+                            ? null
+                            : () => _openProofreadV2(project),
+                        onUndoReferenceAlignment:
+                            editorState.alignmentSnapshot == null
                             ? null
                             : _undoAlignmentApply,
-                    onViewAlignmentComparison:
-                        editorState.alignmentSnapshot == null ||
-                                editorState.alignmentSnapshot!.isReferenceProofread
+                        onViewAlignmentComparison:
+                            editorState.alignmentSnapshot == null ||
+                                editorState
+                                    .alignmentSnapshot!
+                                    .isReferenceProofread
                             ? null
                             : () => _showAlignmentComparison(project),
-                    onRestoreAlignment: canRestore
-                        ? _restoreAlignmentBackup
-                        : null,
-                    onAddLine: _addNewLine,
-                    onInsertAtPlayback: _insertLineAtPlayback,
-                    onSeekPlayback: _seekPlayback,
-                    focusRequestId: _focusRequestId,
-                    focusLineIndex: _focusLineIndex,
-                    onUpdateLine: _updateLine,
-                    onDeleteLine: _deleteLine,
-                    onUpdateOffset: _updateGlobalOffset,
-                    onPreviewLine: (index) => _previewLine(project, index),
-                    onSetStartFromPlayback: _setLineStartFromPlayback,
-                    onSetEndFromPlayback: _setLineEndFromPlayback,
-                    onTogglePlayback: () => _togglePlayback(project),
-                    manuallyEditedLineIndices: _manuallyEditedLineIndices,
+                        onRestoreAlignment: canRestore
+                            ? _restoreAlignmentBackup
+                            : null,
+                        onAddLine: _addNewLine,
+                        onInsertAtPlayback: _insertLineAtPlayback,
+                        onSeekPlayback: _seekPlayback,
+                        focusRequestId: _focusRequestId,
+                        focusLineIndex: _focusLineIndex,
+                        onUpdateLine: _updateLine,
+                        onDeleteLine: _deleteLine,
+                        onUpdateOffset: _updateGlobalOffset,
+                        onPreviewLine: (index) => _previewLine(project, index),
+                        onSetStartFromPlayback: _setLineStartFromPlayback,
+                        onSetEndFromPlayback: _setLineEndFromPlayback,
+                        onTogglePlayback: () => _togglePlayback(project),
+                        manuallyEditedLineIndices: _manuallyEditedLineIndices,
+                      );
+                    },
                   );
                 },
-              );
-            },
-          ),
+              ),
         );
       },
     );
