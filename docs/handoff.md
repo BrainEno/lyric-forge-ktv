@@ -8,8 +8,8 @@
 
 - Repository: `BrainEno/lyric-forge-ktv`
 - 分支：`arena/c487f5b9-lyric-forge-ktv`（Arena 会话分支；每次新任务都在这条分支上从 `origin/main` 起步）。
-- 本分支包含 Phase 4.1 第一步：`LineAuditionController`（行试听状态机，13 例测试）+ 编辑器 pane 拆分（`lyric_list_pane.dart` / `lyric_inspector_pane.dart` / `lyric_editor_atoms.dart`，5 例 widget 测试），屏幕 4,591 → 2,597 行。
-- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）。
+- Phase 4.1 第一步（`LineAuditionController` + 编辑器 pane 拆分，屏幕 4,591 → 2,597 行）已合入 `main`（PR #292，合并提交 `de1f95b`），其 push 门禁 run 41563869508 为绿；本文件相对 `main` 无差异，工作区应为 clean。
+- 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）。
 
 ## 已改文件
 
@@ -36,7 +36,7 @@
 - 试听控制器覆盖：起播顺序（先 seek 再 play）、同工程不重复装载、无效窗口先暂停再清空、播放器未起播时报错原因、同窗口的暂停/继续/重播、到达结尾暂停、循环回跳到起点、边界动作未完成时忽略重复事件、队列换工程丢弃高亮、lineId 跟随行移动、边界抛错上报、循环开关去重通知。
 - 列表 pane 覆盖：按 `visibleIndices` 渲染、点击行回调选中、复核完成与筛选空两种空状态、超过 8 行出现搜索框并过滤。
 - 逐行复刻 `tool/work_log.dart` 语义的本地脚本：生成文件一致 + 条目均被引用 + 无断链。
-- PR 的 Flutter Quality Gate 在合并前等待通过。
+- PR #292 的 Flutter Quality Gate 通过后合并；合并后 `main` 的 push 门禁 run 41563869508 通过。
 
 ## 已知风险
 
@@ -77,4 +77,4 @@
 5. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 6. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 10:01（Asia/Taipei）
+最后更新：2026-11-03 10:12（Asia/Taipei）
