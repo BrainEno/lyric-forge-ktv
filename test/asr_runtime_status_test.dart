@@ -197,8 +197,14 @@ void main() {
         ],
       );
 
-      expect(status.hasReadyComponents(const {AsrRuntimeComponent.qwenAligner}), isFalse);
-      expect(status.hasReadyComponents(const {AsrRuntimeComponent.ffmpeg}), isTrue);
+      expect(
+        status.hasReadyComponents(const {AsrRuntimeComponent.qwenAligner}),
+        isFalse,
+      );
+      expect(
+        status.hasReadyComponents(const {AsrRuntimeComponent.ffmpeg}),
+        isTrue,
+      );
     });
   });
 }
