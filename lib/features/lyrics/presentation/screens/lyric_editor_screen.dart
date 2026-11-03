@@ -1455,8 +1455,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             },
           );
         },
-      ),
-    );
+      );
+    },
+  ),
+  );
   }
 
   @override

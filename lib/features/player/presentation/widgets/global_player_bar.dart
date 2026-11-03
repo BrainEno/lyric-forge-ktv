@@ -426,7 +426,9 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                 );
               },
             );
-        },
+          },
+        );
+      },
       ),
     );
   }
