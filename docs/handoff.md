@@ -61,9 +61,10 @@
 - 20 分钟阈值是**策略选择而非实测结论**：没有真实语料证明 20 分钟比 3 分钟在长音频上更好，只是对歌曲而言两者等价于「整首一次」。若将来出现超长现场录音的质量投诉，先看接缝，而不是直接把阈值调回去。
 - 检查点版本升到 2 会让所有旧检查点失效一次（有意的：旧检查点没有配置指纹）。
 - 真机行为（Windows/macOS 上的 FFmpeg 进程树、GPU 显存、设备端播放）仍未在本环境验证。
-- **偶发失败，两次都不是已修复**：
+- **偶发失败，三次都不是已修复**：
   - run 41295405781（14 次完整门禁中的 1 次）：抓到的日志尾部指向 `forced_alignment_eval_test.dart` 的 provenance 输出附近，但那个位置是**误导**；同类竞态的真实来源是 `test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving`（两种表现：`SecureSocket.connect` 的 `Broken pipe`，以及只收到裸 408 而缺少 `upload_total_timeout`），见「下一步」第 6 条。
   - run 41485065687（PR #285 合并后的 `main` push 门禁）：`scripts/quality_gate.sh --skip-pub-get` 退出 1，**同一棵树**在 3 分钟前的 PR 门禁通过、随后临时工作流连跑两遍全量门禁也全绿（run 41485674778），故判定偶发而非回归。这个 run 连失败用例名都没拿到：本环境无法下载 Actions 日志，该 workflow 又不上传测试报告，annotation 里只有 `Process completed with exit code 1`。
+  - run 41583186817（4.2 第一步的 PR #298 门禁）：同一条 `http_media_hub_upload_test.dart` 用例，`~1 -1` 并给出该用例名。**同一棵树**在两小时内的临时工作流全量门禁（run 41582433217、41582847227）连续通过两遍，故仍按偶发处理；重触发方式只能再推 commit。
   - 复现方法：把临时工作流加回分支（跑两遍 `scripts/quality_gate.sh --skip-pub-get`，把 `[E]` 行与断言上下文发成 annotation），确认后立刻删除，不要留在合并 diff 里。
   - `main` 的门禁**无法重跑**：`gh run rerun` 报 `cannot be rerun; its workflow file may be broken`，`gh workflow run` 返回 403（token 无 dispatch 权限）；要重新触发只能开一个纯文档 PR 并合并。
 - `main` 基线：Phase 3.5 由 PR #285 合入（合并提交 `efde4b5`）。紧随其后的 push 门禁 run 41485065687 变红且原因未定位（见上）；确认方法是在同一棵树上连跑两遍全量门禁（临时工作流 run 41485674778，两遍全绿），随后用文档 PR #286 重新触发，run 41487053012 为绿。若本文件之后 `main` 再次变红，同样先用这个方法排除真实回归，再谈修复。
@@ -78,4 +79,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 13:26（Asia/Taipei）
+最后更新：2026-11-03 13:52（Asia/Taipei）
