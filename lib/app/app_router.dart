@@ -17,6 +17,7 @@ import '../features/transfer/presentation/screens/media_hub_qr_scanner_screen.da
 import '../features/transfer/presentation/screens/mobile_media_transfer_hub_screen.dart';
 import '../features/transfer/presentation/screens/mobile_remote_library_shell.dart';
 import 'app_services.dart';
+import 'home_assembly.dart';
 import 'local_library_assembly.dart';
 import 'lyric_editor_assembly.dart';
 import 'playback_assembly.dart';
@@ -47,7 +48,12 @@ class AppRouter {
     switch (uri.path) {
       case Routes.home:
       case Routes.dashboard:
-        return _fadeRoute(const DashboardScreen(), settings);
+        return _fadeRoute(
+          DashboardScreen(
+            dependencies: assembleDashboardDependencies(services),
+          ),
+          settings,
+        );
 
       case Routes.import:
         return _fadeRoute(
@@ -170,7 +176,12 @@ class AppRouter {
           }
         }
 
-        return _fadeRoute(const DashboardScreen(), settings);
+        return _fadeRoute(
+          DashboardScreen(
+            dependencies: assembleDashboardDependencies(services),
+          ),
+          settings,
+        );
     }
   }
 

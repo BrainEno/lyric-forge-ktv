@@ -18,13 +18,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// The numbers below are a freeze of the current migration state, not a target.
 /// Fix the call site and lower the number in the same change; never raise it.
 /// Step 1 (editor, review inbox, routing table, app shell): 80 -> 72 calls in
-/// 37 -> 34 files. Step 2 (player screen, Now Playing, the app-shell lyric sync,
-/// Now Playing's lyric action and the fullscreen KTV view): 72 -> 54 calls in
-/// 34 -> 29 files. Step 3 (the local-music library: five sections, quick play,
-/// both player bars, the queue panel and its dialogs): 54 -> 32 calls in
-/// 29 -> 19 files — the whole player feature now takes its dependencies.
-const int _frozenSingletonFiles = 14;
-const int _frozenSingletonCalls = 16;
+/// 37 -> 34 files. Step 2 (playback surfaces): 72 -> 54 calls in 34 -> 29 files.
+/// Step 3 (local music library): 54 -> 32 calls in 29 -> 19 files. Step 4
+/// (project/import/remote workflows): 32 -> 16 calls in 19 -> 14 files. Step 5
+/// (dashboard injection and retirement of the unreachable legacy sharing
+/// screen): 16 -> 12 calls in 14 -> 12 files.
+const int _frozenSingletonFiles = 12;
+const int _frozenSingletonCalls = 12;
 
 /// The only part of `lib/app/` a feature may see, and only while it is still
 /// on the singleton. Everything else in `lib/app/` is assembly.

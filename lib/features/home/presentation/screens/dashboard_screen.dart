@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
-import '../../../../app/app_services.dart';
+import '../dashboard_dependencies.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/play_history.dart';
@@ -18,23 +18,13 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../../transcription/domain/models/transcription_queue_models.dart';
 import '../../../transcription/domain/models/transcription_models.dart';
 import '../../../transcription/domain/services/batch_transcription_queue.dart';
+import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../../transcription/presentation/widgets/transcription_config_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final ProjectRepository? projectRepository;
-  final PlayHistoryRepository? playHistoryRepository;
-  final PlaybackSessionService? playbackSessionService;
-  final AudioPlayerService? audioPlayerService;
-  final BatchTranscriptionQueue? transcriptionQueue;
+  final DashboardDependencies dependencies;
 
-  const DashboardScreen({
-    super.key,
-    this.projectRepository,
-    this.playHistoryRepository,
-    this.playbackSessionService,
-    this.audioPlayerService,
-    this.transcriptionQueue,
-  });
+  const DashboardScreen({super.key, required this.dependencies});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -46,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioPlayer;
   late final BatchTranscriptionQueue _transcriptionQueue;
+  late final TranscriptionSettingsStore _transcriptionSettingsStore;
   late Future<List<ProjectManifest>> _projectsFuture;
   late Future<List<PlayHistory>> _historyFuture;
 
@@ -54,20 +45,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final needsGlobalServices =
-        widget.projectRepository == null ||
-        widget.playHistoryRepository == null ||
-        widget.playbackSessionService == null ||
-        widget.audioPlayerService == null ||
-        widget.transcriptionQueue == null;
-    final services = needsGlobalServices ? AppServices.instance : null;
-    _projects = widget.projectRepository ?? services!.projectRepository;
-    _history = widget.playHistoryRepository ?? services!.playHistoryRepository;
-    _playbackSession =
-        widget.playbackSessionService ?? services!.playbackSessionService;
-    _audioPlayer = widget.audioPlayerService ?? services!.audioPlayerService;
-    _transcriptionQueue =
-        widget.transcriptionQueue ?? services!.transcriptionQueue;
+    _projects = widget.dependencies.projectRepository;
+    _history = widget.dependencies.playHistoryRepository;
+    _playbackSession = widget.dependencies.playbackSession;
+    _audioPlayer = widget.dependencies.audioPlayer;
+    _transcriptionQueue = widget.dependencies.transcriptionQueue;
+    _transcriptionSettingsStore =
+        widget.dependencies.transcriptionSettingsStore;
     _loadData();
   }
 
@@ -79,10 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _refresh() async => setState(_loadData);
 
   Future<void> _openModelSettings() async {
-    final services = AppServices.instance;
     try {
       final initialConfig =
-          await services.transcriptionSettingsStore.load() ??
+          await _transcriptionSettingsStore.load() ??
           const TranscriptionConfig(
             mode: TranscriptionMode.highestQuality,
             profilePreference: TranscriptionProfilePreference.automatic,
@@ -98,7 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       if (updated == null || !mounted) return;
       if (updated.isConfigured) {
-        await services.transcriptionSettingsStore.save(updated);
+        await _transcriptionSettingsStore.save(updated);
       }
     } catch (error) {
       if (!mounted) return;

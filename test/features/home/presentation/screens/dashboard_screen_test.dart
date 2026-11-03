@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/home/presentation/dashboard_dependencies.dart';
 import 'package:lyric_forge_ktv/features/home/presentation/screens/dashboard_screen.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
@@ -10,8 +11,10 @@ import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_ser
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_queue_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/batch_transcription_queue.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
 
 void main() {
   late _TestProjectRepository projects;
@@ -19,6 +22,7 @@ void main() {
   late _TestPlaybackSessionService playbackSession;
   late _TestAudioPlayerService audioPlayer;
   late _TestTranscriptionQueue transcriptionQueue;
+  late _TestTranscriptionSettingsStore transcriptionSettingsStore;
 
   setUp(() {
     projects = _TestProjectRepository();
@@ -26,15 +30,19 @@ void main() {
     playbackSession = _TestPlaybackSessionService();
     audioPlayer = _TestAudioPlayerService();
     transcriptionQueue = _TestTranscriptionQueue();
+    transcriptionSettingsStore = _TestTranscriptionSettingsStore();
   });
 
   Widget buildScreen() => MaterialApp(
     home: DashboardScreen(
-      projectRepository: projects,
-      playHistoryRepository: history,
-      playbackSessionService: playbackSession,
-      audioPlayerService: audioPlayer,
-      transcriptionQueue: transcriptionQueue,
+      dependencies: DashboardDependencies(
+        projectRepository: projects,
+        playHistoryRepository: history,
+        playbackSession: playbackSession,
+        audioPlayer: audioPlayer,
+        transcriptionQueue: transcriptionQueue,
+        transcriptionSettingsStore: transcriptionSettingsStore,
+      ),
     ),
   );
 
@@ -147,4 +155,15 @@ class _TestTranscriptionQueue implements BatchTranscriptionQueue {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _TestTranscriptionSettingsStore implements TranscriptionSettingsStore {
+  @override
+  Future<TranscriptionConfig?> load() async => null;
+
+  @override
+  Future<void> save(TranscriptionConfig config) async {}
+
+  @override
+  Future<void> clear() async {}
 }

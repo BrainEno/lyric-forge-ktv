@@ -25,7 +25,8 @@ void main() {
       'lib/features/import/presentation/screens/import_audio_screen.dart',
     ).readAsStringSync();
     final queuePanel = File(
-      'lib/features/transcription/presentation/widgets/transcription_queue_panel.dart',
+      'lib/features/transcription/presentation/widgets/'
+      'transcription_queue_panel.dart',
     ).readAsStringSync();
     final router = File('lib/app/app_router.dart').readAsStringSync();
 
@@ -47,7 +48,8 @@ void main() {
 
   test('remote media library receives explicit dependencies', () {
     final screen = File(
-      'lib/features/transfer/presentation/screens/remote_media_library_screen.dart',
+      'lib/features/transfer/presentation/screens/'
+      'remote_media_library_screen.dart',
     ).readAsStringSync();
     final assembly = File('lib/app/screen_assembly.dart').readAsStringSync();
 
@@ -56,4 +58,27 @@ void main() {
     expect(assembly, contains('services.mediaHubClientService'));
     expect(assembly, contains('services.mediaHubConnectionStore'));
   });
+
+  test(
+    'dashboard dependencies are assembled and the retired sharing screen stays unreachable',
+    () {
+      final dashboard = File(
+        'lib/features/home/presentation/screens/dashboard_screen.dart',
+      ).readAsStringSync();
+      final router = File('lib/app/app_router.dart').readAsStringSync();
+      final assembly = File('lib/app/home_assembly.dart').readAsStringSync();
+      final legacySharing = File(
+        'lib/features/transfer/presentation/screens/'
+        'desktop_media_sharing_screen.dart',
+      );
+
+      expect(dashboard, isNot(contains('AppServices')));
+      expect(dashboard, contains('required this.dependencies'));
+      expect(router, contains('assembleDashboardDependencies(services)'));
+      expect(assembly, contains('services.transcriptionSettingsStore'));
+      expect(legacySharing.existsSync(), isFalse);
+      expect(router, contains('DesktopMediaTransferHubV2Screen()'));
+      expect(router, isNot(contains('DesktopMediaSharingScreen')));
+    },
+  );
 }
