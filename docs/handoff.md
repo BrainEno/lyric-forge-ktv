@@ -12,7 +12,7 @@
 - Phase 4.2 第一步已合入 `main`（PR #298，合并提交 `ced925c`），交接文档 PR #299（`a964384`）；两次 `main` push 门禁为绿。
 - Phase 4.2 第二步已合入 `main`（PR #300，合并提交 `3f18744`），`main` push 门禁 run 41588338805 为绿；该 PR 的 10 个 check 全绿。
 - Phase 4.2 第三步（KTV 录音放回全屏 KTV）已合入 `main`（PR #301，合并提交 `8f1f55d`）：PR 的 5 个 check 全绿（质量门禁 run 41590712440），`main` push 门禁 run 41591171421 为绿；交接文档 PR #302（`884e683`），`main` 门禁 run 41591540954 为绿。
-- 本轮（4.2 第四步，本地音乐库构造注入）在分支 `arena/e14a183a-lyric-forge-ktv` 上，PR #303，尚未合并。
+- Phase 4.2 第四步（本地音乐库构造注入）已合入 `main`（PR #303，合并提交 `bc468c9`）：PR 的 5 个 check 全绿（质量门禁 run 41603297220、KTV history 41603297223、settings 41603297219、readiness 41603297315、widget-root 41603297276），`main` push 门禁 run 41603702731 为绿。
 - 已合并：`854a554`（Phase 3.4）、`efde4b5`（Phase 3.5，PR #285）、`c484655` / `376339a`（交接文档，PR #286/#287）、`24306cf`（Phase 4.3 试听通道，PR #288）、`300412d`（PR #289）、`06052a7`（门禁失败自述，PR #290）、`900b935`（PR #291）、`de1f95b`（4.1 第一步，PR #292）、`5310f41`（PR #293）、`95da409`（4.1 第二步，PR #294）、`0583b6f`（4.1 第二步交接文档，PR #295）、`e39dac6`（4.1 第三步，PR #296）。
 
 ## 已改文件
@@ -65,6 +65,7 @@
 - 棘轮首跑即命中冻结值（72 处 / 34 文件），无基线例外。
 - PR #301：5 个 check 全绿后合并（质量门禁 run 41590712440、KTV history run 41590712395、take-locks 41590712396、readiness 41590712397、widget-root 41590712444），合并后 `main` push 门禁 run 41591171421 通过。
 - 4.2 第三步：三条失败先由临时工作流定位（logs 不可下载，只能靠 `::error::` 注解）：① `lockedExportMessage` / `lockedRecordingMessage` 先声明在私有 State 类上，屏幕取不到 → 提到公开的 `KtvTakeHistorySheet` 上；② 测试的 `_FakePlaybackSession` 缺 6 个成员 → 补 `noSuchMethod`；③ 单次点击在 `FullscreenKtvInteractionSurface` 里要等双击超时才生效 → 测试补 `pump(400ms)`。最后一轮 analyze 无 error、两个新测试文件 + 架构契约 + `widget_test.dart` 全绿（run 41590447968）。验证完临时工作流已从分支删除。
+- PR #303：5 个 check 全绿后合并（质量门禁 run 41603297220），合并后 `main` push 门禁 run 41603702731 通过。
 - 4.2 第四步：临时工作流一轮就定位到唯一问题——新断言把文档注释里出现的 `AppServices.instance` 也算成依赖（`local_song_lyrics_import_action.dart` 与 `local_library_dependencies.dart` 的说明文字），改成「app-wide service lookups / 单例」措辞后通过；随后 analyze、架构契约、音乐库 shell 测试、队列歌单测试与 `widget_test.dart` 全绿，`scripts/quality_gate.sh --skip-pub-get` 在 PR 门禁里通过。`dart format` 由 probe 落成提交（只碰 `playback_queue_panel.dart` 等 6 个文件，其中该文件约 69 行历史格式债）。
 - 逐行复刻 `tool/work_log.dart write` 语义的本地脚本：生成的三份文件与提交内容一致。
 
@@ -115,4 +116,4 @@
 6. Phase 2.1 首启动可安装性（R5）：只能在真机验收，需用户配合。
 7. 偶发失败：`test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 有**两种**表现——`SecureSocket.connect` 阶段 `Broken pipe`，以及这次的 `Expected: contains 'upload_total_timeout'` 只收到裸 408。同一个用例，同一类竞态。此前记录的 `forced_alignment_eval_test.dart` 位置有误。
 
-最后更新：2026-11-03 16:30（Asia/Taipei）
+最后更新：2026-11-03 16:40（Asia/Taipei）
