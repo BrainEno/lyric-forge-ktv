@@ -46,6 +46,17 @@ void main() {
 
   Future<void> noPrepare() async {}
 
+  // The real caller loads the project into the queue; the fake session only
+  // knows that it happened because prepare did it.
+  Future<void> prepareProject() => session.playItem(
+    PlaybackItem(
+      id: 'project:p1',
+      title: 'p1',
+      projectId: 'p1',
+      audioAsset: const AudioAsset(originalPath: '/a.mp3', format: 'mp3'),
+    ),
+  );
+
   group('开始试听', () {
     test('跳过前奏并开始播放', () async {
       final result = await controller.start(
@@ -62,9 +73,15 @@ void main() {
     test('队列里是别的工程时先装载本工程', () async {
       session.setProject('other');
 
-      await controller.start(request: request, prepare: noPrepare);
+      await controller.start(request: request, prepare: prepareProject);
 
       expect(session.playItemCalls, 1);
+    });
+
+    test('队列已经是本工程时不再重复装载', () async {
+      await controller.start(request: request, prepare: prepareProject);
+
+      expect(session.playItemCalls, 0);
     });
 
     test('时间窗无效时不播放，并清掉旧的试听', () async {
@@ -105,7 +122,7 @@ void main() {
   group('行按钮的暂停 / 继续', () {
     test('同一个窗口在播放时暂停', () async {
       await controller.start(request: request, prepare: noPrepare);
-      audio.position = const Duration(seconds: 11);
+      audio.emitPosition(const Duration(seconds: 11));
 
       final result = await controller.toggle(
         request: request,
@@ -119,7 +136,7 @@ void main() {
     test('同一个窗口停在窗口内时直接继续播放，不重新跳转', () async {
       await controller.start(request: request, prepare: noPrepare);
       await audio.pause();
-      audio.position = const Duration(seconds: 12);
+      audio.emitPosition(const Duration(seconds: 12));
       final seeksBefore = session.seeks.length;
 
       final result = await controller.toggle(
@@ -135,7 +152,7 @@ void main() {
     test('同一个窗口已经播过结尾时重新从头开始', () async {
       await controller.start(request: request, prepare: noPrepare);
       await audio.pause();
-      audio.position = const Duration(seconds: 20);
+      audio.emitPosition(const Duration(seconds: 20));
 
       final result = await controller.toggle(
         request: request,
