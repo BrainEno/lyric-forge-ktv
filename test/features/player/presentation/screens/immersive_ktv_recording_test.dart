@@ -90,9 +90,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('全屏 KTV 进出场不会在祖先 build/卸载期间通知应用 chrome', (
-    tester,
-  ) async {
+  testWidgets('全屏 KTV 进出场不会在祖先 build/卸载期间通知应用 chrome', (tester) async {
     var showKtv = true;
     late StateSetter setHostState;
 
