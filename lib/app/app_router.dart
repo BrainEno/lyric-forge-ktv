@@ -77,10 +77,13 @@ class AppRouter {
         if (history != null) {
           return _fadeRoute(QuickPlayScreen(initialHistory: history), settings);
         }
-        final current = services.playbackSessionService.currentState.currentItem;
+        final current =
+            services.playbackSessionService.currentState.currentItem;
         if (current?.isRemoteStream == true) {
           return _fadeRoute(
-            NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services)),
+            NowPlayingScreen(
+              dependencies: assembleNowPlayingDependencies(services),
+            ),
             settings,
           );
         }
@@ -91,7 +94,9 @@ class AppRouter {
 
       case Routes.nowPlaying:
         return _fadeRoute(
-          NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services)),
+          NowPlayingScreen(
+            dependencies: assembleNowPlayingDependencies(services),
+          ),
           settings,
         );
 

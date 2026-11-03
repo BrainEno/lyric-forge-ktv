@@ -210,13 +210,23 @@ void main() {
       final router = File('lib/app/app_router.dart').readAsStringSync();
       expect(
         router,
-        contains('NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services))'),
+        contains(
+          'NowPlayingScreen(dependencies: assembleNowPlayingDependencies(services))',
+        ),
       );
-      expect(router, contains('dependencies: assemblePlayerScreenDependencies(services)'));
+      expect(
+        router,
+        contains('dependencies: assemblePlayerScreenDependencies(services)'),
+      );
 
-      final assembly = File('lib/app/playback_assembly.dart').readAsStringSync();
+      final assembly = File(
+        'lib/app/playback_assembly.dart',
+      ).readAsStringSync();
       expect(assembly, contains('PlaybackLyricsResolver('));
-      expect(assembly, contains('audioPathCanonicalizer: services.audioPathCanonicalizer'));
+      expect(
+        assembly,
+        contains('audioPathCanonicalizer: services.audioPathCanonicalizer'),
+      );
 
       // The app shell owns the one sync widget; it must build the resolver from
       // the services it was given, not from the singleton.

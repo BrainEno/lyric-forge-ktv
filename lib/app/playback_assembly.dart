@@ -19,7 +19,9 @@ PlaybackLyricsResolver buildPlaybackLyricsResolver(AppServices services) {
 }
 
 /// What `/project/:id/player` is made of.
-PlayerScreenDependencies assemblePlayerScreenDependencies(AppServices services) {
+PlayerScreenDependencies assemblePlayerScreenDependencies(
+  AppServices services,
+) {
   return PlayerScreenDependencies(
     projectRepository: services.projectRepository,
     audioPlayer: services.audioPlayerService,

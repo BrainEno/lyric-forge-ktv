@@ -48,9 +48,7 @@ class _NowPlayingLyricsProjectActionState
   Future<String?> _resolve() async {
     // Resolution also retracts a stale `hasLyrics` flag on the queue item, so
     // opening Now Playing fixes the player bar and quick-play labels too.
-    final resolution = await widget.lyricsResolver.resolveAndSync(
-      widget.item,
-    );
+    final resolution = await widget.lyricsResolver.resolveAndSync(widget.item);
     return resolution.projectId;
   }
 
