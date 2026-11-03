@@ -222,7 +222,7 @@ void main() {
       expect(assembly, contains('PlaybackLyricsResolver('));
       expect(
         assembly,
-        contains('audioPathCanonicalizer: services.audioPathCanonicalizer'),
+        contains('pathCanonicalizer: services.audioPathCanonicalizer'),
       );
 
       // The app shell owns the one sync widget; it must build the resolver from
