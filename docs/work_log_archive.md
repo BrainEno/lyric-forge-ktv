@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 02:20] Let a failing quality gate name its own failure ([entry](log/entries/2026-11-03-0220-gate-failure-annotations.md))
 - [2026-11-03 02:06] One owner for KTV take auditions, and no second player in the UI ([entry](log/entries/2026-11-03-0206-audition-service.md))
 - [2026-11-03 00:43] One persistent navigation for the whole app ([entry](log/entries/2026-11-03-0043-app-navigation.md))
 - [2026-11-03 00:02] An undo stack for the lyric editor ([entry](log/entries/2026-11-03-0002-lyric-editor-undo-stack.md))

@@ -900,12 +900,20 @@ class ServiceLocator {
 
 **棘轮**：54 → **32** 处（29 → 19 文件）；新增断言——12 个库文件零 `AppServices.instance`、路由表必须调 `assembleLocalLibraryDependencies` 并走 `_libraryShell(`、装配层真的绑定九个服务并复用同一个 `buildPlaybackLyricsResolver`、`lib/app/app.dart` 必须把同一个包交给两个播放条。
 
+### 4.2 第五步（2026-11-03，项目 / 导入 / 远程媒体）
+
+下一批高频页面：项目详情、批量导入就绪、批量导入、远程媒体库。`ProjectDetailDependencies`、`TranscriptionImportDependencies`、`RemoteMediaLibraryDependencies` 在 `lib/app/screen_assembly.dart` 组装；路由显式传项目详情和导入依赖，导入就绪页将同一对象转交批量导入页。
+
+**导入恢复路径没有换语义**：桌面 readiness preflight、设置页返回后刷新、ASR 环境准备后仅恢复环境故障队列、手机直接进入导入面都保留原行为。`TranscriptionQueuePanel` 的 queue / settings store / runtime manager 改为必填，去掉了它自身的 locator fallback。`AsrRuntimeSetupDialog` 内部仍从 singleton 取安装服务，作为后续独立迁移项；本轮不重做安装 UI。
+
+远程媒体屏当前没有生产调用 / 路由点；只让其构造依赖显式，不新造入口。**没有触及歌词识别算法、歌词结果、播放器音频行为或布局**，因此不涉及识别质量回归或真实歌验证。棘轮 **32/19 → 16/14**，新增路由/依赖契约；PR #305 head `9f88da4` 的七个 CI check 全绿（质量门禁 run 41609783247）。
+
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
 | 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例）。第三步（同日）：编辑会话 → `LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史），屏幕 2,298 → 2,064 行（43 例）。**三步合计 4,591 → 2,064 行**。剩余：强制对齐 runner 装配（属 4.2） |
-| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口。第三步（同日）：`ImmersiveKtvDependencies`（9 个协作者）+ `lib/app/playback_assembly.dart` 装配，录音工具条 / 麦克风 sheet / 演唱历史 sheet 回到 `ImmersiveKtvScreen`，恢复 `isRecording || isExporting` 变更锁；棘轮维持 54 处 / 29 文件。第四步（同日，本地音乐库）：`LocalLibraryDependencies`（9 个协作者）+ `lib/app/local_library_assembly.dart`，五个分区 / 快速播放 / 两个播放条 / 队列面板 / 四个对话框全部构造注入，棘轮 54 → 32 处（29 → 19 文件） | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
+| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入。第二步（同日）：播放面改为构造注入（`PlaybackLyricsResolver` + 两个依赖对象 + `lib/app/playback_assembly.dart`），删除 1,000 行不可达的旧全屏 KTV 视图，单例调用点 72 → 54（34 → 29 文件）。**发现**：KTV 录音/导出/历史 UI 已无入口。第三步（同日）：`ImmersiveKtvDependencies`（9 个协作者）+ `lib/app/playback_assembly.dart` 装配，录音工具条 / 麦克风 sheet / 演唱历史 sheet 回到 `ImmersiveKtvScreen`，恢复 `isRecording || isExporting` 变更锁；棘轮维持 54 处 / 29 文件。第四步（同日，本地音乐库）：`LocalLibraryDependencies`（9 个协作者）+ `lib/app/local_library_assembly.dart`，五个分区 / 快速播放 / 两个播放条 / 队列面板 / 四个对话框全部构造注入，棘轮 54 → 32 处（29 → 19 文件）。第五步（同日）：项目详情、批量导入 readiness / surface、远程媒体库及队列环境修复改为依赖注入，`lib/app/screen_assembly.dart` 装配三类依赖，棘轮 32 → 16 处（19 → 14 文件）；识别与 UI 行为不变 | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
 | 4.5 | 合并/退役 22 个专项 workflow，保留主门禁 + 原生构建 + runtime 发布 + 图标 |
