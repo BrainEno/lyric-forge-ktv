@@ -835,12 +835,28 @@ class ServiceLocator {
 
 **仍未拆**：强制对齐 runner 的装配（需要 `ServiceLocator`），留到 4.2。
 
+### 4.2 现状补充（2026-11-03，第一步）
+
+第一步只搬**装配层**，不逐屏改注入：`lib/core/services/service_locator.dart`（345 行）改名为 `AppServices` 并整体移到 `lib/app/app_services.dart`，装配的东西本身一行没变。原因很直接——这一层的价值在「进程启动时把真实服务图建一次」，而它偏偏住在 `lib/core/`，也就是所有 feature 都允许依赖的那一层；于是每个屏幕都能顺手 `ServiceLocatorGlobal.I.xxx`，屏幕也就永远无法在没有整个服务图的情况下被构造（这是编辑器此前零 widget 测试的根因）。
+
+同一次搬迁里改掉三处「装配藏在别处」：
+
+- **路由表**：`core/navigation/app_router.dart` 的静态 `AppRouter.onGenerateRoute` → `lib/app/app_router.dart` 的 `AppRouter(services)` 实例方法。装配需要什么就从构造函数拿，`/quick-play` 那个唯一的实时状态查询也不再是隐式的。
+- **App widget**：`ElysiumPlayerApp` 从 `lib/main.dart` 移到 `lib/app/app.dart`（可选 `services`，缺省取 `AppServices.instance`），`main.dart` 只剩 bootstrap + 首帧后挂接系统媒体会话；`_navigatorKey` 一并私有化。
+- **路由名**：`Routes` 留在 `lib/core/navigation/routes.dart`。屏幕要 push 名字，而 `lib/core` 不能反向依赖 `lib/app`——把常量留在下层、把表放进装配层，方向才是单向的。
+
+**强制对齐 runner 出屏幕**。4.1 之后编辑器里剩下的唯一装配耦合是 `_openProofreadV2` 里内联的 40 行闭包：读设置、解析 profile、inspect runtime、确认 `qwenRuntime`+`qwenAligner` 都 ready、再调原生 aligner，失败时抛两句中文文案。它现在被 `lib/app/lyric_editor_assembly.dart` 的 `buildForcedAlignmentRunner` 生产，编辑器只拿到 `LyricEditorDependencies`（6 个字段：project repository、播放会话、音频播放器、歌词导入/导出、runner）。文案逐字保留，所以用户可见行为不变；区别是这段逻辑终于能在装配层被读、被替换、被测试，而不再需要「打开编辑器并选择对齐」才能执行。
+
+**棘轮**：`test/architecture/app_assembly_contract_test.dart` 冻结三件事——`lib/core` 永不 import `lib/app`；features 只允许从 `lib/app/` 拿 `app_services.dart`（拿 `app.dart`/`app_router.dart`/assembler 即失败，那等于屏幕自己造同层部件）；`AppServices.instance` 的调用点只能减少（第一步把 80 处 / 37 文件降到 **72 处 / 34 文件**，编辑器与复核收件箱清零）。另加两条声明式断言：路由表必须显式给编辑器装配依赖，`main.dart` 不得 import 任何 `presentation/`。
+
+行为上唯一的变化是复核收件箱的构造参数从可选变必填（路由总会传），以及编辑器不再自带 runner 默认值——两者都是「少一条隐式回退」。屏幕 2,064 → 2,042 行。剩余的 34 个文件仍用 `AppServices.instance`，是有意的过渡态，后续按屏替换（下一批候选：播放器屏 7 处、`playback_lyrics_availability_sync` 5 处、`local_song_lyrics_import_action` 5 处）。
+
 ### Phase 4：架构收敛（持续，2–3 周）
 
 | # | 改动 |
 |---|---|
 | 4.1 | `LyricEditorScreen` 拆分为 `LyricEditorController`（状态/用例）+ 列表 pane + inspector pane + toolbar | 第一步（2026-11-03）：4,591 → 2,597 行；行试听状态机 → `LineAuditionController`（13 例），列表/检查器/原子部件独立成文件（5 例 widget 测试）。第二步（同日）：校对编排的纯逻辑 → `ProofreadV2ReviewAssembler` + `ProofreadV2DocumentComposer` + 审核行类型进 domain，屏幕 2,597 → 2,298 行（36 例）。第三步（同日）：编辑会话 → `LyricEditorDocumentController`（文档/脏标记/选中行/手工标记/批量快照/撤销历史），屏幕 2,298 → 2,064 行（43 例）。**三步合计 4,591 → 2,064 行**。剩余：强制对齐 runner 装配（属 4.2） |
-| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` |
+| 4.2 | 装配层移到 `lib/app/`，逐步用构造注入替换 `ServiceLocatorGlobal.I` | 第一步（2026-11-03）：`ServiceLocator` → `AppServices` 迁入 `lib/app/`，路由表 / App widget / 编辑器依赖装配同批迁入，`Routes` 留在 `lib/core/navigation/`；`LyricEditorScreen` 改收 `LyricEditorDependencies`（含从屏幕里拆出的强制对齐 runner），复核收件箱改收 repository；棘轮测试冻结 `core→app` = 0、features 只许见 `app_services.dart`、单例调用点 80→72（37→34 文件）。剩余：其余屏幕按屏注入 |
 | 4.3 | 试听统一走服务层，删除 UI 内自建 `AudioPlayer` | **已完成 2026-11-03**：越层的是 KTV 录音成品试听（行试听本来就走 `AudioPlayerService`）。新增 `AudioPreviewService` + 双向互斥装饰器，sheet 抽出并注入服务，presentation 不再 import `just_audio`，分层棘轮新增一条禁令 |
 | 4.4 | 引入最小状态管理（Riverpod/Provider 任一），先只改造编辑器与播放条 |
 | 4.5 | 合并/退役 22 个专项 workflow，保留主门禁 + 原生构建 + runtime 发布 + 图标 |
