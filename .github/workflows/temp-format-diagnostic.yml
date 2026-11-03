@@ -1,36 +1,43 @@
-name: Temporary formatter diagnostic
+name: Temporary transfer formatting probe
 
 on:
   pull_request:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: ./.github/actions/setup-flutter
-      - name: Report any changed Dart file that needs formatting
+      - name: Resolve packages and format changed Dart files
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         shell: bash
         run: |
-          set -uo pipefail
-          mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
-          echo "::notice title=FORMAT_FILE_COUNT::${#files[@]}"
-          echo "::notice title=FORMAT_FILES::${files[*]}"
-          if dart format --output=none --set-exit-if-changed "${files[@]}"; then
-            echo '::notice title=COMBINED_FORMAT_CHECK::passed'
-          else
-            echo '::error title=COMBINED_FORMAT_CHECK::failed'
+          set -euo pipefail
+          flutter pub get --enforce-lockfile
+          git fetch origin main
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          if (( ${#dart_files[@]} == 0 )); then
+            echo 'No changed Dart files.'
+            exit 0
           fi
-          for file in "${files[@]}"; do
-            if ! dart format --output=none --set-exit-if-changed "$file" >/dev/null; then
-              echo "::error title=NEEDS_FORMAT::$file"
-            fi
-          done
+          dart format "${dart_files[@]}"
+          if git diff --quiet -- "${dart_files[@]}"; then
+            echo 'Changed Dart files are formatted with resolved package configuration.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${dart_files[@]}"
+          git commit -m 'style: format with resolved package configuration'
+          git fetch origin "$BRANCH"
+          git rebase FETCH_HEAD
+          git push origin "HEAD:$BRANCH"
