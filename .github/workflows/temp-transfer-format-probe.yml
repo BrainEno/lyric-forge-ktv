@@ -28,4 +28,4 @@ jobs:
             echo 'No formatter patch generated.'
             exit 0
           fi
-          base64 -w0 /tmp/formatter.patch | fold -w 5000 | awk '{ printf "::notice title=FORMAT_PATCH_%03d::%s\n", NR, $0 }'
+          base64 -w0 /tmp/formatter.patch | fold -w 3000 | awk '{ printf "::notice title=FORMAT_PATCH_%03d::%s\n", NR, $0 }'
