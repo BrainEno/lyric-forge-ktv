@@ -1,0 +1,30 @@
+name: Temporary formatter diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Report any changed Dart file that needs formatting
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          echo "::notice title=FORMAT_FILE_COUNT::${#files[@]}"
+          for file in "${files[@]}"; do
+            if ! dart format --output=none --set-exit-if-changed "$file" >/dev/null; then
+              echo "::error title=NEEDS_FORMAT::$file"
+            fi
+          done
