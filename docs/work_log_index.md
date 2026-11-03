@@ -20,6 +20,7 @@
 
 ## Recent work areas
 
+- **Phase 4.4 editor/player state:** editor document state is observable through a local Provider/Selector scope; desktop playback chrome reuses its existing session snapshot in queue/mode controls, while services remain the only playback state source. See the newest work-log entry and the updated deep review; recognition algorithms are untouched.
 - **Dashboard empty/retry coverage (#223):** `DashboardScreen` accepts optional repository/player/queue collaborators so widget tests can cover empty playback/history/project states and the recent-project error→retry→empty path without initializing the global service locator. This is a focused first slice, not completion of the broader coverage gap.
 
 

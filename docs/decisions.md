@@ -102,3 +102,12 @@
 - 影响：新引入的重复/倒退起始时间等不可推断冲突仍走明确的保留/撤销门；`metadata['timingProvenance']` 新增 `autoRepaired` 值；对比面板依赖应用前快照，快照失效后入口随之禁用。
 - 状态：生效
 - 来源：[2026-10-21 15:47 条目](log/entries/2026-10-21-1547-post-apply-diff-and-timeline-auto-repair.md)
+
+## D-012 状态管理必须服从既有服务事实源并限制在局部子树
+
+- 日期：2026-11-03
+- 背景：编辑器文档状态由屏幕手动协调，而播放/session 状态已由 app-scoped services 通过 streams 发布；全局复制播放状态会制造第二事实源。
+- 决定：编辑器文档 controller 使用 `ChangeNotifier`，仅在成功状态变化后通知，并由局部 `Provider/Selector` 订阅所需快照；加载必须在监听子树构建前完成。播放/session 服务仍是唯一事实源：播放条继续消费现有 streams，桌面条把同一 session 快照传给队列/模式控件以避免重复订阅；短生命周期控件状态继续留在 widget。
+- 影响：Provider 不成为全局 service locator，不创建第二个播放器/队列，也不要求把全部编辑器 UI 状态搬进 store。识别与歌词编辑语义保持由现有 controller/service 测试保护。
+- 状态：生效
+- 来源：[Phase 4.4 最终交付记录](log/entries/2026-11-03-2113-phase44-state-management-final.md)

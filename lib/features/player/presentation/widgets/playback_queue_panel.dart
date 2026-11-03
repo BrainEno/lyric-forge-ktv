@@ -12,6 +12,7 @@ import 'playback_queue_playlist_action.dart';
 
 class PlaybackQueuePanel extends StatelessWidget {
   final PlaybackSessionService session;
+  final PlaybackSessionState? sessionState;
 
   /// Only needed by "save queue as playlist"; required so the panel cannot fall
   /// back to the app-wide locator when a caller forgets it.
@@ -23,6 +24,7 @@ class PlaybackQueuePanel extends StatelessWidget {
   const PlaybackQueuePanel({
     super.key,
     required this.session,
+    this.sessionState,
     required this.collectionRepository,
     this.height = 360,
     this.allowClearAll = false,
@@ -54,75 +56,80 @@ class PlaybackQueuePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final providedState = sessionState;
+    if (providedState != null) {
+      return _buildForState(context, providedState);
+    }
     return StreamBuilder<PlaybackSessionState>(
       stream: session.stateStream,
       initialData: session.currentState,
-      builder: (context, snapshot) {
-        final state = snapshot.data ?? const PlaybackSessionState();
-        final savableQueueCount = localQueuePlaylistPaths(state).length;
-        return Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: AppColors.bgElevated,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-            border: showBorder
-                ? Border.all(color: AppColors.borderMuted)
+      builder: (context, snapshot) => _buildForState(
+        context,
+        snapshot.data ?? const PlaybackSessionState(),
+      ),
+    );
+  }
+
+  Widget _buildForState(BuildContext context, PlaybackSessionState state) {
+    final savableQueueCount = localQueuePlaylistPaths(state).length;
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.bgElevated,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+        border: showBorder ? Border.all(color: AppColors.borderMuted) : null,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _QueueHeader(
+            session: session,
+            state: state,
+            allowClearAll: allowClearAll,
+            onSaveQueue: savableQueueCount > 0
+                ? () => _saveQueue(context, state)
+                : null,
+            onClearUpcoming: state.upcomingCount > 0
+                ? () => session.clearQueue()
+                : null,
+            onClearAll: state.queue.isNotEmpty && allowClearAll
+                ? () => session.clearQueue(keepCurrent: false)
                 : null,
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              _QueueHeader(
-                session: session,
-                state: state,
-                allowClearAll: allowClearAll,
-                onSaveQueue: savableQueueCount > 0
-                    ? () => _saveQueue(context, state)
-                    : null,
-                onClearUpcoming: state.upcomingCount > 0
-                    ? () => session.clearQueue()
-                    : null,
-                onClearAll: state.queue.isNotEmpty && allowClearAll
-                    ? () => session.clearQueue(keepCurrent: false)
-                    : null,
-              ),
-              const Divider(height: 1, color: AppColors.borderMuted),
-              Expanded(
-                child: state.queue.isEmpty
-                    ? const _EmptyQueue()
-                    : ReorderableListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.xs,
+          const Divider(height: 1, color: AppColors.borderMuted),
+          Expanded(
+            child: state.queue.isEmpty
+                ? const _EmptyQueue()
+                : ReorderableListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
+                    buildDefaultDragHandles: false,
+                    itemCount: state.queue.length,
+                    onReorder: (oldIndex, newIndex) {
+                      var target = newIndex;
+                      if (target > oldIndex) target -= 1;
+                      if (target < 0 || target >= state.queue.length) return;
+                      session.moveItem(oldIndex, target);
+                    },
+                    itemBuilder: (context, index) {
+                      final item = state.queue[index];
+                      return _QueueRow(
+                        key: ValueKey(item.id),
+                        index: index,
+                        item: item,
+                        isCurrent: index == state.currentIndex,
+                        onPlay: () => runPlaybackActionWithFeedback(
+                          context,
+                          () => session.playAt(index),
                         ),
-                        buildDefaultDragHandles: false,
-                        itemCount: state.queue.length,
-                        onReorder: (oldIndex, newIndex) {
-                          var target = newIndex;
-                          if (target > oldIndex) target -= 1;
-                          if (target < 0 || target >= state.queue.length)
-                            return;
-                          session.moveItem(oldIndex, target);
-                        },
-                        itemBuilder: (context, index) {
-                          final item = state.queue[index];
-                          return _QueueRow(
-                            key: ValueKey(item.id),
-                            index: index,
-                            item: item,
-                            isCurrent: index == state.currentIndex,
-                            onPlay: () => runPlaybackActionWithFeedback(
-                              context,
-                              () => session.playAt(index),
-                            ),
-                            onRemove: () => session.removeAt(index),
-                          );
-                        },
-                      ),
-              ),
-            ],
+                        onRemove: () => session.removeAt(index),
+                      );
+                    },
+                  ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -178,7 +185,11 @@ class _QueueHeader extends StatelessWidget {
                 icon: const Icon(Icons.playlist_add_rounded),
                 iconSize: 20,
               ),
-              PlaybackModeControls(session: session, compact: true),
+              PlaybackModeControls(
+                session: session,
+                sessionState: state,
+                compact: true,
+              ),
             ],
           ),
           Row(

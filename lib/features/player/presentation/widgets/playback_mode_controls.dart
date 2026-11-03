@@ -5,11 +5,13 @@ import '../../domain/services/playback_session_service.dart';
 
 class PlaybackModeControls extends StatelessWidget {
   final PlaybackSessionService session;
+  final PlaybackSessionState? sessionState;
   final bool compact;
 
   const PlaybackModeControls({
     super.key,
     required this.session,
+    this.sessionState,
     this.compact = false,
   });
 
@@ -37,46 +39,49 @@ class PlaybackModeControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final providedState = sessionState;
+    if (providedState != null) return _buildForState(context, providedState);
+
     return StreamBuilder<PlaybackSessionState>(
       stream: session.stateStream,
       initialData: session.currentState,
-      builder: (context, snapshot) {
-        final state = snapshot.data ?? session.currentState;
-        final shuffle = state.shuffleEnabled;
-        final repeat = state.repeatMode;
-        final activeColor = Theme.of(context).colorScheme.primary;
-        final inactiveColor = AppColors.textTertiary;
+      builder: (context, snapshot) =>
+          _buildForState(context, snapshot.data ?? session.currentState),
+    );
+  }
 
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              visualDensity: compact ? VisualDensity.compact : null,
-              tooltip: shuffle ? '关闭随机播放' : '开启随机播放',
-              onPressed: state.queue.length < 2
-                  ? null
-                  : () => session.setShuffleEnabled(!shuffle),
-              color: shuffle ? activeColor : inactiveColor,
-              icon: const Icon(Icons.shuffle_rounded),
-            ),
-            IconButton(
-              visualDensity: compact ? VisualDensity.compact : null,
-              tooltip: _repeatTooltip(repeat),
-              onPressed: state.currentItem == null
-                  ? null
-                  : () => session.setRepeatMode(_nextRepeatMode(repeat)),
-              color: repeat == PlaybackRepeatMode.off
-                  ? inactiveColor
-                  : activeColor,
-              icon: Icon(
-                repeat == PlaybackRepeatMode.one
-                    ? Icons.repeat_one_rounded
-                    : Icons.repeat_rounded,
-              ),
-            ),
-          ],
-        );
-      },
+  Widget _buildForState(BuildContext context, PlaybackSessionState state) {
+    final shuffle = state.shuffleEnabled;
+    final repeat = state.repeatMode;
+    final activeColor = Theme.of(context).colorScheme.primary;
+    final inactiveColor = AppColors.textTertiary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          visualDensity: compact ? VisualDensity.compact : null,
+          tooltip: shuffle ? '关闭随机播放' : '开启随机播放',
+          onPressed: state.queue.length < 2
+              ? null
+              : () => session.setShuffleEnabled(!shuffle),
+          color: shuffle ? activeColor : inactiveColor,
+          icon: const Icon(Icons.shuffle_rounded),
+        ),
+        IconButton(
+          visualDensity: compact ? VisualDensity.compact : null,
+          tooltip: _repeatTooltip(repeat),
+          onPressed: state.currentItem == null
+              ? null
+              : () => session.setRepeatMode(_nextRepeatMode(repeat)),
+          color: repeat == PlaybackRepeatMode.off ? inactiveColor : activeColor,
+          icon: Icon(
+            repeat == PlaybackRepeatMode.one
+                ? Icons.repeat_one_rounded
+                : Icons.repeat_rounded,
+          ),
+        ),
+      ],
     );
   }
 }

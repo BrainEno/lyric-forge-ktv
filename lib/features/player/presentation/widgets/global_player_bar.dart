@@ -153,6 +153,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                               ),
                               child: PlaybackQueuePanel(
                                 session: _session,
+                                sessionState: session,
                                 collectionRepository:
                                     widget.dependencies.collectionRepository,
                                 height: queueHeight,
@@ -340,6 +341,7 @@ class _GlobalPlayerBarState extends State<GlobalPlayerBar> {
                             if (!compact)
                               PlaybackModeControls(
                                 session: _session,
+                                sessionState: session,
                                 compact: true,
                               ),
                             if (!minimal)

@@ -86,6 +86,40 @@ void main() {
     });
   });
 
+  group('notifications', () {
+    test('notifies on observable changes but not on no-op operations', () {
+      final entry = build(loaded: document([line('a', id: 'a')]));
+      var notifications = 0;
+      entry.controller.addListener(() => notifications++);
+
+      entry.controller.select(0);
+      expect(notifications, 0);
+      entry.controller.select(null);
+      expect(notifications, 1);
+      entry.controller.select(null);
+      expect(notifications, 1);
+
+      entry.controller.updateLine(0, line('edited', id: 'a'));
+      expect(notifications, 2);
+      entry.controller.updateLine(3, line('missing'));
+      expect(notifications, 2);
+
+      entry.controller.dispose();
+    });
+
+    test('loading publishes the new document outside the caller', () {
+      final entry = build();
+      var notifications = 0;
+      entry.controller.addListener(() => notifications++);
+
+      entry.controller.load(document([line('a', id: 'a')]));
+
+      expect(notifications, 1);
+      expect(entry.controller.document!.lines.single.text, 'a');
+      entry.controller.dispose();
+    });
+  });
+
   group('undo and redo', () {
     test('undo restores the document and the selection that produced it', () {
       final entry = build(
