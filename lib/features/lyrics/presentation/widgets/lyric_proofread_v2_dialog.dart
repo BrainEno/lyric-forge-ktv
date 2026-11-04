@@ -5,6 +5,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_review_proposal.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
+import '../lyric_review_strings.dart';
 
 class ProofreadV2RunOptions {
   final LyricSourceStrategy strategy;
@@ -434,7 +435,7 @@ class _LyricProofreadV2ReviewDialogState
                             Text(
                               '${_formatTime(item.line.startTime)} – '
                               '${_formatTime(item.line.endTime)} · '
-                              '${item.reasonLabel} · 默认排除，勾选恢复',
+                              '${LyricReviewStrings.droppedReferenceItemReason}',
                             ),
                             if (_auditionFeedbackByProposal[-item.sourceIndex -
                                     1] !=

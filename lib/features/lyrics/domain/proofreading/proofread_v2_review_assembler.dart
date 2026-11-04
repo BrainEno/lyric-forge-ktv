@@ -78,7 +78,6 @@ class ProofreadV2ReviewAssembler {
           LyricProofreadV2DroppedItem(
             sourceIndex: row.draftIndex,
             line: row.line,
-            reasonLabel: '未找到可靠参考匹配；默认排除，可勾选恢复',
           ),
       ],
       explanation: [
@@ -134,7 +133,6 @@ class ProofreadV2ReviewAssembler {
           LyricProofreadV2DroppedItem(
             sourceIndex: row.sourceIndex,
             line: row.line,
-            reasonLabel: row.reasons.map(reasonLabel).join('、'),
           ),
       ],
       explanation: [

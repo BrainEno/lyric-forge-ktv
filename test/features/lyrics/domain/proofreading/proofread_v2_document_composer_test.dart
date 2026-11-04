@@ -252,7 +252,6 @@ void main() {
         LyricProofreadV2DroppedItem(
           sourceIndex: 1,
           line: before.lines[1],
-          reasonLabel: '未找到可靠参考匹配；默认排除，可勾选恢复',
         ),
       ];
 
@@ -313,7 +312,6 @@ void main() {
             LyricProofreadV2DroppedItem(
               sourceIndex: 1,
               line: before.lines[1],
-              reasonLabel: '',
             ),
           ],
           selection: selection(restored: {1}),
@@ -467,7 +465,6 @@ void main() {
           LyricProofreadV2DroppedItem(
             sourceIndex: 2,
             line: before.lines[2],
-            reasonLabel: '',
           ),
         ],
         selection: selection(accepted: {0, 1}),
