@@ -2,40 +2,40 @@
 
 ## 目标
 
-完成一个独立可验证的 Proofread V2 dropped-item 文案切片：从 domain model/assembler 移除 dropped-item `reasonLabel`，改由 presentation 的 `LyricReviewStrings` 集中显示固定中文理由，并保留“默认排除、可勾选恢复”语义。其他 review-item 理由和 explanation 不在本切片范围内。
+本轮 Proofread V2 独立切片：只迁移 reference-first review-item 的理由文案。Domain assembler 将 `ReferenceFirstReason` 转为稳定的 `LyricProofreadV2ReferenceReason` code；presentation 的 `LyricReviewStrings` 负责映射原有中文文案并由 dialog 显示。ASR review-item reason labels、Proofread V2 explanation 不在本切片范围内。
 
 ## Git 现场
 
 - Repository：`BrainEno/lyric-forge-ktv`
-- 活动分支：`arena/cb779640-lyric-forge-ktv`。
-- 基线：PR #342 merge commit `ee51c072001dcc73e036b67b3133b21fca47e59d`。
-- 实现提交：`a6ebab2 refactor: move dropped review copy to presentation`；格式修正：`f8414ae style: format dropped-item presentation changes`。
-- PR #343：<https://github.com/BrainEno/lyric-forge-ktv/pull/343>，OPEN，供 review；未经用户授权不得合并。
-- 代码/测试树 commit `1960357` 的 pinned Flutter Quality Gate run `41855390338` 已通过；本次 handoff/work-log 文档更新会推进 PR head，需确认更新后最新 head 的门禁。
+- 活动分支：`arena/dbb9c928-lyric-forge-ktv`。
+- 基线：PR #343 已合并到 main；当前分支基于 merge commit `684c2790378e2550356e449fc89bc83f1306c402`。
+- 实现提交：`3660ab8 refactor: move reference-first review labels to presentation`。
+- PR #344：<https://github.com/BrainEno/lyric-forge-ktv/pull/344>，OPEN，供 review；未经用户授权不得合并。
 - Issue #335 已 CLOSED；本切片不重开，也不作为 PR 的关闭目标。
+- PR #344 的 pinned Flutter Quality Gate 尚待最终 head 通过；如有后续提交，只以最新 head 对应的 run 为准。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart`：移除 `LyricProofreadV2DroppedItem.reasonLabel`。
-- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart`：两个 assembler entry point 均不再给 dropped item 组装展示理由；review-item 理由保持不变。
-- `lib/features/lyrics/presentation/lyric_review_strings.dart`：新增 dropped-item 文案常量。
-- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`：由 presentation 常量显示理由及恢复提示。
-- assembler、composer、dialog 和 presentation string 测试已适配模型变更，并断言 dialog 中显示该理由。
-- `docs/log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md`、生成的 work-log 导航与本 handoff 记录本切片。
+- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart`：为 review item 增加不可变的 typed reference-reason code 集合，ASR 的自由文本标签仍保留。
+- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart`：reference-first 路径只传递/转换 typed code，不再生成中文理由；ASR 理由与 explanation 不变。
+- `lib/features/lyrics/presentation/lyric_review_strings.dart`：集中映射十种 reference-first code 到原有中文文案。
+- `lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart`：在展示边界组合 reference-first code 文案与仍保留的 ASR 文本标签。
+- 三个相关 assembler、presentation strings 与 dialog 测试覆盖 code 转换、全部文案映射及 dialog 可见文案。
+- `docs/log/entries/2026-11-04-2355-move-reference-first-review-reasons.md`、生成的 work-log 导航与本 handoff 记录该切片。
 
 ## 检查结果
 
-- `git diff --check`、dropped-item reasonLabel 静态搜索，以及临时 WASM `dart_style` 对全部 changed Dart files 的格式检查通过。
+- `git diff --check` 通过；临时 WASM `dart_style` 对所有 changed Dart files 的格式检查通过。
 - 本地无 Flutter/Dart SDK，未运行 analyzer 或 Flutter tests。
-- Pinned Flutter Quality Gate run `41855390338` 在代码/测试树 commit `1960357` 通过，包含格式、analyze、work-log preflight 和全量测试。随后有文档跟进，因此最终仍须确认 PR #343 最新 head 对应的门禁通过。
+- PR #344 最终 head 的 pinned Flutter Quality Gate 必须通过后，才可认为验证完成。
 
 ## 下一步
 
-确认 PR #343 最终 head 的 Flutter Quality Gate 通过；将 PR 留给用户 review，不要代为合并。后续可另开独立切片处理 Proofread V2 review-item 的领域层 reasonLabel 或 explanation，但不要把它们混入本次 PR。
+确认 PR #344 最终 head 的 Flutter Quality Gate 通过；PR 留给用户 review，不要代为合并。后续可另开一个独立切片迁移 ASR review-item 的领域层 reason labels，之后再考虑 Proofread V2 explanations。Issue #335 保持关闭。
 
 ## 已知风险
 
-- dropped-item 文案固定为原有“未找到可靠参考匹配；默认排除，可勾选恢复”；domain 层不再携带单独展示理由。
+- reference-first pipeline reason 到 proposal reason code 的一对一转换由 exhaustive switch 保证；两侧 enum 应保持语义对应，presentation 测试覆盖全部展示文案。
 - 本地没有 Flutter/Dart SDK，验证依赖固定工具链 CI。
 - native、KTV recovery、runtime-release、icon 和其他 specialist workflows 未审计或改动。
 
