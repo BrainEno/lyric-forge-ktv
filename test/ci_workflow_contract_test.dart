@@ -137,6 +137,15 @@ void main() {
           reason:
               'readiness analysis and contract tests are in the universal gate',
         );
+        final settingsWorkflow = File(
+          '.github/workflows/transcription-settings-validation.yml',
+        );
+        expect(
+          await settingsWorkflow.exists(),
+          isFalse,
+          reason:
+              'settings analysis and contract tests are in the universal gate',
+        );
       },
     );
 
