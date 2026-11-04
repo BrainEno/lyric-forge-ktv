@@ -16,16 +16,27 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
       - name: Resolve Flutter packages
         run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Apply exact pinned formatter
         run: dart format test/ci_workflow_contract_test.dart
-      - name: Probe quality-gate formatter mode
+      - name: Reproduce the changed-file format check
         shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          echo "::notice title=format-base-sha::$BASE_SHA"
+          echo "::notice title=format-github-sha::$GITHUB_SHA"
+          echo "::notice title=format-file-count::${#dart_files[@]}"
+          for file in "${dart_files[@]}"; do
+            echo "::notice title=format-file::$file"
+          done
           set +e
-          output="$(dart format --output=none --set-exit-if-changed test/ci_workflow_contract_test.dart 2>&1)"
+          output="$(dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1)"
           result=$?
           echo "::notice title=format-check-status::$result"
           echo "::notice title=format-check-output::$output"
