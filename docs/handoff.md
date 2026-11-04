@@ -11,8 +11,9 @@
 - 起始基线：`41a4d7a`。
 - 最新实现提交：`3509ee1 fix: restore lyric editor session state on undo`。
 - 后续格式调整提交：`9a7959e style: align lyric undo snapshot formatting`。
+- 文档/work-log 提交：`9c6a163 docs: record lyric undo state fix and PR handoff`（本地提交已创建，push 曾遇 GitHub `Internal Server Error`，远端尚未更新）。
 - PR #340：<https://github.com/BrainEno/lyric-forge-ktv/pull/340>，OPEN，目标 `main`。
-- 当前源码改动最初提交于 `3509ee1`；PR 当前 head 为 `9a7959e`。本次 handoff/work-log 文档待提交。
+- 当前远端 PR head 为 `9a7959e`；本地补正了一个旧测试断言（撤销至干净基线应为 `hasChanges == false`），该修正尚未提交/推送。
 
 ## 已改文件
 
@@ -25,14 +26,15 @@
 ## 检查结果
 
 - 本机无 Flutter/Dart SDK；本地 targeted test、analyze、`dart format` 和 work-log harness 未运行。
-- `git diff --check` 在实现变更时通过。
-- 初始 PR head `3509ee1` 的 Flutter Quality Gate run `41812971152` 在 changed-Dart format check 失败，未进入完整 quality gate；据此调整了格式并提交 `9a7959e`。
-- 该 run 的日志下载遇到 results-receiver EOF；当前未发现 `9a7959e` 对应的新 CI run/check。不能把旧 run 视为最终 head 验证。
-- 当前 task entry 与生成 work-log 导航是为当前 PR 更新的；由于本地无 Dart，需由最终 head CI 执行 harness check。
+- `git diff --check` 在实现变更时通过；task entry/work-log 有 Python 结构核验，非 Dart work-log harness。
+- 初始 PR head `3509ee1` 的 Flutter Quality Gate run `41812971152` 在 changed-Dart format check 失败；格式已调整，run `41813353653` 的 head `9a7959e` formatter 和 work-log preflight 均通过。
+- `41813353653` 执行完整测试时，controller test `undo restores the document and the selection that produced it` 仍期待撤销后 dirty=true，和新验收语义冲突。现已将该断言改为 false；修正尚未提交并等待新 CI。
+- `41813353653` 的结果注释同时提到 alignment test 的音频文件变动报错；需在新 head 全量 gate 中观察是否仍复现。run 日志下载遇到 results-receiver EOF，完整测试详情暂不可得。
+- 本机无 Dart SDK；最终 PR-head CI 仍需验证 work-log harness。
 
 ## 下一步
 
-在 PR #340 上确认最终 PR head（包括本 handoff/work-log 提交）的 Flutter Quality Gate 运行并通过；若格式、analyze、测试或 work-log check 失败，先修正、推送并等最新 head 重跑。之后把 PR #340 留给用户 review，不要合并。
+提交并推送当前测试断言修正及 handoff 更新，确认 PR #340 的最终 PR head 触发 Flutter Quality Gate 并通过。若测试/日志出现其他失败，逐项修复并等待最新 head 重跑；之后把 PR #340 留给用户 review，不要合并。
 
 ## 已知风险
 

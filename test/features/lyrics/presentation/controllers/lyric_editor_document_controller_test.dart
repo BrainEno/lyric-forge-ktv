@@ -139,7 +139,7 @@ void main() {
       expect(entry.controller.document!.lines[1].text, 'b');
       expect(entry.controller.selectedLineIndex, 1);
       expect(entry.controller.canRedo, isTrue);
-      expect(entry.controller.hasChanges, isTrue);
+      expect(entry.controller.hasChanges, isFalse);
     });
 
     test('redo reapplies the edit and restores its protected mark', () {
