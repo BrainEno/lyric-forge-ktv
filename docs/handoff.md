@@ -29,10 +29,13 @@ Phase 4.5 第五独立切片：退役 root widget 定向 workflow。原 workflow
 
 ## 下一步
 
-提交 work-log entry/generated summaries 与 handoff 更新并推送到同一分支；确认 PR #338 最终 head 的 Flutter Quality Gate 通过。随后才可考虑合并；若本轮无法等到最终 head 成功运行，就保持 PR 打开并报告未完成。
+修正 handoff 合同后提交并推送到同一分支；确认 PR #338 最新 head 的 Flutter Quality Gate 通过。随后才可考虑合并；若本轮无法等到最终 head 成功运行，就保持 PR 打开并报告未完成。
 
-## 未变更范围
+## 已知风险
 
-本切片不改 root widget 生产代码及 `test/widget_test.dart`。Native builds、KTV recovery、runtime release、icon 和其他 specialist workflows 保持原样，留待分别审计。
+- 最新 head `d53c0c7` 的 Flutter Quality Gate run `41801561079` 在 work-log contract preflight 失败：handoff 缺少 harness 要求的 `## 已知风险` 标题；这不是 Flutter analyze/test 失败。已定位并将在本次修正后重跑。
+- 本地无 Flutter/Dart SDK，必须依赖 pinned-toolchain CI。
+- Media Hub upload deadline 测试曾偶发失败；若后续全量门禁失败，检查最新日志上下文，不要略过。
+- 本切片不改 root widget 生产代码及 `test/widget_test.dart`。Native builds、KTV recovery、runtime release、icon 和其他 specialist workflows 保持原样，留待分别审计。
 
 最后更新：2026-11-04（Asia/Taipei）
