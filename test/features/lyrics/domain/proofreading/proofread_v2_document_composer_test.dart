@@ -249,11 +249,7 @@ void main() {
         ),
       ];
       final dropped = [
-        LyricProofreadV2DroppedItem(
-          sourceIndex: 1,
-          line: before.lines[1],
-          reasonLabel: '未找到可靠参考匹配；默认排除，可勾选恢复',
-        ),
+        LyricProofreadV2DroppedItem(sourceIndex: 1, line: before.lines[1]),
       ];
 
       final withoutRestore = composer.compose(
@@ -310,11 +306,7 @@ void main() {
             ),
           ],
           droppedItems: [
-            LyricProofreadV2DroppedItem(
-              sourceIndex: 1,
-              line: before.lines[1],
-              reasonLabel: '',
-            ),
+            LyricProofreadV2DroppedItem(sourceIndex: 1, line: before.lines[1]),
           ],
           selection: selection(restored: {1}),
           effectiveStrategy: LyricSourceStrategy.referenceFirst,
@@ -464,11 +456,7 @@ void main() {
           ),
         ],
         droppedItems: [
-          LyricProofreadV2DroppedItem(
-            sourceIndex: 2,
-            line: before.lines[2],
-            reasonLabel: '',
-          ),
+          LyricProofreadV2DroppedItem(sourceIndex: 2, line: before.lines[2]),
         ],
         selection: selection(accepted: {0, 1}),
         effectiveStrategy: LyricSourceStrategy.referenceFirst,

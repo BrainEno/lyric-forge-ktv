@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -370,7 +371,6 @@ void main() {
         LyricProofreadV2DroppedItem(
           sourceIndex: 2,
           line: line('restore me', startMs: 2100, endMs: 2150, id: 'drop'),
-          reasonLabel: '未找到可靠匹配',
         ),
       ];
 
@@ -406,6 +406,10 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -300));
       await tester.pumpAndSettle();
       expect(find.textContaining('restore me'), findsOneWidget);
+      expect(
+        find.textContaining(LyricReviewStrings.droppedReferenceItemReason),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const ValueKey('restore_dropped_2')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('应用所选（绿色 + 琥珀色 1）'));
@@ -476,7 +480,6 @@ void main() {
             endMs: 4000,
             id: 'drop',
           ),
-          reasonLabel: '未找到可靠匹配',
         ),
       ];
 

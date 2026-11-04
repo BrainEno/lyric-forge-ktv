@@ -48,12 +48,10 @@ class LyricProofreadV2ReviewItem {
 class LyricProofreadV2DroppedItem {
   final int sourceIndex;
   final LyricLine line;
-  final String reasonLabel;
 
   const LyricProofreadV2DroppedItem({
     required this.sourceIndex,
     required this.line,
-    required this.reasonLabel,
   });
 }
 

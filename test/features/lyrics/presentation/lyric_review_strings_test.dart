@@ -3,6 +3,13 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_pri
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 
 void main() {
+  test('keeps the dropped reference guidance in presentation strings', () {
+    expect(
+      LyricReviewStrings.droppedReferenceItemReason,
+      '未找到可靠参考匹配；默认排除，可勾选恢复',
+    );
+  });
+
   test('maps all stable priority reason codes to existing Chinese labels', () {
     const labels = <LyricReviewPriorityReasonCode, String>{
       LyricReviewPriorityReasonCode.emptyLyrics: '歌词为空',

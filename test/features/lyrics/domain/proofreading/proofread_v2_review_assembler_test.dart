@@ -131,7 +131,6 @@ void main() {
       final dropped = assembly.droppedItems.single;
       expect(dropped.sourceIndex, 1);
       expect(dropped.line.text, 'unrelated recognition noise');
-      expect(dropped.reasonLabel, contains('默认排除'));
       expect(
         assembly.items.map((item) => item.sourceIndex),
         isNot(contains(dropped.sourceIndex)),
@@ -285,7 +284,6 @@ void main() {
               startTime: Duration.zero,
               endTime: Duration(seconds: 1),
             ),
-            reasonLabel: '',
           ),
         ],
         referenceCoverage: 0.875,
