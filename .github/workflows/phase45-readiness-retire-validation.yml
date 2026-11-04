@@ -56,6 +56,18 @@ jobs:
           dart tool/work_log.dart check
       - name: Apply pinned Dart formatter
         run: dart format test/ci_workflow_contract_test.dart
+      - name: Publish generated files for retrieval
+        shell: bash
+        run: |
+          for file in \
+            test/ci_workflow_contract_test.dart \
+            docs/log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md \
+            docs/work_log.md \
+            docs/work_log_archive.md \
+            docs/work_log_index.md; do
+            payload="$(base64 -w0 "$file")"
+            echo "::notice title=generated-file:$file::$payload"
+          done
       - name: Run CI workflow contract test
         run: flutter test test/ci_workflow_contract_test.dart
       - name: Run complete repository quality gate
