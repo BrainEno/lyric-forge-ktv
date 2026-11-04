@@ -109,7 +109,11 @@ void main() {
 
         expect(interpolated.originalLine, isNull);
         expect(interpolated.verdict, LyricProofreadReviewVerdict.amber);
-        expect(interpolated.reasonLabel, contains('插值时间需复核'));
+        expect(
+          interpolated.referenceReasons,
+          contains(LyricProofreadV2ReferenceReason.interpolatedTiming),
+        );
+        expect(interpolated.reasonLabel, isEmpty);
       },
     );
 
@@ -118,7 +122,11 @@ void main() {
       final locked = assembly.items.firstWhere((item) => item.sourceIndex == 2);
 
       expect(locked.verdict, LyricProofreadReviewVerdict.locked);
-      expect(locked.reasonLabel, contains('手动编辑保护'));
+      expect(
+        locked.referenceReasons,
+        contains(LyricProofreadV2ReferenceReason.protectedLine),
+      );
+      expect(locked.reasonLabel, isEmpty);
     });
 
     test('the proposal document drops the global offset', () {
@@ -303,15 +311,18 @@ void main() {
     });
   });
 
-  test('reason labels cover every enum value', () {
-    for (final reason in ProofreadReason.values) {
-      expect(ProofreadV2ReviewAssembler.reasonLabel(reason), isNotEmpty);
-    }
+  test('reference reason codes preserve every pipeline reason', () {
     for (final reason in ReferenceFirstReason.values) {
       expect(
-        ProofreadV2ReviewAssembler.referenceReasonLabel(reason),
-        isNotEmpty,
+        ProofreadV2ReviewAssembler.referenceReasonCode(reason).name,
+        reason.name,
       );
+    }
+  });
+
+  test('ASR reason labels cover every proofread reason value', () {
+    for (final reason in ProofreadReason.values) {
+      expect(ProofreadV2ReviewAssembler.reasonLabel(reason), isNotEmpty);
     }
     for (final strategy in LyricSourceStrategy.values) {
       expect(ProofreadV2ReviewAssembler.strategyLabel(strategy), isNotEmpty);

@@ -69,7 +69,9 @@ class ProofreadV2ReviewAssembler {
                 ReferenceFirstVerdictLevel.amber =>
                   LyricProofreadReviewVerdict.amber,
               },
-              reasonLabel: row.reasons.map(referenceReasonLabel).join('、'),
+              referenceReasons: {
+                for (final reason in row.reasons) referenceReasonCode(reason),
+              },
             );
           }(),
       ],
@@ -182,18 +184,30 @@ class ProofreadV2ReviewAssembler {
     };
   }
 
-  static String referenceReasonLabel(ReferenceFirstReason reason) {
+  static LyricProofreadV2ReferenceReason referenceReasonCode(
+    ReferenceFirstReason reason,
+  ) {
     return switch (reason) {
-      ReferenceFirstReason.lowConfidenceAlignment => '对齐置信度低',
-      ReferenceFirstReason.ambiguousAlignment => '对齐存在歧义',
-      ReferenceFirstReason.structuralMismatch => '行结构不匹配',
-      ReferenceFirstReason.referenceTimestamp => '参考时间戳',
-      ReferenceFirstReason.mappedAsrTiming => '沿用 ASR 时间',
-      ReferenceFirstReason.interpolatedTiming => '插值时间需复核',
-      ReferenceFirstReason.estimatedTailTiming => '尾部估算时间需复核',
-      ReferenceFirstReason.timelineAdjusted => '时间轴已调整，需复核',
-      ReferenceFirstReason.protectedLine => '手动编辑保护',
-      ReferenceFirstReason.referenceImportWarning => '参考输入含警告',
+      ReferenceFirstReason.lowConfidenceAlignment =>
+        LyricProofreadV2ReferenceReason.lowConfidenceAlignment,
+      ReferenceFirstReason.ambiguousAlignment =>
+        LyricProofreadV2ReferenceReason.ambiguousAlignment,
+      ReferenceFirstReason.structuralMismatch =>
+        LyricProofreadV2ReferenceReason.structuralMismatch,
+      ReferenceFirstReason.referenceTimestamp =>
+        LyricProofreadV2ReferenceReason.referenceTimestamp,
+      ReferenceFirstReason.mappedAsrTiming =>
+        LyricProofreadV2ReferenceReason.mappedAsrTiming,
+      ReferenceFirstReason.interpolatedTiming =>
+        LyricProofreadV2ReferenceReason.interpolatedTiming,
+      ReferenceFirstReason.estimatedTailTiming =>
+        LyricProofreadV2ReferenceReason.estimatedTailTiming,
+      ReferenceFirstReason.timelineAdjusted =>
+        LyricProofreadV2ReferenceReason.timelineAdjusted,
+      ReferenceFirstReason.protectedLine =>
+        LyricProofreadV2ReferenceReason.protectedLine,
+      ReferenceFirstReason.referenceImportWarning =>
+        LyricProofreadV2ReferenceReason.referenceImportWarning,
     };
   }
 

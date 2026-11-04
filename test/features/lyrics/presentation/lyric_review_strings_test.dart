@@ -1,8 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 
 void main() {
+  test('maps every reference-first reason to its existing Chinese label', () {
+    const labels = <LyricProofreadV2ReferenceReason, String>{
+      LyricProofreadV2ReferenceReason.lowConfidenceAlignment: '对齐置信度低',
+      LyricProofreadV2ReferenceReason.ambiguousAlignment: '对齐存在歧义',
+      LyricProofreadV2ReferenceReason.structuralMismatch: '行结构不匹配',
+      LyricProofreadV2ReferenceReason.referenceTimestamp: '参考时间戳',
+      LyricProofreadV2ReferenceReason.mappedAsrTiming: '沿用 ASR 时间',
+      LyricProofreadV2ReferenceReason.interpolatedTiming: '插值时间需复核',
+      LyricProofreadV2ReferenceReason.estimatedTailTiming: '尾部估算时间需复核',
+      LyricProofreadV2ReferenceReason.timelineAdjusted: '时间轴已调整，需复核',
+      LyricProofreadV2ReferenceReason.protectedLine: '手动编辑保护',
+      LyricProofreadV2ReferenceReason.referenceImportWarning: '参考输入含警告',
+    };
+
+    expect(labels.keys.toSet(), LyricProofreadV2ReferenceReason.values.toSet());
+    for (final entry in labels.entries) {
+      expect(LyricReviewStrings.referenceReason(entry.key), entry.value);
+    }
+  });
+
   test('keeps the dropped reference guidance in presentation strings', () {
     expect(
       LyricReviewStrings.droppedReferenceItemReason,
