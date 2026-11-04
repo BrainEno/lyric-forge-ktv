@@ -13,7 +13,7 @@
 - 重复 PR：[#339](https://github.com/BrainEno/lyric-forge-ktv/pull/339)，OPEN；不与 #340 一同合并。
 - 当前工作树在 #340 的通过版基础上增加测试与结构比较改动，尚待提交和推送。
 
-## 本次新增
+## 已改文件
 
 - `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart`：补齐 step-by-step undo、typing burst、删除受保护行后 undo 恢复标记三类；已有测试覆盖文本编辑 undo 和 redo 标记恢复；另加两步编辑、保存、多步 undo/redo 的 dirty/保护标记基线验证。
 - `test/features/lyrics/domain/models/lyric_edit_history_test.dart`：纳入 #339 的两项 history 状态快照/合并测试，并加 metadata 键顺序不同但保存结构相等的测试。
