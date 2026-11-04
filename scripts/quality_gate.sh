@@ -117,14 +117,14 @@ if [[ "$skip_pub_get" != true ]]; then
     bash scripts/resolve_flutter_dependencies.sh
 fi
 
-# Analyze the application and its test surface. packages/desktop_multi_window is a
-# vendored dependency; its example/ is a separate demo app and is intentionally
-# outside this repository quality gate.
+# Analyze the application, its tests, and repository-maintenance tools.
+# packages/desktop_multi_window is a vendored dependency; its example/ is a
+# separate demo app and is intentionally outside this repository quality gate.
 # Style infos stay non-fatal, matching the CI workflows; errors and warnings
 # still fail the gate.
 if [[ "$mode" == "all" || "$mode" == "analyze" ]]; then
-  run_step "flutter analyze lib test" \
-    flutter analyze --no-pub --no-fatal-infos lib test
+  run_step "flutter analyze lib test tool" \
+    flutter analyze --no-pub --no-fatal-infos lib test tool
 fi
 
 if [[ "$mode" == "all" || "$mode" == "test" ]]; then

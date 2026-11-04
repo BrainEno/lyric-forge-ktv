@@ -2,43 +2,40 @@
 
 ## 目标
 
-完成 Issue #325 在 PR #340 上的 undo/redo 会话状态修复与 review 补充：迁入 #339 的五类 controller regressions、两项 history 层测试，覆盖多步保存基线，并以结构比较替代 `jsonEncode` 字符串比较。只保留 #340 为实现 PR；没有合并任何 PR。
+处理 Issue #334：将仓库维护及 ASR 评测 Dart 工具纳入共享 Flutter quality gate 的 analyzer 范围，并以契约测试防止范围回退。仅实施此一个 CI 切片；保留 native、KTV recovery、runtime-release、icon 等尚未审计的 specialist workflows。
 
 ## Git 现场
 
-- Repository: `BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/596d766a-lyric-forge-ktv`（保持此分支）。
-- 起始基线：`41a4d7a`。
-- PR #340：<https://github.com/BrainEno/lyric-forge-ktv/pull/340>，OPEN，供用户 review；描述已更新到最后一次通过门禁的 head。
-- 实现、测试与工作日志代码切片 head：`6481e1c style: format save baseline history test`。
-- 最新已验证 PR head：`bb3e380 docs: record final lyric undo review handoff`；Flutter Quality Gate run `41824976152` 成功。
-- 重复 PR #339 已在 #340 最终实现 head 通过 CI 后关闭，close comment 指向 #340；未合并。
-- 本次跟进仅补记最终门禁/关闭重复 PR 的 work-log entry、生成导航并更新 handoff，不改生产代码；由此产生的新 PR head 需要再次确认门禁。
+- Repository：`BrainEno/lyric-forge-ktv`
+- 活动分支：`arena/3bcf1bba-lyric-forge-ktv`。
+- 上一任务 PR #340 已由用户要求合并；merge commit `5ca43b9802309453e53830e52411c5663b6a9363`。
+- 本任务代码与测试 head：`197faf0 ci: analyze repository tooling scripts`。
+- PR #341：<https://github.com/BrainEno/lyric-forge-ktv/pull/341>，OPEN，供用户 review，不要自行合并。
+- pinned Flutter Quality Gate run `41835929966` 已在 `197faf0` 通过；本 handoff/work-log 文档更新会产生新的 PR head，需要确认其自身 CI。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/models/lyric_edit_history.dart`：保存历史快照中的手工标记和 dirty 值；save 时以递归结构比较 `toJson()` 数据重置历史状态，忽略 Map 键插入顺序，不再分配两份 JSON 字符串。
-- `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`：undo/redo 同步恢复 document、manual marks 与 dirty；文本标记在记录快照后才新增。
-- `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart`：覆盖文本撤销、redo、逐步撤销、typing burst、删除受保护行撤销，以及多步编辑→保存→undo/redo 的基线状态。
-- `test/features/lyrics/domain/models/lyric_edit_history_test.dart`：两项 #339 history 测试，以及 metadata 键顺序不同但语义相同的保存基线测试。
-- `docs/log/entries/2026-11-04-1946-extend-lyric-undo-regression-coverage.md`：实现与测试扩展记录。
-- `docs/log/entries/2026-11-04-2000-close-duplicate-lyric-undo-pr.md` 和生成的 `docs/work_log.md`、`docs/work_log_archive.md`：最终门禁结果与关闭重复 PR 的跟进记录/导航。
+- `scripts/quality_gate.sh`：analyzer target 从 `lib test` 扩展到 `lib test tool`。
+- `scripts/quality_gate.ps1`：保持 Windows 本地 quality gate 同等分析范围。
+- `test/ci_workflow_contract_test.dart`：验证两个 gate entrypoint 都保留 `lib test tool` target。
+- `docs/log/entries/2026-11-04-2120-extend-quality-gate-to-tooling.md`、生成的 `docs/work_log.md` 与 `docs/work_log_archive.md`：任务记录和导航。
 - `docs/handoff.md`：本交接记录。
 
 ## 检查结果
 
-- 本机无 Flutter/Dart SDK；本地 Flutter tests、analyze 与 Dart SDK formatter 未运行。`git diff --check` 通过；WASM `dart_style` formatter 对三个改动 Dart 文件的格式核验通过。
-- Flutter Quality Gate run `41824467081` 在源代码/测试/work-log head `6481e1c` 通过：formatter、work-log preflight、依赖锁检查、analyze 与完整测试集。
-- #339 在上述最终测试通过后才关闭；#340 保持 OPEN。
-- `6481e1c` 的 run `41824467081` 验证了代码/测试/work-log head；follow-up 文档更新后的 head 也必须以自身对应的 CI 结果为准。此前最新文档 head `bb3e380` 的 run `41824976152` 已通过。
+- `bash -n scripts/quality_gate.sh`、静态范围断言、`git diff --check` 均通过。
+- Run `41835929966` 在代码/测试 head `197faf0` 上通过 work-log preflight、变更 Dart 格式检查、analyzer（包括 `tool/`）和完整测试集。
+- `tool/` 五个 Dart 文件由 `flutter analyze lib test tool` 明确覆盖；既有 work-log preflight 和完整测试集执行 work-log 检查及 ASR evaluation tests。
+- 本地无 Flutter/Dart SDK；未本地运行 analyzer、Dart formatter 或 Flutter tests。文档跟进 commit 的最新 PR head 仍需由 CI 验证。
 
 ## 下一步
 
-保持 PR #340 为 OPEN 供用户 review，不要合并；PR #339 已在最终实现 CI 通过后作为重复项关闭。任何后续提交（包括仅文档的提交）都应确认其 PR head 门禁结果。
+提交并推送 work-log 与 handoff 更新，确认 PR #341 最新 head 的 Flutter Quality Gate 通过；之后将 PR 留给用户 review，不要合并，除非用户另行要求。
 
 ## 已知风险
 
-- 结构比较、五类 controller tests、两项 history tests 与多步骤保存基线已由最终 pinned CI run 覆盖；本地无法独立重跑。
-- 本切片未改 native build、KTV recovery、runtime-release、icon 或其他 specialist workflows。
+- 尚未实测 PowerShell shell 执行环境；PowerShell gate 的 analyzer scope 由 CI contract test 检查文本契约，完整 Flutter quality gate 在 Linux 执行 Bash path。
+- ASR 工具的真实语料/模型精度不在此 issue 的验证范围；现有评测工具单元测试随完整测试集运行。
+- 本切片未改任何 specialist workflow，也未改变格式检查范围或 Flutter 运行时行为。
 
 最后更新：2026-11-04（Asia/Taipei）
