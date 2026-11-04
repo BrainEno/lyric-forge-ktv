@@ -171,9 +171,7 @@ void main() {
         expect(entry.controller.hasChanges, isFalse);
         final saved = entry.controller.documentForSave();
         expect(
-          saved.metadata[
-            LyricManualEditMarkerService.manuallyEditedLineIdsKey
-          ],
+          saved.metadata[LyricManualEditMarkerService.manuallyEditedLineIdsKey],
           isEmpty,
         );
         final reopened = build(loaded: saved);

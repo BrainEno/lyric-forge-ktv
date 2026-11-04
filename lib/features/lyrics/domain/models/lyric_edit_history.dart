@@ -30,8 +30,7 @@ class LyricEditSnapshot {
     Set<String> manuallyEditedLineIds = const <String>{},
     this.hasChanges = false,
     this.mergeKey,
-  }) : manuallyEditedLineIds =
-           Set<String>.unmodifiable(manuallyEditedLineIds);
+  }) : manuallyEditedLineIds = Set<String>.unmodifiable(manuallyEditedLineIds);
 }
 
 /// A bounded two-stack edit history for the lyric editor.
