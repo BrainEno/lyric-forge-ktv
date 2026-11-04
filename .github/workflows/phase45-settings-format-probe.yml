@@ -1,0 +1,33 @@
+name: Temporary Phase 4.5 settings format probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase45-settings-format-probe.yml'
+      - 'test/ci_workflow_contract_test.dart'
+
+permissions:
+  contents: read
+
+jobs:
+  format-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - name: Apply exact pinned formatter
+        run: dart format test/ci_workflow_contract_test.dart
+      - name: Expose formatter output
+        shell: bash
+        run: |
+          file=test/ci_workflow_contract_test.dart
+          base64 -w0 "$file" > "$RUNNER_TEMP/payload"
+          split -b 3500 -d -a 3 "$RUNNER_TEMP/payload" "$RUNNER_TEMP/format."
+          for chunk in "$RUNNER_TEMP"/format.*; do
+            echo "::notice title=format-source:${chunk##*.}::$(cat "$chunk")"
+          done
+          echo "::notice title=format-sha256::$(sha256sum "$file" | cut -d' ' -f1)"
+      - name: Check CI workflow contract
+        run: flutter test test/ci_workflow_contract_test.dart
