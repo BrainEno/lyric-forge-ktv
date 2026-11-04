@@ -12,7 +12,7 @@
 - 实现提交：`3660ab8 refactor: move reference-first review labels to presentation`。
 - PR #344：<https://github.com/BrainEno/lyric-forge-ktv/pull/344>，OPEN，供 review；未经用户授权不得合并。
 - Issue #335 已 CLOSED；本切片不重开，也不作为 PR 的关闭目标。
-- PR #344 的 pinned Flutter Quality Gate 尚待最终 head 通过；如有后续提交，只以最新 head 对应的 run 为准。
+- PR #344 head `14853d6` 的 pinned Flutter Quality Gate run `41862746358` 已通过；本次验证结果的 handoff/work-log 更新会推进 PR head，需再确认更新后最新 head 的门禁。
 
 ## 已改文件
 
@@ -27,7 +27,7 @@
 
 - `git diff --check` 通过；临时 WASM `dart_style` 对所有 changed Dart files 的格式检查通过。
 - 本地无 Flutter/Dart SDK，未运行 analyzer 或 Flutter tests。
-- PR #344 最终 head 的 pinned Flutter Quality Gate 必须通过后，才可认为验证完成。
+- Pinned Flutter Quality Gate run `41862746358` 在 PR head `14853d6` 通过，包含格式、analyze、work-log preflight 与全量测试。随后有文档跟进，因此最终仍须确认 PR #344 最新 head 对应的门禁通过。
 
 ## 下一步
 

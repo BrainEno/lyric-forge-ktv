@@ -6,6 +6,6 @@
   - `git diff --check` => passed.
   - Temporary WASM `dart_style` formatter check => passed for all changed Dart files.
   - Flutter/Dart SDK => unavailable locally; local analyzer and Flutter tests were not run.
-  - Pinned Flutter Quality Gate => must pass on the final PR #344 head before the slice is considered validated.
+  - Pinned Flutter Quality Gate run `41862746358` => passed on PR #344 head `14853d6`, including formatting, analysis, work-log preflight, and the full test suite. This follow-up documentation commit still needs its own final-head check.
 - Notes: PR #344 is open for review; do not merge without explicit user authorization. Issue #335 remains closed. This slice migrates only reference-first review-item reasons; ASR review-item reasons, explanations, native/KTV/runtime/icon workflows, and other specialist workstreams remain out of scope.
 - Commit: `refactor: move reference-first review labels to presentation`
