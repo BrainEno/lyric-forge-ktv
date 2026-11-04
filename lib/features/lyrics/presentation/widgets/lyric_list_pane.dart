@@ -7,6 +7,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
+import '../lyric_review_strings.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_row_audition_button.dart';
@@ -1139,7 +1140,9 @@ class LyricReviewRow extends StatelessWidget {
                   ] else if (priority != null) ...[
                     const SizedBox(width: AppSpacing.xs),
                     Tooltip(
-                      message: priority!.reasons.join('\n'),
+                      message: priority!.reasons
+                          .map(LyricReviewStrings.priorityReason)
+                          .join('\n'),
                       child: LyricTinyBadge(
                         label: spec.isCompact ? '复核' : '优先 ${priority!.score}',
                         warning: priority!.score >= 45,
