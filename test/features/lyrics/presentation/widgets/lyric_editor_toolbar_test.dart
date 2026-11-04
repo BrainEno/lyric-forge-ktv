@@ -37,7 +37,9 @@ LyricReviewQueue _queue({
       LyricReviewPriority(
         lineIndex: index,
         score: 40 - index,
-        reasons: const ['测试证据'],
+        reasons: const [
+          LyricReviewPriorityReason(LyricReviewPriorityReasonCode.emptyLyrics),
+        ],
       ),
   ];
   return LyricReviewQueue(
@@ -177,7 +179,15 @@ void main() {
   testWidgets('未评分的稿子不显示低置信度，而是说明引擎没给分数', (tester) async {
     final unscored = LyricReviewQueue(
       items: const [
-        LyricReviewPriority(lineIndex: 0, score: 40, reasons: ['双引擎分歧']),
+        LyricReviewPriority(
+          lineIndex: 0,
+          score: 40,
+          reasons: const [
+            LyricReviewPriorityReason(
+              LyricReviewPriorityReasonCode.enginesDifferClearly,
+            ),
+          ],
+        ),
       ],
       lowConfidenceIndices: const <int>{},
       totalLines: 42,

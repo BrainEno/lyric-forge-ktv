@@ -54,6 +54,28 @@ void main() {
     expect(find.text('第 3 行'), findsOneWidget);
   });
 
+  testWidgets('review priority tooltip maps stable reason codes to UI labels', (
+    tester,
+  ) async {
+    final priority = LyricReviewPriority(
+      lineIndex: 0,
+      score: 60,
+      reasons: const [
+        LyricReviewPriorityReason(LyricReviewPriorityReasonCode.emptyLyrics),
+      ],
+    );
+
+    await tester.pumpWidget(
+      host(
+        document: _document(1),
+        visibleIndices: const [0],
+        priorities: {0: priority},
+      ),
+    );
+
+    expect(find.byTooltip('歌词为空'), findsOneWidget);
+  });
+
   testWidgets('点击行会请求选中该行', (tester) async {
     await tester.pumpWidget(
       host(document: _document(3), visibleIndices: [0, 1, 2]),

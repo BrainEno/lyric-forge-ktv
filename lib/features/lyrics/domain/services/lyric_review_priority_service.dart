@@ -4,14 +4,56 @@ import 'lyric_timeline_validator.dart';
 
 enum LyricReviewRiskLevel { low, medium, high, critical }
 
+enum LyricReviewPriorityReasonCode {
+  emptyLyrics,
+  confidenceExtremelyLow,
+  confidenceVeryLow,
+  confidenceLow,
+  confidenceBelowThreshold,
+  enginesDifferGreatly,
+  enginesDifferClearly,
+  enginesHaveDifferentCandidates,
+  repeatedWords,
+  unusuallyLongText,
+  longTextWithShortInterval,
+  intervalOverTwentySeconds,
+  negativeStart,
+  negativeEffectiveStart,
+  invalidTimeInterval,
+  nonMonotonicStart,
+  duplicateStart,
+  overlapsPrevious,
+  overlapsNext,
+  extremelyShortGap,
+  startBeyondAudio,
+  endBeyondAudio,
+}
+
+/// A stable reason code plus the confidence value used by confidence reasons.
+class LyricReviewPriorityReason {
+  final LyricReviewPriorityReasonCode code;
+  final int? confidence;
+
+  const LyricReviewPriorityReason(this.code, {this.confidence});
+
+  @override
+  bool operator ==(Object other) =>
+      other is LyricReviewPriorityReason &&
+      other.code == code &&
+      other.confidence == confidence;
+
+  @override
+  int get hashCode => Object.hash(code, confidence);
+}
+
 /// One explainable, non-probabilistic priority score for a lyric row.
 ///
 /// The score is a sorting aid, not a claim that the lyric is wrong. Signals and
-/// reasons stay separate so the UI can explain why a row was surfaced.
+/// reason codes stay separate so the UI can explain why a row was surfaced.
 class LyricReviewPriority {
   final int lineIndex;
   final int score;
-  final List<String> reasons;
+  final List<LyricReviewPriorityReason> reasons;
 
   const LyricReviewPriority({
     required this.lineIndex,
@@ -66,20 +108,36 @@ class LyricReviewPriorityService {
       final text = line.text.trim();
 
       if (text.isEmpty) {
-        score.add(60, '歌词为空');
+        score.add(60, LyricReviewPriorityReasonCode.emptyLyrics);
       }
 
       // Unscored lines carry a placeholder number, not a model score, so the
       // confidence ladder must not rank them as if the engine had been unsure.
       if (line.hasConfidenceScore) {
         if (line.confidence <= 25) {
-          score.add(38, '识别置信度极低（${line.confidence}）');
+          score.add(
+            38,
+            LyricReviewPriorityReasonCode.confidenceExtremelyLow,
+            confidence: line.confidence,
+          );
         } else if (line.confidence <= 45) {
-          score.add(30, '识别置信度很低（${line.confidence}）');
+          score.add(
+            30,
+            LyricReviewPriorityReasonCode.confidenceVeryLow,
+            confidence: line.confidence,
+          );
         } else if (line.confidence <= 60) {
-          score.add(23, '识别置信度偏低（${line.confidence}）');
+          score.add(
+            23,
+            LyricReviewPriorityReasonCode.confidenceLow,
+            confidence: line.confidence,
+          );
         } else if (line.confidence < 70) {
-          score.add(16, '识别置信度低于复核阈值（${line.confidence}）');
+          score.add(
+            16,
+            LyricReviewPriorityReasonCode.confidenceBelowThreshold,
+            confidence: line.confidence,
+          );
         }
       }
 
@@ -88,11 +146,14 @@ class LyricReviewPriorityService {
         if (candidate != null && _hasEngineDisagreement(line.text, candidate)) {
           final similarity = _number(candidate['similarity']);
           if (similarity != null && similarity < 0.50) {
-            score.add(30, '双引擎结果差异很大');
+            score.add(30, LyricReviewPriorityReasonCode.enginesDifferGreatly);
           } else if (similarity != null && similarity < 0.72) {
-            score.add(23, '双引擎结果存在明显分歧');
+            score.add(23, LyricReviewPriorityReasonCode.enginesDifferClearly);
           } else {
-            score.add(15, '双引擎存在不同候选');
+            score.add(
+              15,
+              LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates,
+            );
           }
         }
       }
@@ -103,25 +164,27 @@ class LyricReviewPriorityService {
             r'(\S{1,24})(?:\s+\1){2,}',
             caseSensitive: false,
           ).hasMatch(text)) {
-        score.add(12, '出现连续重复词，建议确认是否为识别重复');
+        score.add(12, LyricReviewPriorityReasonCode.repeatedWords);
       }
 
       if (text.runes.length > 90) {
-        score.add(10, '单行文本异常偏长，可能包含多句歌词');
+        score.add(10, LyricReviewPriorityReasonCode.unusuallyLongText);
       }
 
       final duration = line.endTime - line.startTime;
       if (text.runes.length >= 4 &&
           duration > Duration.zero &&
           duration < const Duration(milliseconds: 180)) {
-        score.add(18, '歌词文本较长但显示区间极短');
+        score.add(18, LyricReviewPriorityReasonCode.longTextWithShortInterval);
       } else if (duration > const Duration(seconds: 20)) {
-        score.add(12, '单行持续时间超过 20 秒');
+        score.add(12, LyricReviewPriorityReasonCode.intervalOverTwentySeconds);
       }
 
       for (final issue in issuesByLine[index] ?? const <TimelineIssue>[]) {
         final weight = _timelineIssueWeight(issue.type);
-        if (weight > 0) score.add(weight, _timelineIssueLabel(issue));
+        if (weight > 0) {
+          score.add(weight, _timelineIssueReason(issue.type));
+        }
       }
 
       if (score.value >= minimumQueueScore) {
@@ -230,26 +293,38 @@ class LyricReviewPriorityService {
     TimelineIssueType.endBeyondAudioDuration => 16,
   };
 
-  String _timelineIssueLabel(TimelineIssue issue) => switch (issue.type) {
-    TimelineIssueType.negativeStart => '开始时间为负',
-    TimelineIssueType.negativeEffectiveStart => '叠加全局偏移后开始时间为负',
-    TimelineIssueType.zeroOrNegativeDuration => '歌词时间区间无效',
-    TimelineIssueType.nonMonotonicStart => '歌词顺序与时间顺序不一致',
-    TimelineIssueType.duplicateStart => '与上一行开始时间重复',
-    TimelineIssueType.overlapsPrevious => '与上一行时间重叠',
-    TimelineIssueType.overlapsNext => '与下一行时间重叠',
-    TimelineIssueType.extremelyShortGap => '与下一行之间的间隔极短',
-    TimelineIssueType.beyondAudioDuration => '开始时间超出音频长度',
-    TimelineIssueType.endBeyondAudioDuration => '结束时间超出音频长度',
-  };
+  LyricReviewPriorityReasonCode _timelineIssueReason(TimelineIssueType type) =>
+      switch (type) {
+        TimelineIssueType.negativeStart =>
+          LyricReviewPriorityReasonCode.negativeStart,
+        TimelineIssueType.negativeEffectiveStart =>
+          LyricReviewPriorityReasonCode.negativeEffectiveStart,
+        TimelineIssueType.zeroOrNegativeDuration =>
+          LyricReviewPriorityReasonCode.invalidTimeInterval,
+        TimelineIssueType.nonMonotonicStart =>
+          LyricReviewPriorityReasonCode.nonMonotonicStart,
+        TimelineIssueType.duplicateStart =>
+          LyricReviewPriorityReasonCode.duplicateStart,
+        TimelineIssueType.overlapsPrevious =>
+          LyricReviewPriorityReasonCode.overlapsPrevious,
+        TimelineIssueType.overlapsNext =>
+          LyricReviewPriorityReasonCode.overlapsNext,
+        TimelineIssueType.extremelyShortGap =>
+          LyricReviewPriorityReasonCode.extremelyShortGap,
+        TimelineIssueType.beyondAudioDuration =>
+          LyricReviewPriorityReasonCode.startBeyondAudio,
+        TimelineIssueType.endBeyondAudioDuration =>
+          LyricReviewPriorityReasonCode.endBeyondAudio,
+      };
 }
 
 class _PriorityAccumulator {
   int value = 0;
-  final List<String> reasons = [];
+  final List<LyricReviewPriorityReason> reasons = [];
 
-  void add(int points, String reason) {
+  void add(int points, LyricReviewPriorityReasonCode code, {int? confidence}) {
     value = (value + points).clamp(0, 100).toInt();
+    final reason = LyricReviewPriorityReason(code, confidence: confidence);
     if (!reasons.contains(reason)) reasons.add(reason);
   }
 }
