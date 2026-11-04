@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import '../../../project/domain/models/lyric_document.dart';
 
 /// One reversible step: the document as it was *before* an edit, plus enough
@@ -196,9 +194,12 @@ class LyricEditHistory {
     LyricDocument savedDocument,
     Set<String> savedManualMarks,
   ) {
-    final sameDocument =
-        jsonEncode(snapshot.document.toJson()) ==
-        jsonEncode(savedDocument.toJson());
+    // Compare the persisted shape structurally: map insertion order is not a
+    // document change, and serializing two full JSON strings is unnecessary.
+    final sameDocument = _deepEquals(
+      snapshot.document.toJson(),
+      savedDocument.toJson(),
+    );
     final sameManualMarks =
         snapshot.manuallyEditedLineIds.length == savedManualMarks.length &&
         snapshot.manuallyEditedLineIds.containsAll(savedManualMarks);
@@ -211,6 +212,27 @@ class LyricEditHistory {
       hasChanges: !(sameDocument && sameManualMarks),
       mergeKey: snapshot.mergeKey,
     );
+  }
+
+  bool _deepEquals(Object? left, Object? right) {
+    if (identical(left, right)) return true;
+    if (left is Map<Object?, Object?> && right is Map<Object?, Object?>) {
+      if (left.length != right.length) return false;
+      for (final key in left.keys) {
+        if (!right.containsKey(key) || !_deepEquals(left[key], right[key])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (left is List<Object?> && right is List<Object?>) {
+      if (left.length != right.length) return false;
+      for (var index = 0; index < left.length; index++) {
+        if (!_deepEquals(left[index], right[index])) return false;
+      }
+      return true;
+    }
+    return left == right;
   }
 
   void clear() {
