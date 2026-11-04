@@ -129,6 +129,14 @@ void main() {
           reason:
               'focused execution-failure analysis and tests are in the gate',
         );
+        expect(
+          await File(
+            '.github/workflows/transcription-readiness-validation.yml',
+          ).exists(),
+          isFalse,
+          reason:
+              'readiness analysis and contract tests are in the universal gate',
+        );
       },
     );
 
