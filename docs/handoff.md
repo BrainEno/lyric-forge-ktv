@@ -2,36 +2,37 @@
 
 ## 目标
 
-修复全屏 KTV 首次挂载与退出时同步更改 app-level chrome notifier 导致的 `setState() or markNeedsBuild() called during build` / widget-tree-locked 错误。
+Phase 4.5 第二切片：移除重复的 transcription execution-failure 聚焦分析/单测 workflow；主 Flutter Quality Gate 已对每个 main PR 执行全仓分析与全量测试。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 活动分支：`arena/65be4adb-lyric-forge-ktv`（active）。
-- 基线：`8648e8b`；PR #316：`https://github.com/BrainEno/lyric-forge-ktv/pull/316`。
-- 当前 PR head：`7dfde4c`；实现提交：`90cfbeb`。
-- PR 尚未合并；等待最终 head 的 Flutter Quality Gate 通过。
+- 活动分支：`arena/2b410f70-lyric-forge-ktv`（active）。
+- 基线：`c520995`；PR #328：`https://github.com/BrainEno/lyric-forge-ktv/pull/328`。
+- 实现提交：`2297ae6`；最近一次完整绿色门禁的 head：`59facfa`。
+- PR 尚未合并。之后只需核对当前 head 的 Quality Gate，再按结果处理；不要把较早 head 的通过误当成当前 head 已通过。
 
 ## 已改文件
 
-- `lib/features/player/presentation/screens/immersive_ktv_screen.dart`：进入/退出 chrome 状态改为 post-frame 通知，进入回调检查 `mounted`。
-- `test/features/player/presentation/screens/immersive_ktv_recording_test.dart`：模拟祖先 `ValueListenableBuilder`，验证挂载与卸载均无异常且 chrome 状态最终正确。
-- `docs/work_log_index.md`、本文件及 [bug-fix work-log entry](log/entries/2026-11-03-2215-defer-immersive-chrome-notifications.md)。
+- `.github/workflows/transcription-execution-failure-validation.yml`：删除仅重复运行 Dart analyzer 与 Flutter tests 的聚焦 workflow。
+- `test/ci_workflow_contract_test.dart`：断言该 workflow 已退役，同时验证全局门禁仍覆盖分析与全量测试。
+- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`、`docs/work_log_index.md`、本文件及 [work-log entry](log/entries/2026-11-04-1415-phase45-retire-transcription-execution-check.md)。
 
 ## 检查结果
 
-- 固定工具链 run `41651784524` 中，`dart format`、定向 widget test、完整 `bash scripts/quality_gate.sh --skip-pub-get` 以及 work-log `write/check` 均通过。
-- PR #316 最终 head 的官方 Flutter Quality Gate 待验证；本 handoff 更新后应以更新后的 head checks 为准。
-- 真实 Windows 手测未运行；用户提供的 stack 对应的祖先 listener 生命周期条件由 Flutter widget regression 覆盖。
+- 固定工具链临时验证 run `41784258163`：格式、定向 CI 合同测试、完整质量门禁、work-log `write/check` 均通过。
+- PR head `1ce91ad` 的官方门禁 run `41784637534` 曾失败于 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`；变更没有触及 transfer 代码/测试。
+- 新 head `59facfa` 的官方 Flutter Quality Gate run `41785180139` **通过**：work-log preflight、解析依赖、格式检查及 repository quality gate 全部成功。
+- 随后新增的 handoff 状态更新只用于记录上述结果；最终合并前仍需查看当前 PR head 的 check，要求通过。
 
 ## 下一步
 
-1. 等待 PR #316 最新 head 的 Flutter Quality Gate 通过后合并；用户可随后在 Windows 重试单句编辑。
+1. 查看 PR #328 当前 head 对应的 Flutter Quality Gate 是否成功；成功后合并该 PR。若失败，按新的失败上下文单独调查。
 
 ## 已知风险
 
-- 本地无 Flutter/Dart SDK，所有格式、测试及分析结果依赖固定工具链 CI。
-- chrome 状态在屏幕挂载/卸载所在帧结束时更新；测试验证最终状态，但未做真机视觉闪烁评估。
-- 未改歌词文本编辑或识别逻辑；没有主张真实歌曲/设备验证。
+- 本地无 Flutter/Dart SDK；格式、测试和质量门禁依赖固定 CI 工具链。
+- 旧 head 上的 upload deadline 测试曾单次失败；新 head 的完整质量门禁已通过。
+- 此切片只证明该聚焦 workflow 的分析和测试由全量门禁覆盖；其他平台、KTV 与发布 workflow 尚未审计。
 
-最后更新：2026-11-03 22:19（Asia/Taipei）
+最后更新：2026-11-04 14:28（Asia/Taipei）

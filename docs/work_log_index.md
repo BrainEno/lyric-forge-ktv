@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-11-03. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-11-04. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -21,7 +21,7 @@
 ## Recent work areas
 
 - **Immersive KTV chrome lifecycle:** App-level chrome notifications must occur after route mount/dispose frames so a child route cannot mark an ancestor `ValueListenableBuilder` dirty while the tree is building. Regression coverage is in `immersive_ktv_recording_test.dart`.
-- **Phase 4.5 CI workflow simplification:** first slice retires the redundant ASR client-only analyze/test workflow; the universal Flutter Quality Gate owns full analysis and tests. Platform-specific and release validations remain until separately audited.
+- **Phase 4.5 CI workflow simplification:** the ASR client-only and transcription execution-failure focused workflows are removed because the universal Flutter Quality Gate runs their analyze/tests; native, KTV recovery, runtime-release, and icon workflows remain for separate audits.
 - **Phase 4.4 editor/player state:** editor document state is observable through a local Provider/Selector scope; desktop playback chrome reuses its existing session snapshot in queue/mode controls, while services remain the only playback state source. See the newest work-log entry and the updated deep review; recognition algorithms are untouched.
 - **Dashboard empty/retry coverage (#223):** `DashboardScreen` accepts optional repository/player/queue collaborators so widget tests can cover empty playback/history/project states and the recent-project error→retry→empty path without initializing the global service locator. This is a focused first slice, not completion of the broader coverage gap.
 

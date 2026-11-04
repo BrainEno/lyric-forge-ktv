@@ -121,6 +121,14 @@ void main() {
           isFalse,
           reason: 'ASR analyzer and unit coverage are included by the gate',
         );
+        expect(
+          await File(
+            '.github/workflows/transcription-execution-failure-validation.yml',
+          ).exists(),
+          isFalse,
+          reason:
+              'focused execution-failure analysis and tests are in the gate',
+        );
       },
     );
 
