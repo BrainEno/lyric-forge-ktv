@@ -105,6 +105,9 @@ void main() {
           '.github/workflows/flutter-quality.yml',
         ).readAsString();
         final gate = await File('scripts/quality_gate.sh').readAsString();
+        final powershellGate = await File(
+          'scripts/quality_gate.ps1',
+        ).readAsString();
 
         expect(workflow, contains('pull_request:\n    branches: [main]'));
         expect(
@@ -113,7 +116,11 @@ void main() {
         );
         expect(
           gate,
-          contains('flutter analyze --no-pub --no-fatal-infos lib test'),
+          contains('flutter analyze --no-pub --no-fatal-infos lib test tool'),
+        );
+        expect(
+          powershellGate,
+          contains('flutter analyze --no-pub --no-fatal-infos lib test tool'),
         );
         expect(gate, contains('flutter test --no-pub --reporter expanded'));
         expect(
