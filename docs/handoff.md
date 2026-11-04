@@ -2,39 +2,38 @@
 
 ## 目标
 
-Phase 4.5 第三独立切片：审计并退役 transcription readiness 定向 workflow。该 workflow 仅运行 Flutter analysis 和两个定向测试；通用 Flutter Quality Gate 对每个 main PR 覆盖全仓 `lib test` 分析和全量测试，因此保留生产 readiness 行为与测试，只删除重复 workflow。
+Phase 4.5 第四独立切片：逐项审计 transcription settings workflow，确认其 Flutter analysis 与 settings contract test 已由通用 Flutter Quality Gate 覆盖后，单独退役该 workflow；不触碰设置或转写行为。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 当前分支：`arena/f5b07e46-lyric-forge-ktv`（active，不要切换）。
-- 起点 / 最新 main：`f0c25e5`（PR #328 已合并）。
-- PR #329：`https://github.com/BrainEno/lyric-forge-ktv/pull/329`；最新已完整验证的 head `21d475c`。最终清理提交后仍须检查最新 head 对应门禁再合并。
-- 首次 CI 因 handoff 标题不符合 work-log harness 的中文 section 约束而失败；已修正。后续固定工具链验证 run `41793811170` 与 Flutter Quality Gate run `41793811318` 在 head `21d475c` 均通过。
+- 当前活动分支：`arena/6531c5f7-lyric-forge-ktv`（不要切换）。
+- 起点 / 最新 main：`845ea5f`（PR #329 已合并）。
+- `git status --short`：本切片 workflow 删除、合同测试/review/index/handoff 修改。
+- `git diff --stat`：修改尚未提交。
+- `git log --oneline -5`：`845ea5f ci: retire redundant transcription readiness workflow (#329)`（当前 checkout 为浅克隆）。
 
 ## 已改文件
 
-- 删除 `.github/workflows/transcription-readiness-validation.yml`；保留 readiness 生产逻辑和现有测试。
+- 删除 `.github/workflows/transcription-settings-validation.yml`；保留 settings 生产代码和 `test/features/settings/transcription_settings_contract_test.dart`。
 - `test/ci_workflow_contract_test.dart` 增加 workflow 不复活断言。
-- `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md` 与 `docs/work_log_index.md` 更新 Phase 4.5 第三切片。
-- 新增 `docs/log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md`，并由固定工具链生成 `docs/work_log.md` / `docs/work_log_archive.md`。
-- `.github/workflows/phase45-readiness-retire-validation.yml` 是临时 CI 验证器，已从本地最终工作树删除；确认不进入最终 PR。
+- 更新 Phase 4.5 review 与 work-log index。
+- work-log entry / generated summaries 待固定工具链验证 workflow 生成；最终 PR 不得包含临时验证 workflow。
 
 ## 检查结果
 
-- 本地 `git diff --check` 通过；本地 Flutter/Dart SDK 不可用。
-- 固定工具链 run `41793811170`：work-log `new/write/check`、格式、CI workflow contract 测试、完整质量门禁均通过。
-- 官方 Flutter Quality Gate run `41793811318`：完整仓库分析、全量测试及 work-log preflight 通过。
-- 两个绿色结果针对 head `21d475c`；尚未涵盖随后添加的最终 work-log 文件和删除临时验证器之清理提交。
+- 已审计 settings workflow：仅共享 Flutter SDK setup、依赖 lock 检查、对 settings / library shell / project 局部 analyze，以及一个 settings contract test；无原生构建、外部服务或设备验证。
+- `.github/workflows/flutter-quality.yml` 对每个 main PR 运行 `scripts/quality_gate.sh --skip-pub-get`；该脚本全量 analyze `lib test` 并运行全量 Flutter tests，覆盖原 workflow 的所有 Dart 范围与测试。main push 也有 Flutter Quality Gate。
+- 本地无 Flutter/Dart SDK；本地格式、分析、测试尚未运行。CI 尚未运行。
 
 ## 下一步
 
-提交生成日志及临时 workflow 删除；核对当前 PR head 的官方 Flutter Quality Gate 通过后，合并 PR #329。
+完成本切片 PR；用固定工具链 CI 执行 contract test、work-log `new/write/check` 和完整 quality gate，移除临时验证器后确认最终 PR head 门禁全绿再合并。
 
 ## 已知风险
 
-- 旧 `http_media_hub_upload_test.dart` deadline case 曾出现单次 flaky 失败；如最终 head 失败，需检查最新上下文，不能预先归因本切片。
-- 只退役本次确认完全重复的 readiness 检查；queue、native、KTV、runtime release、icon 等 workflow 未批量处理。
-- 本地无 Flutter/Dart SDK，最终格式、测试与质量门禁必须依赖固定 CI 工具链。
+- 前三个独立切片只退役了经审计的 Flutter-only checks；native、KTV recovery、queue repair、runtime release、icon 等 workflow 仍保留。
+- 旧 `http_media_hub_upload_test.dart` deadline 测试有过一次时序失败；若新 CI 再失败，需检查实际日志，不能先归咎本次切片。
+- 本地无 Flutter/Dart SDK，最终验证依赖固定 CI 工具链。
 
-最后更新：2026-11-04 15:43（Asia/Taipei）
+最后更新：2026-11-04 15:56（Asia/Taipei）
