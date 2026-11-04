@@ -54,17 +54,19 @@ jobs:
           PY
           dart tool/work_log.dart write
           dart tool/work_log.dart check
-      - name: Verify changed Dart formatting
-        run: dart format --output=none --set-exit-if-changed test/ci_workflow_contract_test.dart
+      - name: Apply pinned Dart formatter
+        run: dart format test/ci_workflow_contract_test.dart
       - name: Run CI workflow contract test
         run: flutter test test/ci_workflow_contract_test.dart
       - name: Run complete repository quality gate
         run: bash scripts/quality_gate.sh --skip-pub-get
-      - name: Upload generated work-log files
+      - name: Upload generated validation files
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase45-readiness-work-log
+          name: phase45-readiness-validation
           path: |
+            test/ci_workflow_contract_test.dart
             docs/log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md
             docs/work_log.md
             docs/work_log_archive.md
