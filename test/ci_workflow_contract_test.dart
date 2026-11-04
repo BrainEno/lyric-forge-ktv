@@ -146,6 +146,14 @@ void main() {
           reason:
               'settings analysis and contract tests are in the universal gate',
         );
+        final rootWidgetWorkflow = File(
+          '.github/workflows/widget-root-validation.yml',
+        );
+        expect(
+          await rootWidgetWorkflow.exists(),
+          isFalse,
+          reason: 'root widget analysis and tests are in the universal gate',
+        );
       },
     );
 
