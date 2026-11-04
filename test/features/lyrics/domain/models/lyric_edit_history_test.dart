@@ -220,25 +220,24 @@ void main() {
     expect(undone.hasChanges, isFalse);
   });
 
-  test('保存基线按文档结构比较，不受 metadata 键顺序影响', () {
-    final history = LyricEditHistory();
-    final before = _document(['月亮代表我的心']).copyWith(
-      metadata: {'first': 1, 'second': 2},
-    );
-    final saved = _document(['月亮代表我的心']).copyWith(
-      metadata: {'second': 2, 'first': 1},
-    );
-    history.record(
-      before,
-      label: '无内容变化',
-      hasChanges: true,
-    );
+  test(
+    '保存基线按文档结构比较，不受 metadata 键顺序影响',
+    () {
+      final history = LyricEditHistory();
+      final before = _document(['月亮代表我的心']).copyWith(
+        metadata: {'first': 1, 'second': 2},
+      );
+      final saved = _document(['月亮代表我的心']).copyWith(
+        metadata: {'second': 2, 'first': 1},
+      );
+      history.record(before, label: '无内容变化', hasChanges: true);
 
-    history.markSaved(saved, const {});
+      history.markSaved(saved, const {});
 
-    final snapshot = history.undo(saved);
-    expect(snapshot!.hasChanges, isFalse);
-  });
+      final snapshot = history.undo(saved);
+      expect(snapshot!.hasChanges, isFalse);
+    },
+  );
 
   test('撤销会带回当时选中的行', () {
     final history = LyricEditHistory();
