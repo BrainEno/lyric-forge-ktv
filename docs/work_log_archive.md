@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-04 16:40] Retire redundant root widget workflow ([entry](log/entries/2026-11-04-1640-phase45-retire-widget-root.md))
 - [2026-11-04 15:55] Retire redundant transcription settings workflow ([entry](log/entries/2026-11-04-1555-phase45-retire-transcription-settings.md))
 - [2026-11-04 15:20] Retire redundant transcription readiness workflow ([entry](log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md))
 - [2026-11-04 14:15] Retire redundant transcription execution checks ([entry](log/entries/2026-11-04-1415-phase45-retire-transcription-execution-check.md))
