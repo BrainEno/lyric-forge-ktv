@@ -2,39 +2,42 @@
 
 ## 目标
 
-Phase 4.5 第五独立切片：退役 root widget 定向 workflow。原 workflow 仅对 app/root widget 做 Flutter analysis、重复运行 `test/widget_test.dart` 全文件及其中一个 test name；通用 Flutter Quality Gate 覆盖整个 `lib test` 和完整测试集。保留 root widget 生产行为和测试本身。
+完成 Issue #325 的独立切片：普通歌词编辑 undo/redo 同步恢复文档、手工编辑保护标记和 dirty 状态；保存后以新保存结果作为 dirty 基线。PR #340 已创建供 review，本任务不合并。
 
 ## Git 现场
 
 - Repository: `BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/e4079f31-lyric-forge-ktv`（不要切换）。
-- 基线 / 最新 main：`ed1eae3`（PR #330 已合并）。
-- PR #338：<https://github.com/BrainEno/lyric-forge-ktv/pull/338>，未合并。
-- 当前 head `46395f3`；提交包括 workflow 删除、CI 防复活合同、Phase 4.5 review/index、不可变 work-log entry、handoff 更新。
+- 当前活动分支：`arena/596d766a-lyric-forge-ktv`（保持此分支）。
+- 起始基线：`41a4d7a`。
+- 最新实现提交：`3509ee1 fix: restore lyric editor session state on undo`。
+- 后续格式调整提交：`9a7959e style: align lyric undo snapshot formatting`。
+- PR #340：<https://github.com/BrainEno/lyric-forge-ktv/pull/340>，OPEN，目标 `main`。
+- 当前源码改动最初提交于 `3509ee1`；PR 当前 head 为 `9a7959e`。本次 handoff/work-log 文档待提交。
 
 ## 已改文件
 
-- 删除 `.github/workflows/widget-root-validation.yml`；保留 `test/widget_test.dart` 及生产 root widget。
-- `test/ci_workflow_contract_test.dart` 增加该 workflow 不复活断言。
-- 更新 Phase 4.5 deep review、work-log index、handoff。
-- CI 生成并回写 `docs/log/entries/2026-11-04-1640-phase45-retire-widget-root.md`、`docs/work_log.md` 和 `docs/work_log_archive.md`；work-log `write/check` 已通过。
-- 临时验证 workflow `.github/workflows/phase45-widget-root-validation.yml` 已验证后删除，不在 PR head 中。
+- `lib/features/lyrics/domain/models/lyric_edit_history.dart`：历史快照保存 immutable 手工编辑 ID 集合和历史 dirty 值；save 时按保存基线重算历史状态。
+- `lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart`：undo/redo 传递并恢复会话状态；文本标记在历史快照捕获之后才更新。
+- `test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart`：覆盖 undo/redo 标记、回到干净基线、保存后撤销/重做、保存/重开无残留标记。
+- `docs/log/entries/2026-11-04-1817-restore-lyric-undo-session-state.md`、`docs/work_log.md`、`docs/work_log_archive.md`：新增任务记录与生成导航。
+- `docs/handoff.md`：本交接记录。
 
 ## 检查结果
 
-- pinned-toolchain run `41801080612` 通过：依赖解析后 formatter、workflow contract test、完整 `scripts/quality_gate.sh --skip-pub-get`（全仓 analyze 与完整测试集）、work-log `new/write/check`。
-- 最终 PR head `46395f3` 的 Flutter Quality Gate run `41801752875` 通过。
-- 较早 head `d53c0c7` 的 run `41801561079` 曾因 handoff 缺少 harness 要求的 `## 已知风险` 标题而在 preflight 失败；已补回标题，最终 head 全门禁通过。
-- 原 workflow 已确认无 native build、设备或外部服务专属验证。本地无 Flutter/Dart SDK。
+- 本机无 Flutter/Dart SDK；本地 targeted test、analyze、`dart format` 和 work-log harness 未运行。
+- `git diff --check` 在实现变更时通过。
+- 初始 PR head `3509ee1` 的 Flutter Quality Gate run `41812971152` 在 changed-Dart format check 失败，未进入完整 quality gate；据此调整了格式并提交 `9a7959e`。
+- 该 run 的日志下载遇到 results-receiver EOF；当前未发现 `9a7959e` 对应的新 CI run/check。不能把旧 run 视为最终 head 验证。
+- 当前 task entry 与生成 work-log 导航是为当前 PR 更新的；由于本地无 Dart，需由最终 head CI 执行 harness check。
 
 ## 下一步
 
-本次 handoff 更新本身形成新的 PR head；等待这个最新 head 的 Flutter Quality Gate 通过后，才可 squash merge PR #338。若新门禁失败，检查具体失败上下文并修复；不得合并旧 head 或跳过门禁。
+在 PR #340 上确认最终 PR head（包括本 handoff/work-log 提交）的 Flutter Quality Gate 运行并通过；若格式、analyze、测试或 work-log check 失败，先修正、推送并等最新 head 重跑。之后把 PR #340 留给用户 review，不要合并。
 
 ## 已知风险
 
-- Media Hub upload deadline 测试曾偶发失败；若后续全量门禁失败，检查最新日志上下文，不要略过。
-- 本切片不改 root widget 生产代码及 `test/widget_test.dart`。Native builds、KTV recovery、runtime release、icon 和其他 specialist workflows 保持原样，留待分别审计。
-- 本地无 Flutter/Dart SDK，验证依赖仓库 pinned-toolchain CI。
+- 当前实现与新增测试尚未由完整 Flutter 测试集验证；必须以最终 PR head 的 pinned-toolchain CI 结果为准。
+- 若最终 head 没有触发 PR gate，先调查 GitHub Actions event/check 状态；不要以失败的 `3509ee1` run 代替最终 head 验证，也不要重复尝试已知会返回 403 的手动 workflow dispatch。
+- 本切片不涉及并保留尚未逐项审计的 native build、KTV recovery、runtime-release、icon 和 specialist workflows。
 
 最后更新：2026-11-04（Asia/Taipei）
