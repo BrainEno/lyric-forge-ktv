@@ -126,7 +126,8 @@ void main() {
             '.github/workflows/transcription-execution-failure-validation.yml',
           ).exists(),
           isFalse,
-          reason: 'focused execution-failure analysis and tests are in the gate',
+          reason:
+              'focused execution-failure analysis and tests are in the gate',
         );
       },
     );
