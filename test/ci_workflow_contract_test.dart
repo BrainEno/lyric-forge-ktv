@@ -13,8 +13,9 @@ void main() {
         final flutterVersion = (config as Map<String, dynamic>)['flutter'];
         expect(flutterVersion, matches(RegExp(r'^\d+\.\d+\.\d+$')));
 
-        final action = await File('.github/actions/setup-flutter/action.yml')
-            .readAsString();
+        final action = await File(
+          '.github/actions/setup-flutter/action.yml',
+        ).readAsString();
         expect(action, contains('with open(".fvmrc"'));
         expect(
           action,
@@ -52,16 +53,18 @@ void main() {
     test(
       'local quality and build scripts enforce the .fvmrc Flutter/Dart pin',
       () async {
-        final sdkConfig = jsonDecode(
-          await File('.fvmrc').readAsString(),
-        ) as Map<String, dynamic>;
+        final sdkConfig =
+            jsonDecode(await File('.fvmrc').readAsString())
+                as Map<String, dynamic>;
         final expectedFlutter = sdkConfig['flutter'];
         expect(expectedFlutter, matches(RegExp(r'^\d+\.\d+\.\d+$')));
 
-        final shellCheck = await File('scripts/check_flutter_sdk.sh')
-            .readAsString();
-        final powershellCheck = await File('scripts/check_flutter_sdk.ps1')
-            .readAsString();
+        final shellCheck = await File(
+          'scripts/check_flutter_sdk.sh',
+        ).readAsString();
+        final powershellCheck = await File(
+          'scripts/check_flutter_sdk.ps1',
+        ).readAsString();
         expect(shellCheck, contains('frameworkVersion'));
         expect(shellCheck, contains('dartSdkVersion'));
         expect(
@@ -81,11 +84,13 @@ void main() {
         expect(powershellCheck, contains(r'$actualDart -ne $expectedDart'));
 
         final shellGate = await File('scripts/quality_gate.sh').readAsString();
-        final powershellGate = await File('scripts/quality_gate.ps1')
-            .readAsString();
+        final powershellGate = await File(
+          'scripts/quality_gate.ps1',
+        ).readAsString();
         final iosBuild = await File('scripts/ios_build.sh').readAsString();
-        final androidBuild = await File('scripts/build_android_apk.ps1')
-            .readAsString();
+        final androidBuild = await File(
+          'scripts/build_android_apk.ps1',
+        ).readAsString();
         expect(shellGate, contains('check_flutter_sdk.sh'));
         expect(powershellGate, contains('check_flutter_sdk.ps1'));
         expect(iosBuild, contains('check_flutter_sdk.sh'));
@@ -96,8 +101,9 @@ void main() {
     test(
       'universal quality gate owns complete Flutter analysis and tests',
       () async {
-        final workflow = await File('.github/workflows/flutter-quality.yml')
-            .readAsString();
+        final workflow = await File(
+          '.github/workflows/flutter-quality.yml',
+        ).readAsString();
         final gate = await File('scripts/quality_gate.sh').readAsString();
 
         expect(workflow, contains('pull_request:\n    branches: [main]'));
@@ -124,8 +130,9 @@ void main() {
               'focused execution-failure analysis and tests are in the gate',
         );
         expect(
-          await File('.github/workflows/transcription-readiness-validation.yml')
-              .exists(),
+          await File(
+            '.github/workflows/transcription-readiness-validation.yml',
+          ).exists(),
           isFalse,
           reason:
               'readiness analysis and contract tests are in the universal gate',
@@ -220,18 +227,21 @@ void main() {
         }
       }
       expect(
-        await File('.github/workflows/ktv-wav-recovery-validation.yml')
-            .exists(),
+        await File(
+          '.github/workflows/ktv-wav-recovery-validation.yml',
+        ).exists(),
         isFalse,
       );
       expect(
-        await File('.github/workflows/ktv-delete-safety-validation.yml')
-            .exists(),
+        await File(
+          '.github/workflows/ktv-delete-safety-validation.yml',
+        ).exists(),
         isFalse,
       );
       expect(
-        await File('.github/workflows/ktv-auto-recovery-validation.yml')
-            .exists(),
+        await File(
+          '.github/workflows/ktv-auto-recovery-validation.yml',
+        ).exists(),
         isFalse,
       );
     });

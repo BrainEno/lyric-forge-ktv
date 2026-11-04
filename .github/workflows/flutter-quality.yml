@@ -61,16 +61,7 @@ jobs:
           fi
 
           printf 'Checking %s changed Dart file(s).\n' "${#dart_files[@]}"
-          echo "::notice title=quality-format-base::$BASE_SHA"
-          echo "::notice title=quality-format-sha::$GITHUB_SHA"
-          for file in "${dart_files[@]}"; do
-            echo "::notice title=quality-format-file::$file"
-          done
-          format_status=0
-          format_output="$(dart format --output=none --set-exit-if-changed "${dart_files[@]}" 2>&1)" || format_status=$?
-          echo "::notice title=quality-format-status::$format_status"
-          echo "::notice title=quality-format-output::$format_output"
-          if (( format_status == 0 )); then
+          if dart format --output=none --set-exit-if-changed "${dart_files[@]}"; then
             exit 0
           fi
 
