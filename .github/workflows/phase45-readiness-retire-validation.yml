@@ -60,7 +60,6 @@ jobs:
         shell: bash
         run: |
           for file in \
-            test/ci_workflow_contract_test.dart \
             docs/log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md \
             docs/work_log.md \
             docs/work_log_archive.md \
@@ -68,7 +67,7 @@ jobs:
             payload_file="$RUNNER_TEMP/payload"
             base64 -w0 "$file" > "$payload_file"
             prefix="$RUNNER_TEMP/chunk-${file##*/}."
-            split -b 2500 -d -a 3 "$payload_file" "$prefix"
+            split -b 3500 -d -a 3 "$payload_file" "$prefix"
             index=0
             for chunk in "$prefix"*; do
               payload="$(cat "$chunk")"
