@@ -11,8 +11,7 @@ abstract final class LyricReviewStrings {
       '打开后，本行播放到结束时间会回到试听起点；没有有效结束时间的行无法自动循环。';
   static const String loopCurrentLineEnabled = '已开启循环本行';
   static const String loopCurrentLineDisabled = '已关闭循环本行';
-  static const String droppedReferenceItemReason =
-      '未找到可靠参考匹配；默认排除，可勾选恢复';
+  static const String droppedReferenceItemReason = '未找到可靠参考匹配；默认排除，可勾选恢复';
 
   static String priorityReason(LyricReviewPriorityReason reason) {
     return switch (reason.code) {
