@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-04 15:20] Retire redundant transcription readiness workflow ([entry](log/entries/2026-11-04-1520-phase45-retire-transcription-readiness.md))
 - [2026-11-04 14:15] Retire redundant transcription execution checks ([entry](log/entries/2026-11-04-1415-phase45-retire-transcription-execution-check.md))
 - [2026-11-03 22:15] Defer immersive chrome notifications ([entry](log/entries/2026-11-03-2215-defer-immersive-chrome-notifications.md))
 - [2026-11-03 21:31] Retire redundant ASR client workflow ([entry](log/entries/2026-11-03-2131-phase45-retire-redundant-asr-check.md))
