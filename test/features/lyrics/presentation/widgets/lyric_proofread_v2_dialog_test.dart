@@ -346,7 +346,9 @@ void main() {
             id: 'amber',
           ),
           verdict: LyricProofreadReviewVerdict.amber,
-          reasonLabel: '对齐存在歧义',
+          referenceReasons: {
+            LyricProofreadV2ReferenceReason.ambiguousAlignment,
+          },
         ),
         LyricProofreadV2ReviewItem(
           proposalIndex: 2,
@@ -401,6 +403,7 @@ void main() {
       expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
       await tester.drag(find.byType(ListView), const Offset(0, -300));
       await tester.pumpAndSettle();
+      expect(find.text('依据：对齐存在歧义'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('accept_amber_1')));
       await tester.pumpAndSettle();
       await tester.drag(find.byType(ListView), const Offset(0, -300));

@@ -8,6 +8,20 @@ import 'proofread_result.dart';
 /// apply when the dialog reports them as accepted.
 enum LyricProofreadReviewVerdict { locked, green, amber }
 
+/// Stable, locale-neutral reason codes for reference-first review rows.
+enum LyricProofreadV2ReferenceReason {
+  lowConfidenceAlignment,
+  ambiguousAlignment,
+  structuralMismatch,
+  referenceTimestamp,
+  mappedAsrTiming,
+  interpolatedTiming,
+  estimatedTailTiming,
+  timelineAdjusted,
+  protectedLine,
+  referenceImportWarning,
+}
+
 /// One row of the proofread review dialog: a proposal paired with the draft
 /// line it would replace.
 ///
@@ -20,17 +34,19 @@ class LyricProofreadV2ReviewItem {
   final LyricLine? originalLine;
   final LyricProofreadReviewVerdict verdict;
   final String reasonLabel;
+  final Set<LyricProofreadV2ReferenceReason> referenceReasons;
   final List<TimedLyricToken> alignmentTokens;
 
-  const LyricProofreadV2ReviewItem({
+  LyricProofreadV2ReviewItem({
     required this.proposalIndex,
     required this.sourceIndex,
     required this.proposedLine,
     required this.originalLine,
     required this.verdict,
-    required this.reasonLabel,
+    this.reasonLabel = '',
+    Set<LyricProofreadV2ReferenceReason> referenceReasons = const {},
     this.alignmentTokens = const [],
-  });
+  }) : referenceReasons = Set.unmodifiable(referenceReasons);
 
   bool get hasChange {
     final original = originalLine;
