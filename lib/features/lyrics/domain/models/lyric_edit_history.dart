@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../project/domain/models/lyric_document.dart';
 
 /// One reversible step: the document as it was *before* an edit, plus enough
@@ -10,19 +12,26 @@ class LyricEditSnapshot {
   /// document so undo puts the user back where they were.
   final int? selectedLineIndex;
 
+  /// Session state that affects save output and the unsaved-changes prompt.
+  final Set<String> manuallyEditedLineIds;
+  final bool hasChanges;
+
   /// Edits sharing a merge key inside the merge window collapse into one step.
   /// Used so retyping a single line does not cost one undo per character.
   final String? mergeKey;
 
   final DateTime recordedAt;
 
-  const LyricEditSnapshot({
+  LyricEditSnapshot({
     required this.document,
     required this.label,
     required this.recordedAt,
     this.selectedLineIndex,
+    Set<String> manuallyEditedLineIds = const <String>{},
+    this.hasChanges = false,
     this.mergeKey,
-  });
+  }) : manuallyEditedLineIds =
+           Set<String>.unmodifiable(manuallyEditedLineIds);
 }
 
 /// A bounded two-stack edit history for the lyric editor.
@@ -74,6 +83,8 @@ class LyricEditHistory {
     required String label,
     String? mergeKey,
     int? selectedLineIndex,
+    Set<String> manuallyEditedLineIds = const <String>{},
+    bool hasChanges = false,
     DateTime? now,
   }) {
     final at = now ?? DateTime.now();
@@ -85,6 +96,8 @@ class LyricEditHistory {
           document: last.document,
           label: label,
           selectedLineIndex: last.selectedLineIndex,
+          manuallyEditedLineIds: last.manuallyEditedLineIds,
+          hasChanges: last.hasChanges,
           mergeKey: mergeKey,
           recordedAt: at,
         );
@@ -98,6 +111,8 @@ class LyricEditHistory {
         document: document,
         label: label,
         selectedLineIndex: selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         mergeKey: mergeKey,
         recordedAt: at,
       ),
@@ -111,7 +126,12 @@ class LyricEditHistory {
   }
 
   /// Returns the document to restore, and makes [current] redoable.
-  LyricEditSnapshot? undo(LyricDocument current, {DateTime? now}) {
+  LyricEditSnapshot? undo(
+    LyricDocument current, {
+    Set<String> manuallyEditedLineIds = const <String>{},
+    bool hasChanges = false,
+    DateTime? now,
+  }) {
     if (_undo.isEmpty) return null;
     final snapshot = _undo.removeLast();
     _redo.add(
@@ -119,6 +139,8 @@ class LyricEditHistory {
         document: current,
         label: snapshot.label,
         selectedLineIndex: snapshot.selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         recordedAt: now ?? DateTime.now(),
       ),
     );
@@ -126,7 +148,12 @@ class LyricEditHistory {
   }
 
   /// Returns the document to restore, and makes [current] undoable again.
-  LyricEditSnapshot? redo(LyricDocument current, {DateTime? now}) {
+  LyricEditSnapshot? redo(
+    LyricDocument current, {
+    Set<String> manuallyEditedLineIds = const <String>{},
+    bool hasChanges = false,
+    DateTime? now,
+  }) {
     if (_redo.isEmpty) return null;
     final snapshot = _redo.removeLast();
     _undo.add(
@@ -134,6 +161,8 @@ class LyricEditHistory {
         document: current,
         label: snapshot.label,
         selectedLineIndex: snapshot.selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         recordedAt: now ?? DateTime.now(),
       ),
     );
@@ -141,6 +170,48 @@ class LyricEditHistory {
       _undo.removeAt(0);
     }
     return snapshot;
+  }
+
+  /// Rebase history dirtiness against the state just written to disk. Most
+  /// older states become dirty, but a no-op edit may still point at this exact
+  /// saved state and should not trigger an unsaved-changes prompt.
+  void markSaved(LyricDocument document, Set<String> manuallyEditedLineIds) {
+    for (var index = 0; index < _undo.length; index++) {
+      _undo[index] = _withSavedBaseline(
+        _undo[index],
+        document,
+        manuallyEditedLineIds,
+      );
+    }
+    for (var index = 0; index < _redo.length; index++) {
+      _redo[index] = _withSavedBaseline(
+        _redo[index],
+        document,
+        manuallyEditedLineIds,
+      );
+    }
+  }
+
+  LyricEditSnapshot _withSavedBaseline(
+    LyricEditSnapshot snapshot,
+    LyricDocument savedDocument,
+    Set<String> savedManualMarks,
+  ) {
+    final sameDocument =
+        jsonEncode(snapshot.document.toJson()) ==
+        jsonEncode(savedDocument.toJson());
+    final sameManualMarks =
+        snapshot.manuallyEditedLineIds.length == savedManualMarks.length &&
+        snapshot.manuallyEditedLineIds.containsAll(savedManualMarks);
+    return LyricEditSnapshot(
+      document: snapshot.document,
+      label: snapshot.label,
+      recordedAt: snapshot.recordedAt,
+      selectedLineIndex: snapshot.selectedLineIndex,
+      manuallyEditedLineIds: snapshot.manuallyEditedLineIds,
+      hasChanges: !(sameDocument && sameManualMarks),
+      mergeKey: snapshot.mergeKey,
+    );
   }
 
   void clear() {
