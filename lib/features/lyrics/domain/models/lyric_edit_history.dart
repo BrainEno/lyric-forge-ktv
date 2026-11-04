@@ -2,6 +2,12 @@ import '../../../project/domain/models/lyric_document.dart';
 
 /// One reversible step: the document as it was *before* an edit, plus enough
 /// context to tell the user what pressing undo will do.
+///
+/// The document alone is not the whole reversible state: the session's
+/// manual-edit marks decide which rows later proofreading must protect, and
+/// the dirty flag decides whether leaving the editor prompts to save. Both
+/// travel with the snapshot so undoing an edit also un-marks the row it had
+/// marked and can return the editor to its clean baseline.
 class LyricEditSnapshot {
   final LyricDocument document;
   final String label;
@@ -10,19 +16,31 @@ class LyricEditSnapshot {
   /// document so undo puts the user back where they were.
   final int? selectedLineIndex;
 
+  /// Manual-edit marks as they were before the edit.
+  final Set<String> manuallyEditedLineIds;
+
+  /// Whether the editor had unsaved changes before the edit. Undoing the
+  /// only edit of a clean document restores `false`, so the user is not
+  /// prompted to save a document that matches what is on disk.
+  final bool hasChanges;
+
   /// Edits sharing a merge key inside the merge window collapse into one step.
   /// Used so retyping a single line does not cost one undo per character.
   final String? mergeKey;
 
   final DateTime recordedAt;
 
-  const LyricEditSnapshot({
+  LyricEditSnapshot({
     required this.document,
     required this.label,
     required this.recordedAt,
     this.selectedLineIndex,
+    Set<String>? manuallyEditedLineIds,
+    this.hasChanges = false,
     this.mergeKey,
-  });
+  }) : manuallyEditedLineIds = Set.unmodifiable(
+         manuallyEditedLineIds ?? const <String>{},
+       );
 }
 
 /// A bounded two-stack edit history for the lyric editor.
@@ -74,6 +92,8 @@ class LyricEditHistory {
     required String label,
     String? mergeKey,
     int? selectedLineIndex,
+    Set<String>? manuallyEditedLineIds,
+    bool hasChanges = false,
     DateTime? now,
   }) {
     final at = now ?? DateTime.now();
@@ -81,10 +101,14 @@ class LyricEditHistory {
       final last = _undo.last;
       if (last.mergeKey == mergeKey &&
           at.difference(last.recordedAt) <= mergeWindow) {
+        // The merged step still reverts the whole burst, so it keeps the
+        // document and session state captured before the burst started.
         _undo[_undo.length - 1] = LyricEditSnapshot(
           document: last.document,
           label: label,
           selectedLineIndex: last.selectedLineIndex,
+          manuallyEditedLineIds: last.manuallyEditedLineIds,
+          hasChanges: last.hasChanges,
           mergeKey: mergeKey,
           recordedAt: at,
         );
@@ -98,6 +122,8 @@ class LyricEditHistory {
         document: document,
         label: label,
         selectedLineIndex: selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         mergeKey: mergeKey,
         recordedAt: at,
       ),
@@ -110,8 +136,15 @@ class LyricEditHistory {
     _redo.clear();
   }
 
-  /// Returns the document to restore, and makes [current] redoable.
-  LyricEditSnapshot? undo(LyricDocument current, {DateTime? now}) {
+  /// Returns the state to restore, and makes [current] redoable. The caller
+  /// passes the session state that belongs to [current] so redoing restores
+  /// the marks and dirtiness of the state being left, not just its document.
+  LyricEditSnapshot? undo(
+    LyricDocument current, {
+    Set<String>? manuallyEditedLineIds,
+    bool hasChanges = false,
+    DateTime? now,
+  }) {
     if (_undo.isEmpty) return null;
     final snapshot = _undo.removeLast();
     _redo.add(
@@ -119,14 +152,21 @@ class LyricEditHistory {
         document: current,
         label: snapshot.label,
         selectedLineIndex: snapshot.selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         recordedAt: now ?? DateTime.now(),
       ),
     );
     return snapshot;
   }
 
-  /// Returns the document to restore, and makes [current] undoable again.
-  LyricEditSnapshot? redo(LyricDocument current, {DateTime? now}) {
+  /// Returns the state to restore, and makes [current] undoable again.
+  LyricEditSnapshot? redo(
+    LyricDocument current, {
+    Set<String>? manuallyEditedLineIds,
+    bool hasChanges = false,
+    DateTime? now,
+  }) {
     if (_redo.isEmpty) return null;
     final snapshot = _redo.removeLast();
     _undo.add(
@@ -134,6 +174,8 @@ class LyricEditHistory {
         document: current,
         label: snapshot.label,
         selectedLineIndex: snapshot.selectedLineIndex,
+        manuallyEditedLineIds: manuallyEditedLineIds,
+        hasChanges: hasChanges,
         recordedAt: now ?? DateTime.now(),
       ),
     );

@@ -79,6 +79,9 @@ class LyricEditResult {
 ///   place, and never points past the end;
 /// * typing in one row collapses into a single undo step, while different rows
 ///   stay separate steps;
+/// * undo/redo restore the manual-edit marks and dirty flag together with the
+///   document, so undoing the only edit of a clean document is clean again
+///   and no longer protects the row it had marked;
 /// * undo/redo never restore a selection that no longer exists;
 /// * any ordinary edit invalidates the batch-change snapshot, because undoing a
 ///   batch on top of a later edit would silently discard that edit.
@@ -187,7 +190,12 @@ class LyricEditorDocumentController extends ChangeNotifier {
   LyricEditResult undo() {
     final current = _document;
     if (current == null) return const LyricEditResult.notApplied();
-    final snapshot = history.undo(current, now: _clock());
+    final snapshot = history.undo(
+      current,
+      manuallyEditedLineIds: _manuallyEditedLineIds,
+      hasChanges: _hasChanges,
+      now: _clock(),
+    );
     if (snapshot == null) {
       return const LyricEditResult.notApplied(message: '没有可撤销的修改');
     }
@@ -199,7 +207,12 @@ class LyricEditorDocumentController extends ChangeNotifier {
   LyricEditResult redo() {
     final current = _document;
     if (current == null) return const LyricEditResult.notApplied();
-    final snapshot = history.redo(current, now: _clock());
+    final snapshot = history.redo(
+      current,
+      manuallyEditedLineIds: _manuallyEditedLineIds,
+      hasChanges: _hasChanges,
+      now: _clock(),
+    );
     if (snapshot == null) {
       return const LyricEditResult.notApplied(message: '没有可重做的修改');
     }
@@ -278,11 +291,6 @@ class LyricEditorDocumentController extends ChangeNotifier {
     }
 
     final previousLine = document.lines[index];
-    if (previousLine.text != updatedLine.text) {
-      final lineId = previousLine.id;
-      if (lineId != null) _manuallyEditedLineIds.add(lineId);
-    }
-
     final timingChanged =
         previousLine.startTime != updatedLine.startTime ||
         previousLine.endTime != updatedLine.endTime;
@@ -290,7 +298,14 @@ class LyricEditorDocumentController extends ChangeNotifier {
 
     // Repeated edits to one line inside the merge window are a single undo
     // step: retyping a lyric should not cost one undo per keystroke burst.
+    // The history entry must be recorded before the manual-edit mark below
+    // is added, or the snapshot would capture the post-edit marks and undo
+    // could never un-mark the row.
     _recordEdit('修改第 ${index + 1} 行', mergeKey: 'line:$index');
+    if (previousLine.text != updatedLine.text) {
+      final lineId = previousLine.id;
+      if (lineId != null) _manuallyEditedLineIds.add(lineId);
+    }
     final lines = List<LyricLine>.from(document.lines);
     lines[index] = updatedLine;
     _document = document.copyWith(lines: lines);
@@ -457,7 +472,10 @@ class LyricEditorDocumentController extends ChangeNotifier {
         index != null && index >= 0 && index < snapshot.document.lines.length
         ? index
         : null;
-    _hasChanges = true;
+    _manuallyEditedLineIds
+      ..clear()
+      ..addAll(snapshot.manuallyEditedLineIds);
+    _hasChanges = snapshot.hasChanges;
     _alignmentSnapshot = null;
   }
 
@@ -474,6 +492,8 @@ class LyricEditorDocumentController extends ChangeNotifier {
       label: label,
       mergeKey: mergeKey,
       selectedLineIndex: _selectedLineIndex,
+      manuallyEditedLineIds: _manuallyEditedLineIds,
+      hasChanges: _hasChanges,
       now: _clock(),
     );
   }

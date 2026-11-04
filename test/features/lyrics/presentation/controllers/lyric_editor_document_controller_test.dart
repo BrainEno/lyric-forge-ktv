@@ -139,6 +139,96 @@ void main() {
       expect(entry.controller.document!.lines[1].text, 'b');
       expect(entry.controller.selectedLineIndex, 1);
       expect(entry.controller.canRedo, isTrue);
+      // The document is back at its loaded baseline, so it is clean again.
+      expect(entry.controller.hasChanges, isFalse);
+    });
+
+    test('undoing a text edit also removes its manual edit mark', () {
+      final entry = build(loaded: document([line('a', id: 'a')]));
+      entry.controller.updateLine(0, line('a fixed', id: 'a'));
+      expect(entry.controller.manuallyEditedLineIds, {'a'});
+      expect(entry.controller.protectedIndices, {0});
+
+      entry.controller.undo();
+
+      expect(entry.controller.document!.lines.single.text, 'a');
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.protectedIndices, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+      // Saving after the undo must not persist the revoked mark.
+      final saved = entry.controller.documentForSave();
+      expect(
+        saved.metadata[LyricManualEditMarkerService.manuallyEditedLineIdsKey],
+        isEmpty,
+      );
+    });
+
+    test('redo restores the mark and dirtiness that undo removed', () {
+      final entry = build(loaded: document([line('a', id: 'a')]));
+      entry.controller.updateLine(0, line('a fixed', id: 'a'));
+      entry.controller.undo();
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+
+      entry.controller.redo();
+
+      expect(entry.controller.document!.lines.single.text, 'a fixed');
+      expect(entry.controller.manuallyEditedLineIds, {'a'});
+      expect(entry.controller.protectedIndices, {0});
+      expect(entry.controller.hasChanges, isTrue);
+    });
+
+    test('step-by-step undo walks marks and dirtiness back to clean', () {
+      final entry = build(
+        loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+      );
+      entry.controller.updateLine(0, line('a1', id: 'a'));
+      entry.controller.updateLine(
+        1,
+        line('b1', startMs: 1000, endMs: 2000, id: 'b'),
+      );
+      expect(entry.controller.manuallyEditedLineIds, {'a', 'b'});
+
+      entry.controller.undo();
+      expect(entry.controller.document!.lines[1].text, 'b');
+      expect(entry.controller.manuallyEditedLineIds, {'a'});
+      expect(entry.controller.hasChanges, isTrue);
+
+      entry.controller.undo();
+      expect(entry.controller.document!.lines[0].text, 'a');
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+    });
+
+    test('a typing burst is one step for marks and dirtiness too', () {
+      final entry = build(loaded: document([line('a', id: 'a')]));
+      entry.controller.updateLine(0, line('ab', id: 'a'));
+      entry.controller.updateLine(0, line('abc', id: 'a'));
+      expect(entry.controller.history.undoDepth, 1);
+
+      entry.controller.undo();
+
+      expect(entry.controller.document!.lines.single.text, 'a');
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+    });
+
+    test('undoing a delete restores the deleted row manual edit mark', () {
+      final entry = build(
+        loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+      );
+      entry.controller.updateLine(
+        1,
+        line('b fixed', startMs: 1000, endMs: 2000, id: 'b'),
+      );
+      entry.controller.deleteLine(1);
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+
+      entry.controller.undo();
+
+      expect(entry.controller.document!.lines, hasLength(2));
+      expect(entry.controller.manuallyEditedLineIds, {'b'});
+      expect(entry.controller.protectedIndices, {1});
       expect(entry.controller.hasChanges, isTrue);
     });
 
