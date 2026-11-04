@@ -211,7 +211,11 @@ void main() {
       final assembly = assemble();
 
       expect(assembly.items[1].verdict, LyricProofreadReviewVerdict.amber);
-      expect(assembly.items[1].reasonLabel, contains('置信度低'));
+      expect(
+        assembly.items[1].proofreadReasons,
+        contains(ProofreadReason.lowConfidence),
+      );
+      expect(assembly.items[1].reasonLabel, isEmpty);
       expect(assembly.items.first.verdict, LyricProofreadReviewVerdict.amber);
     });
 
@@ -320,10 +324,7 @@ void main() {
     }
   });
 
-  test('ASR reason labels cover every proofread reason value', () {
-    for (final reason in ProofreadReason.values) {
-      expect(ProofreadV2ReviewAssembler.reasonLabel(reason), isNotEmpty);
-    }
+  test('strategy labels cover every strategy value', () {
     for (final strategy in LyricSourceStrategy.values) {
       expect(ProofreadV2ReviewAssembler.strategyLabel(strategy), isNotEmpty);
     }

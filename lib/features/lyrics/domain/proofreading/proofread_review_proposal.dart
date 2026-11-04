@@ -35,6 +35,7 @@ class LyricProofreadV2ReviewItem {
   final LyricProofreadReviewVerdict verdict;
   final String reasonLabel;
   final Set<LyricProofreadV2ReferenceReason> referenceReasons;
+  final Set<ProofreadReason> proofreadReasons;
   final List<TimedLyricToken> alignmentTokens;
 
   LyricProofreadV2ReviewItem({
@@ -45,8 +46,10 @@ class LyricProofreadV2ReviewItem {
     required this.verdict,
     this.reasonLabel = '',
     Set<LyricProofreadV2ReferenceReason> referenceReasons = const {},
+    Set<ProofreadReason> proofreadReasons = const {},
     this.alignmentTokens = const [],
-  }) : referenceReasons = Set.unmodifiable(referenceReasons);
+  }) : referenceReasons = Set.unmodifiable(referenceReasons),
+       proofreadReasons = Set.unmodifiable(proofreadReasons);
 
   bool get hasChange {
     final original = originalLine;

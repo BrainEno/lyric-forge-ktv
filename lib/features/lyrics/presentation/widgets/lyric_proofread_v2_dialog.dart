@@ -533,6 +533,7 @@ class _LyricProofreadV2ReviewDialogState
     final original = item.originalLine;
     final reasonLabel = [
       ...item.referenceReasons.map(LyricReviewStrings.referenceReason),
+      ...item.proofreadReasons.map(LyricReviewStrings.proofreadReason),
       if (item.reasonLabel.isNotEmpty) item.reasonLabel,
     ].join('、');
     final verdictColor = switch (item.verdict) {
