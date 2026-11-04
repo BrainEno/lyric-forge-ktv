@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 21:31] Retire redundant ASR client workflow ([entry](log/entries/2026-11-03-2131-phase45-retire-redundant-asr-check.md))
 - [2026-11-03 21:13] Finalize scoped editor and playback state ([entry](log/entries/2026-11-03-2113-phase44-state-management-final.md))
 - [2026-11-03 20:58] Add scoped state management for editor and player bars ([entry](log/entries/2026-11-03-2058-editor-player-minimal-state.md))
 - [2026-11-03 19:35] Inject the remaining ASR settings and queue consumers ([entry](log/entries/2026-11-03-1935-asr-dependency-injection-complete.md))
