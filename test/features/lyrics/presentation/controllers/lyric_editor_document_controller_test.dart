@@ -139,10 +139,10 @@ void main() {
       expect(entry.controller.document!.lines[1].text, 'b');
       expect(entry.controller.selectedLineIndex, 1);
       expect(entry.controller.canRedo, isTrue);
-      expect(entry.controller.hasChanges, isTrue);
+      expect(entry.controller.hasChanges, isFalse);
     });
 
-    test('redo reapplies the edit the undo removed', () {
+    test('redo reapplies the edit and restores its protected mark', () {
       final entry = build(loaded: document([line('a', id: 'a')]));
       entry.controller.updateLine(0, line('a edited', id: 'a'));
       entry.controller.undo();
@@ -152,7 +152,138 @@ void main() {
       expect(redone.applied, isTrue);
       expect(redone.hint, '已重做：修改第 1 行');
       expect(entry.controller.document!.lines.single.text, 'a edited');
+      expect(entry.controller.manuallyEditedLineIds, {'a'});
+      expect(entry.controller.protectedIndices, {0});
+      expect(entry.controller.hasChanges, isTrue);
     });
+
+    test(
+      'undoing back to a clean baseline clears its manual mark and dirtiness',
+      () {
+        final entry = build(loaded: document([line('a', id: 'a')]));
+        entry.controller.updateLine(0, line('a edited', id: 'a'));
+
+        entry.controller.undo();
+
+        expect(entry.controller.document!.lines.single.text, 'a');
+        expect(entry.controller.manuallyEditedLineIds, isEmpty);
+        expect(entry.controller.protectedIndices, isEmpty);
+        expect(entry.controller.hasChanges, isFalse);
+        final saved = entry.controller.documentForSave();
+        expect(
+          saved.metadata[LyricManualEditMarkerService.manuallyEditedLineIdsKey],
+          isEmpty,
+        );
+        final reopened = build(loaded: saved);
+        expect(reopened.controller.manuallyEditedLineIds, isEmpty);
+        expect(reopened.controller.protectedIndices, isEmpty);
+      },
+    );
+
+    test('step-by-step undo walks marks and dirtiness back to clean', () {
+      final entry = build(
+        loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+      );
+      entry.controller.updateLine(0, line('a1', id: 'a'));
+      entry.controller.updateLine(1, line('b1', id: 'b'));
+      expect(entry.controller.manuallyEditedLineIds, {'a', 'b'});
+
+      entry.controller.undo();
+      expect(entry.controller.document!.lines[1].text, 'b');
+      expect(entry.controller.manuallyEditedLineIds, {'a'});
+      expect(entry.controller.hasChanges, isTrue);
+
+      entry.controller.undo();
+      expect(entry.controller.document!.lines[0].text, 'a');
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+    });
+
+    test('a typing burst is one step for marks and dirtiness too', () {
+      final entry = build(loaded: document([line('a', id: 'a')]));
+      entry.controller.updateLine(0, line('ab', id: 'a'));
+      entry.controller.updateLine(0, line('abc', id: 'a'));
+      expect(entry.controller.history.undoDepth, 1);
+
+      entry.controller.undo();
+
+      expect(entry.controller.document!.lines.single.text, 'a');
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+      expect(entry.controller.hasChanges, isFalse);
+    });
+
+    test('undoing a delete restores the deleted row manual edit mark', () {
+      final entry = build(
+        loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+      );
+      entry.controller.updateLine(1, line('b fixed', id: 'b'));
+      entry.controller.deleteLine(1);
+      expect(entry.controller.manuallyEditedLineIds, isEmpty);
+
+      entry.controller.undo();
+
+      expect(entry.controller.document!.lines, hasLength(2));
+      expect(entry.controller.manuallyEditedLineIds, {'b'});
+      expect(entry.controller.protectedIndices, {1});
+      expect(entry.controller.hasChanges, isTrue);
+    });
+
+    test(
+      'undo after saving is dirty, while redo returns to the saved state',
+      () {
+        final entry = build(loaded: document([line('a', id: 'a')]));
+        entry.controller.updateLine(0, line('a edited', id: 'a'));
+        entry.controller.markSaved();
+        expect(entry.controller.hasChanges, isFalse);
+
+        entry.controller.undo();
+        expect(entry.controller.document!.lines.single.text, 'a');
+        expect(entry.controller.hasChanges, isTrue);
+        expect(entry.controller.manuallyEditedLineIds, isEmpty);
+
+        entry.controller.redo();
+        expect(entry.controller.document!.lines.single.text, 'a edited');
+        expect(entry.controller.manuallyEditedLineIds, {'a'});
+        expect(entry.controller.hasChanges, isFalse);
+      },
+    );
+
+    test(
+      'multiple undo and redo steps stay dirty relative to the saved baseline',
+      () {
+        final entry = build(
+          loaded: document([line('a', id: 'a'), line('b', id: 'b')]),
+        );
+        entry.controller.updateLine(0, line('a1', id: 'a'));
+        entry.controller.updateLine(1, line('b1', id: 'b'));
+        entry.controller.markSaved();
+        expect(entry.controller.hasChanges, isFalse);
+
+        entry.controller.undo();
+        expect(entry.controller.document!.lines.map((row) => row.text), [
+          'a1',
+          'b',
+        ]);
+        expect(entry.controller.manuallyEditedLineIds, {'a'});
+        expect(entry.controller.hasChanges, isTrue);
+
+        entry.controller.undo();
+        expect(entry.controller.document!.lines.map((row) => row.text), [
+          'a',
+          'b',
+        ]);
+        expect(entry.controller.manuallyEditedLineIds, isEmpty);
+        expect(entry.controller.hasChanges, isTrue);
+
+        entry.controller.redo();
+        expect(entry.controller.manuallyEditedLineIds, {'a'});
+        expect(entry.controller.hasChanges, isTrue);
+
+        entry.controller.redo();
+        expect(entry.controller.manuallyEditedLineIds, {'a', 'b'});
+        expect(entry.controller.hasChanges, isFalse);
+      },
+    );
 
     test('an empty history answers with a message instead of a change', () {
       final entry = build(loaded: document([line('a', id: 'a')]));

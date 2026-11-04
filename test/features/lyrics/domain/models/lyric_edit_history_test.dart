@@ -163,6 +163,79 @@ void main() {
     expect(history.redo(_document(['三'])), isNull);
   });
 
+  test('手工标记与 dirty 随快照一起撤销与重做', () {
+    final history = LyricEditHistory();
+    final before = _document(['月亮代表我的心']);
+    final after = _document(['月亮代表我的星']);
+
+    history.record(
+      before,
+      label: '修改第 1 行',
+      manuallyEditedLineIds: const {},
+      hasChanges: false,
+    );
+
+    final undone = history.undo(
+      after,
+      manuallyEditedLineIds: const {'line-1'},
+      hasChanges: true,
+    );
+    expect(undone!.manuallyEditedLineIds, isEmpty);
+    expect(undone.hasChanges, isFalse);
+
+    final redone = history.redo(
+      before,
+      manuallyEditedLineIds: const {},
+      hasChanges: false,
+    );
+    expect(redone!.manuallyEditedLineIds, {'line-1'});
+    expect(redone.hasChanges, isTrue);
+  });
+
+  test('合并窗口保留爆发前的手工标记与 dirty', () {
+    final history = LyricEditHistory();
+    final start = _document(['月亮代表我的心']);
+    final at = DateTime(2026, 11, 2, 10, 0, 0);
+
+    history.record(
+      start,
+      label: '修改第 1 行',
+      mergeKey: 'line:0',
+      manuallyEditedLineIds: const {},
+      hasChanges: false,
+      now: at,
+    );
+    history.record(
+      _document(['月亮代表我的星']),
+      label: '修改第 1 行',
+      mergeKey: 'line:0',
+      manuallyEditedLineIds: const {'line-1'},
+      hasChanges: true,
+      now: at.add(const Duration(milliseconds: 400)),
+    );
+
+    expect(history.undoDepth, 1);
+    final undone = history.undo(_document(['月亮代表我的星']));
+    expect(undone!.manuallyEditedLineIds, isEmpty);
+    expect(undone.hasChanges, isFalse);
+  });
+
+  test('保存基线按文档结构比较，不受 metadata 键顺序影响', () {
+    final history = LyricEditHistory();
+    final before = _document([
+      '月亮代表我的心',
+    ]).copyWith(metadata: {'first': 1, 'second': 2});
+    final saved = _document([
+      '月亮代表我的心',
+    ]).copyWith(metadata: {'second': 2, 'first': 1});
+    history.record(before, label: '无内容变化', hasChanges: true);
+
+    history.markSaved(saved, const {});
+
+    final snapshot = history.undo(saved);
+    expect(snapshot!.hasChanges, isFalse);
+  });
+
   test('撤销会带回当时选中的行', () {
     final history = LyricEditHistory();
     history.record(
