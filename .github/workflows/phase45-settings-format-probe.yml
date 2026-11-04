@@ -19,6 +19,15 @@ jobs:
       - uses: ./.github/actions/setup-flutter
       - name: Apply exact pinned formatter
         run: dart format test/ci_workflow_contract_test.dart
+      - name: Probe quality-gate formatter mode
+        shell: bash
+        run: |
+          set +e
+          output="$(dart format --output=none --set-exit-if-changed test/ci_workflow_contract_test.dart 2>&1)"
+          result=$?
+          echo "::notice title=format-check-status::$result"
+          echo "::notice title=format-check-output::$output"
+          exit 0
       - name: Expose formatter output
         shell: bash
         run: |
