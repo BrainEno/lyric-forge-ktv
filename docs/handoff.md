@@ -9,8 +9,8 @@ Phase 4.5 第二切片：移除重复的 transcription execution-failure 聚焦�
 - Repository: `BrainEno/lyric-forge-ktv`
 - 活动分支：`arena/2b410f70-lyric-forge-ktv`（active）。
 - 基线：`c520995`；PR #328：`https://github.com/BrainEno/lyric-forge-ktv/pull/328`。
-- 当前 PR head：`1ce91ad`；实现提交：`2297ae6`。
-- PR 尚未合并；上一轮官方门禁有一条与本改动无关的 flaky upload deadline 测试失败，需在新 head 重跑。
+- 实现提交：`2297ae6`；最近一次完整绿色门禁的 head：`59facfa`。
+- PR 尚未合并。之后只需核对当前 head 的 Quality Gate，再按结果处理；不要把较早 head 的通过误当成当前 head 已通过。
 
 ## 已改文件
 
@@ -21,17 +21,18 @@ Phase 4.5 第二切片：移除重复的 transcription execution-failure 聚焦�
 ## 检查结果
 
 - 固定工具链临时验证 run `41784258163`：格式、定向 CI 合同测试、完整质量门禁、work-log `write/check` 均通过。
-- 官方 PR Flutter Quality Gate run `41784637534` 在全量测试中失败于 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`；变更没有触及 transfer 代码/测试。GitHub `gh run rerun --failed` 拒绝重跑，因此需通过新提交触发下一次最终 head CI。
-- 已提交、等待重验：未合并。
+- PR head `1ce91ad` 的官方门禁 run `41784637534` 曾失败于 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`；变更没有触及 transfer 代码/测试。
+- 新 head `59facfa` 的官方 Flutter Quality Gate run `41785180139` **通过**：work-log preflight、解析依赖、格式检查及 repository quality gate 全部成功。
+- 随后新增的 handoff 状态更新只用于记录上述结果；最终合并前仍需查看当前 PR head 的 check，要求通过。
 
 ## 下一步
 
-1. 做一次仅文档状态更新的提交以重跑 PR Quality Gate；若通过则合并 PR #328，若相同 transfer 测试再次失败再单独评估既有 flaky 测试，不扩大本切片范围。
+1. 查看 PR #328 当前 head 对应的 Flutter Quality Gate 是否成功；成功后合并该 PR。若失败，按新的失败上下文单独调查。
 
 ## 已知风险
 
 - 本地无 Flutter/Dart SDK；格式、测试和质量门禁依赖固定 CI 工具链。
-- 当前唯一阻塞是与本改动无关的时间上限测试；不能把临时验证 run 的成功误称为官方 PR head 门禁通过。
+- 旧 head 上的 upload deadline 测试曾单次失败；新 head 的完整质量门禁已通过。
 - 此切片只证明该聚焦 workflow 的分析和测试由全量门禁覆盖；其他平台、KTV 与发布 workflow 尚未审计。
 
-最后更新：2026-11-04 14:24（Asia/Taipei）
+最后更新：2026-11-04 14:28（Asia/Taipei）
