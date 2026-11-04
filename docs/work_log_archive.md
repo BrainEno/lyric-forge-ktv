@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-03 18:05] Inject the dashboard and retire legacy sharing UI ([entry](log/entries/2026-11-03-1805-dashboard-and-retire-legacy-transfer.md))
 - [2026-11-03 17:20] Inject project, import and remote media screens ([entry](log/entries/2026-11-03-1720-workflow-screen-injection.md))
 - [2026-11-03 16:22] Inject the local music library and finish the player feature ([entry](log/entries/2026-11-03-1622-local-library-injection.md))
 - [2026-11-03 14:33] Put KTV recording back on the fullscreen surface ([entry](log/entries/2026-11-03-1433-immersive-ktv-recording.md))
