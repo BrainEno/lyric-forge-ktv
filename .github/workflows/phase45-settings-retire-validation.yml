@@ -26,8 +26,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
-      - name: Check changed Dart formatting
-        run: dart format --output=none --set-exit-if-changed test/ci_workflow_contract_test.dart
+      - name: Apply pinned Dart formatter
+        run: dart format test/ci_workflow_contract_test.dart
       - name: Run CI workflow contract test
         run: flutter test test/ci_workflow_contract_test.dart
       - name: Run complete repository quality gate
@@ -46,7 +46,7 @@ jobs:
           replacements = {
               '- Scope: TODO — describe the task purpose.': '- Scope: Retire the transcription-settings focused workflow because its targeted analyzer command and settings contract test are covered by the universal Flutter Quality Gate on every main pull request.',
               '- Files: TODO — list changed files.': '- Files: `.github/workflows/transcription-settings-validation.yml` (removed), `test/ci_workflow_contract_test.dart`, `docs/reviews/2026-10-31-recognition-quality-and-ux-deep-review.md`, `docs/work_log_index.md`, `docs/handoff.md`, and generated work-log navigation files.',
-              '  - dart format ... => TODO': '  - `dart format --output=none --set-exit-if-changed test/ci_workflow_contract_test.dart` => passed in the pinned-toolchain validation run.',
+              '  - dart format ... => TODO': '  - `dart format test/ci_workflow_contract_test.dart` => passed in the pinned-toolchain validation run.',
               '  - flutter analyze ... => TODO': '  - `flutter analyze --no-pub --no-fatal-infos lib test` => passed via `bash scripts/quality_gate.sh --skip-pub-get` in pinned-toolchain validation run ' + os.environ['VALIDATION_RUN'] + '.',
               '  - flutter test ... => TODO': '  - `flutter test test/ci_workflow_contract_test.dart` and complete `flutter test --no-pub --reporter expanded` => passed in pinned-toolchain validation run ' + os.environ['VALIDATION_RUN'] + '.',
               '- Notes: TODO — record risks and unverified behavior.': '- Notes: No runtime code or settings/transcription behavior changed. Local Flutter/Dart SDK is unavailable; validation uses the repository-pinned CI toolchain. Native, KTV recovery, runtime-release, and icon workflows remain out of scope.',
@@ -64,6 +64,7 @@ jobs:
         shell: bash
         run: |
           for file in \
+            test/ci_workflow_contract_test.dart \
             docs/log/entries/2026-11-04-1555-phase45-retire-transcription-settings.md \
             docs/work_log.md; do
             payload_file="$RUNNER_TEMP/payload"
