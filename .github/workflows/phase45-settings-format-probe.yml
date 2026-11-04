@@ -17,6 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
       - name: Apply exact pinned formatter
         run: dart format test/ci_workflow_contract_test.dart
       - name: Probe quality-gate formatter mode
