@@ -9,8 +9,9 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 活动分支：`arena/cb779640-lyric-forge-ktv`。
 - 基线：PR #342 merge commit `ee51c072001dcc73e036b67b3133b21fca47e59d`。
-- 代码/测试提交：`a6ebab2 refactor: move dropped review copy to presentation`。
+- 实现提交：`a6ebab2 refactor: move dropped review copy to presentation`；格式修正：`f8414ae style: format dropped-item presentation changes`。
 - PR #343：<https://github.com/BrainEno/lyric-forge-ktv/pull/343>，OPEN，供 review；未经用户授权不得合并。
+- 代码/测试树 commit `1960357` 的 pinned Flutter Quality Gate run `41855390338` 已通过；本次 handoff/work-log 文档更新会推进 PR head，需确认更新后最新 head 的门禁。
 - Issue #335 已 CLOSED；本切片不重开，也不作为 PR 的关闭目标。
 
 ## 已改文件
@@ -24,9 +25,9 @@
 
 ## 检查结果
 
-- `git diff --check` 与 dropped-item reasonLabel 静态搜索通过。
-- 本地无 Flutter/Dart SDK，未运行 formatter、analyzer 或 Flutter tests。
-- PR #343 的 pinned Flutter Quality Gate 必须在最终 PR head 通过后，才可认为验证完成。分支有新提交时，应确认最新 head 对应的 run，而非较早提交的 run。
+- `git diff --check`、dropped-item reasonLabel 静态搜索，以及临时 WASM `dart_style` 对全部 changed Dart files 的格式检查通过。
+- 本地无 Flutter/Dart SDK，未运行 analyzer 或 Flutter tests。
+- Pinned Flutter Quality Gate run `41855390338` 在代码/测试树 commit `1960357` 通过，包含格式、analyze、work-log preflight 和全量测试。随后有文档跟进，因此最终仍须确认 PR #343 最新 head 对应的门禁通过。
 
 ## 下一步
 

@@ -5,7 +5,7 @@
 - Validation:
   - `git diff --check` => passed.
   - Repository search confirmed dropped-item constructors no longer take `reasonLabel`; review-item `reasonLabel` usage remains in scope only for review rows.
-  - Flutter/Dart SDK => unavailable locally, so formatter, analyzer, and Flutter tests were not run locally.
-  - Pinned Flutter Quality Gate => required on the final PR #343 head; status should be checked on the PR before treating the slice as complete.
+  - Flutter/Dart SDK => unavailable locally; a temporary WASM `dart_style` formatter check passed for all changed Dart files, but local analyzer/tests were not run.
+  - Pinned Flutter Quality Gate run `41855390338` => passed on code/test head `1960357`, including changed-file formatting, analysis, work-log preflight, and the full test suite. A later docs-only handoff update requires a final-head check on PR #343.
 - Notes: PR #343 is open for review and must not be merged without explicit user authorization. Issue #335 is already closed and is not reopened. The native, KTV recovery, runtime-release, icon, and other specialist workflows remain outside this slice.
 - Commit: `refactor: move dropped review copy to presentation`
