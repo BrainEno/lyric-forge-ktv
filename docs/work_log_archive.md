@@ -84,6 +84,10 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-04 23:55] Move reference-first review reasons to presentation ([entry](log/entries/2026-11-04-2355-move-reference-first-review-reasons.md))
+- [2026-11-04 23:06] Move dropped-item review copy to presentation ([entry](log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md))
+- [2026-11-04 22:35] Type lyric review priority reasons ([entry](log/entries/2026-11-04-2235-type-lyric-review-priority-reasons.md))
+- [2026-11-04 21:20] Extend quality gate analysis to tooling scripts ([entry](log/entries/2026-11-04-2120-extend-quality-gate-to-tooling.md))
 - [2026-11-04 20:00] Close duplicate lyric undo pull request after final gate ([entry](log/entries/2026-11-04-2000-close-duplicate-lyric-undo-pr.md))
 - [2026-11-04 19:46] Extend lyric undo regression coverage ([entry](log/entries/2026-11-04-1946-extend-lyric-undo-regression-coverage.md))
 - [2026-11-04 18:17] Restore lyric editor session state on undo ([entry](log/entries/2026-11-04-1817-restore-lyric-undo-session-state.md))
@@ -216,7 +220,4 @@
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
-- [2026-11-04 21:20] Extend quality gate analysis to tooling scripts ([entry](log/entries/2026-11-04-2120-extend-quality-gate-to-tooling.md))
-- [2026-11-04 22:35] Type lyric review priority reasons ([entry](log/entries/2026-11-04-2235-type-lyric-review-priority-reasons.md))
-- [2026-11-04 23:06] Move dropped-item review copy to presentation ([entry](log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->

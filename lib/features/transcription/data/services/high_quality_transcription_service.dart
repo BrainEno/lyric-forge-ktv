@@ -565,6 +565,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       final qwenText = _joinFallbackLines(qwenLines);
       final qwenConfidence = _averageConfidence(qwenLines);
+      final qwenConfidenceSource = _aggregateConfidenceSource(qwenLines);
       final similarity = _textSimilarity(whisperLine.text, qwenText);
       final durationRatio = _durationRatio(whisperLine, qwenLines);
 
@@ -577,6 +578,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         whisperLine: whisperLine,
         qwenText: qwenText,
         qwenConfidence: qwenConfidence,
+        qwenConfidenceSource: qwenConfidenceSource,
         similarity: similarity,
         durationRatio: durationRatio,
       );
@@ -654,14 +656,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required LyricLine whisperLine,
     required String qwenText,
     required int qwenConfidence,
+    required LyricConfidenceSource qwenConfidenceSource,
     required double similarity,
     required double durationRatio,
   }) {
     final whisperSuspicious = _hasSuspiciousRepetition(whisperLine.text);
     final qwenSuspicious = _hasSuspiciousRepetition(qwenText);
     final timingCompatible = durationRatio >= 0.55 && durationRatio <= 1.80;
+    final modelConfidenceComparable =
+        whisperLine.confidenceSource == LyricConfidenceSource.model &&
+        qwenConfidenceSource == LyricConfidenceSource.model;
 
-    if (timingCompatible &&
+    if (modelConfidenceComparable &&
+        timingCompatible &&
         whisperSuspicious &&
         !qwenSuspicious &&
         qwenConfidence >= 55 &&
@@ -673,7 +680,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
     }
 
-    if (timingCompatible &&
+    if (modelConfidenceComparable &&
+        timingCompatible &&
         whisperLine.confidence <= 45 &&
         !qwenSuspicious &&
         qwenConfidence >= whisperLine.confidence + 12 &&
@@ -894,6 +902,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       final whisperText = _joinFallbackLines(whisperLines);
       final whisperConfidence = _averageConfidence(whisperLines);
+      final whisperConfidenceSource = _aggregateConfidenceSource(whisperLines);
       final similarity = _textSimilarity(qwenLine.text, whisperText);
       final durationRatio = _durationRatio(qwenLine, whisperLines);
 
@@ -906,6 +915,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         qwenLine: qwenLine,
         whisperText: whisperText,
         whisperConfidence: whisperConfidence,
+        whisperConfidenceSource: whisperConfidenceSource,
         similarity: similarity,
         durationRatio: durationRatio,
       );
@@ -1275,6 +1285,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required LyricLine qwenLine,
     required String whisperText,
     required int whisperConfidence,
+    required LyricConfidenceSource whisperConfidenceSource,
     required double similarity,
     required double durationRatio,
   }) {
@@ -1282,8 +1293,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final whisperSuspicious = _hasSuspiciousRepetition(whisperText);
 
     final timingCompatible = durationRatio >= 0.55 && durationRatio <= 1.80;
+    final modelConfidenceComparable =
+        qwenLine.confidenceSource == LyricConfidenceSource.model &&
+        whisperConfidenceSource == LyricConfidenceSource.model;
 
-    if (timingCompatible &&
+    if (modelConfidenceComparable &&
+        timingCompatible &&
         qwenSuspicious &&
         !whisperSuspicious &&
         whisperConfidence >= 55 &&
@@ -1295,7 +1310,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
     }
 
-    if (timingCompatible &&
+    if (modelConfidenceComparable &&
+        timingCompatible &&
         qwenLine.confidence <= 45 &&
         !whisperSuspicious &&
         whisperConfidence >= qwenLine.confidence + 12 &&
@@ -1338,6 +1354,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
       r'[\u3400-\u9fff\u3040-\u30ff]',
     ).hasMatch(combined);
     return parts.join(containsCjk ? '' : ' ').trim();
+  }
+
+  LyricConfidenceSource _aggregateConfidenceSource(List<LyricLine> lines) {
+    if (lines.isEmpty ||
+        lines.any(
+          (line) => line.confidenceSource == LyricConfidenceSource.unscored,
+        )) {
+      return LyricConfidenceSource.unscored;
+    }
+    if (lines.any(
+      (line) => line.confidenceSource == LyricConfidenceSource.heuristic,
+    )) {
+      return LyricConfidenceSource.heuristic;
+    }
+    return LyricConfidenceSource.model;
   }
 
   int _averageConfidence(List<LyricLine> lines) {
