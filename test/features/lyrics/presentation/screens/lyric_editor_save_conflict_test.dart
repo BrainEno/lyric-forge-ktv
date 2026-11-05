@@ -30,6 +30,11 @@ void main() {
         forcedAlignmentRunner: _emptyAlignment,
       );
 
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       await tester.pumpWidget(
         MaterialApp(
           home: LyricEditorScreen(
@@ -39,29 +44,15 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final lyricText = find.text('Original lyric');
-      final lyricPosition = tester.getCenter(lyricText);
-      final firstTap = await tester.startGesture(lyricPosition);
-      await firstTap.up();
-      await tester.pump(const Duration(milliseconds: 100));
-      final secondTap = await tester.startGesture(lyricPosition);
-      await secondTap.up();
+      await tester.tap(find.text('Original lyric'));
       await tester.pumpAndSettle();
-      final inlineEditor = find.byKey(const ValueKey('inline_edit_0'));
-      expect(inlineEditor, findsOneWidget);
-      final lyricField = find.descendant(
-        of: inlineEditor,
-        matching: find.byType(TextField),
+      final lyricField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == '歌词文本',
       );
+      expect(lyricField, findsOneWidget);
       await tester.enterText(lyricField, 'Local edit');
-      final inlineSave = find.descendant(
-        of: inlineEditor,
-        matching: find.text('保存'),
-      );
-      await tester.ensureVisible(inlineSave);
-      await tester.tap(inlineSave);
       await tester.pumpAndSettle();
-      expect(find.text('Local edit'), findsOneWidget);
       expect(find.byIcon(Icons.save_rounded), findsOneWidget);
 
       final backgroundUpdate = await repository.updateProject(
