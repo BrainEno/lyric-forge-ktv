@@ -218,4 +218,5 @@
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
 - [2026-11-04 21:20] Extend quality gate analysis to tooling scripts ([entry](log/entries/2026-11-04-2120-extend-quality-gate-to-tooling.md))
 - [2026-11-04 22:35] Type lyric review priority reasons ([entry](log/entries/2026-11-04-2235-type-lyric-review-priority-reasons.md))
+- [2026-11-04 23:06] Move dropped-item review copy to presentation ([entry](log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
