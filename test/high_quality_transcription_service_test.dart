@@ -228,10 +228,11 @@ void main() {
             _request(tempDirectory.path, engineOrder: engineOrder),
           );
           final lines = result.lyrics.lines;
-          expect(lines.map((line) => line.text).toList(), [
-            commonLine.text,
-            secondaryOnlyLine.text,
-          ], reason: 'engine order: $engineOrder');
+          expect(
+            lines.map((line) => line.text).toList(),
+            [commonLine.text, secondaryOnlyLine.text],
+            reason: 'engine order: $engineOrder',
+          );
           expect(
             result.lyrics.metadata['secondaryOnlyLineCount'],
             1,
