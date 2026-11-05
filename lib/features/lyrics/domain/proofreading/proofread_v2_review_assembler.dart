@@ -8,23 +8,24 @@ import 'reference_first_pipeline.dart';
 /// Everything the proofread review dialog needs from one pipeline run.
 ///
 /// Building this is pure: it reads pipeline output and the draft and produces
-/// review rows plus the wording that explains the strategy. The dialog, the
-/// snackbars and the undo-able commit stay in the caller.
+/// review rows plus typed explanation data. Presentation owns the wording;
+/// the dialog, snackbars and undo-able commit stay in the caller.
 class ProofreadV2ReviewAssembly {
   final LyricDocument proposalDocument;
   final List<LyricProofreadV2ReviewItem> items;
   final List<LyricProofreadV2DroppedItem> droppedItems;
-  final String explanation;
+  final List<LyricProofreadV2Explanation> explanations;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
 
   ProofreadV2ReviewAssembly({
     required this.proposalDocument,
     required List<LyricProofreadV2ReviewItem> items,
     required List<LyricProofreadV2DroppedItem> droppedItems,
-    required this.explanation,
+    required List<LyricProofreadV2Explanation> explanations,
     this.alignmentDiagnostics,
   }) : items = List.unmodifiable(items),
-       droppedItems = List.unmodifiable(droppedItems);
+       droppedItems = List.unmodifiable(droppedItems),
+       explanations = List.unmodifiable(explanations);
 }
 
 /// Turns pipeline output into dialog rows.
@@ -82,14 +83,25 @@ class ProofreadV2ReviewAssembler {
             line: row.line,
           ),
       ],
-      explanation: [
+      explanations: [
         if (requestedStrategy == LyricSourceStrategy.auto)
-          '自动策略计算参考文本覆盖率 ${(result.tokenCoverage * 100).round()}%。',
-        '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
-        if (result.tokenDpBudgetExceeded) '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
+          LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.automaticReferenceCoverage,
+            referenceCoveragePercent: (result.tokenCoverage * 100).round(),
+          ),
+        const LyricProofreadV2Explanation(
+          LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+        ),
+        if (result.tokenDpBudgetExceeded)
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded,
+          ),
         if (result.warnings.isNotEmpty)
-          '参考输入包含 ${result.warnings.length} 条冲突或警告，相关行会要求复核。',
-      ].join(' '),
+          LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.referenceInputWarnings,
+            referenceWarningCount: result.warnings.length,
+          ),
+      ],
     );
   }
 
@@ -138,22 +150,31 @@ class ProofreadV2ReviewAssembler {
             line: row.line,
           ),
       ],
-      explanation: [
-        autoFellBackToAsr
-            ? '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。'
-            : !hasSecondaryTranscript
-            ? '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。'
-            : '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
-        'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
+      explanations: [
+        LyricProofreadV2Explanation(
+          autoFellBackToAsr
+              ? LyricProofreadV2ExplanationCode.automaticFallbackToAsr
+              : !hasSecondaryTranscript
+              ? LyricProofreadV2ExplanationCode.missingSecondaryTranscript
+              : LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence,
+        ),
+        const LyricProofreadV2Explanation(
+          LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,
+        ),
         if (alignmentOutcome != null &&
             alignmentOutcome.warning != null &&
             result.alignmentDiagnostics == null)
-          alignmentOutcome.warning!,
+          LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.alignmentServiceWarning,
+            message: alignmentOutcome.warning,
+          ),
         if (alignmentOutcome != null &&
             alignmentOutcome.alignmentAvailable &&
             result.lines.any((line) => line.tokens.isNotEmpty))
-          'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
-      ].join(' '),
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+          ),
+      ],
     );
   }
 

@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-04 19:46] Extend lyric undo regression coverage ([entry](log/entries/2026-11-04-1946-extend-lyric-undo-regression-coverage.md))
 - [2026-11-04 18:17] Restore lyric editor session state on undo ([entry](log/entries/2026-11-04-1817-restore-lyric-undo-session-state.md))
 - [2026-11-04 16:40] Retire redundant root widget workflow ([entry](log/entries/2026-11-04-1640-phase45-retire-widget-root.md))
 - [2026-11-04 15:55] Retire redundant transcription settings workflow ([entry](log/entries/2026-11-04-1555-phase45-retire-transcription-settings.md))

@@ -145,22 +145,37 @@ void main() {
 
     test('coverage is explained only when the strategy was automatic', () {
       expect(
-        assemble(strategy: LyricSourceStrategy.auto).explanation,
-        contains('自动策略计算参考文本覆盖率'),
+        assemble(
+          strategy: LyricSourceStrategy.auto,
+        ).explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.automaticReferenceCoverage),
       );
       expect(
-        assemble(strategy: LyricSourceStrategy.referenceFirst).explanation,
-        isNot(contains('自动策略计算参考文本覆盖率')),
+        assemble(
+          strategy: LyricSourceStrategy.referenceFirst,
+        ).explanations.map((explanation) => explanation.code),
+        isNot(
+          contains(LyricProofreadV2ExplanationCode.automaticReferenceCoverage),
+        ),
       );
-      expect(assemble().explanation, contains('参考优先会以参考行组织提案'));
+      expect(
+        assemble().explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.referenceFirstGuidance),
+      );
     });
 
     test('reference warnings are surfaced with their count', () {
-      expect(
-        assemble(warnings: ['ignored header']).explanation,
-        contains('1 条冲突或警告'),
+      final withWarning = assemble(warnings: ['ignored header']);
+      final warningExplanation = withWarning.explanations.singleWhere(
+        (explanation) =>
+            explanation.code ==
+            LyricProofreadV2ExplanationCode.referenceInputWarnings,
       );
-      expect(assemble().explanation, isNot(contains('条冲突或警告')));
+      expect(warningExplanation.referenceWarningCount, 1);
+      expect(
+        assemble().explanations.map((explanation) => explanation.code),
+        isNot(contains(LyricProofreadV2ExplanationCode.referenceInputWarnings)),
+      );
     });
   });
 
@@ -266,26 +281,46 @@ void main() {
       final withTokens = assemble(
         forcedAlignment: true,
         firstLineTokens: [wordToken],
+        outcome: ForcedAlignmentProofreadOutcome(
+          result: const AsrFirstPipeline().build(draft: draft),
+          alignmentAvailable: true,
+        ),
       );
       expect(withTokens.items.first.alignmentHints, {
         LyricProofreadV2AlignmentHint.wordTimingAvailable,
       });
+      expect(
+        withTokens.explanations.map((explanation) => explanation.code),
+        contains(
+          LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+        ),
+      );
 
       final withoutForcedAlignment = assemble(firstLineTokens: [wordToken]);
       expect(withoutForcedAlignment.items.first.alignmentHints, isEmpty);
     });
 
-    test('the explanation names which evidence was missing', () {
-      expect(assemble().explanation, contains('未提供第二份 ASR 转写稿'));
+    test('explanation codes identify the active ASR evidence path', () {
       expect(
-        assemble(hasSecondary: true).explanation,
-        contains('已将第二份带时间戳的转写稿作为独立证据'),
+        assemble().explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
       );
       expect(
-        assemble(fellBack: true).explanation,
-        contains('低于 25% 而退回 ASR 优先'),
+        assemble(
+          hasSecondary: true,
+        ).explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence),
       );
-      expect(assemble().explanation, contains('应用按钮会保持禁用'));
+      expect(
+        assemble(
+          fellBack: true,
+        ).explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.automaticFallbackToAsr),
+      );
+      expect(
+        assemble().explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.asrFirstConservativeTiming),
+      );
     });
 
     test('a forced-alignment warning is carried into the explanation', () {
@@ -298,7 +333,20 @@ void main() {
         ),
       );
 
-      expect(assembly.explanation, contains('对齐器没有返回词级证据'));
+      expect(
+        assembly.explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.alignmentServiceWarning),
+      );
+      expect(
+        assembly.explanations
+            .singleWhere(
+              (explanation) =>
+                  explanation.code ==
+                  LyricProofreadV2ExplanationCode.alignmentServiceWarning,
+            )
+            .message,
+        '对齐器没有返回词级证据',
+      );
       expect(assembly.alignmentDiagnostics, isNull);
     });
   });
