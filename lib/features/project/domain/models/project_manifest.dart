@@ -116,12 +116,16 @@ class ProjectManifest {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       revision: json['revision'] as int? ?? 0,
       status: ProjectStatus.values.byName(json['status'] as String),
-      currentStage: ProcessingStage.values.byName(json['currentStage'] as String),
+      currentStage: ProcessingStage.values.byName(
+        json['currentStage'] as String,
+      ),
       audioAsset: json['audioAsset'] != null
           ? AudioAsset.fromJson(json['audioAsset'] as Map<String, dynamic>)
           : null,
       lyricDocument: json['lyricDocument'] != null
-          ? LyricDocument.fromJson(json['lyricDocument'] as Map<String, dynamic>)
+          ? LyricDocument.fromJson(
+              json['lyricDocument'] as Map<String, dynamic>,
+            )
           : null,
       projectDirectory: json['projectDirectory'] as String?,
       metadata: json['metadata'] as Map<String, dynamic>? ?? {},

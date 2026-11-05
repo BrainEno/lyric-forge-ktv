@@ -40,6 +40,45 @@ jobs:
             case "$line" in
               +*) echo "::error title=Formatted output::${line:1:1000}" ;;
               -*) echo "::error title=Original input::${line:1:1000}" ;;
-              *) echo "::notice title=Formatter context::${line:0:1000}" ;;
-            esac
+            *) echo "::notice title=Formatter context::${line:0:1000}" ;;
           done
+
+  project-save-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          dart format "${dart_files[@]}"
+      - name: Analyze and test project save behavior
+        shell: bash
+        run: |
+          flutter analyze --no-pub --no-fatal-infos lib test tool
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/file_project_repository_test.dart \
+            test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart \
+            test/features/lyrics/presentation/widgets/project_save_conflict_dialog_test.dart \
+            >/tmp/save-tests.txt 2>&1
+          result=$?
+          set -e
+          if (( result != 0 )); then
+            matches=$(grep -n -A 8 -B 2 -E 'EXCEPTION CAUGHT|Expected:|Actual:|No matching|Exception|Error:|Timeout|TestFailure' /tmp/save-tests.txt || true)
+            if [[ -z "$matches" ]]; then
+              matches=$(tail -25 /tmp/save-tests.txt)
+            fi
+            while IFS= read -r line; do
+              line="${line:0:1000}"
+              echo "::error title=Project-save test diagnostic::${line}"
+            done <<< "$matches"
+            exit "$result"
+          fi
+          echo 'Focused project-save tests passed.'
