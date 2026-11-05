@@ -382,6 +382,62 @@ void main() {
       await service.dispose();
     });
 
+    test('chunk merge deduplicates matching Korean overlap text only', () async {
+      final directory = await Directory.systemTemp.createTemp('chunk-korean-');
+      addTearDown(() => directory.delete(recursive: true));
+      final input = File('${directory.path}${Platform.pathSeparator}song.wav');
+      await input.writeAsBytes(List<int>.filled(128, 0));
+      final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+      final delegate = _ScriptedService(
+        (chunk) => chunk == 0
+            ? const LyricDocument(
+                language: 'ko',
+                lines: [
+                  LyricLine(
+                    text: '오늘도 너를 기다려',
+                    startTime: Duration(seconds: 175),
+                    endTime: Duration(seconds: 179),
+                    confidence: 80,
+                  ),
+                ],
+              )
+            : const LyricDocument(
+                language: 'ko',
+                lines: [
+                  LyricLine(
+                    text: '오늘도 너를 기다려',
+                    startTime: Duration(seconds: 3),
+                    endTime: Duration(seconds: 7),
+                    confidence: 90,
+                  ),
+                  LyricLine(
+                    text: '다른 노래 한 줄',
+                    startTime: Duration(seconds: 3),
+                    endTime: Duration(seconds: 7),
+                    confidence: 95,
+                  ),
+                ],
+              ),
+      );
+      final service = ResumableChunkedTranscriptionService(
+        delegate: delegate,
+        chunkDuration: const Duration(minutes: 3),
+        processSupervisor: ffmpeg.supervisor,
+      );
+
+      final result = await service.transcribe(
+        _request(input.path, directory.path),
+      );
+
+      expect(result.lyrics.lines.map((line) => line.text).toList(), [
+        '오늘도 너를 기다려',
+        '다른 노래 한 줄',
+      ]);
+      // Equal Korean overlap text is still merged and keeps the better copy.
+      expect(result.lyrics.lines.first.confidence, 90);
+      await service.dispose();
+    });
+
     test('changing recognition settings invalidates checkpoints', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-config-');
       addTearDown(() => directory.delete(recursive: true));

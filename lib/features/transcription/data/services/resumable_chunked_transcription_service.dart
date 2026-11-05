@@ -9,6 +9,7 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
+import 'asr_text_comparison.dart';
 
 /// Splits genuinely long audio into resumable chunks, keeping the wrapped
 /// service's quality policy intact for every chunk.
@@ -22,6 +23,8 @@ import 'asr_process_supervisor.dart';
 /// longer than any song, where resuming inference is worth more than seam
 /// fidelity.
 class ResumableChunkedTranscriptionService implements TranscriptionService {
+  static const _textComparison = AsrTextComparison();
+
   /// Audio at or below this length is sent to the delegate in one pass.
   static const Duration defaultChunkDuration = Duration(minutes: 20);
 
@@ -552,17 +555,32 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       return const LyricDocument(language: 'unknown', lines: []);
     }
     final lines = <LyricLine>[];
+    final normalizedTexts = <String>[];
     // For each chunk: its own line index -> index in `lines` before sorting.
     final indexMaps = <List<int>>[];
     for (final document in documents) {
       final indexMap = List<int>.filled(document.lines.length, -1);
       for (var index = 0; index < document.lines.length; index++) {
         final line = document.lines[index];
-        final duplicateIndex = lines.lastIndexWhere(
-          (existing) =>
-              _normalize(existing.text) == _normalize(line.text) &&
-              _absoluteDuration(existing.startTime - line.startTime) <= overlap,
-        );
+        final normalizedText = _textComparison.normalize(line.text);
+        var duplicateIndex = -1;
+        if (normalizedText.isNotEmpty) {
+          for (
+            var existingIndex = normalizedTexts.length - 1;
+            existingIndex >= 0;
+            existingIndex--
+          ) {
+            if (normalizedTexts[existingIndex] != normalizedText ||
+                _absoluteDuration(
+                      lines[existingIndex].startTime - line.startTime,
+                    ) >
+                    overlap) {
+              continue;
+            }
+            duplicateIndex = existingIndex;
+            break;
+          }
+        }
         if (duplicateIndex >= 0) {
           indexMap[index] = duplicateIndex;
           if (line.confidence > lines[duplicateIndex].confidence) {
@@ -571,6 +589,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         } else {
           indexMap[index] = lines.length;
           lines.add(line);
+          normalizedTexts.add(normalizedText);
         }
       }
       indexMaps.add(indexMap);
@@ -694,11 +713,6 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   Duration _absoluteDuration(Duration value) =>
       value.isNegative ? -value : value;
-
-  String _normalize(String value) => value.toLowerCase().replaceAll(
-    RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'),
-    '',
-  );
 
   Future<String> _fingerprint(String path) async {
     final file = File(path);
