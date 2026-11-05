@@ -178,8 +178,8 @@ class ProofreadV2ReviewAssembler {
     );
   }
 
-  /// One-line verdict counts for the dialog header.
-  String summary({
+  /// Structured strategy and verdict counts for the dialog header.
+  LyricProofreadV2ReviewSummary summary({
     required LyricSourceStrategy effectiveStrategy,
     required List<LyricProofreadV2ReviewItem> items,
     required List<LyricProofreadV2DroppedItem> droppedItems,
@@ -187,23 +187,14 @@ class ProofreadV2ReviewAssembler {
   }) {
     int count(LyricProofreadReviewVerdict verdict) =>
         items.where((item) => item.verdict == verdict).length;
-    return [
-      '策略：${strategyLabel(effectiveStrategy)}',
-      if (referenceCoverage != null)
-        '参考覆盖率 ${(referenceCoverage * 100).round()}%',
-      '绿色 ${count(LyricProofreadReviewVerdict.green)}',
-      '琥珀色 ${count(LyricProofreadReviewVerdict.amber)}',
-      '受保护 ${count(LyricProofreadReviewVerdict.locked)}',
-      '灰色 ${droppedItems.length}',
-    ].join(' · ');
-  }
-
-  static String strategyLabel(LyricSourceStrategy strategy) {
-    return switch (strategy) {
-      LyricSourceStrategy.referenceFirst => '参考歌词优先',
-      LyricSourceStrategy.asrFirst => 'ASR 优先',
-      LyricSourceStrategy.auto => '自动选择',
-    };
+    return LyricProofreadV2ReviewSummary(
+      effectiveStrategy: effectiveStrategy,
+      greenCount: count(LyricProofreadReviewVerdict.green),
+      amberCount: count(LyricProofreadReviewVerdict.amber),
+      lockedCount: count(LyricProofreadReviewVerdict.locked),
+      droppedCount: droppedItems.length,
+      referenceCoverage: referenceCoverage,
+    );
   }
 
   static LyricProofreadV2ReferenceReason referenceReasonCode(
