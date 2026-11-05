@@ -89,6 +89,43 @@ void main() {
     );
 
     test(
+      'matches Korean rows without duplicates in either engine order',
+      () async {
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final koreanLine = LyricLine(
+            text: '오늘도 너를 기다려',
+            startTime: const Duration(seconds: 4),
+            endTime: const Duration(seconds: 7),
+            confidence: 90,
+          );
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(koreanLine)),
+            fallback: _FakeTranscriptionService(result: _result(koreanLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            expect(result.lyrics.lines.map((line) => line.text).toList(), [
+              koreanLine.text,
+            ], reason: 'engine order: $engineOrder');
+            expect(
+              result.lyrics.metadata['secondaryOnlyLineCount'],
+              0,
+              reason: 'engine order: $engineOrder',
+            );
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
       'inserts Whisper-only lines as reviewable rows and remaps candidates',
       () async {
         final primaryResult = _resultLines([

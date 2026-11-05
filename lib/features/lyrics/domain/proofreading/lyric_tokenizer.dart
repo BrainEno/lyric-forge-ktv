@@ -55,6 +55,7 @@ class LyricTokenizer {
       (rune >= 0x61 && rune <= 0x7a) ||
       (rune >= 0x30 && rune <= 0x39) ||
       (rune >= 0x00c0 && rune <= 0x024f && rune != 0x00d7 && rune != 0x00f7) ||
+      (rune >= 0x1e00 && rune <= 0x1eff) ||
       (rune >= 0x0370 && rune <= 0x03ff) ||
       (rune >= 0x0400 && rune <= 0x04ff);
 
