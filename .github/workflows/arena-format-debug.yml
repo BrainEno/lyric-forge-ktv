@@ -36,47 +36,10 @@ jobs:
             exit 0
           fi
           dart format "${dart_files[@]}" >/dev/null
-          sed -n '306,329p' lib/features/lyrics/presentation/screens/lyric_editor_screen.dart | while IFS= read -r line; do
-            echo "::notice title=Canonical formatted source::${line}"
+          git --no-pager diff --unified=2 -- "${dart_files[@]}" | while IFS= read -r line; do
+            case "$line" in
+              +*) echo "::error title=Formatted output::${line:1:1000}" ;;
+              -*) echo "::error title=Original input::${line:1:1000}" ;;
+              *) echo "::notice title=Formatter context::${line:0:1000}" ;;
+            esac
           done
-          {
-            echo 'Canonical dart format diff:'
-            git --no-pager diff -- "${dart_files[@]}"
-          } | while IFS= read -r line; do
-            line="${line:0:1000}"
-            echo "::error title=Canonical Dart formatter diff::${line}"
-          done
-      - name: Publish analyzer diagnostics
-        shell: bash
-        run: |
-          set +e
-          flutter analyze --no-pub --no-fatal-infos lib test tool >/tmp/analyze-debug.txt 2>&1
-          result=$?
-          set -e
-          if (( result != 0 )); then
-            grep -E 'error •|warning •|Error:' /tmp/analyze-debug.txt | head -60 | while IFS= read -r line; do
-              line="${line:0:1000}"
-              echo "::error title=Analyzer diagnostic::${line}"
-            done
-          else
-            echo 'Pinned Flutter analyzer passed.'
-          fi
-      - name: Run focused project-save tests
-        shell: bash
-        run: |
-          set +e
-          flutter test --no-pub --reporter expanded \
-            test/file_project_repository_test.dart \
-            test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart \
-            test/features/lyrics/presentation/widgets/project_save_conflict_dialog_test.dart \
-            >/tmp/save-tests.txt 2>&1
-          result=$?
-          set -e
-          if (( result != 0 )); then
-            head -40 /tmp/save-tests.txt | while IFS= read -r line; do
-              line="${line:0:1000}"
-              echo "::error title=Focused test diagnostic::${line}"
-            done
-          else
-            echo 'Focused project-save tests passed.'
-          fi
