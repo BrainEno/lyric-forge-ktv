@@ -9,7 +9,7 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 当前活动分支：`arena/b8816c36-lyric-forge-ktv`
 - 基线：`c979ed5ac0b93d1f5c99ed3472d1104725f4b350`（PR #355 合并提交）。
-- PR #356：https://github.com/BrainEno/lyric-forge-ktv/pull/356，OPEN；代码 head `2cc9638f6a8c368cfa87162a47b89aab9cb2c8af` 的 pinned Flutter Quality Gate run `42078642488` 已通过。首个含日志文档的 PR head `1ed4feaad421c5de8742623c939d569498ea8392` 的 gate `42079290302` 在与本切片无关的 Media Hub 上传 deadline 测试失败；GitHub 拒绝 rerun。当前记录该结果的文档提交会再触发完整 gate，需查看新的 PR head 检查；未经用户明确授权不得合并。
+- PR #356：https://github.com/BrainEno/lyric-forge-ktv/pull/356，OPEN；完整 pinned Flutter Quality Gate `42080009696` 在 head `46921fcd5126e1a4ac908dfe33f1189bc5e4c1e9` 通过。此前 PR head gate `42079290302` 曾在无关的 Media Hub 上传 deadline 测试失败；后续完整 gate 已通过。未经用户明确授权不得合并。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN；全部验收未完成前保持打开。
 - 本切片代码提交：`eeb8874 fix: preserve Korean lyrics in chunk merges`；formatter-only follow-up：`2cc9638 style: format Korean chunk merge test`。
 
@@ -25,7 +25,7 @@
 
 - `git diff --check` 通过。
 - Pinned Flutter Quality Gate `42078642488` 在代码 head `2cc9638f6a8c368cfa87162a47b89aab9cb2c8af` 通过 work-log preflight、changed-file format、analyze 与全量测试。首次代码 head `eeb8874` 的 formatter 检查失败；仅按格式要求调整新测试块后，`2cc9638` 的代码 gate 全绿。
-- 文档更新后的首个 gate `42079290302` 的 work-log preflight 与 changed-file format 通过，但全量测试在 `test/features/transfer/http_media_hub_upload_test.dart` 的 total upload deadline 用例失败；该文件不在本切片改动中。GitHub 返回 `run cannot be rerun; its workflow file may be broken`。本次记录更新会再触发 PR gate，需确认新 head 的结果。
+- 文档更新后的首个 gate `42079290302` 的 work-log preflight 与 changed-file format 通过，但全量测试在 `test/features/transfer/http_media_hub_upload_test.dart` 的 total upload deadline 用例失败；该文件不在本切片改动中。随后完整 pinned Flutter Quality Gate `42080009696` 在 head `46921fcd5126e1a4ac908dfe33f1189bc5e4c1e9` 全绿，包括 work-log preflight、format、analyze 与全量测试。
 - 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。
 
 ## 下一步
@@ -39,4 +39,4 @@
 - 真实歌曲召回率/WER 仍需人工校验语料；本测试只验证合并规则。
 - Native builds、KTV recovery、runtime release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-06 01:59（Asia/Taipei）
+最后更新：2026-11-06 02:03（Asia/Taipei）
