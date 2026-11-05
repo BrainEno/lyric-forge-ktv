@@ -16,8 +16,17 @@ abstract class ProjectRepository {
     String? album,
   });
 
-  /// Update an existing project.
+  /// Update an existing project using last-writer-wins semantics.
   Future<ProjectManifest> updateProject(ProjectManifest project);
+
+  /// Update only if the persisted project still has [expectedRevision].
+  ///
+  /// Throws [ProjectUpdateConflictException] instead of overwriting a newer
+  /// project snapshot. The returned manifest contains the incremented revision.
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  });
 
   /// Delete a project by ID.
   Future<void> deleteProject(String id);
@@ -35,4 +44,12 @@ class ProjectRepositoryException implements Exception {
 
   @override
   String toString() => 'ProjectRepositoryException: $message';
+}
+
+/// A conditional update found that the project changed since it was loaded.
+class ProjectUpdateConflictException extends ProjectRepositoryException {
+  final ProjectManifest? currentProject;
+
+  const ProjectUpdateConflictException({required this.currentProject})
+    : super('Project changed since it was loaded.');
 }

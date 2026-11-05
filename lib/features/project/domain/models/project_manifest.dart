@@ -28,6 +28,11 @@ class ProjectManifest {
   final String? album;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Monotonic optimistic-concurrency token, persisted with the manifest.
+  /// Older manifests without this field start at revision zero.
+  final int revision;
+
   final ProjectStatus status;
   final ProcessingStage currentStage;
   final AudioAsset? audioAsset;
@@ -42,6 +47,7 @@ class ProjectManifest {
     this.album,
     required this.createdAt,
     required this.updatedAt,
+    this.revision = 0,
     this.status = ProjectStatus.draft,
     this.currentStage = ProcessingStage.none,
     this.audioAsset,
@@ -57,6 +63,7 @@ class ProjectManifest {
     String? album,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? revision,
     ProjectStatus? status,
     ProcessingStage? currentStage,
     AudioAsset? audioAsset,
@@ -71,6 +78,7 @@ class ProjectManifest {
       album: album ?? this.album,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      revision: revision ?? this.revision,
       status: status ?? this.status,
       currentStage: currentStage ?? this.currentStage,
       audioAsset: audioAsset ?? this.audioAsset,
@@ -88,6 +96,7 @@ class ProjectManifest {
       'album': album,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'revision': revision,
       'status': status.name,
       'currentStage': currentStage.name,
       'audioAsset': audioAsset?.toJson(),
@@ -105,6 +114,7 @@ class ProjectManifest {
       album: json['album'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      revision: json['revision'] as int? ?? 0,
       status: ProjectStatus.values.byName(json['status'] as String),
       currentStage: ProcessingStage.values.byName(json['currentStage'] as String),
       audioAsset: json['audioAsset'] != null

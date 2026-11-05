@@ -163,13 +163,38 @@ class FileProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<ProjectManifest> updateProject(ProjectManifest project) async {
+  Future<ProjectManifest> updateProject(ProjectManifest project) =>
+      _writeProject(project);
+
+  @override
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  }) => _writeProject(project, expectedRevision: expectedRevision);
+
+  Future<ProjectManifest> _writeProject(
+    ProjectManifest project, {
+    int? expectedRevision,
+  }) async {
     await _ensureLoaded();
-    if (!_projects.containsKey(project.id)) {
+    final oldProject = _projects[project.id];
+    if (oldProject == null) {
+      if (expectedRevision != null) {
+        throw const ProjectUpdateConflictException(currentProject: null);
+      }
       throw ProjectRepositoryException('Project not found: ${project.id}');
     }
-    final oldProject = _projects[project.id]!;
-    final updated = project.copyWith(updatedAt: DateTime.now());
+    if (expectedRevision != null && oldProject.revision != expectedRevision) {
+      throw ProjectUpdateConflictException(currentProject: oldProject);
+    }
+
+    // Compare and replace without yielding between the revision check and the
+    // in-memory write. Concurrent callers therefore cannot both claim the same
+    // expected revision in this single-isolate repository.
+    final updated = project.copyWith(
+      updatedAt: DateTime.now(),
+      revision: oldProject.revision + 1,
+    );
     _projects[project.id] = updated;
     await _persist();
 
