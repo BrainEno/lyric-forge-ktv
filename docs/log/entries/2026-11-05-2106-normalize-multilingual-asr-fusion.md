@@ -6,4 +6,4 @@
   - Changed Dart files formatted with `@wasm-fmt/dart_fmt@0.4.0`; `git diff --check` => passed.
   - `flutter analyze` and focused Flutter tests => not run locally because Flutter/Dart SDK is unavailable; pinned CI validation pending.
 - Notes: Issue #317 remains open. This independently verifiable slice covers shared multilingual normalization/similarity and duplicate Korean fusion rows in either engine order; chunk-merge disagreement evidence and other issue acceptance criteria remain separate follow-up work. No PR merge is authorized.
-- Commit: `fix: normalize multilingual ASR fusion comparisons`
+- Commit: `style: align ASR regression with pinned formatter`
