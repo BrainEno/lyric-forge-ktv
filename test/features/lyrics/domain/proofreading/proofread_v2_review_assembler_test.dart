@@ -250,10 +250,9 @@ void main() {
 
     test('forced alignment emits typed hints based on word evidence', () {
       final withoutTokens = assemble(forcedAlignment: true);
-      expect(
-        withoutTokens.items.first.alignmentHints,
-        {LyricProofreadV2AlignmentHint.wordTimingMissing},
-      );
+      expect(withoutTokens.items.first.alignmentHints, {
+        LyricProofreadV2AlignmentHint.wordTimingMissing,
+      });
 
       final wordToken = TimedLyricToken(
         text: 'first',
@@ -268,10 +267,9 @@ void main() {
         forcedAlignment: true,
         firstLineTokens: [wordToken],
       );
-      expect(
-        withTokens.items.first.alignmentHints,
-        {LyricProofreadV2AlignmentHint.wordTimingAvailable},
-      );
+      expect(withTokens.items.first.alignmentHints, {
+        LyricProofreadV2AlignmentHint.wordTimingAvailable,
+      });
 
       final withoutForcedAlignment = assemble(firstLineTokens: [wordToken]);
       expect(withoutForcedAlignment.items.first.alignmentHints, isEmpty);

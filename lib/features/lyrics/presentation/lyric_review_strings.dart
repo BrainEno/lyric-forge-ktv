@@ -56,8 +56,7 @@ abstract final class LyricReviewStrings {
     required int wordCount,
   }) {
     return switch (hint) {
-      LyricProofreadV2AlignmentHint.wordTimingAvailable =>
-        '词级对齐 $wordCount 词',
+      LyricProofreadV2AlignmentHint.wordTimingAvailable => '词级对齐 $wordCount 词',
       LyricProofreadV2AlignmentHint.wordTimingMissing => '缺少词级对齐证据',
     };
   }

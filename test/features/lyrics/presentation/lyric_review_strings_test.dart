@@ -57,10 +57,7 @@ void main() {
       LyricProofreadV2AlignmentHint.wordTimingMissing: '缺少词级对齐证据',
     };
 
-    expect(
-      labels.keys.toSet(),
-      LyricProofreadV2AlignmentHint.values.toSet(),
-    );
+    expect(labels.keys.toSet(), LyricProofreadV2AlignmentHint.values.toSet());
     for (final entry in labels.entries) {
       expect(
         LyricReviewStrings.alignmentHint(entry.key, wordCount: 2),
