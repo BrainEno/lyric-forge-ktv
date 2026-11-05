@@ -191,6 +191,65 @@ void main() {
       },
     );
 
+    test('keeps Korean-only secondary rows in either engine order', () async {
+      final commonLine = LyricLine(
+        text: '오늘도 너를 기다려',
+        startTime: const Duration(seconds: 4),
+        endTime: const Duration(seconds: 7),
+        confidence: 92,
+      );
+      final secondaryOnlyLine = LyricLine(
+        text: '저 멀리 별을 보며 노래해',
+        startTime: const Duration(seconds: 12),
+        endTime: const Duration(seconds: 15),
+        confidence: 92,
+      );
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final qwenLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
+            ? [commonLine]
+            : [commonLine, secondaryOnlyLine];
+        final whisperLines =
+            engineOrder == TranscriptionEngineOrder.whisperPrimary
+            ? [commonLine]
+            : [commonLine, secondaryOnlyLine];
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _resultLines(qwenLines)),
+          fallback: _FakeTranscriptionService(
+            result: _resultLines(whisperLines),
+          ),
+        );
+
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
+          );
+          final lines = result.lyrics.lines;
+          expect(lines.map((line) => line.text).toList(), [
+            commonLine.text,
+            secondaryOnlyLine.text,
+          ], reason: 'engine order: $engineOrder');
+          expect(
+            result.lyrics.metadata['secondaryOnlyLineCount'],
+            1,
+            reason: 'engine order: $engineOrder',
+          );
+          expect(
+            result.lyrics.metadata['secondaryOnlyLineIndices'],
+            [1],
+            reason: 'engine order: $engineOrder',
+          );
+          expect(lines[1].confidence, 60);
+          expect(lines[1].confidenceSource, LyricConfidenceSource.heuristic);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
     test(
       'inserts Whisper-only lines as reviewable rows and remaps candidates',
       () async {
