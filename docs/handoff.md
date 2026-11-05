@@ -10,10 +10,10 @@
 - 当前活动分支：`arena/30d21f97-lyric-forge-ktv`。
 - PR #352：https://github.com/BrainEno/lyric-forge-ktv/pull/352，OPEN；未经用户明确授权不得合并。
 - issue #318：https://github.com/BrainEno/lyric-forge-ktv/issues/318，仍 OPEN。
-- 最新已推送 head `f824167`。Quality Gate run `42026929092` 的 work-log preflight、包解析和格式检查通过，但完整 repository tests 仍在 editor conflict test 失败；聚焦 workflow run `42026929075` 同样失败。失败 annotations 仅显示 Flutter framework `ListTile`/`ColoredBox` assertion，未指明具体测试阶段。
-- Formatter job 与 KTV recovery validation run `42026929112` 通过。较早的 transfer deadline test failure 在 `42026019494` 的完整测试结果中未再次出现。
-- 工作区已让测试直接调用 Inspector `TextField.onChanged`，并在每个 UI 阶段用 `tester.takeException()` 捕获/标记 Flutter framework exception，以定位错误阶段；同时 work-log 已校正 generated summary。当前诊断改动未提交推送。
-- 最新日志：`42026929092` quality gate failed；`42026929075` focused workflow failed；`42026929112` KTV recovery passed。
+- 最新已推送 head `5daf6f0`。Quality Gate run `42027525855` 的 preflight、包解析和格式检查通过，随后完整 repository tests 在 editor conflict test 失败；临时诊断 workflow run `42027525835` 中测试失败，formatter job 通过。KTV recovery validation run `42027525926` 通过。
+- `5daf6f0` 仍显示相同 `ListTile`/`ColoredBox` framework assertion。结合 widget 描述可定位为选中歌词后 Inspector 的 `SwitchListTile`，它被彩色面板 `ColoredBox` 隔开了 Material 水波纹层。
+- 工作区现已在 Inspector `SwitchListTile` 外添加透明 Material 边界，并保留阶段化异常检查；测试及修复待新 pinned CI 验证。临时 workflow 仍保留。
+- 最新日志：`42027525855` quality gate failed；`42027525835` temporary diagnostics failed test but formatter passed；`42027525926` KTV recovery passed。
 
 ## 已改文件
 
