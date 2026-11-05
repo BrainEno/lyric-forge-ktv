@@ -607,11 +607,10 @@ void main() {
           // its time span, so keeping them would duplicate lyrics the user can
           // already read -- including "dancing", which is a single word of the
           // primary line.
-          expect(
-            lines.map((line) => line.text).toList(),
-            [fullLine.text, 'sing a little song'],
-            reason: 'engine order: $engineOrder',
-          );
+          expect(lines.map((line) => line.text).toList(), [
+            fullLine.text,
+            'sing a little song',
+          ], reason: 'engine order: $engineOrder');
           expect(
             lines[1].confidence,
             60,
