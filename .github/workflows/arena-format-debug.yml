@@ -1,0 +1,45 @@
+name: Temporary formatter diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  formatter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Publish canonical formatter diff as annotations
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
+          if (( ${#dart_files[@]} == 0 )); then
+            echo 'No changed Dart files.'
+            exit 0
+          fi
+          set +e
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}" >/tmp/format-check.txt 2>&1
+          result=$?
+          set -e
+          if (( result == 0 )); then
+            echo 'Pinned Dart formatter agrees with the PR files.'
+            exit 0
+          fi
+          dart format "${dart_files[@]}" >/dev/null
+          {
+            echo 'Canonical dart format diff:'
+            git --no-pager diff -- "${dart_files[@]}"
+          } | while IFS= read -r line; do
+            line="${line:0:1000}"
+            echo "::error title=Canonical Dart formatter diff::${line}"
+          done
