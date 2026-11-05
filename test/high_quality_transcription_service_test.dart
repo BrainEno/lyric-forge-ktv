@@ -89,7 +89,7 @@ void main() {
     );
 
     test(
-      'matches identical Korean rows without inserting duplicates in either engine order',
+      'matches Korean rows without duplicates in either engine order',
       () async {
         for (final engineOrder in [
           TranscriptionEngineOrder.qwenPrimary,
@@ -646,10 +646,11 @@ void main() {
           // its time span, so keeping them would duplicate lyrics the user can
           // already read -- including "dancing", which is a single word of the
           // primary line.
-          expect(lines.map((line) => line.text).toList(), [
-            fullLine.text,
-            'sing a little song',
-          ], reason: 'engine order: $engineOrder');
+          expect(
+            lines.map((line) => line.text).toList(),
+            [fullLine.text, 'sing a little song'],
+            reason: 'engine order: $engineOrder',
+          );
           expect(
             lines[1].confidence,
             60,
