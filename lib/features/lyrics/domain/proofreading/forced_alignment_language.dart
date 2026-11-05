@@ -1,3 +1,10 @@
+/// The project's language has no supported ForcedAligner language mapping.
+class ForcedAlignmentLanguageResolutionException implements Exception {
+  final String language;
+
+  const ForcedAlignmentLanguageResolutionException(this.language);
+}
+
 /// Maps a project's free-form lyric language onto the language names the
 /// forced aligner accepts.
 ///
@@ -30,6 +37,6 @@ class ForcedAlignmentLanguage {
         normalized.startsWith('en-')) {
       return 'English';
     }
-    throw StateError('无法从工程语言“$language”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。');
+    throw ForcedAlignmentLanguageResolutionException(language);
   }
 }

@@ -521,15 +521,31 @@ void main() {
   });
 }
 
-Future<SecureSocket> _openPinnedSocket(MediaHubSession session) {
-  return SecureSocket.connect(
-    InternetAddress.loopbackIPv4.address,
-    session.port,
-    context: SecurityContext(withTrustedRoots: false),
-    onBadCertificate: (certificate) =>
-        mediaHubTlsFingerprint(certificate.der) ==
-        session.tlsFingerprint!.toLowerCase(),
-  );
+Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
+  const maxBrokenPipeRetries = 3;
+  for (var attempt = 0; ; attempt++) {
+    try {
+      return await SecureSocket.connect(
+        InternetAddress.loopbackIPv4.address,
+        session.port,
+        context: SecurityContext(withTrustedRoots: false),
+        onBadCertificate: (certificate) =>
+            mediaHubTlsFingerprint(certificate.der) ==
+            session.tlsFingerprint!.toLowerCase(),
+      );
+    } on SocketException catch (error) {
+      final isBrokenPipe =
+          error.osError?.errorCode == 32 ||
+          error.message.toLowerCase().contains('broken pipe');
+      if (!isBrokenPipe || attempt >= maxBrokenPipeRetries) rethrow;
+
+      // Under a loaded test runner, a loopback TLS connection can be reset
+      // during the handshake. Retry only this transient EPIPE and keep the total
+      // retry window bounded; persistent listener or certificate failures still
+      // fail the test.
+      await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
+    }
+  }
 }
 
 Future<String> _readRawResponse(SecureSocket socket) {

@@ -1,3 +1,4 @@
+import '../domain/proofreading/forced_alignment_language.dart';
 import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
 import '../domain/proofreading/proofread_strategy_selector.dart';
@@ -61,6 +62,10 @@ abstract final class LyricReviewStrings {
       LyricProofreadV2AlignmentHint.wordTimingMissing => '缺少词级对齐证据',
     };
   }
+
+  static String forcedAlignmentLanguageError(
+    ForcedAlignmentLanguageResolutionException error,
+  ) => '无法从工程语言“${error.language}”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。';
 
   static String proofreadV2Explanation(
     LyricProofreadV2Explanation explanation,

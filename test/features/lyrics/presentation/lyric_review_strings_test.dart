@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_language.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
@@ -6,6 +7,15 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_pri
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 
 void main() {
+  test('maps unsupported ForcedAligner language to its existing guidance', () {
+    expect(
+      LyricReviewStrings.forcedAlignmentLanguageError(
+        const ForcedAlignmentLanguageResolutionException('klingon'),
+      ),
+      '无法从工程语言“klingon”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。',
+    );
+  });
+
   test('formats structured Proofread V2 summary data with existing copy', () {
     const summary = LyricProofreadV2ReviewSummary(
       effectiveStrategy: LyricSourceStrategy.referenceFirst,

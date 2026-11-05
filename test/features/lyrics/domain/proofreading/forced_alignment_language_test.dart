@@ -29,14 +29,23 @@ void main() {
       expect(
         () => ForcedAlignmentLanguage.resolve('klingon'),
         throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            contains('请将工程语言设为中文、英文或日文'),
+          isA<ForcedAlignmentLanguageResolutionException>().having(
+            (error) => error.language,
+            'language',
+            'klingon',
           ),
         ),
       );
-      expect(() => ForcedAlignmentLanguage.resolve(''), throwsStateError);
+      expect(
+        () => ForcedAlignmentLanguage.resolve(''),
+        throwsA(
+          isA<ForcedAlignmentLanguageResolutionException>().having(
+            (error) => error.language,
+            'language',
+            '',
+          ),
+        ),
+      );
     });
   });
 }
