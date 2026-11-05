@@ -330,6 +330,100 @@ void main() {
       },
     );
     test(
+      'does not auto-replace when either confidence is unscored or heuristic',
+      () async {
+        final scenarios =
+            <(LyricConfidenceSource, int, LyricConfidenceSource, int)>[
+              (
+                LyricConfidenceSource.unscored,
+                25,
+                LyricConfidenceSource.unscored,
+                50,
+              ),
+              (
+                LyricConfidenceSource.unscored,
+                25,
+                LyricConfidenceSource.model,
+                92,
+              ),
+              (
+                LyricConfidenceSource.model,
+                35,
+                LyricConfidenceSource.unscored,
+                50,
+              ),
+              (
+                LyricConfidenceSource.heuristic,
+                25,
+                LyricConfidenceSource.model,
+                92,
+              ),
+              (
+                LyricConfidenceSource.model,
+                35,
+                LyricConfidenceSource.heuristic,
+                50,
+              ),
+            ];
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final qwenIsPrimary =
+              engineOrder == TranscriptionEngineOrder.qwenPrimary;
+          for (final scenario in scenarios) {
+            final qwen = LyricLine(
+              text: qwenIsPrimary
+                  ? 'hello hello hello hello'
+                  : 'yellow submarine',
+              startTime: const Duration(seconds: 10),
+              endTime: const Duration(seconds: 13),
+              confidence: qwenIsPrimary ? scenario.$2 : scenario.$4,
+              confidenceSource: qwenIsPrimary ? scenario.$1 : scenario.$3,
+            );
+            final whisper = LyricLine(
+              text: qwenIsPrimary
+                  ? 'yellow submarine'
+                  : 'hello hello hello hello',
+              startTime: const Duration(milliseconds: 10100),
+              endTime: const Duration(milliseconds: 12900),
+              confidence: qwenIsPrimary ? scenario.$4 : scenario.$2,
+              confidenceSource: qwenIsPrimary ? scenario.$3 : scenario.$1,
+            );
+            final service = HighQualityTranscriptionService(
+              primary: _FakeTranscriptionService(result: _result(qwen)),
+              fallback: _FakeTranscriptionService(result: _result(whisper)),
+            );
+
+            try {
+              final result = await service.transcribe(
+                _request(tempDirectory.path, engineOrder: engineOrder),
+              );
+              final primaryText = qwenIsPrimary ? qwen.text : whisper.text;
+              expect(
+                result.lyrics.lines.single.text,
+                primaryText,
+                reason:
+                    'order=$engineOrder, sources=${scenario.$1}/${scenario.$3}',
+              );
+              expect(result.lyrics.metadata['fallbackAppliedCount'], 0);
+              expect(result.lyrics.metadata['fallbackCandidateCount'], 1);
+              final candidates =
+                  result.lyrics.metadata['fallbackCandidates'] as List;
+              expect(
+                (candidates.single as Map)['reason'],
+                'engine_disagreement_review',
+              );
+            } finally {
+              await service.dispose();
+            }
+          }
+        }
+      },
+    );
+
+    test(
       'surfaces Ashin versus passion as a review candidate without auto-applying',
       () async {
         final primaryResult = _result(
@@ -513,10 +607,11 @@ void main() {
           // its time span, so keeping them would duplicate lyrics the user can
           // already read -- including "dancing", which is a single word of the
           // primary line.
-          expect(lines.map((line) => line.text).toList(), [
-            fullLine.text,
-            'sing a little song',
-          ], reason: 'engine order: $engineOrder');
+          expect(
+            lines.map((line) => line.text).toList(),
+            [fullLine.text, 'sing a little song'],
+            reason: 'engine order: $engineOrder',
+          );
           expect(
             lines[1].confidence,
             60,
