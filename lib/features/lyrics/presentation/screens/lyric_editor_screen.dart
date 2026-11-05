@@ -321,9 +321,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               const LyricDocument(language: 'zh', lines: <LyricLine>[]),
         );
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已载入最新版工程。')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已载入最新版工程。')));
         return;
       case ProjectSaveConflictChoice.overwriteLatest:
         final localDocument = _editor.documentForSave();

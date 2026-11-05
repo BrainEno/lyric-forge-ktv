@@ -49,7 +49,6 @@ void main() {
       await secondTap.up();
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'Local edit');
-      await tester.tap(find.text('保存'));
       await tester.pumpAndSettle();
 
       final backgroundUpdate = await repository.updateProject(
