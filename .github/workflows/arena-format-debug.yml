@@ -36,6 +36,9 @@ jobs:
             exit 0
           fi
           dart format "${dart_files[@]}" >/dev/null
+          sed -n '306,329p' lib/features/lyrics/presentation/screens/lyric_editor_screen.dart | while IFS= read -r line; do
+            echo "::notice title=Canonical formatted source::${line}"
+          done
           {
             echo 'Canonical dart format diff:'
             git --no-pager diff -- "${dart_files[@]}"

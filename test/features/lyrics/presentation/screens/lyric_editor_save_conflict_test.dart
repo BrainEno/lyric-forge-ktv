@@ -40,7 +40,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.doubleTap(find.text('Original lyric'));
+      final lyricText = find.text('Original lyric');
+      final lyricPosition = tester.getCenter(lyricText);
+      final firstTap = await tester.startGesture(lyricPosition);
+      await firstTap.up();
+      await tester.pump(const Duration(milliseconds: 100));
+      final secondTap = await tester.startGesture(lyricPosition);
+      await secondTap.up();
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'Local edit');
       await tester.tap(find.text('保存'));
