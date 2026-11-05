@@ -47,8 +47,19 @@ void main() {
       final secondTap = await tester.startGesture(lyricPosition);
       await secondTap.up();
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, 'Local edit');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
+      final inlineEditor = find.byKey(const ValueKey('inline_edit_0'));
+      expect(inlineEditor, findsOneWidget);
+      final lyricField = find.descendant(
+        of: inlineEditor,
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(lyricField, 'Local edit');
+      final inlineSave = find.descendant(
+        of: inlineEditor,
+        matching: find.text('保存'),
+      );
+      await tester.ensureVisible(inlineSave);
+      await tester.tap(inlineSave);
       await tester.pumpAndSettle();
 
       final backgroundUpdate = await repository.updateProject(
