@@ -755,9 +755,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _commitProofreadV2Document(after);
     } catch (error) {
       if (!mounted) return;
+      final detail = error is ForcedAlignmentLanguageResolutionException
+          ? LyricReviewStrings.forcedAlignmentLanguageError(error)
+          : '$error';
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$error')));
+      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$detail')));
     }
   }
 
