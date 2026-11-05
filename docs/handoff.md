@@ -11,8 +11,8 @@
 - PR #352：https://github.com/BrainEno/lyric-forge-ktv/pull/352，OPEN；未经用户明确授权不得合并。
 - issue #318：https://github.com/BrainEno/lyric-forge-ktv/issues/318，仍 OPEN。
 - workflow cleanup head `ec0422a` 的 Flutter Quality Gate run `42028687449` 和 KTV recovery validation run `42028687477` 均通过；此前代码 head `89305b9` 的全量质量门及聚焦 `project-save-tests`/formatter jobs 也通过。
-- 文档更新后的 head `d72ae42` 的 Quality Gate run `42029196286` 仅在无关的 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving` 间歇性测试失败；KTV recovery run `42029196309` 通过。此测试在相同代码的前一完整 CI head `ec0422a` 通过；失败目前仍需新的 pinned run 确认。
-- 临时 `.github/workflows/arena-format-debug.yml` 已删除。工作区将记录此 flaky test 结果的文档小更新，再推送触发新的最终 Quality Gate。
+- 文档 head `d72ae42` 的 Quality Gate run `42029196286` 曾因无关的 Media Hub `total upload deadline applies while chunks continue arriving` 间歇性失败；KTV run `42029196309` 通过。后续 head `e21ddfe` 的完整 Flutter Quality Gate `42029849324` 和 KTV recovery validation `42029849242` 均通过。
+- 临时 `.github/workflows/arena-format-debug.yml` 已删除。当前工作区仅有记录 `e21ddfe` 验证结果的文档更新；推送后需再次确认最终 PR head 的 pinned gate。
 
 ## 已改文件
 
@@ -42,4 +42,4 @@
 - P1 #318 的旧快照覆盖路径已由 revision 条件写入、冲突 UI、repository 和 editor 回归测试覆盖；尚未合并或关闭 issue。
 - Native builds、KTV recovery、runtime-release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-05 20:45（Asia/Hong_Kong）
+最后更新：2026-11-05 20:48（Asia/Hong_Kong）
