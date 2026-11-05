@@ -126,6 +126,72 @@ void main() {
     );
 
     test(
+      'surfaces distinct Korean hypotheses for review in either engine order',
+      () async {
+        const qwenText = '오늘은 비가 내려요';
+        const whisperText = '별빛 아래 춤을 춰요';
+        const start = Duration(seconds: 10);
+        const end = Duration(seconds: 13);
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final qwenLine = LyricLine(
+            text: qwenText,
+            startTime: start,
+            endTime: end,
+            confidence: 92,
+          );
+          final whisperLine = LyricLine(
+            text: whisperText,
+            startTime: start,
+            endTime: end,
+            confidence: 92,
+          );
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(qwenLine)),
+            fallback: _FakeTranscriptionService(result: _result(whisperLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final qwenIsPrimary =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary;
+            final metadata = result.lyrics.metadata;
+            final candidates = metadata['fallbackCandidates'] as List;
+            final candidate = Map<String, dynamic>.from(
+              candidates.single as Map,
+            );
+
+            expect(
+              result.lyrics.lines.single.text,
+              qwenIsPrimary ? qwenText : whisperText,
+              reason: 'engine order: $engineOrder',
+            );
+            expect(metadata['fallbackAppliedCount'], 0);
+            expect(metadata['fallbackCandidateCount'], 1);
+            expect(metadata['secondaryOnlyLineCount'], 0);
+            expect(
+              candidate['primaryText'],
+              qwenIsPrimary ? qwenText : whisperText,
+            );
+            expect(
+              candidate['alternativeText'],
+              qwenIsPrimary ? whisperText : qwenText,
+            );
+            expect(candidate['similarity'], lessThan(0.80));
+            expect(candidate['reason'], 'engine_disagreement_review');
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
       'inserts Whisper-only lines as reviewable rows and remaps candidates',
       () async {
         final primaryResult = _resultLines([
