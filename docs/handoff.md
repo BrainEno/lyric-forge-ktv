@@ -9,33 +9,32 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 当前活动分支：`arena/f2ddfaf7-lyric-forge-ktv`
 - 基线：`25305ee Merge pull request #354 ...`；PR #354 已 MERGED，最终 pinned Flutter Quality Gate `42040207163` 通过。
-- PR #355：https://github.com/BrainEno/lyric-forge-ktv/pull/355，OPEN，远端 head `be10826585977ae8389d83b04a894373a29e895a`；最近 pinned run `42053679317` 仍在格式检查失败。未授权不得合并。
+- PR #355：https://github.com/BrainEno/lyric-forge-ktv/pull/355，OPEN。代码 head `9356a6092c9863ed56091e7282b6691b2e1ca9d8` 的 pinned Quality Gate `42053995785` 已通过；本次 work-log/handoff 更新后需要查看新 head 检查状态。未经用户明确授权不得合并。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN，尚有 chunk-merge 等验收未覆盖。
-- 最近提交：`be10826 style: format Korean secondary-line test`；本地未提交改动为进一步简化测试断言/分支以及同步 work-log/handoff 记录。
+- 最近代码提交：`9356a60 test: assert Korean-only secondary evidence`、`be10826 style: format Korean secondary-line test`、`137b509 test: preserve Korean-only secondary lines`。
+- 当前工作区只有 work-log 与 handoff 的验证记录更新。
 
 ## 已改文件
 
 - `test/high_quality_transcription_service_test.dart`：验证第二引擎独有的韩文行在两种 engine order 下保留，metadata secondary-only count/index 正确，confidence capped at 60 且标记为 heuristic。
-- `docs/log/entries/2026-11-05-2313-keep-korean-secondary-lines.md`：记录该独立验收切片及当前 pinned CI 阻塞。
+- `docs/log/entries/2026-11-05-2313-keep-korean-secondary-lines.md`：记录该独立验收切片及 pinned CI 结果。
 - `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md`：更新任务导航。
 - `docs/handoff.md`：本文。
 
 ## 检查结果
 
 - `git diff --check` 通过。
-- Pinned Quality Gate runs `42053030878`、`42053679317` 均在 `Format check for changed Dart files` 失败，analyze/tests 未运行。GitHub Actions log 下载在当前环境失败，暂时无法看到 pinned formatter 的具体差异。
-- 本地没有 Flutter/Dart SDK。
-- PR #355 的最终 head 尚未通过 pinned gate，不得合并。
+- Pinned Flutter Quality Gate `42053995785` 在代码 head `9356a6092c9863ed56091e7282b6691b2e1ca9d8` 通过 work-log preflight、changed-file format、analyze 与全量测试。此前两次 formatter-only 失败已由简化断言格式修正。
+- 本地没有 Flutter/Dart SDK；测试由 pinned CI 执行。
 
 ## 下一步
 
-1. 提交并推送当前精简后的测试回归，重跑 PR #355 的 pinned Quality Gate；若格式检查仍失败，请从 Actions 提供确切 formatter diff。最终 PR head 全绿后再推进 #317 的 chunk-merge 切片；issue #317 未完整解决前保持打开，未经明确授权不得合并 PR。
+1. 提交并推送验证记录，确认 PR #355 新 head 的 pinned Quality Gate 通过；随后推进 #317 的 chunk-merge 独立切片。issue #317 未完整解决前保持打开，未经用户明确授权不得合并 PR。
 
 ## 已知风险
 
-- 当前新回归测试已推送，但最终 pinned formatter 尚未通过；测试、analyze 均未执行。
 - 本轮只覆盖普通 dual-engine merge 中 secondary-only 韩文行；分片合并路径尚未验证。
 - issue #317 其余验收条件未完成，不得据此关闭 issue。
 - Native builds、KTV recovery、runtime-release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-05 23:20（Asia/Hong_Kong）
+最后更新：2026-11-05 23:22（Asia/Hong_Kong）
