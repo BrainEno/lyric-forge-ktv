@@ -209,13 +209,13 @@ void main() {
         TranscriptionEngineOrder.qwenPrimary,
         TranscriptionEngineOrder.whisperPrimary,
       ]) {
-        final qwenLines = engineOrder == TranscriptionEngineOrder.qwenPrimary
-            ? [commonLine]
-            : [commonLine, secondaryOnlyLine];
-        final whisperLines =
-            engineOrder == TranscriptionEngineOrder.whisperPrimary
-            ? [commonLine]
-            : [commonLine, secondaryOnlyLine];
+        final qwenLines = <LyricLine>[commonLine];
+        final whisperLines = <LyricLine>[commonLine];
+        if (engineOrder == TranscriptionEngineOrder.qwenPrimary) {
+          whisperLines.add(secondaryOnlyLine);
+        } else {
+          qwenLines.add(secondaryOnlyLine);
+        }
         final service = HighQualityTranscriptionService(
           primary: _FakeTranscriptionService(result: _resultLines(qwenLines)),
           fallback: _FakeTranscriptionService(
@@ -228,21 +228,14 @@ void main() {
             _request(tempDirectory.path, engineOrder: engineOrder),
           );
           final lines = result.lyrics.lines;
-          expect(
-            lines.map((line) => line.text).toList(),
-            [commonLine.text, secondaryOnlyLine.text],
-            reason: 'engine order: $engineOrder',
-          );
-          expect(
-            result.lyrics.metadata['secondaryOnlyLineCount'],
-            1,
-            reason: 'engine order: $engineOrder',
-          );
-          expect(
-            result.lyrics.metadata['secondaryOnlyLineIndices'],
-            [1],
-            reason: 'engine order: $engineOrder',
-          );
+          expect(lines, hasLength(2));
+          expect(lines[0].text, commonLine.text);
+          expect(lines[1].text, secondaryOnlyLine.text);
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 1);
+          final secondaryOnlyIndices =
+              result.lyrics.metadata['secondaryOnlyLineIndices'] as List;
+          expect(secondaryOnlyIndices, hasLength(1));
+          expect(secondaryOnlyIndices.single, 1);
           expect(lines[1].confidence, 60);
           expect(lines[1].confidenceSource, LyricConfidenceSource.heuristic);
         } finally {

@@ -9,9 +9,9 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 当前活动分支：`arena/f2ddfaf7-lyric-forge-ktv`
 - 基线：`25305ee Merge pull request #354 ...`；PR #354 已 MERGED，最终 pinned Flutter Quality Gate `42040207163` 通过。
-- PR #355：https://github.com/BrainEno/lyric-forge-ktv/pull/355，OPEN，head `137b5094409fac5f8e955335d7b4f2dfe5b413e0`；本地已调整新增测试的一种格式表达，待提交并重跑 gate。未授权不得合并。
+- PR #355：https://github.com/BrainEno/lyric-forge-ktv/pull/355，OPEN，远端 head `be10826585977ae8389d83b04a894373a29e895a`；最近 pinned run `42053679317` 仍在格式检查失败。未授权不得合并。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN，尚有 chunk-merge 等验收未覆盖。
-- 最近提交：`137b509 test: preserve Korean-only secondary lines`；本地未提交改动包含新的 formatter 调整及本 handoff/work-log 验证状态更新。
+- 最近提交：`be10826 style: format Korean secondary-line test`；本地未提交改动为进一步简化测试断言/分支以及同步 work-log/handoff 记录。
 
 ## 已改文件
 
@@ -23,13 +23,13 @@
 ## 检查结果
 
 - `git diff --check` 通过。
-- Pinned Quality Gate run `42053030878` 在 `Format check for changed Dart files` 失败，analyze/tests 未运行。GitHub Actions log 下载在当前环境失败，暂时无法看到 pinned formatter 的具体差异。
+- Pinned Quality Gate runs `42053030878`、`42053679317` 均在 `Format check for changed Dart files` 失败，analyze/tests 未运行。GitHub Actions log 下载在当前环境失败，暂时无法看到 pinned formatter 的具体差异。
 - 本地没有 Flutter/Dart SDK。
 - PR #355 的最终 head 尚未通过 pinned gate，不得合并。
 
 ## 下一步
 
-1. 提交并推送当前测试格式调整，重跑 PR #355 的 pinned Quality Gate；若格式检查仍失败，再取得 run 日志中的确切 formatter diff 并修正。确认最终 PR head 全绿后再推进 #317 下一切片；issue 未完整解决前保持打开，未经明确授权不得合并 PR。
+1. 提交并推送当前精简后的测试回归，重跑 PR #355 的 pinned Quality Gate；若格式检查仍失败，请从 Actions 提供确切 formatter diff。最终 PR head 全绿后再推进 #317 的 chunk-merge 切片；issue #317 未完整解决前保持打开，未经明确授权不得合并 PR。
 
 ## 已知风险
 
@@ -38,4 +38,4 @@
 - issue #317 其余验收条件未完成，不得据此关闭 issue。
 - Native builds、KTV recovery、runtime-release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-05 23:15（Asia/Hong_Kong）
+最后更新：2026-11-05 23:20（Asia/Hong_Kong）

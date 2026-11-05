@@ -7,4 +7,4 @@
   - Pinned Flutter Quality Gate run `42053030878` failed at `Format check for changed Dart files`; analyze/tests did not run. The runner log is not accessible from this environment, so the exact formatter diff is needed to correct the final discrepancy.
   - Local focused Flutter test => not run because Flutter/Dart SDK is unavailable.
 - Notes: This is an independent acceptance slice for issue #317, covering the genuinely secondary-only Korean row path rather than a paired disagreement candidate. PR #355 is open; chunk-merge coverage remains a separate follow-up. No PR merge or issue closure is authorized.
-- Commit: `style: format Korean secondary-line test`
+- Commit: `test: assert Korean-only secondary evidence`
