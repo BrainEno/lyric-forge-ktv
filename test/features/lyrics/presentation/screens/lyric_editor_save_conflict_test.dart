@@ -61,6 +61,8 @@ void main() {
       await tester.ensureVisible(inlineSave);
       await tester.tap(inlineSave);
       await tester.pumpAndSettle();
+      expect(find.text('Local edit'), findsOneWidget);
+      expect(find.byTooltip('保存修改'), findsOneWidget);
 
       final backgroundUpdate = await repository.updateProject(
         project.copyWith(
