@@ -34,7 +34,8 @@ enum LyricProofreadV2ExplanationCode {
   secondaryTranscriptEvidence,
   asrFirstConservativeTiming,
   forcedAlignmentEvidenceAvailable,
-  alignmentServiceWarning,
+  forcedAlignmentUnavailable,
+  forcedAlignmentDiagnosticsMissing,
 }
 
 /// A structured Proofread V2 explanation for presentation to render.
@@ -42,13 +43,11 @@ class LyricProofreadV2Explanation {
   final LyricProofreadV2ExplanationCode code;
   final int? referenceCoveragePercent;
   final int? referenceWarningCount;
-  final String? message;
 
   const LyricProofreadV2Explanation(
     this.code, {
     this.referenceCoveragePercent,
     this.referenceWarningCount,
-    this.message,
   }) : assert(
          code != LyricProofreadV2ExplanationCode.automaticReferenceCoverage ||
              referenceCoveragePercent != null,
@@ -56,10 +55,6 @@ class LyricProofreadV2Explanation {
        assert(
          code != LyricProofreadV2ExplanationCode.referenceInputWarnings ||
              referenceWarningCount != null,
-       ),
-       assert(
-         code != LyricProofreadV2ExplanationCode.alignmentServiceWarning ||
-             message != null,
        );
 }
 

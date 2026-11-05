@@ -323,31 +323,34 @@ void main() {
       );
     });
 
-    test('a forced-alignment warning is carried into the explanation', () {
+    test('alignment availability selects a typed fallback explanation', () {
       final result = const AsrFirstPipeline().build(draft: draft);
-      final assembly = assemble(
+      final unavailable = assemble(
+        forcedAlignment: true,
         outcome: ForcedAlignmentProofreadOutcome(
           result: result,
           alignmentAvailable: false,
-          warning: '对齐器没有返回词级证据',
         ),
       );
+      expect(
+        unavailable.explanations.map((explanation) => explanation.code),
+        contains(LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable),
+      );
 
-      expect(
-        assembly.explanations.map((explanation) => explanation.code),
-        contains(LyricProofreadV2ExplanationCode.alignmentServiceWarning),
+      final diagnosticsMissing = assemble(
+        forcedAlignment: true,
+        outcome: ForcedAlignmentProofreadOutcome(
+          result: result,
+          alignmentAvailable: true,
+        ),
       );
       expect(
-        assembly.explanations
-            .singleWhere(
-              (explanation) =>
-                  explanation.code ==
-                  LyricProofreadV2ExplanationCode.alignmentServiceWarning,
-            )
-            .message,
-        '对齐器没有返回词级证据',
+        diagnosticsMissing.explanations.map((explanation) => explanation.code),
+        contains(
+          LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
+        ),
       );
-      expect(assembly.alignmentDiagnostics, isNull);
+      expect(diagnosticsMissing.alignmentDiagnostics, isNull);
     });
   });
 
