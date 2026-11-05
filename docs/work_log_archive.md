@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 02:52] Move ForcedAligner supplemental hints to presentation ([entry](log/entries/2026-11-05-0252-move-forced-aligner-hints-to-presentation.md))
 - [2026-11-05 01:18] Move ASR review reasons to presentation ([entry](log/entries/2026-11-05-0118-move-asr-review-reasons-to-presentation.md))
 - [2026-11-04 23:55] Move reference-first review reasons to presentation ([entry](log/entries/2026-11-04-2355-move-reference-first-review-reasons.md))
 - [2026-11-04 23:06] Move dropped-item review copy to presentation ([entry](log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md))

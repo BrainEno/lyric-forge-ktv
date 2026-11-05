@@ -44,12 +44,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Original lyric'));
-      await tester.pumpAndSettle();
       final lyricField = find.byWidgetPredicate(
         (widget) =>
             widget is TextField && widget.decoration?.labelText == '歌词文本',
       );
+      if (lyricField.evaluate().isEmpty) {
+        // If the editor has no default selection, choose the row explicitly.
+        // The same text may also be rendered in the inspector once selected.
+        await tester.tap(find.text('Original lyric').first);
+        await tester.pumpAndSettle();
+      }
       expect(lyricField, findsOneWidget);
       await tester.enterText(lyricField, 'Local edit');
       await tester.pumpAndSettle();
@@ -83,7 +87,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Local edit'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('保存修改'));
+      await tester.tap(find.widgetWithText(FilledButton, '保存修改'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('用当前歌词覆盖最新版'));
       await tester.pumpAndSettle();
