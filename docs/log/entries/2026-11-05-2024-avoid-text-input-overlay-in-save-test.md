@@ -7,5 +7,5 @@
   - Earlier CI heads `b1630db` and `f824167` failed in the editor conflict test with a Flutter `ListTile`/`ColoredBox` assertion; KTV recovery validation passed on both.
   - On code head `89305b9`, pinned Flutter Quality Gate run `42028103622` passed, including work-log preflight, format, analyze, and full repository tests. Focused `project-save-tests` and formatter jobs in run `42028103428` passed; KTV recovery validation run `42028103636` passed.
   - Inspector's SwitchListTile now has an explicit transparent Material ancestor. Local Flutter/Dart SDKs are unavailable.
-- Notes: Temporary `.github/workflows/arena-format-debug.yml` removed after focused tests and formatter passed. Cleanup head `ec0422a` also passed pinned Flutter Quality Gate run `42028687449` and KTV recovery run `42028687477`. PR #352 and issue #318 remain open.
+- Notes: Temporary `.github/workflows/arena-format-debug.yml` removed after focused tests and formatter passed. Cleanup head `ec0422a` passed pinned Flutter Quality Gate run `42028687449` and KTV recovery run `42028687477`. A later docs-only head `d72ae42` again hit the intermittent unrelated Media Hub `total upload deadline applies while chunks continue arriving` failure in run `42029196286`; its KTV validation `42029196309` passed. PR #352 and issue #318 remain open.
 - Commit: `fix: isolate inspector switch tile material`
