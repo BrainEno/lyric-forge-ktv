@@ -2,7 +2,7 @@
 
 ## 目标
 
-继续处理 P1 issue #318：阻止歌词编辑器用旧工程快照静默覆盖后台转写的新歌词及 metadata。PR #352 已包含 revision/CAS 保存和冲突处置；目前在修复冲突回归测试的 CI 交互问题。
+继续处理 P1 issue #318：阻止歌词编辑器用旧工程快照静默覆盖后台转写的新歌词及 metadata。PR #352 已实现 revision/CAS 保存与冲突处置；本轮修复并通过了 Inspector 保存冲突回归测试。
 
 ## Git 现场
 
@@ -10,38 +10,37 @@
 - 当前活动分支：`arena/30d21f97-lyric-forge-ktv`。
 - PR #352：https://github.com/BrainEno/lyric-forge-ktv/pull/352，OPEN；未经用户明确授权不得合并。
 - issue #318：https://github.com/BrainEno/lyric-forge-ktv/issues/318，仍 OPEN。
-- 最新已推送 head `5daf6f0`。Quality Gate run `42027525855` 的 preflight、包解析和格式检查通过，随后完整 repository tests 在 editor conflict test 失败；临时诊断 workflow run `42027525835` 中测试失败，formatter job 通过。KTV recovery validation run `42027525926` 通过。
-- `5daf6f0` 仍显示相同 `ListTile`/`ColoredBox` framework assertion。结合 widget 描述可定位为选中歌词后 Inspector 的 `SwitchListTile`，它被彩色面板 `ColoredBox` 隔开了 Material 水波纹层。
-- 工作区现已在 Inspector `SwitchListTile` 外添加透明 Material 边界，并保留阶段化异常检查；测试及修复待新 pinned CI 验证。临时 workflow 仍保留。
-- 最新日志：`42027525855` quality gate failed；`42027525835` temporary diagnostics failed test but formatter passed；`42027525926` KTV recovery passed。
+- 最新已推送代码 head `89305b9`。该 head 的 Flutter Quality Gate run `42028103622` 全绿，包含 work-log preflight、format、analyze 与全量 repository tests；KTV recovery validation run `42028103636` 通过。
+- 临时 workflow run `42028103428` 的 `project-save-tests` 与 formatter jobs 均通过。临时 `.github/workflows/arena-format-debug.yml` 已在工作区移除，尚未提交。
+- 工作区的 workflow 删除与更新后的日志/handoff 尚未提交；清理提交后的 pinned gate 仍需再确认。
 
 ## 已改文件
 
 - `lib/features/project/domain/models/project_manifest.dart`：持久化整数 revision。
 - `lib/features/project/domain/repositories/project_repository.dart` 及文件、内存 repository：提供 revision 条件写入，拒绝陈旧快照。
 - `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`、冲突 dialog：保存冲突时保留草稿，并提供继续编辑、重载和明确覆盖路径；覆盖以当前最新版为基础保留新 metadata。
-- `test/features/project/data/repositories/project_repository_save_conflict_test.dart` 与 `test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart`：repository 交错保存及编辑器冲突回归。
-- `.github/workflows/arena-format-debug.yml`：临时诊断 workflow，验证成功后移除。
-- `docs/log/entries/2026-11-05-1911-reject-stale-lyric-editor-saves.md`、`docs/log/entries/2026-11-05-2011-disambiguate-lyric-editor-conflict-test.md`、`docs/work_log.md`、本文。
+- `lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart`：给副歌 `SwitchListTile` 添加透明 Material 边界，避免彩色 Inspector 面板遮挡 ink splash。
+- `test/features/project/data/repositories/project_repository_save_conflict_test.dart` 与 `test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart`：repository 交错保存及完整编辑器冲突回归；测试通过 Inspector 编辑并断言拒绝陈旧保存、保留草稿和明确覆盖后的 metadata。
+- `docs/log/entries/2026-11-05-1911-reject-stale-lyric-editor-saves.md`、`docs/log/entries/2026-11-05-2011-disambiguate-lyric-editor-conflict-test.md`、`docs/log/entries/2026-11-05-2015-assert-preserved-lyric-draft.md`、`docs/log/entries/2026-11-05-2024-avoid-text-input-overlay-in-save-test.md`、`docs/work_log.md`、`docs/work_log_archive.md`、本文。
+- `.github/workflows/arena-format-debug.yml`：临时聚焦测试及 formatter 诊断 workflow，现已在工作区删除。
 
 ## 检查结果
 
-- 当前工作区 Dart 测试已用 `@wasm-fmt/dart_fmt@0.4.0` 格式化；`git diff --check` 通过。
-- run `42024462741` 的主 Quality Gate 与 run `42024462874` 聚焦测试都因测试 tap 找到多个匹配 widget 失败；失败注释指向歌词同时存在于列表和 inspector 的交互场景。改动后的测试先检查 Inspector 字段；无默认选择时只点击歌词文本的首个匹配项，并使用宽屏保存按钮的实际 `FilledButton` 标签。
-- run `42024463212` 的 KTV history/recovery validation 通过，formatter job 通过。
-- 本地没有 Flutter/Dart SDK；新的测试改动仍须由 pinned CI 验证。
+- `89305b9` 的 Flutter Quality Gate `42028103622` 通过全量 analyze 与 test。
+- 临时诊断 workflow `42028103428` 的聚焦 `project-save-tests` 与 pinned formatter 均通过；KTV recovery validation `42028103636` 通过。
+- Inspector 选择歌词后渲染 `SwitchListTile`；Flutter 断言指出其 `ListTile` 被中间 `ColoredBox` 隔开 Material ink 层。添加 `Material(type: MaterialType.transparency)` 后，冲突回归测试通过。
+- 当前工作区移除了临时 workflow，修改后的文档待提交；移除 workflow 后的最终 PR head 尚待再次跑并确认 pinned Quality Gate。
+- 本地没有 Flutter/Dart SDK；分析与测试由 pinned CI 验证。
 
 ## 下一步
 
-1. 提交并推送当前测试交互修复及 work log/handoff 到固定分支。
-2. 查看新的 pinned Flutter Quality Gate、聚焦 `project-save-tests`、formatter 和 KTV recovery validation。若再次失败，按具体 widget failure 继续修复，不能清理诊断 workflow 或宣称通过。
-3. 所有要求的质量检查通过后，移除 `.github/workflows/arena-format-debug.yml`，更新 work log/handoff，再提交推送并确认最终 PR head 的 pinned gate 全绿。
-4. 未经用户明确授权不合并 PR #352。issue #318 目前保持 OPEN；完整解决且具备权限时可关闭，否则提供链接供用户手动关闭。
+1. 检查并提交当前 workflow 删除及最终 handoff/work-log 更新，推送到固定分支。
+2. 等待并确认清理提交后的最终 pinned Flutter Quality Gate 通过；同时确认 PR 最新 head。
+3. 未经用户明确授权不合并 PR #352。issue #318 仍 OPEN；完整解决且有权限时可关闭，否则提供链接供用户手动关闭。
 
 ## 已知风险
 
-- 还未确认 `7dce1fe` 上的冲突 UI 操作是否被测试正确触发；新的回归测试必须通过 pinned CI。
-- 本地无 Flutter/Dart SDK，分析与测试依赖 pinned CI。
+- P1 #318 的旧快照数据覆盖已通过 revision 条件写入、冲突 UI、repository 和 editor 回归测试覆盖；尚未合并或关闭 issue。
 - Native builds、KTV recovery、runtime-release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-05 20:11（Asia/Hong_Kong）
+最后更新：2026-11-05 20:32（Asia/Hong_Kong）
