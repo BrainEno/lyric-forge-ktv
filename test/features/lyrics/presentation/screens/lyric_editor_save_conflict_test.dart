@@ -39,6 +39,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Original lyric'));
+      await tester.pumpAndSettle();
 
       final lyricField = find.byWidgetPredicate(
         (widget) =>

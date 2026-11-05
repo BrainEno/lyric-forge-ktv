@@ -40,7 +40,8 @@ jobs:
             case "$line" in
               +*) echo "::error title=Formatted output::${line:1:1000}" ;;
               -*) echo "::error title=Original input::${line:1:1000}" ;;
-            *) echo "::notice title=Formatter context::${line:0:1000}" ;;
+              *) echo "::notice title=Formatter context::${line:0:1000}" ;;
+            esac
           done
 
   project-save-tests:
