@@ -2,42 +2,42 @@
 
 ## 目标
 
-本轮只迁移 ForcedAligner fallback warning 文案：`ForcedAlignmentProofreadOutcome` 不再返回自由 `String` warning；review assembler 根据 alignment availability 与 diagnostics 缺失状态输出 typed explanation code，presentation 映射原有 fallback 文案。部分匹配的数量、未匹配行和 skipped spans 继续作为 `ProofreadAlignmentDiagnostics` 结构化数据展示；保留 review-only 行为。
+本切片将 Proofread V2 review header 的摘要文案和策略标签移出 domain assembler。Domain 保留有效策略、绿色/琥珀色/受保护/灰色计数和可选参考覆盖率；presentation 保留原中文文案、排序、覆盖率四舍五入和显示格式。
 
 ## Git 现场
 
 - Repository：`BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/ae2c582b-lyric-forge-ktv`。
-- 基线：PR #347 已合并，merge commit `0131b0d7d74d083660491dada49aa112b1eeda79`。
-- 实现提交：`99a40a0 refactor: type ForcedAligner fallback explanations`。
-- PR #348：<https://github.com/BrainEno/lyric-forge-ktv/pull/348>，OPEN，供 review；未经用户授权不得合并。
-- PR #348 代码/测试 head `99a40a0` 已通过 pinned Flutter Quality Gate run `41991774355`；最终 PR head 的 checks 是合并前依据。
-- PR #347 已合并；Issue #335 保持 CLOSED。
+- 当前活动分支：`arena/6f0a347f-lyric-forge-ktv`。
+- 基线：PR #348 已合并，merge commit `6433546b231e74be07fce25c644d5f51a64aec90`。
+- 实现提交：`599826c refactor: move Proofread V2 summary copy to presentation`。
+- PR #349：<https://github.com/BrainEno/lyric-forge-ktv/pull/349>，OPEN，等待 review；没有本 PR 的合并授权。
+- Pinned Flutter Quality Gate run `42002659225` 在实现/测试提交 `599826c992432762222d86a53fffe10b3c965252` 通过。work-log/handoff 文档提交会更新 PR head；在任何后续决策前，应检查该最终 PR head 的 gate。
+- PR #348 已按用户对该 PR 的单独授权合并；这不构成对 PR #349 的授权。Issue #335 保持 CLOSED。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart`：移除自由 warning 文案与 `_buildAlignmentWarning`，保留 `alignmentAvailable` 和结果 diagnostics。
-- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart`：用 `forcedAlignmentUnavailable` 与 `forcedAlignmentDiagnosticsMissing` typed codes 表达 fallback 说明。
-- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart`：根据 service outcome 选择对应 code，不再透传原始 message。
-- `lib/features/lyrics/presentation/lyric_review_strings.dart`：映射原有两个英文 fallback warning 文案。
-- service、assembler、string tests 覆盖诊断数据保留、fallback code 分支与全量文案映射。
-- `docs/log/entries/2026-11-05-0808-type-forced-aligner-fallback-explanations.md` 与生成的 work-log 导航记录本切片。
+- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart`：增加 typed `LyricProofreadV2ReviewSummary`，仅承载策略、各 verdict/drop 计数和 optional reference coverage。
+- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart`：只组装结构化 summary，不再格式化摘要文案或拥有 strategy label。
+- `lib/features/lyrics/presentation/lyric_review_strings.dart`：负责策略标签、coverage rounding、计数格式和原有摘要文案。
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：将结构化摘要交由 presentation 格式化后传入 review dialog。
+- assembler tests 验证结构化数据；presentation string tests 验证原文、排序、策略覆盖、可选 coverage 和四舍五入。
+- `docs/log/entries/2026-11-05-1727-move-proofread-v2-summary-copy-to-presentation.md` 与 work-log 导航记录本切片。
 
 ## 检查结果
 
-- `git diff --check` 通过；临时 WASM `@wasm-fmt/dart_fmt` 对 changed Dart files 的格式稳定性检查通过。
+- `git diff --check` 通过。
+- 临时 WASM `@wasm-fmt/dart_fmt` 对所有 changed Dart files 的 formatter stability check 通过。
 - 本地没有 Flutter/Dart SDK，未运行本地 analyzer 或 tests。
-- 固定工具链 Flutter Quality Gate run `41991774355` 在代码/测试 head `99a40a0` 通过，包含 work-log preflight、changed-Dart format、repository quality gate。最终 PR head checks 是合并前依据。
+- Pinned Flutter Quality Gate run `42002659225` 在实现/测试 head 通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests；文档提交后的最终 PR-head gate 仍须确认。
 
 ## 下一步
 
-PR #348 保持 OPEN，等待用户 review；不代为合并。后续如需修改，应继续在当前活动分支，并以 PR 最新 head 的 pinned Flutter Quality Gate 结果验证。Issue #335 保持关闭。
+PR #349 保持 OPEN，等待 review 和最终 PR-head gate；未经用户明确授权不得合并。后续继续按一个可独立验证切片推进用户可见歌词校对文案迁移。
 
 ## 已知风险
 
-- explanation code 与 presentation switch 由全量映射测试绑定；新增 code 时必须同步提供文案与测试。
-- alignment unavailable 和 diagnostics missing 分别显示原有提示；partial diagnostics 细节由独立的结构化 diagnostics UI 展示。
+- strategy 与 summary presentation mapping 的完整覆盖由 string tests 绑定；新增策略或数据字段时需同步维护映射与测试。
 - 本地没有 Flutter/Dart SDK，验证依赖固定工具链 CI。
-- native、KTV recovery、runtime-release、icon 和其他 specialist workflows 未审计或改动。
+- native、KTV recovery、runtime-release、icon 和其他 specialist workflows 未逐项审计。
 
 最后更新：2026-11-05（Asia/Hong_Kong）

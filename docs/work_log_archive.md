@@ -216,4 +216,5 @@
 - [2026-10-22 02:40] 行级试听边界控制与循环试听（阶段 I） ([entry](log/entries/2026-10-22-0240-bounded-lyric-line-audition.md))
 - [2026-10-21 23:08] 修复参考对齐对比组件中的合并冲突标记 ([entry](log/entries/2026-10-21-2308-fix-merge-conflict-markers-in-alignment-comparison.md))
 - [2026-10-21 22:22] Add inline audition to smart review rows ([entry](log/entries/2026-10-21-2222-smart-review-inline-audition.md))
+- [2026-11-04 21:20] Extend quality gate analysis to tooling scripts ([entry](log/entries/2026-11-04-2120-extend-quality-gate-to-tooling.md))
 <!-- END AUTO-GENERATED WORK LOG REFERENCES -->
