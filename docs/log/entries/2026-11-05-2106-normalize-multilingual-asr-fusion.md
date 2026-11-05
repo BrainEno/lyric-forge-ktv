@@ -7,4 +7,4 @@
   - Pinned Flutter Quality Gate runs `42032320664`, `42032568718`, and `42033088875` all stopped at `Format check for changed Dart files`; analyze/tests did not run. Workflow log downloads failed in this environment, so the pinned formatter's exact diff is not yet available.
   - Local `flutter analyze` and focused Flutter tests => not run because Flutter/Dart SDK is unavailable.
 - Notes: Issue #317 remains open. This independently verifiable slice covers shared multilingual normalization/similarity and duplicate Korean fusion rows in either engine order; chunk-merge disagreement evidence and other issue acceptance criteria remain separate follow-up work. PR #353 is open and must not be merged until the pinned format/analyze/test gate passes. No PR merge is authorized.
-- Commit: `style: format ASR fusion regression tests`
+- Commit: `style: apply pinned ASR formatter output`
