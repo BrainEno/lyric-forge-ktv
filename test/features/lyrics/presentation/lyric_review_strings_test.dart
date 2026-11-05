@@ -66,6 +66,111 @@ void main() {
     }
   });
 
+  test('maps every Proofread V2 explanation code to the existing wording', () {
+    const explanations =
+        <LyricProofreadV2ExplanationCode, LyricProofreadV2Explanation>{
+          LyricProofreadV2ExplanationCode.automaticReferenceCoverage:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.automaticReferenceCoverage,
+                referenceCoveragePercent: 73,
+              ),
+          LyricProofreadV2ExplanationCode.referenceFirstGuidance:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+              ),
+          LyricProofreadV2ExplanationCode
+              .referenceAlignmentBudgetExceeded: LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded,
+          ),
+          LyricProofreadV2ExplanationCode.referenceInputWarnings:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.referenceInputWarnings,
+                referenceWarningCount: 2,
+              ),
+          LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
+              ),
+          LyricProofreadV2ExplanationCode.missingSecondaryTranscript:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.missingSecondaryTranscript,
+              ),
+          LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence,
+              ),
+          LyricProofreadV2ExplanationCode.asrFirstConservativeTiming:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,
+              ),
+          LyricProofreadV2ExplanationCode
+              .forcedAlignmentEvidenceAvailable: LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+          ),
+          LyricProofreadV2ExplanationCode.alignmentServiceWarning:
+              LyricProofreadV2Explanation(
+                LyricProofreadV2ExplanationCode.alignmentServiceWarning,
+                message: 'Forced alignment warning.',
+              ),
+        };
+    const labels = <LyricProofreadV2ExplanationCode, String>{
+      LyricProofreadV2ExplanationCode.automaticReferenceCoverage:
+          '自动策略计算参考文本覆盖率 73%。',
+      LyricProofreadV2ExplanationCode.referenceFirstGuidance:
+          '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。',
+      LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded:
+          '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
+      LyricProofreadV2ExplanationCode.referenceInputWarnings:
+          '参考输入包含 2 条冲突或警告，相关行会要求复核。',
+      LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
+          '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。',
+      LyricProofreadV2ExplanationCode.missingSecondaryTranscript:
+          '未提供第二份 ASR 转写稿，因此只标记当前草稿风险。',
+      LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence:
+          '已将第二份带时间戳的转写稿作为独立证据；文本分歧仍需逐行复核。',
+      LyricProofreadV2ExplanationCode.asrFirstConservativeTiming:
+          'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
+      LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable:
+          'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
+      LyricProofreadV2ExplanationCode.alignmentServiceWarning:
+          'Forced alignment warning.',
+    };
+
+    expect(
+      explanations.keys.toSet(),
+      LyricProofreadV2ExplanationCode.values.toSet(),
+    );
+    expect(labels.keys.toSet(), LyricProofreadV2ExplanationCode.values.toSet());
+    for (final entry in explanations.entries) {
+      expect(
+        LyricReviewStrings.proofreadV2Explanation(entry.value),
+        labels[entry.key],
+      );
+    }
+  });
+
+  test('joins Proofread V2 explanations in the provided order', () {
+    const explanations = [
+      LyricProofreadV2Explanation(
+        LyricProofreadV2ExplanationCode.referenceFirstGuidance,
+      ),
+      LyricProofreadV2Explanation(
+        LyricProofreadV2ExplanationCode.alignmentServiceWarning,
+        message: 'Forced alignment warning.',
+      ),
+      LyricProofreadV2Explanation(
+        LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
+      ),
+    ];
+
+    expect(
+      LyricReviewStrings.proofreadV2Explanations(explanations),
+      '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。 '
+      'Forced alignment warning. '
+      'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
+    );
+  });
+
   test('keeps the dropped reference guidance in presentation strings', () {
     expect(
       LyricReviewStrings.droppedReferenceItemReason,

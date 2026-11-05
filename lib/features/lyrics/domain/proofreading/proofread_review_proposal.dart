@@ -24,6 +24,45 @@ enum LyricProofreadV2ReferenceReason {
 
 enum LyricProofreadV2AlignmentHint { wordTimingAvailable, wordTimingMissing }
 
+enum LyricProofreadV2ExplanationCode {
+  automaticReferenceCoverage,
+  referenceFirstGuidance,
+  referenceAlignmentBudgetExceeded,
+  referenceInputWarnings,
+  automaticFallbackToAsr,
+  missingSecondaryTranscript,
+  secondaryTranscriptEvidence,
+  asrFirstConservativeTiming,
+  forcedAlignmentEvidenceAvailable,
+  alignmentServiceWarning,
+}
+
+/// A structured Proofread V2 explanation for presentation to render.
+class LyricProofreadV2Explanation {
+  final LyricProofreadV2ExplanationCode code;
+  final int? referenceCoveragePercent;
+  final int? referenceWarningCount;
+  final String? message;
+
+  const LyricProofreadV2Explanation(
+    this.code, {
+    this.referenceCoveragePercent,
+    this.referenceWarningCount,
+    this.message,
+  }) : assert(
+         code != LyricProofreadV2ExplanationCode.automaticReferenceCoverage ||
+             referenceCoveragePercent != null,
+       ),
+       assert(
+         code != LyricProofreadV2ExplanationCode.referenceInputWarnings ||
+             referenceWarningCount != null,
+       ),
+       assert(
+         code != LyricProofreadV2ExplanationCode.alignmentServiceWarning ||
+             message != null,
+       );
+}
+
 /// One row of the proofread review dialog: a proposal paired with the draft
 /// line it would replace.
 ///
