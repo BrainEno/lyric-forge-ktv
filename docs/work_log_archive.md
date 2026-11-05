@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 17:45] Move ForcedAligner language guidance to presentation ([entry](log/entries/2026-11-05-1745-move-forced-aligner-language-guidance-to-presentation.md))
 - [2026-11-05 17:27] Move Proofread V2 summary copy to presentation ([entry](log/entries/2026-11-05-1727-move-proofread-v2-summary-copy-to-presentation.md))
 - [2026-11-05 08:08] Type ForcedAligner fallback explanations ([entry](log/entries/2026-11-05-0808-type-forced-aligner-fallback-explanations.md))
 - [2026-11-05 03:41] Move Proofread V2 explanations to presentation ([entry](log/entries/2026-11-05-0341-move-proofread-v2-explanations-to-presentation.md))
