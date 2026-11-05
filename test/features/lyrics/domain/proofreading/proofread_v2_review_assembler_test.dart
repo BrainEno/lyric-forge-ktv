@@ -371,7 +371,7 @@ void main() {
     );
 
     test('counts every group and includes coverage when provided', () {
-      final text = assembler.summary(
+      final summary = assembler.summary(
         effectiveStrategy: LyricSourceStrategy.referenceFirst,
         items: [
           item(LyricProofreadReviewVerdict.green, 0),
@@ -392,17 +392,27 @@ void main() {
         referenceCoverage: 0.875,
       );
 
-      expect(text, '策略：参考歌词优先 · 参考覆盖率 88% · 绿色 2 · 琥珀色 1 · 受保护 1 · 灰色 1');
+      expect(summary.effectiveStrategy, LyricSourceStrategy.referenceFirst);
+      expect(summary.referenceCoverage, 0.875);
+      expect(summary.greenCount, 2);
+      expect(summary.amberCount, 1);
+      expect(summary.lockedCount, 1);
+      expect(summary.droppedCount, 1);
     });
 
     test('omits coverage when the run had no reference', () {
-      final text = assembler.summary(
+      final summary = assembler.summary(
         effectiveStrategy: LyricSourceStrategy.asrFirst,
         items: [item(LyricProofreadReviewVerdict.amber, 0)],
         droppedItems: const [],
       );
 
-      expect(text, '策略：ASR 优先 · 绿色 0 · 琥珀色 1 · 受保护 0 · 灰色 0');
+      expect(summary.effectiveStrategy, LyricSourceStrategy.asrFirst);
+      expect(summary.referenceCoverage, isNull);
+      expect(summary.greenCount, 0);
+      expect(summary.amberCount, 1);
+      expect(summary.lockedCount, 0);
+      expect(summary.droppedCount, 0);
     });
   });
 
@@ -412,12 +422,6 @@ void main() {
         ProofreadV2ReviewAssembler.referenceReasonCode(reason).name,
         reason.name,
       );
-    }
-  });
-
-  test('strategy labels cover every strategy value', () {
-    for (final strategy in LyricSourceStrategy.values) {
-      expect(ProofreadV2ReviewAssembler.strategyLabel(strategy), isNotEmpty);
     }
   });
 }

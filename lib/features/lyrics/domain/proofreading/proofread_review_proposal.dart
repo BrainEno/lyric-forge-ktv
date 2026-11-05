@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'proofread_result.dart';
+import 'proofread_strategy_selector.dart';
 
 /// How a single review row should be treated when the user confirms.
 ///
@@ -56,6 +57,25 @@ class LyricProofreadV2Explanation {
          code != LyricProofreadV2ExplanationCode.referenceInputWarnings ||
              referenceWarningCount != null,
        );
+}
+
+/// Counts and strategy data for the Proofread V2 dialog header.
+class LyricProofreadV2ReviewSummary {
+  final LyricSourceStrategy effectiveStrategy;
+  final int greenCount;
+  final int amberCount;
+  final int lockedCount;
+  final int droppedCount;
+  final double? referenceCoverage;
+
+  const LyricProofreadV2ReviewSummary({
+    required this.effectiveStrategy,
+    required this.greenCount,
+    required this.amberCount,
+    required this.lockedCount,
+    required this.droppedCount,
+    required this.referenceCoverage,
+  });
 }
 
 /// One row of the proofread review dialog: a proposal paired with the draft

@@ -700,7 +700,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
-        summary: summary,
+        summary: LyricReviewStrings.proofreadV2Summary(summary),
         explanation: LyricReviewStrings.proofreadV2Explanations(
           assembly.explanations,
         ),

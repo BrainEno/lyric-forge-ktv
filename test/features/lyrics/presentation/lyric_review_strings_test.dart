@@ -1,10 +1,51 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_review_strings.dart';
 
 void main() {
+  test('formats structured Proofread V2 summary data with existing copy', () {
+    const summary = LyricProofreadV2ReviewSummary(
+      effectiveStrategy: LyricSourceStrategy.referenceFirst,
+      greenCount: 2,
+      amberCount: 1,
+      lockedCount: 1,
+      droppedCount: 1,
+      referenceCoverage: 0.875,
+    );
+
+    expect(
+      LyricReviewStrings.proofreadV2Summary(summary),
+      '策略：参考歌词优先 · 参考覆盖率 88% · 绿色 2 · 琥珀色 1 · 受保护 1 · 灰色 1',
+    );
+  });
+
+  test('formats every strategy label and omits absent reference coverage', () {
+    const labels = <LyricSourceStrategy, String>{
+      LyricSourceStrategy.referenceFirst: '参考歌词优先',
+      LyricSourceStrategy.asrFirst: 'ASR 优先',
+      LyricSourceStrategy.auto: '自动选择',
+    };
+    expect(labels.keys.toSet(), LyricSourceStrategy.values.toSet());
+
+    for (final entry in labels.entries) {
+      final summary = LyricProofreadV2ReviewSummary(
+        effectiveStrategy: entry.key,
+        greenCount: 0,
+        amberCount: 1,
+        lockedCount: 0,
+        droppedCount: 0,
+        referenceCoverage: null,
+      );
+      expect(
+        LyricReviewStrings.proofreadV2Summary(summary),
+        '策略：${entry.value} · 绿色 0 · 琥珀色 1 · 受保护 0 · 灰色 0',
+      );
+    }
+  });
+
   test('maps every reference-first reason to its existing Chinese label', () {
     const labels = <LyricProofreadV2ReferenceReason, String>{
       LyricProofreadV2ReferenceReason.lowConfidenceAlignment: '对齐置信度低',

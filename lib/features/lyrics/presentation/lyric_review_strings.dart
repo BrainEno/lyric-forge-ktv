@@ -1,5 +1,6 @@
 import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
+import '../domain/proofreading/proofread_strategy_selector.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
 /// Centralised user-visible strings for lyric review and line audition.
@@ -94,6 +95,23 @@ abstract final class LyricReviewStrings {
   static String proofreadV2Explanations(
     Iterable<LyricProofreadV2Explanation> explanations,
   ) => explanations.map(proofreadV2Explanation).join(' ');
+
+  static String proofreadV2Summary(LyricProofreadV2ReviewSummary summary) {
+    final strategyLabel = switch (summary.effectiveStrategy) {
+      LyricSourceStrategy.referenceFirst => '参考歌词优先',
+      LyricSourceStrategy.asrFirst => 'ASR 优先',
+      LyricSourceStrategy.auto => '自动选择',
+    };
+    return [
+      '策略：$strategyLabel',
+      if (summary.referenceCoverage != null)
+        '参考覆盖率 ${(summary.referenceCoverage! * 100).round()}%',
+      '绿色 ${summary.greenCount}',
+      '琥珀色 ${summary.amberCount}',
+      '受保护 ${summary.lockedCount}',
+      '灰色 ${summary.droppedCount}',
+    ].join(' · ');
+  }
 
   static String priorityReason(LyricReviewPriorityReason reason) {
     return switch (reason.code) {
