@@ -84,6 +84,10 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 08:08] Type ForcedAligner fallback explanations ([entry](log/entries/2026-11-05-0808-type-forced-aligner-fallback-explanations.md))
+- [2026-11-05 03:41] Move Proofread V2 explanations to presentation ([entry](log/entries/2026-11-05-0341-move-proofread-v2-explanations-to-presentation.md))
+- [2026-11-05 02:52] Move ForcedAligner supplemental hints to presentation ([entry](log/entries/2026-11-05-0252-move-forced-aligner-hints-to-presentation.md))
+- [2026-11-05 01:18] Move ASR review reasons to presentation ([entry](log/entries/2026-11-05-0118-move-asr-review-reasons-to-presentation.md))
 - [2026-11-04 23:55] Move reference-first review reasons to presentation ([entry](log/entries/2026-11-04-2355-move-reference-first-review-reasons.md))
 - [2026-11-04 23:06] Move dropped-item review copy to presentation ([entry](log/entries/2026-11-04-2306-move-dropped-review-copy-to-presentation.md))
 - [2026-11-04 22:35] Type lyric review priority reasons ([entry](log/entries/2026-11-04-2235-type-lyric-review-priority-reasons.md))

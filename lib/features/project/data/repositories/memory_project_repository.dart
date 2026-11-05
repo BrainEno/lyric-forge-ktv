@@ -39,13 +39,33 @@ class MemoryProjectRepository implements ProjectRepository {
   }
 
   @override
-  Future<ProjectManifest> updateProject(ProjectManifest project) async {
-    if (!_projects.containsKey(project.id)) {
-      throw ProjectRepositoryException(
-        'Project not found: ${project.id}',
-      );
+  Future<ProjectManifest> updateProject(ProjectManifest project) =>
+      _writeProject(project);
+
+  @override
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  }) => _writeProject(project, expectedRevision: expectedRevision);
+
+  Future<ProjectManifest> _writeProject(
+    ProjectManifest project, {
+    int? expectedRevision,
+  }) async {
+    final current = _projects[project.id];
+    if (current == null) {
+      if (expectedRevision != null) {
+        throw const ProjectUpdateConflictException(currentProject: null);
+      }
+      throw ProjectRepositoryException('Project not found: ${project.id}');
     }
-    final updated = project.copyWith(updatedAt: DateTime.now());
+    if (expectedRevision != null && current.revision != expectedRevision) {
+      throw ProjectUpdateConflictException(currentProject: current);
+    }
+    final updated = project.copyWith(
+      updatedAt: DateTime.now(),
+      revision: current.revision + 1,
+    );
     _projects[project.id] = updated;
     return updated;
   }

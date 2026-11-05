@@ -162,5 +162,11 @@ class _FakeProjectRepository implements ProjectRepository {
       throw UnimplementedError();
 
   @override
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  }) => throw UnimplementedError();
+
+  @override
   Future<void> deleteProject(String id) => throw UnimplementedError();
 }

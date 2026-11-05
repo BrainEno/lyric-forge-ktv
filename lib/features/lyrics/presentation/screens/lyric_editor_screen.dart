@@ -58,6 +58,7 @@ import '../widgets/lyric_edit_shortcuts.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
 import '../widgets/unsaved_lyric_edits_dialog.dart';
+import '../widgets/project_save_conflict_dialog.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final String projectId;
@@ -88,6 +89,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   static const _provenance = ReferenceAlignmentProvenanceBuilder();
   late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
+  int? _projectRevision;
 
   /// Owns the document, its dirty flag, the selected row, the manual-edit marks
   /// and the undo history; this screen only decides what to show.
@@ -239,9 +241,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _projectFuture = _repository.getProjectById(widget.projectId).then((
       project,
     ) {
-      if (!mounted || project == null || _editor.document != null) {
-        return project;
-      }
+      if (!mounted) return project;
+      if (project != null) _projectRevision = project.revision;
+      if (project == null || _editor.document != null) return project;
       _editor.load(
         project.lyricDocument ??
             const LyricDocument(language: 'zh', lines: <LyricLine>[]),
@@ -258,14 +260,89 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       status: ProjectStatus.editing,
       currentStage: ProcessingStage.lyricsEdited,
     );
+    try {
+      final saved = await _repository.updateProjectIfUnchanged(
+        updated,
+        expectedRevision: _projectRevision ?? project.revision,
+      );
+      _finishProjectSave(saved);
+    } on ProjectUpdateConflictException catch (conflict) {
+      await _resolveProjectSaveConflict(conflict);
+    }
+  }
 
-    await _repository.updateProject(updated);
+  void _finishProjectSave(ProjectManifest saved) {
     if (!mounted) return;
-
+    _projectRevision = saved.revision;
+    _projectFuture = Future<ProjectManifest?>.value(saved);
     _editor.markSaved();
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('歌词已保存'), duration: Duration(seconds: 2)),
     );
+  }
+
+  Future<void> _resolveProjectSaveConflict(
+    ProjectUpdateConflictException conflict,
+  ) async {
+    final latest =
+        conflict.currentProject ??
+        await _repository.getProjectById(widget.projectId);
+    if (!mounted) return;
+    if (latest == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
+      return;
+    }
+
+    final choice = await showProjectSaveConflictDialog(
+      context,
+      latestRevision: latest.revision,
+    );
+    if (!mounted) return;
+
+    switch (choice) {
+      case ProjectSaveConflictChoice.keepEditing:
+        return;
+      case ProjectSaveConflictChoice.reloadLatest:
+        final reloaded = await _repository.getProjectById(widget.projectId);
+        if (!mounted) return;
+        if (reloaded == null) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
+          return;
+        }
+        _projectRevision = reloaded.revision;
+        _projectFuture = Future<ProjectManifest?>.value(reloaded);
+        _editor.load(
+          reloaded.lyricDocument ??
+              const LyricDocument(language: 'zh', lines: <LyricLine>[]),
+        );
+        setState(() {});
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已载入最新版工程。')));
+        return;
+      case ProjectSaveConflictChoice.overwriteLatest:
+        final localDocument = _editor.documentForSave();
+        final replacement = latest.copyWith(
+          lyricDocument: localDocument,
+          status: ProjectStatus.editing,
+          currentStage: ProcessingStage.lyricsEdited,
+        );
+        try {
+          final saved = await _repository.updateProjectIfUnchanged(
+            replacement,
+            expectedRevision: latest.revision,
+          );
+          _finishProjectSave(saved);
+        } on ProjectUpdateConflictException catch (newConflict) {
+          await _resolveProjectSaveConflict(newConflict);
+        }
+        return;
+    }
   }
 
   Future<void> _exportLyrics(ProjectManifest project) async {

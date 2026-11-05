@@ -335,13 +335,16 @@ class _LineInspectorState extends State<LineInspector> {
             onUsePlaybackPosition: widget.onUsePlaybackAsEnd,
           ),
           const SizedBox(height: AppSpacing.lg),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('标记为副歌'),
-            subtitle: const Text('播放器可使用这一标记强化副歌段落'),
-            value: _workingLine.isChorus,
-            onChanged: (value) =>
-                _emitUpdate(_workingLine.copyWith(isChorus: value)),
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('标记为副歌'),
+              subtitle: const Text('播放器可使用这一标记强化副歌段落'),
+              value: _workingLine.isChorus,
+              onChanged: (value) =>
+                  _emitUpdate(_workingLine.copyWith(isChorus: value)),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(

@@ -11,8 +11,97 @@ import 'package:lyric_forge_ktv/features/project/data/repositories/file_project_
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
+import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 
 void main() {
+  test('conditional project updates reject stale editor snapshots', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'lyricforge-project-conflict-',
+    );
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    final repository = FileProjectRepository(rootDirectory: root);
+    final openedSnapshot = await repository.createProject(name: 'Song');
+    final backgroundUpdate = await repository.updateProject(
+      openedSnapshot.copyWith(
+        lyricDocument: _lyricDocument(text: '后台识别结果'),
+        currentStage: ProcessingStage.transcriptionComplete,
+        metadata: const {
+          'transcription': {'engine': 'qwen'},
+        },
+      ),
+    );
+
+    await expectLater(
+      repository.updateProjectIfUnchanged(
+        openedSnapshot.copyWith(
+          lyricDocument: _lyricDocument(text: '编辑器旧快照'),
+          status: ProjectStatus.editing,
+        ),
+        expectedRevision: openedSnapshot.revision,
+      ),
+      throwsA(
+        isA<ProjectUpdateConflictException>().having(
+          (error) => error.currentProject?.revision,
+          'current revision',
+          backgroundUpdate.revision,
+        ),
+      ),
+    );
+
+    final persisted = await repository.getProjectById(openedSnapshot.id);
+    expect(persisted?.revision, backgroundUpdate.revision);
+    expect(persisted?.lyricDocument?.lines.single.text, '后台识别结果');
+    expect(persisted?.metadata['transcription'], {'engine': 'qwen'});
+  });
+
+  test('only one concurrent writer can claim a project revision', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'lyricforge-project-race-',
+    );
+    addTearDown(() async {
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    final repository = FileProjectRepository(rootDirectory: root);
+    final snapshot = await repository.createProject(name: 'Song');
+
+    Future<bool> save(String name) async {
+      try {
+        await repository.updateProjectIfUnchanged(
+          snapshot.copyWith(name: name),
+          expectedRevision: snapshot.revision,
+        );
+        return true;
+      } on ProjectUpdateConflictException {
+        return false;
+      }
+    }
+
+    final outcomes = await Future.wait([
+      save('First editor'),
+      save('Second editor'),
+    ]);
+    expect(outcomes.where((saved) => saved), hasLength(1));
+    expect((await repository.getProjectById(snapshot.id))?.revision, 1);
+  });
+
+  test('legacy manifests without revision load as revision zero', () async {
+    final project = ProjectManifest(
+      id: 'legacy',
+      name: 'Legacy song',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    final json = project.toJson()..remove('revision');
+    final versioned = project.copyWith(revision: 7);
+
+    expect(ProjectManifest.fromJson(json).revision, 0);
+    expect(ProjectManifest.fromJson(versioned.toJson()).revision, 7);
+  });
+
   test(
     'recovers the previous valid project store after canonical corruption',
     () async {
@@ -65,6 +154,7 @@ void main() {
     expect(restored!.name, 'Persistent Song');
     expect(restored.currentStage, ProcessingStage.audioImported);
     expect(restored.audioAsset?.originalPath, '/music/song.flac');
+    expect(restored.revision, project.revision);
   });
 
   test(
