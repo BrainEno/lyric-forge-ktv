@@ -85,7 +85,10 @@ void main() {
 
       await tester.tap(find.text('继续编辑'));
       await tester.pumpAndSettle();
-      expect(find.text('Local edit'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(lyricField).controller?.text,
+        'Local edit',
+      );
 
       await tester.tap(find.widgetWithText(FilledButton, '保存修改'));
       await tester.pumpAndSettle();

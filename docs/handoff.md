@@ -10,8 +10,9 @@
 - 当前活动分支：`arena/30d21f97-lyric-forge-ktv`。
 - PR #352：https://github.com/BrainEno/lyric-forge-ktv/pull/352，OPEN；未经用户明确授权不得合并。
 - issue #318：https://github.com/BrainEno/lyric-forge-ktv/issues/318，仍 OPEN。
-- 最新已推送代码 head `7dce1fe`。其 Flutter Quality Gate run `42024462741` 与聚焦测试 run `42024462874` 均因冲突测试中的 ambiguous tap 失败；formatter job 通过，KTV recovery validation run `42024463212` 通过。
-- 工作区正在修复测试交互，并补充 work log/handoff；这些变更尚未提交推送。
+- 最新已推送代码 head `a92c093`。对应 Quality Gate run `42025104792` 与聚焦测试 run `42025104761` 仍失败：冲突后保留的 `Local edit` 文本出现多个匹配，断言未限定 Inspector 的文本控制器。
+- formatter job 与 KTV recovery validation run `42025104807` 通过。Quality Gate 还报告 `test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 失败；尚未确认是否为间歇性故障。
+- 工作区已改为直接断言 Inspector `TextField` controller 文本，并更新 work log/handoff；这批变更尚未提交推送。
 
 ## 已改文件
 
