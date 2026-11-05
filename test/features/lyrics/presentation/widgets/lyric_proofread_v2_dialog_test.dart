@@ -152,7 +152,9 @@ void main() {
                     originalLine: line('hello world'),
                     proposedLine: line('hello world'),
                     verdict: LyricProofreadReviewVerdict.amber,
-                    reasonLabel: '词级对齐证据',
+                    alignmentHints: {
+                      LyricProofreadV2AlignmentHint.wordTimingAvailable,
+                    },
                     alignmentTokens: [
                       token,
                       TimedLyricToken(
@@ -184,6 +186,7 @@ void main() {
     await tester.tap(find.text('open token review'));
     await tester.pumpAndSettle();
     expect(find.text('词级时间证据（2 词）'), findsOneWidget);
+    expect(find.text('依据：词级对齐 2 词'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('alignment_tokens_0')));
     await tester.pumpAndSettle();
@@ -222,7 +225,6 @@ void main() {
                       originalLine: original,
                       proposedLine: proposed,
                       verdict: LyricProofreadReviewVerdict.amber,
-                      reasonLabel: '时间差异',
                     ),
                   ],
                   droppedItems: const [],
@@ -294,7 +296,6 @@ void main() {
                       'This is the reviewed lyric line that wraps on a phone',
                     ),
                     verdict: LyricProofreadReviewVerdict.green,
-                    reasonLabel: '高置信度参考匹配',
                   ),
                 ],
                 droppedItems: const [],
@@ -366,7 +367,7 @@ void main() {
             id: 'locked',
           ),
           verdict: LyricProofreadReviewVerdict.locked,
-          reasonLabel: '手动编辑保护',
+          referenceReasons: {LyricProofreadV2ReferenceReason.protectedLine},
         ),
       ];
       final dropped = [
@@ -436,7 +437,9 @@ void main() {
           originalLine: line('before', id: 'green'),
           proposedLine: line('after', id: 'green'),
           verdict: LyricProofreadReviewVerdict.green,
-          reasonLabel: '参考时间戳',
+          referenceReasons: {
+            LyricProofreadV2ReferenceReason.referenceTimestamp,
+          },
         ),
         LyricProofreadV2ReviewItem(
           proposalIndex: 1,
@@ -454,7 +457,9 @@ void main() {
             id: 'amber',
           ),
           verdict: LyricProofreadReviewVerdict.amber,
-          reasonLabel: '对齐存在歧义',
+          referenceReasons: {
+            LyricProofreadV2ReferenceReason.ambiguousAlignment,
+          },
         ),
         LyricProofreadV2ReviewItem(
           proposalIndex: 2,
@@ -472,7 +477,7 @@ void main() {
             id: 'locked',
           ),
           verdict: LyricProofreadReviewVerdict.locked,
-          reasonLabel: '手动编辑保护',
+          referenceReasons: {LyricProofreadV2ReferenceReason.protectedLine},
         ),
       ];
       final dropped = [
@@ -546,7 +551,9 @@ void main() {
                     originalLine: line('before', id: 'line'),
                     proposedLine: line('after', id: 'line'),
                     verdict: LyricProofreadReviewVerdict.green,
-                    reasonLabel: '参考时间戳',
+                    referenceReasons: {
+                      LyricProofreadV2ReferenceReason.referenceTimestamp,
+                    },
                   ),
                 ],
                 droppedItems: const [],

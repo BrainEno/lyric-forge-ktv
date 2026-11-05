@@ -33,7 +33,6 @@ void main() {
     proposedLine: proposed,
     originalLine: original,
     verdict: verdict,
-    reasonLabel: '',
   );
 
   LyricProofreadV2Selection selection({

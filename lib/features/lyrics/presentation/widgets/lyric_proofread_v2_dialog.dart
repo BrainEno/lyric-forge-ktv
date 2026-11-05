@@ -531,10 +531,15 @@ class _LyricProofreadV2ReviewDialogState
 
   Widget _buildProposalCard(LyricProofreadV2ReviewItem item) {
     final original = item.originalLine;
-    final reasonLabel = [
+    final reasonText = [
       ...item.referenceReasons.map(LyricReviewStrings.referenceReason),
       ...item.proofreadReasons.map(LyricReviewStrings.proofreadReason),
-      if (item.reasonLabel.isNotEmpty) item.reasonLabel,
+      ...item.alignmentHints.map(
+        (hint) => LyricReviewStrings.alignmentHint(
+          hint,
+          wordCount: item.alignmentTokens.length,
+        ),
+      ),
     ].join('、');
     final verdictColor = switch (item.verdict) {
       LyricProofreadReviewVerdict.locked => AppColors.textTertiary,
@@ -615,11 +620,11 @@ class _LyricProofreadV2ReviewDialogState
               '建议时间：${_formatTime(item.proposedLine.startTime)} – '
               '${_formatTime(item.proposedLine.endTime)}',
             ),
-            if (reasonLabel.isNotEmpty)
+            if (reasonText.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  '依据：$reasonLabel',
+                  '依据：$reasonText',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),

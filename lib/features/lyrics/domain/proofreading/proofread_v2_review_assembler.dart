@@ -121,11 +121,12 @@ class ProofreadV2ReviewAssembler {
                 ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
               },
               proofreadReasons: row.reasons,
-              reasonLabel: [
-                if (usedForcedAlignment && row.tokens.isNotEmpty)
-                  '词级对齐 ${row.tokens.length} 词',
-                if (usedForcedAlignment && row.tokens.isEmpty) '缺少词级对齐证据',
-              ].join('、'),
+              alignmentHints: {
+                if (usedForcedAlignment)
+                  row.tokens.isEmpty
+                      ? LyricProofreadV2AlignmentHint.wordTimingMissing
+                      : LyricProofreadV2AlignmentHint.wordTimingAvailable,
+              },
               alignmentTokens: row.tokens,
             );
           }(),

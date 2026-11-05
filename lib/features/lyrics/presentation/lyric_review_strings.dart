@@ -51,6 +51,17 @@ abstract final class LyricReviewStrings {
     };
   }
 
+  static String alignmentHint(
+    LyricProofreadV2AlignmentHint hint, {
+    required int wordCount,
+  }) {
+    return switch (hint) {
+      LyricProofreadV2AlignmentHint.wordTimingAvailable =>
+        '词级对齐 $wordCount 词',
+      LyricProofreadV2AlignmentHint.wordTimingMissing => '缺少词级对齐证据',
+    };
+  }
+
   static String priorityReason(LyricReviewPriorityReason reason) {
     return switch (reason.code) {
       LyricReviewPriorityReasonCode.emptyLyrics => '歌词为空',

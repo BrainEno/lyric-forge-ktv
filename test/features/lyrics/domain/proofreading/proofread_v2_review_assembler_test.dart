@@ -113,7 +113,6 @@ void main() {
           interpolated.referenceReasons,
           contains(LyricProofreadV2ReferenceReason.interpolatedTiming),
         );
-        expect(interpolated.reasonLabel, isEmpty);
       },
     );
 
@@ -126,7 +125,6 @@ void main() {
         locked.referenceReasons,
         contains(LyricProofreadV2ReferenceReason.protectedLine),
       );
-      expect(locked.reasonLabel, isEmpty);
     });
 
     test('the proposal document drops the global offset', () {
@@ -181,12 +179,37 @@ void main() {
       bool forcedAlignment = false,
       bool hasSecondary = false,
       bool fellBack = false,
+      List<TimedLyricToken> firstLineTokens = const [],
       ForcedAlignmentProofreadOutcome? outcome,
     }) {
-      final result = const AsrFirstPipeline().build(
+      final pipelineResult = const AsrFirstPipeline().build(
         draft: draft,
         protectedDraftIndices: protected,
       );
+      final result = firstLineTokens.isEmpty
+          ? pipelineResult
+          : ProofreadResult(
+              proposedDocument: pipelineResult.proposedDocument,
+              lines: [
+                for (final entry in pipelineResult.lines.asMap().entries)
+                  ProofreadLineResult(
+                    lineId: entry.value.lineId,
+                    line: entry.value.line,
+                    verdict: entry.value.verdict,
+                    reasons: entry.value.reasons,
+                    risk: entry.value.risk,
+                    tokens: entry.key == 0
+                        ? firstLineTokens
+                        : entry.value.tokens,
+                  ),
+              ],
+              droppedLines: pipelineResult.droppedLines,
+              adlibs: pipelineResult.adlibs,
+              notes: pipelineResult.notes,
+              referenceCoverage: pipelineResult.referenceCoverage,
+              autoFellBackToAsr: pipelineResult.autoFellBackToAsr,
+              alignmentDiagnostics: pipelineResult.alignmentDiagnostics,
+            );
       return assembler.asrFirst(
         draft: draft,
         result: result,
@@ -215,7 +238,6 @@ void main() {
         assembly.items[1].proofreadReasons,
         contains(ProofreadReason.lowConfidence),
       );
-      expect(assembly.items[1].reasonLabel, isEmpty);
       expect(assembly.items.first.verdict, LyricProofreadReviewVerdict.amber);
     });
 
@@ -226,12 +248,33 @@ void main() {
       );
     });
 
-    test('forced alignment marks rows with and without word evidence', () {
+    test('forced alignment emits typed hints based on word evidence', () {
       final withoutTokens = assemble(forcedAlignment: true);
-      expect(withoutTokens.items.first.reasonLabel, contains('缺少词级对齐证据'));
+      expect(
+        withoutTokens.items.first.alignmentHints,
+        {LyricProofreadV2AlignmentHint.wordTimingMissing},
+      );
 
-      final withTokens = assemble(forcedAlignment: false);
-      expect(withTokens.items.first.reasonLabel, isNot(contains('词级对齐')));
+      final wordToken = TimedLyricToken(
+        text: 'first',
+        interval: ProofreadTimeInterval(
+          start: Duration.zero,
+          end: const Duration(milliseconds: 500),
+        ),
+        confidence: null,
+        source: ProofreadTimeSource.forcedAligner,
+      );
+      final withTokens = assemble(
+        forcedAlignment: true,
+        firstLineTokens: [wordToken],
+      );
+      expect(
+        withTokens.items.first.alignmentHints,
+        {LyricProofreadV2AlignmentHint.wordTimingAvailable},
+      );
+
+      final withoutForcedAlignment = assemble(firstLineTokens: [wordToken]);
+      expect(withoutForcedAlignment.items.first.alignmentHints, isEmpty);
     });
 
     test('the explanation names which evidence was missing', () {
@@ -276,7 +319,6 @@ void main() {
       ),
       originalLine: null,
       verdict: verdict,
-      reasonLabel: '',
     );
 
     test('counts every group and includes coverage when provided', () {
