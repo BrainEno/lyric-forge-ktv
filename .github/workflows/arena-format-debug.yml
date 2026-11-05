@@ -72,10 +72,7 @@ jobs:
           result=$?
           set -e
           if (( result != 0 )); then
-            matches=$(grep -n -A 8 -B 2 -E 'EXCEPTION CAUGHT|Expected:|Actual:|No matching|Exception|Error:|Timeout|TestFailure' /tmp/save-tests.txt || true)
-            if [[ -z "$matches" ]]; then
-              matches=$(tail -25 /tmp/save-tests.txt)
-            fi
+            matches=$(tail -35 /tmp/save-tests.txt)
             while IFS= read -r line; do
               line="${line:0:1000}"
               echo "::error title=Project-save test diagnostic::${line}"
