@@ -7,12 +7,15 @@ import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_text_comparison.dart';
 import 'asr_process_supervisor.dart';
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
   // on this threshold alone.
   static const double _reviewDisagreementThreshold = 0.80;
+  static const _textComparison = AsrTextComparison();
+
   final TranscriptionService primary;
   final TranscriptionService fallback;
 
@@ -1378,74 +1381,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }
 
   double _textSimilarity(String left, String right) {
-    final a = _normalizeForComparison(left);
-    final b = _normalizeForComparison(right);
-
-    if (a.isEmpty && b.isEmpty) return 1.0;
-    if (a.isEmpty || b.isEmpty) return 0.0;
-    if (a == b) return 1.0;
-
-    final leftRunes = a.runes.toList();
-    final rightRunes = b.runes.toList();
-    final distance = _levenshtein(leftRunes, rightRunes);
-    final longest = leftRunes.length > rightRunes.length
-        ? leftRunes.length
-        : rightRunes.length;
-    return (1.0 - distance / longest).clamp(0.0, 1.0).toDouble();
+    return _textComparison.similarity(left, right);
   }
 
   String _normalizeForComparison(String value) {
-    return value.toLowerCase().replaceAll(
-      RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'),
-      '',
-    );
-  }
-
-  int _levenshtein(List<int> left, List<int> right) {
-    if (left.isEmpty) return right.length;
-    if (right.isEmpty) return left.length;
-
-    var previous = List<int>.generate(right.length + 1, (index) => index);
-
-    for (var i = 0; i < left.length; i++) {
-      final current = List<int>.filled(right.length + 1, 0);
-      current[0] = i + 1;
-
-      for (var j = 0; j < right.length; j++) {
-        final substitutionCost = left[i] == right[j] ? 0 : 1;
-        final deletion = previous[j + 1] + 1;
-        final insertion = current[j] + 1;
-        final substitution = previous[j] + substitutionCost;
-
-        var best = deletion < insertion ? deletion : insertion;
-        if (substitution < best) best = substitution;
-        current[j + 1] = best;
-      }
-
-      previous = current;
-    }
-
-    return previous[right.length];
+    return _textComparison.normalize(value);
   }
 
   bool _hasSuspiciousRepetition(String text) {
-    final normalized = text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u3400-\u9fff\u3040-\u30ff]+'), ' ')
-        .trim();
-    if (normalized.length < 8) return false;
-
-    final tokens = normalized.contains(' ')
-        ? normalized.split(RegExp(r'\s+'))
-        : normalized.runes.map(String.fromCharCode).toList();
-    if (tokens.length < 4) return false;
-
-    var repeated = 0;
-    for (var i = 1; i < tokens.length; i++) {
-      if (tokens[i] == tokens[i - 1]) repeated++;
-    }
-
-    return repeated >= 2 || tokens.toSet().length / tokens.length < 0.45;
+    return _textComparison.hasSuspiciousRepetition(text);
   }
 
   void _emit(TranscriptionStage stage, double progress, String message) {
