@@ -55,7 +55,7 @@ void main() {
         await tester.pumpAndSettle();
       }
       expect(lyricField, findsOneWidget);
-      await tester.enterText(lyricField, 'Local edit');
+      tester.widget<TextField>(lyricField).onChanged?.call('Local edit');
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.save_rounded), findsOneWidget);
 
