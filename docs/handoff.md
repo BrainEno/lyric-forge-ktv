@@ -2,41 +2,40 @@
 
 ## 目标
 
-本切片将 Proofread V2 review header 的摘要文案和策略标签移出 domain assembler。Domain 保留有效策略、绿色/琥珀色/受保护/灰色计数和可选参考覆盖率；presentation 保留原中文文案、排序、覆盖率四舍五入和显示格式。
+本切片将 ForcedAligner 不支持项目语言时的用户提示移出 domain。解析器只抛出携带原始语言值的 typed exception；presentation 负责生成原有中文指导文案，编辑器仍保留原错误前缀和完整提示。
 
 ## Git 现场
 
 - Repository：`BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/6f0a347f-lyric-forge-ktv`。
-- 基线：PR #348 已合并，merge commit `6433546b231e74be07fce25c644d5f51a64aec90`。
-- 实现提交：`599826c refactor: move Proofread V2 summary copy to presentation`。
-- PR #349：<https://github.com/BrainEno/lyric-forge-ktv/pull/349>，OPEN，等待 review；没有本 PR 的合并授权。
-- Pinned Flutter Quality Gate run `42002659225` 在实现/测试提交 `599826c992432762222d86a53fffe10b3c965252` 通过；文档更新后的 PR head `f3df764310d5d6fabc1e56a140e0524d65c4ebe9` 也通过 run `42003227321`。若后续再次更新 PR head，须确认最新 head 的 gate。
-- PR #348 已按用户对该 PR 的单独授权合并；这不构成对 PR #349 的授权。Issue #335 保持 CLOSED。
+- 当前活动分支：`arena/935b04e1-lyric-forge-ktv`。
+- 基线：PR #349 已合并，merge commit `c79538af183b47b805a2e692dccd7974b9cef817`。
+- 实现提交：`55ceb4d refactor: move ForcedAligner language guidance to presentation`。
+- PR #350：<https://github.com/BrainEno/lyric-forge-ktv/pull/350>，OPEN，等待 review；没有本 PR 的合并授权。
+- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head `55ceb4dddb82c3a48ce2d560ba85f67ca488fbd9` 通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests。work-log/handoff 文档提交会更新 PR head；后续操作前须检查最新 head 的 gate。
+- PR #348、#349 已分别按其各自授权/流程处理；这些状态不构成对 PR #350 的合并授权。Issue #335 保持 CLOSED。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart`：增加 typed `LyricProofreadV2ReviewSummary`，仅承载策略、各 verdict/drop 计数和 optional reference coverage。
-- `lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart`：只组装结构化 summary，不再格式化摘要文案或拥有 strategy label。
-- `lib/features/lyrics/presentation/lyric_review_strings.dart`：负责策略标签、coverage rounding、计数格式和原有摘要文案。
-- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：将结构化摘要交由 presentation 格式化后传入 review dialog。
-- assembler tests 验证结构化数据；presentation string tests 验证原文、排序、策略覆盖、可选 coverage 和四舍五入。
-- `docs/log/entries/2026-11-05-1727-move-proofread-v2-summary-copy-to-presentation.md` 与 work-log 导航记录本切片。
+- `lib/features/lyrics/domain/proofreading/forced_alignment_language.dart`：未知语言抛出 `ForcedAlignmentLanguageResolutionException` 并保留原始语言，不再组装自由提示文案。
+- `lib/features/lyrics/presentation/lyric_review_strings.dart`：映射原有 ForcedAligner 语言指导文案。
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：识别 typed exception 后由 presentation 格式化提示；其他异常维持既有处理。
+- resolver tests 验证异常数据，presentation string test 验证原文。
+- `docs/log/entries/2026-11-05-1745-move-forced-aligner-language-guidance-to-presentation.md` 与 work-log 导航记录本切片。
 
 ## 检查结果
 
 - `git diff --check` 通过。
-- 临时 WASM `@wasm-fmt/dart_fmt` 对所有 changed Dart files 的 formatter stability check 通过。
+- 临时 WASM `@wasm-fmt/dart_fmt` 对 changed Dart files 的格式检查通过。
 - 本地没有 Flutter/Dart SDK，未运行本地 analyzer 或 tests。
-- Pinned Flutter Quality Gate run `42002659225` 和文档更新后 PR-head run `42003227321` 均通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests。后续若更新 PR head，需重新核实最新 gate。
+- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head 通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests；文档提交后的 PR head 仍须通过 gate。
 
 ## 下一步
 
-PR #349 保持 OPEN，等待 review 和最终 PR-head gate；未经用户明确授权不得合并。后续继续按一个可独立验证切片推进用户可见歌词校对文案迁移。
+PR #350 保持 OPEN，等待 review 和最新 PR-head gate；未经用户明确授权不得合并。后续继续一次只迁移一个可独立验证的用户可见歌词校对文案切片。
 
 ## 已知风险
 
-- strategy 与 summary presentation mapping 的完整覆盖由 string tests 绑定；新增策略或数据字段时需同步维护映射与测试。
+- 只将未知 ForcedAligner 语言的提示改为 typed data；其他校对流程中的异常提示不在本切片范围。
 - 本地没有 Flutter/Dart SDK，验证依赖固定工具链 CI。
 - native、KTV recovery、runtime-release、icon 和其他 specialist workflows 未逐项审计。
 
