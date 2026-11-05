@@ -136,7 +136,8 @@ class ProjectManifest {
   /// Instrumental and vocal stems are optional alternate sources, not a gate
   /// for entering the player.
   bool get canPlay => audioAsset != null;
-  bool get hasLyrics => lyricDocument != null && lyricDocument!.lines.isNotEmpty;
+  bool get hasLyrics =>
+      lyricDocument != null && lyricDocument!.lines.isNotEmpty;
   double get progressPercent {
     final stages = ProcessingStage.values.length - 1;
     final current = currentStage.index;

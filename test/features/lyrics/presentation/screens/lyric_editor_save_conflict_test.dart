@@ -39,15 +39,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Original lyric'));
+      final lyricText = find.text('Original lyric');
+      final lyricPosition = tester.getCenter(lyricText);
+      final firstTap = await tester.startGesture(lyricPosition);
+      await firstTap.up();
+      await tester.pump(const Duration(milliseconds: 100));
+      final secondTap = await tester.startGesture(lyricPosition);
+      await secondTap.up();
       await tester.pumpAndSettle();
-
-      final lyricField = find.byWidgetPredicate(
-        (widget) =>
-            widget is TextField && widget.decoration?.labelText == '歌词文本',
-      );
-      expect(lyricField, findsOneWidget);
-      await tester.enterText(lyricField, 'Local edit');
+      await tester.enterText(find.byType(TextField).last, 'Local edit');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
       final backgroundUpdate = await repository.updateProject(
