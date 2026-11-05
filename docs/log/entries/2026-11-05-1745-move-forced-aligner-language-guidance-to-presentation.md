@@ -6,6 +6,7 @@
   - `git diff --check` => passed.
   - Temporary WASM `@wasm-fmt/dart_fmt` formatter check => passed for changed Dart files.
   - Local Flutter/Dart analyzer and tests => not run because the pinned SDK is unavailable in this workspace.
-  - Pinned Flutter Quality Gate run `42004606274` => passed on implementation head `55ceb4dddb82c3a48ce2d560ba85f67ca488fbd9`, including work-log preflight, changed-Dart format, analysis, and full tests. Verify the latest PR head's gate after documentation updates.
+  - Pinned Flutter Quality Gate run `42004606274` => passed on implementation head `55ceb4dddb82c3a48ce2d560ba85f67ca488fbd9`, including work-log preflight, changed-Dart format, analysis, and full tests.
+  - Final PR-head run `42005165752` => failed only at unrelated test `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`; the gate's work-log preflight and changed-Dart format passed. Verify a fresh final-head gate before merge.
 - Notes: PR #350 is open for review and is not authorized for merge. Resolver tests now assert typed failure data; presentation tests assert the exact existing guidance. Native, KTV recovery, runtime-release, icon, and other specialist workflows were not audited.
 - Commit: `refactor: move ForcedAligner language guidance to presentation`
