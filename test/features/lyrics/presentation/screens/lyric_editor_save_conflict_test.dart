@@ -62,7 +62,7 @@ void main() {
       await tester.tap(inlineSave);
       await tester.pumpAndSettle();
       expect(find.text('Local edit'), findsOneWidget);
-      expect(find.byTooltip('保存修改'), findsOneWidget);
+      expect(find.byIcon(Icons.save_rounded), findsOneWidget);
 
       final backgroundUpdate = await repository.updateProject(
         project.copyWith(
@@ -74,7 +74,7 @@ void main() {
         ),
       );
 
-      final saveButton = find.byTooltip('保存修改');
+      final saveButton = find.byIcon(Icons.save_rounded);
       expect(saveButton, findsOneWidget);
       await tester.tap(saveButton);
       await tester.pumpAndSettle();
