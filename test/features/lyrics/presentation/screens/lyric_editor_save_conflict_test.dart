@@ -43,7 +43,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'initial render');
       final lyricField = find.byWidgetPredicate(
         (widget) =>
             widget is TextField && widget.decoration?.labelText == '歌词文本',
@@ -52,11 +52,11 @@ void main() {
         // If the editor has no default selection, choose the row explicitly.
         // The same text may also be rendered in the inspector once selected.
         await tester.tap(find.text('Original lyric').first);
-        await tester.pumpAndSettle();
+        await _settleAndAssertNoFrameworkException(tester, 'select lyric');
       }
       expect(lyricField, findsOneWidget);
       tester.widget<TextField>(lyricField).onChanged?.call('Local edit');
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'edit lyric');
       expect(find.byIcon(Icons.save_rounded), findsOneWidget);
 
       final backgroundUpdate = await repository.updateProject(
@@ -72,7 +72,7 @@ void main() {
       final saveButton = find.byIcon(Icons.save_rounded);
       expect(saveButton, findsOneWidget);
       await tester.tap(saveButton);
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'reject stale save');
       expect(find.text('工程已在其他位置更新'), findsOneWidget);
       expect(find.textContaining('你的编辑仍保留'), findsOneWidget);
 
@@ -84,16 +84,16 @@ void main() {
       expect(afterRejectedSave?.metadata['transcription'], {'engine': 'qwen'});
 
       await tester.tap(find.text('继续编辑'));
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'continue editing');
       expect(
         tester.widget<TextField>(lyricField).controller?.text,
         'Local edit',
       );
 
       await tester.tap(find.widgetWithText(FilledButton, '保存修改'));
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'retry save');
       await tester.tap(find.text('用当前歌词覆盖最新版'));
-      await tester.pumpAndSettle();
+      await _settleAndAssertNoFrameworkException(tester, 'confirm overwrite');
 
       final explicitlyOverwritten = await repository.getProjectById(project.id);
       expect(
@@ -106,6 +106,17 @@ void main() {
       expect(explicitlyOverwritten?.revision, backgroundUpdate.revision + 1);
     },
   );
+}
+
+Future<void> _settleAndAssertNoFrameworkException(
+  WidgetTester tester,
+  String operation,
+) async {
+  await tester.pumpAndSettle();
+  final exception = tester.takeException();
+  if (exception != null) {
+    fail('Unhandled Flutter exception after $operation: $exception');
+  }
 }
 
 LyricDocument _document(String text) => LyricDocument(
