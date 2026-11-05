@@ -11,7 +11,7 @@
 - 基线：PR #349 已合并，merge commit `c79538af183b47b805a2e692dccd7974b9cef817`。
 - 实现提交：`55ceb4d refactor: move ForcedAligner language guidance to presentation`。
 - PR #350：<https://github.com/BrainEno/lyric-forge-ktv/pull/350>，OPEN，等待 review；没有本 PR 的合并授权。
-- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head `55ceb4dddb82c3a48ce2d560ba85f67ca488fbd9` 通过。文档更新后 PR-head run `42005165752` 因无关测试 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving` 失败；work-log preflight 与 changed-Dart format 已通过。需要在最新 PR head 确认新的 gate 成功。
+- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head `55ceb4dddb82c3a48ce2d560ba85f67ca488fbd9` 通过。文档更新后的 run `42005165752` 曾因无关 Media Hub upload deadline 测试失败；后续文档 head `022afc1e6563bcfbdeea0fa4ef6039af7bd562e0` 的 run `42005686105` 已通过。若 PR head 再变化，须重新检查最新 gate。
 - PR #348、#349 已分别按其各自授权/流程处理；这些状态不构成对 PR #350 的合并授权。Issue #335 保持 CLOSED。
 
 ## 已改文件
@@ -27,7 +27,7 @@
 - `git diff --check` 通过。
 - 临时 WASM `@wasm-fmt/dart_fmt` 对 changed Dart files 的格式检查通过。
 - 本地没有 Flutter/Dart SDK，未运行本地 analyzer 或 tests。
-- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head 通过。文档更新后 run `42005165752` 的全量测试仅因无关 Media Hub upload deadline 测试失败；若再次更新 PR head，需确认最新 gate 的最终结果。
+- Pinned Flutter Quality Gate run `42004606274` 在实现/测试 head 通过。文档更新后 run `42005165752` 曾在无关 Media Hub upload deadline 测试失败；随后 PR-head run `42005686105` 全量通过。任何后续 PR-head 更新仍需复核最终 gate。
 
 ## 下一步
 
