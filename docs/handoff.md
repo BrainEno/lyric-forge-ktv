@@ -11,7 +11,7 @@
 - 基线：PR #348 已合并，merge commit `6433546b231e74be07fce25c644d5f51a64aec90`。
 - 实现提交：`599826c refactor: move Proofread V2 summary copy to presentation`。
 - PR #349：<https://github.com/BrainEno/lyric-forge-ktv/pull/349>，OPEN，等待 review；没有本 PR 的合并授权。
-- Pinned Flutter Quality Gate run `42002659225` 在实现/测试提交 `599826c992432762222d86a53fffe10b3c965252` 通过。work-log/handoff 文档提交会更新 PR head；在任何后续决策前，应检查该最终 PR head 的 gate。
+- Pinned Flutter Quality Gate run `42002659225` 在实现/测试提交 `599826c992432762222d86a53fffe10b3c965252` 通过；文档更新后的 PR head `f3df764310d5d6fabc1e56a140e0524d65c4ebe9` 也通过 run `42003227321`。若后续再次更新 PR head，须确认最新 head 的 gate。
 - PR #348 已按用户对该 PR 的单独授权合并；这不构成对 PR #349 的授权。Issue #335 保持 CLOSED。
 
 ## 已改文件
@@ -28,7 +28,7 @@
 - `git diff --check` 通过。
 - 临时 WASM `@wasm-fmt/dart_fmt` 对所有 changed Dart files 的 formatter stability check 通过。
 - 本地没有 Flutter/Dart SDK，未运行本地 analyzer 或 tests。
-- Pinned Flutter Quality Gate run `42002659225` 在实现/测试 head 通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests；文档提交后的最终 PR-head gate 仍须确认。
+- Pinned Flutter Quality Gate run `42002659225` 和文档更新后 PR-head run `42003227321` 均通过，包含 work-log preflight、changed-Dart format、analysis 和全量 tests。后续若更新 PR head，需重新核实最新 gate。
 
 ## 下一步
 

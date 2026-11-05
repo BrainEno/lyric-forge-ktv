@@ -6,6 +6,7 @@
   - `git diff --check` => passed.
   - Temporary WASM `@wasm-fmt/dart_fmt` formatter stability check => passed for all changed Dart files.
   - Local Flutter/Dart analyzer and tests => not run because the pinned SDK is unavailable in this workspace.
-  - Pinned Flutter Quality Gate run `42002659225` => passed on implementation head `599826c992432762222d86a53fffe10b3c965252`, including work-log preflight, changed-Dart format, analysis, and full tests. The updated final PR head must also pass before merge.
+  - Pinned Flutter Quality Gate run `42002659225` => passed on implementation head `599826c992432762222d86a53fffe10b3c965252`, including work-log preflight, changed-Dart format, analysis, and full tests.
+  - Pinned Flutter Quality Gate run `42003227321` => passed on documentation-updated PR head `f3df764310d5d6fabc1e56a140e0524d65c4ebe9`. Any subsequent PR-head update must also pass its final-head gate before merge.
 - Notes: PR #349 is open for review and is not authorized for merge. Exact current wording/order and Dart `round()` behavior are covered by presentation tests; domain tests assert structured data. Native, KTV recovery, runtime-release, icon, and other specialist workflows were not audited.
 - Commit: `refactor: move Proofread V2 summary copy to presentation`
