@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 18:33] Require model confidence for automatic ASR fusion ([entry](log/entries/2026-11-05-1833-require-model-confidence-for-asr-fusion.md))
 - [2026-11-05 18:16] Stabilize Media Hub upload TLS test ([entry](log/entries/2026-11-05-1816-stabilize-media-hub-upload-tls-test.md))
 - [2026-11-05 17:45] Move ForcedAligner language guidance to presentation ([entry](log/entries/2026-11-05-1745-move-forced-aligner-language-guidance-to-presentation.md))
 - [2026-11-05 17:27] Move Proofread V2 summary copy to presentation ([entry](log/entries/2026-11-05-1727-move-proofread-v2-summary-copy-to-presentation.md))
