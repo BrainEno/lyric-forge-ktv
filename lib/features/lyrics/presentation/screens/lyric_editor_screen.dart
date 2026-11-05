@@ -309,9 +309,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         final reloaded = await _repository.getProjectById(widget.projectId);
         if (!mounted) return;
         if (reloaded == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
           return;
         }
         _projectRevision = reloaded.revision;

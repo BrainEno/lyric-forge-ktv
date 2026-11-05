@@ -40,15 +40,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final lyricText = find.text('Original lyric');
-      final lyricPosition = tester.getCenter(lyricText);
-      final firstTap = await tester.startGesture(lyricPosition);
-      await firstTap.up();
-      await tester.pump(const Duration(milliseconds: 100));
-      final secondTap = await tester.startGesture(lyricPosition);
-      await secondTap.up();
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, 'Local edit');
+      final lyricField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == '歌词文本',
+      );
+      expect(lyricField, findsOneWidget);
+      await tester.enterText(lyricField, 'Local edit');
       await tester.pumpAndSettle();
 
       final backgroundUpdate = await repository.updateProject(
@@ -61,7 +58,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byTooltip('保存修改'));
+      final saveButton = find.byTooltip('保存修改');
+      expect(saveButton, findsOneWidget);
+      await tester.tap(saveButton);
       await tester.pumpAndSettle();
       expect(find.text('工程已在其他位置更新'), findsOneWidget);
       expect(find.textContaining('你的编辑仍保留'), findsOneWidget);

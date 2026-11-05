@@ -73,7 +73,7 @@ jobs:
           result=$?
           set -e
           if (( result != 0 )); then
-            tail -80 /tmp/save-tests.txt | while IFS= read -r line; do
+            head -40 /tmp/save-tests.txt | while IFS= read -r line; do
               line="${line:0:1000}"
               echo "::error title=Focused test diagnostic::${line}"
             done
