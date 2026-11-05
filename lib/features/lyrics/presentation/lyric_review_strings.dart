@@ -1,3 +1,4 @@
+import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
@@ -26,6 +27,27 @@ abstract final class LyricReviewStrings {
       LyricProofreadV2ReferenceReason.timelineAdjusted => '时间轴已调整，需复核',
       LyricProofreadV2ReferenceReason.protectedLine => '手动编辑保护',
       LyricProofreadV2ReferenceReason.referenceImportWarning => '参考输入含警告',
+    };
+  }
+
+  static String proofreadReason(ProofreadReason reason) {
+    return switch (reason) {
+      ProofreadReason.asrAgreement => 'ASR 一致',
+      ProofreadReason.asrDisagreement => 'ASR 不一致',
+      ProofreadReason.lowConfidence => '置信度低',
+      ProofreadReason.referenceCorrection => '参考文本纠正',
+      ProofreadReason.ambiguousAlignment => '对齐存在歧义',
+      ProofreadReason.structuralMismatch => '行结构不匹配',
+      ProofreadReason.repeatedSegment => '疑似重复片段',
+      ProofreadReason.suspectedHallucination => '疑似未演唱内容',
+      ProofreadReason.missingReferenceLine => '参考歌词缺行',
+      ProofreadReason.interpolatedTiming => '插值时间需复核',
+      ProofreadReason.estimatedTiming => '估算时间需复核',
+      ProofreadReason.timingAdjusted => '时间轴已调整',
+      ProofreadReason.timingConflict => '时间轴冲突',
+      ProofreadReason.protectedLine => '手动编辑保护',
+      ProofreadReason.importWarning => '导入含警告',
+      ProofreadReason.noTimingEvidence => '缺乏时间证据',
     };
   }
 

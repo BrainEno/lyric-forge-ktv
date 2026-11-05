@@ -328,7 +328,7 @@ void main() {
           originalLine: line('old green', id: 'green'),
           proposedLine: line('corrected green', id: 'green'),
           verdict: LyricProofreadReviewVerdict.green,
-          reasonLabel: '高置信度参考匹配',
+          proofreadReasons: {ProofreadReason.referenceCorrection},
         ),
         LyricProofreadV2ReviewItem(
           proposalIndex: 1,
@@ -400,6 +400,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('原文：old green'), findsOneWidget);
       expect(find.text('建议：corrected green'), findsOneWidget);
+      expect(find.text('依据：参考文本纠正'), findsOneWidget);
       expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
       await tester.drag(find.byType(ListView), const Offset(0, -300));
       await tester.pumpAndSettle();

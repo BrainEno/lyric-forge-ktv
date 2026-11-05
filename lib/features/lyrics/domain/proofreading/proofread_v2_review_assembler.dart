@@ -120,8 +120,8 @@ class ProofreadV2ReviewAssembler {
                 ProofreadVerdict.green => LyricProofreadReviewVerdict.green,
                 ProofreadVerdict.amber => LyricProofreadReviewVerdict.amber,
               },
+              proofreadReasons: row.reasons,
               reasonLabel: [
-                ...row.reasons.map(reasonLabel),
                 if (usedForcedAlignment && row.tokens.isNotEmpty)
                   '词级对齐 ${row.tokens.length} 词',
                 if (usedForcedAlignment && row.tokens.isEmpty) '缺少词级对齐证据',
@@ -208,27 +208,6 @@ class ProofreadV2ReviewAssembler {
         LyricProofreadV2ReferenceReason.protectedLine,
       ReferenceFirstReason.referenceImportWarning =>
         LyricProofreadV2ReferenceReason.referenceImportWarning,
-    };
-  }
-
-  static String reasonLabel(ProofreadReason reason) {
-    return switch (reason) {
-      ProofreadReason.asrAgreement => 'ASR 一致',
-      ProofreadReason.asrDisagreement => 'ASR 不一致',
-      ProofreadReason.lowConfidence => '置信度低',
-      ProofreadReason.referenceCorrection => '参考文本纠正',
-      ProofreadReason.ambiguousAlignment => '对齐存在歧义',
-      ProofreadReason.structuralMismatch => '行结构不匹配',
-      ProofreadReason.repeatedSegment => '疑似重复片段',
-      ProofreadReason.suspectedHallucination => '疑似未演唱内容',
-      ProofreadReason.missingReferenceLine => '参考歌词缺行',
-      ProofreadReason.interpolatedTiming => '插值时间需复核',
-      ProofreadReason.estimatedTiming => '估算时间需复核',
-      ProofreadReason.timingAdjusted => '时间轴已调整',
-      ProofreadReason.timingConflict => '时间轴冲突',
-      ProofreadReason.protectedLine => '手动编辑保护',
-      ProofreadReason.importWarning => '导入含警告',
-      ProofreadReason.noTimingEvidence => '缺乏时间证据',
     };
   }
 }
