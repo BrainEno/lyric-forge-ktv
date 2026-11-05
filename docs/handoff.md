@@ -10,9 +10,9 @@
 - 当前活动分支：`arena/30d21f97-lyric-forge-ktv`。
 - PR #352：https://github.com/BrainEno/lyric-forge-ktv/pull/352，OPEN；未经用户明确授权不得合并。
 - issue #318：https://github.com/BrainEno/lyric-forge-ktv/issues/318，仍 OPEN。
-- 最新已推送代码 head `a92c093`。对应 Quality Gate run `42025104792` 与聚焦测试 run `42025104761` 仍失败：冲突后保留的 `Local edit` 文本出现多个匹配，断言未限定 Inspector 的文本控制器。
-- formatter job 与 KTV recovery validation run `42025104807` 通过。Quality Gate 还报告 `test/features/transfer/http_media_hub_upload_test.dart` 的 `total upload deadline applies while chunks continue arriving` 失败；尚未确认是否为间歇性故障。
-- 工作区已改为直接断言 Inspector `TextField` controller 文本，并更新 work log/handoff；这批变更尚未提交推送。
+- 最新已推送代码 head `065c1f6`。其 Quality Gate run `42025635345` 在 work-log contract preflight 失败：前次手动轮转摘要时多保留了 03:41 的第九条 active entry；`docs/work_log.md` 与 archive references 已在工作区校正，Python 对照生成逻辑核验 active summary 一致，但仍待 pinned preflight 验证。
+- 该 head 的聚焦 workflow `42025635710` 的 formatter job 通过、KTV recovery validation `42025635553` 通过；聚焦测试 job 仍失败，现有注释为 Flutter framework `ListTile`/`ColoredBox` assertion，尚未确认与回归测试的具体失败步骤。
+- `065c1f6` 将草稿断言改为读取 Inspector `TextField` controller，避免重复文本造成假失败。之前 `42025104792` 另外报告过 transfer deadline 测试失败；由于该 head 的质量门未越过 preflight，是否间歇性故障尚未验证。
 
 ## 已改文件
 
