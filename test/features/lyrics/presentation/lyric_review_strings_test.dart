@@ -107,11 +107,14 @@ void main() {
               .forcedAlignmentEvidenceAvailable: LyricProofreadV2Explanation(
             LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
           ),
-          LyricProofreadV2ExplanationCode.alignmentServiceWarning:
+          LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable:
               LyricProofreadV2Explanation(
-                LyricProofreadV2ExplanationCode.alignmentServiceWarning,
-                message: 'Forced alignment warning.',
+                LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable,
               ),
+          LyricProofreadV2ExplanationCode
+              .forcedAlignmentDiagnosticsMissing: LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
+          ),
         };
     const labels = <LyricProofreadV2ExplanationCode, String>{
       LyricProofreadV2ExplanationCode.automaticReferenceCoverage:
@@ -132,8 +135,10 @@ void main() {
           'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
       LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable:
           'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
-      LyricProofreadV2ExplanationCode.alignmentServiceWarning:
-          'Forced alignment warning.',
+      LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable:
+          'Forced alignment is unavailable. Existing lyric text and timestamps were preserved; review timing manually.',
+      LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing:
+          'Forced alignment completed without line diagnostics; review timing manually.',
     };
 
     expect(
@@ -155,8 +160,7 @@ void main() {
         LyricProofreadV2ExplanationCode.referenceFirstGuidance,
       ),
       LyricProofreadV2Explanation(
-        LyricProofreadV2ExplanationCode.alignmentServiceWarning,
-        message: 'Forced alignment warning.',
+        LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing,
       ),
       LyricProofreadV2Explanation(
         LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable,
@@ -166,7 +170,7 @@ void main() {
     expect(
       LyricReviewStrings.proofreadV2Explanations(explanations),
       '参考优先会以参考行组织提案；低置信、歧义、插值时间和结构差异保持琥珀色。 '
-      'Forced alignment warning. '
+      'Forced alignment completed without line diagnostics; review timing manually. '
       'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
     );
   });

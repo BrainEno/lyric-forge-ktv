@@ -161,12 +161,12 @@ class ProofreadV2ReviewAssembler {
         const LyricProofreadV2Explanation(
           LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,
         ),
-        if (alignmentOutcome != null &&
-            alignmentOutcome.warning != null &&
-            result.alignmentDiagnostics == null)
+        if (alignmentOutcome != null && result.alignmentDiagnostics == null)
           LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.alignmentServiceWarning,
-            message: alignmentOutcome.warning,
+            alignmentOutcome.alignmentAvailable
+                ? LyricProofreadV2ExplanationCode
+                      .forcedAlignmentDiagnosticsMissing
+                : LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable,
           ),
         if (alignmentOutcome != null &&
             alignmentOutcome.alignmentAvailable &&
