@@ -51,6 +51,21 @@ void main() {
     }
   });
 
+  test('maps ForcedAligner supplemental hints to their existing labels', () {
+    const labels = <LyricProofreadV2AlignmentHint, String>{
+      LyricProofreadV2AlignmentHint.wordTimingAvailable: '词级对齐 2 词',
+      LyricProofreadV2AlignmentHint.wordTimingMissing: '缺少词级对齐证据',
+    };
+
+    expect(labels.keys.toSet(), LyricProofreadV2AlignmentHint.values.toSet());
+    for (final entry in labels.entries) {
+      expect(
+        LyricReviewStrings.alignmentHint(entry.key, wordCount: 2),
+        entry.value,
+      );
+    }
+  });
+
   test('keeps the dropped reference guidance in presentation strings', () {
     expect(
       LyricReviewStrings.droppedReferenceItemReason,

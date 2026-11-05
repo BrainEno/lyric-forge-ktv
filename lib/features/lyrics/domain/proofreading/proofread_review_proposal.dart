@@ -22,6 +22,8 @@ enum LyricProofreadV2ReferenceReason {
   referenceImportWarning,
 }
 
+enum LyricProofreadV2AlignmentHint { wordTimingAvailable, wordTimingMissing }
+
 /// One row of the proofread review dialog: a proposal paired with the draft
 /// line it would replace.
 ///
@@ -33,9 +35,9 @@ class LyricProofreadV2ReviewItem {
   final LyricLine proposedLine;
   final LyricLine? originalLine;
   final LyricProofreadReviewVerdict verdict;
-  final String reasonLabel;
   final Set<LyricProofreadV2ReferenceReason> referenceReasons;
   final Set<ProofreadReason> proofreadReasons;
+  final Set<LyricProofreadV2AlignmentHint> alignmentHints;
   final List<TimedLyricToken> alignmentTokens;
 
   LyricProofreadV2ReviewItem({
@@ -44,12 +46,13 @@ class LyricProofreadV2ReviewItem {
     required this.proposedLine,
     required this.originalLine,
     required this.verdict,
-    this.reasonLabel = '',
     Set<LyricProofreadV2ReferenceReason> referenceReasons = const {},
     Set<ProofreadReason> proofreadReasons = const {},
+    Set<LyricProofreadV2AlignmentHint> alignmentHints = const {},
     this.alignmentTokens = const [],
   }) : referenceReasons = Set.unmodifiable(referenceReasons),
-       proofreadReasons = Set.unmodifiable(proofreadReasons);
+       proofreadReasons = Set.unmodifiable(proofreadReasons),
+       alignmentHints = Set.unmodifiable(alignmentHints);
 
   bool get hasChange {
     final original = originalLine;
