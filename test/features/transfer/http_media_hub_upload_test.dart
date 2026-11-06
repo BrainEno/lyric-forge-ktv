@@ -413,8 +413,10 @@ void main() {
     () async {
       service = createService(
         maxIncomingAudioBytes: 1024,
-        idleTimeout: const Duration(seconds: 2),
-        totalTimeout: const Duration(milliseconds: 250),
+        idleTimeout: const Duration(seconds: 3),
+        // Leave enough headroom for the loopback TLS handshake and a loaded
+        // test runner, while keeping the idle limit clearly out of the way.
+        totalTimeout: const Duration(seconds: 1),
       );
       final session = await service.startSharing(const []);
       final socket = await _openPinnedSocket(session);
@@ -424,6 +426,7 @@ void main() {
       // lands after that teardown resets the connection and throws away a
       // response the client had already received.
       final reader = _RawResponseReader(socket);
+      var continuedChunksSent = 0;
       socket.write(
         _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
       );
@@ -435,6 +438,7 @@ void main() {
         try {
           socket.write('1\r\nx\r\n');
           await socket.flush();
+          continuedChunksSent++;
         } on SocketException {
           break;
         } on TlsException {
@@ -451,6 +455,7 @@ void main() {
       final response = await reader.response.timeout(
         const Duration(seconds: 5),
       );
+      expect(continuedChunksSent, greaterThan(0));
       expect(response, startsWith('HTTP/1.1 408'));
       expect(response, contains('upload_total_timeout'));
       expect(await incomingDirectory.list().toList(), isEmpty);
