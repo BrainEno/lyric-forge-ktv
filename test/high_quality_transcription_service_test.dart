@@ -241,11 +241,7 @@ void main() {
                 ? qwenText
                 : whisperText;
 
-            expect(
-              result.lyrics.lines.map((line) => line.text).toList(),
-              [primaryText],
-              reason: 'engine order: $engineOrder',
-            );
+            expect(result.lyrics.lines.single.text, primaryText);
             expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
             expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
           } finally {
