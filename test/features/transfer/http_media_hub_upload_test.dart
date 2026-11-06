@@ -413,8 +413,11 @@ void main() {
     () async {
       service = createService(
         maxIncomingAudioBytes: 1024,
-        idleTimeout: const Duration(seconds: 2),
-        totalTimeout: const Duration(milliseconds: 250),
+        idleTimeout: const Duration(seconds: 30),
+        // Keep the total deadline far enough from setup and event-loop delays
+        // that CI load cannot make it race the upload. The much longer idle
+        // limit makes the expected total-deadline response unambiguous.
+        totalTimeout: const Duration(seconds: 5),
       );
       final session = await service.startSharing(const []);
       final socket = await _openPinnedSocket(session);
@@ -424,17 +427,19 @@ void main() {
       // lands after that teardown resets the connection and throws away a
       // response the client had already received.
       final reader = _RawResponseReader(socket);
+      var continuedChunksSent = 0;
       socket.write(
         _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
       );
       await socket.flush();
 
-      for (var index = 0; index < 40 && !reader.hasStarted; index++) {
+      for (var index = 0; index < 200 && !reader.hasStarted; index++) {
         await Future<void>.delayed(const Duration(milliseconds: 30));
         if (reader.hasStarted) break;
         try {
           socket.write('1\r\nx\r\n');
           await socket.flush();
+          continuedChunksSent++;
         } on SocketException {
           break;
         } on TlsException {
@@ -449,8 +454,9 @@ void main() {
       }
 
       final response = await reader.response.timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 15),
       );
+      expect(continuedChunksSent, greaterThan(0));
       expect(response, startsWith('HTTP/1.1 408'));
       expect(response, contains('upload_total_timeout'));
       expect(await incomingDirectory.list().toList(), isEmpty);

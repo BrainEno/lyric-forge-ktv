@@ -2,41 +2,44 @@
 
 ## 目标
 
-继续逐项完成 open P1 issue #317 的独立验收切片。本轮补齐中文及其他代表性脚本在双引擎融合路径的回归：同义规范化的行应在 Qwen-primary 与 Whisper-primary 两种次序下匹配、不插入重复行；不同中文假设应成为复核候选。
+继续逐项完成 open P1 issue #317 的独立验收切片。本轮 PR #358 增加双引擎服务级空归一化回归：两条原始文本都非空但规范化均为空时，不得误认为已匹配；两种引擎次序下，primary 行应保留，未匹配的 secondary 行应作为 review-only 行呈现，不得伪造 disagreement candidate。为恢复 PR 的 pinned quality gate，本轮也处理了反复失败的 Media Hub total-upload-deadline 测试时序问题。
 
 ## Git 现场
 
 - Repository：`BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/be08b116-lyric-forge-ktv`
-- 基线：`e2b027540f6d479d04df48ba44d071a8087b776e`（PR #356 合并提交）。
-- PR #356 已 MERGED。PR #357：https://github.com/BrainEno/lyric-forge-ktv/pull/357，OPEN；代码 head `179fcdcf1b1029ecd2046aa22089871064cd0992` 的 pinned Flutter Quality Gate run `42143570966` 已通过。首个文档 head gate `42143980555` 在未改动的 Media Hub total-upload-deadline 测试失败；后续完整 PR-head gate `42144345101` 已在 head `6a5397c18ac27c406287b7f4928dd6335930d82b` 全绿。未经用户明确授权不得合并。
-- issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN；完成其全部验收且确认后再决定是否关闭。
-- 本切片提交：`179fcdc test: cover Chinese ASR fusion regressions`。
+- 当前活动分支：`arena/6ce0328f-lyric-forge-ktv`
+- 基线：`6334286733df4f383f4ddcfd774e8893be750deb`（PR #357 合并提交）；PR #356/#357 已合并。
+- PR #358：https://github.com/BrainEno/lyric-forge-ktv/pull/358，OPEN。最新已推送代码 head `f51df14c4a282ce938a5aef94d04c4236e9463bf` 的 pinned gate `42170184620` 全绿。随后新增的验证记录/work-log/handoff 变更还需推送，并在合并前确认精确最终 head 的 gate 也全绿。
+- issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN。
+- 本切片回归提交：`df68766 test: keep empty-normalized ASR rows unmatched`。Media Hub 测试时序更新提交：`f51df14 test: widen Media Hub total deadline test margin`。
+- 用户已明确要求合并 PR #358，但最终 PR-head pinned CI 必须先通过；合并后 issue #317 仍保持 OPEN。
 
 ## 已改文件
 
-- `test/asr_text_comparison_test.dart`：增加中文归一化保留及不同中文文本相似度回归。
-- `test/high_quality_transcription_service_test.dart`：在两种引擎次序覆盖重音折叠英文、日文、希腊文、西里尔文、中文的匹配去重，以及不同中文假设进入复核候选。
-- `docs/log/entries/2026-11-06-0926-chinese-asr-fusion-regressions.md`：记录本切片与 pinned CI 结果。
-- `docs/work_log.md`、`docs/work_log_archive.md`、`docs/work_log_index.md`：更新工作日志导航。
+- `test/high_quality_transcription_service_test.dart`：在 Qwen-primary 与 Whisper-primary 次序下验证两条非空但规范化为空的文本不被视作匹配；primary 保留，secondary 作为 review-only 行。
+- `test/features/transfer/http_media_hub_upload_test.dart`：总 timeout 5 秒、idle timeout 30 秒；继续发送 chunk 最多 200 × 30 ms，并允许 15 秒读取响应；断言 deadline 前确有后续 chunk 发送。
+- `docs/log/entries/2026-11-06-1003-empty-normalized-fusion-regression.md`、`docs/log/entries/2026-11-06-1337-stabilize-media-hub-total-upload-deadline.md`、`docs/log/entries/2026-11-06-1343-widen-media-hub-total-upload-deadline.md`、`docs/log/entries/2026-11-06-1347-verify-media-hub-deadline-gate.md`：记录回归、失败和通过的 gate。
+- `docs/work_log.md`、`docs/work_log_archive.md`：生成式工作日志导航。
 - `docs/handoff.md`：本文。
 
 ## 检查结果
 
-- `git diff --check` 通过。
-- Pinned Flutter Quality Gate `42143570966` 在代码 head `179fcdcf1b1029ecd2046aa22089871064cd0992` 通过 work-log preflight、changed-file format、analyze 与全量测试。
-- 首个文档 head gate `42143980555` 通过 preflight/format，但全量测试在 `test/features/transfer/http_media_hub_upload_test.dart` 的 total upload deadline 用例失败；该测试不在本切片改动中。随后完整 pinned Flutter Quality Gate `42144345101` 在 head `6a5397c18ac27c406287b7f4928dd6335930d82b` 全绿。
-- 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。
+- 最近一次完整 pinned gate `42170184620`（head `f51df14c4a282ce938a5aef94d04c4236e9463bf`）全绿，包括 work-log preflight、changed-file formatting 和 repository quality gate。
+- 前一 head `a185b01c46c1f7c310a6d0c91ebf6a07d210d54e` 的 gate `42169695799` 仍在同一 Media Hub 测试失败（1170 通过、1 失败）；当时使用 1 秒 total / 3 秒 idle。5 秒 total / 30 秒 idle 的后续 head已通过完整 gate 一次。
+- `42169695799` 的详细失败日志下载返回 EOF，GitHub annotations 只报告测试失败，没有 assertion 详情。本地没有 Flutter/Dart SDK；analyze/test 均由 pinned CI 执行。
 
 ## 下一步
 
-1. 提交并推送本次 work-log/handoff 更新，确认 PR #357 最终 head 的 pinned Flutter Quality Gate 全绿。
-2. 按 issue #317 的明确验收项检查尚未完成的边界；完成并确认全部验收前保持 issue OPEN。PR #357 未获合并授权，不得合并。
+1. 提交并推送本次 work-log/handoff 验证记录；等待它触发的最终 PR-head gate。
+2. 只有最新精确 head 的 pinned gate 全绿时，才按用户授权执行 `gh pr merge 358 --merge`。若门禁失败，继续检查，不得绕过测试。
+3. 合并后仍保持 issue #317 OPEN；继续逐项核对其余验收条件，完成前不要关闭 issue。
 
 ## 已知风险
 
-- 本轮增加的是合成回归，不代表真实歌曲上的召回率/WER 已验证；仍需人工校验语料。
-- issue #317 尚未关闭，需逐项核对所有验收及测试覆盖后再决定状态。
+- 5 秒/30 秒 timing-margin 方案目前有一次完整 pinned gate 通过；后续文档 head 会再次跑全套门禁，提供第二次验证。
+- 未能取得 `42169695799` 的详细 assertion 日志，确切的先前失败断言未知。
+- 当前只验证双引擎融合中 empty-normalized 文本的匹配边界；真实歌曲召回率/WER 仍需人工校验语料。
+- issue #317 保持 OPEN，需复核全部验收标准后再决定其状态。
 - Native builds、KTV recovery、runtime release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-06 09:34（Asia/Taipei）
+最后更新：2026-11-06 13:47（Asia/Taipei）

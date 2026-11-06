@@ -335,6 +335,56 @@ void main() {
       },
     );
 
+    test(
+      'does not match empty-normalized rows in either engine order',
+      () async {
+        final qwenLine = LyricLine(
+          text: '!? 🎵',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 92,
+        );
+        final whisperLine = LyricLine(
+          text: '♪',
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 92,
+        );
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(qwenLine)),
+            fallback: _FakeTranscriptionService(result: _result(whisperLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final qwenIsPrimary =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary;
+
+            expect(
+              result.lyrics.lines.map((line) => line.text).toList(),
+              qwenIsPrimary ? ['!? 🎵', '♪'] : ['♪', '!? 🎵'],
+              reason: 'engine order: $engineOrder',
+            );
+            expect(
+              result.lyrics.metadata['secondaryOnlyLineCount'],
+              1,
+              reason: 'empty normalized text is not a match',
+            );
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
     test('keeps Korean-only secondary rows in either engine order', () async {
       final commonLine = LyricLine(
         text: '오늘도 너를 기다려',
