@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 20:15] Assert preserved lyric draft ([entry](log/entries/2026-11-05-2015-assert-preserved-lyric-draft.md))
 - [2026-11-05 20:11] Disambiguate lyric editor conflict test ([entry](log/entries/2026-11-05-2011-disambiguate-lyric-editor-conflict-test.md))
 - [2026-11-05 19:11] Reject stale lyric editor saves ([entry](log/entries/2026-11-05-1911-reject-stale-lyric-editor-saves.md))
 - [2026-11-05 18:33] Require model confidence for automatic ASR fusion ([entry](log/entries/2026-11-05-1833-require-model-confidence-for-asr-fusion.md))
