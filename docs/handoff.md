@@ -9,7 +9,7 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 当前活动分支：`arena/6ce0328f-lyric-forge-ktv`
 - 基线：`6334286733df4f383f4ddcfd774e8893be750deb`（PR #357 合并提交）；PR #356/#357 已合并。
-- PR #358：https://github.com/BrainEno/lyric-forge-ktv/pull/358，OPEN；代码 head `df6876628cc1499730d7c774e89caecf23435a02` 的 pinned gate `42147456078` 在 work-log preflight/changed-file format 通过，但全量测试有一项未改动的 Media Hub total-upload-deadline 测试失败。工作日志更新会触发新 PR-head gate；未经用户明确授权不得合并。
+- PR #358：https://github.com/BrainEno/lyric-forge-ktv/pull/358，OPEN；代码 head `df6876628cc1499730d7c774e89caecf23435a02` 的 pinned gate `42147456078`，以及文档 head `9afcff899aebe4779a97acb78ab2dd3ecf97cd40` 的 gate `42147925809`，均通过 preflight/format，但全量测试重复在未改动的 Media Hub total-upload-deadline 测试失败。GitHub 拒绝 rerun；本次失败记录的文档更新将再触发 PR-head gate，未经用户明确授权不得合并。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN。
 - 本切片代码提交：`df68766 test: keep empty-normalized ASR rows unmatched`。
 
@@ -23,7 +23,7 @@
 ## 检查结果
 
 - `git diff --check` 通过。
-- Pinned Flutter Quality Gate `42147456078` 的 work-log preflight 和 changed-file format 通过；全量测试在未修改的 `test/features/transfer/http_media_hub_upload_test.dart` total upload deadline 测试失败，日志报告 1170 项通过、该 1 项失败。失败与本切片修改文件无关；最终 docs-head 仍待新 gate 确认。
+- Pinned Flutter Quality Gate `42147456078` 和 docs-head run `42147925809` 的 work-log preflight/changed-file format 均通过；两次全量测试都只失败在未修改的 `test/features/transfer/http_media_hub_upload_test.dart` total upload deadline 测试。第一轮报告 1170 项通过、该 1 项失败；GitHub 拒绝 rerun。下一次 PR-head gate 需确认全量结果。
 - 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。
 
 ## 下一步
@@ -37,4 +37,4 @@
 - issue #317 保持 OPEN，需复核全部验收标准后再决定其状态。
 - Native builds、KTV recovery、runtime release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-06 10:03（Asia/Taipei）
+最后更新：2026-11-06 10:07（Asia/Taipei）
