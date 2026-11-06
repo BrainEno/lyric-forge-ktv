@@ -10,7 +10,7 @@
 - 当前活动分支：`arena/79c0281f-lyric-forge-ktv`
 - 基线：`39949d97d3b53bf3a3870acf24b14d2a3328a6e4`（PR #359 merge commit）。
 - PR #359 已合并；PR #360：https://github.com/BrainEno/lyric-forge-ktv/pull/360，OPEN。
-- PR #360 代码 head `b81a30c380d99923e58479a81f5851565e3ecacd` 的 pinned gate `42259148984` 全绿；本次 work-log/handoff 更新还要推送，并在合并前检查包含它们的最终 head。
+- PR #360 的代码 head `b81a30c380d99923e58479a81f5851565e3ecacd` pinned gate `42259148984` 全绿；随后包含 work-log/handoff 的 head `155a76ef133ead973d4807cf5e39a1cb6509bd9b` 也由 gate `42259788725` 全绿。若分支之后再前进，合并前仍须确认当前 PR head 的 gate 通过。
 - 代码提交：`5294d3f test: cover decomposed Vietnamese ASR fusion`，格式 follow-up：`b81a30c test: simplify decomposed Vietnamese fusion assertions`。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN。上一轮 issue 编辑返回 HTTP 403 `Resource not accessible by integration`，在线清单仍未同步。
 - PR #360 尚未获合并授权；PR #358/#359 的合并授权不适用于此 PR。
@@ -27,13 +27,12 @@
 - `git diff --check` 通过。
 - 初始代码 head `5294d3f` 的 gate `42258479008` 在 changed-file format 阶段失败，未运行测试；详细 Actions 日志下载返回 EOF。
 - 调整断言后的代码 head `b81a30c` gate `42259148984` 全绿，包括 work-log preflight、changed-file format 和 repository quality gate。
-- 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。文档更新后的 head 尚未验证。
+- 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。包含本轮 work-log/handoff 的 head `155a76e` 已通过 gate `42259788725`；之后若有新提交，需检查新的当前 head gate。
 
 ## 下一步
 
-1. 推送本次 work-log/handoff 更新，检查包含这些文档的最终 PR #360 head gate。
-2. PR #360 保持 OPEN，等待用户授权后再合并。
-3. Issue #317 保持 OPEN；继续一项一项验证剩余范围，且不要在 HTTP 403 权限问题解决前声称已在线更新 issue checklist。
+1. PR #360 保持 OPEN，等待用户授权后再合并；若再有任何提交，先确认当前 PR head 的 pinned gate 通过。
+2. Issue #317 保持 OPEN；继续一项一项验证剩余范围，且不要在 HTTP 403 权限问题解决前声称已在线更新 issue checklist。
 
 ## 已知风险
 
@@ -41,4 +40,4 @@
 - issue #317 的在线 checklist 编辑此前返回 HTTP 403；问题正文尚未同步。
 - 真正歌曲 recall/WER 仍需人工核对语料；Native builds、KTV recovery、runtime release、icons 等 specialist workflows 尚未审计。
 
-最后更新：2026-11-07 01:13（Asia/Taipei）
+最后更新：2026-11-07 01:18（Asia/Taipei）
