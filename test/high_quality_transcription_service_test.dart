@@ -126,6 +126,150 @@ void main() {
     );
 
     test(
+      'matches multilingual rows without duplicates in either engine order',
+      () async {
+        const qwenTexts = [
+          'Café olé',
+          'こんにちは世界',
+          'γειά σου',
+          'привет мир',
+          '你好世界',
+        ];
+        const whisperTexts = [
+          'Cafe ole',
+          'こんにちは世界',
+          'γειά σου',
+          'привет мир',
+          '你好世界',
+        ];
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final qwenLines = [
+            for (var index = 0; index < qwenTexts.length; index++)
+              LyricLine(
+                text: qwenTexts[index],
+                startTime: Duration(seconds: index * 4 + 1),
+                endTime: Duration(seconds: index * 4 + 3),
+                confidence: 90,
+              ),
+          ];
+          final whisperLines = [
+            for (var index = 0; index < whisperTexts.length; index++)
+              LyricLine(
+                text: whisperTexts[index],
+                startTime: Duration(seconds: index * 4 + 1),
+                endTime: Duration(seconds: index * 4 + 3),
+                confidence: 90,
+              ),
+          ];
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _resultLines(qwenLines)),
+            fallback: _FakeTranscriptionService(
+              result: _resultLines(whisperLines),
+            ),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final primaryTexts =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary
+                ? qwenTexts
+                : whisperTexts;
+
+            expect(
+              result.lyrics.lines.map((line) => line.text).toList(),
+              primaryTexts,
+              reason: 'engine order: $engineOrder',
+            );
+            expect(
+              result.lyrics.metadata['secondaryOnlyLineCount'],
+              0,
+              reason: 'engine order: $engineOrder',
+            );
+            expect(
+              result.lyrics.metadata['fallbackCandidateCount'],
+              0,
+              reason: 'engine order: $engineOrder',
+            );
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
+      'surfaces distinct Chinese hypotheses for review in either engine order',
+      () async {
+        const qwenText = '春风又绿江南岸';
+        const whisperText = '月落乌啼霜满天';
+        const start = Duration(seconds: 10);
+        const end = Duration(seconds: 13);
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final qwenLine = LyricLine(
+            text: qwenText,
+            startTime: start,
+            endTime: end,
+            confidence: 92,
+          );
+          final whisperLine = LyricLine(
+            text: whisperText,
+            startTime: start,
+            endTime: end,
+            confidence: 92,
+          );
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(qwenLine)),
+            fallback: _FakeTranscriptionService(result: _result(whisperLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final qwenIsPrimary =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary;
+            final metadata = result.lyrics.metadata;
+            final candidates = metadata['fallbackCandidates'] as List;
+            final candidate = Map<String, dynamic>.from(
+              candidates.single as Map,
+            );
+
+            expect(
+              result.lyrics.lines.single.text,
+              qwenIsPrimary ? qwenText : whisperText,
+              reason: 'engine order: $engineOrder',
+            );
+            expect(metadata['fallbackAppliedCount'], 0);
+            expect(metadata['fallbackCandidateCount'], 1);
+            expect(metadata['secondaryOnlyLineCount'], 0);
+            expect(
+              candidate['primaryText'],
+              qwenIsPrimary ? qwenText : whisperText,
+            );
+            expect(
+              candidate['alternativeText'],
+              qwenIsPrimary ? whisperText : qwenText,
+            );
+            expect(candidate['similarity'], lessThan(0.80));
+            expect(candidate['reason'], 'engine_disagreement_review');
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
       'surfaces distinct Korean hypotheses for review in either engine order',
       () async {
         const qwenText = '오늘은 비가 내려요';

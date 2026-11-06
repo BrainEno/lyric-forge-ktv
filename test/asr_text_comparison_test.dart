@@ -5,8 +5,8 @@ void main() {
   const comparison = AsrTextComparison();
 
   group('AsrTextComparison', () {
-    test('preserves Korean, Japanese, Greek, and Cyrillic text', () {
-      for (final text in ['안녕하세요', 'こんにちは', 'γειά σου', 'привет']) {
+    test('preserves Korean, Japanese, Greek, Cyrillic, and Chinese text', () {
+      for (final text in ['안녕하세요', 'こんにちは', 'γειά σου', 'привет', '你好世界']) {
         expect(comparison.normalize(text), isNotEmpty, reason: text);
         expect(comparison.similarity(text, text), 1, reason: text);
       }
@@ -14,6 +14,7 @@ void main() {
       expect(comparison.similarity('안녕하세요', '안녕히 가세요'), lessThan(1));
       expect(comparison.similarity('γειά σου', 'γειά σας'), lessThan(1));
       expect(comparison.similarity('привет', 'пока'), lessThan(1));
+      expect(comparison.similarity('你好世界', '再见朋友'), lessThan(1));
     });
 
     test('folds precomposed and decomposed Latin diacritics', () {
