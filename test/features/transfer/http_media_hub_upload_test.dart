@@ -413,10 +413,11 @@ void main() {
     () async {
       service = createService(
         maxIncomingAudioBytes: 1024,
-        idleTimeout: const Duration(seconds: 3),
-        // Leave enough headroom for the loopback TLS handshake and a loaded
-        // test runner, while keeping the idle limit clearly out of the way.
-        totalTimeout: const Duration(seconds: 1),
+        idleTimeout: const Duration(seconds: 30),
+        // Keep the total deadline far enough from setup and event-loop delays
+        // that CI load cannot make it race the upload. The much longer idle
+        // limit makes the expected total-deadline response unambiguous.
+        totalTimeout: const Duration(seconds: 5),
       );
       final session = await service.startSharing(const []);
       final socket = await _openPinnedSocket(session);
@@ -432,7 +433,7 @@ void main() {
       );
       await socket.flush();
 
-      for (var index = 0; index < 40 && !reader.hasStarted; index++) {
+      for (var index = 0; index < 200 && !reader.hasStarted; index++) {
         await Future<void>.delayed(const Duration(milliseconds: 30));
         if (reader.hasStarted) break;
         try {
@@ -453,7 +454,7 @@ void main() {
       }
 
       final response = await reader.response.timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 15),
       );
       expect(continuedChunksSent, greaterThan(0));
       expect(response, startsWith('HTTP/1.1 408'));
