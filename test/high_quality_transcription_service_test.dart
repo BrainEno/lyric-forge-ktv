@@ -130,6 +130,7 @@ void main() {
       () async {
         const qwenTexts = [
           'Café olé',
+          'Tiếng Việt',
           'こんにちは世界',
           'γειά σου',
           'привет мир',
@@ -137,6 +138,7 @@ void main() {
         ];
         const whisperTexts = [
           'Cafe ole',
+          'Tieng Viet',
           'こんにちは世界',
           'γειά σου',
           'привет мир',
