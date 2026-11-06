@@ -206,6 +206,56 @@ void main() {
     );
 
     test(
+      'matches canonically decomposed Vietnamese in either engine order',
+      () async {
+        const qwenText = 'Tiếng Việt';
+        const whisperText = 'Tie\u0302\u0301ng Vie\u0323\u0302t';
+        final qwenLine = LyricLine(
+          text: qwenText,
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 90,
+        );
+        final whisperLine = LyricLine(
+          text: whisperText,
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 90,
+        );
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(qwenLine)),
+            fallback: _FakeTranscriptionService(result: _result(whisperLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final primaryText =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary
+                ? qwenText
+                : whisperText;
+
+            expect(
+              result.lyrics.lines.map((line) => line.text).toList(),
+              [primaryText],
+              reason: 'engine order: $engineOrder',
+            );
+            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
+    test(
       'surfaces distinct Chinese hypotheses for review in either engine order',
       () async {
         const qwenText = '春风又绿江南岸';
