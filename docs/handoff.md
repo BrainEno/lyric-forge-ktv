@@ -9,7 +9,7 @@
 - Repository：`BrainEno/lyric-forge-ktv`
 - 当前活动分支：`arena/be08b116-lyric-forge-ktv`
 - 基线：`e2b027540f6d479d04df48ba44d071a8087b776e`（PR #356 合并提交）。
-- PR #356 已 MERGED。PR #357：https://github.com/BrainEno/lyric-forge-ktv/pull/357，OPEN；代码 head `179fcdcf1b1029ecd2046aa22089871064cd0992` 的 pinned Flutter Quality Gate run `42143570966` 已通过。首个文档 head gate `42143980555` 在未改动的 Media Hub total-upload-deadline 测试失败；记录该情况的文档提交会触发新的完整 gate，须检查新 PR head。未经用户明确授权不得合并。
+- PR #356 已 MERGED。PR #357：https://github.com/BrainEno/lyric-forge-ktv/pull/357，OPEN；代码 head `179fcdcf1b1029ecd2046aa22089871064cd0992` 的 pinned Flutter Quality Gate run `42143570966` 已通过。首个文档 head gate `42143980555` 在未改动的 Media Hub total-upload-deadline 测试失败；后续完整 PR-head gate `42144345101` 已在 head `6a5397c18ac27c406287b7f4928dd6335930d82b` 全绿。未经用户明确授权不得合并。
 - issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN；完成其全部验收且确认后再决定是否关闭。
 - 本切片提交：`179fcdc test: cover Chinese ASR fusion regressions`。
 
@@ -25,7 +25,7 @@
 
 - `git diff --check` 通过。
 - Pinned Flutter Quality Gate `42143570966` 在代码 head `179fcdcf1b1029ecd2046aa22089871064cd0992` 通过 work-log preflight、changed-file format、analyze 与全量测试。
-- 首个文档 head gate `42143980555` 通过 preflight/format，但全量测试在 `test/features/transfer/http_media_hub_upload_test.dart` 的 total upload deadline 用例失败；该测试不在本切片改动中。本次记录更新会再触发完整 PR gate，需确认新 head 结果。
+- 首个文档 head gate `42143980555` 通过 preflight/format，但全量测试在 `test/features/transfer/http_media_hub_upload_test.dart` 的 total upload deadline 用例失败；该测试不在本切片改动中。随后完整 pinned Flutter Quality Gate `42144345101` 在 head `6a5397c18ac27c406287b7f4928dd6335930d82b` 全绿。
 - 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。
 
 ## 下一步
@@ -39,4 +39,4 @@
 - issue #317 尚未关闭，需逐项核对所有验收及测试覆盖后再决定状态。
 - Native builds、KTV recovery、runtime release、icons 和其他 specialist workflows 尚未逐项审计。
 
-最后更新：2026-11-06 09:30（Asia/Taipei）
+最后更新：2026-11-06 09:34（Asia/Taipei）
