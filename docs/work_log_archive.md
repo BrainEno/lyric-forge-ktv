@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-05 23:13] Keep Korean-only secondary lines ([entry](log/entries/2026-11-05-2313-keep-korean-secondary-lines.md))
 - [2026-11-05 21:50] Cover distinct Korean ASR hypotheses ([entry](log/entries/2026-11-05-2150-cover-distinct-korean-asr-hypotheses.md))
 - [2026-11-05 21:06] Normalize multilingual ASR fusion comparisons ([entry](log/entries/2026-11-05-2106-normalize-multilingual-asr-fusion.md))
 - [2026-11-05 20:24] Avoid text-input overlay in save test ([entry](log/entries/2026-11-05-2024-avoid-text-input-overlay-in-save-test.md))
