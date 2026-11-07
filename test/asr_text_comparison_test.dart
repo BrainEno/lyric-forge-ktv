@@ -64,6 +64,16 @@ void main() {
       expect(comparison.similarity(firstText, secondText), lessThan(1));
     });
 
+    test('preserves Latin Extended-C letters', () {
+      const firstText = '\u2c65';
+      const secondText = '\u2c66';
+
+      expect(comparison.normalize(firstText), firstText);
+      expect(comparison.normalize(secondText), secondText);
+      expect(comparison.similarity(firstText, firstText), 1);
+      expect(comparison.similarity(firstText, secondText), lessThan(1));
+    });
+
     test('folds precomposed and decomposed Latin diacritics', () {
       expect(comparison.normalize('Café olé'), 'cafeole');
       expect(comparison.normalize('Cafe\u0301 ole\u0301'), 'cafeole');
