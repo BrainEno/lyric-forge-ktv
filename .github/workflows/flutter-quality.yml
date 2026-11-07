@@ -70,6 +70,11 @@ jobs:
           git --no-pager diff -- "${dart_files[@]}"
           exit 1
 
+      # Vendored backend tests run with the app's locked dependency graph;
+      # the root test discovery does not include tests in nested packages.
+      - name: Test vendored audio backend
+        run: flutter test --no-pub --reporter expanded packages/just_audio_media_kit/test
+
       - name: Run repository quality gate
         shell: bash
         run: |
