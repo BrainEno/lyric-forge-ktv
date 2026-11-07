@@ -1445,6 +1445,8 @@ void main() {
             streamDrainGrace: const Duration(milliseconds: 10),
           ),
         );
+        final events = <TranscriptionProgress>[];
+        final subscription = service.progressStream.listen(events.add);
         final outputPath =
             '${tempDirectory.path}${Platform.pathSeparator}'
             'high_quality_shared_input.wav';
@@ -1463,11 +1465,13 @@ void main() {
         await expectLater(
           running,
           throwsA(
-            isA<TranscriptionException>().having(
-              (error) => error.message,
-              'message',
-              '歌词识别已取消',
-            ),
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having((error) => error.message, 'message', '歌词识别已取消'),
           ),
         );
         expect(await File(outputPath).exists(), isFalse);
@@ -1476,6 +1480,19 @@ void main() {
         expect(primary.requests, isEmpty);
         expect(fallback.requests, isEmpty);
         await service.dispose();
+        await subscription.cancel();
+        expect(
+          events.map((event) => event.stage),
+          contains(TranscriptionStage.cancelled),
+        );
+        expect(
+          events.map((event) => event.stage),
+          isNot(contains(TranscriptionStage.completed)),
+        );
+        expect(
+          events.map((event) => event.stage),
+          isNot(contains(TranscriptionStage.failed)),
+        );
       },
     );
   });
@@ -1619,7 +1636,9 @@ void main() {
 
     test('does not degrade on cancellation', () async {
       final qwen = _FakeTranscriptionService(
-        error: const TranscriptionException.cancelled('歌词识别已取消'),
+        error: const TranscriptionException.cancelled(
+          'The recognizer stopped on request.',
+        ),
       );
       final whisper = _FakeTranscriptionService(
         result: _result(
@@ -1649,6 +1668,211 @@ void main() {
 
       await service.dispose();
     });
+
+    test(
+      'propagates primary cancellation without starting the other engine in either order',
+      () async {
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          const cancellation = TranscriptionException.cancelled(
+            'Recognizer stopped with a custom message.',
+          );
+          final qwen = engineOrder == TranscriptionEngineOrder.qwenPrimary
+              ? _FakeTranscriptionService(error: cancellation)
+              : _FakeTranscriptionService(
+                  result: _result(
+                    LyricLine(
+                      text: 'unreachable',
+                      startTime: Duration.zero,
+                      endTime: const Duration(seconds: 1),
+                    ),
+                  ),
+                );
+          final whisper = engineOrder == TranscriptionEngineOrder.whisperPrimary
+              ? _FakeTranscriptionService(error: cancellation)
+              : _FakeTranscriptionService(
+                  result: _result(
+                    LyricLine(
+                      text: 'unreachable',
+                      startTime: Duration.zero,
+                      endTime: const Duration(seconds: 1),
+                    ),
+                  ),
+                );
+          final service = HighQualityTranscriptionService(
+            primary: qwen,
+            fallback: whisper,
+          );
+          final events = <TranscriptionProgress>[];
+          final subscription = service.progressStream.listen(events.add);
+
+          try {
+            await expectLater(
+              service.transcribe(
+                _request(tempDirectory.path, engineOrder: engineOrder),
+              ),
+              throwsA(
+                isA<TranscriptionException>()
+                    .having((error) => error.isCancelled, 'isCancelled', isTrue)
+                    .having(
+                      (error) => error.message,
+                      'message',
+                      cancellation.message,
+                    ),
+              ),
+            );
+            expect(
+              qwen.requests.length,
+              engineOrder == TranscriptionEngineOrder.qwenPrimary ? 1 : 0,
+              reason: 'Qwen calls for $engineOrder',
+            );
+            expect(
+              whisper.requests.length,
+              engineOrder == TranscriptionEngineOrder.whisperPrimary ? 1 : 0,
+              reason: 'Whisper calls for $engineOrder',
+            );
+          } finally {
+            await service.dispose();
+            await subscription.cancel();
+          }
+
+          expect(
+            events.map((event) => event.stage),
+            contains(TranscriptionStage.cancelled),
+          );
+          expect(
+            events.map((event) => event.stage),
+            isNot(contains(TranscriptionStage.completed)),
+          );
+          expect(
+            events.map((event) => event.stage),
+            isNot(contains(TranscriptionStage.failed)),
+          );
+        }
+      },
+    );
+
+    test(
+      'propagates secondary cancellation instead of returning the primary result',
+      () async {
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          const cancellation = TranscriptionException.cancelled(
+            'Secondary engine stopped using a different message.',
+          );
+          final qwen = engineOrder == TranscriptionEngineOrder.qwenPrimary
+              ? _FakeTranscriptionService(
+                  result: _result(
+                    LyricLine(
+                      text: 'primary lyric',
+                      startTime: Duration.zero,
+                      endTime: const Duration(seconds: 1),
+                    ),
+                  ),
+                )
+              : _FakeTranscriptionService(error: cancellation);
+          final whisper = engineOrder == TranscriptionEngineOrder.qwenPrimary
+              ? _FakeTranscriptionService(error: cancellation)
+              : _FakeTranscriptionService(
+                  result: _result(
+                    LyricLine(
+                      text: 'primary lyric',
+                      startTime: Duration.zero,
+                      endTime: const Duration(seconds: 1),
+                    ),
+                  ),
+                );
+          final service = HighQualityTranscriptionService(
+            primary: qwen,
+            fallback: whisper,
+          );
+          final events = <TranscriptionProgress>[];
+          final subscription = service.progressStream.listen(events.add);
+
+          try {
+            await expectLater(
+              service.transcribe(
+                _request(tempDirectory.path, engineOrder: engineOrder),
+              ),
+              throwsA(
+                isA<TranscriptionException>()
+                    .having((error) => error.isCancelled, 'isCancelled', isTrue)
+                    .having(
+                      (error) => error.message,
+                      'message',
+                      cancellation.message,
+                    ),
+              ),
+            );
+            expect(qwen.requests, hasLength(1));
+            expect(whisper.requests, hasLength(1));
+          } finally {
+            await service.dispose();
+            await subscription.cancel();
+          }
+
+          expect(
+            events.map((event) => event.stage),
+            contains(TranscriptionStage.cancelled),
+          );
+          expect(
+            events.map((event) => event.stage),
+            isNot(contains(TranscriptionStage.completed)),
+          );
+          expect(
+            events.map((event) => event.stage),
+            isNot(contains(TranscriptionStage.failed)),
+          );
+        }
+      },
+    );
+
+    test(
+      'a cancellation-like message with unknown kind follows normal degradation',
+      () async {
+        final qwen = _FakeTranscriptionService(
+          error: const TranscriptionException('歌词识别已取消'),
+        );
+        final whisper = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'recovered draft',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 1),
+            ),
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final events = <TranscriptionProgress>[];
+        final subscription = service.progressStream.listen(events.add);
+
+        try {
+          final result = await service.transcribe(_request(tempDirectory.path));
+          expect(result.lyrics.lines.single.text, 'recovered draft');
+          expect(qwen.requests, hasLength(1));
+          expect(whisper.requests, hasLength(1));
+        } finally {
+          await service.dispose();
+          await subscription.cancel();
+        }
+
+        expect(
+          events.map((event) => event.stage),
+          contains(TranscriptionStage.completed),
+        );
+        expect(
+          events.map((event) => event.stage),
+          isNot(contains(TranscriptionStage.cancelled)),
+        );
+      },
+    );
 
     test('reports both engines when the degraded run also fails', () async {
       final qwen = _FakeTranscriptionService(

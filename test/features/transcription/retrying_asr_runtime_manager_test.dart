@@ -141,6 +141,66 @@ void main() {
     },
   );
 
+  test(
+    'does not retry a typed cancellation with arbitrary display text',
+    () async {
+      final delegate = _FakeRuntimeManager(
+        onInstall: (_, __) async {
+          throw const TranscriptionException.cancelled(
+            'Cancellation message intentionally changed.',
+          );
+        },
+      );
+      final manager = RetryingAsrRuntimeManager(
+        delegate: delegate,
+        maxAttempts: 3,
+        retryDelay: Duration.zero,
+      );
+
+      await expectLater(
+        manager.installRecommended(config),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.isCancelled,
+            'isCancelled',
+            isTrue,
+          ),
+        ),
+      );
+
+      expect(delegate.installCalls, 1);
+      await manager.dispose();
+    },
+  );
+
+  test(
+    'cancellation-like text with unknown kind does not block normal retry',
+    () async {
+      final delegate = _FakeRuntimeManager(
+        onInstall: (attempt, config) async {
+          if (attempt == 1) {
+            throw const TranscriptionException(
+              '歌词识别已取消',
+              details: 'SocketException: Connection reset by peer',
+            );
+          }
+          return config;
+        },
+      );
+      final manager = RetryingAsrRuntimeManager(
+        delegate: delegate,
+        maxAttempts: 2,
+        retryDelay: Duration.zero,
+      );
+
+      final installed = await manager.installRecommended(config);
+
+      expect(installed, same(config));
+      expect(delegate.installCalls, 2);
+      await manager.dispose();
+    },
+  );
+
   test('does not retry permission or integrity failures', () async {
     final delegate = _FakeRuntimeManager(
       onInstall: (attempt, config) async {

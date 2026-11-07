@@ -105,7 +105,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   bool _isRetryable(TranscriptionException error) {
-    if (error.kind == TranscriptionFailureKind.cancelled ||
+    if (error.isCancelled ||
         error.kind == TranscriptionFailureKind.busy ||
         error.kind == TranscriptionFailureKind.input) {
       return false;
@@ -142,10 +142,7 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
     return transportMarkers.any(text.contains);
   }
 
-  bool _isCancellation(TranscriptionException error) {
-    return error.kind == TranscriptionFailureKind.cancelled ||
-        error.message.contains('取消');
-  }
+  bool _isCancellation(TranscriptionException error) => error.isCancelled;
 
   void _emitRetryProgress(int nextAttempt) {
     final previous = _lastProgress;

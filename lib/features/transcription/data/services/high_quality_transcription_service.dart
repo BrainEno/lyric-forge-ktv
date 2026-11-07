@@ -103,7 +103,6 @@ class HighQualityTranscriptionService implements TranscriptionService {
       try {
         primaryResult = await _runPrimary(sharedRequest);
       } on TranscriptionException catch (error) {
-        if (error.message == '歌词识别已取消') rethrow;
         if (!_canDegradeToWhisper(error)) rethrow;
         // One broken engine must not cost the song. The error is recorded in
         // the document instead of escaping, so a missing driver, an exhausted
@@ -144,7 +143,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ),
         );
       } on TranscriptionException catch (error) {
-        if (error.message == '歌词识别已取消') rethrow;
+        if (error.isCancelled) rethrow;
 
         _emit(TranscriptionStage.completed, 1.0, 'Qwen 识别完成，但 Whisper 第二意见失败');
 
@@ -237,9 +236,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
     } on _HighQualityCancelledException {
       _emit(TranscriptionStage.cancelled, 0.0, '歌词识别已取消');
-      throw const TranscriptionException('歌词识别已取消');
+      throw const TranscriptionException.cancelled('歌词识别已取消');
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') {
+      if (error.isCancelled) {
         _emit(TranscriptionStage.cancelled, 0.0, '歌词识别已取消');
       } else {
         _emit(TranscriptionStage.failed, 0.0, '最高质量歌词识别失败');
@@ -423,7 +422,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         await qwenSubscription.cancel();
       }
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') rethrow;
+      if (error.isCancelled) rethrow;
 
       _emit(TranscriptionStage.completed, 1.0, 'Whisper 主识别完成，但 Qwen 第二意见失败');
 
@@ -712,8 +711,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
   /// error is more useful than running the second engine to collect an
   /// identical complaint. Cancellation is never a reason to keep working.
   static bool _canDegradeToWhisper(TranscriptionException error) {
-    return error.kind != TranscriptionFailureKind.cancelled &&
-        error.kind != TranscriptionFailureKind.input;
+    return !error.isCancelled && error.kind != TranscriptionFailureKind.input;
   }
 
   /// Produces a Whisper draft when the second engine cannot contribute.
@@ -758,7 +756,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         ),
       );
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') rethrow;
+      if (error.isCancelled) rethrow;
       // Whisper is the last engine standing. Report both failures so the user
       // sees the root cause, not just "the fallback failed too".
       throw TranscriptionException(

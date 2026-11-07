@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/resilient_asr_runtime_manager.dart';
@@ -77,15 +78,50 @@ void main() {
     expect(delegate.installs[1].mode, TranscriptionMode.highestQuality);
   });
 
-  test('does not swallow cancellation during highest-quality upgrade', () async {
+  test(
+    'does not swallow cancellation during highest-quality upgrade',
+    () async {
+      final delegate = _FakeAsrRuntimeManager(
+        whisperModel: whisperModel,
+        ffmpeg: ffmpeg,
+        cancelHighestQuality: true,
+      );
+      final manager = ResilientAsrRuntimeManager(
+        delegate: delegate,
+        whisperRuntimeBootstrap: (_) async => whisperRuntime,
+      );
+      addTearDown(manager.dispose);
+
+      await expectLater(
+        manager.installRecommended(highestQualityConfig()),
+        throwsA(
+          isA<TranscriptionException>()
+              .having((error) => error.isCancelled, 'isCancelled', isTrue)
+              .having(
+                (error) => error.message,
+                'message',
+                'Runtime upgrade cancellation with arbitrary text.',
+              ),
+        ),
+      );
+
+      expect(delegate.installs, hasLength(2));
+    },
+  );
+
+  test('propagates typed cancellation from runtime inspection', () async {
+    final root = await Directory.systemTemp.createTemp('resilient-cancel-');
+    addTearDown(() => root.delete(recursive: true));
     final delegate = _FakeAsrRuntimeManager(
       whisperModel: whisperModel,
       ffmpeg: ffmpeg,
-      cancelHighestQuality: true,
+      inspectFailure: const TranscriptionException.cancelled(
+        'Runtime inspection was cancelled.',
+      ),
     );
     final manager = ResilientAsrRuntimeManager(
       delegate: delegate,
-      whisperRuntimeBootstrap: (_) async => whisperRuntime,
+      managedRootResolver: () async => root,
     );
     addTearDown(manager.dispose);
 
@@ -93,15 +129,83 @@ void main() {
       manager.installRecommended(highestQualityConfig()),
       throwsA(
         isA<TranscriptionException>().having(
-          (error) => error.message,
-          'message',
-          contains('取消'),
+          (error) => error.isCancelled,
+          'isCancelled',
+          isTrue,
         ),
       ),
     );
-
-    expect(delegate.installs, hasLength(2));
+    expect(delegate.installs, isEmpty);
   });
+
+  test(
+    'cancellation-like text with unknown kind remains an ordinary failure',
+    () async {
+      final delegate = _FakeAsrRuntimeManager(
+        whisperModel: whisperModel,
+        ffmpeg: ffmpeg,
+        unknownCancellationMessage: true,
+      );
+      final manager = ResilientAsrRuntimeManager(
+        delegate: delegate,
+        whisperRuntimeBootstrap: (_) async => whisperRuntime,
+      );
+      addTearDown(manager.dispose);
+
+      await expectLater(
+        manager.installRecommended(highestQualityConfig()),
+        throwsA(
+          isA<TranscriptionException>()
+              .having((error) => error.isCancelled, 'isCancelled', isFalse)
+              .having(
+                (error) => error.message,
+                'message',
+                contains('最高质量双引擎准备失败'),
+              )
+              .having((error) => error.details, 'details', contains('歌词识别已取消')),
+        ),
+      );
+
+      expect(delegate.installs, hasLength(2));
+    },
+  );
+
+  test(
+    'cancel() produces a typed cancellation after bootstrap returns',
+    () async {
+      final delegate = _FakeAsrRuntimeManager(
+        whisperModel: whisperModel,
+        ffmpeg: ffmpeg,
+      );
+      final bootstrapStarted = Completer<void>();
+      final releaseBootstrap = Completer<String?>();
+      final manager = ResilientAsrRuntimeManager(
+        delegate: delegate,
+        whisperRuntimeBootstrap: (_) async {
+          bootstrapStarted.complete();
+          return releaseBootstrap.future;
+        },
+      );
+      addTearDown(manager.dispose);
+
+      final installing = manager.installRecommended(highestQualityConfig());
+      await bootstrapStarted.future;
+      await manager.cancel();
+      releaseBootstrap.complete(whisperRuntime);
+
+      await expectLater(
+        installing,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.isCancelled,
+            'isCancelled',
+            isTrue,
+          ),
+        ),
+      );
+      expect(delegate.installs, isEmpty);
+    },
+  );
 
   test('Whisper-only setup uses standalone bootstrap without Qwen attempt',
       () async {
@@ -131,6 +235,8 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
   final String ffmpeg;
   final bool failHighestQuality;
   final bool cancelHighestQuality;
+  final bool unknownCancellationMessage;
+  final TranscriptionException? inspectFailure;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -141,6 +247,8 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
     required this.ffmpeg,
     this.failHighestQuality = false,
     this.cancelHighestQuality = false,
+    this.unknownCancellationMessage = false,
+    this.inspectFailure,
   });
 
   @override
@@ -152,6 +260,8 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
 
   @override
   Future<AsrRuntimeStatus> inspect(TranscriptionConfig config) {
+    final failure = inspectFailure;
+    if (failure != null) throw failure;
     throw UnimplementedError();
   }
 
@@ -169,7 +279,12 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
 
     if (config.mode == TranscriptionMode.highestQuality) {
       if (cancelHighestQuality) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled(
+          'Runtime upgrade cancellation with arbitrary text.',
+        );
+      }
+      if (unknownCancellationMessage) {
+        throw const TranscriptionException('歌词识别已取消');
       }
       if (failHighestQuality) {
         throw const TranscriptionException('Qwen runtime release unavailable');
