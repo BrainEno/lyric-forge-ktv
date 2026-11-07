@@ -212,6 +212,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'fallbackCandidateCount': merge.candidates.length,
           'fallbackAppliedCount': merge.appliedCount,
           'fallbackCandidates': merge.candidates,
+          'fallbackHighlightLimit': request.config.maxFallbackSegments,
           'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
           'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
           'fusionPolicy':
@@ -493,6 +494,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'fallbackCandidateCount': merge.candidates.length,
         'fallbackAppliedCount': merge.appliedCount,
         'fallbackCandidates': merge.candidates,
+        'fallbackHighlightLimit': request.config.maxFallbackSegments,
         'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
         'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
         'fusionPolicy':
@@ -625,12 +627,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
 
     candidates.sort((a, b) => b.priority.compareTo(a.priority));
-    final limited = candidates
-        .take(config.maxFallbackSegments)
-        .toList(growable: false);
-
     var appliedCount = 0;
-    for (final candidate in limited) {
+    for (final candidate in candidates) {
       final decision = candidate.alternativeDecision;
       if (decision == null || !decision.useAlternative) continue;
 
@@ -651,7 +649,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       matchedSecondaryIndices: matchedSecondaryIndices,
     );
     final remappedCandidates = _remapCandidateIndices(
-      limited.map((candidate) => candidate.data).toList(growable: false),
+      candidates.map((candidate) => candidate.data).toList(growable: false),
       timeline.primaryIndexToMergedIndex,
     );
 
@@ -964,12 +962,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
 
     candidates.sort((a, b) => b.priority.compareTo(a.priority));
-    final limited = candidates
-        .take(config.maxFallbackSegments)
-        .toList(growable: false);
-
     var appliedCount = 0;
-    for (final candidate in limited) {
+    for (final candidate in candidates) {
       final decision = candidate.decision;
       if (decision == null || !decision.useWhisper) continue;
 
@@ -989,7 +983,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       matchedSecondaryIndices: matchedSecondaryIndices,
     );
     final remappedCandidates = _remapCandidateIndices(
-      limited.map((candidate) => candidate.data).toList(growable: false),
+      candidates.map((candidate) => candidate.data).toList(growable: false),
       timeline.primaryIndexToMergedIndex,
     );
 

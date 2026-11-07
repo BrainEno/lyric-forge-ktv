@@ -24,6 +24,78 @@ void main() {
     });
 
     test(
+      'highlight limit never truncates evidence or automatic replacements',
+      () async {
+        final original = <LyricLine>[
+          for (var i = 0; i < 30; i++)
+            LyricLine(
+              text: 'broken $i broken',
+              startTime: Duration(seconds: i * 4),
+              endTime: Duration(seconds: i * 4 + 2),
+              confidence: 35,
+            ),
+        ];
+        final alternative = <LyricLine>[
+          for (var i = 0; i < 30; i++)
+            LyricLine(
+              text: 'wonderful song $i',
+              startTime: Duration(seconds: i * 4),
+              endTime: Duration(seconds: i * 4 + 2),
+              confidence: 95,
+            ),
+        ];
+        for (final order in TranscriptionEngineOrder.values) {
+          List<String>? previous;
+          for (final limit in [8, 20]) {
+            final qwen = order == TranscriptionEngineOrder.qwenPrimary
+                ? original
+                : alternative;
+            final whisper = order == TranscriptionEngineOrder.whisperPrimary
+                ? original
+                : alternative;
+            final service = HighQualityTranscriptionService(
+              primary: _FakeTranscriptionService(result: _resultLines(qwen)),
+              fallback: _FakeTranscriptionService(
+                result: _resultLines(whisper),
+              ),
+            );
+            try {
+              final result = await service.transcribe(
+                _request(
+                  tempDirectory.path,
+                  engineOrder: order,
+                  maxFallbackSegments: limit,
+                ),
+              );
+              final metadata = result.lyrics.metadata;
+              final texts = result.lyrics.lines
+                  .map((line) => line.text)
+                  .toList();
+              expect(
+                texts,
+                alternative.map((line) => line.text).toList(),
+                reason: '$order, limit $limit',
+              );
+              if (previous != null) expect(texts, previous);
+              previous = texts;
+              expect(metadata['fallbackCandidateCount'], 30);
+              expect(metadata['fallbackAppliedCount'], 30);
+              expect(metadata['fallbackHighlightLimit'], limit);
+              final candidates = metadata['fallbackCandidates'] as List;
+              expect(candidates, hasLength(30));
+              expect(
+                candidates.map((entry) => (entry as Map)['lineIndex']).toSet(),
+                Set<int>.from(List.generate(30, (i) => i)),
+              );
+            } finally {
+              await service.dispose();
+            }
+          }
+        }
+      },
+    );
+
+    test(
       'shares one prepared WAV with both engines in either engine order',
       () async {
         for (final engineOrder in [
@@ -1831,6 +1903,7 @@ TranscriptionRequest _request(
   bool whisperConfigured = true,
   bool includeNormalizedInput = true,
   String inputAudioPath = 'unused-by-fake.wav',
+  int maxFallbackSegments = 20,
 }) {
   return TranscriptionRequest(
     inputAudioPath: inputAudioPath,
@@ -1841,6 +1914,7 @@ TranscriptionRequest _request(
     config: TranscriptionConfig(
       mode: TranscriptionMode.highestQuality,
       engineOrder: engineOrder,
+      maxFallbackSegments: maxFallbackSegments,
       qwenExecutable: qwenExecutable,
       qwenModelPath:
           qwenModelPath ??

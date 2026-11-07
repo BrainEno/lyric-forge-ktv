@@ -236,6 +236,7 @@ void main() {
           jsonEncode({
             'version':
                 ResumableChunkedTranscriptionService.checkpointManifestVersion,
+            'fallbackEvidenceVersion': 1,
             'sourceFingerprint': fingerprint,
             'configFingerprint':
                 ResumableChunkedTranscriptionService.checkpointConfigFingerprint(
@@ -333,6 +334,63 @@ void main() {
       expect(result.lyrics.metadata['chunked'], isNull);
       await service.dispose();
     });
+
+    test(
+      'chunk merge retains more than the highlight limit of candidates',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-many-candidates-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+        final delegate = _ScriptedService(
+          (chunk) => LyricDocument(
+            language: 'en',
+            lines: [
+              for (var i = 0; i < 15; i++)
+                LyricLine(
+                  text: 'chunk $chunk lyric $i',
+                  startTime: Duration(seconds: i * 3),
+                  endTime: Duration(seconds: i * 3 + 2),
+                ),
+            ],
+            metadata: {
+              if (chunk > 0) 'fallbackHighlightLimit': 8,
+              'fallbackCandidates': [
+                for (var i = 0; i < 15; i++)
+                  {
+                    'lineIndex': i,
+                    'primaryText': 'chunk $chunk lyric $i',
+                    'alternativeText': 'other $chunk $i',
+                  },
+              ],
+              'fallbackAppliedCount': 0,
+            },
+          ),
+        );
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(minutes: 3),
+          processSupervisor: ffmpeg.supervisor,
+        );
+        addTearDown(service.dispose);
+        final result = await service.transcribe(
+          _request(input.path, directory.path),
+        );
+        final metadata = result.lyrics.metadata;
+        expect(metadata['fallbackHighlightLimit'], 8);
+        expect(metadata['fallbackCandidateCount'], 30);
+        final candidates = metadata['fallbackCandidates'] as List;
+        expect(
+          candidates.map((c) => (c as Map)['lineIndex']).toSet(),
+          Set<int>.from(List.generate(30, (i) => i)),
+        );
+      },
+    );
 
     test('chunk merge keeps engine identity and remaps indices', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-merge-');
@@ -511,6 +569,50 @@ void main() {
         await service.dispose();
       },
     );
+
+    test('only old dual-engine checkpoints are invalidated', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'chunk-old-version-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final input = File('${directory.path}${Platform.pathSeparator}song.wav');
+      await input.writeAsBytes(List<int>.filled(128, 0));
+      final delegate = _FakeService();
+      final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+      final service = ResumableChunkedTranscriptionService(
+        delegate: delegate,
+        chunkDuration: const Duration(minutes: 3),
+        processSupervisor: ffmpeg.supervisor,
+      );
+      addTearDown(service.dispose);
+      final single = _request(
+        input.path,
+        directory.path,
+        config: _config().copyWith(mode: TranscriptionMode.whisperOnly),
+      );
+      await service.transcribe(single);
+      await service.transcribe(single);
+      expect(delegate.calls, 2);
+
+      final dual = _request(
+        input.path,
+        directory.path,
+        config: _config().copyWith(mode: TranscriptionMode.highestQuality),
+      );
+      await service.transcribe(dual);
+      expect(delegate.calls, 4);
+      final manifest = File(
+        '${directory.path}${Platform.pathSeparator}chunk_session${Platform.pathSeparator}session.json',
+      );
+      final data =
+          jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
+      data.remove('fallbackEvidenceVersion');
+      await manifest.writeAsString(jsonEncode(data));
+      await service.transcribe(dual);
+      expect(delegate.calls, 6);
+      await service.transcribe(dual);
+      expect(delegate.calls, 6);
+    });
 
     test('changing recognition settings invalidates checkpoints', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-config-');

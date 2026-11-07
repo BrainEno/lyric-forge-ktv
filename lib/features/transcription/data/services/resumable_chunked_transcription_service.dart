@@ -139,9 +139,12 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         '${root.path}${Platform.pathSeparator}session.json',
       );
       var manifest = await _loadManifest(manifestFile);
+      // Legacy dual-engine chunks may have permanently truncated evidence.
       final compatible =
           manifest != null &&
           manifest['version'] == checkpointManifestVersion &&
+          (request.config.mode != TranscriptionMode.highestQuality ||
+              manifest['fallbackEvidenceVersion'] == 1) &&
           manifest['sourceFingerprint'] == fingerprint &&
           manifest['configFingerprint'] == configFingerprint &&
           manifest['chunkMs'] == chunkDuration.inMilliseconds &&
@@ -154,6 +157,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         }
         manifest = <String, dynamic>{
           'version': checkpointManifestVersion,
+          if (request.config.mode == TranscriptionMode.highestQuality)
+            'fallbackEvidenceVersion': 1,
           'sourceFingerprint': fingerprint,
           'configFingerprint': configFingerprint,
           'chunkMs': chunkDuration.inMilliseconds,
@@ -700,6 +705,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
     if (hasCandidateKey) {
       merged['fallbackCandidates'] = candidates;
+      // A degraded first chunk may not carry the display setting.
+      for (final document in documents) {
+        final limit = document.metadata['fallbackHighlightLimit'];
+        if (limit is num) {
+          merged['fallbackHighlightLimit'] = limit;
+          break;
+        }
+      }
       merged['fallbackCandidateCount'] = candidates.length;
       merged['fallbackAppliedCount'] = appliedCount;
     }
