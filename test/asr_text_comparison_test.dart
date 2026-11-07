@@ -17,6 +17,16 @@ void main() {
       expect(comparison.similarity('你好世界', '再见朋友'), lessThan(1));
     });
 
+    test('preserves polytonic Greek letters', () {
+      const text = '\u1f97';
+      const differentText = '\u1f96';
+
+      expect(comparison.normalize(text), text);
+      expect(comparison.similarity(text, text), 1);
+      expect(comparison.normalize(differentText), differentText);
+      expect(comparison.similarity(text, differentText), lessThan(1));
+    });
+
     test('preserves supplementary CJK ideographs', () {
       const extensionB = '\u{20000}\u{20001}';
       const extensionJ = '\u{323b0}\u{323b1}';
