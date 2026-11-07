@@ -266,9 +266,8 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     LocalMediaMetadata? completeMetadata = metadata;
     if (repository is CompleteLocalMediaMetadataReader) {
       try {
-        completeMetadata = await repository.getCompleteForAudio(
-          item.audioAsset.originalPath,
-        );
+        completeMetadata = await (repository as CompleteLocalMediaMetadataReader)
+            .getCompleteForAudio(item.audioAsset.originalPath);
       } catch (_) {
         completeMetadata = null;
       }

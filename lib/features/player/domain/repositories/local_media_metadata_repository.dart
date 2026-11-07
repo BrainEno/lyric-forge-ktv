@@ -36,7 +36,9 @@ Future<LocalMediaMetadata?> readCompleteLocalMediaMetadataForAudio(
   String sourcePath,
 ) {
   if (repository is CompleteLocalMediaMetadataReader) {
-    return repository.getCompleteForAudio(sourcePath);
+    return (repository as CompleteLocalMediaMetadataReader).getCompleteForAudio(
+      sourcePath,
+    );
   }
   return repository.getForAudio(sourcePath);
 }
