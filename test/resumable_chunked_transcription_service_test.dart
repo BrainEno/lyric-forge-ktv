@@ -48,6 +48,73 @@ void main() {
       },
     );
 
+    test(
+      'delegate cancellation preserves checkpoint and resumes without retry',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-delegate-cancel-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(256, 7));
+        var cancel = true;
+        final delegate = _ScriptedService((index) {
+          if (index == 1 && cancel) {
+            throw const TranscriptionException.cancelled('stopped by caller');
+          }
+          return LyricDocument(language: 'en', lines: []);
+        });
+        final ffmpeg = _FfmpegStub(durationLabel: '00:00:04.000');
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          maxAttempts: 3,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        addTearDown(service.dispose);
+        final request = _request(input.path, directory.path);
+        await expectLater(
+          service.transcribe(request),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (e) => e.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having(
+                  (e) => e.message,
+                  'original message',
+                  'stopped by caller',
+                ),
+          ),
+        );
+        expect(delegate.outputDirectories, hasLength(2));
+        final session = Directory(
+          '${directory.path}${Platform.pathSeparator}chunk_session',
+        );
+        final checkpoint = File(
+          '${session.path}${Platform.pathSeparator}chunks${Platform.pathSeparator}chunk_0000.json',
+        );
+        final before = await checkpoint.readAsString();
+        final manifest =
+            jsonDecode(
+                  await File(
+                    '${session.path}${Platform.pathSeparator}session.json',
+                  ).readAsString(),
+                )
+                as Map<String, dynamic>;
+        expect(manifest['completed'], ['chunk_0000']);
+        cancel = false;
+        await service.transcribe(request);
+        expect(delegate.outputDirectories, hasLength(3));
+        expect(await checkpoint.readAsString(), before);
+      },
+    );
+
     test('constructor accepts retry and overlap policy', () async {
       final delegate = _FakeService();
       final service = ResumableChunkedTranscriptionService(

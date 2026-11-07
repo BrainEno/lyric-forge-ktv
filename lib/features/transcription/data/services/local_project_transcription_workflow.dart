@@ -216,8 +216,7 @@ class LocalProjectTranscriptionWorkflow
     } on TranscriptionException catch (error) {
       final latest = await _projectRepository.getProjectById(projectId);
       if (latest != null) {
-        if (error.kind == TranscriptionFailureKind.cancelled ||
-            error.message == '歌词识别已取消') {
+        if (error.kind == TranscriptionFailureKind.cancelled) {
           await _projectRepository.updateProject(
             latest.copyWith(
               status: latest.hasLyrics

@@ -297,7 +297,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException(
         '无法确认 LyricForge 识别引擎安装包，因此尚未开始下载大型模型。',
@@ -818,7 +818,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException(
         '下载 ${_modelLabel(modelId)} 失败',
@@ -949,7 +949,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException(
         '无法读取 ${_modelLabel(modelId)} 文件元数据',
@@ -1038,7 +1038,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException('无法连接 ModelScope 模型文件清单', details: '$error');
     } finally {
@@ -1336,7 +1336,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
 
   void _throwIfCancelled() {
     if (_cancelRequested) {
-      throw const TranscriptionException('识别环境安装已取消');
+      throw const TranscriptionException.cancelled('识别环境安装已取消');
     }
   }
 

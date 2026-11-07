@@ -1464,9 +1464,9 @@ void main() {
           running,
           throwsA(
             isA<TranscriptionException>().having(
-              (error) => error.message,
-              'message',
-              '歌词识别已取消',
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.cancelled,
             ),
           ),
         );
@@ -1650,6 +1650,111 @@ void main() {
       await service.dispose();
     });
 
+    for (final order in TranscriptionEngineOrder.values) {
+      for (final cancelPrimary in [true, false]) {
+        test(
+          '$order propagates cancellation from ${cancelPrimary ? "primary" : "secondary"}',
+          () async {
+            const cancellation = TranscriptionException.cancelled(
+              'arbitrary cancellation wording',
+            );
+            final success = _resultLines([]);
+            final qwenIsCancelled =
+                (order == TranscriptionEngineOrder.qwenPrimary) ==
+                cancelPrimary;
+            final qwen = _FakeTranscriptionService(
+              result: success,
+              emitTerminal: true,
+              error: qwenIsCancelled ? cancellation : null,
+            );
+            final whisper = _FakeTranscriptionService(
+              result: success,
+              emitTerminal: true,
+              error: qwenIsCancelled ? null : cancellation,
+            );
+            final service = HighQualityTranscriptionService(
+              primary: qwen,
+              fallback: whisper,
+            );
+            final events = <TranscriptionProgress>[];
+            final subscription = service.progressStream.listen(events.add);
+            await expectLater(
+              service.transcribe(
+                _request(tempDirectory.path, engineOrder: order),
+              ),
+              throwsA(same(cancellation)),
+            );
+            await Future<void>.delayed(Duration.zero);
+            expect(
+              qwen.requests.length,
+              qwenIsCancelled || !cancelPrimary ? 1 : 0,
+            );
+            expect(
+              whisper.requests.length,
+              !qwenIsCancelled || !cancelPrimary ? 1 : 0,
+            );
+            expect(events.last.stage, TranscriptionStage.cancelled);
+            expect(
+              events.where(
+                (e) =>
+                    e.stage == TranscriptionStage.completed ||
+                    e.stage == TranscriptionStage.failed,
+              ),
+              isEmpty,
+            );
+            await subscription.cancel();
+            await service.dispose();
+          },
+        );
+      }
+    }
+
+    test(
+      'cancellation during degraded Whisper keeps its original exception',
+      () async {
+        const cancellation = TranscriptionException.cancelled(
+          'stop during degradation',
+        );
+        final qwen = _FakeTranscriptionService(
+          error: const TranscriptionException.environment('unavailable'),
+        );
+        final whisper = _FakeTranscriptionService(error: cancellation);
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        await expectLater(
+          service.transcribe(_request(tempDirectory.path)),
+          throwsA(same(cancellation)),
+        );
+        expect(qwen.requests, hasLength(1));
+        expect(whisper.requests, hasLength(1));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'unknown error with cancellation copy is an ordinary degradation',
+      () async {
+        final qwen = _FakeTranscriptionService(
+          error: const TranscriptionException('歌词识别已取消'),
+        );
+        final whisper = _FakeTranscriptionService(result: _resultLines([]));
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final result = await service.transcribe(_request(tempDirectory.path));
+        expect(qwen.requests, hasLength(1));
+        expect(whisper.requests, hasLength(1));
+        expect(
+          result.lyrics.metadata[TranscriptionQualityMetadata.degradedKey],
+          isTrue,
+        );
+        await service.dispose();
+      },
+    );
+
     test('reports both engines when the degraded run also fails', () async {
       final qwen = _FakeTranscriptionService(
         error: const TranscriptionException.environment('Qwen runtime 崩溃'),
@@ -1770,11 +1875,16 @@ TranscriptionResult _resultLines(List<LyricLine> lines) {
 class _FakeTranscriptionService implements TranscriptionService {
   final TranscriptionResult? result;
   final TranscriptionException? error;
+  final bool emitTerminal;
   final List<TranscriptionRequest> requests = [];
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
 
-  _FakeTranscriptionService({this.result, this.error});
+  _FakeTranscriptionService({
+    this.result,
+    this.error,
+    this.emitTerminal = false,
+  });
 
   @override
   bool get isRunning => false;
@@ -1786,6 +1896,17 @@ class _FakeTranscriptionService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     requests.add(request);
+    if (emitTerminal) {
+      _progressController.add(
+        TranscriptionProgress(
+          stage: error == null
+              ? TranscriptionStage.completed
+              : TranscriptionStage.failed,
+          progress: 1,
+          message: 'engine terminal event',
+        ),
+      );
+    }
     final failure = error;
     if (failure != null) throw failure;
 

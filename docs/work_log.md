@@ -8,10 +8,10 @@
 - [2026-11-07 12:55] Preserve Cyrillic extension ASR text `fix: preserve Cyrillic extensions in ASR matching` ([entry](log/entries/2026-11-07-1255-preserve-cyrillic-extended-asr.md))
 - [2026-11-07 12:45] Preserve Greek Extended ASR text `fix: preserve polytonic Greek in ASR matching` ([entry](log/entries/2026-11-07-1245-preserve-greek-extended-asr.md))
 - [2026-11-07 11:07] Preserve supplementary CJK ASR text `fix: preserve supplementary CJK ideographs` ([entry](log/entries/2026-11-07-1107-preserve-supplementary-cjk-asr.md))
+- [2026-11-07 07:14] Make ASR cancellation type-driven `fix: make transcription cancellation type-driven` ([entry](log/entries/2026-11-07-0714-typed-asr-cancellation.md))
 - [2026-11-07 01:13] Match decomposed Vietnamese ASR output `test: simplify decomposed Vietnamese fusion assertions` ([entry](log/entries/2026-11-07-0113-match-decomposed-vietnamese-asr.md))
-- [2026-11-06 20:05] Cover Vietnamese diacritics in ASR fusion `test: cover Vietnamese ASR fusion normalization` ([entry](log/entries/2026-11-06-2005-cover-vietnamese-asr-fusion.md))
 
-<!-- 221 entries total: 8 active, 213 archived. -->
+<!-- 222 entries total: 8 active, 214 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

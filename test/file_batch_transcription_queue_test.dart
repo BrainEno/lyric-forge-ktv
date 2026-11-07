@@ -52,82 +52,133 @@ void main() {
     await queue.dispose();
   });
 
-  test('typed environment errors protectively pause without relying on copy',
-      () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-blocked-');
-    addTearDown(() async {
-      if (await root.exists()) await root.delete(recursive: true);
-    });
-    final blocked = File('${root.path}${Platform.pathSeparator}blocked.mp3');
-    final later = File('${root.path}${Platform.pathSeparator}later.mp3');
-    await blocked.writeAsBytes(<int>[1]);
-    await later.writeAsBytes(<int>[2]);
+  test(
+    'typed cancellation pauses the queue without recording failure',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-queue-cancel-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final audio = File('${root.path}${Platform.pathSeparator}cancel.mp3');
+      await audio.writeAsBytes([1]);
+      final repository = FileProjectRepository(
+        rootDirectory: Directory('${root.path}/projects'),
+      );
+      final queue = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: _FakeWorkflow(repository),
+        rootDirectory: Directory('${root.path}/queue'),
+      );
+      addTearDown(queue.dispose);
+      await queue.initialize();
+      await queue.enqueuePaths([audio.path]);
+      await _waitUntil(
+        () => queue.current.isPaused && !queue.current.isProcessing,
+      );
+      expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
+      expect(
+        queue.current.items.single.status,
+        TranscriptionQueueItemStatus.paused,
+      );
+      expect(queue.current.items.single.error, isNull);
+      expect(queue.current.failedCount, 0);
+    },
+  );
 
-    final repository = FileProjectRepository(
-      rootDirectory: Directory('${root.path}${Platform.pathSeparator}projects'),
-    );
-    final queue = FileBatchTranscriptionQueue(
-      projectRepository: repository,
-      workflow: _FakeWorkflow(repository),
-      rootDirectory: Directory('${root.path}${Platform.pathSeparator}queue'),
-    );
+  test(
+    'typed environment errors protectively pause without relying on copy',
+    () async {
+      final root = await Directory.systemTemp.createTemp('lyricforge-blocked-');
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final blocked = File('${root.path}${Platform.pathSeparator}blocked.mp3');
+      final later = File('${root.path}${Platform.pathSeparator}later.mp3');
+      await blocked.writeAsBytes(<int>[1]);
+      await later.writeAsBytes(<int>[2]);
 
-    await queue.initialize();
-    await queue.enqueuePaths(<String>[blocked.path, later.path]);
-    await _waitUntil(() => queue.current.isPaused && !queue.current.isProcessing);
+      final repository = FileProjectRepository(
+        rootDirectory: Directory(
+          '${root.path}${Platform.pathSeparator}projects',
+        ),
+      );
+      final queue = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: _FakeWorkflow(repository),
+        rootDirectory: Directory('${root.path}${Platform.pathSeparator}queue'),
+      );
 
-    expect(queue.current.failedCount, 0);
-    expect(queue.current.completedCount, 0);
-    expect(queue.current.items[0].status, TranscriptionQueueItemStatus.queued);
-    expect(queue.current.items[1].status, TranscriptionQueueItemStatus.queued);
-    expect(
-      queue.current.pauseReason,
-      TranscriptionQueuePauseReason.environment,
-    );
-    expect(queue.current.isEnvironmentBlocked, isTrue);
-    expect(queue.current.pauseMessage, contains('GPU driver unavailable'));
-    expect(queue.current.items[0].message, contains('保护性暂停'));
-    await queue.dispose();
-  });
+      await queue.initialize();
+      await queue.enqueuePaths(<String>[blocked.path, later.path]);
+      await _waitUntil(
+        () => queue.current.isPaused && !queue.current.isProcessing,
+      );
 
-  test('environment pause reason survives restart and clears only on resume',
-      () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-env-restart-');
-    addTearDown(() async {
-      if (await root.exists()) await root.delete(recursive: true);
-    });
-    final audio = File('${root.path}${Platform.pathSeparator}blocked.mp3');
-    await audio.writeAsBytes(<int>[1]);
-    final projectRoot = Directory('${root.path}${Platform.pathSeparator}projects');
-    final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
-    final repository = FileProjectRepository(rootDirectory: projectRoot);
+      expect(queue.current.failedCount, 0);
+      expect(queue.current.completedCount, 0);
+      expect(
+        queue.current.items[0].status,
+        TranscriptionQueueItemStatus.queued,
+      );
+      expect(
+        queue.current.items[1].status,
+        TranscriptionQueueItemStatus.queued,
+      );
+      expect(
+        queue.current.pauseReason,
+        TranscriptionQueuePauseReason.environment,
+      );
+      expect(queue.current.isEnvironmentBlocked, isTrue);
+      expect(queue.current.pauseMessage, contains('GPU driver unavailable'));
+      expect(queue.current.items[0].message, contains('保护性暂停'));
+      await queue.dispose();
+    },
+  );
 
-    final first = FileBatchTranscriptionQueue(
-      projectRepository: repository,
-      workflow: _FakeWorkflow(repository),
-      rootDirectory: queueRoot,
-    );
-    await first.initialize();
-    await first.enqueuePaths([audio.path]);
-    await _waitUntil(() => first.current.isEnvironmentBlocked);
-    final savedMessage = first.current.pauseMessage;
-    await first.dispose();
+  test(
+    'environment pause reason survives restart and clears only on resume',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'lyricforge-env-restart-',
+      );
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final audio = File('${root.path}${Platform.pathSeparator}blocked.mp3');
+      await audio.writeAsBytes(<int>[1]);
+      final projectRoot = Directory(
+        '${root.path}${Platform.pathSeparator}projects',
+      );
+      final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
+      final repository = FileProjectRepository(rootDirectory: projectRoot);
 
-    final second = FileBatchTranscriptionQueue(
-      projectRepository: repository,
-      workflow: _FakeWorkflow(repository, blockEnvironment: false),
-      rootDirectory: queueRoot,
-    );
-    await second.initialize();
-    expect(second.current.isEnvironmentBlocked, isTrue);
-    expect(second.current.pauseMessage, savedMessage);
+      final first = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: _FakeWorkflow(repository),
+        rootDirectory: queueRoot,
+      );
+      await first.initialize();
+      await first.enqueuePaths([audio.path]);
+      await _waitUntil(() => first.current.isEnvironmentBlocked);
+      final savedMessage = first.current.pauseMessage;
+      await first.dispose();
 
-    await second.resume();
-    expect(second.current.pauseReason, isNull);
-    expect(second.current.pauseMessage, isNull);
-    await _waitUntil(() => second.current.completedCount == 1);
-    await second.dispose();
-  });
+      final second = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: _FakeWorkflow(repository, blockEnvironment: false),
+        rootDirectory: queueRoot,
+      );
+      await second.initialize();
+      expect(second.current.isEnvironmentBlocked, isTrue);
+      expect(second.current.pauseMessage, savedMessage);
+
+      await second.resume();
+      expect(second.current.pauseReason, isNull);
+      expect(second.current.pauseMessage, isNull);
+      await _waitUntil(() => second.current.completedCount == 1);
+      await second.dispose();
+    },
+  );
 
   test('running item is restored as queued after restart', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-recover-');
@@ -152,11 +203,13 @@ void main() {
     );
     await File(
       '${queueRoot.path}${Platform.pathSeparator}transcription_queue.json',
-    ).writeAsString(jsonEncode({
-      'version': 1,
-      'paused': true,
-      'items': <Map<String, dynamic>>[item.toJson()],
-    }));
+    ).writeAsString(
+      jsonEncode({
+        'version': 1,
+        'paused': true,
+        'items': <Map<String, dynamic>>[item.toJson()],
+      }),
+    );
 
     final repository = FileProjectRepository(rootDirectory: projectRoot);
     final queue = FileBatchTranscriptionQueue(
@@ -176,61 +229,65 @@ void main() {
     await queue.dispose();
   });
 
-  test('existing batch-marked project is reused when projectId write was lost',
-      () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-link-');
-    addTearDown(() async {
-      if (await root.exists()) await root.delete(recursive: true);
-    });
-    final audio = File('${root.path}${Platform.pathSeparator}song.mp3');
-    await audio.writeAsBytes(<int>[1]);
-    final projectRoot = Directory(
-      '${root.path}${Platform.pathSeparator}projects',
-    );
-    final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
-    await queueRoot.create(recursive: true);
+  test(
+    'existing batch-marked project is reused when projectId write was lost',
+    () async {
+      final root = await Directory.systemTemp.createTemp('lyricforge-link-');
+      addTearDown(() async {
+        if (await root.exists()) await root.delete(recursive: true);
+      });
+      final audio = File('${root.path}${Platform.pathSeparator}song.mp3');
+      await audio.writeAsBytes(<int>[1]);
+      final projectRoot = Directory(
+        '${root.path}${Platform.pathSeparator}projects',
+      );
+      final queueRoot = Directory('${root.path}${Platform.pathSeparator}queue');
+      await queueRoot.create(recursive: true);
 
-    final repository = FileProjectRepository(rootDirectory: projectRoot);
-    var project = await repository.createProject(name: 'song');
-    project = await repository.updateProject(
-      project.copyWith(
-        currentStage: ProcessingStage.audioImported,
-        audioAsset: AudioAsset(originalPath: audio.path, format: 'mp3'),
-        metadata: const {'batchQueueItemId': 'recover-link'},
-      ),
-    );
+      final repository = FileProjectRepository(rootDirectory: projectRoot);
+      var project = await repository.createProject(name: 'song');
+      project = await repository.updateProject(
+        project.copyWith(
+          currentStage: ProcessingStage.audioImported,
+          audioAsset: AudioAsset(originalPath: audio.path, format: 'mp3'),
+          metadata: const {'batchQueueItemId': 'recover-link'},
+        ),
+      );
 
-    final now = DateTime.now();
-    final item = TranscriptionQueueItem(
-      id: 'recover-link',
-      sourcePath: audio.path,
-      projectName: 'song',
-      status: TranscriptionQueueItemStatus.queued,
-      createdAt: now,
-      updatedAt: now,
-    );
-    await File(
-      '${queueRoot.path}${Platform.pathSeparator}transcription_queue.json',
-    ).writeAsString(jsonEncode({
-      'version': 1,
-      'paused': true,
-      'items': <Map<String, dynamic>>[item.toJson()],
-    }));
+      final now = DateTime.now();
+      final item = TranscriptionQueueItem(
+        id: 'recover-link',
+        sourcePath: audio.path,
+        projectName: 'song',
+        status: TranscriptionQueueItemStatus.queued,
+        createdAt: now,
+        updatedAt: now,
+      );
+      await File(
+        '${queueRoot.path}${Platform.pathSeparator}transcription_queue.json',
+      ).writeAsString(
+        jsonEncode({
+          'version': 1,
+          'paused': true,
+          'items': <Map<String, dynamic>>[item.toJson()],
+        }),
+      );
 
-    final queue = FileBatchTranscriptionQueue(
-      projectRepository: repository,
-      workflow: _FakeWorkflow(repository),
-      rootDirectory: queueRoot,
-    );
-    await queue.initialize();
-    await queue.resume();
-    await _waitUntil(() => queue.current.completedCount == 1);
+      final queue = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: _FakeWorkflow(repository),
+        rootDirectory: queueRoot,
+      );
+      await queue.initialize();
+      await queue.resume();
+      await _waitUntil(() => queue.current.completedCount == 1);
 
-    final projects = await repository.getAllProjects();
-    expect(projects, hasLength(1));
-    expect(queue.current.items.single.projectId, project.id);
-    await queue.dispose();
-  });
+      final projects = await repository.getAllProjects();
+      expect(projects, hasLength(1));
+      expect(queue.current.items.single.projectId, project.id);
+      await queue.dispose();
+    },
+  );
 }
 
 Future<void> _waitUntil(bool Function() predicate) async {
@@ -266,11 +323,16 @@ class _FakeWorkflow implements ProjectTranscriptionWorkflow {
       if (project == null) {
         throw const TranscriptionException.input('missing project');
       }
-      _controller.add(const TranscriptionProgress(
-        stage: TranscriptionStage.transcribing,
-        progress: 0.5,
-        message: 'fake progress',
-      ));
+      _controller.add(
+        const TranscriptionProgress(
+          stage: TranscriptionStage.transcribing,
+          progress: 0.5,
+          message: 'fake progress',
+        ),
+      );
+      if (project.name == 'cancel') {
+        throw const TranscriptionException.cancelled('stopped');
+      }
       if (project.name == 'fail') {
         throw const TranscriptionException.input('mock song failure');
       }

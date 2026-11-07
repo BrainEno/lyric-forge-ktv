@@ -116,7 +116,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       // for audio long enough that resuming beats seam fidelity. Probing first
       // also means the whole-song path leaves no chunk session behind at all.
       if (duration <= chunkDuration) {
-        return await _runDelegate(request, prefix: '');
+        final result = await _runDelegate(request, prefix: '');
+        _throwIfCancelled();
+        return result;
       }
 
       final root = Directory(
@@ -230,8 +232,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             );
             break;
           } on TranscriptionException catch (error) {
-            if (error.kind == TranscriptionFailureKind.cancelled ||
-                error.message == '歌词识别已取消') {
+            _throwIfCancelled();
+            if (error.kind == TranscriptionFailureKind.cancelled) {
               rethrow;
             }
             if (error.blocksQueue) {

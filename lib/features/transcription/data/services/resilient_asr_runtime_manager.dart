@@ -127,7 +127,8 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
         _emit(null, 1.0, '最高质量本地歌词识别环境已准备完成');
         return await repair(upgraded);
       } on TranscriptionException catch (error) {
-        if (_cancelRequested || _isCancellation(error)) rethrow;
+        _throwIfCancelled();
+        if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
 
         _emit(
           AsrRuntimeComponent.qwenRuntime,
@@ -312,7 +313,7 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException(
         '下载 Whisper runtime 失败，已保留断点文件',
@@ -392,13 +393,9 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     );
   }
 
-  bool _isCancellation(TranscriptionException error) {
-    return error.message.contains('取消');
-  }
-
   void _throwIfCancelled() {
     if (_cancelRequested) {
-      throw const TranscriptionException('识别环境安装已取消');
+      throw const TranscriptionException.cancelled('识别环境安装已取消');
     }
   }
 
