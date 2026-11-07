@@ -186,6 +186,8 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
     required String sourcePath,
     required String imagePath,
   }) async {
+    await _ensureLoaded();
+    _ensureWritable();
     final source = File(imagePath);
     if (!await source.exists()) {
       throw FileSystemException('Artwork file does not exist', imagePath);
@@ -206,6 +208,8 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<void> removeManagedArtwork(String? artworkPath) async {
     if (artworkPath == null || artworkPath.trim().isEmpty) return;
+    await _ensureLoaded();
+    _ensureWritable();
     final directory = await _artworkDirectory();
     final artwork = File(artworkPath);
     final parent = _normalizedPath(artwork.parent.path);
