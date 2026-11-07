@@ -11,8 +11,7 @@ void main() {
     modelPath: 'ggml-model.bin',
   );
 
-  test(
-      'retries transient download failure, keeps byte resume visible, and '
+  test('retries transient download failure, keeps byte resume visible, and '
       'does not move progress backwards', () async {
     late final _FakeRuntimeManager delegate;
     delegate = _FakeRuntimeManager(
@@ -57,9 +56,7 @@ void main() {
     expect(delegate.installCalls, 2);
     expect(
       progressEvents.map((event) => event.message),
-      contains(
-        '网络连接中断，将从 2.00 GB / 4.00 GB 继续（第 2/3 次）',
-      ),
+      contains('网络连接中断，将从 2.00 GB / 4.00 GB 继续（第 2/3 次）'),
     );
     expect(
       progressEvents
@@ -229,7 +226,8 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   final Future<TranscriptionConfig> Function(
     int attempt,
     TranscriptionConfig config,
-  ) onInstall;
+  )
+  onInstall;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast(sync: true);
@@ -255,15 +253,14 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   }
 
   @override
-  Future<TranscriptionConfig> installRecommended(
-    TranscriptionConfig config,
-  ) {
+  Future<TranscriptionConfig> installRecommended(TranscriptionConfig config) {
     installCalls += 1;
     return onInstall(installCalls, config);
   }
 
   @override
-  Future<TranscriptionConfig> repair(TranscriptionConfig config) async => config;
+  Future<TranscriptionConfig> repair(TranscriptionConfig config) async =>
+      config;
 
   @override
   Future<void> cancel() async {}

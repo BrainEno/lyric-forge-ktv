@@ -110,9 +110,11 @@ void main() {
             final result = await service.transcribe(
               _request(tempDirectory.path, engineOrder: engineOrder),
             );
-            expect(result.lyrics.lines.map((line) => line.text).toList(), [
-              koreanLine.text,
-            ], reason: 'engine order: $engineOrder');
+            expect(
+              result.lyrics.lines.map((line) => line.text).toList(),
+              [koreanLine.text],
+              reason: 'engine order: $engineOrder',
+            );
             expect(
               result.lyrics.metadata['secondaryOnlyLineCount'],
               0,
@@ -1210,10 +1212,11 @@ void main() {
           // its time span, so keeping them would duplicate lyrics the user can
           // already read -- including "dancing", which is a single word of the
           // primary line.
-          expect(lines.map((line) => line.text).toList(), [
-            fullLine.text,
-            'sing a little song',
-          ], reason: 'engine order: $engineOrder');
+          expect(
+            lines.map((line) => line.text).toList(),
+            [fullLine.text, 'sing a little song'],
+            reason: 'engine order: $engineOrder',
+          );
           expect(
             lines[1].confidence,
             60,
