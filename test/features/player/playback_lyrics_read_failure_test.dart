@@ -273,16 +273,23 @@ void main() {
   }
 
   testWidgets('import reports real partial metadata rather than creating a project', (tester) async {
-    final directory = await Directory.systemTemp.createTemp('lyric-partial-import-');
-    addTearDown(() => directory.delete(recursive: true));
-    final store = File('${directory.path}${Platform.pathSeparator}media_metadata.json');
+    late Directory directory;
+    late File store;
+    late FileLocalMediaMetadataRepository metadata;
     final original = jsonEncode({'items': ['broken']});
-    await store.writeAsString(original);
+    await tester.runAsync(() async {
+      directory = await Directory.systemTemp.createTemp('lyric-partial-import-');
+      store = File('${directory.path}${Platform.pathSeparator}media_metadata.json');
+      await store.writeAsString(original);
+      metadata = FileLocalMediaMetadataRepository(rootDirectory: directory);
+      await metadata.getAll();
+    });
+    addTearDown(() => directory.delete(recursive: true));
     final projects = _Projects([]);
     final session = _Session();
     final resolver = PlaybackLyricsResolver(
       projectRepository: projects,
-      metadataRepository: FileLocalMediaMetadataRepository(rootDirectory: directory),
+      metadataRepository: metadata,
       playbackSession: session,
       pathCanonicalizer: const FileAudioPathCanonicalizer(),
     );
@@ -297,7 +304,8 @@ void main() {
     expect(projects.scans, 0);
     expect(projects.creates, 0);
     expect(session.updates, isEmpty);
-    expect(await store.readAsString(), original);
+    final contents = await tester.runAsync(store.readAsString);
+    expect(contents, original);
     expect(tester.takeException(), isNull);
   });
 
