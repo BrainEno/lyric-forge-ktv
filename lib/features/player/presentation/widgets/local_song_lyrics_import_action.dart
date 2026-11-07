@@ -51,14 +51,17 @@ Future<void> importLyricsForLocalPlaybackItem(
     }
   } catch (error) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('无法读取歌曲或歌词工程，请检查存储后重试：$error')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('无法读取歌曲或歌词工程，请检查存储后重试：$error')));
     return;
   }
   if (!context.mounted) return;
   if (resolvedProjectId != null) {
-    await Navigator.pushNamed(context, Routes.lyricEditorPath(resolvedProjectId));
+    await Navigator.pushNamed(
+      context,
+      Routes.lyricEditorPath(resolvedProjectId),
+    );
     return;
   }
 
