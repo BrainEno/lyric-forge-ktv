@@ -160,28 +160,58 @@ void main() {
       );
     }
 
-    test('partial load protects managed artwork from replacement and deletion', () async {
-      final sourcePath = '${directory.path}${Platform.pathSeparator}song.mp3';
-      final firstImage = File('${directory.path}${Platform.pathSeparator}first.png');
-      final secondImage = File('${directory.path}${Platform.pathSeparator}second.png');
-      await firstImage.writeAsBytes([1, 2, 3]);
-      await secondImage.writeAsBytes([4, 5, 6]);
-      final seed = FileLocalMediaMetadataRepository(rootDirectory: directory);
-      final artworkPath = await seed.importArtwork(sourcePath: sourcePath, imagePath: firstImage.path);
-      final file = File('${directory.path}${Platform.pathSeparator}media_metadata.json');
-      final original = jsonEncode({'version': 1, 'items': [
-        LocalMediaMetadata(sourcePath: sourcePath, artworkPath: artworkPath, updatedAt: DateTime(2026)).toJson(),
-        'broken',
-      ]});
-      await file.writeAsString(original);
-      final repository = FileLocalMediaMetadataRepository(rootDirectory: directory);
+    test(
+      'partial load protects managed artwork from replacement and deletion',
+      () async {
+        final sourcePath = '${directory.path}${Platform.pathSeparator}song.mp3';
+        final firstImage = File(
+          '${directory.path}${Platform.pathSeparator}first.png',
+        );
+        final secondImage = File(
+          '${directory.path}${Platform.pathSeparator}second.png',
+        );
+        await firstImage.writeAsBytes([1, 2, 3]);
+        await secondImage.writeAsBytes([4, 5, 6]);
+        final seed = FileLocalMediaMetadataRepository(rootDirectory: directory);
+        final artworkPath = await seed.importArtwork(
+          sourcePath: sourcePath,
+          imagePath: firstImage.path,
+        );
+        final file = File(
+          '${directory.path}${Platform.pathSeparator}media_metadata.json',
+        );
+        final original = jsonEncode({
+          'version': 1,
+          'items': [
+            LocalMediaMetadata(
+              sourcePath: sourcePath,
+              artworkPath: artworkPath,
+              updatedAt: DateTime(2026),
+            ).toJson(),
+            'broken',
+          ],
+        });
+        await file.writeAsString(original);
+        final repository = FileLocalMediaMetadataRepository(
+          rootDirectory: directory,
+        );
 
-      await expectLater(repository.removeManagedArtwork(artworkPath), throwsFormatException);
-      await expectLater(repository.importArtwork(sourcePath: sourcePath, imagePath: secondImage.path), throwsFormatException);
-      expect(await File(artworkPath).readAsBytes(), [1, 2, 3]);
-      expect(await File('$artworkPath.tmp').exists(), isFalse);
-      expect(await file.readAsString(), original);
-    });
+        await expectLater(
+          repository.removeManagedArtwork(artworkPath),
+          throwsFormatException,
+        );
+        await expectLater(
+          repository.importArtwork(
+            sourcePath: sourcePath,
+            imagePath: secondImage.path,
+          ),
+          throwsFormatException,
+        );
+        expect(await File(artworkPath).readAsBytes(), [1, 2, 3]);
+        expect(await File('$artworkPath.tmp').exists(), isFalse);
+        expect(await file.readAsString(), original);
+      },
+    );
 
     test('legacy entries without metadata remain writable', () async {
       final file = File(

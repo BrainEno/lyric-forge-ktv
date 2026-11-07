@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 16:58] Surface unreviewed high-confidence engine disagreements ([entry](log/entries/2026-11-07-1658-surface-high-confidence-engine-disagreements.md))
 - [2026-11-07 16:18] Preserve project status on ASR cancellation ([entry](log/entries/2026-11-07-1618-preserve-ready-on-asr-cancellation.md))
 - [2026-11-07 14:54] Preserve Latin Extended-E ASR text ([entry](log/entries/2026-11-07-1454-preserve-latin-extended-e-asr.md))
 - [2026-11-07 14:25] Preserve Latin Extended-C ASR text ([entry](log/entries/2026-11-07-1425-preserve-latin-extended-c-asr.md))
