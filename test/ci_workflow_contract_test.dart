@@ -112,6 +112,21 @@ void main() {
         expect(workflow, contains('pull_request:\n    branches: [main]'));
         expect(
           workflow,
+          contains(
+            'flutter test --no-pub --reporter expanded packages/just_audio_media_kit/test',
+          ),
+          reason: 'Nested vendored tests are outside root test discovery',
+        );
+        expect(
+          Directory('packages/just_audio_media_kit/test')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .any((file) => file.path.endsWith('_test.dart')),
+          isTrue,
+        );
+
+        expect(
+          workflow,
           contains('bash scripts/quality_gate.sh --skip-pub-get'),
         );
         expect(

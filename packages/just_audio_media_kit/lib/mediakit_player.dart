@@ -6,6 +6,7 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 import 'package:logging/logging.dart';
 import 'package:media_kit/media_kit.dart';
+import 'src/audio_player_setup.dart';
 import 'src/set_property.dart';
 
 /// An [AudioPlayerPlatform] which wraps `package:media_kit`'s [Player]
@@ -21,14 +22,10 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   final _readyCompleter = Completer<void>();
 
   /// Completes when the player is ready
-  Future<void> ready() async {
-    await _readyCompleter.future;
-    // Keep packet caching in memory instead of requiring an MPV temporary
-    // cache file, which can fail on restricted or unwritable cache locations.
-    // This leaves the normal in-memory/network buffering enabled.
-    await setProperty(_player, 'cache-on-disk', 'no');
-    await setProperty(_player, 'sub-auto', 'no');
-  }
+  Future<void> ready() => prepareAudioPlayer(
+        _readyCompleter.future,
+        (name, value) => setProperty(_player, name, value),
+      );
 
   static final _logger = Logger('MediaKitPlayer');
 
@@ -59,17 +56,8 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   MediaKitPlayer(super.id) {
     _player = Player(
-        configuration: PlayerConfiguration(
-      // This adapter is audio-only. Avoid writing the unsupported OSC option
-      // as a runtime property on audio-only libmpv builds.
-      osc: true,
-      pitch: JustAudioMediaKit.pitch,
-      protocolWhitelist: JustAudioMediaKit.protocolWhitelist,
-      title: JustAudioMediaKit.title,
-      bufferSize: JustAudioMediaKit.bufferSize,
-      logLevel: JustAudioMediaKit.mpvLogLevel,
-      ready: () => _readyCompleter.complete(),
-    ));
+      configuration: audioPlayerConfiguration(() => _readyCompleter.complete()),
+    );
 
     if (JustAudioMediaKit.prefetchPlaylist) {
       setProperty(_player, 'prefetch-playlist', 'yes');

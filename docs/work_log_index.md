@@ -74,6 +74,8 @@
 
 ## Follow-up leads — media backend
 
+- **Vendored audio backend (#236):** `packages/just_audio_media_kit/README.md` records the upstream v2.1.0 commit, all local MPV workarounds and update procedure. Its nested setup tests run explicitly in the universal Flutter Quality Gate; they do not replace native Windows/Linux playback checks.
+
 - `media_kit`/MPV terminal messages are independent of the route observer. The audio-only `just_audio_media_kit` adapter avoids the unsupported OSC runtime write and now explicitly sets `cache-on-disk=no` before opening media, preserving normal memory/network caching. Verify `lavf: Failed to create file cache` and first-play behavior on Windows after rebuilding; do not suppress MPV errors globally.
 
 ## Archive map
