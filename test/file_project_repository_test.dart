@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -128,6 +129,48 @@ void main() {
       expect(await store.readAsString(), contains('First project'));
     },
   );
+
+  for (final corruption in ['non-object', 'duplicate-id', 'invalid-record']) {
+    test('rejects $corruption without replacing project files', () async {
+      final root = await Directory.systemTemp.createTemp('project-partial-');
+      addTearDown(() => root.delete(recursive: true));
+      final valid = ProjectManifest(
+        id: 'saved',
+        name: 'User project',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+        lyricDocument: _lyricDocument(text: '保留歌词'),
+      );
+      final bad = switch (corruption) {
+        'non-object' => 'broken',
+        'duplicate-id' => valid.copyWith(name: 'Different project').toJson(),
+        _ => <String, Object>{'id': 'broken'},
+      };
+      final original = jsonEncode({'version': 1, 'projects': [valid.toJson(), bad]});
+      final oldBackup = jsonEncode({'version': 1, 'projects': []});
+      final store = File('${root.path}${Platform.pathSeparator}projects.json');
+      final backup = File('${store.path}.bak');
+      await store.writeAsString(original);
+      await backup.writeAsString(oldBackup);
+      final repository = FileProjectRepository(rootDirectory: root);
+
+      await expectLater(repository.getAllProjects(), throwsA(isA<ProjectRepositoryException>()));
+      await expectLater(repository.getProjectById(valid.id), throwsA(isA<ProjectRepositoryException>()));
+      await expectLater(repository.createProject(name: 'New'), throwsA(isA<ProjectRepositoryException>()));
+      await expectLater(repository.updateProject(valid.copyWith(name: 'Overwrite')), throwsA(isA<ProjectRepositoryException>()));
+      await expectLater(repository.deleteProject(valid.id), throwsA(isA<ProjectRepositoryException>()));
+      expect(await store.readAsString(), original);
+      expect(await backup.readAsString(), oldBackup);
+      expect(await File('${store.path}.tmp').exists(), isFalse);
+
+      // After explicit repair, a fresh instance can read and persist projects.
+      await store.writeAsString(jsonEncode({'projects': [valid.toJson()]}));
+      final repaired = FileProjectRepository(rootDirectory: root);
+      expect((await repaired.getProjectById(valid.id))?.lyricDocument?.lines.single.text, '保留歌词');
+      await repaired.updateProject(valid.copyWith(name: 'Updated'));
+      expect((await repaired.getProjectById(valid.id))?.name, 'Updated');
+    });
+  }
 
   test('projects survive repository recreation', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-projects-');

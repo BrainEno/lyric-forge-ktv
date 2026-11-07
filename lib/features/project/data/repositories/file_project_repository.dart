@@ -82,17 +82,26 @@ class FileProjectRepository implements ProjectRepository {
 
     try {
       final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return;
-      final entries = decoded['projects'];
-      if (entries is! List) return;
+      if (!_isValidStoreJson(decoded)) {
+        throw const FormatException('Project store became invalid while loading');
+      }
+      final entries = (decoded as Map)['projects'] as List;
 
-      for (final entry in entries) {
-        if (entry is! Map) continue;
+      final loaded = <String, ProjectManifest>{};
+      for (var index = 0; index < entries.length; index++) {
+        final entry = entries[index];
+        if (entry is! Map) {
+          throw FormatException('Project record ${index + 1} is not an object');
+        }
         final project = ProjectManifest.fromJson(
           Map<String, dynamic>.from(entry),
         );
-        _projects[project.id] = project;
+        if (loaded.containsKey(project.id)) {
+          throw FormatException('Project record ${index + 1} has a duplicate ID');
+        }
+        loaded[project.id] = project;
       }
+      _projects.addAll(loaded);
     } catch (error) {
       throw ProjectRepositoryException(
         'Failed to restore local projects',
