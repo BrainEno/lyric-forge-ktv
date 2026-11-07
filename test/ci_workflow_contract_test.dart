@@ -112,7 +112,9 @@ void main() {
         expect(workflow, contains('pull_request:\n    branches: [main]'));
         expect(
           workflow,
-          contains('flutter test --no-pub --reporter expanded packages/just_audio_media_kit/test'),
+          contains(
+            'flutter test --no-pub --reporter expanded packages/just_audio_media_kit/test',
+          ),
           reason: 'Nested vendored tests are outside root test discovery',
         );
         expect(

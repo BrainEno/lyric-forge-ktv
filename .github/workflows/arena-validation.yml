@@ -25,6 +25,26 @@ jobs:
         run: |
           set -o pipefail
           bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Generate and validate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 19:20' --slug vendored-audio-provenance --title 'Document and test vendored audio backend'
+          python3 - <<'PYLOG'
+          from pathlib import Path
+          p = Path('docs/log/entries/2026-11-07-1920-vendored-audio-provenance.md')
+          s = p.read_text()
+          s = s.replace('TODO — describe the task purpose.', 'Record the vendored just_audio_media_kit upstream baseline and local MPV patches, and add continuous unit coverage (#236).')
+          s = s.replace('TODO — list changed files.', 'Vendored backend README, setup helper, adapter and unit tests; Flutter Quality Gate, CI contract test, work-log navigation and handoff.')
+          s = s.replace('dart format ... => TODO', 'dart format changed Dart files after dependency resolution => passed in temporary GitHub Actions validation.')
+          s = s.replace('flutter analyze ... => TODO', 'bash scripts/quality_gate.sh --skip-pub-get => passed in temporary GitHub Actions validation, including analyzer and full root test suite.')
+          s = s.replace('flutter test ... => TODO', 'flutter test --no-pub --reporter expanded packages/just_audio_media_kit/test test/ci_workflow_contract_test.dart => passed in temporary GitHub Actions validation.')
+          s = s.replace('TODO — record risks and unverified behavior.', 'Unit tests inject MPV option writes and do not launch libmpv or verify native playback. Windows/Linux device and unwritable-cache smoke tests remain. The OSC workaround depends on media_kit behavior.')
+          s = s.replace('TODO: replace with the actual English imperative subject', 'Document and test vendored audio backend')
+          assert 'TODO' not in s
+          p.write_text(s)
+          PYLOG
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-1920-vendored-audio-provenance.md
       - name: Export diagnostics and formatting patch
         if: always()
         run: |

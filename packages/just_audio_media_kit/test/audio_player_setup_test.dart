@@ -5,7 +5,8 @@ import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:just_audio_media_kit/src/audio_player_setup.dart';
 
 void main() {
-  test('configuration keeps audio-only OSC workaround and forwards options', () {
+  test('configuration keeps audio-only OSC workaround and forwards options',
+      () {
     final originalPitch = JustAudioMediaKit.pitch;
     final originalTitle = JustAudioMediaKit.title;
     final originalBufferSize = JustAudioMediaKit.bufferSize;
@@ -33,7 +34,8 @@ void main() {
     expect(readyCalls, 1);
   });
 
-  test('readiness precedes ordered MPV options and awaits each write', () async {
+  test('readiness precedes ordered MPV options and awaits each write',
+      () async {
     final ready = Completer<void>();
     final firstWrite = Completer<void>();
     final writes = <String>[];
@@ -56,9 +58,11 @@ void main() {
     expect(completed, isTrue);
   });
 
-  test('failed property write propagates without applying later options', () async {
+  test('failed property write propagates without applying later options',
+      () async {
     final writes = <String>[];
-    final operation = prepareAudioPlayer(Future<void>.value(), (name, value) async {
+    final operation =
+        prepareAudioPlayer(Future<void>.value(), (name, value) async {
       writes.add(name);
       throw StateError('MPV option failed');
     });
@@ -69,7 +73,8 @@ void main() {
   test('failed readiness never attempts MPV options', () async {
     final writes = <String>[];
     await expectLater(
-      prepareAudioPlayer(Future<void>.error(StateError('not ready')), (name, value) async {
+      prepareAudioPlayer(Future<void>.error(StateError('not ready')),
+          (name, value) async {
         writes.add(name);
       }),
       throwsStateError,
