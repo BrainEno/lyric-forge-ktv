@@ -45,6 +45,7 @@ jobs:
               'Commit': '`fix: preserve chunk transcription cancellation boundaries`',
           }
           import re
+          s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
           for key, value in replacements.items():
               s, count = re.subn(rf'^- {key}:.*$', f'- {key}: {value}', s, count=1, flags=re.M)
               if count != 1: raise RuntimeError(f'missing {key}')
@@ -71,6 +72,6 @@ jobs:
         run: |
           for f in /tmp/focused.log /tmp/gate.log; do
             if [ -f "$f" ]; then
-              { grep -nE '\[E\]|error •|warning •|Error:|Expected:|Actual:' "$f" | head -35; tail -10 "$f"; } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+              { grep -nE '\[E\]|error •|warning •|Error:|Expected:|Actual:' "$f" | head -35 || true; tail -10 "$f"; } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
             fi
           done
