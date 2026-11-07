@@ -35,26 +35,32 @@ Future<void> importLyricsForLocalPlaybackItem(
   final playbackSession = resolver.playbackSession;
   final pathCanonicalizer = resolver.pathCanonicalizer;
 
-  // Resolve through the shared resolver so a dead link is repaired or cleared
-  // and the queue's lyric flag is retracted, matching every playback surface.
-  final resolution = await resolver.resolveAndSync(item);
-  if (!context.mounted) return;
-
-  if (resolution.projectId != null) {
-    await Navigator.pushNamed(
-      context,
-      Routes.lyricEditorPath(resolution.projectId!),
+  // Do not treat a storage failure as an absent project: that could create a
+  // duplicate project or replace an existing association.
+  String? resolvedProjectId;
+  ProjectManifest? project;
+  try {
+    final resolution = await resolver.resolveAndSync(item);
+    resolvedProjectId = resolution.projectId;
+    if (resolvedProjectId == null) {
+      project = await _linkedOrMatchingProject(
+        projectRepository: projectRepository,
+        mediaMetadataRepository: mediaMetadataRepository,
+        item: item,
+      );
+    }
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('无法读取歌曲或歌词工程，请检查存储后重试：$error')),
     );
     return;
   }
-
-  // No lyric project yet: reuse an existing draft project that owns this audio
-  // so imported lyrics land in it instead of creating a duplicate.
-  ProjectManifest? project = await _linkedOrMatchingProject(
-    projectRepository: projectRepository,
-    mediaMetadataRepository: mediaMetadataRepository,
-    item: item,
-  );
+  if (!context.mounted) return;
+  if (resolvedProjectId != null) {
+    await Navigator.pushNamed(context, Routes.lyricEditorPath(resolvedProjectId));
+    return;
+  }
 
   final picked = await FilePicker.platform.pickFiles(
     dialogTitle: '导入歌词文件',
@@ -463,18 +469,13 @@ Future<ProjectManifest?> _linkedOrMatchingProject({
   required LocalMediaMetadataRepository mediaMetadataRepository,
   required PlaybackItem item,
 }) async {
-  try {
-    final metadata = await mediaMetadataRepository.getForAudio(
-      item.audioAsset.originalPath,
-    );
-    final linkedProjectId = metadata?.metadata['linkedProjectId'];
-    if (linkedProjectId is String && linkedProjectId.isNotEmpty) {
-      final linked = await projectRepository.getProjectById(linkedProjectId);
-      if (linked != null) return linked;
-    }
-  } catch (_) {
-    // Fall back to matching the audio path. Optional media metadata must never
-    // prevent a user from opening/importing lyrics.
+  final metadata = await mediaMetadataRepository.getForAudio(
+    item.audioAsset.originalPath,
+  );
+  final linkedProjectId = metadata?.metadata['linkedProjectId'];
+  if (linkedProjectId is String && linkedProjectId.isNotEmpty) {
+    final linked = await projectRepository.getProjectById(linkedProjectId);
+    if (linked != null) return linked;
   }
 
   return _findProjectForAudio(projectRepository, item.audioAsset.originalPath);

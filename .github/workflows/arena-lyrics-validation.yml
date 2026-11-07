@@ -1,0 +1,85 @@
+name: Arena lyrics read validation
+on:
+  push:
+    branches: [arena/ab9c5341-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files
+        run: dart format lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart test/features/player/playback_lyrics_read_failure_test.dart
+      - name: Focused player tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/playback_lyrics_read_failure_test.dart test/features/player/playback_lyrics_project_resolver_test.dart test/features/player/playback_lyrics_availability_test.dart test/features/player/now_playing_lyrics_project_action_test.dart test/file_project_repository_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug protect-lyric-links-on-read-failure --title 'Protect lyric links on read failures'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          stamp = os.environ['ENTRY_STAMP']
+          path = Path('docs/log/entries') / (stamp.replace(' ', '-').replace(':', '') + '-protect-lyric-links-on-read-failure.md')
+          s = path.read_text()
+          s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
+          replacements = {
+              'Scope': 'Fail closed on propagated project, metadata and path resolution read failures, preserving lyric links and cached queue flags; stop unsafe imports and offer a Now Playing retry.',
+              'Files': 'Playback lyric resolver, local lyric import and Now Playing action, player failure regression tests, index, handoff, this entry and generated work-log navigation.',
+              'Validation': f"Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run {os.environ['GITHUB_RUN_ID']} passed focused player tests and the full repository quality gate; Dart format and work-log new/write/check ran there. Final PR checks reported separately. git diff --check ran locally.",
+              'Notes': 'Tests include an invalid file-backed project store, injected read failures, successful stale-link healing, metadata write failure, import failure and retry UI. Reads that storage implementations silently treat as valid or skip cannot be detected here. File repositories cache failed initial loads, so retry may require restart; concurrent metadata changes are not protected by compare-and-swap. No native playback or manual UI checks performed.',
+              'Commit': '`fix: preserve lyric links on read failures`',
+          }
+          for key, value in replacements.items():
+              s, count = re.subn(rf'^- {key}:.*$', f'- {key}: {value}', s, count=1, flags=re.M)
+              if count != 1: raise RuntimeError(f'missing {key}')
+          if 'TODO' in s: raise RuntimeError('unfilled TODO')
+          path.write_text(s)
+          idx = Path('docs/work_log_index.md')
+          text = idx.read_text()
+          old = '- A project-repository read failure is still treated as "no project", so a transient error could clear a lyric link; harden the resolver before relying on it in bulk workflows.'
+          new = '- Playback lyric resolution now fails closed on propagated project/metadata read errors; repository implementations that silently skip malformed records can still hide data. Failed initial file-store loads remain cached until restart; link writes have no compare-and-swap protection.'
+          if old not in text: raise RuntimeError('expected follow-up missing')
+          idx.write_text(text.replace(old, new))
+          Path('docs/handoff.md').write_text(f"""# Handoff\n\n## 目标\n\n补强 #223 的播放器覆盖，防止歌词工程读取异常被当成不存在而破坏关联；提交中文 PR，不自动合并。\n\n## Git 现场\n\n- 基线 `fba217a4dbd09cf6a6048bd7c13150f656349814`；分支 `arena/ab9c5341-lyric-forge-ktv`。\n- 最终提交、PR 和检查状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- 歌词工程 resolver、歌曲歌词导入和 Now Playing 入口、读取失败回归测试、工作日志及本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK 的 GitHub Actions run {os.environ['GITHUB_RUN_ID']} 通过定向测试及完整质量门禁，并执行 format、work-log new/write/check。最终 head 的检查以 Actions 为准。\n- 本地提交前执行 `git diff --check`；未进行真实设备或手动视觉测试。\n\n## 下一步\n\n确认最终 PR 的质量门禁并报告；#223 的覆盖率、首页和媒体中心缺口仍需后续处理。\n\n## 已知风险\n\n- 文件仓库对部分损坏记录可能静默跳过，resolver 无法识别；文件仓库缓存首次加载失败，重试可能需要重启。\n- 元数据回写未实现 compare-and-swap，其他写入者并发修改的竞态不在本切片范围。\n\n最后更新：{stamp}（Asia/Taipei）\n""")
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-protect-lyric-links-on-read-failure.md"
+          git diff --binary -- lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart lib/features/player/presentation/widgets/now_playing_lyrics_project_action.dart test/features/player/playback_lyrics_read_failure_test.dart docs > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64, gzip
+          data = base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Publish failure details
+        if: failure()
+        shell: bash
+        run: |
+          for f in /tmp/focused.log /tmp/gate.log; do
+            if [ -f "$f" ]; then
+              { grep -nE '\[E\]|error •|warning •|Error:|Expected:|Actual:|EXCEPTION CAUGHT|overflowed' "$f" | head -45 || true; tail -12 "$f"; } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            fi
+          done
