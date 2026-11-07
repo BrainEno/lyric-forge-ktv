@@ -1,5 +1,8 @@
 name: Arena temporary validation
-on: workflow_dispatch
+on:
+  push:
+    branches: [arena/0f11c2d9-lyric-forge-ktv]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
