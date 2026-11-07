@@ -70,7 +70,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       }
 
       if (request.config.mode == TranscriptionMode.whisperOnly) {
-        return await _runWhisperOnly(request);
+        final result = await _runWhisperOnly(request);
+        _throwIfCancelled();
+        return result;
       }
 
       // Highest quality is a capability request: the second engine is optional
@@ -94,6 +96,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         context: request.context,
       );
 
+      _throwIfCancelled();
       if (request.config.engineOrder ==
           TranscriptionEngineOrder.whisperPrimary) {
         return await _transcribeWhisperPrimary(sharedRequest);
@@ -103,7 +106,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       try {
         primaryResult = await _runPrimary(sharedRequest);
       } on TranscriptionException catch (error) {
-        if (error.message == '歌词识别已取消') rethrow;
+        _throwIfCancelled();
+        if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
         if (!_canDegradeToWhisper(error)) rethrow;
         // One broken engine must not cost the song. The error is recorded in
         // the document instead of escaping, so a missing driver, an exhausted
@@ -129,6 +133,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         '${request.outputDirectory}${Platform.pathSeparator}whisper_second_opinion',
       );
       await fallbackDirectory.create(recursive: true);
+      _throwIfCancelled();
 
       TranscriptionResult fallbackResult;
       try {
@@ -144,7 +149,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ),
         );
       } on TranscriptionException catch (error) {
-        if (error.message == '歌词识别已取消') rethrow;
+        _throwIfCancelled();
+        if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
 
         _emit(TranscriptionStage.completed, 1.0, 'Qwen 识别完成，但 Whisper 第二意见失败');
 
@@ -237,9 +243,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       );
     } on _HighQualityCancelledException {
       _emit(TranscriptionStage.cancelled, 0.0, '歌词识别已取消');
-      throw const TranscriptionException('歌词识别已取消');
+      throw const TranscriptionException.cancelled('歌词识别已取消');
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') {
+      if (error.kind == TranscriptionFailureKind.cancelled) {
         _emit(TranscriptionStage.cancelled, 0.0, '歌词识别已取消');
       } else {
         _emit(TranscriptionStage.failed, 0.0, '最高质量歌词识别失败');
@@ -366,7 +372,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (_cancelRequested) return;
       final mapped = 0.02 + progress.progress * 0.54;
       _emit(
-        progress.stage,
+        _nonTerminalStage(progress.stage),
         mapped.clamp(0.02, 0.56).toDouble(),
         'Whisper 主识别 · ${progress.message}',
       );
@@ -396,6 +402,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       '${request.outputDirectory}${Platform.pathSeparator}qwen_second_opinion',
     );
     await qwenDirectory.create(recursive: true);
+    _throwIfCancelled();
 
     TranscriptionResult qwenResult;
     try {
@@ -423,7 +430,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
         await qwenSubscription.cancel();
       }
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') rethrow;
+      _throwIfCancelled();
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
 
       _emit(TranscriptionStage.completed, 1.0, 'Whisper 主识别完成，但 Qwen 第二意见失败');
 
@@ -735,12 +743,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
       '${request.outputDirectory}${Platform.pathSeparator}whisper_degraded',
     );
     await directory.create(recursive: true);
+    _throwIfCancelled();
 
     final subscription = fallback.progressStream.listen((progress) {
       if (_cancelRequested) return;
       final mapped = 0.05 + progress.progress * 0.9;
       _emit(
-        progress.stage,
+        _nonTerminalStage(progress.stage),
         mapped.clamp(0.05, 0.97).toDouble(),
         'Whisper 降级识别 · ${progress.message}',
       );
@@ -758,7 +767,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
         ),
       );
     } on TranscriptionException catch (error) {
-      if (error.message == '歌词识别已取消') rethrow;
+      _throwIfCancelled();
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
       // Whisper is the last engine standing. Report both failures so the user
       // sees the root cause, not just "the fallback failed too".
       throw TranscriptionException(
@@ -807,7 +817,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (_cancelRequested) return;
       final mapped = 0.02 + progress.progress * 0.70;
       _emit(
-        progress.stage,
+        _nonTerminalStage(progress.stage),
         mapped.clamp(0.02, 0.72).toDouble(),
         progress.message,
       );
@@ -1390,6 +1400,18 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
   bool _hasSuspiciousRepetition(String text) {
     return _textComparison.hasSuspiciousRepetition(text);
+  }
+
+  // Child terminal events describe one engine, not the overall operation.
+  TranscriptionStage _nonTerminalStage(TranscriptionStage stage) {
+    switch (stage) {
+      case TranscriptionStage.completed:
+      case TranscriptionStage.failed:
+      case TranscriptionStage.cancelled:
+        return TranscriptionStage.transcribing;
+      default:
+        return stage;
+    }
   }
 
   void _emit(TranscriptionStage stage, double progress, String message) {

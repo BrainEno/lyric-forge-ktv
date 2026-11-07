@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 01:13] Match decomposed Vietnamese ASR output ([entry](log/entries/2026-11-07-0113-match-decomposed-vietnamese-asr.md))
+- [2026-11-06 20:05] Cover Vietnamese diacritics in ASR fusion ([entry](log/entries/2026-11-06-2005-cover-vietnamese-asr-fusion.md))
 - [2026-11-06 13:47] Verify Media Hub deadline test on pinned CI ([entry](log/entries/2026-11-06-1347-verify-media-hub-deadline-gate.md))
 - [2026-11-06 13:43] Widen Media Hub total-upload-deadline test margin ([entry](log/entries/2026-11-06-1343-widen-media-hub-total-upload-deadline.md))
 - [2026-11-06 13:37] Stabilize Media Hub total-upload-deadline regression ([entry](log/entries/2026-11-06-1337-stabilize-media-hub-total-upload-deadline.md))

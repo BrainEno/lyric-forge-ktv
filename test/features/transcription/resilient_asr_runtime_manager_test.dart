@@ -59,11 +59,7 @@ void main() {
       manager.installRecommended(highestQualityConfig()),
       throwsA(
         isA<TranscriptionException>()
-            .having(
-              (error) => error.message,
-              'message',
-              contains('没有切换识别方案'),
-            )
+            .having((error) => error.message, 'message', contains('没有切换识别方案'))
             .having(
               (error) => error.details,
               'details',
@@ -77,53 +73,58 @@ void main() {
     expect(delegate.installs[1].mode, TranscriptionMode.highestQuality);
   });
 
-  test('does not swallow cancellation during highest-quality upgrade', () async {
-    final delegate = _FakeAsrRuntimeManager(
-      whisperModel: whisperModel,
-      ffmpeg: ffmpeg,
-      cancelHighestQuality: true,
-    );
-    final manager = ResilientAsrRuntimeManager(
-      delegate: delegate,
-      whisperRuntimeBootstrap: (_) async => whisperRuntime,
-    );
-    addTearDown(manager.dispose);
+  test(
+    'does not swallow cancellation during highest-quality upgrade',
+    () async {
+      final delegate = _FakeAsrRuntimeManager(
+        whisperModel: whisperModel,
+        ffmpeg: ffmpeg,
+        cancelHighestQuality: true,
+      );
+      final manager = ResilientAsrRuntimeManager(
+        delegate: delegate,
+        whisperRuntimeBootstrap: (_) async => whisperRuntime,
+      );
+      addTearDown(manager.dispose);
 
-    await expectLater(
-      manager.installRecommended(highestQualityConfig()),
-      throwsA(
-        isA<TranscriptionException>().having(
-          (error) => error.message,
-          'message',
-          contains('取消'),
+      await expectLater(
+        manager.installRecommended(highestQualityConfig()),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(delegate.installs, hasLength(2));
-  });
+      expect(delegate.installs, hasLength(2));
+    },
+  );
 
-  test('Whisper-only setup uses standalone bootstrap without Qwen attempt',
-      () async {
-    final delegate = _FakeAsrRuntimeManager(
-      whisperModel: whisperModel,
-      ffmpeg: ffmpeg,
-    );
-    final manager = ResilientAsrRuntimeManager(
-      delegate: delegate,
-      whisperRuntimeBootstrap: (_) async => whisperRuntime,
-    );
-    addTearDown(manager.dispose);
+  test(
+    'Whisper-only setup uses standalone bootstrap without Qwen attempt',
+    () async {
+      final delegate = _FakeAsrRuntimeManager(
+        whisperModel: whisperModel,
+        ffmpeg: ffmpeg,
+      );
+      final manager = ResilientAsrRuntimeManager(
+        delegate: delegate,
+        whisperRuntimeBootstrap: (_) async => whisperRuntime,
+      );
+      addTearDown(manager.dispose);
 
-    final result = await manager.installRecommended(
-      highestQualityConfig().copyWith(mode: TranscriptionMode.whisperOnly),
-    );
+      final result = await manager.installRecommended(
+        highestQualityConfig().copyWith(mode: TranscriptionMode.whisperOnly),
+      );
 
-    expect(delegate.installs, hasLength(1));
-    expect(delegate.installs.single.mode, TranscriptionMode.whisperOnly);
-    expect(delegate.installs.single.whisperExecutable, whisperRuntime);
-    expect(result.mode, TranscriptionMode.whisperOnly);
-  });
+      expect(delegate.installs, hasLength(1));
+      expect(delegate.installs.single.mode, TranscriptionMode.whisperOnly);
+      expect(delegate.installs.single.whisperExecutable, whisperRuntime);
+      expect(result.mode, TranscriptionMode.whisperOnly);
+    },
+  );
 }
 
 class _FakeAsrRuntimeManager implements AsrRuntimeManager {
@@ -161,15 +162,14 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
   ) async {
     installs.add(config);
     _progressController.add(
-      const AsrRuntimeInstallProgress(
-        progress: 0.5,
-        message: 'fake progress',
-      ),
+      const AsrRuntimeInstallProgress(progress: 0.5, message: 'fake progress'),
     );
 
     if (config.mode == TranscriptionMode.highestQuality) {
       if (cancelHighestQuality) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled(
+          'different cancellation text',
+        );
       }
       if (failHighestQuality) {
         throw const TranscriptionException('Qwen runtime release unavailable');
@@ -184,7 +184,8 @@ class _FakeAsrRuntimeManager implements AsrRuntimeManager {
   }
 
   @override
-  Future<TranscriptionConfig> repair(TranscriptionConfig config) async => config;
+  Future<TranscriptionConfig> repair(TranscriptionConfig config) async =>
+      config;
 
   @override
   Future<void> cancel() async {}

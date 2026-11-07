@@ -87,7 +87,8 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
         try {
           return await delegate.installRecommended(config);
         } on TranscriptionException catch (error) {
-          if (_cancelRequested || _isCancellation(error)) rethrow;
+          _throwIfCancelled();
+          if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
           if (attempt >= maxAttempts || !_isRetryable(error)) rethrow;
 
           _emitRetryProgress(attempt + 1);
@@ -140,11 +141,6 @@ class RetryingAsrRuntimeManager implements AsrRuntimeManager {
       'http 504',
     ];
     return transportMarkers.any(text.contains);
-  }
-
-  bool _isCancellation(TranscriptionException error) {
-    return error.kind == TranscriptionFailureKind.cancelled ||
-        error.message.contains('取消');
   }
 
   void _emitRetryProgress(int nextAttempt) {

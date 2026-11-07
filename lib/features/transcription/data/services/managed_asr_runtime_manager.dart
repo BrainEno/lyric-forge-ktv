@@ -1027,7 +1027,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       if (component != AsrRuntimeComponent.whisperModel &&
           !(component == AsrRuntimeComponent.qwenRuntime && resumable)) {
@@ -1374,7 +1374,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       rethrow;
     } catch (error) {
       if (_cancelRequested) {
-        throw const TranscriptionException('识别环境安装已取消');
+        throw const TranscriptionException.cancelled('识别环境安装已取消');
       }
       throw TranscriptionException(
         '无法读取识别引擎发布信息，请检查网络后重试',
@@ -1460,7 +1460,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
   void _throwIfCancelled() {
     if (_cancelRequested) {
-      throw const TranscriptionException('识别环境安装已取消');
+      throw const TranscriptionException.cancelled('识别环境安装已取消');
     }
   }
 

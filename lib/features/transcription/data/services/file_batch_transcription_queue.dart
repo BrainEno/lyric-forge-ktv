@@ -385,7 +385,11 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
       );
     } on TranscriptionException catch (error) {
       if (_pauseRequested ||
-          (_paused && _pauseReason == TranscriptionQueuePauseReason.manual)) {
+          (_paused && _pauseReason == TranscriptionQueuePauseReason.manual) ||
+          error.kind == TranscriptionFailureKind.cancelled) {
+        _paused = true;
+        _pauseReason = TranscriptionQueuePauseReason.manual;
+        _pauseMessage = null;
         _items[index] = _items[index].copyWith(
           status: TranscriptionQueueItemStatus.paused,
           message: '已暂停，当前歌曲进度已保留',
