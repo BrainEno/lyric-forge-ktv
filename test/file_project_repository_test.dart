@@ -266,97 +266,139 @@ void main() {
   );
 
   for (final failureStage in ['read', 'write']) {
-    test('reports background association $failureStage failure without losing saved lyrics', () async {
-      final root = await Directory.systemTemp.createTemp('project-autolink-failure-');
+    test(
+      'reports background association $failureStage failure without losing saved lyrics',
+      () async {
+        final root = await Directory.systemTemp.createTemp(
+          'project-autolink-failure-',
+        );
+        addTearDown(() => root.delete(recursive: true));
+        final failure = StateError('metadata $failureStage failed');
+        final metadata = _FakeMetadataRepository();
+        if (failureStage == 'read') {
+          metadata.readFailure = failure;
+        } else {
+          metadata.writeFailure = failure;
+        }
+        final reports = <Object>[];
+        final reported = Completer<StackTrace>();
+        final session = _FakePlaybackSession();
+        final repository = FileProjectRepository(
+          rootDirectory: root,
+          mediaMetadataRepository: metadata,
+          playbackSession: session,
+          pathCanonicalizer: const FileAudioPathCanonicalizer(),
+          onAutoLinkError: (error, stackTrace) {
+            reports.add(error);
+            reported.complete(stackTrace);
+          },
+        );
+        final original = await repository.createProject(name: 'Song');
+        final updated = await repository.updateProject(
+          original.copyWith(
+            audioAsset: const AudioAsset(
+              originalPath: '/music/song.flac',
+              format: 'flac',
+            ),
+            lyricDocument: _lyricDocument(text: '保留歌词'),
+          ),
+        );
+        final stack = await reported.future.timeout(const Duration(seconds: 5));
+        expect(reports, [same(failure)]);
+        expect(stack.toString(), contains('_FakeMetadataRepository'));
+        expect(metadata.saved, isNull);
+        expect(session.currentState.queue, isEmpty);
+        final restored = await FileProjectRepository(
+          rootDirectory: root,
+        ).getProjectById(updated.id);
+        expect(restored?.lyricDocument?.lines.single.text, '保留歌词');
+        expect(restored?.revision, updated.revision);
+      },
+    );
+  }
+
+  test(
+    'corrupt file metadata reports association failure and preserves both stores',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'project-autolink-corrupt-',
+      );
       addTearDown(() => root.delete(recursive: true));
-      final failure = StateError('metadata $failureStage failed');
-      final metadata = _FakeMetadataRepository();
-      if (failureStage == 'read') {
-        metadata.readFailure = failure;
-      } else {
-        metadata.writeFailure = failure;
-      }
-      final reports = <Object>[];
-      final reported = Completer<StackTrace>();
-      final session = _FakePlaybackSession();
+      final metadataStore = File(
+        '${root.path}${Platform.pathSeparator}media_metadata.json',
+      );
+      final backup = File('${metadataStore.path}.bak');
+      const original = '{"items":["broken"]}';
+      const previous = '{"items":[]}';
+      await metadataStore.writeAsString(original);
+      await backup.writeAsString(previous);
+      final reported = Completer<Object>();
+      final repository = FileProjectRepository(
+        rootDirectory: root,
+        mediaMetadataRepository: FileLocalMediaMetadataRepository(
+          rootDirectory: root,
+        ),
+        playbackSession: _FakePlaybackSession(),
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        onAutoLinkError: (error, _) => reported.complete(error),
+      );
+      final project = await repository.createProject(name: 'Song');
+      final saved = await repository.updateProject(
+        project.copyWith(
+          audioAsset: const AudioAsset(
+            originalPath: '/music/song.flac',
+            format: 'flac',
+          ),
+          lyricDocument: _lyricDocument(text: '安全保存'),
+        ),
+      );
+      expect(
+        await reported.future.timeout(const Duration(seconds: 5)),
+        isA<FormatException>(),
+      );
+      expect(await metadataStore.readAsString(), original);
+      expect(await backup.readAsString(), previous);
+      final restored = await FileProjectRepository(
+        rootDirectory: root,
+      ).getProjectById(saved.id);
+      expect(restored?.lyricDocument?.lines.single.text, '安全保存');
+    },
+  );
+
+  test(
+    'a failing background error observer does not escape the async task',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'project-autolink-observer-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final metadata = _FakeMetadataRepository()
+        ..readFailure = StateError('metadata failed');
+      final notified = Completer<void>();
       final repository = FileProjectRepository(
         rootDirectory: root,
         mediaMetadataRepository: metadata,
-        playbackSession: session,
+        playbackSession: _FakePlaybackSession(),
         pathCanonicalizer: const FileAudioPathCanonicalizer(),
-        onAutoLinkError: (error, stackTrace) {
-          reports.add(error);
-          reported.complete(stackTrace);
+        onAutoLinkError: (_, _) {
+          notified.complete();
+          throw StateError('observer failed');
         },
       );
-      final original = await repository.createProject(name: 'Song');
-      final updated = await repository.updateProject(original.copyWith(
-        audioAsset: const AudioAsset(originalPath: '/music/song.flac', format: 'flac'),
-        lyricDocument: _lyricDocument(text: '保留歌词'),
-      ));
-      final stack = await reported.future.timeout(const Duration(seconds: 5));
-      expect(reports, [same(failure)]);
-      expect(stack.toString(), contains('_FakeMetadataRepository'));
-      expect(metadata.saved, isNull);
-      expect(session.currentState.queue, isEmpty);
-      final restored = await FileProjectRepository(rootDirectory: root).getProjectById(updated.id);
-      expect(restored?.lyricDocument?.lines.single.text, '保留歌词');
-      expect(restored?.revision, updated.revision);
-    });
-  }
-
-  test('corrupt file metadata reports association failure and preserves both stores', () async {
-    final root = await Directory.systemTemp.createTemp('project-autolink-corrupt-');
-    addTearDown(() => root.delete(recursive: true));
-    final metadataStore = File('${root.path}${Platform.pathSeparator}media_metadata.json');
-    final backup = File('${metadataStore.path}.bak');
-    const original = '{"items":["broken"]}';
-    const previous = '{"items":[]}';
-    await metadataStore.writeAsString(original);
-    await backup.writeAsString(previous);
-    final reported = Completer<Object>();
-    final repository = FileProjectRepository(
-      rootDirectory: root,
-      mediaMetadataRepository: FileLocalMediaMetadataRepository(rootDirectory: root),
-      playbackSession: _FakePlaybackSession(),
-      pathCanonicalizer: const FileAudioPathCanonicalizer(),
-      onAutoLinkError: (error, _) => reported.complete(error),
-    );
-    final project = await repository.createProject(name: 'Song');
-    final saved = await repository.updateProject(project.copyWith(
-      audioAsset: const AudioAsset(originalPath: '/music/song.flac', format: 'flac'),
-      lyricDocument: _lyricDocument(text: '安全保存'),
-    ));
-    expect(await reported.future.timeout(const Duration(seconds: 5)), isA<FormatException>());
-    expect(await metadataStore.readAsString(), original);
-    expect(await backup.readAsString(), previous);
-    final restored = await FileProjectRepository(rootDirectory: root).getProjectById(saved.id);
-    expect(restored?.lyricDocument?.lines.single.text, '安全保存');
-  });
-
-  test('a failing background error observer does not escape the async task', () async {
-    final root = await Directory.systemTemp.createTemp('project-autolink-observer-');
-    addTearDown(() => root.delete(recursive: true));
-    final metadata = _FakeMetadataRepository()..readFailure = StateError('metadata failed');
-    final notified = Completer<void>();
-    final repository = FileProjectRepository(
-      rootDirectory: root,
-      mediaMetadataRepository: metadata,
-      playbackSession: _FakePlaybackSession(),
-      pathCanonicalizer: const FileAudioPathCanonicalizer(),
-      onAutoLinkError: (_, _) {
-        notified.complete();
-        throw StateError('observer failed');
-      },
-    );
-    final project = await repository.createProject(name: 'Song');
-    await repository.updateProject(project.copyWith(
-      audioAsset: const AudioAsset(originalPath: '/music/song.flac', format: 'flac'),
-      lyricDocument: _lyricDocument(),
-    ));
-    await notified.future.timeout(const Duration(seconds: 5));
-    await pumpEventQueue();
-  });
+      final project = await repository.createProject(name: 'Song');
+      await repository.updateProject(
+        project.copyWith(
+          audioAsset: const AudioAsset(
+            originalPath: '/music/song.flac',
+            format: 'flac',
+          ),
+          lyricDocument: _lyricDocument(),
+        ),
+      );
+      await notified.future.timeout(const Duration(seconds: 5));
+      await pumpEventQueue();
+    },
+  );
 
   test(
     'later lyric saves do not relink or overwrite playlist/user metadata',
