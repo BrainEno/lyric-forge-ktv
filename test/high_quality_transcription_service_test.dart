@@ -205,6 +205,84 @@ void main() {
       },
     );
 
+    test('matches supplementary CJK rows in either engine order', () async {
+      const text = '\u{20000}\u{20001}';
+      final line = LyricLine(
+        text: text,
+        startTime: const Duration(seconds: 10),
+        endTime: const Duration(seconds: 13),
+        confidence: 90,
+      );
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _result(line)),
+          fallback: _FakeTranscriptionService(result: _result(line)),
+        );
+
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
+          );
+
+          expect(result.lyrics.lines.single.text, text);
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+          expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
+    test(
+      'matches canonically decomposed Vietnamese in either engine order',
+      () async {
+        const qwenText = 'Tiếng Việt';
+        const whisperText = 'Tie\u0302\u0301ng Vie\u0323\u0302t';
+        final qwenLine = LyricLine(
+          text: qwenText,
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 90,
+        );
+        final whisperLine = LyricLine(
+          text: whisperText,
+          startTime: const Duration(seconds: 10),
+          endTime: const Duration(seconds: 13),
+          confidence: 90,
+        );
+
+        for (final engineOrder in [
+          TranscriptionEngineOrder.qwenPrimary,
+          TranscriptionEngineOrder.whisperPrimary,
+        ]) {
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(qwenLine)),
+            fallback: _FakeTranscriptionService(result: _result(whisperLine)),
+          );
+
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: engineOrder),
+            );
+            final primaryText =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary
+                ? qwenText
+                : whisperText;
+
+            expect(result.lyrics.lines.single.text, primaryText);
+            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
+
     test(
       'surfaces distinct Chinese hypotheses for review in either engine order',
       () async {
