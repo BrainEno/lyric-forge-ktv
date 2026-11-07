@@ -63,5 +63,19 @@ class LyricTokenizer {
       (rune >= 0x3400 && rune <= 0x4dbf) ||
       (rune >= 0x4e00 && rune <= 0x9fff) ||
       (rune >= 0x3040 && rune <= 0x30ff) ||
-      (rune >= 0xac00 && rune <= 0xd7af);
+      (rune >= 0xac00 && rune <= 0xd7af) ||
+      _isSupplementaryCjkRune(rune);
+
+  // The current supplementary CJK Unified Ideograph blocks span B through J;
+  // Extension I is outside their numeric order.
+  bool _isSupplementaryCjkRune(int rune) =>
+      (rune >= 0x20000 && rune <= 0x2a6df) ||
+      (rune >= 0x2a700 && rune <= 0x2b73f) ||
+      (rune >= 0x2b740 && rune <= 0x2b81f) ||
+      (rune >= 0x2b820 && rune <= 0x2ceaf) ||
+      (rune >= 0x2ceb0 && rune <= 0x2ebef) ||
+      (rune >= 0x2ebf0 && rune <= 0x2ee5f) ||
+      (rune >= 0x30000 && rune <= 0x3134f) ||
+      (rune >= 0x31350 && rune <= 0x323af) ||
+      (rune >= 0x323b0 && rune <= 0x3347f);
 }

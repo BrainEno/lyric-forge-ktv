@@ -17,6 +17,16 @@ void main() {
       expect(comparison.similarity('你好世界', '再见朋友'), lessThan(1));
     });
 
+    test('preserves supplementary CJK ideographs', () {
+      const extensionB = '\u{20000}\u{20001}';
+      const extensionJ = '\u{323b0}\u{323b1}';
+
+      expect(comparison.normalize(extensionB), extensionB);
+      expect(comparison.similarity(extensionB, extensionB), 1);
+      expect(comparison.normalize(extensionJ), extensionJ);
+      expect(comparison.similarity(extensionB, extensionJ), lessThan(1));
+    });
+
     test('folds precomposed and decomposed Latin diacritics', () {
       expect(comparison.normalize('Café olé'), 'cafeole');
       expect(comparison.normalize('Cafe\u0301 ole\u0301'), 'cafeole');
