@@ -67,7 +67,13 @@ jobs:
 
           echo "Formatter differences follow; apply them to the changed Dart files."
           dart format "${dart_files[@]}"
+          git --no-pager diff -- "${dart_files[@]}" > /tmp/formatter-diff.txt
           git --no-pager diff -- "${dart_files[@]}"
+          # TEMPORARY PR diagnostic: surface the formatter diff as check annotations
+          # because the raw Actions log endpoint is inaccessible in some sandboxes.
+          head -50 /tmp/formatter-diff.txt | while IFS= read -r line; do
+            printf '::error title=TEMPORARY FORMATTER DIAGNOSTIC::%s\n' "${line:0:850}"
+          done
           exit 1
 
       - name: Run repository quality gate
