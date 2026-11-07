@@ -16,7 +16,7 @@ jobs:
       - name: Resolve packages
         run: flutter pub get --enforce-lockfile
       - name: Format changed Dart files
-        run: dart format lib/features/player/data/repositories/file_local_media_metadata_repository.dart lib/features/player/domain/repositories/local_media_metadata_repository.dart lib/features/player/domain/services/playback_lyrics_project_linker.dart lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart test/features/player/playback_lyrics_read_failure_test.dart test/file_local_media_metadata_repository_test.dart
+        run: dart format lib/features/player/data/repositories/file_local_media_metadata_repository.dart lib/features/player/data/services/default_playback_session_service.dart test/local_media_metadata_playback_test.dart lib/features/player/domain/repositories/local_media_metadata_repository.dart lib/features/player/domain/services/playback_lyrics_project_linker.dart lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart test/features/player/playback_lyrics_read_failure_test.dart test/file_local_media_metadata_repository_test.dart
       - name: Focused metadata and player tests
         shell: bash
         run: |
@@ -42,9 +42,9 @@ jobs:
           s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
           replacements = {
               'Scope': 'Prevent partial media metadata from being treated as an authoritative missing lyric association while retaining best-effort local playback display.',
-              'Files': 'Metadata repository contract and file implementation, lyric resolver, linker and import action, metadata and player regression tests, index, handoff, this entry and generated work-log navigation.',
+              'Files': 'Metadata repository contract and file implementation, playback session, lyric resolver, linker and import action, metadata and player regression tests, index, handoff, this entry and generated work-log navigation.',
               'Validation': f"Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run {os.environ['GITHUB_RUN_ID']} passed focused metadata, playback, lyric resolution, linking and availability tests and the full repository quality gate; Dart format and work-log new/write/check ran there. Final PR checks reported separately. git diff --check ran locally.",
-              'Notes': 'Incomplete and duplicate-path metadata remain readable for display, but authoritative association reads and writes fail; explicit project IDs bypass metadata. Tests exercise real files, preserved queue and store, import error presentation, legacy and clean snapshots, and fake audio playback. Repair requires a new repository instance. Other repositories must implement the completeness capability if their reads can be partial; cross-process races and first-lyric unawaited link errors remain outside scope. No physical playback or manual UI checks performed.',
+              'Notes': 'Incomplete and duplicate-path metadata remain readable for display, but authoritative association reads and writes fail; playback retains the existing lyric flag and explicit project IDs bypass metadata. Tests exercise real files, preserved queue and store, import error presentation, legacy and clean snapshots, and fake audio playback. Repair requires a new repository instance. Other repositories must implement the completeness capability if their reads can be partial; cross-process races and first-lyric unawaited link errors remain outside scope. No physical playback or manual UI checks performed.',
               'Commit': '`fix: guard lyric associations on partial metadata`',
           }
           for key, value in replacements.items():
@@ -68,7 +68,7 @@ jobs:
           stamp="${ENTRY_STAMP// /-}"
           stamp="${stamp//:/}"
           git add -N "docs/log/entries/$stamp-protect-lyric-associations-from-partial-metadata.md"
-          git diff --binary -- lib/features/player/data/repositories/file_local_media_metadata_repository.dart lib/features/player/domain/repositories/local_media_metadata_repository.dart lib/features/player/domain/services/playback_lyrics_project_linker.dart lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart test/features/player/playback_lyrics_read_failure_test.dart test/file_local_media_metadata_repository_test.dart docs > /tmp/arena.patch
+          git diff --binary -- lib/features/player/data/repositories/file_local_media_metadata_repository.dart lib/features/player/data/services/default_playback_session_service.dart test/local_media_metadata_playback_test.dart lib/features/player/domain/repositories/local_media_metadata_repository.dart lib/features/player/domain/services/playback_lyrics_project_linker.dart lib/features/player/domain/services/playback_lyrics_project_resolver.dart lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart test/features/player/playback_lyrics_read_failure_test.dart test/file_local_media_metadata_repository_test.dart docs > /tmp/arena.patch
           python3 - <<'PY'
           import base64, gzip
           data = base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()

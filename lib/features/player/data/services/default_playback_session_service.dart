@@ -261,10 +261,19 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
     }
     if (metadata == null) return item;
 
-    // Lyrics resolved by the transcription workflow (or attached by the
-    // editor/import flows) flag the queue item here so every playback surface
-    // agrees with the library without re-running the resolver per row.
-    final linkedProjectId = metadata.metadata['linkedProjectId'];
+    // Display overrides may be salvaged from a partial snapshot, but lyric
+    // availability must not be inferred from an ambiguous association.
+    LocalMediaMetadata? completeMetadata = metadata;
+    if (repository is CompleteLocalMediaMetadataReader) {
+      try {
+        completeMetadata = await repository.getCompleteForAudio(
+          item.audioAsset.originalPath,
+        );
+      } catch (_) {
+        completeMetadata = null;
+      }
+    }
+    final linkedProjectId = completeMetadata?.metadata['linkedProjectId'];
     final hasLinkedLyrics =
         linkedProjectId is String && linkedProjectId.trim().isNotEmpty;
     if (!metadata.hasOverrides && !hasLinkedLyrics) {
