@@ -187,7 +187,9 @@ void main() {
         expect(session.currentState.currentItem?.title, '可用标题');
         expect(session.currentState.currentItem?.hasLyrics, isFalse);
         expect(audio.loadCount, greaterThan(0));
-        await session.setQueue([_localItem(audioFile.path).copyWith(hasLyrics: true)]);
+        await session.setQueue([
+          _localItem(audioFile.path).copyWith(hasLyrics: true),
+        ]);
         expect(session.currentState.currentItem?.hasLyrics, isTrue);
         await expectLater(
           metadata.save(valid.copyWith(title: 'blocked')),

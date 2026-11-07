@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 18:24] Harden Media Hub audio uploads ([entry](log/entries/2026-11-07-1824-harden-audio-uploads.md))
 - [2026-11-07 17:40] Preserve disagreement evidence beyond highlight limit ([entry](log/entries/2026-11-07-1740-preserve-disagreement-evidence.md))
 - [2026-11-07 16:58] Surface unreviewed high-confidence engine disagreements ([entry](log/entries/2026-11-07-1658-surface-high-confidence-engine-disagreements.md))
 - [2026-11-07 16:18] Preserve project status on ASR cancellation ([entry](log/entries/2026-11-07-1618-preserve-ready-on-asr-cancellation.md))

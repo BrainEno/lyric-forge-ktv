@@ -14,7 +14,10 @@ Future<void> linkPlaybackLyricsProject({
     throw ArgumentError('Audio path and project ID must not be empty.');
   }
 
-  final stored = await readCompleteLocalMediaMetadataForAudio(metadataRepository, audioPath);
+  final stored = await readCompleteLocalMediaMetadataForAudio(
+    metadataRepository,
+    audioPath,
+  );
   final metadata =
       stored ??
       LocalMediaMetadata(sourcePath: audioPath, updatedAt: DateTime.now());
