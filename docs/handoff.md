@@ -16,7 +16,7 @@
 
 ## 检查结果
 
-- 本地无 Flutter/Dart。固定 SDK 的预验证 run 42364982248 中，定向歌词校对测试通过；完整质量门禁因无关 Media Hub 上传超时测试发生 TLS Broken pipe 而失败。后续运行和最终 PR head 的结果以 Actions 为准。
+- 本地无 Flutter/Dart。固定 SDK 的预验证 run 42364982248 中，定向歌词校对测试通过；完整质量门禁因无关 Media Hub 上传超时测试发生 TLS Broken pipe 而失败。后续预验证 run 42365186991 的定向测试、完整质量门禁及工作日志检查通过；最终 PR head 的结果以 Actions 为准。
 - 补丁通过 `git diff --check`。
 
 ## 下一步

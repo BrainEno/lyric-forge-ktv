@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 12:55] Preserve Cyrillic extension ASR text ([entry](log/entries/2026-11-07-1255-preserve-cyrillic-extended-asr.md))
 - [2026-11-07 12:45] Preserve Greek Extended ASR text ([entry](log/entries/2026-11-07-1245-preserve-greek-extended-asr.md))
 - [2026-11-07 11:07] Preserve supplementary CJK ASR text ([entry](log/entries/2026-11-07-1107-preserve-supplementary-cjk-asr.md))
 - [2026-11-07 07:14] Make ASR cancellation type-driven ([entry](log/entries/2026-11-07-0714-typed-asr-cancellation.md))
