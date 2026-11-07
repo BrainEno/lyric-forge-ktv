@@ -1448,6 +1448,10 @@ void main() {
         final outputPath =
             '${tempDirectory.path}${Platform.pathSeparator}'
             'high_quality_shared_input.wav';
+        final stages = <TranscriptionStage>[];
+        final progressSub = service.progressStream.listen(
+          (event) => stages.add(event.stage),
+        );
         final running = service.transcribe(
           _request(
             tempDirectory.path,
@@ -1463,13 +1467,21 @@ void main() {
         await expectLater(
           running,
           throwsA(
-            isA<TranscriptionException>().having(
-              (error) => error.message,
-              'message',
-              '歌词识别已取消',
-            ),
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having((error) => error.isCancelled, 'isCancelled', isTrue)
+                .having((error) => error.message, 'message', '歌词识别已取消'),
           ),
         );
+        await Future<void>.delayed(Duration.zero);
+        await progressSub.cancel();
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
         expect(await File(outputPath).exists(), isFalse);
         expect(process.killSignals, contains(ProcessSignal.sigterm));
         expect(process.killSignals, contains(ProcessSignal.sigkill));
@@ -1714,6 +1726,402 @@ void main() {
       },
     );
   });
+
+  group('HighQualityTranscriptionService typed cancellation', () {
+    late Directory tempDirectory;
+
+    setUp(() async {
+      tempDirectory = await Directory.systemTemp.createTemp(
+        'lyric_forge_hq_cancel_',
+      );
+    });
+
+    tearDown(() async {
+      if (await tempDirectory.exists()) {
+        await tempDirectory.delete(recursive: true);
+      }
+    });
+
+    test(
+      'Qwen-primary primary cancellation does not start Whisper regardless of message',
+      () async {
+        final qwen = _FakeTranscriptionService(
+          error: const TranscriptionException.cancelled(
+            'user aborted primary qwen',
+          ),
+        );
+        final whisper = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'unreachable whisper line',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 2),
+            ),
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(_request(tempDirectory.path)),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'user aborted primary qwen',
+                ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(qwen.requests, hasLength(1));
+        expect(whisper.requests, isEmpty);
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'Whisper-primary primary cancellation does not start Qwen regardless of message',
+      () async {
+        final qwen = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'unreachable qwen line',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 2),
+            ),
+          ),
+        );
+        final whisper = _FakeTranscriptionService(
+          error: const TranscriptionException.cancelled(
+            'user aborted primary whisper',
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(
+            _request(
+              tempDirectory.path,
+              engineOrder: TranscriptionEngineOrder.whisperPrimary,
+            ),
+          ),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'user aborted primary whisper',
+                ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(whisper.requests, hasLength(1));
+        expect(qwen.requests, isEmpty);
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'Qwen-primary second-engine cancellation propagates instead of returning degraded primary',
+      () async {
+        final qwen = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'qwen primary draft',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 2),
+            ),
+          ),
+        );
+        final whisper = _FakeTranscriptionService(
+          error: const TranscriptionException.cancelled(
+            'whisper second opinion cancelled',
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(_request(tempDirectory.path)),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'whisper second opinion cancelled',
+                ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(qwen.requests, hasLength(1));
+        expect(whisper.requests, hasLength(1));
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'Whisper-primary second-engine cancellation propagates instead of returning degraded primary',
+      () async {
+        final whisper = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'whisper primary draft',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 2),
+            ),
+          ),
+        );
+        final qwen = _FakeTranscriptionService(
+          error: const TranscriptionException.cancelled(
+            'qwen second opinion cancelled',
+          ),
+        );
+        final service = HighQualityTranscriptionService(
+          primary: qwen,
+          fallback: whisper,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(
+            _request(
+              tempDirectory.path,
+              engineOrder: TranscriptionEngineOrder.whisperPrimary,
+            ),
+          ),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'qwen second opinion cancelled',
+                ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(whisper.requests, hasLength(1));
+        expect(qwen.requests, hasLength(1));
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
+        await service.dispose();
+      },
+    );
+
+    for (final order in TranscriptionEngineOrder.values) {
+      test(
+        'internal cancel() during primary handoff throws typed cancelled in ${order.name}',
+        () async {
+          final enteredPrimary = Completer<void>();
+          final releasePrimary = Completer<void>();
+          Future<TranscriptionResult> holdPrimary(
+            TranscriptionRequest request,
+          ) async {
+            if (!enteredPrimary.isCompleted) enteredPrimary.complete();
+            await releasePrimary.future;
+            return _result(
+              LyricLine(
+                text: 'completed right as cancel fired',
+                startTime: Duration.zero,
+                endTime: const Duration(seconds: 2),
+              ),
+            );
+          }
+
+          final qwen = _FakeTranscriptionService(
+            onTranscribe: order == TranscriptionEngineOrder.qwenPrimary
+                ? holdPrimary
+                : null,
+            result: _resultLines([]),
+          );
+          final whisper = _FakeTranscriptionService(
+            onTranscribe: order == TranscriptionEngineOrder.whisperPrimary
+                ? holdPrimary
+                : null,
+            result: _resultLines([]),
+          );
+          final service = HighQualityTranscriptionService(
+            primary: qwen,
+            fallback: whisper,
+          );
+          final stages = <TranscriptionStage>[];
+          final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+          final running = service.transcribe(
+            _request(tempDirectory.path, engineOrder: order),
+          );
+          await enteredPrimary.future.timeout(const Duration(seconds: 1));
+          final cancelling = service.cancel();
+          releasePrimary.complete();
+          await cancelling;
+
+          await expectLater(
+            running,
+            throwsA(
+              isA<TranscriptionException>().having(
+                (error) => error.kind,
+                'kind',
+                TranscriptionFailureKind.cancelled,
+              ),
+            ),
+          );
+          await Future<void>.delayed(Duration.zero);
+          await sub.cancel();
+
+          expect(qwen.cancelCalls, 1);
+          expect(whisper.cancelCalls, 1);
+          if (order == TranscriptionEngineOrder.qwenPrimary) {
+            expect(qwen.requests, hasLength(1));
+            expect(whisper.requests, isEmpty);
+          } else {
+            expect(whisper.requests, hasLength(1));
+            expect(qwen.requests, isEmpty);
+          }
+          expect(stages, contains(TranscriptionStage.cancelled));
+          expect(stages, isNot(contains(TranscriptionStage.completed)));
+          expect(stages, isNot(contains(TranscriptionStage.failed)));
+          await service.dispose();
+        },
+      );
+    }
+
+    test(
+      'unknown exception with legacy cancellation text is not treated as cancelled',
+      () async {
+        const deceptiveFailure = TranscriptionException('歌词识别已取消');
+        expect(deceptiveFailure.kind, TranscriptionFailureKind.unknown);
+        expect(deceptiveFailure.isCancelled, isFalse);
+
+        // 1. Qwen-primary: unknown Qwen failure degrades to Whisper instead of
+        // aborting as a user cancellation.
+        final qwenPrimary = _FakeTranscriptionService(error: deceptiveFailure);
+        final whisperFallback = _FakeTranscriptionService(
+          result: _result(
+            LyricLine(
+              text: 'degraded whisper draft',
+              startTime: Duration.zero,
+              endTime: const Duration(seconds: 2),
+            ),
+          ),
+        );
+        final qwenFirstService = HighQualityTranscriptionService(
+          primary: qwenPrimary,
+          fallback: whisperFallback,
+        );
+        final qwenStages = <TranscriptionStage>[];
+        final qwenSub = qwenFirstService.progressStream.listen(
+          (e) => qwenStages.add(e.stage),
+        );
+
+        final degraded = await qwenFirstService.transcribe(
+          _request(tempDirectory.path),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await qwenSub.cancel();
+
+        expect(degraded.lyrics.lines.single.text, 'degraded whisper draft');
+        expect(qwenPrimary.requests, hasLength(1));
+        expect(whisperFallback.requests, hasLength(1));
+        expect(
+          TranscriptionQualityMetadata.reasonOf(degraded.lyrics.metadata),
+          TranscriptionDegradationReason.qwenUnavailable,
+        );
+        expect(qwenStages, isNot(contains(TranscriptionStage.cancelled)));
+        await qwenFirstService.dispose();
+
+        // 2. Whisper-primary: unknown primary Whisper failure fails as unknown
+        // and emits failed rather than cancelled.
+        final qwenSecond = _FakeTranscriptionService(result: _resultLines([]));
+        final whisperPrimary = _FakeTranscriptionService(
+          error: deceptiveFailure,
+        );
+        final whisperFirstService = HighQualityTranscriptionService(
+          primary: qwenSecond,
+          fallback: whisperPrimary,
+        );
+        final whisperStages = <TranscriptionStage>[];
+        final whisperSub = whisperFirstService.progressStream.listen(
+          (e) => whisperStages.add(e.stage),
+        );
+
+        await expectLater(
+          whisperFirstService.transcribe(
+            _request(
+              tempDirectory.path,
+              engineOrder: TranscriptionEngineOrder.whisperPrimary,
+            ),
+          ),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.unknown,
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await whisperSub.cancel();
+
+        expect(whisperPrimary.requests, hasLength(1));
+        expect(qwenSecond.requests, isEmpty);
+        expect(whisperStages, contains(TranscriptionStage.failed));
+        expect(whisperStages, isNot(contains(TranscriptionStage.cancelled)));
+        await whisperFirstService.dispose();
+      },
+    );
+  });
 }
 
 TranscriptionRequest _request(
@@ -1770,11 +2178,14 @@ TranscriptionResult _resultLines(List<LyricLine> lines) {
 class _FakeTranscriptionService implements TranscriptionService {
   final TranscriptionResult? result;
   final TranscriptionException? error;
+  final Future<TranscriptionResult> Function(TranscriptionRequest request)?
+  onTranscribe;
   final List<TranscriptionRequest> requests = [];
+  int cancelCalls = 0;
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
 
-  _FakeTranscriptionService({this.result, this.error});
+  _FakeTranscriptionService({this.result, this.error, this.onTranscribe});
 
   @override
   bool get isRunning => false;
@@ -1786,6 +2197,8 @@ class _FakeTranscriptionService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     requests.add(request);
+    final handler = onTranscribe;
+    if (handler != null) return handler(request);
     final failure = error;
     if (failure != null) throw failure;
 
@@ -1797,7 +2210,9 @@ class _FakeTranscriptionService implements TranscriptionService {
   }
 
   @override
-  Future<void> cancel() async {}
+  Future<void> cancel() async {
+    cancelCalls += 1;
+  }
 
   @override
   Future<void> dispose() async {

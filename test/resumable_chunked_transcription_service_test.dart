@@ -480,6 +480,222 @@ void main() {
       expect(delegate.calls, 4);
       await service.dispose();
     });
+
+    test(
+      'delegate cancellation with arbitrary message stops retries and keeps completed checkpoints',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-typed-cancel-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+        var calls = 0;
+        final delegate = _CallbackService((request) async {
+          calls += 1;
+          if (calls == 1) {
+            return _resultForLine(
+              request,
+              const LyricLine(
+                text: 'chunk zero preserved',
+                startTime: Duration(seconds: 5),
+                endTime: Duration(seconds: 9),
+              ),
+            );
+          }
+          if (calls == 2) {
+            throw const TranscriptionException.cancelled(
+              'custom operator cancellation',
+            );
+          }
+          return _resultForLine(
+            request,
+            const LyricLine(
+              text: 'chunk one resumed',
+              startTime: Duration(seconds: 20),
+              endTime: Duration(seconds: 24),
+            ),
+          );
+        });
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(minutes: 3),
+          maxAttempts: 3,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(_request(input.path, directory.path)),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.cancelled,
+                )
+                .having((error) => error.isCancelled, 'isCancelled', isTrue)
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'custom operator cancellation',
+                ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sub.cancel();
+
+        expect(calls, 2);
+        expect(stages, contains(TranscriptionStage.cancelled));
+        expect(stages, isNot(contains(TranscriptionStage.completed)));
+        expect(stages, isNot(contains(TranscriptionStage.failed)));
+
+        final sessionRoot =
+            '${directory.path}${Platform.pathSeparator}chunk_session';
+        final completedCheckpoint = File(
+          '$sessionRoot${Platform.pathSeparator}chunks'
+          '${Platform.pathSeparator}chunk_0000.json',
+        );
+        final manifestFile = File(
+          '$sessionRoot${Platform.pathSeparator}session.json',
+        );
+        expect(await completedCheckpoint.exists(), isTrue);
+        expect(jsonDecode(await manifestFile.readAsString())['completed'], [
+          'chunk_0000',
+        ]);
+
+        // Resuming reuses chunk_0000 and only runs chunk_0001 once.
+        final resumed = await service.transcribe(
+          _request(input.path, directory.path),
+        );
+        expect(calls, 3);
+        expect(resumed.lyrics.lines.map((line) => line.text).toList(), [
+          'chunk zero preserved',
+          'chunk one resumed',
+        ]);
+        await service.dispose();
+      },
+    );
+
+    test(
+      'unknown exception with legacy cancellation message still retries and wraps as chunk failure',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-deceptive-cancel-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+        var calls = 0;
+        final delegate = _CallbackService((_) async {
+          calls += 1;
+          throw const TranscriptionException('歌词识别已取消');
+        });
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(minutes: 3),
+          maxAttempts: 2,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        final stages = <TranscriptionStage>[];
+        final sub = service.progressStream.listen((e) => stages.add(e.stage));
+
+        await expectLater(
+          service.transcribe(_request(input.path, directory.path)),
+          throwsA(
+            isA<TranscriptionException>()
+                .having(
+                  (error) => error.kind,
+                  'kind',
+                  TranscriptionFailureKind.unknown,
+                )
+                .having(
+                  (error) => error.message,
+                  'message',
+                  contains('分片 1 / 2 连续失败'),
+                )
+                .having(
+                  (error) => error.details,
+                  'details',
+                  contains('歌词识别已取消'),
+                ),
+          ),
+        );
+        await sub.cancel();
+
+        expect(calls, 2);
+        expect(stages, isNot(contains(TranscriptionStage.cancelled)));
+        await service.dispose();
+      },
+    );
+
+    test(
+      'environment errors fail immediately while input errors exhaust retry budget',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-retry-policy-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+
+        var envCalls = 0;
+        final envService = ResumableChunkedTranscriptionService(
+          delegate: _CallbackService((_) async {
+            envCalls += 1;
+            throw const TranscriptionException.environment('GPU driver lost');
+          }),
+          chunkDuration: const Duration(minutes: 3),
+          maxAttempts: 3,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        await expectLater(
+          envService.transcribe(_request(input.path, directory.path)),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.environment,
+            ),
+          ),
+        );
+        expect(envCalls, 1);
+        await envService.dispose();
+
+        var inputCalls = 0;
+        final inputService = ResumableChunkedTranscriptionService(
+          delegate: _CallbackService((_) async {
+            inputCalls += 1;
+            throw const TranscriptionException.input('corrupted segment');
+          }),
+          chunkDuration: const Duration(minutes: 3),
+          maxAttempts: 2,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        await expectLater(
+          inputService.transcribe(_request(input.path, directory.path)),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (error) => error.kind,
+              'kind',
+              TranscriptionFailureKind.input,
+            ),
+          ),
+        );
+        expect(inputCalls, 2);
+        await inputService.dispose();
+      },
+    );
   });
 }
 
@@ -552,6 +768,42 @@ class _ScriptedService implements TranscriptionService {
       detectedLanguage: document.language,
     );
   }
+
+  @override
+  Future<void> cancel() async {}
+
+  @override
+  Future<void> dispose() => _controller.close();
+}
+
+TranscriptionResult _resultForLine(
+  TranscriptionRequest request,
+  LyricLine line,
+) {
+  return TranscriptionResult(
+    lyrics: LyricDocument(language: 'en', lines: [line]),
+    normalizedAudioPath: request.inputAudioPath,
+    rawJsonPath: '${request.outputDirectory}${Platform.pathSeparator}raw.json',
+    detectedLanguage: 'en',
+  );
+}
+
+class _CallbackService implements TranscriptionService {
+  _CallbackService(this._handler);
+
+  final Future<TranscriptionResult> Function(TranscriptionRequest request)
+  _handler;
+  final _controller = StreamController<TranscriptionProgress>.broadcast();
+
+  @override
+  Stream<TranscriptionProgress> get progressStream => _controller.stream;
+
+  @override
+  bool get isRunning => false;
+
+  @override
+  Future<TranscriptionResult> transcribe(TranscriptionRequest request) =>
+      _handler(request);
 
   @override
   Future<void> cancel() async {}

@@ -103,6 +103,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     _running = true;
     _cancelRequested = false;
 
+    var chunkSessionStarted = false;
+
     try {
       _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频时长');
       final duration = await _probeDuration(
@@ -119,6 +121,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         return await _runDelegate(request, prefix: '');
       }
 
+      chunkSessionStarted = true;
       final root = Directory(
         '${request.outputDirectory}${Platform.pathSeparator}chunk_session',
       );
@@ -230,10 +233,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             );
             break;
           } on TranscriptionException catch (error) {
-            if (error.kind == TranscriptionFailureKind.cancelled ||
-                error.message == '歌词识别已取消') {
+            if (error.isCancelled) {
               rethrow;
             }
+            _throwIfCancelled();
             if (error.blocksQueue) {
               // Retrying the same chunk cannot repair a missing executable,
               // crashed runtime, driver problem or model environment. Preserve
@@ -333,6 +336,15 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     } on _ChunkCancelled {
       _emit(TranscriptionStage.cancelled, 0.0, '分片识别已取消，已完成进度已保存');
       throw const TranscriptionException.cancelled('歌词识别已取消');
+    } on TranscriptionException catch (error) {
+      if (error.isCancelled) {
+        _emit(
+          TranscriptionStage.cancelled,
+          0.0,
+          chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
+        );
+      }
+      rethrow;
     } finally {
       _running = false;
       _cancelRequested = false;
@@ -493,7 +505,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     double span = 1,
   }) async {
     final subscription = delegate.progressStream.listen((p) {
-      if (_cancelRequested) return;
+      if (_cancelRequested || p.stage == TranscriptionStage.cancelled) return;
       _emit(
         p.stage,
         (base + p.progress * span).clamp(0.0, 1.0).toDouble(),
@@ -501,7 +513,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       );
     });
     try {
-      return await delegate.transcribe(request);
+      final result = await delegate.transcribe(request);
+      _throwIfCancelled();
+      return result;
+    } on TranscriptionException catch (error) {
+      if (error.isCancelled) rethrow;
+      _throwIfCancelled();
+      rethrow;
     } finally {
       await subscription.cancel();
     }

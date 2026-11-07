@@ -20,6 +20,7 @@
 
 ## Recent work areas
 
+- **ASR pipeline typed cancellation (#321):** `TranscriptionException.isCancelled` (`kind == TranscriptionFailureKind.cancelled`) replaces `error.message == '歌词识别已取消'` across `HighQualityTranscriptionService`, `ResumableChunkedTranscriptionService`, `LocalProjectTranscriptionWorkflow`, and `FileBatchTranscriptionQueue`, preventing swallowed cancellations, wasted chunk retries, false `ProjectStatus.error` writes, and false environment-protective queue pauses. Static and behavioral regression tests guard both engine orders and negative `unknown`-kind cases.
 - **Immersive KTV chrome lifecycle:** App-level chrome notifications must occur after route mount/dispose frames so a child route cannot mark an ancestor `ValueListenableBuilder` dirty while the tree is building. Regression coverage is in `immersive_ktv_recording_test.dart`.
 - **Phase 4.5 CI workflow simplification:** the ASR client-only, transcription execution-failure, transcription readiness, transcription settings, and root widget focused workflows are removed because the universal Flutter Quality Gate runs their analyze/tests; native, KTV recovery, runtime-release, and icon workflows remain for separate audits.
 - **Phase 4.4 editor/player state:** editor document state is observable through a local Provider/Selector scope; desktop playback chrome reuses its existing session snapshot in queue/mode controls, while services remain the only playback state source. See the newest work-log entry and the updated deep review; recognition algorithms are untouched.
