@@ -302,17 +302,6 @@ class _LyricListPaneState extends State<LyricListPane> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.visibleIndices.isEmpty) {
-      if (widget.filter == LyricReviewFilter.needsReview) {
-        return _ReviewQueueEmptyState(
-          reviewedCount: const LyricReviewDecisionService()
-              .reviewedIndices(widget.document)
-              .length,
-        );
-      }
-      return const _FilteredEmptyState();
-    }
-
     final spec = AppResponsive.of(context);
     final padding = spec.isCompact
         ? 8.0
@@ -324,7 +313,7 @@ class _LyricListPaneState extends State<LyricListPane> {
     Set<int>? highlighted;
     var totalCandidates = 0;
     var eligibleCount = 0;
-    if (rawCandidates is List && rawLimit is num) {
+    if (rawCandidates is List) {
       final reviewed = const LyricReviewDecisionService().reviewedIndices(
         widget.document,
       );
@@ -342,7 +331,9 @@ class _LyricListPaneState extends State<LyricListPane> {
       totalCandidates = indices.length;
       indices.removeAll(reviewed);
       eligibleCount = indices.length;
-      final limit = rawLimit.toInt().clamp(0, eligibleCount);
+      final limit = rawLimit is num
+          ? rawLimit.toInt().clamp(0, eligibleCount)
+          : eligibleCount;
       highlighted = indices.take(limit).toSet();
     }
 
@@ -351,10 +342,22 @@ class _LyricListPaneState extends State<LyricListPane> {
         : Padding(
             padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
             child: Text(
-              '全曲候选 $totalCandidates 行 · 未复核 $eligibleCount 行 · 重点标记 ${highlighted.length} 行（当前筛选 ${highlighted.intersection(filtered.toSet()).length} 行） · 其余未复核 ${eligibleCount - highlighted.length} 行仍可查看',
+              '已保存候选 $totalCandidates 行 · 未复核 $eligibleCount 行 · 重点标记 ${highlighted.length} 行（当前筛选 ${highlighted.intersection(filtered.toSet()).length} 行） · 其余未复核 ${eligibleCount - highlighted.length} 行仍可查看',
               style: Theme.of(context).textTheme.labelSmall,
             ),
           );
+
+    if (widget.visibleIndices.isEmpty) {
+      final empty = widget.filter == LyricReviewFilter.needsReview
+          ? _ReviewQueueEmptyState(
+              reviewedCount: const LyricReviewDecisionService()
+                  .reviewedIndices(widget.document)
+                  .length,
+            )
+          : const _FilteredEmptyState();
+      if (summary == null) return empty;
+      return Column(children: [summary, Expanded(child: empty)]);
+    }
 
     if (filtered.isEmpty && _searchQuery.isNotEmpty) {
       return Column(

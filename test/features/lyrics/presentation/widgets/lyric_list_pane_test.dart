@@ -20,9 +20,12 @@ void main() {
     Size? viewport,
   }) {
     return MaterialApp(
-      builder: viewport == null ? null : (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(size: viewport), child: child!,
-      ),
+      builder: viewport == null
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(size: viewport),
+              child: child!,
+            ),
       home: Scaffold(
         body: SizedBox(
           height: 600,
@@ -128,7 +131,7 @@ void main() {
         );
         expect(
           find.textContaining(
-            '全曲候选 30 行 · 未复核 29 行 · 重点标记 3 行（当前筛选 2 行） · 其余未复核 26 行',
+            '已保存候选 30 行 · 未复核 29 行 · 重点标记 3 行（当前筛选 2 行） · 其余未复核 26 行',
           ),
           findsOneWidget,
         );
@@ -160,6 +163,22 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+
+  testWidgets('legacy candidates without a limit remain visible', (tester) async {
+    final document = _document(2).copyWith(metadata: {
+      'fallbackCandidates': [
+        {'lineIndex': 0}, {'lineIndex': 1},
+      ],
+    });
+    await tester.pumpWidget(host(
+      document: document, visibleIndices: [0, 1],
+      candidate: const {'alternativeText': 'other'},
+    ));
+    expect(find.textContaining('已保存候选 2 行 · 未复核 2 行 · 重点标记 2 行'), findsOneWidget);
+    expect(find.text('双引擎'), findsNWidgets(2));
+    await tester.pumpWidget(host(document: document, visibleIndices: []));
+    expect(find.textContaining('当前筛选 0 行'), findsOneWidget);
+  });
 
   testWidgets('点击行会请求选中该行', (tester) async {
     await tester.pumpWidget(
