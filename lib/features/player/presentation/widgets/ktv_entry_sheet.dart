@@ -9,7 +9,11 @@ class KtvEntrySheet extends StatelessWidget {
   final AudioAsset audioAsset;
   final AudioSourceType? currentSource;
 
-  const KtvEntrySheet({super.key, required this.audioAsset, required this.currentSource});
+  const KtvEntrySheet({
+    super.key,
+    required this.audioAsset,
+    required this.currentSource,
+  });
 
   @override
   Widget build(BuildContext context) {

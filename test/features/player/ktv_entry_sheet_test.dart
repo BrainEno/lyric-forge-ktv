@@ -14,22 +14,24 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       KtvBackingMode? selection;
-      await tester.pumpWidget(_SheetHost(
-        asset: const AudioAsset(originalPath: 'song.wav', format: 'wav'),
-        onSelected: (mode) => selection = mode,
-      ));
+      await tester.pumpWidget(
+        _SheetHost(
+          asset: const AudioAsset(originalPath: 'song.wav', format: 'wav'),
+          onSelected: (mode) => selection = mode,
+        ),
+      );
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
       expect(find.text('纯伴奏暂不可用：当前版本不支持生成或导入伴奏轨，仍可使用原唱伴唱。'), findsOneWidget);
-      final instrumental = tester.widget<ListTile>(find.ancestor(
-        of: find.text('纯伴奏'), matching: find.byType(ListTile),
-      ));
+      final instrumental = tester.widget<ListTile>(
+        find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
+      );
       expect(instrumental.enabled, isFalse);
       expect(instrumental.onTap, isNull);
-      final original = tester.widget<ListTile>(find.ancestor(
-        of: find.text('原唱伴唱'), matching: find.byType(ListTile),
-      ));
+      final original = tester.widget<ListTile>(
+        find.ancestor(of: find.text('原唱伴唱'), matching: find.byType(ListTile)),
+      );
       expect(original.enabled, isTrue);
       await tester.tap(find.text('原唱伴唱'));
       await tester.pumpAndSettle();
@@ -40,18 +42,22 @@ void main() {
 
   testWidgets('existing instrumental remains selectable', (tester) async {
     KtvBackingMode? selection;
-    await tester.pumpWidget(_SheetHost(
-      asset: const AudioAsset(
-        originalPath: 'song.wav', instrumentalPath: 'backing.wav', format: 'wav',
+    await tester.pumpWidget(
+      _SheetHost(
+        asset: const AudioAsset(
+          originalPath: 'song.wav',
+          instrumentalPath: 'backing.wav',
+          format: 'wav',
+        ),
+        onSelected: (mode) => selection = mode,
       ),
-      onSelected: (mode) => selection = mode,
-    ));
+    );
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
     expect(find.textContaining('当前版本不支持生成或导入伴奏轨'), findsNothing);
-    final instrumental = tester.widget<ListTile>(find.ancestor(
-      of: find.text('纯伴奏'), matching: find.byType(ListTile),
-    ));
+    final instrumental = tester.widget<ListTile>(
+      find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
+    );
     expect(instrumental.enabled, isTrue);
     await tester.tap(find.text('纯伴奏'));
     await tester.pumpAndSettle();
@@ -68,21 +74,28 @@ class _SheetHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: Scaffold(body: Builder(builder: (context) {
-      return TextButton(
-        onPressed: () async {
-          final selected = await showModalBottomSheet<KtvBackingMode>(
-            context: context,
-            showDragHandle: true,
-            useSafeArea: true,
-            builder: (_) => KtvEntrySheet(
-              audioAsset: asset, currentSource: AudioSourceType.original,
-            ),
-          );
-          onSelected(selected);
-        },
-        child: const Text('打开'),
-      );
-    })));
+    return MaterialApp(
+      home: Scaffold(
+        body: Builder(
+          builder: (context) {
+            return TextButton(
+              onPressed: () async {
+                final selected = await showModalBottomSheet<KtvBackingMode>(
+                  context: context,
+                  showDragHandle: true,
+                  useSafeArea: true,
+                  builder: (_) => KtvEntrySheet(
+                    audioAsset: asset,
+                    currentSource: AudioSourceType.original,
+                  ),
+                );
+                onSelected(selected);
+              },
+              child: const Text('打开'),
+            );
+          },
+        ),
+      ),
+    );
   }
 }
