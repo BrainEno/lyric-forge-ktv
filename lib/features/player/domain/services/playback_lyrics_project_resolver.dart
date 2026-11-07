@@ -65,7 +65,7 @@ Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
   if (item.isRemoteStream) return PlaybackLyricsResolution.empty;
 
   final audioPath = item.audioAsset.originalPath;
-  final metadata = await metadataRepository.getForAudio(audioPath);
+  final metadata = await readCompleteLocalMediaMetadataForAudio(metadataRepository, audioPath);
   final linkedProjectId = _linkedProjectIdOf(metadata);
 
   if (linkedProjectId != null) {
