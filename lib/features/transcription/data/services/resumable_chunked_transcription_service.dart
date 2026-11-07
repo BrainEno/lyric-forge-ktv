@@ -700,6 +700,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
     if (hasCandidateKey) {
       merged['fallbackCandidates'] = candidates;
+      // A degraded first chunk may not carry the display setting.
+      for (final document in documents) {
+        final limit = document.metadata['fallbackHighlightLimit'];
+        if (limit is num) {
+          merged['fallbackHighlightLimit'] = limit;
+          break;
+        }
+      }
       merged['fallbackCandidateCount'] = candidates.length;
       merged['fallbackAppliedCount'] = appliedCount;
     }
