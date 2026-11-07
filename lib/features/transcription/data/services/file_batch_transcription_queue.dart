@@ -444,6 +444,7 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
   }
 
   bool _isEnvironmentBlocked(TranscriptionException error) {
+    if (error.isCancelled) return false;
     if (error.blocksQueue) return true;
 
     // Backward compatibility for older services and persisted/test errors.
