@@ -37,6 +37,7 @@ class ReferenceTokenAlignmentResult {
   int get referenceTokenCount => referenceTokens.length;
   int get matchedReferenceTokenCount =>
       matches.map((match) => match.referenceIndex).toSet().length;
+
   /// False when safety limits prevented a complete alignment.
   bool get isComplete => !candidateLimitReached && !dpBudgetExceeded;
 

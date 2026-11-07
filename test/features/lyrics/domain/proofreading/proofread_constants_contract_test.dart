@@ -33,7 +33,9 @@ String _codeOnly(String source) {
       out.write(' ');
     } else if (source[i] == "'" || source[i] == '"') {
       final quote = source[i];
-      final raw = i > 0 && source[i - 1] == 'r' &&
+      final raw =
+          i > 0 &&
+          source[i - 1] == 'r' &&
           (i < 2 || !RegExp(r'[A-Za-z0-9_]').hasMatch(source[i - 2]));
       final delimiter = source.startsWith(quote * 3, i) ? quote * 3 : quote;
       i += delimiter.length;
@@ -80,7 +82,9 @@ void main() {
     final declarations = _declarations(File(_constantsPath).readAsStringSync());
     expect(declarations, isNotEmpty);
     final references = <String>{};
-    for (final file in Directory('lib').listSync(recursive: true).whereType<File>()) {
+    for (final file in Directory(
+      'lib',
+    ).listSync(recursive: true).whereType<File>()) {
       final path = file.path.replaceAll('\\', '/');
       if (!path.endsWith('.dart') || path == _constantsPath) continue;
       references.addAll(_references(file.readAsStringSync()));
@@ -106,7 +110,9 @@ void main() {
       final text = 'ProofreadConstants.unused';
       final raw = r"ProofreadConstants.unused";
     ''';
-    expect(_declarations(declarations).difference(_references(consumer)), {'unused'});
+    expect(_declarations(declarations).difference(_references(consumer)), {
+      'unused',
+    });
     expect(
       () => _declarations('static const first = 1, second = 2;'),
       throwsFormatException,
