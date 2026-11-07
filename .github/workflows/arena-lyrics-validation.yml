@@ -83,3 +83,16 @@ jobs:
               { grep -nE '\[E\]|error •|warning •|Error:|Expected:|Actual:|EXCEPTION CAUGHT|overflowed' "$f" | head -45 || true; tail -12 "$f"; } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
             fi
           done
+      - name: Export failure log for diagnosis
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          p = Path('/tmp/gate.log')
+          if not p.exists(): p = Path('/tmp/focused.log')
+          if p.exists():
+              data = base64.b64encode(gzip.compress(p.read_bytes()[-100000:])).decode()
+              for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY
