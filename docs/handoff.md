@@ -16,7 +16,7 @@
 
 ## 检查结果
 
-- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42360393504 的定向测试及完整质量门禁通过。之后增加旧项目和空筛选展示，需以最终 head 的检查为准。
+- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42360951321 的定向测试、完整质量门禁和工作日志检查通过；最终结果以 PR head 的检查为准。
 - 使用 `git diff --check` 检查补丁；真实设备响应式手测未执行。
 
 ## 下一步
