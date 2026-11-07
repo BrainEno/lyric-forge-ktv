@@ -2,30 +2,30 @@
 
 ## 目标
 
-继续 PR #366：取消重新识别时恢复工程原有的 ready、editing 或 draft 状态，同时保留歌词和其他工程数据；不合并 PR 或关闭 issue。
+修复 issue #332：双引擎分歧由显式人工复核状态控制，不因模型置信度恰为 100 而隐藏；提交独立 PR，不直接合并。
 
 ## Git 现场
 
-- 基线 `2037ea184d4e49f204c323b1a1acc5fb6039d9f1`；Arena 分支 `arena/6ea74235-lyric-forge-ktv`。
-- 最终提交和 PR head 以 Git 与 GitHub 为准；本轮保留原 PR 的取消类型化改动。
+- 基线 `db717573b53f640cebfcd814fe278da92d2d4e72`；Arena 固定分支 `arena/8414fc44-lyric-forge-ktv`。
+- 最终提交、PR 状态和检查结果以 Git/GitHub 为准。
 
 ## 已改文件
 
-- `local_project_transcription_workflow.dart`：取消时恢复识别前的稳定业务状态，其他状态保留既有回退。
-- `local_project_transcription_cancellation_test.dart`：覆盖 ready、editing、draft 以及识别期间更新的数据保留。
-- 新工作日志条目和生成式导航、此 handoff。
+- 复核优先级服务、歌词列表和检查器组件；相应单元测试和组件测试。
+- 本轮工作日志、生成式导航和本 handoff。
 
 ## 检查结果
 
-- 本地缺少 Flutter/Dart；目标测试、质量门禁及工作日志检查无法在本地运行。临时 [CI run 42354903212](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/42354903212) 的目标测试、完整 gate、格式化和工作日志工具通过；最终 head 以 PR 检查为准。
-- `git diff --check` 在提交前检查。
+- 本地没有 Flutter/Dart，无法直接运行 Flutter 测试、格式化、分析或工作日志工具；预验证 [run 42357701799](https://github.com/BrainEno/lyric-forge-ktv/actions/runs/42357701799) 的定向测试、完整 gate、格式化和工作日志工具通过；最终结果以 PR head 的 GitHub Actions 为准。
+- 提交前检查 `git diff --check`。
 
 ## 下一步
 
-检查 PR #366 最终 head 的 Flutter Quality Gate；未经授权不合并、不关闭 issue。
+确认 PR 最终 head 的 Flutter Quality Gate；未授权前不合并。
 
 ## 已知风险
 
-- 未在真实 ASR 硬件及 UI 上端到端验证取消。
+- 未在真实设备上逐一手动验证响应式歌词编辑器布局。
+- 现有重复文本风险按置信度降噪是独立策略，不用于推断人工复核状态；本轮未修改。
 
-最后更新：2026-11-07 16:18（Asia/Taipei）
+最后更新：2026-11-07 16:58（Asia/Taipei）

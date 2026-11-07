@@ -141,20 +141,18 @@ class LyricReviewPriorityService {
         }
       }
 
-      if (line.confidence < 100) {
-        final candidate = candidates[index];
-        if (candidate != null && _hasEngineDisagreement(line.text, candidate)) {
-          final similarity = _number(candidate['similarity']);
-          if (similarity != null && similarity < 0.50) {
-            score.add(30, LyricReviewPriorityReasonCode.enginesDifferGreatly);
-          } else if (similarity != null && similarity < 0.72) {
-            score.add(23, LyricReviewPriorityReasonCode.enginesDifferClearly);
-          } else {
-            score.add(
-              15,
-              LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates,
-            );
-          }
+      final candidate = candidates[index];
+      if (candidate != null && _hasEngineDisagreement(line.text, candidate)) {
+        final similarity = _number(candidate['similarity']);
+        if (similarity != null && similarity < 0.50) {
+          score.add(30, LyricReviewPriorityReasonCode.enginesDifferGreatly);
+        } else if (similarity != null && similarity < 0.72) {
+          score.add(23, LyricReviewPriorityReasonCode.enginesDifferClearly);
+        } else {
+          score.add(
+            15,
+            LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates,
+          );
         }
       }
 
@@ -241,8 +239,8 @@ class LyricReviewPriorityService {
     }
     if (normalizedPrimary == normalizedAlternative) return false;
 
-    // Keep a disagreement surfaced even when the merge already selected the
-    // alternate candidate: its confidence remains below 100 until reviewed.
+    // Keep the evidence visible even if the merge selected the alternative.
+    // Only an explicit review decision removes it from the queue.
     return _normalize(currentText).isNotEmpty;
   }
 

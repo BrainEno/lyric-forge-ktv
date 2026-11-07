@@ -1130,7 +1130,7 @@ class LyricReviewRow extends StatelessWidget {
                     const LyricTinyBadge(label: '副歌', accent: true),
                   if (!spec.isCompact &&
                       fallbackCandidate != null &&
-                      line.confidence < 100) ...[
+                      !isReviewed) ...[
                     const SizedBox(width: AppSpacing.xs),
                     const LyricTinyBadge(label: '双引擎'),
                   ],
