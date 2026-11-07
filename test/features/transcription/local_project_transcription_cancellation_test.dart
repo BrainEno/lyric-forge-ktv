@@ -33,71 +33,137 @@ const _profile = ResolvedTranscriptionProfile(
 );
 
 void main() {
-  for (final hasLyrics in [false, true]) {
-    test(
-      'typed cancellation restores project with lyrics=$hasLyrics',
-      () async {
-        final root = await Directory.systemTemp.createTemp('workflow-cancel-');
-        addTearDown(() => root.delete(recursive: true));
-        final audio = File('${root.path}/song.wav');
-        await audio.writeAsBytes([1]);
-        final lyrics = hasLyrics
-            ? LyricDocument(
-                language: 'en',
-                lines: [
-                  LyricLine(
-                    text: 'user edited',
-                    startTime: Duration.zero,
-                    endTime: const Duration(seconds: 1),
-                  ),
-                ],
-                metadata: const {'edited': true},
-              )
-            : null;
-        final now = DateTime.now();
-        final repository = _Repository(
-          ProjectManifest(
-            id: 'p',
-            name: 'Song',
-            createdAt: now,
-            updatedAt: now,
-            status: hasLyrics ? ProjectStatus.editing : ProjectStatus.draft,
-            currentStage: hasLyrics
-                ? ProcessingStage.lyricsEdited
-                : ProcessingStage.audioImported,
-            audioAsset: AudioAsset(originalPath: audio.path, format: 'wav'),
-            projectDirectory: root.path,
-            lyricDocument: lyrics,
-            metadata: const {'unrelated': 'preserved'},
-          ),
-        );
-        const error = TranscriptionException.cancelled(
-          'stopped for any reason',
-        );
-        final workflow = _workflow(repository, error);
-        await expectLater(
-          workflow.transcribeProject('p'),
-          throwsA(same(error)),
-        );
-        expect(repository.statuses, [
-          ProjectStatus.transcribing,
-          hasLyrics ? ProjectStatus.editing : ProjectStatus.draft,
-        ]);
-        expect(repository.project.lyricDocument?.toJson(), lyrics?.toJson());
-        expect(
-          repository.project.currentStage,
-          hasLyrics
+  for (final originalStatus in [
+    ProjectStatus.draft,
+    ProjectStatus.editing,
+    ProjectStatus.ready,
+  ]) {
+    test('typed cancellation restores $originalStatus', () async {
+      final hasLyrics = originalStatus != ProjectStatus.draft;
+      final root = await Directory.systemTemp.createTemp('workflow-cancel-');
+      addTearDown(() => root.delete(recursive: true));
+      final audio = File('${root.path}/song.wav');
+      await audio.writeAsBytes([1]);
+      final lyrics = hasLyrics
+          ? LyricDocument(
+              language: 'en',
+              lines: [
+                LyricLine(
+                  text: 'user edited',
+                  id: 'edited-line',
+                  startTime: Duration.zero,
+                  endTime: const Duration(seconds: 1),
+                ),
+              ],
+              metadata: const {
+                'manuallyEditedLineIds': ['edited-line'],
+                'timingProvenance': {'edited-line': 'manual'},
+              },
+            )
+          : null;
+      final now = DateTime.now();
+      final repository = _Repository(
+        ProjectManifest(
+          id: 'p',
+          name: 'Song',
+          createdAt: now,
+          updatedAt: now,
+          status: originalStatus,
+          currentStage: hasLyrics
               ? ProcessingStage.lyricsEdited
               : ProcessingStage.audioImported,
-        );
-        expect(repository.project.metadata, {'unrelated': 'preserved'});
-        if (hasLyrics) {
-          final backups = Directory('${root.path}/transcription/backups');
-          expect(await backups.list().length, 1);
-        }
+          audioAsset: AudioAsset(originalPath: audio.path, format: 'wav'),
+          projectDirectory: root.path,
+          lyricDocument: lyrics,
+          metadata: const {'unrelated': 'preserved'},
+        ),
+      );
+      const error = TranscriptionException.cancelled('stopped for any reason');
+      final workflow = _workflow(repository, error);
+      await expectLater(workflow.transcribeProject('p'), throwsA(same(error)));
+      expect(repository.statuses, [ProjectStatus.transcribing, originalStatus]);
+      expect(repository.project.lyricDocument?.toJson(), lyrics?.toJson());
+      expect(
+        repository.project.currentStage,
+        hasLyrics
+            ? ProcessingStage.lyricsEdited
+            : ProcessingStage.audioImported,
+      );
+      expect(repository.project.metadata, {'unrelated': 'preserved'});
+      if (hasLyrics) {
+        final backups = Directory('${root.path}/transcription/backups');
+        expect(await backups.list().length, 1);
+      }
+    });
+  }
+
+  test('ready cancellation preserves newer lyrics and project data', () async {
+    final root = await Directory.systemTemp.createTemp(
+      'workflow-ready-cancel-',
+    );
+    addTearDown(() => root.delete(recursive: true));
+    final audio = File('${root.path}/song.wav');
+    await audio.writeAsBytes([1]);
+    final now = DateTime.now();
+    const originalLyrics = LyricDocument(
+      language: 'en',
+      lines: [
+        LyricLine(
+          text: 'original',
+          id: 'line',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 1),
+        ),
+      ],
+    );
+    const latestLyrics = LyricDocument(
+      language: 'en',
+      lines: [
+        LyricLine(
+          text: 'new manual edit',
+          id: 'line',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 1),
+        ),
+      ],
+      metadata: {
+        'manuallyEditedLineIds': ['line'],
       },
     );
-  }
+    final repository = _Repository(
+      ProjectManifest(
+        id: 'p',
+        name: 'Song',
+        createdAt: now,
+        updatedAt: now,
+        status: ProjectStatus.ready,
+        currentStage: ProcessingStage.exported,
+        audioAsset: AudioAsset(originalPath: audio.path, format: 'wav'),
+        projectDirectory: root.path,
+        lyricDocument: originalLyrics,
+        metadata: const {'unrelated': 'original'},
+      ),
+    );
+    const error = TranscriptionException.cancelled('stop');
+    final workflow = _workflow(
+      repository,
+      error,
+      onTranscribe: () async {
+        await repository.updateProject(
+          repository.project.copyWith(
+            lyricDocument: latestLyrics,
+            currentStage: ProcessingStage.lyricsEdited,
+            metadata: const {'unrelated': 'newer'},
+          ),
+        );
+      },
+    );
+    await expectLater(workflow.transcribeProject('p'), throwsA(same(error)));
+    expect(repository.project.status, ProjectStatus.ready);
+    expect(repository.project.lyricDocument?.toJson(), latestLyrics.toJson());
+    expect(repository.project.currentStage, ProcessingStage.lyricsEdited);
+    expect(repository.project.metadata, {'unrelated': 'newer'});
+  });
 
   test('unknown error with cancellation text remains a failure', () async {
     final root = await Directory.systemTemp.createTemp('workflow-unknown-');
@@ -130,10 +196,11 @@ void main() {
 
 LocalProjectTranscriptionWorkflow _workflow(
   _Repository repository,
-  TranscriptionException error,
-) => LocalProjectTranscriptionWorkflow(
+  TranscriptionException error, {
+  Future<void> Function()? onTranscribe,
+}) => LocalProjectTranscriptionWorkflow(
   projectRepository: repository,
-  transcriptionService: _Service(error),
+  transcriptionService: _Service(error, onTranscribe),
   settingsStore: _Settings(),
   profileResolver: _Resolver(),
   runtimeManager: _Runtime(),
@@ -161,10 +228,14 @@ class _Repository implements ProjectRepository {
 
 class _Service implements TranscriptionService {
   final TranscriptionException error;
-  _Service(this.error);
+  final Future<void> Function()? onTranscribe;
+  _Service(this.error, this.onTranscribe);
   @override
-  Future<TranscriptionResult> transcribe(TranscriptionRequest request) async =>
-      throw error;
+  Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
+    await onTranscribe?.call();
+    throw error;
+  }
+
   @override
   Stream<TranscriptionProgress> get progressStream => const Stream.empty();
   @override

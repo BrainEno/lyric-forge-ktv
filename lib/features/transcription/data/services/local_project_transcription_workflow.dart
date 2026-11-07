@@ -219,9 +219,15 @@ class LocalProjectTranscriptionWorkflow
         if (error.kind == TranscriptionFailureKind.cancelled) {
           await _projectRepository.updateProject(
             latest.copyWith(
-              status: latest.hasLyrics
-                  ? ProjectStatus.editing
-                  : ProjectStatus.draft,
+              status: switch (project.status) {
+                ProjectStatus.ready ||
+                ProjectStatus.editing ||
+                ProjectStatus.draft => project.status,
+                _ =>
+                  latest.hasLyrics
+                      ? ProjectStatus.editing
+                      : ProjectStatus.draft,
+              },
             ),
           );
         } else {
