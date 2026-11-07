@@ -25,6 +25,26 @@ jobs:
         run: |
           set -o pipefail
           bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Generate and validate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 18:24' --slug harden-audio-uploads --title 'Harden Media Hub audio uploads'
+          python3 - <<'PYLOG'
+          from pathlib import Path
+          p = Path('docs/log/entries/2026-11-07-1824-harden-audio-uploads.md')
+          s = p.read_text()
+          s = s.replace('TODO — describe the task purpose.', 'Reject non-audio filename extensions on authenticated Media Hub uploads and document the local Qwen runtime trust boundary (#324).')
+          s = s.replace('TODO — list changed files.', 'Audio library import domain and implementation, Media Hub HTTP service and upload tests, README, generated work-log navigation, and handoff.')
+          s = s.replace('dart format ... => TODO', 'dart format changed Dart files after dependency resolution => passed in temporary GitHub Actions validation.')
+          s = s.replace('flutter analyze ... => TODO', 'bash scripts/quality_gate.sh --skip-pub-get => passed in temporary GitHub Actions validation, including analyzer and full suite.')
+          s = s.replace('flutter test ... => TODO', 'flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart => passed in temporary GitHub Actions validation.')
+          s = s.replace('TODO — record risks and unverified behavior.', 'Filename checks do not inspect contents or scan malware. Qwen remains an unauthenticated local HTTP service, with a port reservation race. Cross-device transfers and physical runtime were not manually tested.')
+          s = s.replace('TODO: replace with the actual English imperative subject', 'Harden Media Hub audio uploads')
+          assert 'TODO' not in s
+          p.write_text(s)
+          PYLOG
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-1824-harden-audio-uploads.md
       - name: Export diagnostics and formatting patch
         if: always()
         run: |

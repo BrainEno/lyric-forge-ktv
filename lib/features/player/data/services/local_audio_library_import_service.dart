@@ -5,10 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import '../../domain/services/audio_library_import_service.dart';
 
 typedef AudioFilesPickedCallback = Future<void> Function(List<String> paths);
-typedef AudioDirectoryPickedCallback = Future<void> Function(
-  String rootPath,
-  List<String> paths,
-);
+typedef AudioDirectoryPickedCallback =
+    Future<void> Function(String rootPath, List<String> paths);
 
 class LocalAudioLibraryImportService implements AudioLibraryImportService {
   static const _supported = supportedLocalAudioExtensions;

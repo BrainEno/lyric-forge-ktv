@@ -137,56 +137,92 @@ void main() {
     expect(await File(imported.single).readAsBytes(), bytes);
   });
 
-  test('rejects unsupported final extensions before allocating upload storage', () async {
-    var probes = 0;
-    service = createService(diskSpaceProbe: (_) async {
-      probes++;
-      return 8 * 1024 * 1024 * 1024;
-    });
-    final session = await service.startSharing(const []);
-    final client = _pinnedHttpClient(session.tlsFingerprint!);
-    addTearDown(() => client.close(force: true));
-    for (final name in ['payload.exe', 'shortcut.LNK', 'song.mp3.exe', 'no-extension', 'song.mp3.', '.mp3', 'dir/song.exe', 'song.mp3\u202eexe']) {
-      final request = await client.postUrl(Uri(
-        scheme: 'https', host: InternetAddress.loopbackIPv4.address,
-        port: session.port, path: '/v1/incoming/audio',
-        queryParameters: {'filename': name},
-      ));
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${session.token}');
-      request.contentLength = 0;
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
-      expect(response.statusCode, HttpStatus.unsupportedMediaType, reason: name);
-      expect(body, contains('unsupported_audio_extension'), reason: name);
-    }
-    expect(probes, 0);
-    expect(imported, isEmpty);
-    expect(await incomingDirectory.exists(), isFalse);
-  });
+  test(
+    'rejects unsupported final extensions before allocating upload storage',
+    () async {
+      var probes = 0;
+      service = createService(
+        diskSpaceProbe: (_) async {
+          probes++;
+          return 8 * 1024 * 1024 * 1024;
+        },
+      );
+      final session = await service.startSharing(const []);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
+      for (final name in [
+        'payload.exe',
+        'shortcut.LNK',
+        'song.mp3.exe',
+        'no-extension',
+        'song.mp3.',
+        '.mp3',
+        'dir/song.exe',
+        'song.mp3\u202eexe',
+      ]) {
+        final request = await client.postUrl(
+          Uri(
+            scheme: 'https',
+            host: InternetAddress.loopbackIPv4.address,
+            port: session.port,
+            path: '/v1/incoming/audio',
+            queryParameters: {'filename': name},
+          ),
+        );
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${session.token}',
+        );
+        request.contentLength = 0;
+        final response = await request.close();
+        final body = await utf8.decoder.bind(response).join();
+        expect(
+          response.statusCode,
+          HttpStatus.unsupportedMediaType,
+          reason: name,
+        );
+        expect(body, contains('unsupported_audio_extension'), reason: name);
+      }
+      expect(probes, 0);
+      expect(imported, isEmpty);
+      expect(await incomingDirectory.exists(), isFalse);
+    },
+  );
 
-  test('accepts every local import extension including uppercase and Unicode names', () async {
-    final session = await service.startSharing(const []);
-    final client = _pinnedHttpClient(session.tlsFingerprint!);
-    addTearDown(() => client.close(force: true));
-    final extensions = const LocalAudioLibraryImportService().supportedExtensions;
-    expect(extensions.toSet(), {'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'});
-    for (final format in extensions) {
-      final extension = format.toUpperCase();
-      final request = await client.postUrl(Uri(
-        scheme: 'https', host: InternetAddress.loopbackIPv4.address,
-        port: session.port, path: '/v1/incoming/audio',
-        queryParameters: {'filename': '歌曲.$extension'},
-      ));
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${session.token}');
-      request.contentLength = 1;
-      request.add([7]);
-      final response = await request.close();
-      await response.drain<void>();
-      expect(response.statusCode, HttpStatus.created, reason: extension);
-      expect(await File(imported.last).readAsBytes(), [7]);
-    }
-    expect(imported, hasLength(6));
-  });
+  test(
+    'accepts every local import extension including uppercase and Unicode names',
+    () async {
+      final session = await service.startSharing(const []);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
+      final extensions =
+          const LocalAudioLibraryImportService().supportedExtensions;
+      expect(extensions.toSet(), {'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'});
+      for (final format in extensions) {
+        final extension = format.toUpperCase();
+        final request = await client.postUrl(
+          Uri(
+            scheme: 'https',
+            host: InternetAddress.loopbackIPv4.address,
+            port: session.port,
+            path: '/v1/incoming/audio',
+            queryParameters: {'filename': '歌曲.$extension'},
+          ),
+        );
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${session.token}',
+        );
+        request.contentLength = 1;
+        request.add([7]);
+        final response = await request.close();
+        await response.drain<void>();
+        expect(response.statusCode, HttpStatus.created, reason: extension);
+        expect(await File(imported.last).readAsBytes(), [7]);
+      }
+      expect(imported, hasLength(6));
+    },
+  );
 
   test('query token cannot authorize an upload', () async {
     final session = await service.startSharing(const []);
