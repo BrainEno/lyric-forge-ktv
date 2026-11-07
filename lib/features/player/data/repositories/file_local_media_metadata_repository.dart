@@ -23,6 +23,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   final Map<String, LocalMediaMetadata> _entries = {};
   Future<void>? _loadFuture;
   Future<void> _writeChain = Future<void>.value();
+  FormatException? _incompleteLoad;
 
   FileLocalMediaMetadataRepository({this.rootDirectory});
 
@@ -80,23 +81,48 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
 
     try {
       final decoded = jsonDecode(await file.readAsString(encoding: utf8));
-      if (decoded is! Map || decoded['items'] is! List) return;
+      if (!_isValidStoreJson(decoded)) {
+        _incompleteLoad = FormatException(
+          'Local media metadata changed or became invalid while loading. '
+          'Writes are disabled to preserve the original file.',
+          file.path,
+        );
+        return;
+      }
 
-      for (final raw in decoded['items'] as List) {
-        if (raw is! Map) continue;
+      final items = (decoded as Map)['items'] as List;
+      for (var index = 0; index < items.length; index++) {
+        final raw = items[index];
         try {
+          if (raw is! Map ||
+              (raw['metadata'] != null && raw['metadata'] is! Map)) {
+            throw const FormatException('Invalid metadata record');
+          }
           final entry = LocalMediaMetadata.fromJson(
             Map<String, dynamic>.from(raw),
           );
           _entries[_key(entry.sourcePath)] = entry;
         } catch (_) {
-          // One malformed record must not hide the rest of the local library.
+          // Keep valid entries readable but never persist a partial snapshot.
+          _incompleteLoad ??= FormatException(
+            'Local media metadata record ${index + 1} could not be read. '
+            'Writes are disabled to preserve the original file.',
+            file.path,
+          );
         }
       }
     } catch (_) {
-      // Treat an unreadable metadata file as empty. The audio files themselves
-      // are never modified by this repository, so playback can still continue.
+      _incompleteLoad = FormatException(
+        'Local media metadata could not be read completely. '
+        'Writes are disabled to preserve the original file.',
+        file.path,
+      );
     }
+  }
+
+  void _ensureWritable() {
+    final problem = _incompleteLoad;
+    if (problem != null) throw problem;
   }
 
   Future<void> _persist() {
@@ -135,6 +161,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<LocalMediaMetadata> save(LocalMediaMetadata metadata) async {
     await _ensureLoaded();
+    _ensureWritable();
     final normalizedPath = File(metadata.sourcePath).absolute.path;
     final saved = metadata.copyWith(
       sourcePath: normalizedPath,
@@ -148,6 +175,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<void> removeForAudio(String sourcePath) async {
     await _ensureLoaded();
+    _ensureWritable();
     final removed = _entries.remove(_key(sourcePath));
     if (removed == null) return;
     await _persist();
@@ -158,6 +186,8 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
     required String sourcePath,
     required String imagePath,
   }) async {
+    await _ensureLoaded();
+    _ensureWritable();
     final source = File(imagePath);
     if (!await source.exists()) {
       throw FileSystemException('Artwork file does not exist', imagePath);
@@ -178,6 +208,8 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<void> removeManagedArtwork(String? artworkPath) async {
     if (artworkPath == null || artworkPath.trim().isEmpty) return;
+    await _ensureLoaded();
+    _ensureWritable();
     final directory = await _artworkDirectory();
     final artwork = File(artworkPath);
     final parent = _normalizedPath(artwork.parent.path);

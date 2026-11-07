@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -158,6 +159,39 @@ void main() {
       expect(session.currentState.currentItem?.artist, 'アーティスト');
       expect(audio.loadCount, loadCount);
     });
+
+    test(
+      'partial metadata remains usable for local playback without writes',
+      () async {
+        final audioFile = File(
+          '${directory.path}${Platform.pathSeparator}song.mp3',
+        );
+        await audioFile.writeAsBytes([1]);
+        final valid = LocalMediaMetadata(
+          sourcePath: audioFile.path,
+          title: '可用标题',
+          updatedAt: DateTime(2026),
+        );
+        final store = File(
+          '${directory.path}${Platform.pathSeparator}media_metadata.json',
+        );
+        final original = jsonEncode({
+          'version': 1,
+          'items': [valid.toJson(), 'broken'],
+        });
+        await store.writeAsString(original);
+
+        await session.setQueue([_localItem(audioFile.path, title: 'raw')]);
+
+        expect(session.currentState.currentItem?.title, '可用标题');
+        expect(audio.loadCount, greaterThan(0));
+        await expectLater(
+          metadata.save(valid.copyWith(title: 'blocked')),
+          throwsFormatException,
+        );
+        expect(await store.readAsString(), original);
+      },
+    );
 
     test('a project with only original audio is playable', () {
       final project = ProjectManifest(

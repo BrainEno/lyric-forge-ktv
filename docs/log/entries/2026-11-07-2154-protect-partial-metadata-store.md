@@ -1,0 +1,7 @@
+# [2026-11-07 21:54] Protect partial media metadata stores
+
+- Scope: Prevent partial local media metadata snapshots from replacing the original store after malformed records or incomplete reads, while keeping readable records available for normal playback.
+- Files: FileLocalMediaMetadataRepository, metadata repository and playback regression tests, index, handoff, this entry and generated work-log navigation.
+- Validation: Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run 42378901399 passed focused metadata, playback, lyric-resolution and atomic-persistence tests and the full repository quality gate; Dart format and work-log new/write/check ran there. An earlier full gate in run 42378371701 failed the Media Hub upload deadline test; final PR checks are reported separately. git diff --check ran locally.
+- Notes: Valid records remain readable; metadata saves, deletions and managed artwork changes fail before mutation after an incomplete load. Tests cover malformed rows, legacy data, original, backup and managed artwork preservation, repair with a new repository and playback via a fake audio backend. A partial read can still be mistaken for an authoritative absence by lyric resolution; other processes can change a successfully loaded store; cached failed loads need a new repository. Native playback was not verified.
+- Commit: `fix: protect partial media metadata stores`
