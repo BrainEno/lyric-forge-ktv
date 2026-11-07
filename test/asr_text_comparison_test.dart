@@ -17,6 +17,23 @@ void main() {
       expect(comparison.similarity('你好世界', '再见朋友'), lessThan(1));
     });
 
+    test('preserves Cyrillic supplement, extensions, and combining marks', () {
+      const extensionTexts = [
+        '\u0501\u0503',
+        '\u1c80\u1c81',
+        '\u0430\u2de0',
+        '\ua641\ua643',
+        '\u{1e030}\u{1e031}',
+      ];
+
+      for (final text in extensionTexts) {
+        expect(comparison.normalize(text), isNotEmpty, reason: text);
+        expect(comparison.similarity(text, text), 1, reason: text);
+      }
+      expect(comparison.normalize('\u0430\u2de0'), '\u0430\u2de0');
+      expect(comparison.similarity('\u0501', '\u0503'), lessThan(1));
+    });
+
     test('preserves polytonic Greek letters', () {
       const text = '\u1f97';
       const differentText = '\u1f96';
