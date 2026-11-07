@@ -1,0 +1,44 @@
+name: Arena temporary validation
+on:
+  push:
+    branches: [arena/851275dd-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve dependencies and format
+        run: |
+          flutter pub get --enforce-lockfile
+          dart format lib/features/player/data/services/local_audio_library_import_service.dart lib/features/player/domain/services/audio_library_import_service.dart lib/features/transfer/data/services/http_media_hub_service.dart test/features/transfer/http_media_hub_upload_test.dart
+      - name: Focused tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Quality gate
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Export diagnostics and formatting patch
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import subprocess, gzip, base64, pathlib
+          patch = subprocess.check_output(['git','diff','--binary'])
+          if patch:
+            b = base64.b64encode(gzip.compress(patch)).decode()
+            for i in range(0,len(b),3000): print(f'::warning title=ARENA_PATCH_{i//3000:04d}::{b[i:i+3000]}')
+          for f in ['/tmp/focused.log', '/tmp/gate.log']:
+            p=pathlib.Path(f)
+            if p.exists():
+              lines=p.read_text(errors='replace').splitlines()
+              for i,line in enumerate(lines):
+                if '[E]' in line or 'Error:' in line or 'Expected:' in line or 'Actual:' in line or 'exception was thrown' in line or 'error •' in line or 'warning •' in line or 'The following assertion was thrown' in line:
+                  for msg in lines[i:i+8]: print('::error::'+msg[:800].replace('%','%25'))
+          PY

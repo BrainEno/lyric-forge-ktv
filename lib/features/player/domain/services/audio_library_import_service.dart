@@ -1,3 +1,14 @@
+/// Filename extensions accepted by local audio import and Media Hub uploads.
+/// This checks the name only; it does not validate or decode file contents.
+const supportedLocalAudioExtensions = <String>[
+  'mp3',
+  'flac',
+  'wav',
+  'm4a',
+  'aac',
+  'ogg',
+];
+
 class AudioDirectorySelection {
   final String rootPath;
   final List<String> audioPaths;

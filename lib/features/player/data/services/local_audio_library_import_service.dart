@@ -11,14 +11,7 @@ typedef AudioDirectoryPickedCallback = Future<void> Function(
 );
 
 class LocalAudioLibraryImportService implements AudioLibraryImportService {
-  static const _supported = <String>[
-    'mp3',
-    'flac',
-    'wav',
-    'm4a',
-    'aac',
-    'ogg',
-  ];
+  static const _supported = supportedLocalAudioExtensions;
 
   final AudioFilesPickedCallback? onFilesPicked;
   final AudioDirectoryPickedCallback? onDirectoryPicked;

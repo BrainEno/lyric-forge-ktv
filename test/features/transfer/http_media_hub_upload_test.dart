@@ -5,6 +5,7 @@ import 'dart:io';
 // ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/local_audio_library_import_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_client_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/data/services/http_media_hub_service.dart';
 import 'package:lyric_forge_ktv/features/transfer/domain/models/media_hub_connection.dart';
@@ -136,6 +137,57 @@ void main() {
     expect(await File(imported.single).readAsBytes(), bytes);
   });
 
+  test('rejects unsupported final extensions before allocating upload storage', () async {
+    var probes = 0;
+    service = createService(diskSpaceProbe: (_) async {
+      probes++;
+      return 8 * 1024 * 1024 * 1024;
+    });
+    final session = await service.startSharing(const []);
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
+    addTearDown(() => client.close(force: true));
+    for (final name in ['payload.exe', 'shortcut.LNK', 'song.mp3.exe', 'no-extension', 'song.mp3.', '.mp3', 'dir/song.exe', 'song.mp3\u202eexe']) {
+      final request = await client.postUrl(Uri(
+        scheme: 'https', host: InternetAddress.loopbackIPv4.address,
+        port: session.port, path: '/v1/incoming/audio',
+        queryParameters: {'filename': name},
+      ));
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${session.token}');
+      request.contentLength = 0;
+      final response = await request.close();
+      final body = await utf8.decoder.bind(response).join();
+      expect(response.statusCode, HttpStatus.unsupportedMediaType, reason: name);
+      expect(body, contains('unsupported_audio_extension'), reason: name);
+    }
+    expect(probes, 0);
+    expect(imported, isEmpty);
+    expect(await incomingDirectory.exists(), isFalse);
+  });
+
+  test('accepts every local import extension including uppercase and Unicode names', () async {
+    final session = await service.startSharing(const []);
+    final client = _pinnedHttpClient(session.tlsFingerprint!);
+    addTearDown(() => client.close(force: true));
+    final extensions = const LocalAudioLibraryImportService().supportedExtensions;
+    expect(extensions.toSet(), {'mp3', 'flac', 'wav', 'm4a', 'aac', 'ogg'});
+    for (final format in extensions) {
+      final extension = format.toUpperCase();
+      final request = await client.postUrl(Uri(
+        scheme: 'https', host: InternetAddress.loopbackIPv4.address,
+        port: session.port, path: '/v1/incoming/audio',
+        queryParameters: {'filename': '歌曲.$extension'},
+      ));
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${session.token}');
+      request.contentLength = 1;
+      request.add([7]);
+      final response = await request.close();
+      await response.drain<void>();
+      expect(response.statusCode, HttpStatus.created, reason: extension);
+      expect(await File(imported.last).readAsBytes(), [7]);
+    }
+    expect(imported, hasLength(6));
+  });
+
   test('query token cannot authorize an upload', () async {
     final session = await service.startSharing(const []);
     final client = _pinnedHttpClient(session.tlsFingerprint!);
@@ -145,7 +197,7 @@ void main() {
       host: InternetAddress.loopbackIPv4.address,
       port: session.port,
       path: '/v1/incoming/audio',
-      queryParameters: {'filename': 'blocked.mp3', 'token': session.token},
+      queryParameters: {'filename': 'blocked.exe', 'token': session.token},
     );
     final request = await client.postUrl(uri);
     request.contentLength = 3;
@@ -292,7 +344,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'not-audio.txt'},
+        queryParameters: const {'filename': 'import-fails.mp3'},
       ),
     );
     request.headers.set(
@@ -318,7 +370,7 @@ void main() {
       addTearDown(socket.destroy);
       final responseFuture = _readRawResponse(socket);
       socket.write(
-        _rawContentLengthHeaders(session, 'too-big.bin', 5) + '12345',
+        _rawContentLengthHeaders(session, 'too-big.mp3', 5) + '12345',
       );
       await socket.flush();
 
@@ -338,7 +390,7 @@ void main() {
       addTearDown(socket.destroy);
       final responseFuture = _readRawResponse(socket);
       socket.write(
-        _rawChunkedHeaders(session, 'chunked-too-big.bin') +
+        _rawChunkedHeaders(session, 'chunked-too-big.mp3') +
             '5\r\n12345\r\n0\r\n\r\n',
       );
       await socket.flush();
@@ -360,7 +412,7 @@ void main() {
     addTearDown(socket.destroy);
     final responseFuture = _readRawResponse(socket);
     socket.write(
-      _rawContentLengthHeaders(session, 'low-space.bin', 4) + 'data',
+      _rawContentLengthHeaders(session, 'low-space.mp3', 4) + 'data',
     );
     await socket.flush();
 
@@ -377,7 +429,7 @@ void main() {
     addTearDown(socket.destroy);
     final responseFuture = _readRawResponse(socket);
     socket.write(
-      _rawContentLengthHeaders(session, 'unknown-space.bin', 4) + 'data',
+      _rawContentLengthHeaders(session, 'unknown-space.mp3', 4) + 'data',
     );
     await socket.flush();
 
@@ -398,7 +450,7 @@ void main() {
     addTearDown(socket.destroy);
     final responseFuture = _readRawResponse(socket);
     socket.write(
-      _rawChunkedHeaders(session, 'idle-timeout.bin') + '1\r\nx\r\n',
+      _rawChunkedHeaders(session, 'idle-timeout.mp3') + '1\r\nx\r\n',
     );
     await socket.flush();
 
@@ -429,7 +481,7 @@ void main() {
       final reader = _RawResponseReader(socket);
       var continuedChunksSent = 0;
       socket.write(
-        _rawChunkedHeaders(session, 'total-timeout.bin') + '1\r\nx\r\n',
+        _rawChunkedHeaders(session, 'total-timeout.mp3') + '1\r\nx\r\n',
       );
       await socket.flush();
 
@@ -475,7 +527,7 @@ void main() {
     final socket = await _openPinnedSocket(session);
     addTearDown(socket.destroy);
     final firstResponseFuture = _readRawResponse(socket);
-    socket.write(_rawChunkedHeaders(session, 'first.bin') + '1\r\nx\r\n');
+    socket.write(_rawChunkedHeaders(session, 'first.mp3') + '1\r\nx\r\n');
     await socket.flush();
     await probeStarted.future.timeout(const Duration(seconds: 2));
 
@@ -487,7 +539,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'rejected.bin'},
+        queryParameters: const {'filename': 'rejected.mp3'},
       ),
     );
     rejectedRequest.headers.set(
@@ -512,7 +564,7 @@ void main() {
         host: InternetAddress.loopbackIPv4.address,
         port: session.port,
         path: '/v1/incoming/audio',
-        queryParameters: const {'filename': 'retry.bin'},
+        queryParameters: const {'filename': 'retry.mp3'},
       ),
     );
     retryRequest.headers.set(
