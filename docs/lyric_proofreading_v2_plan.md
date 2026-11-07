@@ -114,6 +114,8 @@
 > T1 的范围来自本任务说明的完整规格。T2–T9 是按上文目标与流水线拆出来的建议工作边界；在进入各任务时仍需检查真实调用点，不凭空新增接口。
 
 - [x] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
+  - **2026-11-07 现状补充（#326）：** `ProofreadConstants` 只保留实际由 token 对齐和策略选择读取的参数；最初草案中尚未实现或未被消费的分行、判定和外部端口参数已移出代码，不能作为现有可调参数。T1 的完成表示基础组件已实现，不表示原草案全部阈值或后续功能均已接入。新增存活性契约测试要求每个保留常量有生产读取方。
+  - **当前量纲：** `softMatchMinSimilarityRatio` 和 `autoReferenceCoverageMinRatio` 是 0–1 比率；锚点长度、候选数和 DP cells 是计数。`AsrConsensusAnalyzer.agreementSimilarityThreshold` 也是 0–1 比率；共识、幻觉、重复和 ASR-first 流水线的 confidence 阈值使用 `LyricLine.confidence` 的 0–100 整数。它们服务不同判定，保持各自默认值，不应把比率与百分制直接比较。秒数参数使用 `Duration` 或明确标注秒；完整的重新分行与声学判定仍属未完成工作。
 - [x] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
 - [ ] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；仍需在本地验证唯一 n-gram 候选、有界候选数、单调非重叠锚点链和 DP 回退。高重复窗口不能作为唯一锚点。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
