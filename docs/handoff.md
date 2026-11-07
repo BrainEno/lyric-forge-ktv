@@ -16,7 +16,7 @@
 
 ## 检查结果
 
-- 本地没有 Flutter/Dart；固定 SDK 预验证 run 42367522276 的包内与 CI 契约定向测试、完整质量门禁通过。最终 PR head 的结果以 Actions 为准。
+- 本地没有 Flutter/Dart；固定 SDK 预验证 run 42367522276 的包内与 CI 契约定向测试、完整质量门禁通过。run 42367806986 首次在无关 Media Hub 上传时限测试遇到 TLS Broken pipe，重跑后定向测试、完整质量门禁和工作日志检查通过；最终 PR head 的结果以 Actions 为准。
 - 提交前运行 `git diff --check`；未在 Windows/Linux 真实音频设备上手测。
 
 ## 下一步
