@@ -356,7 +356,12 @@ class _LyricListPaneState extends State<LyricListPane> {
             )
           : const _FilteredEmptyState();
       if (summary == null) return empty;
-      return Column(children: [summary, Expanded(child: empty)]);
+      return Column(
+        children: [
+          summary,
+          Expanded(child: empty),
+        ],
+      );
     }
 
     if (filtered.isEmpty && _searchQuery.isNotEmpty) {

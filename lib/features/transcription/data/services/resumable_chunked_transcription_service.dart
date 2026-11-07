@@ -33,7 +33,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   /// Version of the on-disk checkpoint manifest, bumped whenever the
   /// compatibility rules change so stale checkpoints cannot be reused.
-  static const int checkpointManifestVersion = 3;
+  static const int checkpointManifestVersion = 2;
 
   final TranscriptionService delegate;
   final Duration chunkDuration;
@@ -142,6 +142,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final compatible =
           manifest != null &&
           manifest['version'] == checkpointManifestVersion &&
+          (request.config.mode != TranscriptionMode.highestQuality ||
+              manifest['fallbackEvidenceVersion'] == 1) &&
           manifest['sourceFingerprint'] == fingerprint &&
           manifest['configFingerprint'] == configFingerprint &&
           manifest['chunkMs'] == chunkDuration.inMilliseconds &&
@@ -154,6 +156,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         }
         manifest = <String, dynamic>{
           'version': checkpointManifestVersion,
+          if (request.config.mode == TranscriptionMode.highestQuality)
+            'fallbackEvidenceVersion': 1,
           'sourceFingerprint': fingerprint,
           'configFingerprint': configFingerprint,
           'chunkMs': chunkDuration.inMilliseconds,

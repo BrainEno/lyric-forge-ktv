@@ -164,17 +164,28 @@ void main() {
     },
   );
 
-  testWidgets('legacy candidates without a limit remain visible', (tester) async {
-    final document = _document(2).copyWith(metadata: {
-      'fallbackCandidates': [
-        {'lineIndex': 0}, {'lineIndex': 1},
-      ],
-    });
-    await tester.pumpWidget(host(
-      document: document, visibleIndices: [0, 1],
-      candidate: const {'alternativeText': 'other'},
-    ));
-    expect(find.textContaining('已保存候选 2 行 · 未复核 2 行 · 重点标记 2 行'), findsOneWidget);
+  testWidgets('legacy candidates without a limit remain visible', (
+    tester,
+  ) async {
+    final document = _document(2).copyWith(
+      metadata: {
+        'fallbackCandidates': [
+          {'lineIndex': 0},
+          {'lineIndex': 1},
+        ],
+      },
+    );
+    await tester.pumpWidget(
+      host(
+        document: document,
+        visibleIndices: [0, 1],
+        candidate: const {'alternativeText': 'other'},
+      ),
+    );
+    expect(
+      find.textContaining('已保存候选 2 行 · 未复核 2 行 · 重点标记 2 行'),
+      findsOneWidget,
+    );
     expect(find.text('双引擎'), findsNWidgets(2));
     await tester.pumpWidget(host(document: document, visibleIndices: []));
     expect(find.textContaining('当前筛选 0 行'), findsOneWidget);

@@ -569,33 +569,34 @@ void main() {
       },
     );
 
-    test('old truncated-candidate checkpoints are not resumed', () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'chunk-old-version-',
-      );
+    test('only old dual-engine checkpoints are invalidated', () async {
+      final directory = await Directory.systemTemp.createTemp('chunk-old-version-');
       addTearDown(() => directory.delete(recursive: true));
       final input = File('${directory.path}${Platform.pathSeparator}song.wav');
       await input.writeAsBytes(List<int>.filled(128, 0));
       final delegate = _FakeService();
       final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
       final service = ResumableChunkedTranscriptionService(
-        delegate: delegate,
-        chunkDuration: const Duration(minutes: 3),
+        delegate: delegate, chunkDuration: const Duration(minutes: 3),
         processSupervisor: ffmpeg.supervisor,
       );
       addTearDown(service.dispose);
-      final request = _request(input.path, directory.path);
-      await service.transcribe(request);
+      final single = _request(input.path, directory.path);
+      await service.transcribe(single);
+      await service.transcribe(single);
       expect(delegate.calls, 2);
-      final manifest = File(
-        '${directory.path}${Platform.pathSeparator}chunk_session${Platform.pathSeparator}session.json',
-      );
-      final data =
-          jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
-      data['version'] = 2;
-      await manifest.writeAsString(jsonEncode(data));
-      await service.transcribe(request);
+
+      final dual = _request(input.path, directory.path, config: _config().copyWith(mode: TranscriptionMode.highestQuality));
+      await service.transcribe(dual);
       expect(delegate.calls, 4);
+      final manifest = File('${directory.path}${Platform.pathSeparator}chunk_session${Platform.pathSeparator}session.json');
+      final data = jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
+      data.remove('fallbackEvidenceVersion');
+      await manifest.writeAsString(jsonEncode(data));
+      await service.transcribe(dual);
+      expect(delegate.calls, 6);
+      await service.transcribe(dual);
+      expect(delegate.calls, 6);
     });
 
     test('changing recognition settings invalidates checkpoints', () async {
