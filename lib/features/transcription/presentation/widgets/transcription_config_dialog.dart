@@ -545,7 +545,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                   initialValue: _maxFallbackSegments,
                   decoration: const InputDecoration(
                     labelText: '最多突出显示分歧行',
-                    helperText: '两套引擎仍会跑完整歌曲；这里只限制编辑器重点列出的数量',
+                    helperText: '仅限制编辑器重点标记的数量；其余候选仍可查看和复核',
                   ),
                   items: const [
                     DropdownMenuItem(value: 8, child: Text('8')),

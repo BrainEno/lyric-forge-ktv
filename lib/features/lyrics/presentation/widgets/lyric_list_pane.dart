@@ -319,10 +319,46 @@ class _LyricListPaneState extends State<LyricListPane> {
         : spec.pageGutter.clamp(12, 24).toDouble();
 
     final filtered = _filteredIndices;
+    final rawCandidates = widget.document.metadata['fallbackCandidates'];
+    final rawLimit = widget.document.metadata['fallbackHighlightLimit'];
+    Set<int>? highlighted;
+    var totalCandidates = 0;
+    var eligibleCount = 0;
+    if (rawCandidates is List && rawLimit is num) {
+      final reviewed = const LyricReviewDecisionService().reviewedIndices(
+        widget.document,
+      );
+      final indices = <int>{};
+      for (final candidate in rawCandidates) {
+        if (candidate is! Map) continue;
+        final rawIndex = candidate['lineIndex'];
+        if (rawIndex is! int || rawIndex < 0 ||
+            rawIndex >= widget.document.lines.length) {
+          continue;
+        }
+        indices.add(rawIndex);
+      }
+      totalCandidates = indices.length;
+      indices.removeAll(reviewed);
+      eligibleCount = indices.length;
+      final limit = rawLimit.toInt().clamp(0, eligibleCount);
+      highlighted = indices.take(limit).toSet();
+    }
+
+    final summary = highlighted == null || totalCandidates == 0
+        ? null
+        : Padding(
+            padding: EdgeInsets.fromLTRB(padding, 0, padding, 8),
+            child: Text(
+              '全曲候选 $totalCandidates 行 · 未复核 $eligibleCount 行 · 重点标记 ${highlighted.length} 行（当前筛选 ${highlighted.intersection(filtered.toSet()).length} 行） · 其余未复核 ${eligibleCount - highlighted.length} 行仍可查看',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          );
 
     if (filtered.isEmpty && _searchQuery.isNotEmpty) {
       return Column(
         children: [
+          if (summary != null) summary,
           _buildSearchBar(spec, padding),
           const Expanded(
             child: Center(
@@ -352,6 +388,7 @@ class _LyricListPaneState extends State<LyricListPane> {
       },
       child: Column(
         children: [
+          if (summary != null) summary,
           if (widget.document.lines.length > 8) _buildSearchBar(spec, padding),
           Expanded(
             child: ListView.builder(
@@ -377,7 +414,9 @@ class _LyricListPaneState extends State<LyricListPane> {
                 return LyricReviewRow(
                   index: index,
                   line: line,
-                  fallbackCandidate: candidate,
+                  fallbackCandidate: highlighted == null || highlighted.contains(index)
+                      ? candidate
+                      : null,
                   isReviewed: const LyricReviewDecisionService().isReviewed(
                     widget.document,
                     index,
@@ -1128,11 +1167,9 @@ class LyricReviewRow extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   if (!spec.isCompact && line.isChorus)
                     const LyricTinyBadge(label: '副歌', accent: true),
-                  if (!spec.isCompact &&
-                      fallbackCandidate != null &&
-                      !isReviewed) ...[
+                  if (fallbackCandidate != null && !isReviewed) ...[
                     const SizedBox(width: AppSpacing.xs),
-                    const LyricTinyBadge(label: '双引擎'),
+                    LyricTinyBadge(label: spec.isCompact ? '双擎' : '双引擎'),
                   ],
                   if (isReviewed) ...[
                     const SizedBox(width: AppSpacing.xs),

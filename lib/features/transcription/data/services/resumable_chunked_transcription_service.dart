@@ -33,7 +33,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   /// Version of the on-disk checkpoint manifest, bumped whenever the
   /// compatibility rules change so stale checkpoints cannot be reused.
-  static const int checkpointManifestVersion = 2;
+  static const int checkpointManifestVersion = 3;
 
   final TranscriptionService delegate;
   final Duration chunkDuration;
