@@ -102,6 +102,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     }
     _running = true;
     _cancelRequested = false;
+    var chunkSessionStarted = false;
 
     try {
       _emit(TranscriptionStage.preprocessing, 0.01, '正在分析音频时长');
@@ -121,6 +122,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         return result;
       }
 
+      chunkSessionStarted = true;
       final root = Directory(
         '${request.outputDirectory}${Platform.pathSeparator}chunk_session',
       );
@@ -235,6 +237,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
               base: base,
               span: 1 / plan.length,
             );
+            _throwIfCancelled();
             break;
           } on TranscriptionException catch (error) {
             _throwIfCancelled();
@@ -338,8 +341,21 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         detectedLanguage: _mostCommon(languages),
       );
     } on _ChunkCancelled {
-      _emit(TranscriptionStage.cancelled, 0.0, '分片识别已取消，已完成进度已保存');
+      _emit(
+        TranscriptionStage.cancelled,
+        0.0,
+        chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
+      );
       throw const TranscriptionException.cancelled('歌词识别已取消');
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) {
+        _emit(
+          TranscriptionStage.cancelled,
+          0.0,
+          chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
+        );
+      }
+      rethrow;
     } finally {
       _running = false;
       _cancelRequested = false;
@@ -500,7 +516,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     double span = 1,
   }) async {
     final subscription = delegate.progressStream.listen((p) {
-      if (_cancelRequested) return;
+      // The wrapper owns its terminal cancellation event, even when a child
+      // reports cancellation before throwing the typed exception.
+      if (_cancelRequested || p.stage == TranscriptionStage.cancelled) return;
       _emit(
         p.stage,
         (base + p.progress * span).clamp(0.0, 1.0).toDouble(),

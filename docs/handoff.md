@@ -2,30 +2,29 @@
 
 ## 目标
 
-修复 issue #236：核实 vendored just_audio_media_kit 上游基线及本地补丁，补充单元测试和 CI，记录同步方式；提交中文 PR，不直接合并。
+处理 #321 的分片转写取消进度与迟到结果边界；提交中文 PR，不自动合并。
 
 ## Git 现场
 
-- 基线 `4bfeab579771764592181f5e5c56e71e8ae115a1`；固定分支 `arena/a9a7543c-lyric-forge-ktv`。
+- 基线 `68b6b08a61e364d75346c337a4a72d8bf8dfbad6`；分支 `arena/318d8095-lyric-forge-ktv`。
 - 最终提交、PR 状态和检查结果以 Git/GitHub 为准。
 
 ## 已改文件
 
-- vendored 音频后端的 README、可测试初始化辅助函数及其调用、包内单元测试；Flutter 质量门禁及 CI 契约测试。
-- 工作日志、导航和本 handoff。
+- 分片转写服务、其定向测试、工作日志生成文件及本 handoff。
 
 ## 检查结果
 
-- 本地没有 Flutter/Dart；固定 SDK 预验证 run 42367522276 的包内与 CI 契约定向测试、完整质量门禁通过。run 42367806986 首次在无关 Media Hub 上传时限测试遇到 TLS Broken pipe，重跑后定向测试、完整质量门禁和工作日志检查通过；最终 PR head 的结果以 Actions 为准。
-- 提交前运行 `git diff --check`；未在 Windows/Linux 真实音频设备上手测。
+- 本地没有 Flutter/Dart；固定 SDK 的 GitHub Actions run 42370940932 通过定向测试和完整质量门禁，并执行 format、work-log new/write/check。最终 PR head 检查结果以 Actions 为准。
+- 本地提交前执行 `git diff --check`。未进行 ASR 硬件实机测试。
 
 ## 下一步
 
-确认 PR 最终 head 的质量门禁；未经授权不合并。
+确认最终 PR 的质量门禁并报告，保留 #321 供整体核验。
 
 ## 已知风险
 
-- 单元测试注入属性写入函数，不启动 libmpv，不证明实际设备播放或底层选项生效；需在 Windows/Linux 实机检查。
-- `osc=true` 是依赖 media_kit 1.2.6 实现细节的兼容措施；升级时须重新验证。
+- 测试使用替身进程和服务，不代表真实 Windows/macOS 进程、模型或设备的取消行为。
+- 在检查后已经开始写入检查点时发生取消，不由本切片保证回滚。
 
-最后更新：2026-11-07 19:20（Asia/Taipei）
+最后更新：2026-11-07 20:05（Asia/Taipei）
