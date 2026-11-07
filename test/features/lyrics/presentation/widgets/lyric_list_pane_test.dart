@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_list_pane.dart';
@@ -15,6 +16,7 @@ void main() {
     required List<int> visibleIndices,
     LyricReviewFilter filter = LyricReviewFilter.all,
     Map<int, LyricReviewPriority> priorities = const {},
+    Map<String, dynamic>? candidate,
   }) {
     return MaterialApp(
       home: Scaffold(
@@ -32,7 +34,7 @@ void main() {
             followPlayback: false,
             focusRequestId: 0,
             focusLineIndex: null,
-            fallbackCandidateFor: (_) => null,
+            fallbackCandidateFor: (_) => candidate,
             onPreviewLine: null,
             onInsertedLineFocus: (_) {},
             onSelectLine: selected.add,
@@ -74,6 +76,25 @@ void main() {
     );
 
     expect(find.byTooltip('歌词为空'), findsOneWidget);
+  });
+
+  testWidgets('100 confidence does not hide unreviewed engine evidence', (
+    tester,
+  ) async {
+    final document = _document(1);
+    const candidate = {'primaryText': 'first', 'alternativeText': 'second'};
+    await tester.pumpWidget(
+      host(document: document, visibleIndices: [0], candidate: candidate),
+    );
+    expect(find.text('双引擎'), findsOneWidget);
+
+    const decisions = LyricReviewDecisionService();
+    final reviewed = decisions.setReviewed(document, 0, reviewed: true);
+    await tester.pumpWidget(
+      host(document: reviewed, visibleIndices: [0], candidate: candidate),
+    );
+    expect(find.text('双引擎'), findsNothing);
+    expect(find.text('已复核'), findsOneWidget);
   });
 
   testWidgets('点击行会请求选中该行', (tester) async {

@@ -303,7 +303,7 @@ class _LineInspectorState extends State<LineInspector> {
               ),
             ),
           ),
-          if (_workingLine.confidence < 100 &&
+          if (!widget.isReviewed &&
               widget.fallbackCandidate != null &&
               alternative?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.md),

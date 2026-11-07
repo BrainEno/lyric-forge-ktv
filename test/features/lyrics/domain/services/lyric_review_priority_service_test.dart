@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_decision_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_review_priority_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -92,6 +93,94 @@ void main() {
       LyricReviewPriorityReasonCode.enginesDifferGreatly,
     );
     expect(ranked.single.level, LyricReviewRiskLevel.high);
+  });
+
+  for (final confidence in [100, 99, 85, 70]) {
+    test('unreviewed disagreement enters queue at confidence $confidence', () {
+      final document = LyricDocument(
+        language: 'en',
+        lines: [
+          line('into the night', confidence: confidence).copyWith(id: 'line-1'),
+        ],
+        metadata: const {
+          'fallbackCandidates': [
+            {
+              'lineIndex': 0,
+              'primaryText': 'in the night',
+              'alternativeText': 'into the night',
+              'similarity': 0.42,
+            },
+          ],
+        },
+      );
+      final queue = LyricReviewQueue.build(document);
+      expect(queue.needsReview(0), isTrue);
+      expect(queue.lowConfidenceCount, 0);
+      expectReason(
+        queue.items.single,
+        LyricReviewPriorityReasonCode.enginesDifferGreatly,
+      );
+
+      const decisions = LyricReviewDecisionService();
+      final reviewed = decisions.setReviewed(document, 0, reviewed: true);
+      expect(LyricReviewQueue.build(reviewed).needsReview(0), isFalse);
+      final reopened = decisions.setReviewed(reviewed, 0, reviewed: false);
+      expect(LyricReviewQueue.build(reopened).needsReview(0), isTrue);
+      final changed = reviewed.copyWith(
+        lines: [reviewed.lines.single.copyWith(text: 'manual edit')],
+      );
+      expect(LyricReviewQueue.build(changed).needsReview(0), isTrue);
+    });
+  }
+
+  test('unscored disagreement is evidence without being low confidence', () {
+    final document = LyricDocument(
+      language: 'en',
+      lines: [
+        line(
+          'first',
+          confidence: 100,
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+      ],
+      metadata: const {
+        'fallbackCandidates': [
+          {
+            'lineIndex': 0,
+            'primaryText': 'first',
+            'alternativeText': 'second',
+            'similarity': 0.6,
+          },
+        ],
+      },
+    );
+    final queue = LyricReviewQueue.build(document);
+    expect(queue.needsReview(0), isTrue);
+    expect(queue.lowConfidenceCount, 0);
+    expectReason(
+      queue.items.single,
+      LyricReviewPriorityReasonCode.enginesDifferClearly,
+    );
+  });
+
+  test('confidence 100 without a real disagreement stays out of the queue', () {
+    for (final candidate in [
+      <String, dynamic>{
+        'lineIndex': 0,
+        'primaryText': 'same',
+        'alternativeText': 'same',
+      },
+      <String, dynamic>{'lineIndex': 0, 'primaryText': 'same'},
+    ]) {
+      final document = LyricDocument(
+        language: 'en',
+        lines: [line('same', confidence: 100)],
+        metadata: {
+          'fallbackCandidates': [candidate],
+        },
+      );
+      expect(service.rank(document), isEmpty);
+    }
   });
 
   test(
