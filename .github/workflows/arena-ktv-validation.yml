@@ -1,0 +1,79 @@
+name: Arena KTV entry validation
+on:
+  push:
+    branches: [arena/585ae2b6-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files
+        run: dart format lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/ktv_entry_sheet_test.dart
+      - name: Focused KTV tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/ktv_entry_sheet_test.dart test/features/player/ktv_backing_mode_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug ktv-entry-backing-availability --title 'Clarify KTV accompaniment availability'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          stamp = os.environ['ENTRY_STAMP']
+          path = Path('docs/log/entries') / (stamp.replace(' ', '-').replace(':', '') + '-ktv-entry-backing-availability.md')
+          s = path.read_text()
+          s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
+          replacements = {
+              'Scope': 'Clarify that this version cannot generate or import accompaniment tracks when entering KTV without one; preserve original-mix and existing accompaniment selection.',
+              'Files': 'Player screen, KTV entry sheet, focused widget tests, handoff, this entry and generated work-log navigation.',
+              'Validation': f"Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run {os.environ['GITHUB_RUN_ID']} passed focused widget and backing-mode tests and the full repository quality gate; Dart format and work-log new/write/check ran there. Final PR checks reported separately. git diff --check ran locally.",
+              'Notes': 'Tests exercise the real modal sheet with missing and preexisting instrumental paths, including selection and desktop/mobile-sized viewports; they do not play audio or validate file existence. Docs correction, stem import, and actual separation remain future work under #320. No native-device/manual visual checks performed.',
+              'Commit': '`fix: clarify ktv accompaniment availability`',
+          }
+          for key, value in replacements.items():
+              s, count = re.subn(rf'^- {key}:.*$', f'- {key}: {value}', s, count=1, flags=re.M)
+              if count != 1: raise RuntimeError(f'missing {key}')
+          if 'TODO' in s: raise RuntimeError('unfilled TODO')
+          path.write_text(s)
+          Path('docs/handoff.md').write_text(f"""# Handoff\n\n## 目标\n\n完成 #320 的 KTV 入口无伴奏轨提示，提交中文 PR，不自动合并。\n\n## Git 现场\n\n- 基线 `8f4871f6f7b26d63f555ed125dda7997e80b6aa4`；分支 `arena/585ae2b6-lyric-forge-ktv`。\n- 提交和 PR 检查的最终状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- 播放器入口组件、分离出的 KTV 入口组件、Widget 测试、工作日志和本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK 的 GitHub Actions run {os.environ['GITHUB_RUN_ID']} 通过定向测试和完整质量门禁，并执行 format、work-log new/write/check。最终 PR head 检查以 Actions 为准。\n- 本地提交前执行 `git diff --check`；未进行真实设备或手动视觉测试。\n\n## 下一步\n\n确认最终 PR 的质量门禁并报告；#320 留待文档、音轨导入和分离能力后续处理。\n\n## 已知风险\n\n- Widget 测试未验证真实播放或文件存在性，路径存在与否仍沿用现有语义。\n- 人声／伴奏分离与外部音轨导入仍未实现；历史工程携带伴奏路径时，入口仍按原规则启用。\n\n最后更新：{stamp}（Asia/Taipei）\n""")
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-ktv-entry-backing-availability.md"
+          git diff --binary -- lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/ktv_entry_sheet_test.dart docs > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64, gzip
+          data = base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Publish failure details
+        if: failure()
+        shell: bash
+        run: |
+          for f in /tmp/focused.log /tmp/gate.log; do
+            if [ -f "$f" ]; then
+              { grep -nE '\[E\]|error •|warning •|Error:|Expected:|Actual:|EXCEPTION CAUGHT|overflowed' "$f" | head -45 || true; tail -12 "$f"; } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            fi
+          done
