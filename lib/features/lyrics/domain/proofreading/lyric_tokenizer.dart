@@ -58,6 +58,7 @@ class LyricTokenizer {
       (rune >= 0x1e00 && rune <= 0x1eff) ||
       (rune >= 0x2c60 && rune <= 0x2c7f) ||
       (rune >= 0xa720 && rune <= 0xa7ff) ||
+      (rune >= 0xab30 && rune <= 0xab6f) ||
       (rune >= 0x0370 && rune <= 0x03ff) ||
       (rune >= 0x1f00 && rune <= 0x1fff) ||
       _isCyrillicRune(rune);

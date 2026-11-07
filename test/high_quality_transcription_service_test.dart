@@ -237,6 +237,38 @@ void main() {
       }
     });
 
+    test('matches Latin Extended-E rows in either engine order', () async {
+      const text = '\uab30\uab31';
+      final line = LyricLine(
+        text: text,
+        startTime: const Duration(seconds: 10),
+        endTime: const Duration(seconds: 13),
+        confidence: 90,
+      );
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _result(line)),
+          fallback: _FakeTranscriptionService(result: _result(line)),
+        );
+
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
+          );
+
+          expect(result.lyrics.lines.single.text, text);
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+          expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
     test('matches Latin Extended-C rows in either engine order', () async {
       const text = '\u2c65\u2c66';
       final line = LyricLine(

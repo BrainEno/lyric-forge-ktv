@@ -64,6 +64,16 @@ void main() {
       expect(comparison.similarity(firstText, secondText), lessThan(1));
     });
 
+    test('preserves Latin Extended-E letters', () {
+      const firstText = '\uab30';
+      const secondText = '\uab31';
+
+      expect(comparison.normalize(firstText), firstText);
+      expect(comparison.normalize(secondText), secondText);
+      expect(comparison.similarity(firstText, firstText), 1);
+      expect(comparison.similarity(firstText, secondText), lessThan(1));
+    });
+
     test('preserves Latin Extended-C letters', () {
       const firstText = '\u2c65';
       const secondText = '\u2c66';
