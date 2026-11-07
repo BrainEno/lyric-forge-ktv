@@ -37,6 +37,7 @@ class ReferenceTokenAlignmentResult {
   int get referenceTokenCount => referenceTokens.length;
   int get matchedReferenceTokenCount =>
       matches.map((match) => match.referenceIndex).toSet().length;
+
   /// False when safety limits prevented a complete alignment.
   bool get isComplete => !candidateLimitReached && !dpBudgetExceeded;
 
@@ -279,11 +280,11 @@ class ReferenceTokenAligner {
           move = 2;
         }
         final similarity = _tokenSimilarity(reference[i - 1], draft[j - 1]);
-        if (similarity > ProofreadConstants.softMatchMinSim) {
+        if (similarity > ProofreadConstants.softMatchMinSimilarityRatio) {
           final paired =
               scores[i - 1][j - 1] +
               similarity -
-              ProofreadConstants.softMatchMinSim;
+              ProofreadConstants.softMatchMinSimilarityRatio;
           if (paired > best) {
             best = paired;
             move = 3;
@@ -325,7 +326,7 @@ class ReferenceTokenAligner {
     final maxLength = left.length >= right.length ? left.length : right.length;
     if (maxLength == 0) return 1;
     if ((left.length - right.length).abs() / maxLength >=
-        1 - ProofreadConstants.softMatchMinSim) {
+        1 - ProofreadConstants.softMatchMinSimilarityRatio) {
       return 0;
     }
 

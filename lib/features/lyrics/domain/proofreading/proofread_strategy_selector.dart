@@ -84,7 +84,7 @@ class ProofreadStrategySelector {
       );
     }
     final fellBack =
-        referenceCoverage < ProofreadConstants.autoRefCoverageMin;
+        referenceCoverage < ProofreadConstants.autoReferenceCoverageMinRatio;
     return ProofreadStrategyDecision(
       requestedStrategy: requestedStrategy,
       effectiveStrategy: fellBack

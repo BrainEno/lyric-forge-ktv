@@ -114,12 +114,14 @@
 > T1 的范围来自本任务说明的完整规格。T2–T9 是按上文目标与流水线拆出来的建议工作边界；在进入各任务时仍需检查真实调用点，不凭空新增接口。
 
 - [x] **T1 — 分词器、参考歌词清洗与常量。** 精确新增 `proofread_constants.dart`、`lyric_tokenizer.dart`、`reference_text_sanitizer.dart` 和两份对应 domain 单测。按任务原文逐字覆盖分词与 sanitizer 测试样例；先写测试再实现。不引入依赖，不用 Unicode 正则属性类。
+  - **2026-11-07 现状补充（#326）：** `ProofreadConstants` 只保留实际由 token 对齐和策略选择读取的参数；最初草案中尚未实现或未被消费的分行、判定和外部端口参数已移出代码，不能作为现有可调参数。T1 的完成表示基础组件已实现，不表示原草案全部阈值或后续功能均已接入。新增存活性契约测试要求每个保留常量有生产读取方。
+  - **当前量纲：** `softMatchMinSimilarityRatio` 和 `autoReferenceCoverageMinRatio` 是 0–1 比率；锚点长度、候选数和 DP cells 是计数。`AsrConsensusAnalyzer.agreementSimilarityThreshold` 也是 0–1 比率；共识、幻觉、重复和 ASR-first 流水线的 confidence 阈值使用 `LyricLine.confidence` 的 0–100 整数。它们服务不同判定，保持各自默认值，不应把比率与百分制直接比较。秒数参数使用 `Duration` 或明确标注秒；完整的重新分行与声学判定仍属未完成工作。
 - [x] **T2a — 有界 token 序列对齐。** 纯 Dart Needleman–Wunsch token 匹配与 `referenceCoverage`；对 DP cells 强制上限，超限时不分配矩阵。
-- [ ] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；仍需在本地验证唯一 n-gram 候选、有界候选数、单调非重叠锚点链和 DP 回退。高重复窗口不能作为唯一锚点。
+- [x] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；`reference_token_aligner_test.dart` 覆盖唯一锚点、重复窗口、有界候选、锚点顺序及 DP 预算回退。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
-- [ ] **T4 — referenceFirst 流水线。** 实现已随 PR #140 进入 main；本环境未重新运行本地测试，完成状态待验证。清洗参考文本、token 锚点对齐、参考时间分配、按参考行重建；插值与低证据时间必须给出琥珀色 verdict。
-- [ ] **T5 — asrFirst 流水线。** PR #141 共识分析、#143 幻觉候选、#144 重复片段移植、#145 参考纠错建议已进入 `main`（本环境未重跑本地验证）。Draft PR #146 新增安全重定时提案：只接受附近第二 ASR 的精确文本/时间匹配；多重匹配、低置信度、邻行冲突或音频越界均不得作为可用时间。未匹配时不按文本长度猜时间；不自动应用。重新分行及 ForcedAligner 任意文本适配仍待实现。
-- [ ] **T6 — 证据与结果合同。** 实现 TimedToken/TimeInterval/verdict/reasons/risk/dropped/adlibs/ProofreadResult；domain 只返回枚举/原因码，不放中文 UI 文案。
+- [x] **T4 — referenceFirst 流水线。** 实现已随 PR #140 进入 main；参考清洗、对齐、时间分配、按参考行重建及低证据复核由 `reference_first_pipeline_test.dart` 覆盖。
+- [ ] **T5 — asrFirst 流水线。** 共识分析、幻觉候选、重复片段、参考纠错建议及安全重定时提案（PR #141、#143–#146）已合并；ForcedAligner 已可对当前草稿生成复核证据。重新分行及参考歌词与 ForcedAligner 的组合仍未完成（见 #319）；重定时提案不会自动应用。
+- [x] **T6 — 证据与结果合同。** `proofread_result.dart` 已实现 `TimedLyricToken`、`ProofreadTimeInterval`、verdict/reasons/risk、dropped/adlibs 与 `ProofreadResult`；domain 返回枚举/原因码，中文文案在 presentation 层。
 - [x] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
 - [x] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。
 - [ ] **T9 — 回归与交付。** 运行 format、analyze、定向测试、`flutter test test/features/lyrics`、work-log write/check；按 AGENTS.md 记录完成条目、更新 handoff，并提交独立 PR。
