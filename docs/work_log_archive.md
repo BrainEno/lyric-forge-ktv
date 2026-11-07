@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-06 13:37] Stabilize Media Hub total-upload-deadline regression ([entry](log/entries/2026-11-06-1337-stabilize-media-hub-total-upload-deadline.md))
 - [2026-11-06 10:03] Keep empty-normalized ASR rows unmatched ([entry](log/entries/2026-11-06-1003-empty-normalized-fusion-regression.md))
 - [2026-11-06 09:26] Cover Chinese ASR fusion regressions ([entry](log/entries/2026-11-06-0926-chinese-asr-fusion-regressions.md))
 - [2026-11-06 01:54] Preserve Korean lyrics across chunk overlaps ([entry](log/entries/2026-11-06-0154-preserve-korean-chunk-overlap-lines.md))
