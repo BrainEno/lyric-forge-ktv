@@ -318,6 +318,8 @@ class TranscriptionException implements Exception {
 
   bool get blocksQueue => kind == TranscriptionFailureKind.environment;
 
+  bool get isCancelled => kind == TranscriptionFailureKind.cancelled;
+
   TranscriptionException withKind(TranscriptionFailureKind nextKind) {
     if (kind == nextKind) return this;
     return TranscriptionException(message, details: details, kind: nextKind);

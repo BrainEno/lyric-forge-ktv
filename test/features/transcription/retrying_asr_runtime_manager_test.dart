@@ -11,8 +11,7 @@ void main() {
     modelPath: 'ggml-model.bin',
   );
 
-  test(
-      'retries transient download failure, keeps byte resume visible, and '
+  test('retries transient download failure, keeps byte resume visible, and '
       'does not move progress backwards', () async {
     late final _FakeRuntimeManager delegate;
     delegate = _FakeRuntimeManager(
@@ -57,9 +56,7 @@ void main() {
     expect(delegate.installCalls, 2);
     expect(
       progressEvents.map((event) => event.message),
-      contains(
-        '网络连接中断，将从 2.00 GB / 4.00 GB 继续（第 2/3 次）',
-      ),
+      contains('网络连接中断，将从 2.00 GB / 4.00 GB 继续（第 2/3 次）'),
     );
     expect(
       progressEvents
@@ -141,6 +138,66 @@ void main() {
     },
   );
 
+  test(
+    'does not retry a typed cancellation with arbitrary display text',
+    () async {
+      final delegate = _FakeRuntimeManager(
+        onInstall: (_, __) async {
+          throw const TranscriptionException.cancelled(
+            'Cancellation message intentionally changed.',
+          );
+        },
+      );
+      final manager = RetryingAsrRuntimeManager(
+        delegate: delegate,
+        maxAttempts: 3,
+        retryDelay: Duration.zero,
+      );
+
+      await expectLater(
+        manager.installRecommended(config),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (error) => error.isCancelled,
+            'isCancelled',
+            isTrue,
+          ),
+        ),
+      );
+
+      expect(delegate.installCalls, 1);
+      await manager.dispose();
+    },
+  );
+
+  test(
+    'cancellation-like text with unknown kind does not block normal retry',
+    () async {
+      final delegate = _FakeRuntimeManager(
+        onInstall: (attempt, config) async {
+          if (attempt == 1) {
+            throw const TranscriptionException(
+              '歌词识别已取消',
+              details: 'SocketException: Connection reset by peer',
+            );
+          }
+          return config;
+        },
+      );
+      final manager = RetryingAsrRuntimeManager(
+        delegate: delegate,
+        maxAttempts: 2,
+        retryDelay: Duration.zero,
+      );
+
+      final installed = await manager.installRecommended(config);
+
+      expect(installed, same(config));
+      expect(delegate.installCalls, 2);
+      await manager.dispose();
+    },
+  );
+
   test('does not retry permission or integrity failures', () async {
     final delegate = _FakeRuntimeManager(
       onInstall: (attempt, config) async {
@@ -169,7 +226,8 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   final Future<TranscriptionConfig> Function(
     int attempt,
     TranscriptionConfig config,
-  ) onInstall;
+  )
+  onInstall;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast(sync: true);
@@ -195,15 +253,14 @@ class _FakeRuntimeManager implements AsrRuntimeManager {
   }
 
   @override
-  Future<TranscriptionConfig> installRecommended(
-    TranscriptionConfig config,
-  ) {
+  Future<TranscriptionConfig> installRecommended(TranscriptionConfig config) {
     installCalls += 1;
     return onInstall(installCalls, config);
   }
 
   @override
-  Future<TranscriptionConfig> repair(TranscriptionConfig config) async => config;
+  Future<TranscriptionConfig> repair(TranscriptionConfig config) async =>
+      config;
 
   @override
   Future<void> cancel() async {}

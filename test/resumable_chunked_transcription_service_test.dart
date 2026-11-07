@@ -235,6 +235,83 @@ void main() {
       },
     );
 
+    test(
+      'arbitrary-message cancellation stops retries and preserves completed checkpoints',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-cancel-checkpoint-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        const cancellation = TranscriptionException.cancelled(
+          'Stopped by a caller using a custom message.',
+        );
+        final delegate = _FakeService(failureOnCall: 2, failure: cancellation);
+        final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(minutes: 3),
+          maxAttempts: 3,
+          processSupervisor: ffmpeg.supervisor,
+        );
+        final events = <TranscriptionProgress>[];
+        final subscription = service.progressStream.listen(events.add);
+        final root = Directory(
+          '${directory.path}${Platform.pathSeparator}chunk_session',
+        );
+        final chunks = Directory('${root.path}${Platform.pathSeparator}chunks');
+        final manifestFile = File(
+          '${root.path}${Platform.pathSeparator}session.json',
+        );
+        final firstCheckpoint = File(
+          '${chunks.path}${Platform.pathSeparator}chunk_0000.json',
+        );
+        final secondCheckpoint = File(
+          '${chunks.path}${Platform.pathSeparator}chunk_0001.json',
+        );
+
+        try {
+          await expectLater(
+            service.transcribe(_request(input.path, directory.path)),
+            throwsA(
+              isA<TranscriptionException>()
+                  .having((error) => error.isCancelled, 'isCancelled', isTrue)
+                  .having(
+                    (error) => error.message,
+                    'message',
+                    cancellation.message,
+                  ),
+            ),
+          );
+        } finally {
+          await service.dispose();
+          await subscription.cancel();
+        }
+
+        expect(delegate.calls, 2, reason: 'cancellation is not retried');
+        expect(await firstCheckpoint.exists(), isTrue);
+        expect(await secondCheckpoint.exists(), isFalse);
+        expect(jsonDecode(await manifestFile.readAsString())['completed'], [
+          'chunk_0000',
+        ]);
+        expect(
+          events.map((event) => event.stage),
+          contains(TranscriptionStage.cancelled),
+        );
+        expect(
+          events.map((event) => event.stage),
+          isNot(contains(TranscriptionStage.completed)),
+        );
+        expect(
+          events.map((event) => event.stage),
+          isNot(contains(TranscriptionStage.failed)),
+        );
+      },
+    );
+
     test('a five-minute song is recognised in one pass', () async {
       expect(
         ResumableChunkedTranscriptionService.defaultChunkDuration,
@@ -562,7 +639,11 @@ class _ScriptedService implements TranscriptionService {
 
 class _FakeService implements TranscriptionService {
   final _controller = StreamController<TranscriptionProgress>.broadcast();
+  final int? failureOnCall;
+  final TranscriptionException? failure;
   int calls = 0;
+
+  _FakeService({this.failureOnCall, this.failure});
 
   @override
   Stream<TranscriptionProgress> get progressStream => _controller.stream;
@@ -573,6 +654,7 @@ class _FakeService implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     calls++;
+    if (calls == failureOnCall) throw failure!;
     return TranscriptionResult(
       lyrics: const LyricDocument(
         language: 'en',

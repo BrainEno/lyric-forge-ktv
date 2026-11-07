@@ -167,6 +167,9 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
           return config.whisperExecutable;
         }
       }
+    } on TranscriptionException catch (error) {
+      if (error.isCancelled) rethrow;
+      // Detection should never prevent the managed bootstrap from trying.
     } catch (_) {
       // Detection should never prevent the managed bootstrap from trying.
     }
@@ -392,13 +395,11 @@ class ResilientAsrRuntimeManager implements AsrRuntimeManager {
     );
   }
 
-  bool _isCancellation(TranscriptionException error) {
-    return error.message.contains('取消');
-  }
+  bool _isCancellation(TranscriptionException error) => error.isCancelled;
 
   void _throwIfCancelled() {
     if (_cancelRequested) {
-      throw const TranscriptionException('识别环境安装已取消');
+      throw const TranscriptionException.cancelled('识别环境安装已取消');
     }
   }
 

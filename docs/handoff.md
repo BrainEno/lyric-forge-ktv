@@ -2,45 +2,42 @@
 
 ## 目标
 
-继续逐项完成 open P1 issue #317 的独立验收切片。本轮补齐 tokenizer 对 Latin Extended-E（U+AB30–AB6F）的识别，避免该区段的 ASR 文本归一化为空；比较层和双引擎服务测试覆盖 U+AB30/U+AB31 与 Qwen-primary、Whisper-primary 两种顺序。
+完成 Issue #321 的跨服务类型化取消迁移。生产取消控制流仅依赖 `TranscriptionFailureKind.cancelled`，错误消息只用于展示。功能实现、回归测试、work-log entry 与生成式导航已完成；PR 已创建且目前所有 checks 通过。
 
 ## Git 现场
 
 - Repository：`BrainEno/lyric-forge-ktv`
-- 当前活动分支：`arena/ab356016-lyric-forge-ktv`
-- 基线：`345e14e`（PR #363 merge commit）。
-- PR #363 已合并；本轮 PR #364：https://github.com/BrainEno/lyric-forge-ktv/pull/364，OPEN。
-- 代码 head `4367ec3097b050c0fef4b4d3740992a831c7cb82` 的 pinned gate `42348849772` 全绿，包括 work-log preflight、changed-file format 和 repository quality gate。文档提交推进 PR head 后，合并前须确认最新 head 的 gate。
-- 本轮代码提交：`4367ec3 fix: preserve Latin Extended-E in ASR matching`。
-- issue #317：https://github.com/BrainEno/lyric-forge-ktv/issues/317，仍 OPEN。Issue checklist 上次编辑返回 HTTP 403 `Resource not accessible by integration`，尚未在线同步。
-- PR #364 没有获合并授权；PR #363 已合并不代表授权本 PR。
+- 当前活动分支：`arena/86a98089-lyric-forge-ktv`
+- 基线：`a0dbdabdc841fe8114b69b9e4f45ee6619513969`
+- PR #365：https://github.com/BrainEno/lyric-forge-ktv/pull/365，目标 `main`，OPEN；引用 #321，不关闭 issue。
+- 当前 head：`cf064c80e053af664193532a88852515e75109eb`。
+- 代码提交：`e0f1711 fix: make transcription cancellation type-driven`；`f8b52cb style: format changed transcription tests`；`7065323 chore: expose formatter diff for diagnosis`；`f7f7e42 chore: include full formatter diff in diagnosis`；`4d745f1 style: match pinned Dart formatter output`；`cf064c8 docs: log typed transcription cancellation migration`。
+- 两个临时 formatter 诊断提交已在 `4d745f1` 恢复 workflow；最终 PR diff 对 `.github/workflows/flutter-quality.yml` 无改动。临时诊断经用户明确授权。
+- `git status --short --branch`、`git diff --stat`、`git diff --cached --stat`：当前均干净/空。
 
 ## 已改文件
 
-- `lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart`：识别 Latin Extended-E U+AB30–AB6F。
-- `test/asr_text_comparison_test.dart`：验证 U+AB30/U+AB31 保留且不同文本仍有差异。
-- `test/high_quality_transcription_service_test.dart`：两种 engine order 下验证相同扩展拉丁行只保留一行。
-- `docs/log/entries/2026-11-07-1454-preserve-latin-extended-e-asr.md`：本轮切片及 CI 记录。
-- `docs/work_log.md`、`docs/work_log_archive.md`：生成式工作日志导航。
-- `docs/work_log_index.md`：补充 Latin Extended-E 覆盖索引。
-- `docs/handoff.md`：本文。
+- 生产代码：HQ 转写、分片续传、项目转写 workflow、Retrying/Resilient ASR runtime manager、transcription models。
+- 测试：HQ、分片续传、workflow 取消状态（新增）、Retrying/Resilient runtime manager、failure-kind 静态契约。
+- 文档：`docs/log/entries/2026-11-07-1547-type-transcription-cancellation.md`、`docs/work_log.md`、`docs/work_log_archive.md`、本文。
 
 ## 检查结果
 
-- `git diff --check` 通过。
-- Pinned Flutter Quality Gate `42348849772` 在代码 head `4367ec3` 全绿；work-log preflight、changed-file format、repository quality gate 均通过。
-- 本地没有 Flutter/Dart SDK；analyze/test 由 pinned CI 执行。文档提交推进 PR head 后，合并前仍须检查当前 head 的 gate。
+- `git diff --check`：通过，工作树干净。
+- 静态扫描 `lib/`：无按错误 message 判取消的生产控制流；静态回归契约覆盖 `==` 与 `.contains(...)` 两种模式。
+- 最终文档 head `cf064c80e053af664193532a88852515e75109eb` 的 Flutter Quality Gate run `42352774655` 全绿：work-log preflight、pinned changed-file Dart formatting、`flutter analyze lib test tool`、全量 `flutter test`。
+- 同 head `managed-storage-location` 与 `protective-pause` checks 通过。
+- 本地没有 `dart` / `flutter` / `fvm`，故本地未运行 formatter、analyzer、测试或 `dart tool/work_log.dart new/write/check`。entry 与 generated summary/archive 依据工具实现完整更新；最终 pinned CI work-log preflight 已验证通过。
+- Windows/macOS native process 的真实设备取消行为仍未做设备级验证。
 
 ## 下一步
 
-1. PR #364 与 issue #317 均保持 OPEN；没有用户授权前不合并、不关闭。
-2. 继续逐项审计其他 Latin Extended 子区段（可评估 Latin Extended-F U+10780–U+107BF），每次保持一个独立切片；issue checklist 仅在写入权限恢复后同步。
-3. 若分支前进，合并前确认当前 PR head 的 pinned gate 通过。
+完成本次 handoff 文档提交，并确认新 head 的 pinned Quality Gate、storage 与 protective-pause checks 仍绿；更新 PR #365 的 Validation/Remaining Risks 为最终结果，然后保持 PR #365 与 Issue #321 OPEN，等待用户审阅。不得合并 PR 或关闭 issue。
 
 ## 已知风险
 
-- 本轮仅补 Latin Extended-E；Latin Extended 其他子区段和其他低频文字范围仍待审计，不能声称 Unicode 全覆盖。
-- 本地无法运行 Flutter tests/analyze；CI 是本轮测试依据。
-- 真实歌曲 recall/WER 仍需人工核对语料；Native builds、KTV recovery、runtime release、icons 等 specialist workflows 尚未审计。
+- 真实设备上的 Windows/macOS native process cancellation 尚未验证；回归测试使用 fake/injected service。
+- 真实歌曲识别质量与 WER 不在本轮范围内。
+- 本地 SDK 缺失；所有 Dart 格式/分析/测试验证依赖 pinned CI。
 
-最后更新：2026-11-07 14:54（Asia/Taipei）
+最后更新：2026-11-07 15:51（Asia/Taipei）

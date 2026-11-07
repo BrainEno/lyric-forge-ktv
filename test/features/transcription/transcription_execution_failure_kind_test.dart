@@ -9,6 +9,42 @@ import 'package:lyric_forge_ktv/features/transcription/domain/models/transcripti
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 
 void main() {
+  test(
+    'cancellation status is derived only from the structured failure kind',
+    () {
+      expect(
+        const TranscriptionException.cancelled(
+          'any display message',
+        ).isCancelled,
+        isTrue,
+      );
+      expect(const TranscriptionException('歌词识别已取消').isCancelled, isFalse);
+    },
+  );
+
+  test(
+    'production cancellation control flow never inspects message text',
+    () async {
+      final messageCancellationChecks = RegExp(
+        r'''(?:\.message\s*==\s*["'][^"']*取消|\.message\.contains\(\s*["'][^"']*取消)''',
+      );
+      final violations = <String>[];
+      await for (final entity in Directory('lib').list(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final lines = await entity.readAsLines();
+        for (var index = 0; index < lines.length; index++) {
+          if (messageCancellationChecks.hasMatch(lines[index])) {
+            violations.add(
+              '${entity.path}:${index + 1}:${lines[index].trim()}',
+            );
+          }
+        }
+      }
+
+      expect(violations, isEmpty);
+    },
+  );
+
   test('Whisper treats missing source as input failure', () async {
     final root = await Directory.systemTemp.createTemp(
       'lyricforge-whisper-input-',

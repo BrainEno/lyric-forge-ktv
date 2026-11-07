@@ -230,10 +230,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             );
             break;
           } on TranscriptionException catch (error) {
-            if (error.kind == TranscriptionFailureKind.cancelled ||
-                error.message == '歌词识别已取消') {
-              rethrow;
-            }
+            if (error.isCancelled) rethrow;
             if (error.blocksQueue) {
               // Retrying the same chunk cannot repair a missing executable,
               // crashed runtime, driver problem or model environment. Preserve
@@ -330,6 +327,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         rawJsonPath: finalFile.path,
         detectedLanguage: _mostCommon(languages),
       );
+    } on TranscriptionException catch (error) {
+      if (error.isCancelled) {
+        _emit(TranscriptionStage.cancelled, 0.0, '分片识别已取消，已完成进度已保存');
+      }
+      rethrow;
     } on _ChunkCancelled {
       _emit(TranscriptionStage.cancelled, 0.0, '分片识别已取消，已完成进度已保存');
       throw const TranscriptionException.cancelled('歌词识别已取消');
