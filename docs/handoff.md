@@ -16,7 +16,7 @@
 
 ## 检查结果
 
-- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42363617202 的定向上传测试和完整质量门禁通过。最终 PR head 的检查以 GitHub Actions 为准。
+- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42363850625 的定向上传测试、完整质量门禁和工作日志生成与检查通过。最终 PR head 的检查以 GitHub Actions 为准。
 - 提交前检查 `git diff --check`；没有进行跨设备上传或真实 runtime 手测。
 
 ## 下一步
