@@ -38,6 +38,6 @@ jobs:
             if p.exists():
               lines=p.read_text(errors='replace').splitlines()
               for i,line in enumerate(lines):
-                if '[E]' in line or 'Error:' in line or 'error •' in line or 'warning •' in line or 'The following assertion was thrown' in line:
+                if '[E]' in line or 'Error:' in line or 'Expected:' in line or 'Actual:' in line or 'exception was thrown' in line or 'error •' in line or 'warning •' in line or 'The following assertion was thrown' in line:
                   for msg in lines[i:i+7]: print('::error::'+msg[:800].replace('%','%25'))
           PY
