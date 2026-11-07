@@ -74,6 +74,64 @@ void main() {
       expect(all.single.title, '新しい名前');
     });
 
+    for (final corrupt in <String, Object>{
+      'non-object': 'corrupt',
+      'invalid date': {'sourcePath': '/broken.mp3', 'updatedAt': 'bad'},
+      'invalid metadata': {
+        'sourcePath': '/broken.mp3',
+        'updatedAt': '2026-01-01T00:00:00.000',
+        'metadata': 'not an object',
+      },
+    }.entries) {
+      test('partial load blocks writes without losing records: ${corrupt.key}', () async {
+        final file = File('${directory.path}${Platform.pathSeparator}media_metadata.json');
+        final backup = File('${file.path}.bak');
+        final valid = LocalMediaMetadata(
+          sourcePath: '${directory.path}${Platform.pathSeparator}song.mp3',
+          title: '用户标题',
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'project-1', 'hasLyrics': true},
+        );
+        final original = jsonEncode({'version': 1, 'items': [valid.toJson(), corrupt.value]});
+        final oldBackup = jsonEncode({'version': 1, 'items': []});
+        await file.writeAsString(original, flush: true);
+        await backup.writeAsString(oldBackup, flush: true);
+        final repository = FileLocalMediaMetadataRepository(rootDirectory: directory);
+
+        final values = await repository.getAll();
+        expect(values, hasLength(1));
+        expect(values.single.title, '用户标题');
+        expect(values.single.metadata['linkedProjectId'], 'project-1');
+        await expectLater(repository.save(valid.copyWith(title: 'overwrite')), throwsFormatException);
+        await expectLater(repository.removeForAudio(valid.sourcePath), throwsFormatException);
+        await expectLater(repository.removeForAudio('/absent.mp3'), throwsFormatException);
+        expect((await repository.getForAudio(valid.sourcePath))?.title, '用户标题');
+        expect(await file.readAsString(), original);
+        expect(await backup.readAsString(), oldBackup);
+        expect(await File('${file.path}.tmp').exists(), isFalse);
+
+        // A deliberate external repair can be read by a new repository instance.
+        await file.writeAsString(jsonEncode({'version': 1, 'items': [valid.toJson()]}));
+        final repaired = FileLocalMediaMetadataRepository(rootDirectory: directory);
+        await repaired.save(valid.copyWith(title: 'after repair'));
+        expect((await repaired.getForAudio(valid.sourcePath))?.title, 'after repair');
+      });
+    }
+
+    test('legacy entries without metadata remain writable', () async {
+      final file = File('${directory.path}${Platform.pathSeparator}media_metadata.json');
+      final sourcePath = '${directory.path}${Platform.pathSeparator}legacy.mp3';
+      await file.writeAsString(jsonEncode({'items': [
+        {'sourcePath': sourcePath, 'updatedAt': '2026-01-01T00:00:00.000'},
+      ]}));
+      final repository = FileLocalMediaMetadataRepository(rootDirectory: directory);
+      final entry = await repository.getForAudio(sourcePath);
+      expect(entry, isNotNull);
+      expect(entry!.metadata, isEmpty);
+      await repository.save(entry.copyWith(title: 'legacy updated'));
+      expect((await repository.getForAudio(sourcePath))?.title, 'legacy updated');
+    });
+
     test('imports artwork into app-owned MediaArtwork storage', () async {
       final audio = File('${directory.path}${Platform.pathSeparator}song.mp3');
       final image = File('${directory.path}${Platform.pathSeparator}封面.png');
