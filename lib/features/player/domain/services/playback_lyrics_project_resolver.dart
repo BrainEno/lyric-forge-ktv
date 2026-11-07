@@ -1,4 +1,3 @@
-import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../models/local_media_metadata.dart';
 import '../repositories/local_media_metadata_repository.dart';
