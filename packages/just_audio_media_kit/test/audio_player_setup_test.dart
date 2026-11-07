@@ -1,10 +1,23 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:just_audio_media_kit/src/audio_player_setup.dart';
 
 void main() {
+  test('adapter wires configuration and readiness helpers into initialization', () {
+    final packageRoot = Directory('packages/just_audio_media_kit').existsSync()
+        ? 'packages/just_audio_media_kit'
+        : '.';
+    final adapter = File('$packageRoot/lib/mediakit_player.dart').readAsStringSync();
+    final plugin = File('$packageRoot/lib/just_audio_media_kit.dart').readAsStringSync();
+    expect(adapter, contains('configuration: audioPlayerConfiguration('));
+    expect(adapter, contains('Future<void> ready() => prepareAudioPlayer('));
+    expect(adapter, contains('(name, value) => setProperty(_player, name, value)'));
+    expect(plugin, contains('await player.ready();'));
+  });
+
   test('configuration keeps audio-only OSC workaround and forwards options',
       () {
     final originalPitch = JustAudioMediaKit.pitch;
