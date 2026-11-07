@@ -236,6 +236,7 @@ void main() {
           jsonEncode({
             'version':
                 ResumableChunkedTranscriptionService.checkpointManifestVersion,
+            'fallbackEvidenceVersion': 1,
             'sourceFingerprint': fingerprint,
             'configFingerprint':
                 ResumableChunkedTranscriptionService.checkpointConfigFingerprint(
@@ -570,27 +571,41 @@ void main() {
     );
 
     test('only old dual-engine checkpoints are invalidated', () async {
-      final directory = await Directory.systemTemp.createTemp('chunk-old-version-');
+      final directory = await Directory.systemTemp.createTemp(
+        'chunk-old-version-',
+      );
       addTearDown(() => directory.delete(recursive: true));
       final input = File('${directory.path}${Platform.pathSeparator}song.wav');
       await input.writeAsBytes(List<int>.filled(128, 0));
       final delegate = _FakeService();
       final ffmpeg = _FfmpegStub(durationLabel: '00:04:00.000');
       final service = ResumableChunkedTranscriptionService(
-        delegate: delegate, chunkDuration: const Duration(minutes: 3),
+        delegate: delegate,
+        chunkDuration: const Duration(minutes: 3),
         processSupervisor: ffmpeg.supervisor,
       );
       addTearDown(service.dispose);
-      final single = _request(input.path, directory.path);
+      final single = _request(
+        input.path,
+        directory.path,
+        config: _config().copyWith(mode: TranscriptionMode.whisperOnly),
+      );
       await service.transcribe(single);
       await service.transcribe(single);
       expect(delegate.calls, 2);
 
-      final dual = _request(input.path, directory.path, config: _config().copyWith(mode: TranscriptionMode.highestQuality));
+      final dual = _request(
+        input.path,
+        directory.path,
+        config: _config().copyWith(mode: TranscriptionMode.highestQuality),
+      );
       await service.transcribe(dual);
       expect(delegate.calls, 4);
-      final manifest = File('${directory.path}${Platform.pathSeparator}chunk_session${Platform.pathSeparator}session.json');
-      final data = jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
+      final manifest = File(
+        '${directory.path}${Platform.pathSeparator}chunk_session${Platform.pathSeparator}session.json',
+      );
+      final data =
+          jsonDecode(await manifest.readAsString()) as Map<String, dynamic>;
       data.remove('fallbackEvidenceVersion');
       await manifest.writeAsString(jsonEncode(data));
       await service.transcribe(dual);

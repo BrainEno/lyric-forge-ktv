@@ -139,6 +139,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         '${root.path}${Platform.pathSeparator}session.json',
       );
       var manifest = await _loadManifest(manifestFile);
+      // Legacy dual-engine chunks may have permanently truncated evidence.
       final compatible =
           manifest != null &&
           manifest['version'] == checkpointManifestVersion &&
