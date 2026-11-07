@@ -298,7 +298,10 @@ void main() {
       onPressed: () => importLyricsForLocalPlaybackItem(context, _item, dependencies),
       child: const Text('导入'),
     )))));
-    await tester.tap(find.text('导入'));
+    final context = tester.element(find.text('导入'));
+    await tester.runAsync(
+      () => importLyricsForLocalPlaybackItem(context, _item, dependencies),
+    );
     await tester.pumpAndSettle();
     expect(find.textContaining('无法读取歌曲或歌词工程，请检查存储后重试'), findsOneWidget);
     expect(projects.scans, 0);
