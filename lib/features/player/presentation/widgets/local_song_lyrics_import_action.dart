@@ -472,7 +472,8 @@ Future<ProjectManifest?> _linkedOrMatchingProject({
   required LocalMediaMetadataRepository mediaMetadataRepository,
   required PlaybackItem item,
 }) async {
-  final metadata = await mediaMetadataRepository.getForAudio(
+  final metadata = await readCompleteLocalMediaMetadataForAudio(
+    mediaMetadataRepository,
     item.audioAsset.originalPath,
   );
   final linkedProjectId = metadata?.metadata['linkedProjectId'];

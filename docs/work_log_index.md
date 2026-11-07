@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-11-07. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-11-08. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -66,7 +66,7 @@
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.
 
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
-- Playback lyric resolution fails closed on propagated read errors. Project stores reject partial or duplicate records; media metadata stores block partial writes but readable partial results can still mislead lyric resolution. Other stores may skip malformed records. Failed initial loads remain cached until restart, and link writes lack compare-and-swap protection.
+- Playback lyric resolution fails closed on propagated read errors and incomplete file-backed media metadata, while display reads remain best effort. Project stores reject partial or duplicate records; other stores may skip malformed records. Cached loads require restart after repair; link writes lack compare-and-swap protection, and first-lyric background linking can report unhandled errors.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.
 - The analyzer was reported clean (0 issues project-wide) and the full test suite passed (513 tests, 2 skipped as of the E5 entry); vendored `packages/just_audio_media_kit` is excluded via `analysis_options.yaml` on purpose.

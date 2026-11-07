@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/file_audio_path_canonicalizer.dart';
+import 'package:lyric_forge_ktv/features/player/data/repositories/file_local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_path_canonicalizer.dart';
@@ -238,6 +239,124 @@ void main() {
       expect(metadata.saves, isEmpty);
       expect(session.updates, isEmpty);
       expect(await store.readAsString(), original);
+    },
+  );
+
+  for (final includesValidLink in [false, true]) {
+    test(
+      'partial real metadata never drives lyric resolution: valid link $includesValidLink',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'lyric-partial-metadata-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final store = File(
+          '${directory.path}${Platform.pathSeparator}media_metadata.json',
+        );
+        final valid = includesValidLink
+            ? _linked()
+            : LocalMediaMetadata(
+                sourcePath: '/other.mp3',
+                title: 'Readable',
+                updatedAt: DateTime(2026),
+              );
+        final original = jsonEncode({
+          'items': [valid.toJson(), 'broken'],
+        });
+        await store.writeAsString(original);
+        final metadata = FileLocalMediaMetadataRepository(
+          rootDirectory: directory,
+        );
+        final projects = _Projects([_project('other')]);
+        final session = _Session();
+        final resolver = PlaybackLyricsResolver(
+          projectRepository: projects,
+          metadataRepository: metadata,
+          playbackSession: session,
+          pathCanonicalizer: const FileAudioPathCanonicalizer(),
+        );
+
+        expect((await metadata.getAll()).single.sourcePath, valid.sourcePath);
+        await expectLater(
+          resolver.resolveAndSync(_item),
+          throwsFormatException,
+        );
+        expect(projects.scans, 0);
+        expect(session.updates, isEmpty);
+        expect(await store.readAsString(), original);
+
+        // A direct project ID does not depend on local metadata.
+        final direct = await resolver.resolveAndSync(
+          _item.copyWith(projectId: 'other'),
+        );
+        expect(direct.projectId, 'other');
+        expect(direct.hasLyrics, isTrue);
+        expect(session.updates, isEmpty);
+      },
+    );
+  }
+
+  testWidgets(
+    'import reports real partial metadata rather than creating a project',
+    (tester) async {
+      late Directory directory;
+      late File store;
+      late FileLocalMediaMetadataRepository metadata;
+      final original = jsonEncode({
+        'items': ['broken'],
+      });
+      await tester.runAsync(() async {
+        directory = await Directory.systemTemp.createTemp(
+          'lyric-partial-import-',
+        );
+        store = File(
+          '${directory.path}${Platform.pathSeparator}media_metadata.json',
+        );
+        await store.writeAsString(original);
+        metadata = FileLocalMediaMetadataRepository(rootDirectory: directory);
+        await metadata.getAll();
+      });
+      addTearDown(() => directory.delete(recursive: true));
+      final projects = _Projects([]);
+      final session = _Session();
+      final resolver = PlaybackLyricsResolver(
+        projectRepository: projects,
+        metadataRepository: metadata,
+        playbackSession: session,
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+      );
+      final dependencies = LyricsImportDependencies(
+        lyricsResolver: resolver,
+        importer: _UnusedImporter(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => importLyricsForLocalPlaybackItem(
+                  context,
+                  _item,
+                  dependencies,
+                ),
+                child: const Text('导入'),
+              ),
+            ),
+          ),
+        ),
+      );
+      final context = tester.element(find.text('导入'));
+      await tester.runAsync(
+        () => importLyricsForLocalPlaybackItem(context, _item, dependencies),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('无法读取歌曲或歌词工程，请检查存储后重试'), findsOneWidget);
+      expect(projects.scans, 0);
+      expect(projects.creates, 0);
+      expect(session.updates, isEmpty);
+      final contents = await tester.runAsync(store.readAsString);
+      expect(contents, original);
+      expect(tester.takeException(), isNull);
     },
   );
 

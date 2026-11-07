@@ -7,7 +7,8 @@ import '../../../../core/persistence/atomic_json_file.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 
-class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
+class FileLocalMediaMetadataRepository
+    implements LocalMediaMetadataRepository, CompleteLocalMediaMetadataReader {
   static const int _schemaVersion = 1;
 
   static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
@@ -84,7 +85,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
       if (!_isValidStoreJson(decoded)) {
         _incompleteLoad = FormatException(
           'Local media metadata changed or became invalid while loading. '
-          'Writes are disabled to preserve the original file.',
+          'Association reads and writes are disabled to preserve the original file.',
           file.path,
         );
         return;
@@ -101,12 +102,20 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
           final entry = LocalMediaMetadata.fromJson(
             Map<String, dynamic>.from(raw),
           );
-          _entries[_key(entry.sourcePath)] = entry;
+          final key = _key(entry.sourcePath);
+          if (_entries.containsKey(key)) {
+            _incompleteLoad ??= FormatException(
+              'Local media metadata record ${index + 1} has a duplicate path. '
+              'Association reads and writes are disabled to preserve the original file.',
+              file.path,
+            );
+          }
+          _entries[key] = entry;
         } catch (_) {
           // Keep valid entries readable but never persist a partial snapshot.
           _incompleteLoad ??= FormatException(
             'Local media metadata record ${index + 1} could not be read. '
-            'Writes are disabled to preserve the original file.',
+            'Association reads and writes are disabled to preserve the original file.',
             file.path,
           );
         }
@@ -114,13 +123,13 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
     } catch (_) {
       _incompleteLoad = FormatException(
         'Local media metadata could not be read completely. '
-        'Writes are disabled to preserve the original file.',
+        'Association reads and writes are disabled to preserve the original file.',
         file.path,
       );
     }
   }
 
-  void _ensureWritable() {
+  void _ensureComplete() {
     final problem = _incompleteLoad;
     if (problem != null) throw problem;
   }
@@ -151,6 +160,13 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   }
 
   @override
+  Future<LocalMediaMetadata?> getCompleteForAudio(String sourcePath) async {
+    await _ensureLoaded();
+    _ensureComplete();
+    return _entries[_key(sourcePath)];
+  }
+
+  @override
   Future<List<LocalMediaMetadata>> getAll() async {
     await _ensureLoaded();
     final values = _entries.values.toList()
@@ -161,7 +177,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<LocalMediaMetadata> save(LocalMediaMetadata metadata) async {
     await _ensureLoaded();
-    _ensureWritable();
+    _ensureComplete();
     final normalizedPath = File(metadata.sourcePath).absolute.path;
     final saved = metadata.copyWith(
       sourcePath: normalizedPath,
@@ -175,7 +191,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   @override
   Future<void> removeForAudio(String sourcePath) async {
     await _ensureLoaded();
-    _ensureWritable();
+    _ensureComplete();
     final removed = _entries.remove(_key(sourcePath));
     if (removed == null) return;
     await _persist();
@@ -187,7 +203,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
     required String imagePath,
   }) async {
     await _ensureLoaded();
-    _ensureWritable();
+    _ensureComplete();
     final source = File(imagePath);
     if (!await source.exists()) {
       throw FileSystemException('Artwork file does not exist', imagePath);
@@ -209,7 +225,7 @@ class FileLocalMediaMetadataRepository implements LocalMediaMetadataRepository {
   Future<void> removeManagedArtwork(String? artworkPath) async {
     if (artworkPath == null || artworkPath.trim().isEmpty) return;
     await _ensureLoaded();
-    _ensureWritable();
+    _ensureComplete();
     final directory = await _artworkDirectory();
     final artwork = File(artworkPath);
     final parent = _normalizedPath(artwork.parent.path);

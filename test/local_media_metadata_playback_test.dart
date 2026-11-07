@@ -171,6 +171,7 @@ void main() {
           sourcePath: audioFile.path,
           title: '可用标题',
           updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'unverified-link'},
         );
         final store = File(
           '${directory.path}${Platform.pathSeparator}media_metadata.json',
@@ -184,7 +185,12 @@ void main() {
         await session.setQueue([_localItem(audioFile.path, title: 'raw')]);
 
         expect(session.currentState.currentItem?.title, '可用标题');
+        expect(session.currentState.currentItem?.hasLyrics, isFalse);
         expect(audio.loadCount, greaterThan(0));
+        await session.setQueue([
+          _localItem(audioFile.path).copyWith(hasLyrics: true),
+        ]);
+        expect(session.currentState.currentItem?.hasLyrics, isTrue);
         await expectLater(
           metadata.save(valid.copyWith(title: 'blocked')),
           throwsFormatException,

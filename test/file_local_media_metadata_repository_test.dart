@@ -122,6 +122,14 @@ void main() {
           expect(values.single.title, '用户标题');
           expect(values.single.metadata['linkedProjectId'], 'project-1');
           await expectLater(
+            repository.getCompleteForAudio(valid.sourcePath),
+            throwsFormatException,
+          );
+          await expectLater(
+            repository.getCompleteForAudio('/absent.mp3'),
+            throwsFormatException,
+          );
+          await expectLater(
             repository.save(valid.copyWith(title: 'overwrite')),
             throwsFormatException,
           );
@@ -151,6 +159,13 @@ void main() {
           final repaired = FileLocalMediaMetadataRepository(
             rootDirectory: directory,
           );
+          expect(
+            (await repaired.getCompleteForAudio(
+              valid.sourcePath,
+            ))?.metadata['linkedProjectId'],
+            'project-1',
+          );
+          expect(await repaired.getCompleteForAudio('/absent.mp3'), isNull);
           await repaired.save(valid.copyWith(title: 'after repair'));
           expect(
             (await repaired.getForAudio(valid.sourcePath))?.title,
@@ -159,6 +174,53 @@ void main() {
         },
       );
     }
+
+    test(
+      'duplicate canonical paths remain readable for display but block associations and writes',
+      () async {
+        final file = File(
+          '${directory.path}${Platform.pathSeparator}media_metadata.json',
+        );
+        final source = '${directory.path}${Platform.pathSeparator}song.mp3';
+        final first = LocalMediaMetadata(
+          sourcePath: source,
+          title: 'first',
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'original'},
+        );
+        final second = first.copyWith(
+          title: 'second',
+          metadata: const {'linkedProjectId': 'other'},
+        );
+        final original = jsonEncode({
+          'items': [first.toJson(), second.toJson()],
+        });
+        final backup = File('${file.path}.bak');
+        const oldBackup = '{"items":[]}';
+        await file.writeAsString(original);
+        await backup.writeAsString(oldBackup);
+        final repository = FileLocalMediaMetadataRepository(
+          rootDirectory: directory,
+        );
+
+        expect((await repository.getForAudio(source))?.title, 'second');
+        await expectLater(
+          repository.getCompleteForAudio(source),
+          throwsFormatException,
+        );
+        await expectLater(
+          repository.getCompleteForAudio('/absent.mp3'),
+          throwsFormatException,
+        );
+        await expectLater(repository.save(first), throwsFormatException);
+        await expectLater(
+          repository.removeForAudio(source),
+          throwsFormatException,
+        );
+        expect(await file.readAsString(), original);
+        expect(await backup.readAsString(), oldBackup);
+      },
+    );
 
     test(
       'partial load protects managed artwork from replacement and deletion',
