@@ -205,6 +205,83 @@ void main() {
       },
     );
 
+    test('matches polytonic Greek in either engine order', () async {
+      const text = '\u1f97';
+      final line = LyricLine(
+        text: text,
+        startTime: const Duration(seconds: 10),
+        endTime: const Duration(seconds: 13),
+        confidence: 90,
+      );
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _result(line)),
+          fallback: _FakeTranscriptionService(result: _result(line)),
+        );
+
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
+          );
+
+          expect(result.lyrics.lines.single.text, text);
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+          expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
+    test('matches Cyrillic extension rows in either engine order', () async {
+      const texts = [
+        '\u0501\u0503',
+        '\u1c80\u1c81',
+        '\u0430\u2de0',
+        '\ua641\ua643',
+        '\u{1e030}\u{1e031}',
+      ];
+
+      for (final engineOrder in [
+        TranscriptionEngineOrder.qwenPrimary,
+        TranscriptionEngineOrder.whisperPrimary,
+      ]) {
+        final lines = [
+          for (var index = 0; index < texts.length; index++)
+            LyricLine(
+              text: texts[index],
+              startTime: Duration(seconds: index * 4 + 1),
+              endTime: Duration(seconds: index * 4 + 3),
+              confidence: 90,
+            ),
+        ];
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _resultLines(lines)),
+          fallback: _FakeTranscriptionService(result: _resultLines(lines)),
+        );
+
+        try {
+          final result = await service.transcribe(
+            _request(tempDirectory.path, engineOrder: engineOrder),
+          );
+
+          expect(
+            result.lyrics.lines.map((line) => line.text).toList(),
+            texts,
+            reason: 'engine order: $engineOrder',
+          );
+          expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+          expect(result.lyrics.metadata['fallbackCandidateCount'], 0);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
     test('matches supplementary CJK rows in either engine order', () async {
       const text = '\u{20000}\u{20001}';
       final line = LyricLine(
