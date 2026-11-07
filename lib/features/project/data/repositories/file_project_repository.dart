@@ -83,7 +83,9 @@ class FileProjectRepository implements ProjectRepository {
     try {
       final decoded = jsonDecode(await file.readAsString());
       if (!_isValidStoreJson(decoded)) {
-        throw const FormatException('Project store became invalid while loading');
+        throw const FormatException(
+          'Project store became invalid while loading',
+        );
       }
       final entries = (decoded as Map)['projects'] as List;
 
@@ -97,7 +99,9 @@ class FileProjectRepository implements ProjectRepository {
           Map<String, dynamic>.from(entry),
         );
         if (loaded.containsKey(project.id)) {
-          throw FormatException('Project record ${index + 1} has a duplicate ID');
+          throw FormatException(
+            'Project record ${index + 1} has a duplicate ID',
+          );
         }
         loaded[project.id] = project;
       }

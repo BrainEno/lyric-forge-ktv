@@ -206,28 +206,40 @@ void main() {
     },
   );
 
-  test('partially corrupt project store cannot clear a lyric link or queue flag', () async {
-    final directory = await Directory.systemTemp.createTemp('lyric-partial-projects-');
-    addTearDown(() => directory.delete(recursive: true));
-    final store = File('${directory.path}${Platform.pathSeparator}projects.json');
-    // A damaged record might have been the linked project. A valid unrelated
-    // record must not make a partial scan look authoritative.
-    final original = jsonEncode({'projects': [_project('other').toJson(), 'broken']});
-    await store.writeAsString(original);
-    final metadata = _Metadata(_linked());
-    final session = _Session();
-    final resolver = PlaybackLyricsResolver(
-      projectRepository: FileProjectRepository(rootDirectory: directory),
-      metadataRepository: metadata,
-      playbackSession: session,
-      pathCanonicalizer: const FileAudioPathCanonicalizer(),
-    );
+  test(
+    'partially corrupt project store cannot clear a lyric link or queue flag',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'lyric-partial-projects-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final store = File(
+        '${directory.path}${Platform.pathSeparator}projects.json',
+      );
+      // A damaged record might have been the linked project. A valid unrelated
+      // record must not make a partial scan look authoritative.
+      final original = jsonEncode({
+        'projects': [_project('other').toJson(), 'broken'],
+      });
+      await store.writeAsString(original);
+      final metadata = _Metadata(_linked());
+      final session = _Session();
+      final resolver = PlaybackLyricsResolver(
+        projectRepository: FileProjectRepository(rootDirectory: directory),
+        metadataRepository: metadata,
+        playbackSession: session,
+        pathCanonicalizer: const FileAudioPathCanonicalizer(),
+      );
 
-    await expectLater(resolver.resolveAndSync(_item), throwsA(isA<ProjectRepositoryException>()));
-    expect(metadata.saves, isEmpty);
-    expect(session.updates, isEmpty);
-    expect(await store.readAsString(), original);
-  });
+      await expectLater(
+        resolver.resolveAndSync(_item),
+        throwsA(isA<ProjectRepositoryException>()),
+      );
+      expect(metadata.saves, isEmpty);
+      expect(session.updates, isEmpty);
+      expect(await store.readAsString(), original);
+    },
+  );
 
   for (final failReadAt in [1, 2]) {
     testWidgets(
