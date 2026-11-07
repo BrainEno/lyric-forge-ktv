@@ -2,31 +2,30 @@
 
 ## 目标
 
-修复 issue #333：完整保留并融合双引擎候选，展示数量只控制重点标记；提交中文说明的 PR，不直接合并。
+修复 issue #324：Media Hub 上传仅允许本地音乐导入支持的扩展名，并记录本地 Qwen runtime 的信任边界；提交中文 PR，不直接合并。
 
 ## Git 现场
 
-- 基线 `edbe96415bf4855b1400fbf9ea8db2c8ad82a87b`；固定分支 `arena/0f11c2d9-lyric-forge-ktv`。
+- 基线 `8140180c9d0cd3d22040f97269dd9f442e2a351a`；固定分支 `arena/851275dd-lyric-forge-ktv`。
 - 最终提交、PR 状态和检查结果以 Git/GitHub 为准。
 
 ## 已改文件
 
-- 双引擎融合、分片恢复和合并、转写配置提示、歌词列表及对应回归测试。
+- 本地音频导入格式的共享声明、Media Hub 接收端扩展名校验及对应上传测试；README 安全说明。
 - 工作日志、生成的导航和本 handoff。
 
 ## 检查结果
 
-- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42360951321 的定向测试、完整质量门禁和工作日志检查通过；最终结果以 PR head 的检查为准。
-- 使用 `git diff --check` 检查补丁；真实设备响应式手测未执行。
+- 本地缺少 Flutter/Dart；GitHub Actions 预验证 run 42363850625 的定向上传测试、完整质量门禁和工作日志生成与检查通过。最终 PR head 的检查以 GitHub Actions 为准。
+- 提交前检查 `git diff --check`；没有进行跨设备上传或真实 runtime 手测。
 
 ## 下一步
 
-确认 PR 最终 head 的 Flutter Quality Gate；未经授权不合并。
+确认最终 PR head 的 Flutter Quality Gate；未经授权不合并。
 
 ## 已知风险
 
-- 旧项目里早已被截断的候选无法恢复，需要重新识别；旧版双引擎分片检查点因语义变更会重新识别。
-- 候选依旧按行索引关联；现有结构编辑会清除候选证据，稳定行 ID 关联属于后续工作。
-- 未在真实设备上逐一验证响应式歌词编辑器布局。
+- 扩展名检查不校验文件内容、不提供恶意软件扫描；只应与可信设备配对。
+- Qwen 本机 HTTP API 仍无鉴权，同机进程可访问；端口预留后释放存在竞争窗口。本文档披露而未修改 runtime 协议。
 
-最后更新：2026-11-07 17:40（Asia/Taipei）
+最后更新：2026-11-07 18:24（Asia/Taipei）

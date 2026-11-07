@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/media_hub_session.dart';
 import '../../domain/models/shared_audio_track.dart';
 import '../../domain/services/media_hub_service.dart';
@@ -462,6 +463,18 @@ class HttpMediaHubService implements MediaHubService {
       return;
     }
 
+    final safeName = _safeIncomingName(rawName);
+    final dot = safeName.lastIndexOf('.');
+    final extension = dot < 0 ? '' : safeName.substring(dot + 1).toLowerCase();
+    if (!supportedLocalAudioExtensions.contains(extension)) {
+      await _rejectIncomingUpload(
+        request,
+        HttpStatus.unsupportedMediaType,
+        'unsupported_audio_extension',
+      );
+      return;
+    }
+
     final expectedLength = request.contentLength >= 0
         ? request.contentLength
         : null;
@@ -505,7 +518,7 @@ class HttpMediaHubService implements MediaHubService {
 
       final reservation = await _reserveIncomingDestination(
         directory,
-        _safeIncomingName(rawName),
+        safeName,
       );
       incomingReservation = reservation;
       final destination = reservation.destination;

@@ -91,6 +91,12 @@ Highest Quality mode can combine a full-song Whisper transcript with a Qwen3-ASR
 
 Media Hub sharing is stopped until you explicitly confirm the sharing scope. Pairing pins the desktop's HTTPS certificate fingerprint; requests use Bearer authorization, and listeners are restricted to detected private-LAN/Tailscale IPv4 addresses. Do not expose the service through an untrusted public interface. Browser-based clients are not supported.
 
+Authenticated incoming uploads accept only the local library's audio filename extensions (MP3, FLAC, WAV, M4A, AAC, and OGG). This is a filename check, not content validation or malware scanning; only pair with devices you trust.
+
+## Local ASR runtime trust boundary
+
+The desktop app starts the Qwen native runtime on `127.0.0.1` with a dynamically selected port. Its HTTP API has no authentication or encryption: other processes on the same machine can connect while it is running, submit audio or consume compute resources. Loopback binding limits network exposure, not access by local users or processes; do not forward the port or run untrusted local software. Port selection releases a reserved socket before the runtime binds it, so a local process could also race to occupy that port. Media Hub pairing and its Bearer token do not protect this separate local API.
+
 ## Development and tests
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. The active Flutter SDK pin is `.fvmrc`; CI uses the shared setup action. Common checks are:
