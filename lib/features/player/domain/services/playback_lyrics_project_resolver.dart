@@ -1,4 +1,3 @@
-import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../models/local_media_metadata.dart';
 import '../repositories/local_media_metadata_repository.dart';
@@ -46,8 +45,9 @@ class PlaybackLyricsResolution {
 /// before its lyric project existed must still discover that project. Stale
 /// links are repaired, or cleared once nothing matches, so one playback session
 /// heals the association instead of repeating the same broken result. Optional
-/// metadata failures are swallowed: lyric resolution must never depend on a
-/// writable metadata store.
+/// metadata write failures are swallowed. Read failures are not treated as
+/// missing projects: callers must not clear links or update cached flags based
+/// on an incomplete lookup.
 Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
   required PlaybackItem item,
   required ProjectRepository projectRepository,
@@ -56,7 +56,7 @@ Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
 }) async {
   final directProjectId = item.projectId?.trim();
   if (directProjectId != null && directProjectId.isNotEmpty) {
-    final project = await _projectFor(projectRepository, directProjectId);
+    final project = await projectRepository.getProjectById(directProjectId);
     return PlaybackLyricsResolution(
       projectId: project?.id,
       hasLyrics: project?.hasLyrics ?? false,
@@ -65,11 +65,11 @@ Future<PlaybackLyricsResolution> resolvePlaybackLyrics({
   if (item.isRemoteStream) return PlaybackLyricsResolution.empty;
 
   final audioPath = item.audioAsset.originalPath;
-  final metadata = await _metadataFor(metadataRepository, audioPath);
+  final metadata = await metadataRepository.getForAudio(audioPath);
   final linkedProjectId = _linkedProjectIdOf(metadata);
 
   if (linkedProjectId != null) {
-    final linked = await _projectFor(projectRepository, linkedProjectId);
+    final linked = await projectRepository.getProjectById(linkedProjectId);
     if (linked != null && linked.hasLyrics) {
       return PlaybackLyricsResolution(projectId: linked.id, hasLyrics: true);
     }
@@ -126,47 +126,20 @@ String? _linkedProjectIdOf(LocalMediaMetadata? metadata) {
   return rawProjectId.trim();
 }
 
-Future<LocalMediaMetadata?> _metadataFor(
-  LocalMediaMetadataRepository repository,
-  String audioPath,
-) async {
-  try {
-    return await repository.getForAudio(audioPath);
-  } catch (_) {
-    // Optional media metadata must never prevent lyric resolution.
-    return null;
-  }
-}
-
-Future<ProjectManifest?> _projectFor(
-  ProjectRepository repository,
-  String projectId,
-) async {
-  try {
-    return await repository.getProjectById(projectId);
-  } catch (_) {
-    return null;
-  }
-}
-
 Future<String?> _scannedProjectIdForAudio(
   ProjectRepository repository,
   String path,
   AudioPathCanonicalizer pathCanonicalizer,
 ) async {
-  try {
-    final canonicalPath = pathCanonicalizer.canonicalize(path);
-    final projects = await repository.getAllProjects();
-    for (final project in projects) {
-      final projectPath = project.audioAsset?.originalPath;
-      if (projectPath == null || projectPath.trim().isEmpty) continue;
-      if (!project.hasLyrics) continue;
-      if (pathCanonicalizer.canonicalize(projectPath) == canonicalPath) {
-        return project.id;
-      }
+  final canonicalPath = pathCanonicalizer.canonicalize(path);
+  final projects = await repository.getAllProjects();
+  for (final project in projects) {
+    final projectPath = project.audioAsset?.originalPath;
+    if (projectPath == null || projectPath.trim().isEmpty) continue;
+    if (!project.hasLyrics) continue;
+    if (pathCanonicalizer.canonicalize(projectPath) == canonicalPath) {
+      return project.id;
     }
-  } catch (_) {
-    // Project scanning is a best-effort fallback.
   }
   return null;
 }

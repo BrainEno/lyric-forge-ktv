@@ -63,6 +63,15 @@ class _NowPlayingLyricsProjectActionState
     return FutureBuilder<String?>(
       future: _projectIdFuture,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return TextButton.icon(
+            onPressed: () => setState(() {
+              _projectIdFuture = _resolve();
+            }),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('歌词读取失败，重试'),
+          );
+        }
         final projectId = snapshot.data;
         if (projectId == null || projectId.isEmpty) {
           return const SizedBox.shrink();
