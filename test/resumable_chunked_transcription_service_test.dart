@@ -121,20 +121,27 @@ void main() {
           'delegate cancellation emits one wrapper event '
           '(short: $shortAudio, child event: $childEmitsCancellation)',
           () async {
-            final directory = await Directory.systemTemp.createTemp('chunk-events-');
+            final directory = await Directory.systemTemp.createTemp(
+              'chunk-events-',
+            );
             addTearDown(() => directory.delete(recursive: true));
-            final input = File('${directory.path}${Platform.pathSeparator}song.wav');
+            final input = File(
+              '${directory.path}${Platform.pathSeparator}song.wav',
+            );
             await input.writeAsBytes(List<int>.filled(128, 0));
             const cancellation = TranscriptionException.cancelled(
-              'delegate stopped', details: 'original detail',
+              'delegate stopped',
+              details: 'original detail',
             );
             final delegate = _AsyncService((_, service) async {
               if (childEmitsCancellation) {
-                service.emit(const TranscriptionProgress(
-                  stage: TranscriptionStage.cancelled,
-                  progress: 0,
-                  message: 'child cancelled',
-                ));
+                service.emit(
+                  const TranscriptionProgress(
+                    stage: TranscriptionStage.cancelled,
+                    progress: 0,
+                    message: 'child cancelled',
+                  ),
+                );
                 // Allow the wrapper to receive the child event before the throw.
                 await Future<void>.delayed(Duration.zero);
               }
@@ -159,68 +166,102 @@ void main() {
             );
             await Future<void>.delayed(Duration.zero);
             expect(delegate.calls, 1);
-            final cancelled = events.where((e) => e.stage == TranscriptionStage.cancelled).toList();
+            final cancelled = events
+                .where((e) => e.stage == TranscriptionStage.cancelled)
+                .toList();
             expect(cancelled, hasLength(1));
             expect(events.last, same(cancelled.single));
-            expect(cancelled.single.message, shortAudio
-                ? '歌词识别已取消'
-                : '分片识别已取消，已完成进度已保存');
+            expect(
+              cancelled.single.message,
+              shortAudio ? '歌词识别已取消' : '分片识别已取消，已完成进度已保存',
+            );
           },
         );
       }
     }
 
-    test('cancel before delegate returns does not checkpoint its late result', () async {
-      final directory = await Directory.systemTemp.createTemp('chunk-late-result-');
-      addTearDown(() => directory.delete(recursive: true));
-      final input = File('${directory.path}${Platform.pathSeparator}song.wav');
-      await input.writeAsBytes(List<int>.filled(128, 0));
-      final secondStarted = Completer<void>();
-      final releaseSecond = Completer<void>();
-      final delegate = _AsyncService((request, service) async {
-        if (service.calls == 2) {
-          secondStarted.complete();
-          await releaseSecond.future;
-        }
-        return _emptyResult(request);
-      });
-      final service = ResumableChunkedTranscriptionService(
-        delegate: delegate,
-        chunkDuration: const Duration(seconds: 3),
-        overlap: const Duration(seconds: 1),
-        processSupervisor: _FfmpegStub(durationLabel: '00:00:04.000').supervisor,
-      );
-      addTearDown(service.dispose);
-      final events = <TranscriptionProgress>[];
-      final subscription = service.progressStream.listen(events.add);
-      addTearDown(subscription.cancel);
-      final request = _request(input.path, directory.path);
-      final run = service.transcribe(request);
-      // Attach an error listener before cancellation can complete the future.
-      final cancelled = expectLater(run, throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.cancelled,
-      )));
-      await secondStarted.future.timeout(const Duration(seconds: 2));
-      await service.cancel();
-      releaseSecond.complete();
-      await cancelled;
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'cancel before delegate returns does not checkpoint its late result',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-late-result-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File(
+          '${directory.path}${Platform.pathSeparator}song.wav',
+        );
+        await input.writeAsBytes(List<int>.filled(128, 0));
+        final secondStarted = Completer<void>();
+        final releaseSecond = Completer<void>();
+        final delegate = _AsyncService((request, service) async {
+          if (service.calls == 2) {
+            secondStarted.complete();
+            await releaseSecond.future;
+          }
+          return _emptyResult(request);
+        });
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          processSupervisor: _FfmpegStub(
+            durationLabel: '00:00:04.000',
+          ).supervisor,
+        );
+        addTearDown(service.dispose);
+        final events = <TranscriptionProgress>[];
+        final subscription = service.progressStream.listen(events.add);
+        addTearDown(subscription.cancel);
+        final request = _request(input.path, directory.path);
+        final run = service.transcribe(request);
+        // Attach an error listener before cancellation can complete the future.
+        final cancelled = expectLater(
+          run,
+          throwsA(
+            isA<TranscriptionException>().having(
+              (e) => e.kind,
+              'kind',
+              TranscriptionFailureKind.cancelled,
+            ),
+          ),
+        );
+        await secondStarted.future.timeout(const Duration(seconds: 2));
+        await service.cancel();
+        releaseSecond.complete();
+        await cancelled;
+        await Future<void>.delayed(Duration.zero);
 
-      final session = Directory('${directory.path}${Platform.pathSeparator}chunk_session');
-      final first = File('${session.path}${Platform.pathSeparator}chunks${Platform.pathSeparator}chunk_0000.json');
-      final second = File('${session.path}${Platform.pathSeparator}chunks${Platform.pathSeparator}chunk_0001.json');
-      final before = await first.readAsString();
-      expect(await second.exists(), isFalse);
-      final manifest = jsonDecode(await File('${session.path}${Platform.pathSeparator}session.json').readAsString()) as Map<String, dynamic>;
-      expect(manifest['completed'], ['chunk_0000']);
-      expect(events.where((e) => e.stage == TranscriptionStage.cancelled), hasLength(1));
-      expect(events.last.stage, TranscriptionStage.cancelled);
+        final session = Directory(
+          '${directory.path}${Platform.pathSeparator}chunk_session',
+        );
+        final first = File(
+          '${session.path}${Platform.pathSeparator}chunks${Platform.pathSeparator}chunk_0000.json',
+        );
+        final second = File(
+          '${session.path}${Platform.pathSeparator}chunks${Platform.pathSeparator}chunk_0001.json',
+        );
+        final before = await first.readAsString();
+        expect(await second.exists(), isFalse);
+        final manifest =
+            jsonDecode(
+                  await File(
+                    '${session.path}${Platform.pathSeparator}session.json',
+                  ).readAsString(),
+                )
+                as Map<String, dynamic>;
+        expect(manifest['completed'], ['chunk_0000']);
+        expect(
+          events.where((e) => e.stage == TranscriptionStage.cancelled),
+          hasLength(1),
+        );
+        expect(events.last.stage, TranscriptionStage.cancelled);
 
-      await service.transcribe(request);
-      expect(delegate.calls, 3);
-      expect(await first.readAsString(), before);
-      expect(await second.exists(), isTrue);
-    });
+        await service.transcribe(request);
+        expect(delegate.calls, 3);
+        expect(await first.readAsString(), before);
+        expect(await second.exists(), isTrue);
+      },
+    );
 
     test('constructor accepts retry and overlap policy', () async {
       final delegate = _FakeService();
@@ -801,17 +842,23 @@ class _FfmpegStub {
   );
 }
 
-TranscriptionResult _emptyResult(TranscriptionRequest request) => TranscriptionResult(
-  lyrics: const LyricDocument(language: 'en', lines: []),
-  normalizedAudioPath: request.inputAudioPath,
-  rawJsonPath: '${request.outputDirectory}${Platform.pathSeparator}raw.json',
-  detectedLanguage: 'en',
-);
+TranscriptionResult _emptyResult(TranscriptionRequest request) =>
+    TranscriptionResult(
+      lyrics: const LyricDocument(language: 'en', lines: []),
+      normalizedAudioPath: request.inputAudioPath,
+      rawJsonPath:
+          '${request.outputDirectory}${Platform.pathSeparator}raw.json',
+      detectedLanguage: 'en',
+    );
 
 class _AsyncService implements TranscriptionService {
   _AsyncService(this.run);
 
-  final Future<TranscriptionResult> Function(TranscriptionRequest, _AsyncService) run;
+  final Future<TranscriptionResult> Function(
+    TranscriptionRequest,
+    _AsyncService,
+  )
+  run;
   final _controller = StreamController<TranscriptionProgress>.broadcast();
   int calls = 0;
 
@@ -826,6 +873,7 @@ class _AsyncService implements TranscriptionService {
     calls++;
     return run(request, this);
   }
+
   @override
   Future<void> cancel() async {}
   @override
