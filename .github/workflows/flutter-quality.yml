@@ -67,18 +67,7 @@ jobs:
 
           echo "Formatter differences follow; apply them to the changed Dart files."
           dart format "${dart_files[@]}"
-          git --no-pager diff -- "${dart_files[@]}" > /tmp/formatter-diff.txt
           git --no-pager diff -- "${dart_files[@]}"
-          # TEMPORARY PR diagnostic: surface the formatter diff as one check annotation
-          # because the raw Actions log endpoint is inaccessible in some sandboxes.
-          python - <<'PY'
-          from pathlib import Path
-          diff = Path('/tmp/formatter-diff.txt').read_text(encoding='utf-8')
-          escaped = (diff.replace('%', '%25').replace('\r', '%0D')
-                     .replace('\n', '%0A').replace(':', '%3A')
-                     .replace(',', '%2C'))
-          print(f'::error title=TEMPORARY FORMATTER DIAGNOSTIC::{escaped[:60000]}')
-          PY
           exit 1
 
       - name: Run repository quality gate
