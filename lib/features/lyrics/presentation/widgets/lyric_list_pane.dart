@@ -332,7 +332,8 @@ class _LyricListPaneState extends State<LyricListPane> {
       for (final candidate in rawCandidates) {
         if (candidate is! Map) continue;
         final rawIndex = candidate['lineIndex'];
-        if (rawIndex is! int || rawIndex < 0 ||
+        if (rawIndex is! int ||
+            rawIndex < 0 ||
             rawIndex >= widget.document.lines.length) {
           continue;
         }
@@ -414,7 +415,8 @@ class _LyricListPaneState extends State<LyricListPane> {
                 return LyricReviewRow(
                   index: index,
                   line: line,
-                  fallbackCandidate: highlighted == null || highlighted.contains(index)
+                  fallbackCandidate:
+                      highlighted == null || highlighted.contains(index)
                       ? candidate
                       : null,
                   isReviewed: const LyricReviewDecisionService().isReviewed(

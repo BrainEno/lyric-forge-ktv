@@ -17,8 +17,12 @@ void main() {
     LyricReviewFilter filter = LyricReviewFilter.all,
     Map<int, LyricReviewPriority> priorities = const {},
     Map<String, dynamic>? candidate,
+    Size? viewport,
   }) {
     return MaterialApp(
+      builder: viewport == null ? null : (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(size: viewport), child: child!,
+      ),
       home: Scaffold(
         body: SizedBox(
           height: 600,
@@ -97,37 +101,65 @@ void main() {
     expect(find.text('已复核'), findsOneWidget);
   });
 
-  testWidgets('candidate summary distinguishes global and filtered highlights on compact and wide layouts', (tester) async {
-    final base = _document(30);
-    final document = base.copyWith(metadata: {
-      'fallbackHighlightLimit': 3,
-      'fallbackCandidates': [
-        for (var i = 0; i < 30; i++) {'lineIndex': i, 'alternativeText': 'alternative $i'},
-      ],
-    });
-    const decisions = LyricReviewDecisionService();
-    final reviewed = decisions.setReviewed(document, 0, reviewed: true);
-    for (final size in [const Size(390, 844), const Size(1200, 768)]) {
-      await tester.binding.setSurfaceSize(size);
-      await tester.pumpWidget(host(
-        document: reviewed,
-        visibleIndices: [0, 1, 2, 4],
-        candidate: const {'alternativeText': 'alternative'},
-      ));
-      expect(find.textContaining('全曲候选 30 行 · 未复核 29 行 · 重点标记 3 行（当前筛选 2 行） · 其余未复核 26 行'), findsOneWidget);
-      final rows = tester.widgetList<LyricReviewRow>(find.byType(LyricReviewRow)).toList();
-      expect(rows.singleWhere((row) => row.index == 1).fallbackCandidate, isNotNull);
-      expect(rows.singleWhere((row) => row.index == 2).fallbackCandidate, isNotNull);
-      expect(rows.singleWhere((row) => row.index == 4).fallbackCandidate, isNull);
-      expect(find.text(size.width < 600 ? '双擎' : '双引擎'), findsNWidgets(2));
-      expect((reviewed.metadata['fallbackCandidates'] as List), hasLength(30));
-      await tester.enterText(find.byType(TextField), 'not found');
-      await tester.pump();
-      expect(find.textContaining('当前筛选 0 行'), findsOneWidget);
-      await tester.pumpWidget(const SizedBox.shrink());
-    }
-    await tester.binding.setSurfaceSize(null);
-  });
+  testWidgets(
+    'candidate summary distinguishes global and filtered highlights on compact and wide layouts',
+    (tester) async {
+      final base = _document(30);
+      final document = base.copyWith(
+        metadata: {
+          'fallbackHighlightLimit': 3,
+          'fallbackCandidates': [
+            for (var i = 0; i < 30; i++)
+              {'lineIndex': i, 'alternativeText': 'alternative $i'},
+          ],
+        },
+      );
+      const decisions = LyricReviewDecisionService();
+      final reviewed = decisions.setReviewed(document, 0, reviewed: true);
+      for (final size in [const Size(390, 844), const Size(1200, 768)]) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpWidget(
+          host(
+            document: reviewed,
+            visibleIndices: [0, 1, 2, 4],
+            candidate: const {'alternativeText': 'alternative'},
+            viewport: size,
+          ),
+        );
+        expect(
+          find.textContaining(
+            '全曲候选 30 行 · 未复核 29 行 · 重点标记 3 行（当前筛选 2 行） · 其余未复核 26 行',
+          ),
+          findsOneWidget,
+        );
+        final rows = tester
+            .widgetList<LyricReviewRow>(find.byType(LyricReviewRow))
+            .toList();
+        expect(
+          rows.singleWhere((row) => row.index == 1).fallbackCandidate,
+          isNotNull,
+        );
+        expect(
+          rows.singleWhere((row) => row.index == 2).fallbackCandidate,
+          isNotNull,
+        );
+        expect(
+          rows.singleWhere((row) => row.index == 4).fallbackCandidate,
+          isNull,
+        );
+        expect(find.text(size.width < 600 ? '双擎' : '双引擎'), findsNWidgets(2));
+        expect(
+          (reviewed.metadata['fallbackCandidates'] as List),
+          hasLength(30),
+        );
+        await tester.enterText(find.byType(TextField), 'not found');
+        await tester.pump();
+        expect(find.textContaining('当前筛选 0 行'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
 
   testWidgets('点击行会请求选中该行', (tester) async {
     await tester.pumpWidget(
