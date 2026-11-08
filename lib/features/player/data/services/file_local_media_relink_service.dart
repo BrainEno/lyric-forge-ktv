@@ -135,10 +135,7 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
         (path) => _pathKey(path) == _pathKey(newAbsolute),
       );
       if (!alreadyContainsNew) {
-        await collectionRepository.addToPlaylist(
-          playlist.id,
-          [newAbsolute],
-        );
+        await collectionRepository.addToPlaylist(playlist.id, [newAbsolute]);
       }
 
       var updated = await collectionRepository.removeFromPlaylist(

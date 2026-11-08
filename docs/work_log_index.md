@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-11-08. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-11-09. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -65,7 +65,7 @@
 - **macOS Media Hub Release entitlement:** [PR #208](https://github.com/BrainEno/lyric-forge-ktv/pull/208) adds and CI-validates client/server entitlements in source plists and signed Debug/Release artifacts. LAN/Tailscale device smoke tests remain a separate end-to-end check.
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.
 
-- Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.
+- Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred. Audio relink now checks metadata completeness and rejects destination metadata conflicts before migration, but later failures and concurrent writes can still leave partially migrated stores.
 - Playback lyric resolution fails closed on propagated read errors and incomplete file-backed media metadata, while display reads remain best effort. Project stores reject partial or duplicate records; other stores may skip malformed records. Cached loads require restart after repair; link writes lack compare-and-swap protection. First-lyric background link failures are caught and logged but have no user-facing warning or automatic retry.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.
 - Live Hugging Face proxy/download behavior was not tested end-to-end.

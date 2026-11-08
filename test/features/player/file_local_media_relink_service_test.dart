@@ -41,10 +41,11 @@ void main() {
     await library.addPaths([oldFile.path]);
     await collections.setFavorite(oldFile.path, true);
     final playlist = await collections.createPlaylist('Moved songs');
-    await collections.addToPlaylist(
-      playlist.id,
-      [before.path, oldFile.path, after.path],
-    );
+    await collections.addToPlaylist(playlist.id, [
+      before.path,
+      oldFile.path,
+      after.path,
+    ]);
     await metadata.save(
       LocalMediaMetadata(
         sourcePath: oldFile.path,
@@ -115,100 +116,165 @@ void main() {
       await oldFile.writeAsBytes([1]);
       await newFile.writeAsBytes([2]);
       final library = FileLocalMediaLibraryRepository(rootDirectory: root);
-      final collections = FileLocalMediaCollectionRepository(rootDirectory: root);
+      final collections = FileLocalMediaCollectionRepository(
+        rootDirectory: root,
+      );
       final history = FilePlayHistoryRepository(rootDirectory: root);
       await library.addPaths([oldFile.path]);
       await collections.setFavorite(oldFile.path, true);
       final playlist = await collections.createPlaylist('收藏');
       await collections.addToPlaylist(playlist.id, [oldFile.path]);
-      await history.savePlayHistory(PlayHistory(
-        id: 'history-old', name: 'Old title', filePath: oldFile.path,
-        playedAt: DateTime(2026), lastPosition: const Duration(seconds: 42),
-        duration: const Duration(minutes: 3), lastSource: AudioSourceType.original,
-      ));
+      await history.savePlayHistory(
+        PlayHistory(
+          id: 'history-old',
+          name: 'Old title',
+          filePath: oldFile.path,
+          playedAt: DateTime(2026),
+          lastPosition: const Duration(seconds: 42),
+          duration: const Duration(minutes: 3),
+          lastSource: AudioSourceType.original,
+        ),
+      );
       final old = LocalMediaMetadata(
-        sourcePath: oldFile.path, title: '原资料', updatedAt: DateTime(2026),
+        sourcePath: oldFile.path,
+        title: '原资料',
+        updatedAt: DateTime(2026),
         metadata: const {'linkedProjectId': 'original-project'},
       );
       final target = LocalMediaMetadata(
-        sourcePath: newFile.path, title: '目标资料', updatedAt: DateTime(2026),
+        sourcePath: newFile.path,
+        title: '目标资料',
+        updatedAt: DateTime(2026),
         metadata: const {'linkedProjectId': 'destination-project'},
       );
-      final metadataStore = File('${root.path}${Platform.pathSeparator}media_metadata.json');
+      final metadataStore = File(
+        '${root.path}${Platform.pathSeparator}media_metadata.json',
+      );
       final backup = File('${metadataStore.path}.bak');
       final records = problem == 'partial-metadata'
           ? [(old.toJson()..['metadata'] = 'corrupt')]
           : [old.toJson(), target.toJson()];
-      await metadataStore.writeAsString(jsonEncode({'version': 1, 'items': records}));
+      await metadataStore.writeAsString(
+        jsonEncode({'version': 1, 'items': records}),
+      );
       await backup.writeAsString(jsonEncode({'version': 1, 'items': []}));
       final metadata = FileLocalMediaMetadataRepository(rootDirectory: root);
       await oldFile.delete();
       await library.refreshAvailability();
       final service = FileLocalMediaRelinkService(
-        libraryRepository: library, collectionRepository: collections,
-        metadataRepository: metadata, historyRepository: history,
+        libraryRepository: library,
+        collectionRepository: collections,
+        metadataRepository: metadata,
+        historyRepository: history,
         supportedExtensions: const ['mp3'],
       );
       final paths = [
-        'media_library.json', 'library_collections.json', 'play_history.json',
-        'media_metadata.json', 'media_metadata.json.bak',
+        'media_library.json',
+        'library_collections.json',
+        'play_history.json',
+        'media_metadata.json',
+        'media_metadata.json.bak',
       ];
       final before = <String, String>{};
       for (final path in paths) {
-        before[path] = await File('${root.path}${Platform.pathSeparator}$path').readAsString();
+        before[path] = await File(
+          '${root.path}${Platform.pathSeparator}$path',
+        ).readAsString();
       }
 
       await expectLater(
         service.relink(oldPath: oldFile.path, newPath: newFile.path),
         problem == 'partial-metadata'
             ? throwsFormatException
-            : throwsA(isA<StateError>().having((e) => e.message, 'message', contains('目标音频已有歌曲资料'))),
+            : throwsA(
+                isA<StateError>().having(
+                  (e) => e.message,
+                  'message',
+                  contains('目标音频已有歌曲资料'),
+                ),
+              ),
       );
       for (final path in paths) {
-        expect(await File('${root.path}${Platform.pathSeparator}$path').readAsString(), before[path], reason: path);
+        expect(
+          await File(
+            '${root.path}${Platform.pathSeparator}$path',
+          ).readAsString(),
+          before[path],
+          reason: path,
+        );
       }
       expect(await library.getByPath(oldFile.path), isNotNull);
       expect(await library.getByPath(newFile.path), isNull);
       expect(await collections.isFavorite(oldFile.path), isTrue);
       expect(await collections.isFavorite(newFile.path), isFalse);
-      expect((await collections.getPlaylists()).single.sourcePaths, [oldFile.absolute.path]);
+      expect((await collections.getPlaylists()).single.sourcePaths, [
+        oldFile.absolute.path,
+      ]);
       if (problem == 'destination-conflict') {
-        expect((await metadata.getForAudio(oldFile.path))?.metadata['linkedProjectId'], 'original-project');
-        expect((await metadata.getForAudio(newFile.path))?.metadata['linkedProjectId'], 'destination-project');
+        expect(
+          (await metadata.getForAudio(
+            oldFile.path,
+          ))?.metadata['linkedProjectId'],
+          'original-project',
+        );
+        expect(
+          (await metadata.getForAudio(
+            newFile.path,
+          ))?.metadata['linkedProjectId'],
+          'destination-project',
+        );
       }
     });
   }
 
-  test('relink with no old metadata preserves existing destination metadata', () async {
-    final root = await Directory.systemTemp.createTemp('relink-existing-target-');
-    addTearDown(() => root.delete(recursive: true));
-    final oldFile = File('${root.path}${Platform.pathSeparator}old.mp3');
-    final newFile = File('${root.path}${Platform.pathSeparator}new.mp3');
-    await oldFile.writeAsBytes([1]);
-    await newFile.writeAsBytes([2]);
-    final library = FileLocalMediaLibraryRepository(rootDirectory: root);
-    final collections = FileLocalMediaCollectionRepository(rootDirectory: root);
-    final metadata = FileLocalMediaMetadataRepository(rootDirectory: root);
-    final history = FilePlayHistoryRepository(rootDirectory: root);
-    await library.addPaths([oldFile.path]);
-    await collections.setFavorite(oldFile.path, true);
-    await metadata.save(LocalMediaMetadata(
-      sourcePath: newFile.path, title: '保留目标资料', updatedAt: DateTime(2026),
-      metadata: const {'linkedProjectId': 'destination-project'},
-    ));
-    await oldFile.delete();
-    await library.refreshAvailability();
-    final service = FileLocalMediaRelinkService(
-      libraryRepository: library, collectionRepository: collections,
-      metadataRepository: metadata, historyRepository: history,
-      supportedExtensions: const ['mp3'],
-    );
-    final result = await service.relink(oldPath: oldFile.path, newPath: newFile.path);
-    expect(result.metadataMigrated, isFalse);
-    expect(await library.getByPath(oldFile.path), isNull);
-    expect(await collections.isFavorite(newFile.path), isTrue);
-    expect((await metadata.getForAudio(newFile.path))?.title, '保留目标资料');
-    expect((await metadata.getForAudio(newFile.path))?.metadata['linkedProjectId'], 'destination-project');
-  });
-
+  test(
+    'relink with no old metadata preserves existing destination metadata',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'relink-existing-target-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final oldFile = File('${root.path}${Platform.pathSeparator}old.mp3');
+      final newFile = File('${root.path}${Platform.pathSeparator}new.mp3');
+      await oldFile.writeAsBytes([1]);
+      await newFile.writeAsBytes([2]);
+      final library = FileLocalMediaLibraryRepository(rootDirectory: root);
+      final collections = FileLocalMediaCollectionRepository(
+        rootDirectory: root,
+      );
+      final metadata = FileLocalMediaMetadataRepository(rootDirectory: root);
+      final history = FilePlayHistoryRepository(rootDirectory: root);
+      await library.addPaths([oldFile.path]);
+      await collections.setFavorite(oldFile.path, true);
+      await metadata.save(
+        LocalMediaMetadata(
+          sourcePath: newFile.path,
+          title: '保留目标资料',
+          updatedAt: DateTime(2026),
+          metadata: const {'linkedProjectId': 'destination-project'},
+        ),
+      );
+      await oldFile.delete();
+      await library.refreshAvailability();
+      final service = FileLocalMediaRelinkService(
+        libraryRepository: library,
+        collectionRepository: collections,
+        metadataRepository: metadata,
+        historyRepository: history,
+        supportedExtensions: const ['mp3'],
+      );
+      final result = await service.relink(
+        oldPath: oldFile.path,
+        newPath: newFile.path,
+      );
+      expect(result.metadataMigrated, isFalse);
+      expect(await library.getByPath(oldFile.path), isNull);
+      expect(await collections.isFavorite(newFile.path), isTrue);
+      expect((await metadata.getForAudio(newFile.path))?.title, '保留目标资料');
+      expect(
+        (await metadata.getForAudio(newFile.path))?.metadata['linkedProjectId'],
+        'destination-project',
+      );
+    },
+  );
 }
