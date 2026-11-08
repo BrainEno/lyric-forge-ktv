@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
@@ -32,19 +33,24 @@ class FileProjectRepository implements ProjectRepository {
   final LocalMediaMetadataRepository? _mediaMetadataRepository;
   final PlaybackSessionService? _playbackSession;
   final AudioPathCanonicalizer? _pathCanonicalizer;
+  final void Function(Object error, StackTrace stackTrace)? _onAutoLinkError;
 
   final Map<String, ProjectManifest> _projects = <String, ProjectManifest>{};
   Future<void>? _loadFuture;
   Future<void> _writeChain = Future<void>.value();
 
+  /// [onAutoLinkError] observes a best-effort background association failure
+  /// after the project has been saved. It does not change the save result.
   FileProjectRepository({
     this.rootDirectory,
     LocalMediaMetadataRepository? mediaMetadataRepository,
     PlaybackSessionService? playbackSession,
     AudioPathCanonicalizer? pathCanonicalizer,
+    void Function(Object error, StackTrace stackTrace)? onAutoLinkError,
   }) : _mediaMetadataRepository = mediaMetadataRepository,
        _playbackSession = playbackSession,
-       _pathCanonicalizer = pathCanonicalizer;
+       _pathCanonicalizer = pathCanonicalizer,
+       _onAutoLinkError = onAutoLinkError;
 
   Future<void> _ensureLoaded() => _loadFuture ??= _load();
 
@@ -231,11 +237,30 @@ class FileProjectRepository implements ProjectRepository {
           metadataRepository: mediaMetadataRepository,
           playbackSession: playbackSession,
           pathCanonicalizer: pathCanonicalizer,
-        ),
+        ).catchError(_reportAutoLinkError),
       );
     }
 
     return updated;
+  }
+
+  void _reportAutoLinkError(Object error, StackTrace stackTrace) {
+    developer.log(
+      'Background lyric association or queue update failed after project save',
+      name: 'FileProjectRepository',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    try {
+      _onAutoLinkError?.call(error, stackTrace);
+    } catch (callbackError, callbackStackTrace) {
+      developer.log(
+        'Background lyric association error callback failed',
+        name: 'FileProjectRepository',
+        error: callbackError,
+        stackTrace: callbackStackTrace,
+      );
+    }
   }
 
   @override
