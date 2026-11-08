@@ -80,6 +80,20 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
       throw StateError('原音频文件仍然可用，不需要重新定位');
     }
 
+    // A partial metadata snapshot cannot establish whether either path has
+    // user data. Check both paths before changing any of the related stores.
+    final oldMetadata = await readCompleteLocalMediaMetadataForAudio(
+      metadataRepository,
+      oldAbsolute,
+    );
+    final newMetadata = await readCompleteLocalMediaMetadataForAudio(
+      metadataRepository,
+      newAbsolute,
+    );
+    if (oldMetadata != null && newMetadata != null) {
+      throw StateError('目标音频已有歌曲资料，无法安全覆盖；请先处理资料冲突');
+    }
+
     // Add the replacement first. The old row and its metadata stay intact until
     // every related store has received the replacement path. A failed migration
     // can therefore leave duplicate references, but never starts by deleting the
@@ -90,7 +104,6 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
       throw StateError('新音频文件无法加入音乐库');
     }
 
-    final oldMetadata = await metadataRepository.getForAudio(oldAbsolute);
     var metadataMigrated = false;
     if (oldMetadata != null) {
       await metadataRepository.save(

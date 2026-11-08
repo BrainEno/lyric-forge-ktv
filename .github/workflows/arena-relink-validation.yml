@@ -1,0 +1,89 @@
+name: Arena relink safety validation
+on:
+  push:
+    branches: [arena/e1ec9d75-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files
+        run: dart format lib/features/player/data/services/file_local_media_relink_service.dart test/features/player/file_local_media_relink_service_test.dart
+      - name: Focused relink and storage tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/file_local_media_relink_service_test.dart test/file_local_media_metadata_repository_test.dart test/file_play_history_repository_test.dart test/features/player/playback_lyrics_read_failure_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug protect-relink-metadata --title 'Protect metadata during audio relink'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          stamp = os.environ['ENTRY_STAMP']
+          path = Path('docs/log/entries') / (stamp.replace(' ', '-').replace(':', '') + '-protect-relink-metadata.md')
+          s = path.read_text()
+          s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
+          replacements = {
+              'Scope': 'Prevent relinking missing audio from losing lyric associations or overwriting existing destination metadata when metadata is incomplete or conflicting.',
+              'Files': 'FileLocalMediaRelinkService, its real-file integration tests, index, handoff, this entry and generated work-log navigation.',
+              'Validation': f"Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run {os.environ['GITHUB_RUN_ID']} passed focused relink, metadata, play-history and lyric-read tests and the full repository quality gate; Dart format and work-log new/write/check ran there. Final PR checks reported separately. git diff --check ran locally.",
+              'Notes': 'Relinking checks both paths with authoritative metadata reads before any migration, refuses conflicting existing records and allows a destination record when the old path has none. Tests verify canonical stores, metadata backup, favorites, playlists, history and normal migration. Later I/O failures or concurrent writers can still cause partial migrations; this is not a cross-store transaction. No native picker or manual UI checks performed.',
+              'Commit': '`fix: protect metadata during audio relink`',
+          }
+          for key, value in replacements.items():
+              s, count = re.subn(rf'^- {key}:.*$', f'- {key}: {value}', s, count=1, flags=re.M)
+              if count != 1: raise RuntimeError(f'missing {key}')
+          if 'TODO' in s: raise RuntimeError('unfilled TODO')
+          path.write_text(s)
+          idx = Path('docs/work_log_index.md')
+          text = idx.read_text()
+          old = '- Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred.'
+          new = '- Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred. Audio relink now checks metadata completeness and rejects destination metadata conflicts before migration, but later failures and concurrent writes can still leave partially migrated stores.'
+          if old not in text: raise RuntimeError('expected follow-up missing')
+          idx.write_text(text.replace(old, new))
+          Path('docs/handoff.md').write_text(f"""# Handoff\n\n## 目标\n\n处理 #223 的音频重新定位数据安全风险：拒绝不完整或冲突的元数据迁移；提交中文 PR，不自动合并。\n\n## Git 现场\n\n- 基线 `953b79cd98f70868a5ff1f6e9b143fa519d80a1b`；分支 `arena/e1ec9d75-lyric-forge-ktv`。\n- 最终提交、PR 和检查状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- 音频重新定位服务和真实文件回归测试、工作日志与本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK GitHub Actions run {os.environ['GITHUB_RUN_ID']} 通过定向测试及完整质量门禁，并执行 format、work-log new/write/check。最终 head 的检查以 Actions 为准。\n- 本地提交前执行 `git diff --check`；未做原生文件选择或手动 UI 测试。\n\n## 下一步\n\n确认 PR 最终质量门禁并报告；#223 其余测试覆盖缺口继续保留。\n\n## 已知风险\n\n- 迁移不是跨仓库事务，检查之后的写入失败或并发修改仍可能留下部分迁移状态；不支持交互式资料冲突合并。\n- 后台歌词关联失败尚无 UI 提示或自动重试；音乐库列表的歌词标记可能来自不完整展示数据。\n\n最后更新：{stamp}（Asia/Taipei）\n""")
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-protect-relink-metadata.md"
+          git diff --binary -- lib/features/player/data/services/file_local_media_relink_service.dart test/features/player/file_local_media_relink_service_test.dart docs > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64, gzip
+          data = base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure log
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          p = Path('/tmp/gate.log')
+          if not p.exists(): p = Path('/tmp/focused.log')
+          if p.exists():
+              data = base64.b64encode(gzip.compress(p.read_bytes()[-350000:])).decode()
+              for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY
