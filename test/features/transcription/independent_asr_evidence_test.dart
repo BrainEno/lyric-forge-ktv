@@ -25,7 +25,10 @@ void main() {
     return IndependentAsrEvidence(
       capturedAt: DateTime.utc(2026, 11, 7),
       primary: IndependentAsrTranscript(engine: 'qwen', document: document),
-      secondary: IndependentAsrTranscript(engine: 'whisper', document: document),
+      secondary: IndependentAsrTranscript(
+        engine: 'whisper',
+        document: document,
+      ),
     ).toJson();
   }
 
@@ -43,15 +46,27 @@ void main() {
     expect(document.lines.single.text, '안녕 🌙');
     expect(document.lines.single.startTime, const Duration(milliseconds: 100));
     expect(document.lines.single.endTime, const Duration(milliseconds: 900));
-    expect(document.lines.single.confidenceSource, LyricConfidenceSource.unscored);
+    expect(
+      document.lines.single.confidenceSource,
+      LyricConfidenceSource.unscored,
+    );
     expect(document.lines.single.id, 'line-1');
     expect(document.lines.single.isChorus, isTrue);
     expect(() => document.lines.clear(), throwsUnsupportedError);
   });
 
   test('snapshots do not follow mutable input line lists', () {
-    final lines = [const LyricLine(text: 'first', startTime: Duration.zero, endTime: Duration(seconds: 1))];
-    final snapshot = IndependentAsrTranscript(engine: 'x', document: LyricDocument(language: 'en', lines: lines));
+    final lines = [
+      const LyricLine(
+        text: 'first',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 1),
+      ),
+    ];
+    final snapshot = IndependentAsrTranscript(
+      engine: 'x',
+      document: LyricDocument(language: 'en', lines: lines),
+    );
     lines.clear();
     expect(snapshot.lines.single.text, 'first');
     expect(() => snapshot.lines.clear(), throwsUnsupportedError);
@@ -64,7 +79,9 @@ void main() {
       () => valid()..['capturedAtUtc'] = 'not-a-date',
       () => valid()..['capturedAtUtc'] = '2026-11-07T00:00:00',
       () => valid()..['secondary'] = null,
-      () => valid()..['primary'] = {'engine': 'qwen', 'language': 'en', 'lines': []},
+      () =>
+          valid()
+            ..['primary'] = {'engine': 'qwen', 'language': 'en', 'lines': []},
       () {
         final value = valid();
         final primary = value['primary'] as Map<String, dynamic>;

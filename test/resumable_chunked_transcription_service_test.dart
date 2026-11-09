@@ -573,7 +573,10 @@ void main() {
                   'suspiciousLineIndexes': [0],
                   'fallbackAppliedCount': 1,
                   'qwenRawJsonPath': '/tmp/chunk_0000/qwen.json',
-                  'independentAsrEvidence': {'scope': 'singleInput', 'chunkLocal': true},
+                  'independentAsrEvidence': {
+                    'scope': 'singleInput',
+                    'chunkLocal': true,
+                  },
                 },
               )
             : const LyricDocument(

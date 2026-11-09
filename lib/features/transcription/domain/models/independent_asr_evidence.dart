@@ -38,7 +38,10 @@ class IndependentAsrEvidence {
     final capturedAt = DateTime.tryParse(value['capturedAtUtc'] as String);
     final primary = IndependentAsrTranscript.tryParse(value['primary']);
     final secondary = IndependentAsrTranscript.tryParse(value['secondary']);
-    if (capturedAt == null || !capturedAt.isUtc || primary == null || secondary == null) {
+    if (capturedAt == null ||
+        !capturedAt.isUtc ||
+        primary == null ||
+        secondary == null) {
       return null;
     }
     return IndependentAsrEvidence(
@@ -100,20 +103,25 @@ class IndependentAsrTranscript {
           (raw['confidence'] as int) < 0 ||
           (raw['confidence'] as int) > 100 ||
           raw['confidenceSource'] is! String ||
-          !LyricConfidenceSource.values.asNameMap().containsKey(raw['confidenceSource']) ||
+          !LyricConfidenceSource.values.asNameMap().containsKey(
+            raw['confidenceSource'],
+          ) ||
           raw['isChorus'] is! bool ||
           (raw['id'] != null && raw['id'] is! String)) {
         return null;
       }
-      lines.add(LyricLine(
-        text: raw['text'] as String,
-        startTime: Duration(milliseconds: raw['startTime'] as int),
-        endTime: Duration(milliseconds: raw['endTime'] as int),
-        confidence: raw['confidence'] as int,
-        confidenceSource: LyricConfidenceSource.values.asNameMap()[raw['confidenceSource']]!,
-        isChorus: raw['isChorus'] as bool,
-        id: raw['id'] as String?,
-      ));
+      lines.add(
+        LyricLine(
+          text: raw['text'] as String,
+          startTime: Duration(milliseconds: raw['startTime'] as int),
+          endTime: Duration(milliseconds: raw['endTime'] as int),
+          confidence: raw['confidence'] as int,
+          confidenceSource: LyricConfidenceSource.values
+              .asNameMap()[raw['confidenceSource']]!,
+          isChorus: raw['isChorus'] as bool,
+          id: raw['id'] as String?,
+        ),
+      );
     }
     return IndependentAsrTranscript(
       engine: value['engine'] as String,

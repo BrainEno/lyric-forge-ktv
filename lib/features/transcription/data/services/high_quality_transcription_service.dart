@@ -73,7 +73,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (request.config.mode == TranscriptionMode.whisperOnly) {
         final result = await _runWhisperOnly(request);
         _throwIfCancelled();
-        if (!result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey)) {
+        if (!result.lyrics.metadata.containsKey(
+          IndependentAsrEvidence.metadataKey,
+        )) {
           return result;
         }
         return TranscriptionResult(
@@ -206,9 +208,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       final evidence = _captureIndependentEvidence(
         primary: primaryResult.lyrics,
-        primaryEngine: TranscriptionModelIdentity.qwenAsrEngine(request.config.qwenModelPath),
+        primaryEngine: TranscriptionModelIdentity.qwenAsrEngine(
+          request.config.qwenModelPath,
+        ),
         secondary: fallbackResult.lyrics,
-        secondaryEngine: TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+        secondaryEngine: TranscriptionModelIdentity.whisperEngine(
+          request.config.modelPath,
+        ),
       );
       final mergedDocument = primaryResult.lyrics.copyWith(
         lines: merge.lines,
@@ -496,7 +502,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
     final evidence = _captureIndependentEvidence(
       primary: whisperResult.lyrics,
-      primaryEngine: TranscriptionModelIdentity.whisperEngine(request.config.modelPath),
+      primaryEngine: TranscriptionModelIdentity.whisperEngine(
+        request.config.modelPath,
+      ),
       secondary: qwenResult.lyrics,
       secondaryEngine: qwenModelKey,
     );
@@ -835,8 +843,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
     );
   }
 
-  Map<String, dynamic> _withoutIndependentEvidence(Map<String, dynamic> metadata) =>
-      Map<String, dynamic>.from(metadata)..remove(IndependentAsrEvidence.metadataKey);
+  Map<String, dynamic> _withoutIndependentEvidence(
+    Map<String, dynamic> metadata,
+  ) =>
+      Map<String, dynamic>.from(metadata)
+        ..remove(IndependentAsrEvidence.metadataKey);
 
   Map<String, dynamic>? _captureIndependentEvidence({
     required LyricDocument primary,
@@ -846,8 +857,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final json = IndependentAsrEvidence(
       capturedAt: DateTime.now().toUtc(),
-      primary: IndependentAsrTranscript(engine: primaryEngine, document: primary),
-      secondary: IndependentAsrTranscript(engine: secondaryEngine, document: secondary),
+      primary: IndependentAsrTranscript(
+        engine: primaryEngine,
+        document: primary,
+      ),
+      secondary: IndependentAsrTranscript(
+        engine: secondaryEngine,
+        document: secondary,
+      ),
     ).toJson();
     // Do not publish partial or invalid transcripts as comparison evidence.
     return IndependentAsrEvidence.tryParse(json) == null ? null : json;
