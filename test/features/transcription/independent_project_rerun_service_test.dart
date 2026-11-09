@@ -97,8 +97,18 @@ void main() {
         expect(pair.projectRevision, 7);
         expect(pair.inputAudioPath, vocal.path);
         expect(pair.inputAudioSha256, sha256.convert([4, 5, 6]).toString());
-        expect(pair.modelReference, engine == IndependentRerunEngine.qwen ? config.qwenModelPath : config.modelPath);
-        expect(pair.alignerReference, engine == IndependentRerunEngine.qwen ? config.qwenAlignerModelPath : null);
+        expect(
+          pair.modelReference,
+          engine == IndependentRerunEngine.qwen
+              ? config.qwenModelPath
+              : config.modelPath,
+        );
+        expect(
+          pair.alignerReference,
+          engine == IndependentRerunEngine.qwen
+              ? config.qwenAlignerModelPath
+              : null,
+        );
         expect(pair.requestedLanguage, config.language);
         expect(pair.original.lines.single.text, 'human edit');
         expect(pair.candidate.lines.single.text, 'new interpretation');
@@ -258,31 +268,69 @@ void main() {
   test('cancellation during cleanup does not return a candidate', () async {
     final started = Completer<void>();
     final release = Completer<void>();
-    qwen.onDispose = () async { started.complete(); await release.future; };
-    final run = runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config);
-    final assertion = expectLater(run, throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
+    qwen.onDispose = () async {
+      started.complete();
+      await release.future;
+    };
+    final run = runner.run(
+      projectId: 'p',
+      engine: IndependentRerunEngine.qwen,
+      config: config,
+    );
+    final assertion = expectLater(
+      run,
+      throwsA(
+        isA<TranscriptionException>().having(
+          (e) => e.kind,
+          'kind',
+          TranscriptionFailureKind.cancelled,
+        ),
+      ),
+    );
     await started.future;
     await runner.cancel();
     release.complete();
     await assertion;
-    expect(await Directory(qwen.requests.single.outputDirectory).exists(), isFalse);
+    expect(
+      await Directory(qwen.requests.single.outputDirectory).exists(),
+      isFalse,
+    );
     expect(repository.writes, 0);
   });
 
-  test('cancellation while loading the project never starts an engine', () async {
-    final started = Completer<void>();
-    final release = Completer<void>();
-    repository.beforeRead = () async { started.complete(); await release.future; };
-    final run = runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config);
-    final assertion = expectLater(run, throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
-    await started.future;
-    await runner.cancel();
-    release.complete();
-    await assertion;
-    expect(qwen.requests, isEmpty);
-    expect(qwen.cancelled, isFalse);
-    expect(repository.writes, 0);
-  });
+  test(
+    'cancellation while loading the project never starts an engine',
+    () async {
+      final started = Completer<void>();
+      final release = Completer<void>();
+      repository.beforeRead = () async {
+        started.complete();
+        await release.future;
+      };
+      final run = runner.run(
+        projectId: 'p',
+        engine: IndependentRerunEngine.qwen,
+        config: config,
+      );
+      final assertion = expectLater(
+        run,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await started.future;
+      await runner.cancel();
+      release.complete();
+      await assertion;
+      expect(qwen.requests, isEmpty);
+      expect(qwen.cancelled, isFalse);
+      expect(repository.writes, 0);
+    },
+  );
 
   test('failure cleans the isolated workspace without saving', () async {
     qwen.callback = (_) async {
@@ -343,6 +391,7 @@ class _Repository implements ProjectRepository {
     if (beforeRead != null) await beforeRead!();
     return id == project.id ? project : null;
   }
+
   @override
   Future<ProjectManifest> updateProject(ProjectManifest project) async {
     writes++;

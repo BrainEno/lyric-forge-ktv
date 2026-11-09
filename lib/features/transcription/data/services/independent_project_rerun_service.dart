@@ -18,6 +18,7 @@ class IndependentRerunCandidate {
   final IndependentRerunEngine engine;
   final String inputAudioPath;
   final String inputAudioSha256;
+
   /// Configuration identifiers only; they do not prove model file contents.
   final String modelReference;
   final String? alignerReference;
@@ -146,8 +147,12 @@ class IndependentProjectRerunService {
         engine: engine,
         inputAudioPath: path,
         inputAudioSha256: before,
-        modelReference: engine == IndependentRerunEngine.qwen ? config.qwenModelPath : config.modelPath,
-        alignerReference: engine == IndependentRerunEngine.qwen ? config.qwenAlignerModelPath : null,
+        modelReference: engine == IndependentRerunEngine.qwen
+            ? config.qwenModelPath
+            : config.modelPath,
+        alignerReference: engine == IndependentRerunEngine.qwen
+            ? config.qwenAlignerModelPath
+            : null,
         requestedLanguage: config.language,
         detectedLanguage: result.detectedLanguage,
         original: original,
