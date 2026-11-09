@@ -146,6 +146,94 @@ void main() {
     },
   );
 
+  testWidgets('open KTV sheet tracks changes and rejects another item', (
+    tester,
+  ) async {
+    final session = _Session(_state(_original));
+    final audio = _Audio();
+    await _showPlayer(tester, _project(_original), session, audio);
+    await tester.tap(find.byTooltip('进入 KTV'));
+    await tester.pumpAndSettle();
+
+    ListTile tile(String label) => tester.widget<ListTile>(
+      find.ancestor(of: find.text(label), matching: find.byType(ListTile)),
+    );
+    expect(tile('纯伴奏').enabled, isFalse);
+    session.emit(_state(_withBacking));
+    await tester.pumpAndSettle();
+    expect(tile('纯伴奏').enabled, isTrue);
+    session.emit(_state(_original));
+    await tester.pumpAndSettle();
+    expect(tile('纯伴奏').enabled, isFalse);
+    session.emit(_state(_withBacking, projectId: null));
+    await tester.pumpAndSettle();
+    expect(tile('原唱伴唱').enabled, isFalse);
+    expect(tile('纯伴奏').enabled, isFalse);
+    expect(find.textContaining('当前播放项已变化'), findsOneWidget);
+    expect(audio.switches, isEmpty);
+    Navigator.of(tester.element(find.text('纯伴奏'))).pop();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('selection is rechecked before changing the source', (
+    tester,
+  ) async {
+    final session = _Session(_state(_withBacking));
+    final audio = _Audio();
+    await _showPlayer(tester, _project(_original), session, audio);
+    await tester.tap(find.byTooltip('进入 KTV'));
+    await tester.pumpAndSettle();
+    final tile = tester.widget<ListTile>(
+      find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
+    );
+    tile.onTap!();
+    session.emit(_state(_original));
+    await tester.pumpAndSettle();
+    expect(audio.switches, isEmpty);
+    expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switch completion cannot open KTV for a changed item', (
+    tester,
+  ) async {
+    final session = _Session(_state(_withBacking));
+    final pending = Completer<void>();
+    final audio = _Audio(pendingSwitch: pending);
+    await _showPlayer(tester, _project(_original), session, audio);
+    await tester.tap(find.byTooltip('进入 KTV'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('纯伴奏'));
+    await tester.pump();
+    expect(audio.switches, [AudioSourceType.instrumental]);
+    session.emit(_state(_original, projectId: null));
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switch completion rejects a replacement of the selected path', (
+    tester,
+  ) async {
+    final session = _Session(_state(_withBacking));
+    final pending = Completer<void>();
+    final audio = _Audio(pendingSwitch: pending);
+    await _showPlayer(tester, _project(_original), session, audio);
+    await tester.tap(find.byTooltip('进入 KTV'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('纯伴奏'));
+    await tester.pump();
+    expect(audio.switches, [AudioSourceType.instrumental]);
+    session.emit(_state(_withBacking.copyWith(instrumentalPath: '/new.mp3')));
+    await tester.pump();
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('unrelated queue item never supplies project source options', (
     tester,
   ) async {
@@ -187,14 +275,18 @@ class _Session extends Fake implements PlaybackSessionService {
 }
 
 class _Audio extends Fake implements AudioPlayerService {
+  _Audio({this.pendingSwitch});
+  final Completer<void>? pendingSwitch;
   final switches = <AudioSourceType>[];
   @override
   PlaybackState get currentState => const PlaybackState.idle();
   @override
   Stream<PlaybackState> get stateStream => const Stream.empty();
   @override
-  Future<void> switchSource(AudioSourceType source) async =>
-      switches.add(source);
+  Future<void> switchSource(AudioSourceType source) async {
+    switches.add(source);
+    await pendingSwitch?.future;
+  }
 }
 
 class _Metadata extends Fake implements LocalMediaMetadataRepository {}

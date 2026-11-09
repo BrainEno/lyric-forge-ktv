@@ -8,11 +8,13 @@ import '../../domain/models/ktv_backing_mode.dart';
 class KtvEntrySheet extends StatelessWidget {
   final AudioAsset audioAsset;
   final AudioSourceType? currentSource;
+  final bool sessionMatches;
 
   const KtvEntrySheet({
     super.key,
     required this.audioAsset,
     required this.currentSource,
+    this.sessionMatches = true,
   });
 
   @override
@@ -54,15 +56,23 @@ class KtvEntrySheet extends StatelessWidget {
           _KtvModeTile(
             mode: KtvBackingMode.guideVocal,
             selected: currentSource == KtvBackingMode.guideVocal.source,
-            enabled: true,
+            enabled: sessionMatches,
           ),
           const SizedBox(height: AppSpacing.sm),
           _KtvModeTile(
             mode: KtvBackingMode.instrumental,
             selected: currentSource == KtvBackingMode.instrumental.source,
-            enabled: instrumentalAvailable,
+            enabled: sessionMatches && instrumentalAvailable,
           ),
-          if (!instrumentalAvailable) ...[
+          if (!sessionMatches) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '当前播放项已变化，请关闭后重新打开 KTV。',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+            ),
+          ] else if (!instrumentalAvailable) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
               '纯伴奏暂不可用：可在桌面端工程详情导入已有伴奏，或继续使用原唱伴唱。',
