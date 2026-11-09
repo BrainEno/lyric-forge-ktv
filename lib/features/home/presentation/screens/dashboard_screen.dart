@@ -224,6 +224,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           height: layout.isCompact ? 170 : 190,
                                         );
                                       }
+                                      if (snapshot.hasError) {
+                                        return _EmptyCard(
+                                          icon: Icons.error_outline_rounded,
+                                          title: '播放记录加载失败',
+                                          message: '播放记录暂时无法读取，可以重新加载一次。',
+                                          action: '重试',
+                                          onAction: _refresh,
+                                        );
+                                      }
                                       final items = snapshot.data ?? [];
                                       if (items.isEmpty) {
                                         return _EmptyCard(
