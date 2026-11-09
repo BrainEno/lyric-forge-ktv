@@ -1,0 +1,41 @@
+name: Temporary isolated rerun checks
+on:
+  push:
+    branches: [arena/36e715f5-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format changed files
+        run: git diff --name-only 0e0aefe3b19cdfd22713a66e288512474513d925 HEAD -- '*.dart' | xargs -r dart format
+      - name: Test
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/transcription/independent_project_rerun_service_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart test/features/transcription/asr_evidence_audio_verifier_test.dart 2>&1 | tee /tmp/rerun-test.log
+      - name: Analyze
+        run: |
+          set -o pipefail
+          flutter analyze --no-pub --no-fatal-infos lib test tool 2>&1 | tee /tmp/rerun-analyze.log
+      - name: Return patch and diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, subprocess
+          data = base64.b64encode(gzip.compress(subprocess.check_output(['git','diff','--','*.dart']))).decode()
+          for i in range(0, len(data), 3000): print(f'::notice::PATCH{i//3000:03d}:{data[i:i+3000]}')
+          for path in ['/tmp/rerun-test.log','/tmp/rerun-analyze.log']:
+              try:
+                  lines = open(path).read().splitlines()
+                  hits = [i for i,x in enumerate(lines) if '[E]' in x or 'Error:' in x or 'error •' in x or 'warning •' in x or 'Some tests failed' in x]
+                  for i in hits[:4]:
+                      for line in lines[max(0,i-2):min(len(lines),i+9)]: print('::error::' + line[:900])
+              except FileNotFoundError: pass
+          PY
