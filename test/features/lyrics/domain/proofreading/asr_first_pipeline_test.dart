@@ -189,6 +189,57 @@ void main() {
     expect(result.proposedDocument.lines, primary.lines);
   });
 
+  test('incomparable ASR text stays amber without changing the draft', () {
+    final primary = doc([
+      row('♪', 0, 800, id: 'one'),
+      row('中文歌词', 2000, 2800, id: 'two', confidence: 40),
+    ]);
+    final secondary = doc([row('...', 0, 800), row('？！', 2000, 2800)]);
+    final before = snapshotLyricDocument(primary);
+    final secondaryBefore = snapshotLyricDocument(secondary);
+    final result = pipeline.build(
+      draft: primary,
+      secondary: secondary,
+      audioDuration: const Duration(seconds: 3),
+    );
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: before,
+      audioDuration: const Duration(seconds: 3),
+    );
+    expect(snapshotLyricDocument(secondary), secondaryBefore);
+    for (final line in result.lines) {
+      expect(line.verdict, ProofreadVerdict.amber);
+      expect(line.reasons, contains(ProofreadReason.asrComparisonUnavailable));
+      expect(line.reasons, isNot(contains(ProofreadReason.asrAgreement)));
+      expect(line.reasons, isNot(contains(ProofreadReason.asrDisagreement)));
+    }
+    expect(result.lines[1].reasons, contains(ProofreadReason.lowConfidence));
+    expect(result.proposedDocument.lines, primary.lines);
+  });
+
+  test('incomparable protected text remains locked and unchanged', () {
+    final primary = doc([row('♪', 0, 800, id: 'protected')]);
+    final before = snapshotLyricDocument(primary);
+    final result = pipeline.build(
+      draft: primary,
+      secondary: doc([row('...', 0, 800)]),
+      protectedDraftIndices: const {0},
+    );
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: before,
+      protectedSourceIndices: const {0},
+    );
+    expect(result.lines.single.verdict, ProofreadVerdict.locked);
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.asrComparisonUnavailable),
+    );
+  });
+
   test('disagreement is amber and does not auto-replace primary text', () {
     final primary = doc([row('open the door', 0, 1500, id: 'one')]);
     final secondary = doc([row('close the door', 0, 1500)]);

@@ -5,6 +5,7 @@ enum ProofreadVerdict { locked, green, amber }
 enum ProofreadReason {
   asrAgreement,
   asrDisagreement,
+  asrComparisonUnavailable,
   lowConfidence,
   referenceCorrection,
   ambiguousAlignment,
@@ -159,11 +160,7 @@ class ProofreadAdlib {
       throw ArgumentError.value(text, 'text', 'Must not be empty.');
     }
     if (confidence < 0 || confidence > 100) {
-      throw ArgumentError.value(
-        confidence,
-        'confidence',
-        'Must be in 0..100.',
-      );
+      throw ArgumentError.value(confidence, 'confidence', 'Must be in 0..100.');
     }
   }
 }

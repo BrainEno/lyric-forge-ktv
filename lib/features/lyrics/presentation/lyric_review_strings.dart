@@ -36,6 +36,7 @@ abstract final class LyricReviewStrings {
     return switch (reason) {
       ProofreadReason.asrAgreement => 'ASR 一致',
       ProofreadReason.asrDisagreement => 'ASR 不一致',
+      ProofreadReason.asrComparisonUnavailable => '缺少可比较的歌词文本',
       ProofreadReason.lowConfidence => '置信度低',
       ProofreadReason.referenceCorrection => '参考文本纠正',
       ProofreadReason.ambiguousAlignment => '对齐存在歧义',

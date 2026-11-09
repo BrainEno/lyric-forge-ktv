@@ -75,6 +75,62 @@ void main() {
     expect(result.rows.single.status, AsrConsensusStatus.agreement);
   });
 
+  test('empty normalized text is incomparable even with a zero threshold', () {
+    const permissive = AsrConsensusAnalyzer(agreementSimilarityThreshold: 0);
+    for (final pair in <(String, String)>[
+      ('   ', '...'),
+      ('♪', '♫'),
+      ('中文歌词', '？！'),
+      ('…', 'hello world'),
+      ('', ''),
+    ]) {
+      final primary = doc([line(pair.$1, 0, 2000)]);
+      final secondary = doc([line(pair.$2, 0, 2000)]);
+      final result = permissive.analyze(primary: primary, secondary: secondary);
+      final row = result.rows.single;
+      expect(row.status, AsrConsensusStatus.disagreement, reason: '$pair');
+      expect(row.textSimilarity, isNull, reason: '$pair');
+      expect(row.reasons, contains(AsrConsensusReason.incomparableText));
+      expect(row.reasons, isNot(contains(AsrConsensusReason.textMismatch)));
+      expect(row.secondaryLineIndices, [0]);
+      expect(result.secondaryOnlyLines, isEmpty);
+      expect(primary.lines.single.text, pair.$1);
+      expect(secondary.lines.single.text, pair.$2);
+    }
+  });
+
+  test('incomparable evidence retains separate confidence warnings', () {
+    final result = analyzer.analyze(
+      primary: doc([line('♪', 0, 2000, confidence: 40)]),
+      secondary: doc([line('...', 0, 2000, confidence: 30)]),
+    );
+    expect(result.rows.single.textSimilarity, isNull);
+    expect(
+      result.rows.single.reasons,
+      containsAll([
+        AsrConsensusReason.incomparableText,
+        AsrConsensusReason.lowPrimaryConfidence,
+        AsrConsensusReason.lowSecondaryConfidence,
+      ]),
+    );
+  });
+
+  test('real multilingual text remains comparable', () {
+    for (final text in ['月亮代表我的心', '안녕하세요', 'hello world', 'こんにちは']) {
+      final result = analyzer.analyze(
+        primary: doc([line(text, 0, 2000)]),
+        secondary: doc([line(text, 0, 2000)]),
+      );
+      expect(
+        result.rows.single.status,
+        AsrConsensusStatus.agreement,
+        reason: text,
+      );
+      expect(result.rows.single.textSimilarity, 1);
+      expect(result.rows.single.reasons, isEmpty);
+    }
+  });
+
   test('reports primary-only and recoverable secondary-only lines', () {
     final result = analyzer.analyze(
       primary: doc([line('first lyric', 0, 2000)]),

@@ -117,6 +117,11 @@ class AsrFirstPipeline {
       if (locked) reasons.add(ProofreadReason.protectedLine);
       if (consensusRow?.status == AsrConsensusStatus.agreement) {
         reasons.add(ProofreadReason.asrAgreement);
+      } else if (consensusRow?.reasons.contains(
+            AsrConsensusReason.incomparableText,
+          ) ==
+          true) {
+        reasons.add(ProofreadReason.asrComparisonUnavailable);
       } else if (consensusRow != null) {
         reasons.add(ProofreadReason.asrDisagreement);
       }
@@ -150,6 +155,7 @@ class AsrFirstPipeline {
       final hasRisk = reasons.any(
         (reason) => {
           ProofreadReason.asrDisagreement,
+          ProofreadReason.asrComparisonUnavailable,
           ProofreadReason.lowConfidence,
           ProofreadReason.suspectedHallucination,
           ProofreadReason.repeatedSegment,
