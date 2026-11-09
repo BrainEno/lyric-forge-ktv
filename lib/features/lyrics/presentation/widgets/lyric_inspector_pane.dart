@@ -164,7 +164,8 @@ class _LineInspectorState extends State<LineInspector> {
     final legacy = switch (candidate['primaryEngine']) {
       'qwen' => candidate['whisperText'],
       'whisper' => candidate['qwenText'],
-      null when candidate['qwenText'] != null => candidate['whisperText'],
+      null when candidate['qwenText'] is String &&
+          candidate['whisperText'] is String => candidate['whisperText'],
       _ => null,
     };
     return legacy is String ? legacy : null;
@@ -179,7 +180,8 @@ class _LineInspectorState extends State<LineInspector> {
       'whisper' => 'whisperText',
       'qwen' => 'qwenText',
       // Older Qwen-primary records did not include primaryEngine.
-      null when candidate['qwenText'] != null => 'qwenText',
+      null when candidate['qwenText'] is String &&
+          candidate['whisperText'] is String => 'qwenText',
       _ => null,
     };
     final legacy = key == null ? null : candidate[key];
@@ -192,6 +194,23 @@ class _LineInspectorState extends State<LineInspector> {
       'whisper' => 'Whisper',
       _ => engine ?? '备用引擎',
     };
+  }
+
+  String _alternativeEngineLabel() {
+    final candidate = widget.fallbackCandidate!;
+    final named = candidate['alternativeEngine'];
+    if (named is String && named.isNotEmpty) return _engineLabel(named);
+    final primary = candidate['primaryEngine'];
+    if (primary == 'qwen' && candidate['whisperText'] is String) {
+      return 'Whisper';
+    }
+    if (primary == 'whisper' && candidate['qwenText'] is String) return 'Qwen';
+    if (primary == null &&
+        candidate['qwenText'] is String &&
+        candidate['whisperText'] is String) {
+      return 'Whisper';
+    }
+    return '备用引擎';
   }
 
   void _emitUpdate(LyricLine updated) {
@@ -340,16 +359,11 @@ class _LineInspectorState extends State<LineInspector> {
                         ? 'qwen'
                         : '主模型'),
               ),
-              alternativeEngine: _engineLabel(
-                widget.fallbackCandidate!['alternativeEngine']?.toString() ??
-                    (widget.fallbackCandidate!['whisperText'] != null
-                        ? 'whisper'
-                        : null),
-              ),
+              alternativeEngine: _alternativeEngineLabel(),
               primaryText: _primaryText(),
               currentText: _workingLine.text,
               alternativeText: alternative!,
-              onApply: () => _applyCandidate(alternative!),
+              onApply: () => _applyCandidate(alternative),
               onApplyPrimary: _primaryText() == null
                   ? null
                   : () => _applyCandidate(_primaryText()!),
@@ -519,6 +533,7 @@ class AlternativeCandidateCard extends StatelessWidget {
       primaryText ?? currentText,
       alternativeText,
     );
+    final minHeight = AppResponsive.of(context).minimumInteractiveExtent;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -540,27 +555,32 @@ class AlternativeCandidateCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: TextButton(
                 onPressed: onApplyPrimary,
+                style: TextButton.styleFrom(minimumSize: Size(0, minHeight)),
                 child: const Text('采用主模型原文'),
               ),
             ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             '$alternativeEngine 备选',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: AppColors.info,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.info),
           ),
           const SizedBox(height: AppSpacing.xs),
           _CandidateDiffText(segments: segments, showAlternative: true),
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton(onPressed: onApply, child: const Text('采用备选')),
+            child: TextButton(
+              onPressed: onApply,
+              style: TextButton.styleFrom(minimumSize: Size(0, minHeight)),
+              child: const Text('采用备选'),
+            ),
           ),
           Text(
             '高亮为两份文本的差异；编辑框显示当前歌词。采用只替换文字，不更改时间。',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -600,7 +620,11 @@ class _CandidateDiffText extends StatelessWidget {
             ),
         ],
       ),
-      key: ValueKey(showAlternative ? 'alternative_candidate_text' : 'primary_candidate_text'),
+      key: ValueKey(
+        showAlternative
+            ? 'alternative_candidate_text'
+            : 'primary_candidate_text',
+      ),
     );
   }
 }
