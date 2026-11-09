@@ -10,10 +10,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
       - name: Format changed Dart files
         run: |
-          git diff --name-only HEAD^ HEAD -- '*.dart' | xargs -r dart format
+          git diff --name-only 7e9232ac8baaf259464057ad41b4fa4f24a5ba9b HEAD -- '*.dart' | xargs -r dart format
       - name: Resolve dependencies
         run: flutter pub get --enforce-lockfile
       - name: Run targeted tests
@@ -37,6 +39,6 @@ jobs:
               try:
                   lines = open(path).read().splitlines()
                   hits = [x for x in lines if '[E]' in x or 'Error:' in x or 'error •' in x or 'warning •' in x or 'Some tests failed' in x]
-                  for line in hits[-25:]: print('::error::' + line[:900])
+                  for line in (hits + lines[-10:])[-35:]: print('::notice::' + line[:900])
               except FileNotFoundError: pass
           PY
