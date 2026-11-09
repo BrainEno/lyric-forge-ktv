@@ -573,6 +573,7 @@ void main() {
                   'suspiciousLineIndexes': [0],
                   'fallbackAppliedCount': 1,
                   'qwenRawJsonPath': '/tmp/chunk_0000/qwen.json',
+                  'independentAsrEvidence': {'scope': 'singleInput', 'chunkLocal': true},
                 },
               )
             : const LyricDocument(
@@ -650,6 +651,7 @@ void main() {
       );
       // A single chunk's artifact path would be a lie about the merged result.
       expect(metadata.containsKey('qwenRawJsonPath'), isFalse);
+      expect(metadata.containsKey('independentAsrEvidence'), isFalse);
       expect(metadata['chunked'], isTrue);
       expect(metadata['chunkCount'], 2);
       await service.dispose();

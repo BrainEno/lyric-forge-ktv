@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/asr_process_supervisor.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/high_quality_transcription_service.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/independent_asr_evidence.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_degradation.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
@@ -20,6 +22,83 @@ void main() {
     tearDown(() async {
       if (await tempDirectory.exists()) {
         await tempDirectory.delete(recursive: true);
+      }
+    });
+
+    test('captures both pre-fusion transcripts for either engine order', () async {
+      final qwenLines = <LyricLine>[
+        const LyricLine(text: '错误', startTime: Duration(seconds: 1), endTime: Duration(seconds: 3), confidence: 35),
+        const LyricLine(text: '重复的副歌', startTime: Duration(seconds: 10), endTime: Duration(seconds: 12), confidence: 90),
+        const LyricLine(text: '重复的副歌', startTime: Duration(seconds: 20), endTime: Duration(seconds: 22), confidence: 90),
+      ];
+      final whisperLines = <LyricLine>[
+        const LyricLine(text: '完整歌词', startTime: Duration(milliseconds: 1100), endTime: Duration(milliseconds: 3100), confidence: 95, confidenceSource: LyricConfidenceSource.heuristic),
+        const LyricLine(text: '重复的副歌', startTime: Duration(seconds: 10), endTime: Duration(seconds: 12), confidence: 50, confidenceSource: LyricConfidenceSource.unscored),
+      ];
+      for (final order in TranscriptionEngineOrder.values) {
+        final qwen = _resultLines(qwenLines);
+        final whisper = _resultLines(whisperLines);
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: qwen),
+          fallback: _FakeTranscriptionService(result: whisper),
+        );
+        try {
+          final result = await service.transcribe(_request(tempDirectory.path, engineOrder: order));
+          final raw = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+          expect(raw, isNotNull);
+          final encoded = jsonEncode(raw);
+          expect(encoded, isNot(contains('rawJsonPath')));
+          expect(encoded, isNot(contains(tempDirectory.path)));
+          final evidence = IndependentAsrEvidence.tryParse(jsonDecode(encoded));
+          expect(evidence, isNotNull);
+          final primary = order == TranscriptionEngineOrder.qwenPrimary ? qwenLines : whisperLines;
+          final secondary = order == TranscriptionEngineOrder.qwenPrimary ? whisperLines : qwenLines;
+          expect(evidence!.primary.lines.map((line) => line.toJson()).toList(), primary.map((line) => line.toJson()).toList());
+          expect(evidence.secondary.lines.map((line) => line.toJson()).toList(), secondary.map((line) => line.toJson()).toList());
+          expect(evidence.primary.engine, startsWith(order == TranscriptionEngineOrder.qwenPrimary ? 'qwen3-asr-' : 'whisper.cpp-'));
+          expect(evidence.secondary.engine, startsWith(order == TranscriptionEngineOrder.qwenPrimary ? 'whisper.cpp-' : 'qwen3-asr-'));
+          expect(evidence.capturedAtUtc.isUtc, isTrue);
+          expect(() => evidence.primary.lines.clear(), throwsUnsupportedError);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
+    test('does not retain stale evidence on degraded or incomplete results', () async {
+      final stale = TranscriptionResult(
+        lyrics: const LyricDocument(language: 'en', lines: [
+          LyricLine(text: 'existing', startTime: Duration.zero, endTime: Duration(seconds: 2)),
+        ], metadata: {IndependentAsrEvidence.metadataKey: {'stale': true}}),
+        normalizedAudioPath: 'normalized.wav', rawJsonPath: 'raw.json', detectedLanguage: 'en',
+      );
+      for (final order in TranscriptionEngineOrder.values) {
+        final qwen = _FakeTranscriptionService(
+          result: order == TranscriptionEngineOrder.qwenPrimary ? stale : null,
+          error: order == TranscriptionEngineOrder.whisperPrimary ? const TranscriptionException('Qwen failure') : null,
+        );
+        final whisper = _FakeTranscriptionService(
+          result: order == TranscriptionEngineOrder.whisperPrimary ? stale : null,
+          error: order == TranscriptionEngineOrder.qwenPrimary ? const TranscriptionException('Whisper failure') : null,
+        );
+        final service = HighQualityTranscriptionService(primary: qwen, fallback: whisper);
+        try {
+          final result = await service.transcribe(_request(tempDirectory.path, engineOrder: order));
+          expect(result.lyrics.metadata['fallbackStatus'], 'failed');
+          expect(result.lyrics.metadata, isNot(contains(IndependentAsrEvidence.metadataKey)));
+        } finally {
+          await service.dispose();
+        }
+      }
+      final incomplete = HighQualityTranscriptionService(
+        primary: _FakeTranscriptionService(result: stale),
+        fallback: _FakeTranscriptionService(result: _resultLines([])),
+      );
+      try {
+        final result = await incomplete.transcribe(_request(tempDirectory.path));
+        expect(result.lyrics.metadata, isNot(contains(IndependentAsrEvidence.metadataKey)));
+      } finally {
+        await incomplete.dispose();
       }
     });
 

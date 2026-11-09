@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/independent_asr_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -663,7 +664,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     // reported by [transcribe] instead.
     merged
       ..remove('qwenRawJsonPath')
-      ..remove('whisperRawJsonPath');
+      ..remove('whisperRawJsonPath')
+      // A chunk's independent transcripts use chunk-local time and do not
+      // represent both engines' output for the entire merged recording.
+      ..remove(IndependentAsrEvidence.metadataKey);
 
     int remap(int chunk, Object? rawIndex) {
       if (rawIndex is! num) return -1;
