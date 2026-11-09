@@ -146,6 +146,62 @@ void main() {
     expect(result.secondaryOnlyLines.single.line.text, 'later lyric');
   });
 
+  test('a low scored secondary segment cannot be hidden by the mean', () {
+    for (final confidences in [(40, 100), (100, 40)]) {
+      final primary = doc([line('hello world', 0, 2000)]);
+      final secondary = doc([
+        line('hello', 0, 1000, confidence: confidences.$1),
+        line('world', 1000, 2000, confidence: confidences.$2),
+      ]);
+      final result = analyzer.analyze(primary: primary, secondary: secondary);
+      final row = result.rows.single;
+      expect(row.secondaryConfidence, 70);
+      expect(row.textSimilarity, 1);
+      expect(row.status, AsrConsensusStatus.disagreement);
+      expect(row.reasons, {AsrConsensusReason.lowSecondaryConfidence});
+      expect(row.secondaryLineIndices, [0, 1]);
+      expect(primary.lines.single.text, 'hello world');
+      expect(primary.lines.single.endTime, const Duration(seconds: 2));
+      expect(secondary.lines.map((line) => line.text), ['hello', 'world']);
+    }
+  });
+
+  test('secondary confidence honors threshold and ignores unscored placeholders', () {
+    for (final score in [60, 100]) {
+      final result = analyzer.analyze(
+        primary: doc([line('hello world', 0, 2000)]),
+        secondary: doc([
+          line('hello', 0, 1000, confidence: score),
+          line('world', 1000, 2000, confidence: 0,
+              confidenceSource: LyricConfidenceSource.unscored),
+        ]),
+      );
+      expect(result.rows.single.secondaryConfidence, score);
+      expect(result.rows.single.status, AsrConsensusStatus.agreement);
+      expect(result.rows.single.reasons, isEmpty);
+    }
+    final mixed = analyzer.analyze(
+      primary: doc([line('hello world', 0, 2000)]),
+      secondary: doc([
+        line('hello', 0, 1000, confidence: 59),
+        line('world', 1000, 2000, confidence: 100,
+            confidenceSource: LyricConfidenceSource.unscored),
+      ]),
+    );
+    expect(mixed.rows.single.secondaryConfidence, 59);
+    expect(mixed.rows.single.reasons, contains(AsrConsensusReason.lowSecondaryConfidence));
+    const stricter = AsrConsensusAnalyzer(reviewConfidenceThreshold: 80);
+    final custom = stricter.analyze(
+      primary: doc([line('hello world', 0, 2000)]),
+      secondary: doc([
+        line('hello', 0, 1000, confidence: 79),
+        line('world', 1000, 2000, confidence: 100),
+      ]),
+    );
+    expect(custom.rows.single.secondaryConfidence, 90);
+    expect(custom.rows.single.reasons, contains(AsrConsensusReason.lowSecondaryConfidence));
+  });
+
   test('low confidence on either engine keeps matching text in review', () {
     final result = analyzer.analyze(
       primary: doc([line('hello world', 0, 2000, confidence: 40)]),
