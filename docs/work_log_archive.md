@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 20:05] Preserve chunk cancellation boundaries ([entry](log/entries/2026-11-07-2005-chunk-cancellation-terminal.md))
 - [2026-11-07 19:20] Document and test vendored audio backend ([entry](log/entries/2026-11-07-1920-vendored-audio-provenance.md))
 - [2026-11-07 18:43] Remove unused proofreading constants ([entry](log/entries/2026-11-07-1843-remove-dead-proofread-constants.md))
 - [2026-11-07 18:24] Harden Media Hub audio uploads ([entry](log/entries/2026-11-07-1824-harden-audio-uploads.md))
