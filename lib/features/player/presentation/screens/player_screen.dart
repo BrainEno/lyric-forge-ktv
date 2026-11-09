@@ -304,19 +304,19 @@ class _PlayerContentState extends State<_PlayerContent> {
       ),
     );
     if (!mounted || selectedMode == null) return;
+    final selectedPath = displayedAsset.getPathForSource(selectedMode.source);
 
     bool selectionIsCurrent() {
       final item = widget.playbackSession.currentState.currentItem;
       if (!isSameItem(item)) return false;
-      final displayedPath = displayedAsset.getPathForSource(selectedMode.source);
-      return displayedPath != null &&
-          item!.audioAsset.getPathForSource(selectedMode.source) == displayedPath;
+      return selectedPath != null &&
+          item!.audioAsset.getPathForSource(selectedMode.source) == selectedPath;
     }
 
     if (!selectionIsCurrent()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')));
       return;
     }
 
@@ -335,9 +335,9 @@ class _PlayerContentState extends State<_PlayerContent> {
 
     if (!mounted) return;
     if (!selectionIsCurrent()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')));
       return;
     }
     setState(() => _ktvMode = true);

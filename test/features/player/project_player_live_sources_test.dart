@@ -146,7 +146,9 @@ void main() {
     },
   );
 
-  testWidgets('open KTV sheet tracks changes and rejects another item', (tester) async {
+  testWidgets('open KTV sheet tracks changes and rejects another item', (
+    tester,
+  ) async {
     final session = _Session(_state(_original));
     final audio = _Audio();
     await _showPlayer(tester, _project(_original), session, audio);
@@ -174,7 +176,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('selection is rechecked before changing the source', (tester) async {
+  testWidgets('selection is rechecked before changing the source', (
+    tester,
+  ) async {
     final session = _Session(_state(_withBacking));
     final audio = _Audio();
     await _showPlayer(tester, _project(_original), session, audio);
@@ -191,7 +195,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switch completion cannot open KTV for a changed item', (tester) async {
+  testWidgets('switch completion cannot open KTV for a changed item', (
+    tester,
+  ) async {
     final session = _Session(_state(_withBacking));
     final pending = Completer<void>();
     final audio = _Audio(pendingSwitch: pending);
@@ -202,6 +208,24 @@ void main() {
     await tester.pump();
     expect(audio.switches, [AudioSourceType.instrumental]);
     session.emit(_state(_original, projectId: null));
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switch completion rejects a replacement of the selected path', (tester) async {
+    final session = _Session(_state(_withBacking));
+    final pending = Completer<void>();
+    final audio = _Audio(pendingSwitch: pending);
+    await _showPlayer(tester, _project(_original), session, audio);
+    await tester.tap(find.byTooltip('进入 KTV'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('纯伴奏'));
+    await tester.pump();
+    expect(audio.switches, [AudioSourceType.instrumental]);
+    session.emit(_state(_withBacking.copyWith(instrumentalPath: '/new.mp3')));
+    await tester.pump();
     pending.complete();
     await tester.pumpAndSettle();
     expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
