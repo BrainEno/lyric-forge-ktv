@@ -13,7 +13,7 @@ void main() {
       tester.view.physicalSize = size;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      KtvBackingMode? selection;
+      KtvEntrySelection? selection;
       await tester.pumpWidget(
         _SheetHost(
           asset: const AudioAsset(originalPath: 'song.wav', format: 'wav'),
@@ -35,13 +35,14 @@ void main() {
       expect(original.enabled, isTrue);
       await tester.tap(find.text('原唱伴唱'));
       await tester.pumpAndSettle();
-      expect(selection, KtvBackingMode.guideVocal);
+      expect(selection?.mode, KtvBackingMode.guideVocal);
+      expect(selection?.sourcePath, 'song.wav');
       expect(tester.takeException(), isNull);
     });
   }
 
   testWidgets('existing instrumental remains selectable', (tester) async {
-    KtvBackingMode? selection;
+    KtvEntrySelection? selection;
     await tester.pumpWidget(
       _SheetHost(
         asset: const AudioAsset(
@@ -61,7 +62,8 @@ void main() {
     expect(instrumental.enabled, isTrue);
     await tester.tap(find.text('纯伴奏'));
     await tester.pumpAndSettle();
-    expect(selection, KtvBackingMode.instrumental);
+    expect(selection?.mode, KtvBackingMode.instrumental);
+    expect(selection?.sourcePath, 'backing.wav');
     expect(tester.takeException(), isNull);
   });
 }
@@ -70,7 +72,7 @@ class _SheetHost extends StatelessWidget {
   const _SheetHost({required this.asset, required this.onSelected});
 
   final AudioAsset asset;
-  final ValueChanged<KtvBackingMode?> onSelected;
+  final ValueChanged<KtvEntrySelection?> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +82,7 @@ class _SheetHost extends StatelessWidget {
           builder: (context) {
             return TextButton(
               onPressed: () async {
-                final selected = await showModalBottomSheet<KtvBackingMode>(
+                final selected = await showModalBottomSheet<KtvEntrySelection>(
                   context: context,
                   showDragHandle: true,
                   useSafeArea: true,
