@@ -1,0 +1,83 @@
+name: Arena session source update validation
+on:
+  push:
+    branches: [arena/71ce4390-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed files
+        run: dart format lib/features/player/domain/services/playback_session_service.dart lib/features/player/data/services/default_playback_session_service.dart lib/features/player/data/services/library_metadata_playback_session_service.dart lib/features/player/data/services/remote_rebinding_playback_session_service.dart test/features/player/project_audio_session_update_test.dart
+      - name: Focused session tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/project_audio_session_update_test.dart test/features/player/project_audio_source_update_test.dart test/default_playback_session_service_test.dart test/features/player/playback_session_persistence_test.dart test/features/player/remote_playback_rebinding_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug sync-active-project-source-session --title 'Guard active project session source updates'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          stamp=os.environ['ENTRY_STAMP'];run=os.environ['GITHUB_RUN_ID']
+          path=Path('docs/log/entries')/(stamp.replace(' ','-').replace(':','')+'-sync-active-project-source-session.md')
+          text=path.read_text();text=re.sub(r'^- Validation:\n(?:  - .*\n)+','- Validation: placeholder\n',text,flags=re.M)
+          values={
+            'Scope':'Add guarded active-project audio source updates to the app-scoped playback session while preserving queue and transport state.',
+            'Files':'Playback session domain capability, default session implementation and decorators, session source-update tests, this entry, generated work-log navigation, index and handoff.',
+            'Validation':f'Pinned Flutter GitHub Actions run {run} passed focused session/audio/remote tests and the full quality gate, including Dart format and work-log new/write/check. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.',
+            'Notes':'An update requires matching current project ID, expected source paths, loaded current item and audio-layer approval; no await separates the checks, player update and queue replacement. Non-source queue asset metadata is retained; an inactive path may be cleared. Queue changes use existing best-effort session persistence. Tests use fake audio and storage and cover paused/playing state, position, queue/modes, snapshot persistence, stale or remote items, in-flight switch, backend refusal and decorator forwarding. No UI invokes this capability yet; the documented accompaniment workaround remains. Native playback and device behavior are unverified, and #320 remains open.',
+            'Commit':'`feat: guard active project session source updates`',
+          }
+          for k,v in values.items():
+            text,n=re.subn(rf'^- {k}:.*$',f'- {k}: {v}',text,count=1,flags=re.M)
+            if n!=1: raise RuntimeError(k)
+          if 'TODO' in text: raise RuntimeError('unfilled TODO')
+          path.write_text(text)
+          idx=Path('docs/work_log_index.md');text=idx.read_text();old='An audio-layer guarded source-update capability exists, but is not yet wired to the session or UI.';new='Guarded source-update capabilities exist in the audio and session layers, but are not yet wired to the UI.';assert old in text;text=text.replace(old,new);idx.write_text(text)
+          Path('docs/handoff.md').write_text(f'''# Handoff\n\n## 目标\n\n为 #320 增加会话级工程音轨安全更新能力，保留播放与队列状态；提交中文 PR，不自动合并。\n\n## Git 现场\n\n- 基线 `031cb4829b799eeee5056ff1b49d582b33ad6850`；分支 `arena/71ce4390-lyric-forge-ktv`。最终提交和 PR 状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- 播放会话接口、默认实现和两层装饰器、会话回归测试、日志导航和本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK GitHub Actions run {run} 通过定向与完整质量门禁，并执行 format、work-log new/write/check。最终 PR 检查以 Actions 为准。\n- 本地 `git diff --check`；未做原生音频设备或手动 UI 检查。\n\n## 下一步\n\n设计界面调用并覆盖新伴奏、当前音源被替换、切歌竞争、更新失败的提示与回退；在接入并验证后才能移除当前 workaround。\n\n## 已知风险\n\n- 本轮能力尚无 UI 调用方；检查基于同一 isolate 会话和音频路径，不检测文件内容或跨进程变更；队列持久化沿用 best-effort。测试为 fake 后端，未验证真实 just_audio 或原生设备。\n- 当前播放音源本身变化仍被拒绝；自动分离、人声轨导入、旧副本清理及跨进程一致性仍待后续。Media Hub 上传 deadline 测试历史上间歇失败。\n\n最后更新：{stamp}（Asia/Taipei）\n''')
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-sync-active-project-source-session.md"
+          git diff --binary -- docs lib/features/player/domain/services/playback_session_service.dart lib/features/player/data/services/default_playback_session_service.dart lib/features/player/data/services/library_metadata_playback_session_service.dart lib/features/player/data/services/remote_rebinding_playback_session_service.dart test/features/player/project_audio_session_update_test.dart > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64,gzip
+          data=base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure diagnostic
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,gzip
+          from pathlib import Path
+          p=Path('/tmp/gate.log')
+          if not p.exists(): p=Path('/tmp/focused.log')
+          if p.exists():
+            data=base64.b64encode(gzip.compress(p.read_bytes()[-80000:])).decode()
+            for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY

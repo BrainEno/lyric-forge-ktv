@@ -102,6 +102,20 @@ class PlaybackSessionState {
   }
 }
 
+/// Optional capability to update inactive source paths for the current project
+/// without reloading audio. Implementations must compare the active project and
+/// queue snapshot before updating the player and queue together.
+abstract interface class ActiveProjectPlaybackSourceUpdater {
+  /// Returns false without changing either side when the current project or
+  /// expected sources are stale, a load is in progress, or the audio backend
+  /// cannot safely update. Successful updates preserve transport and queue state.
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  });
+}
+
 abstract class PlaybackSessionService {
   Stream<PlaybackSessionState> get stateStream;
   PlaybackSessionState get currentState;

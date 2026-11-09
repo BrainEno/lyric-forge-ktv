@@ -11,8 +11,11 @@ import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/repositories/playback_session_store.dart';
 import '../../domain/services/audio_player_service.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../../domain/services/project_audio_source_update.dart';
+import '../../../project/domain/models/audio_asset.dart';
 
-class DefaultPlaybackSessionService implements PlaybackSessionService {
+class DefaultPlaybackSessionService
+    implements PlaybackSessionService, ActiveProjectPlaybackSourceUpdater {
   final AudioPlayerService _audioPlayer;
   final PlayHistoryRepository? _playHistoryRepository;
   final LocalMediaMetadataRepository? _localMediaMetadataRepository;
@@ -572,6 +575,53 @@ class DefaultPlaybackSessionService implements PlaybackSessionService {
       }
       _emit(_state.copyWith(queue: List<PlaybackItem>.unmodifiable(queue)));
     }
+  }
+
+  @override
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) async {
+    await _awaitRestore();
+    final item = _state.currentItem;
+    if (_disposed || item == null || item.isRemoteStream ||
+        item.projectId != projectId || _loadedItemId != item.id) {
+      return false;
+    }
+    final current = item.audioAsset;
+    if (current.originalPath != expected.originalPath ||
+        current.vocalPath != expected.vocalPath ||
+        current.instrumentalPath != expected.instrumentalPath ||
+        replacement.originalPath != expected.originalPath) {
+      return false;
+    }
+    final player = _audioPlayer;
+    if (player is! ActiveProjectAudioSourceUpdater) return false;
+    // Replace only switchable paths; keep queue-local metadata and allow an
+    // inactive path to be cleared (AudioAsset.copyWith cannot clear nulls).
+    final nextAsset = AudioAsset(
+      originalPath: current.originalPath,
+      normalizedPath: current.normalizedPath,
+      vocalPath: replacement.vocalPath,
+      instrumentalPath: replacement.instrumentalPath,
+      thumbnailPath: current.thumbnailPath,
+      format: current.format,
+      sampleRate: current.sampleRate,
+      bitDepth: current.bitDepth,
+      duration: current.duration,
+      metadata: current.metadata,
+    );
+
+    // No await between the session check, player guard and queue update: another
+    // session mutation cannot interleave and redirect this update to a new song.
+    final updated = (player as ActiveProjectAudioSourceUpdater)
+        .updateActiveProjectAudioSources(expected: current, replacement: nextAsset);
+    if (!updated) return false;
+    final queue = List<PlaybackItem>.from(_state.queue);
+    queue[_state.currentIndex] = item.copyWith(audioAsset: nextAsset);
+    _emit(_state.copyWith(queue: List<PlaybackItem>.unmodifiable(queue)));
+    return true;
   }
 
   @override

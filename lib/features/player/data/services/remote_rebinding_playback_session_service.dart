@@ -3,11 +3,13 @@ import 'dart:async';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../../domain/services/remote_playback_item_resolver.dart';
+import '../../../project/domain/models/audio_asset.dart';
 
 /// Playback-session decorator that refreshes persisted remote queue entries just
 /// before they are used. Startup remains offline: automatic refreshing is only
 /// enabled after an explicit remote playback action in the current process.
-class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
+class RemoteRebindingPlaybackSessionService
+    implements PlaybackSessionService, ActiveProjectPlaybackSourceUpdater {
   final PlaybackSessionService delegate;
   final RemotePlaybackItemResolver resolver;
 
@@ -133,6 +135,19 @@ class RemoteRebindingPlaybackSessionService implements PlaybackSessionService {
         ? await _resolveForExplicitPlayback(item)
         : item;
     await delegate.enqueue(resolved);
+  }
+
+  @override
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) {
+    final session = delegate;
+    if (session is! ActiveProjectPlaybackSourceUpdater) return Future.value(false);
+    return (session as ActiveProjectPlaybackSourceUpdater).updateActiveProjectSources(
+      projectId: projectId, expected: expected, replacement: replacement,
+    );
   }
 
   @override
