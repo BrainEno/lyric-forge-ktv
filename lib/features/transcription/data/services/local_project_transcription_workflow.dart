@@ -18,6 +18,7 @@ import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import 'project_transcription_input.dart';
 
 /// Persists ASR output as the editable timeline consumed by lyric editing and
 /// synchronized playback surfaces. Playback consumers reload the persisted
@@ -113,7 +114,7 @@ class LocalProjectTranscriptionWorkflow
       );
     }
 
-    final inputPath = await _resolveInputPath(project);
+    final inputPath = await resolveProjectTranscriptionInput(project);
     final outputDirectory = await _outputDirectory(project);
     await _backupExistingLyrics(project, outputDirectory);
 
@@ -283,22 +284,6 @@ class LocalProjectTranscriptionWorkflow
         'Album: ${project.album!.trim()}',
     ];
     return parts.join('. ');
-  }
-
-  Future<String> _resolveInputPath(ProjectManifest project) async {
-    final audio = project.audioAsset!;
-    final candidates = [
-      audio.vocalPath,
-      audio.normalizedPath,
-      audio.originalPath,
-    ];
-
-    for (final path in candidates) {
-      if (path == null || path.trim().isEmpty) continue;
-      if (await File(path).exists()) return path;
-    }
-
-    throw const TranscriptionException.input('工程音频文件不可用：人声、标准化音频和原声都不存在');
   }
 
   Future<Directory> _outputDirectory(ProjectManifest project) async {
