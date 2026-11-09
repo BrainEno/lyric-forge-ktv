@@ -86,6 +86,7 @@
 ## Additional archived entries (auto-generated)
 - [2026-11-08 00:47] Handle background lyric link failures ([entry](log/entries/2026-11-08-0047-handle-background-lyric-link-failures.md))
 - [2026-11-08 00:28] Protect lyric associations from partial metadata ([entry](log/entries/2026-11-08-0028-protect-lyric-associations-from-partial-metadata.md))
+- [2026-11-07 23:00] Guard incomparable ASR review evidence ([entry](log/entries/2026-11-07-2300-guard-incomparable-asr-review.md))
 - [2026-11-07 22:44] Protect partial project stores ([entry](log/entries/2026-11-07-2244-protect-partial-project-store.md))
 - [2026-11-07 21:54] Protect partial media metadata stores ([entry](log/entries/2026-11-07-2154-protect-partial-metadata-store.md))
 - [2026-11-07 21:20] Protect lyric links on read failures ([entry](log/entries/2026-11-07-2120-protect-lyric-links-on-read-failure.md))
