@@ -158,10 +158,16 @@ void main() {
       await backup.writeAsString(oldBackup);
       final repository = FileProjectRepository(rootDirectory: root);
 
-      await expectLater(
-        repository.getAllProjects(),
-        throwsA(isA<ProjectRepositoryException>()),
-      );
+      await Future.wait([
+        expectLater(
+          repository.getAllProjects(),
+          throwsA(isA<ProjectRepositoryException>()),
+        ),
+        expectLater(
+          repository.createProject(name: 'Concurrent write'),
+          throwsA(isA<ProjectRepositoryException>()),
+        ),
+      ]);
       await expectLater(
         repository.getProjectById(valid.id),
         throwsA(isA<ProjectRepositoryException>()),
@@ -182,23 +188,84 @@ void main() {
       expect(await backup.readAsString(), oldBackup);
       expect(await File('${store.path}.tmp').exists(), isFalse);
 
-      // After explicit repair, a fresh instance can read and persist projects.
+      // A repair can be retried on the same instance, including the dashboard's
+      // recent-project query. The failed load must not leave partial entries.
       await store.writeAsString(
         jsonEncode({
           'projects': [valid.toJson()],
         }),
       );
-      final repaired = FileProjectRepository(rootDirectory: root);
+      final results = await Future.wait([
+        repository.getAllProjects(),
+        repository.getRecentProjects(),
+      ]);
+      for (final projects in results) {
+        expect(projects, hasLength(1));
+        expect(projects.single.id, valid.id);
+        expect(projects.single.lyricDocument?.lines.single.text, '保留歌词');
+      }
+      await repository.updateProject(valid.copyWith(name: 'Updated'));
+      final reopened = FileProjectRepository(rootDirectory: root);
+      expect((await reopened.getProjectById(valid.id))?.name, 'Updated');
       expect(
-        (await repaired.getProjectById(
+        (await reopened.getProjectById(
           valid.id,
         ))?.lyricDocument?.lines.single.text,
         '保留歌词',
       );
-      await repaired.updateProject(valid.copyWith(name: 'Updated'));
-      expect((await repaired.getProjectById(valid.id))?.name, 'Updated');
     });
   }
+
+  test('invalid project document can be repaired without restarting', () async {
+    final root = await Directory.systemTemp.createTemp('project-retry-');
+    addTearDown(() => root.delete(recursive: true));
+    final store = File('${root.path}${Platform.pathSeparator}projects.json');
+    const broken = '{invalid';
+    await store.writeAsString(broken);
+    final repository = FileProjectRepository(rootDirectory: root);
+
+    await Future.wait([
+      expectLater(repository.getRecentProjects(), throwsFormatException),
+      expectLater(
+        repository.createProject(name: 'No write'),
+        throwsFormatException,
+      ),
+    ]);
+    expect(await store.readAsString(), broken);
+    await expectLater(repository.getAllProjects(), throwsFormatException);
+    expect(await store.readAsString(), broken);
+
+    await store.writeAsString(jsonEncode({'version': 1, 'projects': []}));
+    expect(await repository.getRecentProjects(), isEmpty);
+    final created = await repository.createProject(name: 'After repair');
+    final reopened = FileProjectRepository(rootDirectory: root);
+    expect((await reopened.getProjectById(created.id))?.name, 'After repair');
+  });
+
+  test('successful project loads remain cached', () async {
+    final root = await Directory.systemTemp.createTemp('project-cache-');
+    addTearDown(() => root.delete(recursive: true));
+    final store = File('${root.path}${Platform.pathSeparator}projects.json');
+    final project = ProjectManifest(
+      id: 'cached',
+      name: 'Cached project',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await store.writeAsString(
+      jsonEncode({
+        'version': 1,
+        'projects': [project.toJson()],
+      }),
+    );
+    final repository = FileProjectRepository(rootDirectory: root);
+    expect((await repository.getAllProjects()).single.id, project.id);
+
+    await store.writeAsString(jsonEncode({'version': 1, 'projects': []}));
+    expect((await repository.getAllProjects()).single.id, project.id);
+    final fresh = FileProjectRepository(rootDirectory: root);
+    expect(await fresh.getAllProjects(), isEmpty);
+  });
 
   test('projects survive repository recreation', () async {
     final root = await Directory.systemTemp.createTemp('lyricforge-projects-');
