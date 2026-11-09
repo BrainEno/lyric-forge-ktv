@@ -261,7 +261,10 @@ class _PlayerContentState extends State<_PlayerContent> {
 
   Future<void> _enterKtv() async {
     final document = widget.project.lyricDocument;
-    final audioAsset = widget.project.audioAsset;
+    final audioAsset = _audioAssetForSession(
+      widget.project,
+      widget.playbackSession.currentState,
+    );
     if (document == null || document.lines.isEmpty || audioAsset == null)
       return;
 
@@ -422,6 +425,16 @@ class _PlayerContentState extends State<_PlayerContent> {
   }
 }
 
+AudioAsset? _audioAssetForSession(
+  ProjectManifest project,
+  PlaybackSessionState session,
+) {
+  final item = session.currentItem;
+  return item != null && item.projectId == project.id
+      ? item.audioAsset
+      : project.audioAsset;
+}
+
 class _PlayerWorkspace extends StatelessWidget {
   final ProjectManifest project;
   final LyricDocument? document;
@@ -459,7 +472,8 @@ class _PlayerWorkspace extends StatelessWidget {
   Widget build(BuildContext context) {
     final lyrics = document?.lines ?? const <LyricLine>[];
     final availableSources =
-        project.audioAsset?.availableSources ?? const <AudioSourceType>[];
+        _audioAssetForSession(project, session)?.availableSources ??
+        const <AudioSourceType>[];
 
     return LayoutBuilder(
       builder: (context, constraints) {
