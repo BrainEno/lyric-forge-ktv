@@ -122,8 +122,23 @@ class AsrFirstPipeline {
           ) ==
           true) {
         reasons.add(ProofreadReason.asrComparisonUnavailable);
-      } else if (consensusRow != null) {
+      } else if (consensusRow != null &&
+          consensusRow.reasons.any(
+            (reason) =>
+                reason != AsrConsensusReason.lowPrimaryConfidence &&
+                reason != AsrConsensusReason.lowSecondaryConfidence,
+          )) {
         reasons.add(ProofreadReason.asrDisagreement);
+      }
+      if (consensusRow?.reasons.contains(
+                AsrConsensusReason.lowSecondaryConfidence,
+              ) ==
+              true ||
+          consensusRow?.reasons.contains(
+                AsrConsensusReason.lowPrimaryConfidence,
+              ) ==
+              true) {
+        reasons.add(ProofreadReason.lowConfidence);
       }
       // An unscored line is not a low-scoring line: without an engine score the
       // threshold has nothing to compare against, so flagging it here would put

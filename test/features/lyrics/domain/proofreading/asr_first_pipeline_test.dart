@@ -240,6 +240,48 @@ void main() {
     );
   });
 
+  test('a low-scored split secondary line remains in review', () {
+    final primary = doc([row('hello world', 0, 2000, id: 'one')]);
+    final secondary = doc([
+      row('hello', 0, 1000, confidence: 40),
+      row('world', 1000, 2000, confidence: 100),
+    ]);
+    final primarySnapshot = snapshotLyricDocument(primary);
+    final secondarySnapshot = snapshotLyricDocument(secondary);
+    final result = pipeline.build(draft: primary, secondary: secondary);
+    expectInvariants(result, input: primary, inputSnapshot: primarySnapshot);
+    expect(snapshotLyricDocument(secondary), secondarySnapshot);
+    expect(result.lines.single.verdict, ProofreadVerdict.amber);
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.lowConfidence),
+    );
+    expect(
+      result.lines.single.reasons,
+      isNot(contains(ProofreadReason.asrAgreement)),
+    );
+    expect(
+      result.lines.single.reasons,
+      isNot(contains(ProofreadReason.asrDisagreement)),
+    );
+    expect(result.proposedDocument.lines, primary.lines);
+  });
+
+  test('low confidence and differing text retain both review reasons', () {
+    final result = pipeline.build(
+      draft: doc([row('hello world', 0, 2000)]),
+      secondary: doc([row('goodbye world', 0, 2000, confidence: 40)]),
+    );
+    expect(result.lines.single.verdict, ProofreadVerdict.amber);
+    expect(
+      result.lines.single.reasons,
+      containsAll([
+        ProofreadReason.lowConfidence,
+        ProofreadReason.asrDisagreement,
+      ]),
+    );
+  });
+
   test('disagreement is amber and does not auto-replace primary text', () {
     final primary = doc([row('open the door', 0, 1500, id: 'one')]);
     final secondary = doc([row('close the door', 0, 1500)]);

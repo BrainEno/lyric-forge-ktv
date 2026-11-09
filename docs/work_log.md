@@ -11,7 +11,7 @@
 - [2026-11-09 11:54] Clarify project separation status `fix: clarify project separation status` ([entry](log/entries/2026-11-09-1154-clarify-project-separation-status.md))
 - [2026-11-09 01:51] Protect metadata during audio relink `fix: protect metadata during audio relink` ([entry](log/entries/2026-11-09-0151-protect-relink-metadata.md))
 
-<!-- 249 entries total: 8 active, 241 archived. -->
+<!-- 250 entries total: 8 active, 242 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

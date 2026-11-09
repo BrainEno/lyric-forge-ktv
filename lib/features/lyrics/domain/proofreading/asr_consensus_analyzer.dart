@@ -150,7 +150,11 @@ class AsrConsensusAnalyzer {
           reasons.add(AsrConsensusReason.textMismatch);
         }
       }
-      if (confidence != null && confidence < reviewConfidenceThreshold) {
+      // A high-scoring segment must not hide another segment's low score.
+      // Keep the mean above for consumers that use it as summary evidence.
+      if (alternatives.any(
+        (line) => line.isLowConfidence(reviewConfidenceThreshold),
+      )) {
         reasons.add(AsrConsensusReason.lowSecondaryConfidence);
       }
       rows.add(
