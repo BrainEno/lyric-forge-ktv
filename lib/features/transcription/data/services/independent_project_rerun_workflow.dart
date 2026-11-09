@@ -62,16 +62,21 @@ class IndependentProjectRerunWorkflow {
       if (project == null || project.lyricDocument == null) {
         throw const TranscriptionException.input('工程或原始歌词不存在');
       }
-      if (_store.read(project).length >= ProjectRerunCandidateStore.maxCandidates) {
+      if (_store.read(project).length >=
+          ProjectRerunCandidateStore.maxCandidates) {
         throw const TranscriptionException.input('候选版本已达到上限，未覆盖任何版本');
       }
       final settings = await _settings.load();
       _checkCancelled();
-      if (settings == null) throw const TranscriptionException.environment('请先完成本地歌词识别运行时配置');
+      if (settings == null)
+        throw const TranscriptionException.environment('请先完成本地歌词识别运行时配置');
       // Runtime inspect reports Qwen components only in highest-quality mode.
       // This mode changes readiness inspection, not the selected engine.
-      final requested = settings.copyWith(mode: engine == IndependentRerunEngine.qwen
-          ? TranscriptionMode.highestQuality : TranscriptionMode.whisperOnly);
+      final requested = settings.copyWith(
+        mode: engine == IndependentRerunEngine.qwen
+            ? TranscriptionMode.highestQuality
+            : TranscriptionMode.whisperOnly,
+      );
       final resolved = await _profiles.resolve(requested);
       _checkCancelled();
       _checkRuntimeNotInstalling();
@@ -83,21 +88,31 @@ class IndependentProjectRerunWorkflow {
       _checkRuntimeNotInstalling();
       final required = switch (engine) {
         IndependentRerunEngine.qwen => const {
-          AsrRuntimeComponent.ffmpeg, AsrRuntimeComponent.qwenRuntime,
-          AsrRuntimeComponent.qwenModel, AsrRuntimeComponent.qwenAligner,
+          AsrRuntimeComponent.ffmpeg,
+          AsrRuntimeComponent.qwenRuntime,
+          AsrRuntimeComponent.qwenModel,
+          AsrRuntimeComponent.qwenAligner,
         },
         IndependentRerunEngine.whisper => const {
-          AsrRuntimeComponent.ffmpeg, AsrRuntimeComponent.whisperRuntime,
+          AsrRuntimeComponent.ffmpeg,
+          AsrRuntimeComponent.whisperRuntime,
           AsrRuntimeComponent.whisperModel,
         },
       };
       if (!status.hasReadyComponents(required) ||
           (engine == IndependentRerunEngine.qwen && !config.isQwenConfigured) ||
-          (engine == IndependentRerunEngine.whisper && !config.isWhisperConfigured)) {
-        throw const TranscriptionException.environment('所选识别引擎或模型尚未就绪，请先检查本地运行环境');
+          (engine == IndependentRerunEngine.whisper &&
+              !config.isWhisperConfigured)) {
+        throw const TranscriptionException.environment(
+          '所选识别引擎或模型尚未就绪，请先检查本地运行环境',
+        );
       }
       _phase = IndependentRerunPhase.recognizing;
-      final pair = await _runner.run(projectId: projectId, engine: engine, config: config);
+      final pair = await _runner.run(
+        projectId: projectId,
+        engine: engine,
+        config: config,
+      );
       _checkCancelled();
       // Once persistence begins it cannot be reliably cancelled. Never report
       // cancellation after a write might already have committed.
@@ -113,7 +128,9 @@ class IndependentProjectRerunWorkflow {
   /// Preflight operations finish cooperatively; shared runtime setup is never
   /// cancelled by this workflow. Inference cancellation targets only its runner.
   Future<bool> cancel() async {
-    if (_phase == IndependentRerunPhase.idle || _phase == IndependentRerunPhase.saving) return false;
+    if (_phase == IndependentRerunPhase.idle ||
+        _phase == IndependentRerunPhase.saving)
+      return false;
     _cancelled = true;
     if (_phase == IndependentRerunPhase.recognizing) await _runner.cancel();
     return true;
