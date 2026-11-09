@@ -8,6 +8,7 @@ enum AsrConsensusReason {
   lowPrimaryConfidence,
   lowSecondaryConfidence,
   noSecondaryOverlap,
+  incomparableText,
   comparisonLimitExceeded,
 }
 
@@ -139,6 +140,10 @@ class AsrConsensusAnalyzer {
       double? similarity;
       if (_exceedsBudget(line.text, text)) {
         reasons.add(AsrConsensusReason.comparisonLimitExceeded);
+      } else if (LyricAlignmentService.normalizeLine(line.text).isEmpty ||
+          LyricAlignmentService.normalizeLine(text).isEmpty) {
+        // No comparable lyric characters is missing evidence, not agreement.
+        reasons.add(AsrConsensusReason.incomparableText);
       } else {
         similarity = LyricAlignmentService.lineSimilarity(line.text, text);
         if (similarity < agreementSimilarityThreshold) {

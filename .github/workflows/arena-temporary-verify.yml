@@ -1,0 +1,42 @@
+name: Temporary ASR review verification
+on:
+  push:
+    branches: [arena/1806f5be-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - name: Format changed Dart files
+        run: |
+          git diff --name-only HEAD^ HEAD -- '*.dart' | xargs -r dart format
+      - name: Resolve dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Run targeted tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart test/features/lyrics/presentation/lyric_review_strings_test.dart 2>&1 | tee /tmp/test.log
+      - name: Analyze
+        run: |
+          set -o pipefail
+          flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
+      - name: Return formatter patch and failure details
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, subprocess
+          patch = subprocess.check_output(['git','diff','--','*.dart'])
+          data = base64.b64encode(gzip.compress(patch)).decode()
+          for i in range(0, len(data), 60000):
+              print(f'::notice::PATCH{i//60000:03d}:{data[i:i+60000]}')
+          for path in ['/tmp/test.log','/tmp/analyze.log']:
+              try:
+                  lines = open(path).read().splitlines()
+                  hits = [x for x in lines if '[E]' in x or 'Error:' in x or 'error •' in x or 'warning •' in x or 'Some tests failed' in x]
+                  for line in hits[-25:]: print('::error::' + line[:900])
+              except FileNotFoundError: pass
+          PY

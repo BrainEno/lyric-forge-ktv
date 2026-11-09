@@ -5,6 +5,7 @@ enum ProofreadVerdict { locked, green, amber }
 enum ProofreadReason {
   asrAgreement,
   asrDisagreement,
+  asrComparisonUnavailable,
   lowConfidence,
   referenceCorrection,
   ambiguousAlignment,
