@@ -1,0 +1,92 @@
+name: Arena KTV choice snapshot validation
+on:
+  push:
+    branches: [arena/1444c0b6-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed files
+        run: dart format lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/project_player_live_sources_test.dart test/features/player/ktv_entry_sheet_test.dart
+      - name: Focused session tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/project_player_live_sources_test.dart test/features/player/project_audio_session_update_test.dart test/features/project/presentation/project_detail_capability_test.dart test/features/player/ktv_entry_sheet_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp='2026-11-07 18:08'
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug capture-ktv-source-choice --title 'Capture KTV source path at selection'
+          ENTRY_STAMP="$stamp" python3 - <<'PYCODE'
+          import os,re,subprocess
+          from pathlib import Path
+          stamp=os.environ['ENTRY_STAMP'];run=os.environ['GITHUB_RUN_ID']
+          path=Path('docs/log/entries')/(stamp.replace(' ','-').replace(':','')+'-capture-ktv-source-choice.md')
+          text=path.read_text();text=re.sub(r'^- Validation:\n(?:  - .*\n)+','- Validation: placeholder\n',text,flags=re.M)
+          values={
+            'Scope':'Capture the exact audio source path when a KTV choice is tapped so later sheet rebuilds cannot change the guarded selection.',
+            'Files':'KTV entry sheet, project player screen, sheet and player widget tests, this entry, generated work-log navigation and handoff.',
+            'Validation':f'Pinned Flutter GitHub Actions run {run} passed Dart format, targeted player/session/import tests, the full quality gate, and work-log new/write/check. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.',
+            'Notes':'The sheet returns the mode and displayed path together; the player checks that immutable path before and after switching. Fake widget tests exercise both modes and a replacement after tapping. No production audio locking was added: concurrent native switching and song changes, including away-and-back races, remain unprotected. Manual UI and native playback were not tested; #320 remains open.',
+            'Commit':'`fix: capture KTV source path at selection`',
+          }
+          for key,value in values.items():
+            text,n=re.subn(rf'^- {key}:.*$',f'- {key}: {value}',text,count=1,flags=re.M)
+            if n!=1: raise RuntimeError(key)
+          if 'TODO' in text: raise RuntimeError('unfilled TODO')
+          path.write_text(text)
+          def cmd(*args): return subprocess.check_output(args,text=True).strip() or '(clean)'
+          handoff=[
+            '# Handoff', '', '## 目标', '', '在用户选择 KTV 音轨时捕获路径，避免关闭面板时被后续重建覆盖。', '',
+            '## Git 现场', '', '- 基线 `eb9b179cd2d1ac42818d0d767dd916bd1ed17e25`；分支 `arena/1444c0b6-lyric-forge-ktv`。验证时快照：', '', '```', cmd('git','status','--short'), cmd('git','diff','--stat'), cmd('git','log','--oneline','-5'), '```', '',
+            '## 已改文件', '', '- KTV 入口面板、工程播放器、两组 widget 测试和工作日志。', '',
+            '## 检查结果', '', f'- 固定 SDK Actions run {run} 通过定向测试、完整门禁及工作日志检查；本地无 Flutter/Dart。', '- 未进行原生设备播放或手动 UI 检查。', '',
+            '## 下一步', '', '- 设计并测试会话/音频操作协调：不可将整个 just_audio play Future 持锁，因为它可能等到播放结束。', '',
+            '## 已知风险', '', '- 选择快照和前后复核不能串行化异步切换与切歌，也不能检测两次观察之间切走再切回；测试使用 fake。', '- 自动分离、人声导入、旧副本清理未完成；Media Hub 上传 deadline 测试历史上间歇失败。', '',
+            f'最后更新：{stamp}（Asia/Taipei）', ''
+          ]
+          Path('docs/handoff.md').write_text(chr(10).join(handoff))
+          PYCODE
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-capture-ktv-source-choice.md"
+          git diff --binary -- docs lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/project_player_live_sources_test.dart test/features/player/ktv_entry_sheet_test.dart > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64,gzip
+          data=base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure diagnostic
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,gzip
+          from pathlib import Path
+          p=Path('/tmp/gate.log')
+          if not p.exists(): p=Path('/tmp/focused.log')
+          if p.exists():
+            lines=p.read_text(errors='replace').splitlines(); hits=[i for i,line in enumerate(lines) if '[E]' in line or 'error -' in line]; selected='\n'.join('\n'.join(lines[max(0,i-2):i+22]) for i in hits); selected += '\n=== LOG TAIL ===\n' + '\n'.join(lines[-30:]); data=base64.b64encode(gzip.compress(selected.encode())).decode()
+            for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY

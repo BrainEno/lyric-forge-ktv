@@ -5,6 +5,14 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/ktv_backing_mode.dart';
 
+/// A choice and the exact source path displayed when the user selected it.
+class KtvEntrySelection {
+  final KtvBackingMode mode;
+  final String sourcePath;
+
+  const KtvEntrySelection({required this.mode, required this.sourcePath});
+}
+
 class KtvEntrySheet extends StatelessWidget {
   final AudioAsset audioAsset;
   final AudioSourceType? currentSource;
@@ -22,6 +30,12 @@ class KtvEntrySheet extends StatelessWidget {
     final instrumentalAvailable = audioAsset.hasSource(
       AudioSourceType.instrumental,
     );
+    void select(KtvBackingMode mode) {
+      final path = audioAsset.getPathForSource(mode.source);
+      if (path == null) return;
+      Navigator.pop(context, KtvEntrySelection(mode: mode, sourcePath: path));
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -57,12 +71,14 @@ class KtvEntrySheet extends StatelessWidget {
             mode: KtvBackingMode.guideVocal,
             selected: currentSource == KtvBackingMode.guideVocal.source,
             enabled: sessionMatches,
+            onSelected: select,
           ),
           const SizedBox(height: AppSpacing.sm),
           _KtvModeTile(
             mode: KtvBackingMode.instrumental,
             selected: currentSource == KtvBackingMode.instrumental.source,
             enabled: sessionMatches && instrumentalAvailable,
+            onSelected: select,
           ),
           if (!sessionMatches) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -91,11 +107,13 @@ class _KtvModeTile extends StatelessWidget {
   final KtvBackingMode mode;
   final bool selected;
   final bool enabled;
+  final ValueChanged<KtvBackingMode> onSelected;
 
   const _KtvModeTile({
     required this.mode,
     required this.selected,
     required this.enabled,
+    required this.onSelected,
   });
 
   @override
@@ -120,7 +138,7 @@ class _KtvModeTile extends StatelessWidget {
         ),
         subtitle: Text(mode.description),
         trailing: selected ? const Icon(Icons.check_circle_rounded) : null,
-        onTap: enabled ? () => Navigator.pop(context, mode) : null,
+        onTap: enabled ? () => onSelected(mode) : null,
       ),
     );
   }

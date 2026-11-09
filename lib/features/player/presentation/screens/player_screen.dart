@@ -278,8 +278,7 @@ class _PlayerContentState extends State<_PlayerContent> {
         item.projectId == openedItem.projectId &&
         !item.isRemoteStream;
 
-    var displayedAsset = audioAsset;
-    final selectedMode = await showModalBottomSheet<KtvBackingMode>(
+    final selection = await showModalBottomSheet<KtvEntrySelection>(
       context: context,
       showDragHandle: true,
       useSafeArea: true,
@@ -290,7 +289,7 @@ class _PlayerContentState extends State<_PlayerContent> {
         builder: (context, sessionSnapshot) {
           final item = widget.playbackSession.currentState.currentItem;
           final matches = isSameItem(item);
-          displayedAsset = matches ? item!.audioAsset : audioAsset;
+          final displayedAsset = matches ? item!.audioAsset : audioAsset;
           return StreamBuilder<PlaybackState>(
             stream: widget.audioService.stateStream,
             initialData: widget.audioService.currentState,
@@ -303,15 +302,13 @@ class _PlayerContentState extends State<_PlayerContent> {
         },
       ),
     );
-    if (!mounted || selectedMode == null) return;
-    final selectedPath = displayedAsset.getPathForSource(selectedMode.source);
+    if (!mounted || selection == null) return;
 
     bool selectionIsCurrent() {
       final item = widget.playbackSession.currentState.currentItem;
       if (!isSameItem(item)) return false;
-      return selectedPath != null &&
-          item!.audioAsset.getPathForSource(selectedMode.source) ==
-              selectedPath;
+      return item!.audioAsset.getPathForSource(selection.mode.source) ==
+          selection.sourcePath;
     }
 
     if (!selectionIsCurrent()) {
@@ -323,8 +320,8 @@ class _PlayerContentState extends State<_PlayerContent> {
 
     try {
       if (widget.audioService.currentState.currentSource !=
-          selectedMode.source) {
-        await widget.audioService.switchSource(selectedMode.source);
+          selection.mode.source) {
+        await widget.audioService.switchSource(selection.mode.source);
       }
     } catch (error) {
       if (!mounted) return;
