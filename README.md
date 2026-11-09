@@ -121,7 +121,7 @@ The active Flutter version is recorded in [`.fvmrc`](.fvmrc). Read [`CONTRIBUTIN
 
 LyricForge is an actively developed open-source project. Automatic transcription and alignment are review aids; they can omit words, select incorrect alternatives, or produce inaccurate timestamps. Native audio behavior, microphone latency, device pairing, and packaged ASR runtime availability should be verified on the target device before a long recording session.
 
-The current app cannot generate separated vocal/accompaniment tracks or import external stems through its UI. Source separation remains a planned desktop capability. A project that already references an accompaniment track can offer the KTV accompaniment mode, but the referenced file must be accessible for playback; otherwise use the original mix.
+The current app cannot generate separated vocal/accompaniment tracks; source separation remains a planned desktop capability. On desktop, project details can import an existing accompaniment file into app storage for KTV playback. Choose a track aligned with the original song: the app does not synchronize or verify its contents. Vocal stem import is not yet supported. The referenced file must be accessible for playback; otherwise use the original mix. If that project is already playing, switch to another song and reopen the project player to load the new track.
 
 ## License
 

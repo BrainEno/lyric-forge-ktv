@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
+import 'package:lyric_forge_ktv/features/project/domain/services/project_accompaniment_importer.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/project_detail_dependencies.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_detail_screen.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
@@ -41,8 +43,10 @@ ProjectManifest _project({required ProcessingStage stage, AudioAsset? audio}) =>
 Future<void> _showProject(
   WidgetTester tester,
   ProjectManifest project,
-  Size size,
-) async {
+  Size size, {
+  _Projects? projects,
+  ProjectAccompanimentImporter? importer,
+}) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   addTearDown(() {
@@ -50,7 +54,8 @@ Future<void> _showProject(
     tester.view.resetDevicePixelRatio();
   });
   final dependencies = ProjectDetailDependencies(
-    projectRepository: _Projects(project),
+    projectRepository: projects ?? _Projects(project),
+    accompanimentImporter: importer ?? _Importer(),
     transcriptionWorkflow: _Workflow(),
     asrRuntimeSetupDependencies: AsrRuntimeSetupDependencies(
       asrRuntimeManager: _Runtime(),
@@ -121,6 +126,62 @@ void main() {
     );
   }
 
+  testWidgets('desktop import shows progress, updates project and confirms replacement', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final project = _project(
+      stage: ProcessingStage.lyricsEdited,
+      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
+    );
+    final projects = _Projects(project);
+    final result = Completer<ProjectManifest?>();
+    final importer = _Importer(onImport: (_) => result.future);
+    await _showProject(tester, project, const Size(1366, 768), projects: projects, importer: importer);
+    await tester.tap(find.text('导入已有伴奏'));
+    await tester.pump();
+    expect(importer.calls, 1);
+    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '正在导入伴奏…')).onPressed, isNull);
+    projects.project = project.copyWith(audioAsset: project.audioAsset!.copyWith(instrumentalPath: '/managed/backing.mp3'));
+    result.complete(projects.project);
+    await tester.pumpAndSettle();
+    expect(find.text('更换伴奏'), findsOneWidget);
+    expect(find.textContaining('伴奏已导入'), findsOneWidget);
+    await tester.tap(find.text('更换伴奏'));
+    await tester.pumpAndSettle();
+    expect(find.text('更换伴奏？'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(importer.calls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop import reports a project conflict', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final project = _project(
+      stage: ProcessingStage.lyricsEdited,
+      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
+    );
+    final importer = _Importer(onImport: (_) async => throw const ProjectUpdateConflictException(currentProject: null));
+    await _showProject(tester, project, const Size(1366, 768), importer: importer);
+    await tester.tap(find.text('导入已有伴奏'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('工程已发生变化'), findsOneWidget);
+    expect(find.text('导入已有伴奏'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile does not expose desktop accompaniment import', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    await _showProject(tester, _project(
+      stage: ProcessingStage.lyricsEdited,
+      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
+    ), const Size(390, 844));
+    expect(find.text('导入已有伴奏'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('legacy separation stage does not claim the tracks are ready', (
     tester,
   ) async {
@@ -140,9 +201,21 @@ void main() {
 
 class _Projects extends Fake implements ProjectRepository {
   _Projects(this.project);
-  final ProjectManifest project;
+  ProjectManifest project;
   @override
   Future<ProjectManifest?> getProjectById(String id) async => project;
+}
+
+class _Importer extends Fake implements ProjectAccompanimentImporter {
+  _Importer({this.onImport});
+  final Future<ProjectManifest?> Function(ProjectManifest)? onImport;
+  int calls = 0;
+
+  @override
+  Future<ProjectManifest?> importFor(ProjectManifest project) {
+    calls++;
+    return onImport?.call(project) ?? Future.value(null);
+  }
 }
 
 class _Workflow extends Fake implements ProjectTranscriptionWorkflow {

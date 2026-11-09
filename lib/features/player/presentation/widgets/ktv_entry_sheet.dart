@@ -65,7 +65,7 @@ class KtvEntrySheet extends StatelessWidget {
           if (!instrumentalAvailable) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              '纯伴奏暂不可用：当前版本不支持生成或导入伴奏轨，仍可使用原唱伴唱。',
+              '纯伴奏暂不可用：可在桌面端工程详情导入已有伴奏，或继续使用原唱伴唱。',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),

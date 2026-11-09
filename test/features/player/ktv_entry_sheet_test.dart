@@ -23,7 +23,7 @@ void main() {
       await tester.tap(find.text('打开'));
       await tester.pumpAndSettle();
 
-      expect(find.text('纯伴奏暂不可用：当前版本不支持生成或导入伴奏轨，仍可使用原唱伴唱。'), findsOneWidget);
+      expect(find.text('纯伴奏暂不可用：可在桌面端工程详情导入已有伴奏，或继续使用原唱伴唱。'), findsOneWidget);
       final instrumental = tester.widget<ListTile>(
         find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
       );
@@ -54,7 +54,7 @@ void main() {
     );
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('当前版本不支持生成或导入伴奏轨'), findsNothing);
+    expect(find.textContaining('纯伴奏暂不可用'), findsNothing);
     final instrumental = tester.widget<ListTile>(
       find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
     );
