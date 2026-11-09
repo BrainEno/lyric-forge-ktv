@@ -1,0 +1,7 @@
+# [2026-11-07 18:09] Protect project edits during transcription
+
+- Scope: Review ASR and proofreading quality and prevent transcription from silently overwriting newer project edits.
+- Files: Project transcription workflow, workflow concurrency tests, ASR/proofreading review, this entry, generated work-log navigation, index and handoff.
+- Validation: Pinned Flutter GitHub Actions run 42619001448 passed Dart format, targeted transcription/proofreading tests, full analysis and work-log new/write/check. Standard full gate runs 42617545684 and 42618062300 failed the Media Hub upload deadline test with TLS SocketException Broken pipe; full-suite run 42618565996 at concurrency 2 failed that test with connection reset during the handshake. No tests were skipped in those runs. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.
+- Notes: Start and result writes compare revisions; a conflicting result is rejected and reported. Conditional best-effort cleanup is limited to the run owner. Tests use fake ASR and repositories; no real-song accuracy or device validation. A whole-project revision conflict can reject a draft even for unrelated edits. Other writers, cross-process changes, stale status after cleanup failures, and empty-text false ASR agreement remain risks. See review for evidence and corpus plan.
+- Commit: `fix: protect edits during project transcription`

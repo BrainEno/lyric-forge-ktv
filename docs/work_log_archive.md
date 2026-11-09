@@ -94,6 +94,7 @@
 - [2026-11-07 19:20] Document and test vendored audio backend ([entry](log/entries/2026-11-07-1920-vendored-audio-provenance.md))
 - [2026-11-07 18:43] Remove unused proofreading constants ([entry](log/entries/2026-11-07-1843-remove-dead-proofread-constants.md))
 - [2026-11-07 18:24] Harden Media Hub audio uploads ([entry](log/entries/2026-11-07-1824-harden-audio-uploads.md))
+- [2026-11-07 18:09] Protect project edits during transcription ([entry](log/entries/2026-11-07-1809-protect-transcription-edits.md))
 - [2026-11-07 18:08] Capture KTV source path at selection ([entry](log/entries/2026-11-07-1808-capture-ktv-source-choice.md))
 - [2026-11-07 18:07] Keep KTV entry source choices current ([entry](log/entries/2026-11-07-1807-live-ktv-entry-sources.md))
 - [2026-11-07 18:06] Refresh project player source choices from session ([entry](log/entries/2026-11-07-1806-refresh-project-player-sources.md))
