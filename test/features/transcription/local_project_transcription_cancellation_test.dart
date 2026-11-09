@@ -154,7 +154,7 @@ void main() {
           repository.project.copyWith(
             lyricDocument: latestLyrics,
             currentStage: ProcessingStage.lyricsEdited,
-            metadata: const {'unrelated': 'newer'},
+            metadata: {...repository.project.metadata, 'unrelated': 'newer'},
           ),
         );
       },
@@ -258,6 +258,20 @@ void main() {
     await expectLater(workflow.transcribeProject('p'), throwsA(isA<TranscriptionException>()));
     expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
     expect(repository.project.metadata['activeTranscriptionRunId'], 'other-run');
+    expect(repository.project.status, ProjectStatus.transcribing);
+  });
+
+  test('missing run marker prevents unsafe cleanup', () async {
+    final repository = await _createRepository();
+    final workflow = _workflow(repository, null, onTranscribe: () async {
+      await repository.updateProject(repository.project.copyWith(
+        lyricDocument: _manualLyrics,
+        metadata: const {'unrelated': 'newer'},
+      ));
+    });
+    await expectLater(workflow.transcribeProject('p'), throwsA(isA<TranscriptionException>()));
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+    expect(repository.project.metadata, {'unrelated': 'newer'});
     expect(repository.project.status, ProjectStatus.transcribing);
   });
 
