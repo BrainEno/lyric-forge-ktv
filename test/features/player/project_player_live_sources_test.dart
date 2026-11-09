@@ -43,18 +43,20 @@ ProjectManifest _project(AudioAsset asset) => ProjectManifest(
   ),
 );
 
-PlaybackSessionState _state(AudioAsset asset, {String? projectId = 'project'}) =>
-    PlaybackSessionState(
-      queue: [
-        PlaybackItem(
-          id: 'song',
-          title: 'Song',
-          projectId: projectId,
-          audioAsset: asset,
-        ),
-      ],
-      currentIndex: 0,
-    );
+PlaybackSessionState _state(
+  AudioAsset asset, {
+  String? projectId = 'project',
+}) => PlaybackSessionState(
+  queue: [
+    PlaybackItem(
+      id: 'song',
+      title: 'Song',
+      projectId: projectId,
+      audioAsset: asset,
+    ),
+  ],
+  currentIndex: 0,
+);
 
 Future<void> _showPlayer(
   WidgetTester tester,
@@ -108,7 +110,9 @@ Future<void> _expectKtvBacking(WidgetTester tester, bool enabled) async {
 }
 
 void main() {
-  testWidgets('open project player follows guarded session source changes', (tester) async {
+  testWidgets('open project player follows guarded session source changes', (
+    tester,
+  ) async {
     final session = _Session(_state(_original));
     final audio = _Audio();
     await _showPlayer(tester, _project(_original), session, audio);
@@ -131,15 +135,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('active session wins over newer project snapshot after rejected sync', (tester) async {
-    final session = _Session(_state(_original));
-    await _showPlayer(tester, _project(_withBacking), session, _Audio());
-    expect(find.widgetWithText(ChoiceChip, '伴奏'), findsNothing);
-    await _expectKtvBacking(tester, false);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'active session wins over newer project snapshot after rejected sync',
+    (tester) async {
+      final session = _Session(_state(_original));
+      await _showPlayer(tester, _project(_withBacking), session, _Audio());
+      expect(find.widgetWithText(ChoiceChip, '伴奏'), findsNothing);
+      await _expectKtvBacking(tester, false);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('unrelated queue item never supplies project source options', (tester) async {
+  testWidgets('unrelated queue item never supplies project source options', (
+    tester,
+  ) async {
     final session = _Session(_state(_withBacking, projectId: null));
     await _showPlayer(tester, _project(_original), session, _Audio());
     expect(find.widgetWithText(ChoiceChip, '伴奏'), findsNothing);
@@ -168,10 +177,12 @@ class _Session extends Fake implements PlaybackSessionService {
   Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async {
     playCalls++;
   }
+
   void emit(PlaybackSessionState state) {
     _state = state;
     _controller.add(state);
   }
+
   void close() => _controller.close();
 }
 
@@ -182,12 +193,18 @@ class _Audio extends Fake implements AudioPlayerService {
   @override
   Stream<PlaybackState> get stateStream => const Stream.empty();
   @override
-  Future<void> switchSource(AudioSourceType source) async => switches.add(source);
+  Future<void> switchSource(AudioSourceType source) async =>
+      switches.add(source);
 }
 
 class _Metadata extends Fake implements LocalMediaMetadataRepository {}
+
 class _Canonicalizer extends Fake implements AudioPathCanonicalizer {}
+
 class _Microphone extends Fake implements KtvMicrophoneService {}
+
 class _Recording extends Fake implements KtvRecordingService {}
+
 class _History extends Fake implements KtvTakeHistoryStore {}
+
 class _Preview extends Fake implements AudioPreviewService {}
