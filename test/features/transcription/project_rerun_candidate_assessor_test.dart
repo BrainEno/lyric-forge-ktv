@@ -168,20 +168,26 @@ void main() {
     },
   );
 
-  test('revision-only changes do not mark an identical lyric baseline changed', () async {
-    final current = (await repo.getProjectById(project.id))!;
-    await repo.updateProject(current.copyWith(name: 'new title'));
-    final result = await assess();
-    expect(result.observedProjectRevision, current.revision + 1);
-    expect(result.baselineMatches, isTrue);
-    expect(result.modelStatus, RerunCandidateModelStatus.unverified);
-  });
+  test(
+    'revision-only changes do not mark an identical lyric baseline changed',
+    () async {
+      final current = (await repo.getProjectById(project.id))!;
+      await repo.updateProject(current.copyWith(name: 'new title'));
+      final result = await assess();
+      expect(result.observedProjectRevision, current.revision + 1);
+      expect(result.baselineMatches, isTrue);
+      expect(result.modelStatus, RerunCandidateModelStatus.unverified);
+    },
+  );
 
   test('project deleted while hashing rejects the entire report', () async {
-    assessor = ProjectRerunCandidateAssessor(projects: repo, hashAudio: (_) async {
-      await repo.deleteProject(project.id);
-      return saved.pair.inputAudioSha256;
-    });
+    assessor = ProjectRerunCandidateAssessor(
+      projects: repo,
+      hashAudio: (_) async {
+        await repo.deleteProject(project.id);
+        return saved.pair.inputAudioSha256;
+      },
+    );
     await expectLater(assess(), throwsA(isA<TranscriptionException>()));
   });
 

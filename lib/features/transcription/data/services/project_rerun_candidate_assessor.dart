@@ -23,7 +23,8 @@ class RerunCandidateAssessment {
   final int observedProjectRevision;
   final bool baselineMatches;
   final RerunCandidateAudioStatus audioStatus;
-  RerunCandidateModelStatus get modelStatus => RerunCandidateModelStatus.unverified;
+  RerunCandidateModelStatus get modelStatus =>
+      RerunCandidateModelStatus.unverified;
 
   const RerunCandidateAssessment({
     required this.saved,
