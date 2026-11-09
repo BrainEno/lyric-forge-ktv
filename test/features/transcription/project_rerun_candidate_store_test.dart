@@ -143,9 +143,15 @@ void main() {
 
   test('missing audio and empty candidate do not change the project', () async {
     const empty = LyricDocument(language: 'en', lines: []);
-    await expectLater(store.save(pair(project, candidate: empty)), throwsA(isA<TranscriptionException>()));
+    await expectLater(
+      store.save(pair(project, candidate: empty)),
+      throwsA(isA<TranscriptionException>()),
+    );
     await audio.delete();
-    await expectLater(store.save(pair(project)), throwsA(isA<TranscriptionException>()));
+    await expectLater(
+      store.save(pair(project)),
+      throwsA(isA<TranscriptionException>()),
+    );
     final latest = (await repository.getProjectById(project.id))!;
     expect(latest.revision, project.revision);
     expect(latest.lyricDocument!.toJson(), manual.toJson());
@@ -176,6 +182,7 @@ void main() {
         return false;
       }
     }
+
     final results = await Future.wait([attempt(), attempt()]);
     expect(results.where((ok) => ok), hasLength(1));
     final latest = (await repository.getProjectById(project.id))!;
@@ -187,11 +194,29 @@ void main() {
     final saved = await store.save(pair(project));
     final latest = (await repository.getProjectById(project.id))!;
     final record = saved.toJson();
-    final duplicated = latest.copyWith(metadata: {...latest.metadata, ProjectRerunCandidateStore.metadataKey: {'schemaVersion': 1, 'items': [record, record]}});
+    final duplicated = latest.copyWith(
+      metadata: {
+        ...latest.metadata,
+        ProjectRerunCandidateStore.metadataKey: {
+          'schemaVersion': 1,
+          'items': [record, record],
+        },
+      },
+    );
     expect(() => store.read(duplicated), throwsFormatException);
     final damaged = saved.toJson();
-    (damaged['candidate'] as Map)['lines'] = [{'text': 'invalid'}];
-    final broken = latest.copyWith(metadata: {...latest.metadata, ProjectRerunCandidateStore.metadataKey: {'schemaVersion': 1, 'items': [damaged]}});
+    (damaged['candidate'] as Map)['lines'] = [
+      {'text': 'invalid'},
+    ];
+    final broken = latest.copyWith(
+      metadata: {
+        ...latest.metadata,
+        ProjectRerunCandidateStore.metadataKey: {
+          'schemaVersion': 1,
+          'items': [damaged],
+        },
+      },
+    );
     expect(() => store.read(broken), throwsFormatException);
   });
 
