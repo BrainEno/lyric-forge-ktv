@@ -1,0 +1,87 @@
+name: Arena project retry validation
+on:
+  push:
+    branches: [arena/819b4728-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed files
+        run: dart format lib/features/project/data/repositories/file_project_repository.dart test/file_project_repository_test.dart
+      - name: Focused project and persistence tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/file_project_repository_test.dart test/features/home/presentation/screens/dashboard_screen_test.dart test/features/player/playback_lyrics_project_resolver_test.dart test/core/persistence/atomic_json_file_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug retry-project-store-load --title 'Retry failed project store loads'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          stamp=os.environ['ENTRY_STAMP'];run=os.environ['GITHUB_RUN_ID']
+          path=Path('docs/log/entries')/(stamp.replace(' ','-').replace(':','')+'-retry-project-store-load.md')
+          text=path.read_text()
+          text=re.sub(r'^- Validation:\n(?:  - .*\n)+','- Validation: placeholder\n',text,flags=re.M)
+          values={
+            'Scope':'Allow the same file project repository to retry an initial load after its project store is repaired, enabling existing dashboard retry.',
+            'Files':'File project repository, real-file project repository tests, this entry, generated work-log navigation, index and handoff.',
+            'Validation':f'Pinned Flutter GitHub Actions run {run} passed focused project, dashboard, lyric resolver and atomic-persistence tests and the full quality gate, with Dart format and work-log new/write/check. Local git diff --check passed; Flutter/Dart are unavailable locally. Final PR checks reported separately.',
+            'Notes':'Concurrent callers share in-flight loads and receive original failures; successful loads stay cached. Real-file tests cover top-level corruption, malformed or duplicate records, preservation of canonical/backup files, same-instance repair, and persistence after retry. Dashboard retry itself has separate widget coverage with fake repositories, not a real-file end-to-end widget test. Other repositories may still cache failures; successful loads do not see external edits and cross-process writes have no CAS. Physical device and manual UI verification were not performed. Issue #223 remains open.',
+            'Commit':'`fix: retry failed project store loads`',
+          }
+          for k,v in values.items():
+            text,n=re.subn(rf'^- {k}:.*$',f'- {k}: {v}',text,count=1,flags=re.M)
+            if n!=1: raise RuntimeError(k)
+          if 'TODO' in text: raise RuntimeError('unfilled TODO')
+          path.write_text(text)
+          idx=Path('docs/work_log_index.md');text=idx.read_text()
+          old='Project stores reject partial or duplicate records; other stores may skip malformed records. Cached loads require restart after repair; link writes lack compare-and-swap protection.'
+          new='Project stores reject partial or duplicate records; failed project and history loads can retry after repair, but other stores may skip malformed records or cache failures. Successful loads stay cached; link writes lack compare-and-swap protection.'
+          assert old in text;text=text.replace(old,new);idx.write_text(text)
+          Path('docs/handoff.md').write_text(f'''# Handoff\n\n## 目标\n\n使工程文件仓库首次加载失败后可在修复存储后重试，保留损坏数据保护；提交中文 PR，不自动合并或关闭 #223。\n\n## Git 现场\n\n- 基线 `eda5c01e1f882fb48a4065d8168fb9a30a410434`；分支 `arena/819b4728-lyric-forge-ktv`。最终提交和 PR 状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- 工程文件仓库、真实文件测试、工作日志导航和本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK GitHub Actions run {run} 通过定向和完整质量门禁，并执行 format、work-log new/write/check。最终 PR 检查以 Actions 为准。\n- 本地 `git diff --check`；未做设备或手动 UI 检查。\n\n## 下一步\n\n确认最终 PR 检查并报告；#223 的其余覆盖率和持久化风险保留。\n\n## 已知风险\n\n- 成功加载继续缓存，进程外修改不会自动刷新；其他仓库加载失败仍可能缓存。没有跨进程写入协调。首页 widget 使用 fake，未做真实存储到 UI 的端到端验证。\n- Media Hub 上传 deadline 测试曾间歇性 Broken pipe，未在本任务中修复。\n\n最后更新：{stamp}（Asia/Taipei）\n''')
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-retry-project-store-load.md"
+          git diff --binary -- docs lib/features/project/data/repositories/file_project_repository.dart test/file_project_repository_test.dart > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64,gzip
+          data=base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure diagnostic
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,gzip
+          from pathlib import Path
+          p=Path('/tmp/gate.log')
+          if not p.exists(): p=Path('/tmp/focused.log')
+          if p.exists():
+            data=base64.b64encode(gzip.compress(p.read_bytes()[-80000:])).decode()
+            for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY

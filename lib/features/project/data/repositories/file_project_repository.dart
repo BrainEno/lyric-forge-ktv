@@ -52,7 +52,21 @@ class FileProjectRepository implements ProjectRepository {
        _pathCanonicalizer = pathCanonicalizer,
        _onAutoLinkError = onAutoLinkError;
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  Future<void> _ensureLoaded() {
+    final existing = _loadFuture;
+    if (existing != null) return existing;
+
+    late final Future<void> load;
+    load = _load().then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_loadFuture, load)) _loadFuture = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+    _loadFuture = load;
+    return load;
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
