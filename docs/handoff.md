@@ -2,29 +2,28 @@
 
 ## 目标
 
-处理 #320 的文案与文档误导：明确现有版本尚无分离或外部音轨导入，同时保留桌面端 MVP 分离目标；提交中文 PR，不自动合并。
+处理 #223 的首页播放历史读取失败被显示成空记录及刷新时立即失败逃逸的问题，提交中文 PR，不自动合并。
 
 ## Git 现场
 
-- 基线 `bd2dfc38716c02dae129db9450f790c747fb3905`；分支 `arena/db4225bb-lyric-forge-ktv`。
-- 最终提交、PR 和检查状态以 Git/GitHub 为准。
+- 基线 `0aee7ace77c55767f392f65d727cbd7c05b6a1cd`；分支 `arena/6e2e9774-lyric-forge-ktv`。最终提交与 PR 状态以 Git/GitHub 为准。
 
 ## 已改文件
 
-- README、PRD、工程详情、工程详情 widget 和文档契约测试、工作日志与本 handoff。
+- 首页 screen、widget 测试、工作日志导航与本 handoff。
 
 ## 检查结果
 
-- 本地无 Flutter/Dart；固定 SDK GitHub Actions run 42558639091 通过定向测试及完整质量门禁，并执行 format、work-log new/write/check。首次完整门禁 run 42558336604 的 Media Hub 上传 deadline 测试因 Broken pipe 失败；最终 head 的检查以 Actions 为准。
-- 本地提交前执行 `git diff --check`；未做真实设备、音频播放或手动视觉检查。
+- 本地无 Flutter/Dart。固定 SDK GitHub Actions run 42560926452 通过定向测试、完整质量门禁，并执行 format、work-log new/write/check；首次定向 run 42560804967 暴露刷新时异常逃逸，修复后复测。最终 PR 检查以 Actions 为准。
+- 本地 `git diff --check`；未做设备或手动视觉检查。
 
 ## 下一步
 
-确认最终 PR 检查并报告；#320 的外部音轨导入和分离后端仍待完成。
+确认最终 PR 检查并报告；#223 的其余覆盖率和持久化风险保留。
 
 ## 已知风险
 
-- 测试使用模拟工程和逻辑布局，不验证文件实际存在或原生播放；现有播放可用性仍以工程音频对象为准。
-- #223 下重新定位的跨仓库事务、后台关联提示和音乐库歌词标记问题仍待后续处理。
+- 只处理仓库向首页传播的错误；存储层吞掉的异常、损坏数据部分读取与缓存恢复不在本次范围。重试仍刷新两个首页数据源。
+- Media Hub 上传 deadline 测试曾间歇性 Broken pipe；不把重跑视为根因已修复。
 
-最后更新：2026-11-09 11:54（Asia/Taipei）
+最后更新：2026-11-09 12:19（Asia/Taipei）

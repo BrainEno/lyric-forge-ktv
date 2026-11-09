@@ -56,8 +56,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _loadData() {
-    _projectsFuture = _projects.getRecentProjects(limit: 8);
-    _historyFuture = _history.getRecentPlayHistory(limit: 10);
+    _projectsFuture = _observeUntilBuild(_projects.getRecentProjects(limit: 8));
+    _historyFuture = _observeUntilBuild(
+      _history.getRecentPlayHistory(limit: 10),
+    );
+  }
+
+  Future<T> _observeUntilBuild<T>(Future<T> future) {
+    // A refresh can fail before FutureBuilder subscribes on the next frame.
+    // Observe that early error without changing the future the UI receives.
+    future.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    return future;
   }
 
   Future<void> _refresh() async => setState(_loadData);
@@ -222,6 +231,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ConnectionState.waiting) {
                                         return _LoadingBlock(
                                           height: layout.isCompact ? 170 : 190,
+                                        );
+                                      }
+                                      if (snapshot.hasError) {
+                                        return _EmptyCard(
+                                          icon: Icons.error_outline_rounded,
+                                          title: '播放记录加载失败',
+                                          message: '播放记录暂时无法读取，可以重新加载一次。',
+                                          action: '重试',
+                                          onAction: _refresh,
                                         );
                                       }
                                       final items = snapshot.data ?? [];

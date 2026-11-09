@@ -67,10 +67,79 @@ void main() {
     expect(history.calls, 1);
   });
 
+  testWidgets('history read failure is not presented as an empty history', (
+    WidgetTester tester,
+  ) async {
+    history.failuresRemaining = 2;
+    history.items = [
+      PlayHistory(
+        id: 'song',
+        name: 'Recovered song',
+        filePath: '/music/song.mp3',
+        playedAt: DateTime(2026),
+      ),
+    ];
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    expect(find.text('播放记录加载失败'), findsOneWidget);
+    expect(find.text('播放记录暂时无法读取，可以重新加载一次。'), findsOneWidget);
+    expect(find.text('还没有播放记录'), findsNothing);
+    expect(find.text('还没有歌词工程'), findsOneWidget);
+    expect(history.calls, 1);
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final retryButton = find.widgetWithText(OutlinedButton, '重试');
+      await tester.ensureVisible(retryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(retryButton);
+      await tester.pumpAndSettle();
+      if (attempt == 0) {
+        expect(find.text('播放记录加载失败'), findsOneWidget);
+        expect(find.text('还没有播放记录'), findsNothing);
+      }
+    }
+
+    expect(history.calls, 3);
+    expect(projects.calls, 3);
+    expect(find.text('播放记录加载失败'), findsNothing);
+    expect(find.text('还没有播放记录'), findsNothing);
+    expect(find.text('Recovered song'), findsOneWidget);
+    expect(find.text('还没有歌词工程'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('refresh observes immediate failures from both repositories', (
+    WidgetTester tester,
+  ) async {
+    projects.failuresRemaining = 2;
+    history.failuresRemaining = 2;
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+    expect(find.text('播放记录加载失败'), findsOneWidget);
+    expect(find.text('最近工程加载失败'), findsOneWidget);
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final retryButton = find.widgetWithText(OutlinedButton, '重试').first;
+      await tester.ensureVisible(retryButton);
+      await tester.pumpAndSettle();
+      await tester.tap(retryButton);
+      await tester.pumpAndSettle();
+    }
+
+    expect(projects.calls, 3);
+    expect(history.calls, 3);
+    expect(find.text('播放记录加载失败'), findsNothing);
+    expect(find.text('最近工程加载失败'), findsNothing);
+    expect(find.text('还没有播放记录'), findsOneWidget);
+    expect(find.text('还没有歌词工程'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('retries recent-project loading after an error', (
     WidgetTester tester,
   ) async {
-    projects.failFirstRequest = true;
+    projects.failuresRemaining = 1;
 
     await tester.pumpWidget(buildScreen());
     await tester.pumpAndSettle();
@@ -93,12 +162,13 @@ void main() {
 
 class _TestProjectRepository implements ProjectRepository {
   int calls = 0;
-  bool failFirstRequest = false;
+  int failuresRemaining = 0;
 
   @override
   Future<List<ProjectManifest>> getRecentProjects({int limit = 10}) async {
     calls++;
-    if (failFirstRequest && calls == 1) {
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
       throw StateError('fixture read failure');
     }
     return const <ProjectManifest>[];
@@ -110,11 +180,17 @@ class _TestProjectRepository implements ProjectRepository {
 
 class _TestPlayHistoryRepository implements PlayHistoryRepository {
   int calls = 0;
+  int failuresRemaining = 0;
+  List<PlayHistory> items = const [];
 
   @override
   Future<List<PlayHistory>> getRecentPlayHistory({int limit = 10}) async {
     calls++;
-    return const <PlayHistory>[];
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
+      throw StateError('fixture history read failure');
+    }
+    return items;
   }
 
   @override
