@@ -35,7 +35,8 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     );
     if (result == null || result.files.isEmpty) return null;
     final path = result.files.single.path;
-    if (path == null || path.isEmpty) throw const FormatException('No local file path');
+    if (path == null || path.isEmpty)
+      throw const FormatException('No local file path');
     return path;
   }
 
@@ -55,11 +56,15 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     if (!await source.exists() || await source.length() == 0) {
       throw const FileSystemException('Selected audio is missing or empty');
     }
-    final root = storageDirectory ?? Directory(
-      '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Accompaniment',
-    );
+    final root =
+        storageDirectory ??
+        Directory(
+          '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Accompaniment',
+        );
     await root.create(recursive: true);
-    final destination = File('${root.path}${Platform.pathSeparator}${const Uuid().v4()}.$extension');
+    final destination = File(
+      '${root.path}${Platform.pathSeparator}${const Uuid().v4()}.$extension',
+    );
     try {
       await source.copy(destination.path);
     } catch (_) {
@@ -75,7 +80,9 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     // Keep the new copy on every save failure so no live snapshot points at a
     // deleted file; unused copies can be cleaned up by a future safe GC.
     return projectRepository.updateProjectIfUnchanged(
-      project.copyWith(audioAsset: audio.copyWith(instrumentalPath: destination.path)),
+      project.copyWith(
+        audioAsset: audio.copyWith(instrumentalPath: destination.path),
+      ),
       expectedRevision: project.revision,
     );
   }

@@ -126,66 +126,106 @@ void main() {
     );
   }
 
-  testWidgets('desktop import shows progress, updates project and confirms replacement', (tester) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    try {
-    final project = _project(
-      stage: ProcessingStage.lyricsEdited,
-      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
-    );
-    final projects = _Projects(project);
-    final result = Completer<ProjectManifest?>();
-    final importer = _Importer(onImport: (_) => result.future);
-    await _showProject(tester, project, const Size(1366, 768), projects: projects, importer: importer);
-    await tester.tap(find.text('导入已有伴奏'));
-    await tester.pump();
-    expect(importer.calls, 1);
-    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '正在导入伴奏…')).onPressed, isNull);
-    projects.project = project.copyWith(audioAsset: project.audioAsset!.copyWith(instrumentalPath: '/managed/backing.mp3'));
-    result.complete(projects.project);
-    await tester.pumpAndSettle();
-    expect(find.text('更换伴奏'), findsOneWidget);
-    expect(find.textContaining('伴奏已导入'), findsOneWidget);
-    await tester.tap(find.text('更换伴奏'));
-    await tester.pumpAndSettle();
-    expect(find.text('更换伴奏？'), findsOneWidget);
-    await tester.tap(find.text('取消'));
-    await tester.pumpAndSettle();
-    expect(importer.calls, 1);
-    expect(tester.takeException(), isNull);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+  testWidgets(
+    'desktop import shows progress, updates project and confirms replacement',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(
+            originalPath: '/music/song.mp3',
+            format: 'mp3',
+          ),
+        );
+        final projects = _Projects(project);
+        final result = Completer<ProjectManifest?>();
+        final importer = _Importer(onImport: (_) => result.future);
+        await _showProject(
+          tester,
+          project,
+          const Size(1366, 768),
+          projects: projects,
+          importer: importer,
+        );
+        await tester.tap(find.text('导入已有伴奏'));
+        await tester.pump();
+        expect(importer.calls, 1);
+        expect(
+          tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, '正在导入伴奏…'),
+              )
+              .onPressed,
+          isNull,
+        );
+        projects.project = project.copyWith(
+          audioAsset: project.audioAsset!.copyWith(
+            instrumentalPath: '/managed/backing.mp3',
+          ),
+        );
+        result.complete(projects.project);
+        await tester.pumpAndSettle();
+        expect(find.text('更换伴奏'), findsOneWidget);
+        expect(find.textContaining('伴奏已导入'), findsOneWidget);
+        await tester.tap(find.text('更换伴奏'));
+        await tester.pumpAndSettle();
+        expect(find.text('更换伴奏？'), findsOneWidget);
+        await tester.tap(find.text('取消'));
+        await tester.pumpAndSettle();
+        expect(importer.calls, 1);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   testWidgets('desktop import reports a project conflict', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
-    final project = _project(
-      stage: ProcessingStage.lyricsEdited,
-      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
-    );
-    final importer = _Importer(onImport: (_) async => throw const ProjectUpdateConflictException(currentProject: null));
-    await _showProject(tester, project, const Size(1366, 768), importer: importer);
-    await tester.tap(find.text('导入已有伴奏'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('工程已发生变化'), findsOneWidget);
-    expect(find.text('导入已有伴奏'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
+      );
+      final importer = _Importer(
+        onImport: (_) async =>
+            throw const ProjectUpdateConflictException(currentProject: null),
+      );
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        importer: importer,
+      );
+      await tester.tap(find.text('导入已有伴奏'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('工程已发生变化'), findsOneWidget);
+      expect(find.text('导入已有伴奏'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
   });
 
-  testWidgets('mobile does not expose desktop accompaniment import', (tester) async {
+  testWidgets('mobile does not expose desktop accompaniment import', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     try {
-    await _showProject(tester, _project(
-      stage: ProcessingStage.lyricsEdited,
-      audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
-    ), const Size(390, 844));
-    expect(find.text('导入已有伴奏'), findsNothing);
-    expect(tester.takeException(), isNull);
+      await _showProject(
+        tester,
+        _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(
+            originalPath: '/music/song.mp3',
+            format: 'mp3',
+          ),
+        ),
+        const Size(390, 844),
+      );
+      expect(find.text('导入已有伴奏'), findsNothing);
+      expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
