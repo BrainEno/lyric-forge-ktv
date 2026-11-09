@@ -268,17 +268,57 @@ class _PlayerContentState extends State<_PlayerContent> {
     if (document == null || document.lines.isEmpty || audioAsset == null)
       return;
 
+    final openedItem = widget.playbackSession.currentState.currentItem;
+    bool isSameItem(PlaybackItem? item) =>
+        openedItem != null &&
+        openedItem.projectId == widget.project.id &&
+        !openedItem.isRemoteStream &&
+        item != null &&
+        item.id == openedItem.id &&
+        item.projectId == openedItem.projectId &&
+        !item.isRemoteStream;
+
+    var displayedAsset = audioAsset;
     final selectedMode = await showModalBottomSheet<KtvBackingMode>(
       context: context,
       showDragHandle: true,
       useSafeArea: true,
       backgroundColor: AppColors.bgElevated,
-      builder: (context) => KtvEntrySheet(
-        audioAsset: audioAsset,
-        currentSource: widget.audioService.currentState.currentSource,
+      builder: (context) => StreamBuilder<PlaybackSessionState>(
+        stream: widget.playbackSession.stateStream,
+        initialData: widget.playbackSession.currentState,
+        builder: (context, sessionSnapshot) {
+          final item = widget.playbackSession.currentState.currentItem;
+          final matches = isSameItem(item);
+          displayedAsset = matches ? item!.audioAsset : audioAsset;
+          return StreamBuilder<PlaybackState>(
+            stream: widget.audioService.stateStream,
+            initialData: widget.audioService.currentState,
+            builder: (context, playbackSnapshot) => KtvEntrySheet(
+              audioAsset: displayedAsset,
+              currentSource: playbackSnapshot.data?.currentSource,
+              sessionMatches: matches,
+            ),
+          );
+        },
       ),
     );
     if (!mounted || selectedMode == null) return;
+
+    bool selectionIsCurrent() {
+      final item = widget.playbackSession.currentState.currentItem;
+      if (!isSameItem(item)) return false;
+      final displayedPath = displayedAsset.getPathForSource(selectedMode.source);
+      return displayedPath != null &&
+          item!.audioAsset.getPathForSource(selectedMode.source) == displayedPath;
+    }
+
+    if (!selectionIsCurrent()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')),
+      );
+      return;
+    }
 
     try {
       if (widget.audioService.currentState.currentSource !=
@@ -294,6 +334,12 @@ class _PlayerContentState extends State<_PlayerContent> {
     }
 
     if (!mounted) return;
+    if (!selectionIsCurrent()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('播放项或音轨已变化，请重新打开 KTV。')),
+      );
+      return;
+    }
     setState(() => _ktvMode = true);
     await _openFullScreenKtv();
   }

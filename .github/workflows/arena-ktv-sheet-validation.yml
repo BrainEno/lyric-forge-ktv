@@ -1,0 +1,93 @@
+name: Arena live KTV sheet validation
+on:
+  push:
+    branches: [arena/16620829-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed files
+        run: dart format lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/project_player_live_sources_test.dart
+      - name: Focused session tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/player/project_player_live_sources_test.dart test/features/player/project_audio_session_update_test.dart test/features/project/presentation/project_detail_capability_test.dart test/features/player/ktv_entry_sheet_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp='2026-11-07 18:07'
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug live-ktv-entry-sources --title 'Keep KTV entry source choices current'
+          ENTRY_STAMP="$stamp" python3 - <<'PYCODE'
+          import os,re,subprocess
+          from pathlib import Path
+          stamp=os.environ['ENTRY_STAMP'];run=os.environ['GITHUB_RUN_ID']
+          path=Path('docs/log/entries')/(stamp.replace(' ','-').replace(':','')+'-live-ktv-entry-sources.md')
+          text=path.read_text();text=re.sub(r'^- Validation:\n(?:  - .*\n)+','- Validation: placeholder\n',text,flags=re.M)
+          values={
+            'Scope':'Keep an open project KTV entry sheet aligned with current playback sources and reject stale choices.',
+            'Files':'Project player screen, KTV entry sheet, widget regression tests, this entry, generated work-log navigation, index and handoff.',
+            'Validation':f'Pinned Flutter GitHub Actions run {run} passed Dart format, targeted player/session/import tests, the full quality gate, and work-log new/write/check. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.',
+            'Notes':'The open sheet follows matching session source and playback state changes, disables choices on item mismatch, and rechecks the selected path before and after source switching. Widget tests use fake audio and sessions; native devices and manual UI are unverified. Checks do not serialize async audio switching against concurrent song changes and do not detect an item changing away and back between observations. #320 remains open.',
+            'Commit':'`fix: keep KTV entry choices current`',
+          }
+          for key,value in values.items():
+            text,n=re.subn(rf'^- {key}:.*$',f'- {key}: {value}',text,count=1,flags=re.M)
+            if n!=1: raise RuntimeError(key)
+          if 'TODO' in text: raise RuntimeError('unfilled TODO')
+          path.write_text(text)
+          idx=Path('docs/work_log_index.md');text=idx.read_text();old='The open project player now reads source choices from a matching session item.';new='The open project player and KTV entry sheet use the matching session item; stale sheet selections are rejected before and after switching.';assert old in text;idx.write_text(text.replace(old,new,1))
+          def cmd(*args): return subprocess.check_output(args,text=True).strip() or '(clean)'
+          handoff=[
+            '# Handoff', '', '## 目标', '', '让打开的 KTV 选项面板跟随播放会话并拒绝过期选择。', '',
+            '## Git 现场', '', '- 基线 `0861310cb911b00c2207d51f9381104e0355bd2f`；分支 `arena/16620829-lyric-forge-ktv`。验证时快照：', '', '```', cmd('git','status','--short'), cmd('git','diff','--stat'), cmd('git','log','--oneline','-5'), '```', '',
+            '## 已改文件', '', '- 工程播放器、KTV 入口面板、widget 测试和工作日志。', '',
+            '## 检查结果', '', f'- 固定 SDK Actions run {run} 通过定向测试、完整门禁及工作日志检查；本地无 Flutter/Dart。', '- 未进行原生设备播放或手动 UI 检查。', '',
+            '## 下一步', '', '- 设计会话级受保护音轨切换，验证原生切换与并发切歌，避免异步音频切换期间操作作用于其他歌曲。', '',
+            '## 已知风险', '', '- 前后校验无法序列化异步音轨切换，无法检测两次观察间切走再切回；UI 测试使用 fake。', '- 自动分离、人声导入、旧副本清理未完成；Media Hub 上传 deadline 测试历史上间歇失败。', '',
+            f'最后更新：{stamp}（Asia/Taipei）', ''
+          ]
+          Path('docs/handoff.md').write_text(chr(10).join(handoff))
+          PYCODE
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-live-ktv-entry-sources.md"
+          git diff --binary -- docs lib/features/player/presentation/screens/player_screen.dart lib/features/player/presentation/widgets/ktv_entry_sheet.dart test/features/player/project_player_live_sources_test.dart > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64,gzip
+          data=base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure diagnostic
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64,gzip
+          from pathlib import Path
+          p=Path('/tmp/gate.log')
+          if not p.exists(): p=Path('/tmp/focused.log')
+          if p.exists():
+            lines=p.read_text(errors='replace').splitlines(); hits=[i for i,line in enumerate(lines) if '[E]' in line or 'error -' in line]; selected='\n'.join('\n'.join(lines[max(0,i-2):i+22]) for i in hits); selected += '\n=== LOG TAIL ===\n' + '\n'.join(lines[-30:]); data=base64.b64encode(gzip.compress(selected.encode())).decode()
+            for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY
