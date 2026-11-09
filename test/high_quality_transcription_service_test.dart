@@ -88,7 +88,8 @@ void main() {
             // The snapshots survive the same document JSON round trip used by
             // project persistence, without relying on transient raw files.
             final restored = LyricDocument.fromJson(
-              jsonDecode(jsonEncode(result.lyrics.toJson())) as Map<String, dynamic>,
+              jsonDecode(jsonEncode(result.lyrics.toJson()))
+                  as Map<String, dynamic>,
             );
             final restoredEvidence = IndependentAsrEvidence.tryParse(
               restored.metadata[IndependentAsrEvidence.metadataKey],
