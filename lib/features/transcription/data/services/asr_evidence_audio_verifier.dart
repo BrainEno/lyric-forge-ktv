@@ -41,6 +41,9 @@ Future<String> hashAsrAudioFile(String path, {void Function()? onChunk}) async {
   return digest;
 }
 
+/// Caller must resolve the actual current transcription input (project vocal,
+/// normalized, then original, selecting the first existing file). A match only
+/// concerns audio bytes at verification time, not models or safe application.
 class AsrEvidenceAudioVerifier {
   const AsrEvidenceAudioVerifier();
 
