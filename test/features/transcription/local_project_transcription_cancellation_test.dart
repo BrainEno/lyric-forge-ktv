@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_path_canonicalizer.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
@@ -153,7 +154,7 @@ void main() {
           repository.project.copyWith(
             lyricDocument: latestLyrics,
             currentStage: ProcessingStage.lyricsEdited,
-            metadata: const {'unrelated': 'newer'},
+            metadata: {...repository.project.metadata, 'unrelated': 'newer'},
           ),
         );
       },
@@ -163,6 +164,215 @@ void main() {
     expect(repository.project.lyricDocument?.toJson(), latestLyrics.toJson());
     expect(repository.project.currentStage, ProcessingStage.lyricsEdited);
     expect(repository.project.metadata, {'unrelated': 'newer'});
+  });
+
+  test(
+    'successful recognition commits the draft and clears its run marker',
+    () async {
+      final repository = await _createRepository();
+      await _workflow(repository, null).transcribeProject('p');
+      expect(repository.project.lyricDocument!.lines.single.text, 'ASR draft');
+      expect(repository.project.status, ProjectStatus.editing);
+      expect(
+        repository.project.currentStage,
+        ProcessingStage.transcriptionComplete,
+      );
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+    },
+  );
+
+  test('project edit during preparation prevents stale start write', () async {
+    final repository = await _createRepository();
+    var called = false;
+    final workflow = _workflow(
+      repository,
+      null,
+      onSettingsLoad: () async {
+        await repository.updateProject(
+          repository.project.copyWith(
+            name: 'Renamed during setup',
+            lyricDocument: _manualLyrics,
+          ),
+        );
+      },
+      onTranscribe: () async {
+        called = true;
+      },
+    );
+    await expectLater(
+      workflow.transcribeProject('p'),
+      throwsA(
+        isA<TranscriptionException>().having(
+          (e) => e.message,
+          'message',
+          contains('准备期间'),
+        ),
+      ),
+    );
+    expect(called, isFalse);
+    expect(repository.project.name, 'Renamed during setup');
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+    expect(
+      repository.project.metadata.containsKey('activeTranscriptionRunId'),
+      isFalse,
+    );
+  });
+
+  test('manual edit during recognition is not replaced by the draft', () async {
+    final repository = await _createRepository();
+    final workflow = _workflow(
+      repository,
+      null,
+      onTranscribe: () async {
+        await repository.updateProject(
+          repository.project.copyWith(
+            lyricDocument: _manualLyrics,
+            currentStage: ProcessingStage.lyricsEdited,
+            metadata: {...repository.project.metadata, 'unrelated': 'new'},
+          ),
+        );
+      },
+    );
+    await expectLater(
+      workflow.transcribeProject('p'),
+      throwsA(
+        isA<TranscriptionException>().having(
+          (e) => e.message,
+          'message',
+          contains('未覆盖最新歌词'),
+        ),
+      ),
+    );
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+    expect(repository.project.currentStage, ProcessingStage.lyricsEdited);
+    expect(repository.project.status, ProjectStatus.editing);
+    expect(repository.project.metadata['unrelated'], 'new');
+    expect(
+      repository.project.metadata.containsKey('activeTranscriptionRunId'),
+      isFalse,
+    );
+  });
+
+  test(
+    'conditional result save rejects a concurrent edit after the read',
+    () async {
+      final repository = await _createRepository();
+      var injected = false;
+      repository.beforeConditionalWrite = (repo, candidate) async {
+        if (!injected &&
+            candidate.lyricDocument?.lines.first.text == 'ASR draft') {
+          injected = true;
+          await repo.updateProject(
+            repo.project.copyWith(lyricDocument: _manualLyrics),
+          );
+        }
+      };
+      await expectLater(
+        _workflow(repository, null).transcribeProject('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.message,
+            'message',
+            contains('未覆盖最新歌词'),
+          ),
+        ),
+      );
+      expect(injected, isTrue);
+      expect(
+        repository.project.lyricDocument!.toJson(),
+        _manualLyrics.toJson(),
+      );
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+    },
+  );
+
+  test('conflict cleanup never overwrites another concurrent edit', () async {
+    final repository = await _createRepository();
+    var injected = false;
+    repository.beforeConditionalWrite = (repo, candidate) async {
+      if (!injected &&
+          candidate.status == ProjectStatus.editing &&
+          candidate.lyricDocument?.lines.first.text == 'new manual edit') {
+        injected = true;
+        await repo.updateProject(
+          repo.project.copyWith(name: 'latest concurrent name'),
+        );
+      }
+    };
+    final workflow = _workflow(
+      repository,
+      null,
+      onTranscribe: () async {
+        await repository.updateProject(
+          repository.project.copyWith(lyricDocument: _manualLyrics),
+        );
+      },
+    );
+    await expectLater(
+      workflow.transcribeProject('p'),
+      throwsA(isA<TranscriptionException>()),
+    );
+    expect(injected, isTrue);
+    expect(repository.project.name, 'latest concurrent name');
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+  });
+
+  test('conflict cleanup does not touch a different run owner', () async {
+    final repository = await _createRepository();
+    final workflow = _workflow(
+      repository,
+      null,
+      onTranscribe: () async {
+        await repository.updateProject(
+          repository.project.copyWith(
+            lyricDocument: _manualLyrics,
+            metadata: {
+              ...repository.project.metadata,
+              'activeTranscriptionRunId': 'other-run',
+            },
+          ),
+        );
+      },
+    );
+    await expectLater(
+      workflow.transcribeProject('p'),
+      throwsA(isA<TranscriptionException>()),
+    );
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+    expect(
+      repository.project.metadata['activeTranscriptionRunId'],
+      'other-run',
+    );
+    expect(repository.project.status, ProjectStatus.transcribing);
+  });
+
+  test('missing run marker prevents unsafe cleanup', () async {
+    final repository = await _createRepository();
+    final workflow = _workflow(
+      repository,
+      null,
+      onTranscribe: () async {
+        await repository.updateProject(
+          repository.project.copyWith(
+            lyricDocument: _manualLyrics,
+            metadata: const {'unrelated': 'newer'},
+          ),
+        );
+      },
+    );
+    await expectLater(
+      workflow.transcribeProject('p'),
+      throwsA(isA<TranscriptionException>()),
+    );
+    expect(repository.project.lyricDocument!.toJson(), _manualLyrics.toJson());
+    expect(repository.project.metadata, {'unrelated': 'newer'});
+    expect(repository.project.status, ProjectStatus.transcribing);
   });
 
   test('unknown error with cancellation text remains a failure', () async {
@@ -194,14 +404,59 @@ void main() {
   });
 }
 
+const _manualLyrics = LyricDocument(
+  language: 'en',
+  lines: [
+    LyricLine(
+      text: 'new manual edit',
+      id: 'edited',
+      startTime: Duration.zero,
+      endTime: Duration(seconds: 1),
+    ),
+  ],
+  metadata: {
+    'manuallyEditedLineIds': ['edited'],
+  },
+);
+
+Future<_Repository> _createRepository() async {
+  final root = await Directory.systemTemp.createTemp('workflow-conflict-');
+  addTearDown(() => root.delete(recursive: true));
+  final audio = File('${root.path}/song.wav');
+  await audio.writeAsBytes([1]);
+  final now = DateTime.now();
+  return _Repository(
+    ProjectManifest(
+      id: 'p',
+      name: 'Song',
+      createdAt: now,
+      updatedAt: now,
+      status: ProjectStatus.editing,
+      audioAsset: AudioAsset(originalPath: audio.path, format: 'wav'),
+      projectDirectory: root.path,
+      lyricDocument: const LyricDocument(
+        language: 'en',
+        lines: [
+          LyricLine(
+            text: 'original',
+            startTime: Duration.zero,
+            endTime: Duration(seconds: 1),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 LocalProjectTranscriptionWorkflow _workflow(
   _Repository repository,
-  TranscriptionException error, {
+  TranscriptionException? error, {
   Future<void> Function()? onTranscribe,
+  Future<void> Function()? onSettingsLoad,
 }) => LocalProjectTranscriptionWorkflow(
   projectRepository: repository,
   transcriptionService: _Service(error, onTranscribe),
-  settingsStore: _Settings(),
+  settingsStore: _Settings(onSettingsLoad),
   profileResolver: _Resolver(),
   runtimeManager: _Runtime(),
   mediaMetadataRepository: _UnusedMetadata(),
@@ -212,14 +467,27 @@ LocalProjectTranscriptionWorkflow _workflow(
 class _Repository implements ProjectRepository {
   ProjectManifest project;
   final statuses = <ProjectStatus>[];
+  Future<void> Function(_Repository, ProjectManifest)? beforeConditionalWrite;
   _Repository(this.project);
   @override
   Future<ProjectManifest?> getProjectById(String id) async => project;
   @override
   Future<ProjectManifest> updateProject(ProjectManifest value) async {
-    project = value;
+    project = value.copyWith(revision: project.revision + 1);
     statuses.add(value.status);
-    return value;
+    return project;
+  }
+
+  @override
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest value, {
+    required int expectedRevision,
+  }) async {
+    await beforeConditionalWrite?.call(this, value);
+    if (project.revision != expectedRevision) {
+      throw ProjectUpdateConflictException(currentProject: project);
+    }
+    return updateProject(value);
   }
 
   @override
@@ -227,13 +495,28 @@ class _Repository implements ProjectRepository {
 }
 
 class _Service implements TranscriptionService {
-  final TranscriptionException error;
+  final TranscriptionException? error;
   final Future<void> Function()? onTranscribe;
   _Service(this.error, this.onTranscribe);
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     await onTranscribe?.call();
-    throw error;
+    if (error != null) throw error!;
+    return const TranscriptionResult(
+      lyrics: LyricDocument(
+        language: 'en',
+        lines: [
+          LyricLine(
+            text: 'ASR draft',
+            startTime: Duration.zero,
+            endTime: Duration(seconds: 1),
+          ),
+        ],
+      ),
+      normalizedAudioPath: 'normalized.wav',
+      rawJsonPath: 'raw.json',
+      detectedLanguage: 'en',
+    );
   }
 
   @override
@@ -247,8 +530,14 @@ class _Service implements TranscriptionService {
 }
 
 class _Settings implements TranscriptionSettingsStore {
+  _Settings(this.onLoad);
+  final Future<void> Function()? onLoad;
   @override
-  Future<TranscriptionConfig?> load() async => _config;
+  Future<TranscriptionConfig?> load() async {
+    await onLoad?.call();
+    return _config;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -279,15 +568,24 @@ class _Runtime implements AsrRuntimeManager {
 
 class _UnusedMetadata implements LocalMediaMetadataRepository {
   @override
+  Future<LocalMediaMetadata?> getForAudio(String sourcePath) async => null;
+  @override
+  Future<LocalMediaMetadata> save(LocalMediaMetadata metadata) async =>
+      metadata;
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _UnusedPlayback implements PlaybackSessionService {
   @override
+  PlaybackSessionState get currentState => const PlaybackSessionState();
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _UnusedCanonicalizer implements AudioPathCanonicalizer {
+  @override
+  String canonicalize(String path) => path;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

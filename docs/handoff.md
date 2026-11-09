@@ -2,40 +2,42 @@
 
 ## 目标
 
-在用户选择 KTV 音轨时捕获路径，避免关闭面板时被后续重建覆盖。
+审查歌词识别与校对质量，防止识别期间覆盖新的工程歌词。
 
 ## Git 现场
 
-- 基线 `eb9b179cd2d1ac42818d0d767dd916bd1ed17e25`；分支 `arena/1444c0b6-lyric-forge-ktv`。验证时快照：
+- 基线 `6bc66cba0dc6a0ec95bc82cff799b255283ad605`；分支 `arena/6eff023d-lyric-forge-ktv`。验证时快照：
 
 ```
-M test/features/player/project_player_live_sources_test.dart
-?? docs/log/entries/2026-11-07-1808-capture-ktv-source-choice.md
-.../player/project_player_live_sources_test.dart   | 37 +++++++++++-----------
- 1 file changed, 19 insertions(+), 18 deletions(-)
-a0fa05d fix: capture KTV source path at selection
-eb9b179 Merge pull request #390 from BrainEno/arena/16620829-lyric-forge-ktv
-299fc84 docs: record live KTV entry validation
-fddbf80 fix: retain selected source path during switching
-d9d741a fix: keep KTV entry choices current
+M docs/work_log_index.md
+ M test/features/transcription/local_project_transcription_cancellation_test.dart
+?? docs/log/entries/2026-11-07-1809-protect-transcription-edits.md
+docs/work_log_index.md                             |   1 +
+ ...al_project_transcription_cancellation_test.dart | 284 +++++++++++++++------
+ 2 files changed, 208 insertions(+), 77 deletions(-)
+f32b99d test: record unresolved upload gate failures
+8912025 test: investigate full suite under lower concurrency
+f591ced test: document upload gate failure
+28f5e05 test: cover transcription run ownership loss
+5335047 fix: protect edits during project transcription
 ```
 
 ## 已改文件
 
-- KTV 入口面板、工程播放器、两组 widget 测试和工作日志。
+- 转写工作流、并发测试、ASR/校对审查报告、工作日志与导航。
 
 ## 检查结果
 
-- 固定 SDK Actions run 42615096091 通过定向测试、完整门禁及工作日志检查；本地无 Flutter/Dart。
-- 未进行原生设备播放或手动 UI 检查。
+- 固定 SDK Actions run 42619001448 通过定向测试、完整分析及工作日志检查；本地无 Flutter/Dart。
+- 标准并发完整门禁 run 42617545684 和 42618062300 在 Media Hub 上传 deadline 测试的 TLS 连接处报 Broken pipe；并发度 2 的完整测试 run 42618565996 同一处连接被重置。没有真实歌曲语料或人工标注基准，未进行真实识别、设备播放或手动 UI 检查。
 
 ## 下一步
 
-- 设计并测试会话/音频操作协调：不可将整个 just_audio play Future 持锁，因为它可能等到播放结束。
+- 修复 ASR 校对中空归一化文本被判为双引擎一致的问题；随后用授权歌曲和人工参考建立可复现基线。
 
 ## 已知风险
 
-- 选择快照和前后复核不能串行化异步切换与切歌，也不能检测两次观察之间切走再切回；测试使用 fake。
-- 自动分离、人声导入、旧副本清理未完成；Media Hub 上传 deadline 测试历史上间歇失败。
+- 工程 revision 冲突保守拒绝结果（即使是无关字段）；清理失败可留下运行状态标记；跨进程和其他无条件写入不受保护。
+- ASR 模型、输入人声质量及校对/时间对齐尚无真实歌曲误差数据；不得宣称准确率得到验证。
 
-最后更新：2026-11-07 18:08（Asia/Taipei）
+最后更新：2026-11-07 18:09（Asia/Taipei）

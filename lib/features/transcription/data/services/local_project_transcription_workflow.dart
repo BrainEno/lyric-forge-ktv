@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../../player/domain/services/audio_path_canonicalizer.dart';
@@ -25,6 +26,8 @@ import '../../domain/services/transcription_settings_store.dart';
 /// effective playback timestamps while this project timeline stays lossless.
 class LocalProjectTranscriptionWorkflow
     implements ProjectTranscriptionWorkflow {
+  static const _runIdKey = 'activeTranscriptionRunId';
+
   final ProjectRepository _projectRepository;
   final TranscriptionService _transcriptionService;
   final TranscriptionSettingsStore _settingsStore;
@@ -114,13 +117,21 @@ class LocalProjectTranscriptionWorkflow
     final outputDirectory = await _outputDirectory(project);
     await _backupExistingLyrics(project, outputDirectory);
 
-    await _projectRepository.updateProject(
-      project.copyWith(
-        status: ProjectStatus.transcribing,
-        projectDirectory:
-            project.projectDirectory ?? outputDirectory.parent.path,
-      ),
-    );
+    final runId = const Uuid().v4();
+    late final ProjectManifest started;
+    try {
+      started = await _projectRepository.updateProjectIfUnchanged(
+        project.copyWith(
+          status: ProjectStatus.transcribing,
+          projectDirectory:
+              project.projectDirectory ?? outputDirectory.parent.path,
+          metadata: {...project.metadata, _runIdKey: runId},
+        ),
+        expectedRevision: project.revision,
+      );
+    } on ProjectUpdateConflictException {
+      throw const TranscriptionException.input('工程在识别准备期间发生变化，请刷新后重试。');
+    }
 
     try {
       final result = await _transcriptionService.transcribe(
@@ -144,13 +155,15 @@ class LocalProjectTranscriptionWorkflow
         throw const TranscriptionException.input('识别完成，但工程已经不存在');
       }
 
-      final savedProject = await _projectRepository.updateProject(
+      final finishedMetadata = Map<String, dynamic>.from(latest.metadata)
+        ..remove(_runIdKey);
+      final savedProject = await _projectRepository.updateProjectIfUnchanged(
         latest.copyWith(
           status: ProjectStatus.editing,
           currentStage: ProcessingStage.transcriptionComplete,
           lyricDocument: editableLyrics,
           metadata: {
-            ...latest.metadata,
+            ...finishedMetadata,
             'transcription': {
               'mode': runtimeConfig.mode.name,
               'hardwareProfile': resolvedProfile.profile.name,
@@ -205,6 +218,7 @@ class LocalProjectTranscriptionWorkflow
             },
           },
         ),
+        expectedRevision: started.revision,
       );
       await linkPlaybackLyricsProject(
         audioPath: savedProject.audioAsset!.originalPath,
@@ -213,40 +227,50 @@ class LocalProjectTranscriptionWorkflow
         playbackSession: _playbackSession,
         pathCanonicalizer: _pathCanonicalizer,
       );
+    } on ProjectUpdateConflictException {
+      await _finishUncommittedRun(project, runId);
+      throw const TranscriptionException.input('识别期间工程发生变化，未覆盖最新歌词；请刷新后重试。');
     } on TranscriptionException catch (error) {
-      final latest = await _projectRepository.getProjectById(projectId);
-      if (latest != null) {
-        if (error.kind == TranscriptionFailureKind.cancelled) {
-          await _projectRepository.updateProject(
-            latest.copyWith(
-              status: switch (project.status) {
-                ProjectStatus.ready ||
-                ProjectStatus.editing ||
-                ProjectStatus.draft => project.status,
-                _ =>
-                  latest.hasLyrics
-                      ? ProjectStatus.editing
-                      : ProjectStatus.draft,
-              },
-            ),
-          );
-        } else {
-          await _projectRepository.updateProject(
-            latest.copyWith(
-              status: ProjectStatus.error,
-              metadata: {
-                ...latest.metadata,
-                'transcriptionError': {
-                  'at': DateTime.now().toIso8601String(),
-                  'kind': error.kind.name,
-                  'message': error.toString(),
-                },
-              },
-            ),
-          );
-        }
-      }
+      await _finishUncommittedRun(project, runId, error: error);
       rethrow;
+    }
+  }
+
+  Future<void> _finishUncommittedRun(
+    ProjectManifest original,
+    String runId, {
+    TranscriptionException? error,
+  }) async {
+    try {
+      final latest = await _projectRepository.getProjectById(original.id);
+      if (latest == null || latest.metadata[_runIdKey] != runId) return;
+      final metadata = Map<String, dynamic>.from(latest.metadata)
+        ..remove(_runIdKey);
+      if (error != null && error.kind != TranscriptionFailureKind.cancelled) {
+        metadata['transcriptionError'] = {
+          'at': DateTime.now().toIso8601String(),
+          'kind': error.kind.name,
+          'message': error.toString(),
+        };
+      }
+      final fallbackStatus = switch (original.status) {
+        ProjectStatus.ready ||
+        ProjectStatus.editing ||
+        ProjectStatus.draft => original.status,
+        _ => latest.hasLyrics ? ProjectStatus.editing : ProjectStatus.draft,
+      };
+      final status = latest.status != ProjectStatus.transcribing
+          ? latest.status
+          : error != null && error.kind != TranscriptionFailureKind.cancelled
+          ? ProjectStatus.error
+          : fallbackStatus;
+      await _projectRepository.updateProjectIfUnchanged(
+        latest.copyWith(status: status, metadata: metadata),
+        expectedRevision: latest.revision,
+      );
+    } catch (_) {
+      // A concurrent writer or storage failure must not mask the original error
+      // or permit cleanup to overwrite a newer project snapshot.
     }
   }
 
