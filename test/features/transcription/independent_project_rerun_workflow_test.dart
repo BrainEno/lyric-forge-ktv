@@ -114,24 +114,46 @@ void main() {
     expect(workflow.phase, IndependentRerunPhase.idle);
   });
 
-  test('selected engine failure is propagated without fallback or write', () async {
-    qwen.onRun = () async => throw const TranscriptionException.environment('qwen failed');
-    await expectLater(workflow.run(projectId: project.id, engine: IndependentRerunEngine.qwen), throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.environment)));
-    expect(qwen.requests, hasLength(1));
-    expect(qwen.disposed, isTrue);
-    expect(whisper.requests, isEmpty);
-    final latest = (await disk.getProjectById(project.id))!;
-    expect(ProjectRerunCandidateStore(disk).read(latest), isEmpty);
-    expect(latest.lyricDocument!.toJson(), manual.toJson());
-  });
+  test(
+    'selected engine failure is propagated without fallback or write',
+    () async {
+      qwen.onRun = () async =>
+          throw const TranscriptionException.environment('qwen failed');
+      await expectLater(
+        workflow.run(
+          projectId: project.id,
+          engine: IndependentRerunEngine.qwen,
+        ),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.environment,
+          ),
+        ),
+      );
+      expect(qwen.requests, hasLength(1));
+      expect(qwen.disposed, isTrue);
+      expect(whisper.requests, isEmpty);
+      final latest = (await disk.getProjectById(project.id))!;
+      expect(ProjectRerunCandidateStore(disk).read(latest), isEmpty);
+      expect(latest.lyricDocument!.toJson(), manual.toJson());
+    },
+  );
 
-  test('repaired model configuration reaches the selected engine and candidate', () async {
-    runtime.onRepair = (input) => input.copyWith(modelPath: 'repaired-model');
-    final result = await workflow.run(projectId: project.id, engine: IndependentRerunEngine.whisper);
-    expect(runtime.inspected!.modelPath, 'repaired-model');
-    expect(whisper.requests.single.config.modelPath, 'repaired-model');
-    expect(result.pair.modelReference, 'repaired-model');
-  });
+  test(
+    'repaired model configuration reaches the selected engine and candidate',
+    () async {
+      runtime.onRepair = (input) => input.copyWith(modelPath: 'repaired-model');
+      final result = await workflow.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.whisper,
+      );
+      expect(runtime.inspected!.modelPath, 'repaired-model');
+      expect(whisper.requests.single.config.modelPath, 'repaired-model');
+      expect(result.pair.modelReference, 'repaired-model');
+    },
+  );
 
   test('missing selected engine never silently falls back', () async {
     runtime.ready.remove(AsrRuntimeComponent.qwenModel);
