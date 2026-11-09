@@ -214,7 +214,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switch completion rejects a replacement of the selected path', (tester) async {
+  testWidgets('switch completion rejects a replacement of the selected path', (
+    tester,
+  ) async {
     final session = _Session(_state(_withBacking));
     final pending = Completer<void>();
     final audio = _Audio(pendingSwitch: pending);

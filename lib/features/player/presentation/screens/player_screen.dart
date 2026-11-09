@@ -310,7 +310,8 @@ class _PlayerContentState extends State<_PlayerContent> {
       final item = widget.playbackSession.currentState.currentItem;
       if (!isSameItem(item)) return false;
       return selectedPath != null &&
-          item!.audioAsset.getPathForSource(selectedMode.source) == selectedPath;
+          item!.audioAsset.getPathForSource(selectedMode.source) ==
+              selectedPath;
     }
 
     if (!selectionIsCurrent()) {
