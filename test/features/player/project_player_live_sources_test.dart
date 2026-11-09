@@ -195,24 +195,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('selection retains the path visible at tap when the track changes', (
-    tester,
-  ) async {
-    final session = _Session(_state(_withBacking));
-    final audio = _Audio();
-    await _showPlayer(tester, _project(_original), session, audio);
-    await tester.tap(find.byTooltip('进入 KTV'));
-    await tester.pumpAndSettle();
-    final tile = tester.widget<ListTile>(
-      find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
-    );
-    tile.onTap!();
-    session.emit(_state(_withBacking.copyWith(instrumentalPath: '/new.mp3')));
-    await tester.pumpAndSettle();
-    expect(audio.switches, isEmpty);
-    expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'selection retains the path visible at tap when the track changes',
+    (tester) async {
+      final session = _Session(_state(_withBacking));
+      final audio = _Audio();
+      await _showPlayer(tester, _project(_original), session, audio);
+      await tester.tap(find.byTooltip('进入 KTV'));
+      await tester.pumpAndSettle();
+      final tile = tester.widget<ListTile>(
+        find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
+      );
+      tile.onTap!();
+      session.emit(_state(_withBacking.copyWith(instrumentalPath: '/new.mp3')));
+      await tester.pumpAndSettle();
+      expect(audio.switches, isEmpty);
+      expect(find.textContaining('播放项或音轨已变化'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('switch completion cannot open KTV for a changed item', (
     tester,
