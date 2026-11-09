@@ -158,12 +158,20 @@ class ProjectRerunCandidateStore {
     return List.unmodifiable(result);
   }
 
+  /// Compares the complete stored baseline, including manual-edit metadata.
+  /// Revision alone is insufficient because saving the pair increments it.
+  static bool matchesBaseline(
+    ProjectManifest project,
+    IndependentRerunCandidate pair,
+  ) =>
+      project.lyricDocument != null &&
+      _sameJson(project.lyricDocument!.toJson(), pair.original.toJson());
+
   Future<SavedRerunCandidate> save(IndependentRerunCandidate pair) async {
     final project = await _projects.getProjectById(pair.projectId);
     if (project == null ||
         project.revision != pair.projectRevision ||
-        project.lyricDocument == null ||
-        !_sameJson(project.lyricDocument!.toJson(), pair.original.toJson())) {
+        !matchesBaseline(project, pair)) {
       throw const TranscriptionException.input('工程或原始歌词已变化，候选未保存');
     }
     final previous = read(project);

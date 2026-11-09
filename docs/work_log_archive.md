@@ -87,6 +87,7 @@
 - [2026-11-09 01:51] Protect metadata during audio relink ([entry](log/entries/2026-11-09-0151-protect-relink-metadata.md))
 - [2026-11-08 00:47] Handle background lyric link failures ([entry](log/entries/2026-11-08-0047-handle-background-lyric-link-failures.md))
 - [2026-11-08 00:28] Protect lyric associations from partial metadata ([entry](log/entries/2026-11-08-0028-protect-lyric-associations-from-partial-metadata.md))
+- [2026-11-07 23:59] Assess saved ASR candidate freshness ([entry](log/entries/2026-11-07-2359-assess-asr-candidates.md))
 - [2026-11-07 23:55] Persist independent ASR candidates ([entry](log/entries/2026-11-07-2355-persist-asr-candidates.md))
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
