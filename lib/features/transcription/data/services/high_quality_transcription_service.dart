@@ -8,6 +8,7 @@ import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_evidence_audio_verifier.dart';
 import 'asr_text_comparison.dart';
 import 'asr_process_supervisor.dart';
 
@@ -98,6 +99,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
         );
       }
 
+      // A caller-supplied normalized WAV is not necessarily derived from the
+      // source path, so it cannot establish provenance for that source.
+      final initialSourceHash =
+          request.normalizedInputAudioPath == null && sharedAudioPreparer == null
+          ? await _tryHashSource(request.inputAudioPath)
+          : null;
+      _throwIfCancelled();
       final sharedNormalizedPath =
           request.normalizedInputAudioPath ??
           await (sharedAudioPreparer ?? _prepareSharedAudio)(request);
@@ -112,7 +120,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
       _throwIfCancelled();
       if (request.config.engineOrder ==
           TranscriptionEngineOrder.whisperPrimary) {
-        return await _transcribeWhisperPrimary(sharedRequest);
+        return await _transcribeWhisperPrimary(
+          sharedRequest,
+          initialSourceHash: initialSourceHash,
+        );
       }
 
       TranscriptionResult primaryResult;
@@ -206,7 +217,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
         config: request.config,
       );
 
+      final sourceHash = await _unchangedSourceHash(
+        request.inputAudioPath,
+        initialSourceHash,
+      );
+      _throwIfCancelled();
       final evidence = _captureIndependentEvidence(
+        sourceAudioSha256: sourceHash,
         primary: primaryResult.lyrics,
         primaryEngine: TranscriptionModelIdentity.qwenAsrEngine(
           request.config.qwenModelPath,
@@ -382,8 +399,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }
 
   Future<TranscriptionResult> _transcribeWhisperPrimary(
-    TranscriptionRequest request,
-  ) async {
+    TranscriptionRequest request, {
+    required String? initialSourceHash,
+  }) async {
     final qwenModelKey = TranscriptionModelIdentity.qwenAsrEngine(
       request.config.qwenModelPath,
     );
@@ -500,7 +518,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
       config: request.config,
     );
 
+    final sourceHash = await _unchangedSourceHash(
+      request.inputAudioPath,
+      initialSourceHash,
+    );
+    _throwIfCancelled();
     final evidence = _captureIndependentEvidence(
+      sourceAudioSha256: sourceHash,
       primary: whisperResult.lyrics,
       primaryEngine: TranscriptionModelIdentity.whisperEngine(
         request.config.modelPath,
@@ -849,7 +873,23 @@ class HighQualityTranscriptionService implements TranscriptionService {
       Map<String, dynamic>.from(metadata)
         ..remove(IndependentAsrEvidence.metadataKey);
 
+  Future<String?> _tryHashSource(String path) async {
+    try {
+      return await hashAsrAudioFile(path, onChunk: _throwIfCancelled);
+    } on FileSystemException {
+      // Recognition may still be possible, but provenance remains unverified.
+      return null;
+    }
+  }
+
+  Future<String?> _unchangedSourceHash(String path, String? initial) async {
+    if (initial == null) return null;
+    final after = await _tryHashSource(path);
+    return after == initial ? initial : null;
+  }
+
   Map<String, dynamic>? _captureIndependentEvidence({
+    required String? sourceAudioSha256,
     required LyricDocument primary,
     required String primaryEngine,
     required LyricDocument secondary,
@@ -857,6 +897,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
   }) {
     final json = IndependentAsrEvidence(
       capturedAt: DateTime.now().toUtc(),
+      sourceAudioSha256: sourceAudioSha256,
       primary: IndependentAsrTranscript(
         engine: primaryEngine,
         document: primary,

@@ -77,6 +77,8 @@ void main() {
       () => valid()..['schemaVersion'] = 2,
       () => valid()..['scope'] = 'chunk',
       () => valid()..['capturedAtUtc'] = 'not-a-date',
+      () => valid()..['sourceAudioSha256'] = 'not-a-digest',
+      () => valid()..['sourceAudioSha256'] = 123,
       () => valid()..['capturedAtUtc'] = '2026-11-07T00:00:00',
       () => valid()..['secondary'] = null,
       () =>
