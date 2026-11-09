@@ -110,6 +110,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final sharedNormalizedPath =
           request.normalizedInputAudioPath ??
           await (sharedAudioPreparer ?? _prepareSharedAudio)(request);
+      final initialNormalizedHash = initialSourceHash == null
+          ? null
+          : await _tryHashSource(sharedNormalizedPath);
+      _throwIfCancelled();
       final sharedRequest = TranscriptionRequest(
         inputAudioPath: request.inputAudioPath,
         normalizedInputAudioPath: sharedNormalizedPath,
@@ -124,6 +128,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         return await _transcribeWhisperPrimary(
           sharedRequest,
           initialSourceHash: initialSourceHash,
+          initialNormalizedHash: initialNormalizedHash,
         );
       }
 
@@ -218,9 +223,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
         config: request.config,
       );
 
-      final sourceHash = await _unchangedSourceHash(
-        request.inputAudioPath,
-        initialSourceHash,
+      final sourceHash = await _verifiedSourceHash(
+        sourcePath: request.inputAudioPath,
+        initialSourceHash: initialSourceHash,
+        normalizedPath: sharedNormalizedPath,
+        initialNormalizedHash: initialNormalizedHash,
       );
       _throwIfCancelled();
       final evidence = _captureIndependentEvidence(
@@ -402,6 +409,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<TranscriptionResult> _transcribeWhisperPrimary(
     TranscriptionRequest request, {
     required String? initialSourceHash,
+    required String? initialNormalizedHash,
   }) async {
     final qwenModelKey = TranscriptionModelIdentity.qwenAsrEngine(
       request.config.qwenModelPath,
@@ -519,9 +527,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
       config: request.config,
     );
 
-    final sourceHash = await _unchangedSourceHash(
-      request.inputAudioPath,
-      initialSourceHash,
+    final sourceHash = await _verifiedSourceHash(
+      sourcePath: request.inputAudioPath,
+      initialSourceHash: initialSourceHash,
+      normalizedPath: request.normalizedInputAudioPath!,
+      initialNormalizedHash: initialNormalizedHash,
     );
     _throwIfCancelled();
     final evidence = _captureIndependentEvidence(
@@ -885,10 +895,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
   }
 
-  Future<String?> _unchangedSourceHash(String path, String? initial) async {
-    if (initial == null) return null;
-    final after = await _tryHashSource(path);
-    return after == initial ? initial : null;
+  Future<String?> _verifiedSourceHash({
+    required String sourcePath,
+    required String? initialSourceHash,
+    required String normalizedPath,
+    required String? initialNormalizedHash,
+  }) async {
+    if (initialSourceHash == null || initialNormalizedHash == null) return null;
+    final normalizedAfter = await _tryHashSource(normalizedPath);
+    if (normalizedAfter != initialNormalizedHash) return null;
+    final sourceAfter = await _tryHashSource(sourcePath);
+    return sourceAfter == initialSourceHash ? initialSourceHash : null;
   }
 
   Map<String, dynamic>? _captureIndependentEvidence({

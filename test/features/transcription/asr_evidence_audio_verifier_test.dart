@@ -112,11 +112,14 @@ void main() {
   test('rejects a file modified while it is being hashed', () async {
     var changed = false;
     await expectLater(
-      hashAsrAudioFile(audio.path, onChunk: () {
-        if (changed) return;
-        changed = true;
-        audio.writeAsBytesSync([1, 2, 3]);
-      }),
+      hashAsrAudioFile(
+        audio.path,
+        onChunk: () {
+          if (changed) return;
+          changed = true;
+          audio.writeAsBytesSync([1, 2, 3]);
+        },
+      ),
       throwsA(isA<AsrAudioChangedDuringHashException>()),
     );
   });

@@ -148,6 +148,33 @@ void main() {
       },
     );
 
+    test('shared normalized audio changed during recognition is unverified', () async {
+      const lyric = LyricLine(text: 'hello', startTime: Duration.zero, endTime: Duration(seconds: 1));
+      for (final order in TranscriptionEngineOrder.values) {
+        final input = File('${tempDirectory.path}/source.wav');
+        await input.writeAsBytes(List<int>.filled(128, 3));
+        final service = HighQualityTranscriptionService(
+          primary: _FakeTranscriptionService(result: _result(lyric), onTranscribe: () async {
+            await File('${tempDirectory.path}/high_quality_shared_input.wav').writeAsBytes(List<int>.filled(128, 5));
+          }),
+          fallback: _FakeTranscriptionService(result: _result(lyric)),
+          processSupervisor: AsrProcessSupervisor(startProcess: (_, args) async {
+            await File(args.last).writeAsBytes(List<int>.filled(128, 9));
+            final process = _FakeProcess();
+            Timer.run(() => process.finish(0));
+            return process;
+          }),
+        );
+        try {
+          final result = await service.transcribe(_request(tempDirectory.path, engineOrder: order, includeNormalizedInput: false, inputAudioPath: input.path));
+          final raw = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+          expect(IndependentAsrEvidence.tryParse(raw)?.sourceAudioSha256, isNull);
+        } finally {
+          await service.dispose();
+        }
+      }
+    });
+
     test(
       'caller-supplied normalized input or preparer cannot prove source',
       () async {
