@@ -1,4 +1,5 @@
 import '../features/import/presentation/transcription_import_dependencies.dart';
+import '../features/player/domain/services/playback_session_service.dart';
 import '../features/project/presentation/project_detail_dependencies.dart';
 import '../features/project/data/services/file_project_accompaniment_importer.dart';
 import '../features/transfer/presentation/remote_media_library_dependencies.dart';
@@ -14,6 +15,10 @@ ProjectDetailDependencies assembleProjectDetailDependencies(
     accompanimentImporter: FileProjectAccompanimentImporter(
       projectRepository: services.projectRepository,
     ),
+    playbackSourceUpdater:
+        services.playbackSessionService is ActiveProjectPlaybackSourceUpdater
+        ? services.playbackSessionService as ActiveProjectPlaybackSourceUpdater
+        : null,
     transcriptionWorkflow: services.projectTranscriptionWorkflow,
     asrRuntimeSetupDependencies: assembleAsrRuntimeSetupDependencies(services),
   );
