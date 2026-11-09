@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/independent_asr_evidence.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
@@ -72,7 +73,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (request.config.mode == TranscriptionMode.whisperOnly) {
         final result = await _runWhisperOnly(request);
         _throwIfCancelled();
-        return result;
+        if (!result.lyrics.metadata.containsKey(
+          IndependentAsrEvidence.metadataKey,
+        )) {
+          return result;
+        }
+        return TranscriptionResult(
+          lyrics: result.lyrics.copyWith(
+            metadata: _withoutIndependentEvidence(result.lyrics.metadata),
+          ),
+          normalizedAudioPath: result.normalizedAudioPath,
+          rawJsonPath: result.rawJsonPath,
+          detectedLanguage: result.detectedLanguage,
+        );
       }
 
       // Highest quality is a capability request: the second engine is optional
@@ -157,7 +170,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         return TranscriptionResult(
           lyrics: primaryResult.lyrics.copyWith(
             metadata: {
-              ...primaryResult.lyrics.metadata,
+              ..._withoutIndependentEvidence(primaryResult.lyrics.metadata),
               ...TranscriptionQualityMetadata.degradedFields(
                 TranscriptionDegradationReason.whisperSecondOpinionFailed,
                 detail: error.toString(),
@@ -193,10 +206,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
         config: request.config,
       );
 
+      final evidence = _captureIndependentEvidence(
+        primary: primaryResult.lyrics,
+        primaryEngine: TranscriptionModelIdentity.qwenAsrEngine(
+          request.config.qwenModelPath,
+        ),
+        secondary: fallbackResult.lyrics,
+        secondaryEngine: TranscriptionModelIdentity.whisperEngine(
+          request.config.modelPath,
+        ),
+      );
       final mergedDocument = primaryResult.lyrics.copyWith(
         lines: merge.lines,
         metadata: {
-          ...primaryResult.lyrics.metadata,
+          ..._withoutIndependentEvidence(primaryResult.lyrics.metadata),
+          if (evidence != null) IndependentAsrEvidence.metadataKey: evidence,
           'qualityMode': 'highestQuality',
           'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
             request.config.qwenModelPath,
@@ -439,7 +463,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       return TranscriptionResult(
         lyrics: whisperResult.lyrics.copyWith(
           metadata: {
-            ...whisperResult.lyrics.metadata,
+            ..._withoutIndependentEvidence(whisperResult.lyrics.metadata),
             ...TranscriptionQualityMetadata.degradedFields(
               TranscriptionDegradationReason.qwenSecondOpinionFailed,
               detail: error.toString(),
@@ -476,10 +500,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
       config: request.config,
     );
 
+    final evidence = _captureIndependentEvidence(
+      primary: whisperResult.lyrics,
+      primaryEngine: TranscriptionModelIdentity.whisperEngine(
+        request.config.modelPath,
+      ),
+      secondary: qwenResult.lyrics,
+      secondaryEngine: qwenModelKey,
+    );
     final mergedDocument = whisperResult.lyrics.copyWith(
       lines: merge.lines,
       metadata: {
-        ...whisperResult.lyrics.metadata,
+        ..._withoutIndependentEvidence(whisperResult.lyrics.metadata),
+        if (evidence != null) IndependentAsrEvidence.metadataKey: evidence,
         'qualityMode': 'highestQuality',
         'primaryEngine': TranscriptionModelIdentity.whisperEngine(
           request.config.modelPath,
@@ -788,7 +821,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     return TranscriptionResult(
       lyrics: result.lyrics.copyWith(
         metadata: {
-          ...result.lyrics.metadata,
+          ..._withoutIndependentEvidence(result.lyrics.metadata),
           'qualityMode': 'highestQuality',
           TranscriptionQualityMetadata.requestedModeKey: 'highestQuality',
           ...TranscriptionQualityMetadata.degradedFields(
@@ -808,6 +841,33 @@ class HighQualityTranscriptionService implements TranscriptionService {
       rawJsonPath: result.rawJsonPath,
       detectedLanguage: result.detectedLanguage,
     );
+  }
+
+  Map<String, dynamic> _withoutIndependentEvidence(
+    Map<String, dynamic> metadata,
+  ) =>
+      Map<String, dynamic>.from(metadata)
+        ..remove(IndependentAsrEvidence.metadataKey);
+
+  Map<String, dynamic>? _captureIndependentEvidence({
+    required LyricDocument primary,
+    required String primaryEngine,
+    required LyricDocument secondary,
+    required String secondaryEngine,
+  }) {
+    final json = IndependentAsrEvidence(
+      capturedAt: DateTime.now().toUtc(),
+      primary: IndependentAsrTranscript(
+        engine: primaryEngine,
+        document: primary,
+      ),
+      secondary: IndependentAsrTranscript(
+        engine: secondaryEngine,
+        document: secondary,
+      ),
+    ).toJson();
+    // Do not publish partial or invalid transcripts as comparison evidence.
+    return IndependentAsrEvidence.tryParse(json) == null ? null : json;
   }
 
   Future<TranscriptionResult> _runPrimary(TranscriptionRequest request) async {
