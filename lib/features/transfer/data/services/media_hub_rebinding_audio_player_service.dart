@@ -71,7 +71,10 @@ class MediaHubRebindingAudioPlayerService
     final player = delegate;
     if (player is! ActiveProjectAudioSourceUpdater) return false;
     return (player as ActiveProjectAudioSourceUpdater)
-        .updateActiveProjectAudioSources(expected: expected, replacement: replacement);
+        .updateActiveProjectAudioSources(
+          expected: expected,
+          replacement: replacement,
+        );
   }
 
   @override

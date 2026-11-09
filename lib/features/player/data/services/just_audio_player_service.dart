@@ -13,7 +13,8 @@ import 'desktop_audio_backend.dart';
 /// Windows/Linux 会在构造底层 AudioPlayer 前注册 media-kit/libmpv/FFmpeg
 /// 后端，以兼容 VBR、较老 MPEG Layer III 变体以及宿主系统解码器不支持的
 /// MP3 文件。移动端继续使用 just_audio 原生后端。
-class JustAudioPlayerService implements AudioPlayerService, ActiveProjectAudioSourceUpdater {
+class JustAudioPlayerService
+    implements AudioPlayerService, ActiveProjectAudioSourceUpdater {
   late final AudioPlayer _player;
   AudioAsset? _currentAsset;
   AudioSourceType? _currentSource;
@@ -93,8 +94,10 @@ class JustAudioPlayerService implements AudioPlayerService, ActiveProjectAudioSo
 
     final playerState = _player.playerState;
     final isLoading = playerState.processingState == ProcessingState.loading;
-    final isBuffering = playerState.processingState == ProcessingState.buffering;
-    final isCompleted = playerState.processingState == ProcessingState.completed;
+    final isBuffering =
+        playerState.processingState == ProcessingState.buffering;
+    final isCompleted =
+        playerState.processingState == ProcessingState.completed;
 
     _currentState = PlaybackState(
       isPlaying: playerState.playing,
@@ -133,14 +136,8 @@ class JustAudioPlayerService implements AudioPlayerService, ActiveProjectAudioSo
     required Uri uri,
     AudioSourceType source = AudioSourceType.original,
   }) async {
-    if (uri.scheme != 'http' &&
-        uri.scheme != 'https' &&
-        uri.scheme != 'file') {
-      throw ArgumentError.value(
-        uri,
-        'uri',
-        '仅支持 http、https 或 file URI',
-      );
+    if (uri.scheme != 'http' && uri.scheme != 'https' && uri.scheme != 'file') {
+      throw ArgumentError.value(uri, 'uri', '仅支持 http、https 或 file URI');
     }
 
     _currentAsset = null;

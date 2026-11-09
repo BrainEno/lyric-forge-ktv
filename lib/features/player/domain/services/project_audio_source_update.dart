@@ -17,7 +17,8 @@ AudioAsset? safeProjectAudioSourceUpdate({
     return null;
   }
   final playingPath = current.getPathForSource(activeSource);
-  if (playingPath == null || playingPath != replacement.getPathForSource(activeSource)) {
+  if (playingPath == null ||
+      playingPath != replacement.getPathForSource(activeSource)) {
     return null;
   }
   return replacement;
