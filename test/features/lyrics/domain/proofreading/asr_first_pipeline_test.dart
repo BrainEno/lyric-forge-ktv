@@ -194,10 +194,7 @@ void main() {
       row('♪', 0, 800, id: 'one'),
       row('中文歌词', 2000, 2800, id: 'two', confidence: 40),
     ]);
-    final secondary = doc([
-      row('...', 0, 800),
-      row('？！', 2000, 2800),
-    ]);
+    final secondary = doc([row('...', 0, 800), row('？！', 2000, 2800)]);
     final before = snapshotLyricDocument(primary);
     final secondaryBefore = snapshotLyricDocument(secondary);
     final result = pipeline.build(
@@ -205,8 +202,12 @@ void main() {
       secondary: secondary,
       audioDuration: const Duration(seconds: 3),
     );
-    expectInvariants(result, input: primary, inputSnapshot: before,
-        audioDuration: const Duration(seconds: 3));
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: before,
+      audioDuration: const Duration(seconds: 3),
+    );
     expect(snapshotLyricDocument(secondary), secondaryBefore);
     for (final line in result.lines) {
       expect(line.verdict, ProofreadVerdict.amber);
@@ -226,10 +227,17 @@ void main() {
       secondary: doc([row('...', 0, 800)]),
       protectedDraftIndices: const {0},
     );
-    expectInvariants(result, input: primary, inputSnapshot: before,
-        protectedSourceIndices: const {0});
+    expectInvariants(
+      result,
+      input: primary,
+      inputSnapshot: before,
+      protectedSourceIndices: const {0},
+    );
     expect(result.lines.single.verdict, ProofreadVerdict.locked);
-    expect(result.lines.single.reasons, contains(ProofreadReason.asrComparisonUnavailable));
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.asrComparisonUnavailable),
+    );
   });
 
   test('disagreement is amber and does not auto-replace primary text', () {
@@ -304,66 +312,63 @@ void main() {
     },
   );
 
-  test(
-    'attaches forced-alignment tokens without changing lyric text or line timing',
-    () {
-      final draft = doc([
-        row('Hello world!', 0, 1200, id: 'one'),
-        row('Good night', 2000, 3000, id: 'two'),
-      ]);
-      final before = snapshotLyricDocument(draft);
-      final result = pipeline.build(
-        draft: draft,
-        audioDuration: const Duration(seconds: 4),
-        forcedAlignmentSpans: [
-          ProofreadAlignmentSpan(
-            text: 'Hello',
-            start: Duration.zero,
-            end: const Duration(milliseconds: 350),
-          ),
-          ProofreadAlignmentSpan(
-            text: 'world',
-            start: const Duration(milliseconds: 400),
-            end: const Duration(milliseconds: 900),
-          ),
-          ProofreadAlignmentSpan(
-            text: 'Good',
-            start: const Duration(seconds: 2),
-            end: const Duration(milliseconds: 2400),
-          ),
-          ProofreadAlignmentSpan(
-            text: 'night',
-            start: const Duration(milliseconds: 2450),
-            end: const Duration(seconds: 3),
-          ),
-        ],
-      );
+  test('attaches forced-alignment tokens without changing lyric text or line timing', () {
+    final draft = doc([
+      row('Hello world!', 0, 1200, id: 'one'),
+      row('Good night', 2000, 3000, id: 'two'),
+    ]);
+    final before = snapshotLyricDocument(draft);
+    final result = pipeline.build(
+      draft: draft,
+      audioDuration: const Duration(seconds: 4),
+      forcedAlignmentSpans: [
+        ProofreadAlignmentSpan(
+          text: 'Hello',
+          start: Duration.zero,
+          end: const Duration(milliseconds: 350),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'world',
+          start: const Duration(milliseconds: 400),
+          end: const Duration(milliseconds: 900),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'Good',
+          start: const Duration(seconds: 2),
+          end: const Duration(milliseconds: 2400),
+        ),
+        ProofreadAlignmentSpan(
+          text: 'night',
+          start: const Duration(milliseconds: 2450),
+          end: const Duration(seconds: 3),
+        ),
+      ],
+    );
 
-      expect(snapshotLyricDocument(draft), before);
-      expect(result.proposedDocument.lines.map((line) => line.text), [
-        'Hello world!',
-        'Good night',
-      ]);
-      expect(
-        result.proposedDocument.lines[0].startTime,
-        const Duration(milliseconds: 0),
-      );
-      expect(result.lines[0].tokens.map((token) => token.text), [
-        'Hello',
-        'world',
-      ]);
-      expect(
-        result.lines[0].tokens.first.source,
-        ProofreadTimeSource.forcedAligner,
-      );
-      expect(result.lines[0].tokens.first.confidence, isNull);
-      expect(result.lines[1].tokens.map((token) => token.text), [
-        'Good',
-        'night',
-      ]);
-      expect(result.notes, contains('forcedAlignmentMatchedLines:2/2'));
-    },
-  );
+    expect(snapshotLyricDocument(draft), before);
+    expect(result.proposedDocument.lines.map((line) => line.text), [
+      'Hello world!',
+      'Good night',
+    ]);
+    expect(
+      result.proposedDocument.lines[0].startTime,
+      const Duration(milliseconds: 0),
+    );
+    expect(result.lines[0].tokens.map((token) => token.text), [
+      'Hello',
+      'world',
+    ]);
+    expect(
+      result.lines[0].tokens.first.source,
+      ProofreadTimeSource.forcedAligner,
+    );
+    expect(result.lines[0].tokens.first.confidence, isNull);
+    expect(result.lines[1].tokens.map((token) => token.text), [
+      'Good',
+      'night',
+    ]);
+    expect(result.notes, contains('forcedAlignmentMatchedLines:2/2'));
+  });
 
   test(
     'marks unmatched lines for review when alignment evidence is incomplete',

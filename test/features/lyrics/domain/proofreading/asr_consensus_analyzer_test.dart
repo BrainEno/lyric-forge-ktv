@@ -105,11 +105,14 @@ void main() {
       secondary: doc([line('...', 0, 2000, confidence: 30)]),
     );
     expect(result.rows.single.textSimilarity, isNull);
-    expect(result.rows.single.reasons, containsAll([
-      AsrConsensusReason.incomparableText,
-      AsrConsensusReason.lowPrimaryConfidence,
-      AsrConsensusReason.lowSecondaryConfidence,
-    ]));
+    expect(
+      result.rows.single.reasons,
+      containsAll([
+        AsrConsensusReason.incomparableText,
+        AsrConsensusReason.lowPrimaryConfidence,
+        AsrConsensusReason.lowSecondaryConfidence,
+      ]),
+    );
   });
 
   test('real multilingual text remains comparable', () {
@@ -118,7 +121,11 @@ void main() {
         primary: doc([line(text, 0, 2000)]),
         secondary: doc([line(text, 0, 2000)]),
       );
-      expect(result.rows.single.status, AsrConsensusStatus.agreement, reason: text);
+      expect(
+        result.rows.single.status,
+        AsrConsensusStatus.agreement,
+        reason: text,
+      );
       expect(result.rows.single.textSimilarity, 1);
       expect(result.rows.single.reasons, isEmpty);
     }

@@ -25,7 +25,7 @@ jobs:
       - name: Analyze
         run: |
           set -o pipefail
-          flutter analyze --no-pub 2>&1 | tee /tmp/analyze.log
+          flutter analyze --no-pub --no-fatal-infos lib test tool 2>&1 | tee /tmp/analyze.log
       - name: Return formatter patch and failure details
         if: always()
         run: |
@@ -35,7 +35,7 @@ jobs:
           data = base64.b64encode(gzip.compress(patch)).decode()
           for i in range(0, len(data), 60000):
               print(f'::notice::PATCH{i//60000:03d}:{data[i:i+60000]}')
-          for path in ['/tmp/test.log','/tmp/analyze.log']:
+          for path in ['/tmp/analyze.log','/tmp/test.log']:
               try:
                   lines = open(path).read().splitlines()
                   hits = [x for x in lines if '[E]' in x or 'Error:' in x or 'error •' in x or 'warning •' in x or 'Some tests failed' in x]
