@@ -1013,7 +1013,7 @@ class _ActionPanel extends StatelessWidget {
                     )
                   : null,
               icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(project.canPlay ? '打开播放器' : '等待伴奏处理'),
+              label: Text(project.canPlay ? '打开播放器' : '缺少工程音频'),
             ),
           ],
           if (isDesktop && project.hasLyrics && !isTranscribing) ...[
@@ -1052,7 +1052,7 @@ class _ActionPanel extends StatelessWidget {
       return '识别已经完成，建议先校对时间轴和文本。';
     }
     if (project.canPlay) return '歌词已经校对，可以进入播放器预览 KTV 效果。';
-    return '歌词已准备好，等待伴奏处理后即可播放。';
+    return '歌词已准备好，工程需要音频才能进入播放器。';
   }
 }
 
@@ -1284,7 +1284,7 @@ String _stageLabel(ProcessingStage stage) {
     ProcessingStage.none => '等待开始',
     ProcessingStage.audioImported => '音频已经导入，可以开始制作歌词',
     ProcessingStage.audioNormalized => '音频已经标准化',
-    ProcessingStage.vocalsSeparated => '人声与伴奏已经准备好',
+    ProcessingStage.vocalsSeparated => '工程记录了音轨分离阶段',
     ProcessingStage.transcriptionComplete => '歌词草稿已经生成，等待人工校对',
     ProcessingStage.lyricsEdited => '歌词校对完成',
     ProcessingStage.exported => '工程已经导出',

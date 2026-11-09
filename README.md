@@ -8,7 +8,7 @@ LyricForge combines everyday local music playback with editable synchronized lyr
 
 - **Local music library and playback** — import local files, browse metadata and artwork, manage a queue, favorites and playlists, and resume recent listening.
 - **Editable lyrics** — import and export LRC, adjust global timing offsets, audition individual lines, review alignment proposals, and keep manual edits protected from automatic suggestions.
-- **KTV workflow** — switch between accompaniment and vocal playback, record and monitor a microphone on supported desktop setups, and work with take history and mix/project exports.
+- **KTV workflow** — practice with the original mix or an accompaniment track already referenced by a project, record and monitor a microphone on supported desktop setups, and work with take history and mix/project exports.
 - **Local transcription and alignment** — desktop workflows can use Whisper.cpp and Qwen3-ASR with Qwen ForcedAligner. FFmpeg is used for consistent audio preparation. Recognition output is a draft for human review, not guaranteed ground truth.
 - **Desktop-to-mobile Media Hub** — pair devices through the app, confirm the sharing scope, and transfer/play shared media over fingerprint-pinned HTTPS on a trusted private LAN or Tailscale network.
 - **Offline-first design** — no cloud music catalog or mandatory cloud transcription service is required for normal local playback.
@@ -120,6 +120,8 @@ The active Flutter version is recorded in [`.fvmrc`](.fvmrc). Read [`CONTRIBUTIN
 ## Scope and limitations
 
 LyricForge is an actively developed open-source project. Automatic transcription and alignment are review aids; they can omit words, select incorrect alternatives, or produce inaccurate timestamps. Native audio behavior, microphone latency, device pairing, and packaged ASR runtime availability should be verified on the target device before a long recording session.
+
+The current app cannot generate separated vocal/accompaniment tracks or import external stems through its UI. Source separation remains a planned desktop capability. A project that already references an accompaniment track can offer the KTV accompaniment mode, but the referenced file must be accessible for playback; otherwise use the original mix.
 
 ## License
 

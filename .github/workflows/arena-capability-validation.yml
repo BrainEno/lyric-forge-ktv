@@ -1,0 +1,89 @@
+name: Arena capability copy validation
+on:
+  push:
+    branches: [arena/db4225bb-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files
+        run: dart format lib/features/project/presentation/screens/project_detail_screen.dart test/features/project/presentation/project_detail_capability_test.dart test/documentation_references_contract_test.dart
+      - name: Focused project and KTV tests
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/project/presentation/project_detail_capability_test.dart test/documentation_references_contract_test.dart test/features/player/ktv_entry_sheet_test.dart test/features/player/ktv_backing_mode_test.dart 2>&1 | tee /tmp/focused.log
+      - name: Full quality gate
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/quality_gate.sh --skip-pub-get 2>&1 | tee /tmp/gate.log
+      - name: Create work log and handoff
+        shell: bash
+        run: |
+          stamp=$(TZ=Asia/Taipei date '+%Y-%m-%d %H:%M')
+          echo "ENTRY_STAMP=$stamp" >> "$GITHUB_ENV"
+          dart tool/work_log.dart new --timestamp "$stamp" --slug clarify-project-separation-status --title 'Clarify project separation status'
+          ENTRY_STAMP="$stamp" python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          stamp = os.environ['ENTRY_STAMP']
+          path = Path('docs/log/entries') / (stamp.replace(' ', '-').replace(':', '') + '-clarify-project-separation-status.md')
+          s = path.read_text()
+          s = re.sub(r'^- Validation:\n(?:  - .*\n)+', '- Validation: placeholder\n', s, flags=re.M)
+          replacements = {
+              'Scope': 'Clarify current separation limitations in project details and documentation without changing the desktop separation product goal or playback behavior.',
+              'Files': 'README, PRD status note, project detail screen, project-detail widget and documentation contract tests, index, handoff, this entry and generated work-log navigation.',
+              'Validation': f"Local Flutter/Dart SDKs unavailable. Pinned GitHub Actions run {os.environ['GITHUB_RUN_ID']} passed focused project widget, documentation and KTV tests and the full repository quality gate; Dart format and work-log new/write/check ran there. Final PR checks reported separately. git diff --check ran locally.",
+              'Notes': 'The PRD keeps separation as a desktop MVP goal, explicitly distinct from current implementation. Missing project audio no longer implies waiting for accompaniment; a legacy separation stage reports a recorded stage rather than asserting tracks exist. Tests cover compact/desktop logical layouts and fake project data, not real file existence, native playback or manual UI checks. External stem import, a separation backend and full #320 acceptance remain open.',
+              'Commit': '`fix: clarify project separation status`',
+          }
+          for key, value in replacements.items():
+              s, count = re.subn(rf'^- {key}:.*$', f'- {key}: {value}', s, count=1, flags=re.M)
+              if count != 1: raise RuntimeError(f'missing {key}')
+          if 'TODO' in s: raise RuntimeError('unfilled TODO')
+          path.write_text(s)
+          idx = Path('docs/work_log_index.md')
+          text = idx.read_text()
+          anchor = '- Creating lyrics in another project may silently replace an existing audio→project link;'
+          if anchor not in text: raise RuntimeError('expected follow-up missing')
+          text = text.replace(anchor, '- **Separation scope (#320):** README, PRD and project detail distinguish the desktop separation goal from current capabilities. External stem import and a separation backend remain unimplemented; referenced tracks still require accessible files.\n- Creating lyrics in another project may silently replace an existing audio→project link;', 1)
+          idx.write_text(text)
+          Path('docs/handoff.md').write_text(f"""# Handoff\n\n## 目标\n\n处理 #320 的文案与文档误导：明确现有版本尚无分离或外部音轨导入，同时保留桌面端 MVP 分离目标；提交中文 PR，不自动合并。\n\n## Git 现场\n\n- 基线 `bd2dfc38716c02dae129db9450f790c747fb3905`；分支 `arena/db4225bb-lyric-forge-ktv`。\n- 最终提交、PR 和检查状态以 Git/GitHub 为准。\n\n## 已改文件\n\n- README、PRD、工程详情、工程详情 widget 和文档契约测试、工作日志与本 handoff。\n\n## 检查结果\n\n- 本地无 Flutter/Dart；固定 SDK GitHub Actions run {os.environ['GITHUB_RUN_ID']} 通过定向测试及完整质量门禁，并执行 format、work-log new/write/check。最终 head 的检查以 Actions 为准。\n- 本地提交前执行 `git diff --check`；未做真实设备、音频播放或手动视觉检查。\n\n## 下一步\n\n确认最终 PR 检查并报告；#320 的外部音轨导入和分离后端仍待完成。\n\n## 已知风险\n\n- 测试使用模拟工程和逻辑布局，不验证文件实际存在或原生播放；现有播放可用性仍以工程音频对象为准。\n- #223 下重新定位的跨仓库事务、后台关联提示和音乐库歌词标记问题仍待后续处理。\n\n最后更新：{stamp}（Asia/Taipei）\n""")
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Publish patch
+        shell: bash
+        run: |
+          stamp="${ENTRY_STAMP// /-}"
+          stamp="${stamp//:/}"
+          git add -N "docs/log/entries/$stamp-clarify-project-separation-status.md" test/features/project/presentation/project_detail_capability_test.dart
+          git diff --binary -- README.md docs lib/features/project/presentation/screens/project_detail_screen.dart test/features/project/presentation/project_detail_capability_test.dart test/documentation_references_contract_test.dart > /tmp/arena.patch
+          python3 - <<'PY'
+          import base64, gzip
+          data = base64.b64encode(gzip.compress(open('/tmp/arena.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=arena-patch-{i//3000:03}::{data[i:i+3000]}')
+          PY
+      - name: Export failure log
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          p = Path('/tmp/gate.log')
+          if not p.exists(): p = Path('/tmp/focused.log')
+          if p.exists():
+              data = base64.b64encode(gzip.compress(p.read_bytes()[-350000:])).decode()
+              for i in range(0,len(data),3000): print(f'::notice title=arena-log-{i//3000:03}::{data[i:i+3000]}')
+          PY
