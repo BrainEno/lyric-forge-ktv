@@ -17,7 +17,11 @@ class SavedRerunCandidate {
   final DateTime savedAtUtc;
   final IndependentRerunCandidate pair;
 
-  const SavedRerunCandidate({required this.id, required this.savedAtUtc, required this.pair});
+  const SavedRerunCandidate({
+    required this.id,
+    required this.savedAtUtc,
+    required this.pair,
+  });
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -36,21 +40,36 @@ class SavedRerunCandidate {
   };
 
   static SavedRerunCandidate? tryParse(Object? raw) {
-    if (raw is! Map || raw['id'] is! String || (raw['id'] as String).trim().isEmpty ||
-        raw['savedAtUtc'] is! String || raw['projectId'] is! String || (raw['projectId'] as String).trim().isEmpty ||
-        raw['projectRevision'] is! int || (raw['projectRevision'] as int) < 0 ||
-        raw['engine'] is! String || !IndependentRerunEngine.values.asNameMap().containsKey(raw['engine']) ||
-        raw['inputAudioPath'] is! String || (raw['inputAudioPath'] as String).trim().isEmpty ||
-        raw['inputAudioSha256'] is! String || !RegExp(r'^[0-9a-f]{64}$').hasMatch(raw['inputAudioSha256'] as String) ||
-        raw['modelReference'] is! String || (raw['modelReference'] as String).trim().isEmpty ||
-        (raw['alignerReference'] != null && raw['alignerReference'] is! String) ||
-        raw['requestedLanguage'] is! String || raw['detectedLanguage'] is! String) return null;
+    if (raw is! Map ||
+        raw['id'] is! String ||
+        (raw['id'] as String).trim().isEmpty ||
+        raw['savedAtUtc'] is! String ||
+        raw['projectId'] is! String ||
+        (raw['projectId'] as String).trim().isEmpty ||
+        raw['projectRevision'] is! int ||
+        (raw['projectRevision'] as int) < 0 ||
+        raw['engine'] is! String ||
+        !IndependentRerunEngine.values.asNameMap().containsKey(raw['engine']) ||
+        raw['inputAudioPath'] is! String ||
+        (raw['inputAudioPath'] as String).trim().isEmpty ||
+        raw['inputAudioSha256'] is! String ||
+        !RegExp(
+          r'^[0-9a-f]{64}$',
+        ).hasMatch(raw['inputAudioSha256'] as String) ||
+        raw['modelReference'] is! String ||
+        (raw['modelReference'] as String).trim().isEmpty ||
+        (raw['alignerReference'] != null &&
+            raw['alignerReference'] is! String) ||
+        raw['requestedLanguage'] is! String ||
+        raw['detectedLanguage'] is! String)
+      return null;
     final savedAt = DateTime.tryParse(raw['savedAtUtc'] as String);
     if (savedAt == null || !savedAt.isUtc) return null;
     try {
       final original = _parseDocument(raw['original']);
       final candidate = _parseDocument(raw['candidate']);
-      if (original == null || candidate == null || candidate.lines.isEmpty) return null;
+      if (original == null || candidate == null || candidate.lines.isEmpty)
+        return null;
       return SavedRerunCandidate(
         id: raw['id'] as String,
         savedAtUtc: savedAt,
@@ -74,14 +93,25 @@ class SavedRerunCandidate {
   }
 
   static LyricDocument? _parseDocument(Object? value) {
-    if (value is! Map || value['language'] is! String || value['lines'] is! List ||
-        (value['globalOffset'] != null && value['globalOffset'] is! int) || value['metadata'] is! Map) return null;
+    if (value is! Map ||
+        value['language'] is! String ||
+        value['lines'] is! List ||
+        (value['globalOffset'] != null && value['globalOffset'] is! int) ||
+        value['metadata'] is! Map)
+      return null;
     for (final line in value['lines'] as List) {
-      if (line is! Map || line['text'] is! String || line['startTime'] is! int ||
-          line['endTime'] is! int || line['isChorus'] is! bool ||
-          line['confidence'] is! int || line['confidenceSource'] is! String ||
-          !LyricConfidenceSource.values.asNameMap().containsKey(line['confidenceSource']) ||
-          (line['id'] != null && line['id'] is! String)) return null;
+      if (line is! Map ||
+          line['text'] is! String ||
+          line['startTime'] is! int ||
+          line['endTime'] is! int ||
+          line['isChorus'] is! bool ||
+          line['confidence'] is! int ||
+          line['confidenceSource'] is! String ||
+          !LyricConfidenceSource.values.asNameMap().containsKey(
+            line['confidenceSource'],
+          ) ||
+          (line['id'] != null && line['id'] is! String))
+        return null;
     }
     // Round-trip validates JSON-compatible metadata and all lyric line fields.
     final json = jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
@@ -104,16 +134,23 @@ class ProjectRerunCandidateStore {
   List<SavedRerunCandidate> read(ProjectManifest project) {
     if (!project.metadata.containsKey(metadataKey)) return const [];
     final raw = project.metadata[metadataKey];
-    if (raw is! Map || raw['schemaVersion'] != schemaVersion || raw['items'] is! List) {
-      throw const FormatException('Invalid or unsupported rerun candidate store');
+    if (raw is! Map ||
+        raw['schemaVersion'] != schemaVersion ||
+        raw['items'] is! List) {
+      throw const FormatException(
+        'Invalid or unsupported rerun candidate store',
+      );
     }
     final items = raw['items'] as List;
-    if (items.length > maxCandidates) throw const FormatException('Too many rerun candidates');
+    if (items.length > maxCandidates)
+      throw const FormatException('Too many rerun candidates');
     final result = <SavedRerunCandidate>[];
     final ids = <String>{};
     for (final item in items) {
       final record = SavedRerunCandidate.tryParse(item);
-      if (record == null || record.pair.projectId != project.id || !ids.add(record.id)) {
+      if (record == null ||
+          record.pair.projectId != project.id ||
+          !ids.add(record.id)) {
         throw const FormatException('Invalid rerun candidate');
       }
       result.add(record);
@@ -123,7 +160,9 @@ class ProjectRerunCandidateStore {
 
   Future<SavedRerunCandidate> save(IndependentRerunCandidate pair) async {
     final project = await _projects.getProjectById(pair.projectId);
-    if (project == null || project.revision != pair.projectRevision || project.lyricDocument == null ||
+    if (project == null ||
+        project.revision != pair.projectRevision ||
+        project.lyricDocument == null ||
         !_sameJson(project.lyricDocument!.toJson(), pair.original.toJson())) {
       throw const TranscriptionException.input('工程或原始歌词已变化，候选未保存');
     }
@@ -147,7 +186,11 @@ class ProjectRerunCandidateStore {
     if (await resolveProjectTranscriptionInput(project) != selectedPath) {
       throw const TranscriptionException.input('工程选用音轨已变化，候选未保存');
     }
-    final record = SavedRerunCandidate(id: const Uuid().v4(), savedAtUtc: DateTime.now().toUtc(), pair: pair);
+    final record = SavedRerunCandidate(
+      id: const Uuid().v4(),
+      savedAtUtc: DateTime.now().toUtc(),
+      pair: pair,
+    );
     final encoded = jsonEncode(record.toJson());
     if (utf8.encode(encoded).length > maxRecordBytes) {
       throw const TranscriptionException.input('候选版本过大，未保存');
@@ -161,11 +204,17 @@ class ProjectRerunCandidateStore {
     final container = raw == null
         ? <String, dynamic>{'schemaVersion': schemaVersion}
         : Map<String, dynamic>.from(raw as Map);
-    final existing = raw == null ? <dynamic>[] : List<dynamic>.of((raw as Map)['items'] as List);
+    final existing = raw == null
+        ? <dynamic>[]
+        : List<dynamic>.of((raw as Map)['items'] as List);
     container['items'] = [...existing, jsonDecode(encoded)];
-    final metadata = Map<String, dynamic>.from(project.metadata)..[metadataKey] = container;
+    final metadata = Map<String, dynamic>.from(project.metadata)
+      ..[metadataKey] = container;
     try {
-      await _projects.updateProjectIfUnchanged(project.copyWith(metadata: metadata), expectedRevision: pair.projectRevision);
+      await _projects.updateProjectIfUnchanged(
+        project.copyWith(metadata: metadata),
+        expectedRevision: pair.projectRevision,
+      );
     } on ProjectUpdateConflictException {
       throw const TranscriptionException.input('保存期间工程已变化，候选未保存');
     }
@@ -176,7 +225,9 @@ class ProjectRerunCandidateStore {
 bool _sameJson(Object? a, Object? b) {
   if (a is Map && b is Map) {
     if (a.length != b.length) return false;
-    return a.keys.every((key) => b.containsKey(key) && _sameJson(a[key], b[key]));
+    return a.keys.every(
+      (key) => b.containsKey(key) && _sameJson(a[key], b[key]),
+    );
   }
   if (a is List && b is List) {
     if (a.length != b.length) return false;
