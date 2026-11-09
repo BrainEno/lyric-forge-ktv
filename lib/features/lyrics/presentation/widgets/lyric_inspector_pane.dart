@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
+import '../../domain/services/character_diff_service.dart';
 import 'lyric_editor_atoms.dart';
 
 /// Right-hand inspector for the selected line: timestamps, confidence, nudges
@@ -156,8 +157,33 @@ class _LineInspectorState extends State<LineInspector> {
   String? _alternativeText() {
     final candidate = widget.fallbackCandidate;
     if (candidate == null) return null;
-    return (candidate['alternativeText'] ?? candidate['whisperText'])
-        ?.toString();
+    final explicit = candidate['alternativeText'];
+    if (explicit is String) return explicit;
+    // The legacy Qwen-primary format stored Whisper's text under whisperText.
+    // Never mistake a Whisper-primary record's own text for an alternative.
+    final legacy = switch (candidate['primaryEngine']) {
+      'qwen' => candidate['whisperText'],
+      'whisper' => candidate['qwenText'],
+      null when candidate['qwenText'] != null => candidate['whisperText'],
+      _ => null,
+    };
+    return legacy is String ? legacy : null;
+  }
+
+  String? _primaryText() {
+    final candidate = widget.fallbackCandidate;
+    if (candidate == null) return null;
+    final primary = candidate['primaryText'];
+    if (primary is String && primary.trim().isNotEmpty) return primary;
+    final key = switch (candidate['primaryEngine']) {
+      'whisper' => 'whisperText',
+      'qwen' => 'qwenText',
+      // Older Qwen-primary records did not include primaryEngine.
+      null when candidate['qwenText'] != null => 'qwenText',
+      _ => null,
+    };
+    final legacy = key == null ? null : candidate[key];
+    return legacy is String && legacy.trim().isNotEmpty ? legacy : null;
   }
 
   String _engineLabel(String? engine) {
@@ -192,11 +218,10 @@ class _LineInspectorState extends State<LineInspector> {
     _emitUpdate(_workingLine.copyWith(endTime: next));
   }
 
-  void _applyAlternative() {
-    final alternative = _alternativeText();
-    if (alternative == null || alternative.trim().isEmpty) return;
-    _textController.text = alternative;
-    _emitUpdate(_workingLine.copyWith(text: alternative, confidence: 100));
+  void _applyCandidate(String text) {
+    if (text.trim().isEmpty) return;
+    _textController.text = text;
+    _emitUpdate(_workingLine.copyWith(text: text, confidence: 100));
   }
 
   @override
@@ -309,13 +334,25 @@ class _LineInspectorState extends State<LineInspector> {
             const SizedBox(height: AppSpacing.md),
             AlternativeCandidateCard(
               primaryEngine: _engineLabel(
-                widget.fallbackCandidate!['primaryEngine']?.toString(),
+                widget.fallbackCandidate!['primaryEngine']?.toString() ??
+                    (widget.fallbackCandidate!['primaryText'] == null &&
+                            widget.fallbackCandidate!['qwenText'] is String
+                        ? 'qwen'
+                        : '主模型'),
               ),
               alternativeEngine: _engineLabel(
-                widget.fallbackCandidate!['alternativeEngine']?.toString(),
+                widget.fallbackCandidate!['alternativeEngine']?.toString() ??
+                    (widget.fallbackCandidate!['whisperText'] != null
+                        ? 'whisper'
+                        : null),
               ),
+              primaryText: _primaryText(),
+              currentText: _workingLine.text,
               alternativeText: alternative!,
-              onApply: _applyAlternative,
+              onApply: () => _applyCandidate(alternative!),
+              onApplyPrimary: _primaryText() == null
+                  ? null
+                  : () => _applyCandidate(_primaryText()!),
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
@@ -460,18 +497,28 @@ class TimingEditor extends StatelessWidget {
 class AlternativeCandidateCard extends StatelessWidget {
   final String primaryEngine;
   final String alternativeEngine;
+  final String? primaryText;
+  final String currentText;
   final String alternativeText;
   final VoidCallback onApply;
+  final VoidCallback? onApplyPrimary;
 
   const AlternativeCandidateCard({
     required this.primaryEngine,
     required this.alternativeEngine,
+    required this.primaryText,
+    required this.currentText,
     required this.alternativeText,
     required this.onApply,
+    required this.onApplyPrimary,
   });
 
   @override
   Widget build(BuildContext context) {
+    final segments = const CharacterDiffService().diff(
+      primaryText ?? currentText,
+      alternativeText,
+    );
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
@@ -480,32 +527,80 @@ class AlternativeCandidateCard extends StatelessWidget {
         border: Border.all(color: AppColors.info.withAlpha(70)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '$alternativeEngine 备选',
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(color: AppColors.info),
+            primaryText == null ? '当前歌词' : '$primaryEngine 原始识别',
+            style: Theme.of(context).textTheme.labelMedium,
           ),
           const SizedBox(height: AppSpacing.xs),
-          Text(alternativeText),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '当前结果来自 $primaryEngine',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
+          _CandidateDiffText(segments: segments, showAlternative: false),
+          if (onApplyPrimary != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onApplyPrimary,
+                child: const Text('采用主模型原文'),
               ),
-              TextButton(onPressed: onApply, child: const Text('采用备选')),
-            ],
+            ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            '$alternativeEngine 备选',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.info,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          _CandidateDiffText(segments: segments, showAlternative: true),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(onPressed: onApply, child: const Text('采用备选')),
+          ),
+          Text(
+            '高亮为两份文本的差异；编辑框显示当前歌词。采用只替换文字，不更改时间。',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CandidateDiffText extends StatelessWidget {
+  final List<CharacterDiffSegment> segments;
+  final bool showAlternative;
+
+  const _CandidateDiffText({
+    required this.segments,
+    required this.showAlternative,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = segments.where(
+      (segment) => showAlternative
+          ? segment.type != CharacterDiffType.delete
+          : segment.type != CharacterDiffType.insert,
+    );
+    return Text.rich(
+      TextSpan(
+        children: [
+          for (final segment in visible)
+            TextSpan(
+              text: segment.text,
+              style: segment.isEqual
+                  ? null
+                  : TextStyle(
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                      backgroundColor: AppColors.info.withAlpha(70),
+                    ),
+            ),
+        ],
+      ),
+      key: ValueKey(showAlternative ? 'alternative_candidate_text' : 'primary_candidate_text'),
     );
   }
 }
