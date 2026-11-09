@@ -6,7 +6,15 @@ import 'asr_evidence_audio_verifier.dart';
 import 'project_rerun_candidate_store.dart';
 import 'project_transcription_input.dart';
 
-enum RerunCandidateAudioStatus { matches, changed, selectionChanged, unavailable }
+enum RerunCandidateAudioStatus {
+  matches,
+  changed,
+  selectionChanged,
+  unavailable,
+}
+
+/// Only model configuration labels were saved; model files are not checked.
+enum RerunCandidateModelStatus { unverified }
 
 /// A point-in-time report, not authorization to apply a candidate. A model
 /// reference is only a label; model contents and parameters are not verified.
@@ -15,6 +23,7 @@ class RerunCandidateAssessment {
   final int observedProjectRevision;
   final bool baselineMatches;
   final RerunCandidateAudioStatus audioStatus;
+  RerunCandidateModelStatus get modelStatus => RerunCandidateModelStatus.unverified;
 
   const RerunCandidateAssessment({
     required this.saved,
@@ -56,7 +65,10 @@ class ProjectRerunCandidateAssessor {
     if (saved == null) {
       throw const TranscriptionException.input('候选版本不存在，无法检查');
     }
-    final baselineMatches = ProjectRerunCandidateStore.matchesBaseline(project, saved.pair);
+    final baselineMatches = ProjectRerunCandidateStore.matchesBaseline(
+      project,
+      saved.pair,
+    );
     var audioStatus = RerunCandidateAudioStatus.unavailable;
     String? path;
     try {

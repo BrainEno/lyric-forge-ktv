@@ -160,7 +160,10 @@ class ProjectRerunCandidateStore {
 
   /// Compares the complete stored baseline, including manual-edit metadata.
   /// Revision alone is insufficient because saving the pair increments it.
-  static bool matchesBaseline(ProjectManifest project, IndependentRerunCandidate pair) =>
+  static bool matchesBaseline(
+    ProjectManifest project,
+    IndependentRerunCandidate pair,
+  ) =>
       project.lyricDocument != null &&
       _sameJson(project.lyricDocument!.toJson(), pair.original.toJson());
 
