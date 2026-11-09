@@ -82,10 +82,7 @@ class RemoteRebindingPlaybackSessionService
     try {
       final existing = _itemById(id);
       if (existing == null || !existing.isRemoteStream) return existing;
-      final resolved = await _resolve(
-        existing,
-        throwOnFailure: throwOnFailure,
-      );
+      final resolved = await _resolve(existing, throwOnFailure: throwOnFailure);
       if (!_sameResolvedItem(existing, resolved)) {
         await delegate.updateItem(resolved);
       }
@@ -102,10 +99,7 @@ class RemoteRebindingPlaybackSessionService
   }
 
   @override
-  Future<void> playItem(
-    PlaybackItem item, {
-    Duration? resumeFrom,
-  }) async {
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async {
     final resolved = await _resolveForExplicitPlayback(item);
     await delegate.playItem(resolved, resumeFrom: resumeFrom);
   }
@@ -121,9 +115,7 @@ class RemoteRebindingPlaybackSessionService
     final resolved = <PlaybackItem>[];
     for (final item in items) {
       resolved.add(
-        item.isRemoteStream
-            ? await _resolve(item, throwOnFailure: true)
-            : item,
+        item.isRemoteStream ? await _resolve(item, throwOnFailure: true) : item,
       );
     }
     await delegate.setQueue(resolved, startIndex: startIndex);
@@ -144,10 +136,14 @@ class RemoteRebindingPlaybackSessionService
     required AudioAsset replacement,
   }) {
     final session = delegate;
-    if (session is! ActiveProjectPlaybackSourceUpdater) return Future.value(false);
-    return (session as ActiveProjectPlaybackSourceUpdater).updateActiveProjectSources(
-      projectId: projectId, expected: expected, replacement: replacement,
-    );
+    if (session is! ActiveProjectPlaybackSourceUpdater)
+      return Future.value(false);
+    return (session as ActiveProjectPlaybackSourceUpdater)
+        .updateActiveProjectSources(
+          projectId: projectId,
+          expected: expected,
+          replacement: replacement,
+        );
   }
 
   @override
@@ -250,10 +246,7 @@ class RemoteRebindingPlaybackSessionService
         final resolved = await _resolve(remoteCurrent, throwOnFailure: true);
         final changed = !_sameResolvedItem(remoteCurrent, resolved);
         if (changed && playback.duration != null) {
-          await delegate.playItem(
-            resolved,
-            resumeFrom: playback.position,
-          );
+          await delegate.playItem(resolved, resumeFrom: playback.position);
           return;
         }
         if (changed) await delegate.updateItem(resolved);

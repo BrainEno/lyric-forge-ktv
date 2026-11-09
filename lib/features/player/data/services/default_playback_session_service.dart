@@ -585,8 +585,11 @@ class DefaultPlaybackSessionService
   }) async {
     await _awaitRestore();
     final item = _state.currentItem;
-    if (_disposed || item == null || item.isRemoteStream ||
-        item.projectId != projectId || _loadedItemId != item.id) {
+    if (_disposed ||
+        item == null ||
+        item.isRemoteStream ||
+        item.projectId != projectId ||
+        _loadedItemId != item.id) {
       return false;
     }
     final current = item.audioAsset;
@@ -616,7 +619,10 @@ class DefaultPlaybackSessionService
     // No await between the session check, player guard and queue update: another
     // session mutation cannot interleave and redirect this update to a new song.
     final updated = (player as ActiveProjectAudioSourceUpdater)
-        .updateActiveProjectAudioSources(expected: current, replacement: nextAsset);
+        .updateActiveProjectAudioSources(
+          expected: current,
+          replacement: nextAsset,
+        );
     if (!updated) return false;
     final queue = List<PlaybackItem>.from(_state.queue);
     queue[_state.currentIndex] = item.copyWith(audioAsset: nextAsset);

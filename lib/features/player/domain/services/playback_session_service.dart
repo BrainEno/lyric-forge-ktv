@@ -77,11 +77,12 @@ class PlaybackSessionState {
 
   PlaybackItem? get currentItem =>
       currentIndex >= 0 && currentIndex < queue.length
-          ? queue[currentIndex]
-          : null;
+      ? queue[currentIndex]
+      : null;
 
   bool get canSkipPrevious => currentItem != null;
-  bool get canSkipNext => currentItem != null &&
+  bool get canSkipNext =>
+      currentItem != null &&
       (currentIndex + 1 < queue.length ||
           (repeatMode == PlaybackRepeatMode.all && queue.isNotEmpty));
   int get upcomingCount =>
@@ -121,15 +122,9 @@ abstract class PlaybackSessionService {
   PlaybackSessionState get currentState;
   PlaybackState get playbackState;
 
-  Future<void> playItem(
-    PlaybackItem item, {
-    Duration? resumeFrom,
-  });
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom});
 
-  Future<void> setQueue(
-    List<PlaybackItem> items, {
-    int startIndex = 0,
-  });
+  Future<void> setQueue(List<PlaybackItem> items, {int startIndex = 0});
 
   Future<void> enqueue(PlaybackItem item);
 

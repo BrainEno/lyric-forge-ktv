@@ -62,7 +62,9 @@ class LibraryMetadataPlaybackSessionService
     return item.copyWith(
       title: title == null || title.isEmpty ? item.title : title,
       artist: artist == null || artist.isEmpty ? item.artist : artist,
-      artworkPath: artwork == null || artwork.isEmpty ? item.artworkPath : artwork,
+      artworkPath: artwork == null || artwork.isEmpty
+          ? item.artworkPath
+          : artwork,
     );
   }
 
@@ -238,8 +240,9 @@ class LibraryMetadataPlaybackSessionService
       }
 
       final extension = _extensionFor(contentType);
-      final destination =
-          File('${directory.path}${Platform.pathSeparator}$prefix$extension');
+      final destination = File(
+        '${directory.path}${Platform.pathSeparator}$prefix$extension',
+      );
       partial = File('${destination.path}.part');
       if (await partial.exists()) await partial.delete();
 
@@ -366,10 +369,14 @@ class LibraryMetadataPlaybackSessionService
     required AudioAsset replacement,
   }) {
     final session = delegate;
-    if (session is! ActiveProjectPlaybackSourceUpdater) return Future.value(false);
-    return (session as ActiveProjectPlaybackSourceUpdater).updateActiveProjectSources(
-      projectId: projectId, expected: expected, replacement: replacement,
-    );
+    if (session is! ActiveProjectPlaybackSourceUpdater)
+      return Future.value(false);
+    return (session as ActiveProjectPlaybackSourceUpdater)
+        .updateActiveProjectSources(
+          projectId: projectId,
+          expected: expected,
+          replacement: replacement,
+        );
   }
 
   @override
