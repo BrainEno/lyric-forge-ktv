@@ -10,11 +10,16 @@ class IndependentAsrEvidence {
   static const schemaVersion = 1;
 
   final DateTime capturedAtUtc;
+
+  /// Hash of the source file observed before and after recognition, if known.
+  /// It is not a lock and does not prove the file never changed in between.
+  final String? sourceAudioSha256;
   final IndependentAsrTranscript primary;
   final IndependentAsrTranscript secondary;
 
   IndependentAsrEvidence({
     required DateTime capturedAt,
+    this.sourceAudioSha256,
     required this.primary,
     required this.secondary,
   }) : capturedAtUtc = capturedAt.toUtc();
@@ -23,6 +28,7 @@ class IndependentAsrEvidence {
     'schemaVersion': schemaVersion,
     'scope': 'singleInput',
     'capturedAtUtc': capturedAtUtc.toIso8601String(),
+    if (sourceAudioSha256 != null) 'sourceAudioSha256': sourceAudioSha256,
     'primary': primary.toJson(),
     'secondary': secondary.toJson(),
   };
@@ -33,6 +39,12 @@ class IndependentAsrEvidence {
         value['schemaVersion'] != schemaVersion ||
         value['scope'] != 'singleInput' ||
         value['capturedAtUtc'] is! String) {
+      return null;
+    }
+    final sourceHash = value['sourceAudioSha256'];
+    if (sourceHash != null &&
+        (sourceHash is! String ||
+            !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceHash))) {
       return null;
     }
     final capturedAt = DateTime.tryParse(value['capturedAtUtc'] as String);
@@ -46,6 +58,7 @@ class IndependentAsrEvidence {
     }
     return IndependentAsrEvidence(
       capturedAt: capturedAt,
+      sourceAudioSha256: sourceHash as String?,
       primary: primary,
       secondary: secondary,
     );
