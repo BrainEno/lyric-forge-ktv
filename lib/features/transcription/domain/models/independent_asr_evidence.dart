@@ -43,7 +43,8 @@ class IndependentAsrEvidence {
     }
     final sourceHash = value['sourceAudioSha256'];
     if (sourceHash != null &&
-        (sourceHash is! String || !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceHash))) {
+        (sourceHash is! String ||
+            !RegExp(r'^[0-9a-f]{64}$').hasMatch(sourceHash))) {
       return null;
     }
     final capturedAt = DateTime.tryParse(value['capturedAtUtc'] as String);

@@ -14,16 +14,31 @@ enum AsrEvidenceAudioStatus {
   audioMatches,
 }
 
+class AsrAudioChangedDuringHashException implements Exception {
+  const AsrAudioChangedDuringHashException();
+}
+
 /// Hashes bytes as a stream without loading an entire recording into memory.
-Future<String> hashAsrAudioFile(
-  String path, {
-  void Function()? onChunk,
-}) async {
-  final bytes = File(path).openRead().map((chunk) {
+/// File-stat checks catch common concurrent changes, but are not a file lock.
+Future<String> hashAsrAudioFile(String path, {void Function()? onChunk}) async {
+  final file = File(path);
+  final before = await file.stat();
+  if (before.type != FileSystemEntityType.file) {
+    throw FileSystemException('Audio is not a readable file', path);
+  }
+  final bytes = file.openRead().map((chunk) {
     onChunk?.call();
     return chunk;
   });
-  return (await sha256.bind(bytes).first).toString();
+  final digest = (await sha256.bind(bytes).first).toString();
+  final after = await file.stat();
+  if (after.type != before.type ||
+      after.size != before.size ||
+      after.modified != before.modified ||
+      after.changed != before.changed) {
+    throw const AsrAudioChangedDuringHashException();
+  }
+  return digest;
 }
 
 class AsrEvidenceAudioVerifier {
@@ -46,6 +61,8 @@ class AsrEvidenceAudioVerifier {
       return actual == expected
           ? AsrEvidenceAudioStatus.audioMatches
           : AsrEvidenceAudioStatus.audioChanged;
+    } on AsrAudioChangedDuringHashException {
+      return AsrEvidenceAudioStatus.audioChanged;
     } on FileSystemException {
       return AsrEvidenceAudioStatus.audioUnavailable;
     }

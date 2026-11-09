@@ -102,7 +102,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       // A caller-supplied normalized WAV is not necessarily derived from the
       // source path, so it cannot establish provenance for that source.
       final initialSourceHash =
-          request.normalizedInputAudioPath == null && sharedAudioPreparer == null
+          request.normalizedInputAudioPath == null &&
+              sharedAudioPreparer == null
           ? await _tryHashSource(request.inputAudioPath)
           : null;
       _throwIfCancelled();
@@ -876,6 +877,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
   Future<String?> _tryHashSource(String path) async {
     try {
       return await hashAsrAudioFile(path, onChunk: _throwIfCancelled);
+    } on AsrAudioChangedDuringHashException {
+      return null;
     } on FileSystemException {
       // Recognition may still be possible, but provenance remains unverified.
       return null;

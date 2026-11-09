@@ -29,89 +29,163 @@ void main() {
     test('source hashes bind evidence to the selected audio bytes', () async {
       final input = File('${tempDirectory.path}/source.wav');
       final bytes = List<int>.filled(128, 3);
-      const lyric = LyricLine(text: 'hello', startTime: Duration.zero, endTime: Duration(seconds: 1));
+      const lyric = LyricLine(
+        text: 'hello',
+        startTime: Duration.zero,
+        endTime: Duration(seconds: 1),
+      );
       for (final order in TranscriptionEngineOrder.values) {
         await input.writeAsBytes(bytes);
         final service = HighQualityTranscriptionService(
           primary: _FakeTranscriptionService(result: _result(lyric)),
           fallback: _FakeTranscriptionService(result: _result(lyric)),
-          processSupervisor: AsrProcessSupervisor(startProcess: (_, args) async {
-            await File(args.last).writeAsBytes(List<int>.filled(128, 9));
-            final process = _FakeProcess();
-            Timer.run(() => process.finish(0));
-            return process;
-          }),
-        );
-        try {
-          final result = await service.transcribe(_request(tempDirectory.path,
-              engineOrder: order, includeNormalizedInput: false, inputAudioPath: input.path));
-          final raw = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
-          final evidence = IndependentAsrEvidence.tryParse(raw);
-          expect(evidence?.sourceAudioSha256, await hashAsrAudioFile(input.path));
-          expect(await const AsrEvidenceAudioVerifier().verify(rawEvidence: raw, currentAudioPath: input.path), AsrEvidenceAudioStatus.audioMatches);
-          await input.writeAsBytes(List<int>.filled(128, 4));
-          expect(await const AsrEvidenceAudioVerifier().verify(rawEvidence: raw, currentAudioPath: input.path), AsrEvidenceAudioStatus.audioChanged);
-        } finally {
-          await service.dispose();
-        }
-      }
-    });
-
-    test('source replacement or deletion during recognition stays unverified', () async {
-      const lyric = LyricLine(text: 'hello', startTime: Duration.zero, endTime: Duration(seconds: 1));
-      for (final order in TranscriptionEngineOrder.values) {
-        for (final delete in [false, true]) {
-          final input = File('${tempDirectory.path}/mutable.wav');
-          await input.writeAsBytes(List<int>.filled(128, 3));
-          final service = HighQualityTranscriptionService(
-            primary: _FakeTranscriptionService(result: _result(lyric), onTranscribe: () async {
-              if (delete) {
-                await input.delete();
-              } else {
-                await input.writeAsBytes(List<int>.filled(128, 4));
-              }
-            }),
-            fallback: _FakeTranscriptionService(result: _result(lyric)),
-            processSupervisor: AsrProcessSupervisor(startProcess: (_, args) async {
+          processSupervisor: AsrProcessSupervisor(
+            startProcess: (_, args) async {
               await File(args.last).writeAsBytes(List<int>.filled(128, 9));
               final process = _FakeProcess();
               Timer.run(() => process.finish(0));
               return process;
-            }),
-          );
-          try {
-            final result = await service.transcribe(_request(tempDirectory.path,
-                engineOrder: order, includeNormalizedInput: false, inputAudioPath: input.path));
-            final raw = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
-            expect(IndependentAsrEvidence.tryParse(raw)?.sourceAudioSha256, isNull);
-            expect(await const AsrEvidenceAudioVerifier().verify(rawEvidence: raw, currentAudioPath: input.path), AsrEvidenceAudioStatus.unverified);
-          } finally {
-            await service.dispose();
-          }
-        }
-      }
-    });
-
-    test('caller-supplied normalized input or preparer cannot prove source', () async {
-      final input = File('${tempDirectory.path}/source.wav');
-      await input.writeAsBytes(List<int>.filled(128, 3));
-      const lyric = LyricLine(text: 'hello', startTime: Duration.zero, endTime: Duration(seconds: 1));
-      for (final providedWav in [false, true]) {
-        final service = HighQualityTranscriptionService(
-          primary: _FakeTranscriptionService(result: _result(lyric)),
-          fallback: _FakeTranscriptionService(result: _result(lyric)),
-          sharedAudioPreparer: providedWav ? null : (_) async => 'external.wav',
+            },
+          ),
         );
         try {
-          final result = await service.transcribe(_request(tempDirectory.path,
-              includeNormalizedInput: providedWav, inputAudioPath: input.path));
-          final raw = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
-          expect(IndependentAsrEvidence.tryParse(raw)?.sourceAudioSha256, isNull);
+          final result = await service.transcribe(
+            _request(
+              tempDirectory.path,
+              engineOrder: order,
+              includeNormalizedInput: false,
+              inputAudioPath: input.path,
+            ),
+          );
+          final raw =
+              result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+          final evidence = IndependentAsrEvidence.tryParse(raw);
+          expect(
+            evidence?.sourceAudioSha256,
+            await hashAsrAudioFile(input.path),
+          );
+          expect(
+            await const AsrEvidenceAudioVerifier().verify(
+              rawEvidence: raw,
+              currentAudioPath: input.path,
+            ),
+            AsrEvidenceAudioStatus.audioMatches,
+          );
+          await input.writeAsBytes(List<int>.filled(128, 4));
+          expect(
+            await const AsrEvidenceAudioVerifier().verify(
+              rawEvidence: raw,
+              currentAudioPath: input.path,
+            ),
+            AsrEvidenceAudioStatus.audioChanged,
+          );
         } finally {
           await service.dispose();
         }
       }
     });
+
+    test(
+      'source replacement or deletion during recognition stays unverified',
+      () async {
+        const lyric = LyricLine(
+          text: 'hello',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 1),
+        );
+        for (final order in TranscriptionEngineOrder.values) {
+          for (final delete in [false, true]) {
+            final input = File('${tempDirectory.path}/mutable.wav');
+            await input.writeAsBytes(List<int>.filled(128, 3));
+            final service = HighQualityTranscriptionService(
+              primary: _FakeTranscriptionService(
+                result: _result(lyric),
+                onTranscribe: () async {
+                  if (delete) {
+                    await input.delete();
+                  } else {
+                    await input.writeAsBytes(List<int>.filled(128, 4));
+                  }
+                },
+              ),
+              fallback: _FakeTranscriptionService(result: _result(lyric)),
+              processSupervisor: AsrProcessSupervisor(
+                startProcess: (_, args) async {
+                  await File(args.last).writeAsBytes(List<int>.filled(128, 9));
+                  final process = _FakeProcess();
+                  Timer.run(() => process.finish(0));
+                  return process;
+                },
+              ),
+            );
+            try {
+              final result = await service.transcribe(
+                _request(
+                  tempDirectory.path,
+                  engineOrder: order,
+                  includeNormalizedInput: false,
+                  inputAudioPath: input.path,
+                ),
+              );
+              final raw =
+                  result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+              expect(
+                IndependentAsrEvidence.tryParse(raw)?.sourceAudioSha256,
+                isNull,
+              );
+              expect(
+                await const AsrEvidenceAudioVerifier().verify(
+                  rawEvidence: raw,
+                  currentAudioPath: input.path,
+                ),
+                AsrEvidenceAudioStatus.unverified,
+              );
+            } finally {
+              await service.dispose();
+            }
+          }
+        }
+      },
+    );
+
+    test(
+      'caller-supplied normalized input or preparer cannot prove source',
+      () async {
+        final input = File('${tempDirectory.path}/source.wav');
+        await input.writeAsBytes(List<int>.filled(128, 3));
+        const lyric = LyricLine(
+          text: 'hello',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 1),
+        );
+        for (final providedWav in [false, true]) {
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(result: _result(lyric)),
+            fallback: _FakeTranscriptionService(result: _result(lyric)),
+            sharedAudioPreparer: providedWav
+                ? null
+                : (_) async => 'external.wav',
+          );
+          try {
+            final result = await service.transcribe(
+              _request(
+                tempDirectory.path,
+                includeNormalizedInput: providedWav,
+                inputAudioPath: input.path,
+              ),
+            );
+            final raw =
+                result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+            expect(
+              IndependentAsrEvidence.tryParse(raw)?.sourceAudioSha256,
+              isNull,
+            );
+          } finally {
+            await service.dispose();
+          }
+        }
+      },
+    );
 
     test(
       'captures both pre-fusion transcripts for either engine order',
