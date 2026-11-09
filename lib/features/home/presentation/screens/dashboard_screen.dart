@@ -56,8 +56,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _loadData() {
-    _projectsFuture = _projects.getRecentProjects(limit: 8);
-    _historyFuture = _history.getRecentPlayHistory(limit: 10);
+    _projectsFuture = _observeUntilBuild(_projects.getRecentProjects(limit: 8));
+    _historyFuture = _observeUntilBuild(
+      _history.getRecentPlayHistory(limit: 10),
+    );
+  }
+
+  Future<T> _observeUntilBuild<T>(Future<T> future) {
+    // A refresh can fail before FutureBuilder subscribes on the next frame.
+    // Observe that early error without changing the future the UI receives.
+    future.then<void>((_) {}, onError: (Object error, StackTrace stack) {});
+    return future;
   }
 
   Future<void> _refresh() async => setState(_loadData);
