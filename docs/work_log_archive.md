@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-07 21:20] Protect lyric links on read failures ([entry](log/entries/2026-11-07-2120-protect-lyric-links-on-read-failure.md))
 - [2026-11-07 20:52] Clarify KTV accompaniment availability ([entry](log/entries/2026-11-07-2052-ktv-entry-backing-availability.md))
 - [2026-11-07 20:05] Preserve chunk cancellation boundaries ([entry](log/entries/2026-11-07-2005-chunk-cancellation-terminal.md))
 - [2026-11-07 19:20] Document and test vendored audio backend ([entry](log/entries/2026-11-07-1920-vendored-audio-provenance.md))
