@@ -91,8 +91,10 @@ abstract final class LyricReviewStrings {
         'ASR 优先阶段不会猜测新时间或改写现有歌词；没有可证明的变更时，应用按钮会保持禁用。',
       LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable =>
         'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
-      LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable => 'Forced alignment is unavailable. Existing lyric text and timestamps were preserved; review timing manually.',
-      LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing => 'Forced alignment completed without line diagnostics; review timing manually.',
+      LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable =>
+        'Forced alignment is unavailable. Existing lyric text and timestamps were preserved; review timing manually.',
+      LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing =>
+        'Forced alignment completed without line diagnostics; review timing manually.',
     };
   }
 
