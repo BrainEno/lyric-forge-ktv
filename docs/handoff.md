@@ -2,44 +2,42 @@
 
 ## 目标
 
-避免校对时次引擎分段的低置信度被平均分掩盖，保留人工复核。
+用户要求优先解决所有开放的歌词识别改进问题，特别是安全换主模型重跑、两版本比较及智能校对、时间轴易用性，以及副歌遗漏和模糊发音。本阶段只改善已有双引擎逐行候选的比较和恢复。
 
 ## Git 现场
 
-基线 `7910e3beed8ceb9346f417a789f2a926d1dcf8c3`，分支 `arena/67b864b7-lyric-forge-ktv`。验证后、写入本交接前快照：
+基线 `76fbbd3bea4d1bcff4c20d07e21db1736f2011f4`，分支 `arena/d364ab96-lyric-forge-ktv`。生成本交接前的现场：
 
 ```
- M docs/reviews/2026-11-07-asr-and-proofreading-review.md
  M docs/work_log_index.md
- M lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart
- M test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
- M test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart
- docs/reviews/2026-11-07-asr-and-proofreading-review.md | 1 +
- docs/work_log_index.md | 2 +-
- lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart | 6 +-
- test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart | 81 +++++++++++++---------
- test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart | 26 +++++--
- 5 files changed, 74 insertions(+), 42 deletions(-)
-970330a Protect low confidence split ASR evidence
-7910e3b Merge pull request #393 from BrainEno/arena/1806f5be-lyric-forge-ktv
+ M lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart
+ M test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart
+?? docs/reviews/2026-11-07-asr-product-followup.md
+ docs/work_log_index.md                             |  2 +-
+ .../presentation/widgets/lyric_inspector_pane.dart | 12 ++++---
+ .../widgets/lyric_inspector_pane_test.dart         | 42 ++++++++++++++--------
+ 3 files changed, 37 insertions(+), 19 deletions(-)
+cb4b956 Harden candidate labels and compact review
+c8e20d7 Compare both ASR candidates in the inspector
+76fbbd3 Merge pull request #394 from BrainEno/arena/67b864b7-lyric-forge-ktv
 ```
 
-暂存区为空。最终 PR 不保留临时验证 workflow；以当前 Git 状态为准。
+暂存区为空；新文件不计入 `git diff --stat`。最终 PR 不保留临时验证 workflow，以当前 Git 状态为准。
 
 ## 已改文件
 
-ASR 共识分析器、ASR-first pipeline、对应测试、审查报告和工作日志导航。
+编辑器逐行候选卡和 widget 测试；开放 Issue/产品阶段计划、工作日志导航和交接。候选比较只在原有未复核的分歧证据存在时出现，采用任一文本不改时间。
 
 ## 检查结果
 
-固定 SDK Actions run 42626819397 在依赖解析后格式化，校对目录定向测试和完整静态分析通过。本地无 Flutter/Dart；无真实歌曲或手动 UI/设备验证。最终 PR 检查以 GitHub 状态为准。
+固定 SDK Actions run 42630271940 通过依赖解析后格式化、候选卡和字符差异定向测试、全项目静态分析。首次 run 42629987426 定向测试通过，但分析因新增多余空值断言告警失败，已修复。无本地 Flutter/Dart，未做手动设备和真实歌曲验证；最终 PR 质量门禁以 GitHub 为准。
 
 ## 下一步
 
-用授权、人工核对的歌曲语料评估识别质量及相邻行混入；另行评估重复建议仍使用汇总平均分的风险。
+设计并测试不覆盖现有工程和人工编辑的独立模型重跑及双版本证据契约，随后实现比较和审核，详见 `docs/reviews/2026-11-07-asr-product-followup.md`。
 
 ## 已知风险
 
-相邻无关片段的低分可能造成保守复核；重复建议独立使用平均分，未在本阶段改变。未评分不等于高置信。合成回归不能证明真实歌曲准确率；工程跨进程和其他无条件写入仍有风险。
+本阶段未实现重跑、完整版本比较或自动修正，未改善 ASR 模型准确率。旧候选可能缺少主模型原文，只能与当前编辑文本比较；候选本身可能不完整或错误。真实歌曲、时间轴界面和设备行为尚需验证，开放 Issues 未完成验收。
 
 最后更新：2026-11-07（Asia/Taipei）

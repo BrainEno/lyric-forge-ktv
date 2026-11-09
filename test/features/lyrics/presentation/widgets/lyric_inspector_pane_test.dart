@@ -124,29 +124,43 @@ void main() {
     expect(updated?.endTime, current.endTime);
   });
 
-  testWidgets('without original evidence compares against edited text', (tester) async {
+  testWidgets('without original evidence compares against edited text', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: LineInspector(
-      index: 0,
-      line: const LyricLine(text: '初始歌词', startTime: Duration.zero, endTime: Duration(seconds: 1)),
-      fallbackCandidate: const {'alternativeText': '新的歌词'},
-      isReviewed: false,
-      onReviewDecision: (_) {},
-      isCurrentPlaybackLine: false,
-      isPlaying: false,
-      onUpdate: (_) {},
-      onDelete: () {},
-      onPreview: () {},
-    ))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LineInspector(
+            index: 0,
+            line: const LyricLine(
+              text: '初始歌词',
+              startTime: Duration.zero,
+              endTime: Duration(seconds: 1),
+            ),
+            fallbackCandidate: const {'alternativeText': '新的歌词'},
+            isReviewed: false,
+            onReviewDecision: (_) {},
+            isCurrentPlaybackLine: false,
+            isPlaying: false,
+            onUpdate: (_) {},
+            onDelete: () {},
+            onPreview: () {},
+          ),
+        ),
+      ),
+    );
     expect(find.text('当前歌词'), findsOneWidget);
     expect(find.text('备用引擎 备选'), findsOneWidget);
     expect(find.text('采用主模型原文'), findsNothing);
     await tester.enterText(find.byType(TextField), '人工编辑');
     await tester.pump();
-    final text = tester.widget<Text>(find.byKey(const ValueKey('primary_candidate_text')));
+    final text = tester.widget<Text>(
+      find.byKey(const ValueKey('primary_candidate_text')),
+    );
     expect(text.textSpan!.toPlainText(), '人工编辑');
     expect(tester.takeException(), isNull);
   });

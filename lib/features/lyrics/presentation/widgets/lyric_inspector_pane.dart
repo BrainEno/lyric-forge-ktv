@@ -164,8 +164,10 @@ class _LineInspectorState extends State<LineInspector> {
     final legacy = switch (candidate['primaryEngine']) {
       'qwen' => candidate['whisperText'],
       'whisper' => candidate['qwenText'],
-      null when candidate['qwenText'] is String &&
-          candidate['whisperText'] is String => candidate['whisperText'],
+      null
+          when candidate['qwenText'] is String &&
+              candidate['whisperText'] is String =>
+        candidate['whisperText'],
       _ => null,
     };
     return legacy is String ? legacy : null;
@@ -180,8 +182,10 @@ class _LineInspectorState extends State<LineInspector> {
       'whisper' => 'whisperText',
       'qwen' => 'qwenText',
       // Older Qwen-primary records did not include primaryEngine.
-      null when candidate['qwenText'] is String &&
-          candidate['whisperText'] is String => 'qwenText',
+      null
+          when candidate['qwenText'] is String &&
+              candidate['whisperText'] is String =>
+        'qwenText',
       _ => null,
     };
     final legacy = key == null ? null : candidate[key];
