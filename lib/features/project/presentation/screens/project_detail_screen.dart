@@ -228,13 +228,32 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       final updated = await widget.dependencies.accompanimentImporter.importFor(
         project,
       );
-      if (!mounted || updated == null) return;
+      if (updated == null) return;
+      var synchronized = false;
+      final updater = widget.dependencies.playbackSourceUpdater;
+      final replacement = updated.audioAsset;
+      if (updater != null && replacement != null) {
+        try {
+          synchronized = await updater.updateActiveProjectSources(
+            projectId: project.id,
+            expected: project.audioAsset!,
+            replacement: replacement,
+          );
+        } catch (_) {
+          // Import is already saved; a playback sync failure is not an import failure.
+        }
+      }
+      if (!mounted) return;
       await _refreshProject();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('伴奏已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。'),
-          duration: Duration(seconds: 7),
+        SnackBar(
+          content: Text(
+            synchronized
+                ? '伴奏已导入，并同步到当前播放队列。'
+                : '伴奏已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。',
+          ),
+          duration: const Duration(seconds: 7),
         ),
       );
     } on ProjectUpdateConflictException {

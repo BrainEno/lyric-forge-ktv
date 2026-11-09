@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
@@ -46,6 +47,7 @@ Future<void> _showProject(
   Size size, {
   _Projects? projects,
   ProjectAccompanimentImporter? importer,
+  ActiveProjectPlaybackSourceUpdater? updater,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -56,6 +58,7 @@ Future<void> _showProject(
   final dependencies = ProjectDetailDependencies(
     projectRepository: projects ?? _Projects(project),
     accompanimentImporter: importer ?? _Importer(),
+    playbackSourceUpdater: updater,
     transcriptionWorkflow: _Workflow(),
     asrRuntimeSetupDependencies: AsrRuntimeSetupDependencies(
       asrRuntimeManager: _Runtime(),
@@ -181,6 +184,97 @@ void main() {
     },
   );
 
+  for (final outcome in ['updated', 'rejected', 'error']) {
+    testWidgets('import handles playback sync $outcome', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+        );
+        final updated = project.copyWith(
+          audioAsset: project.audioAsset!.copyWith(
+            instrumentalPath: '/managed/backing.mp3',
+          ),
+        );
+        final projects = _Projects(project);
+        final updater = _Updater(outcome);
+        final importer = _Importer(onImport: (_) async {
+          projects.project = updated;
+          return updated;
+        });
+        await _showProject(
+          tester,
+          project,
+          const Size(1366, 768),
+          projects: projects,
+          importer: importer,
+          updater: updater,
+        );
+        await tester.tap(find.text('导入已有伴奏'));
+        await tester.pumpAndSettle();
+        expect(updater.calls, 1);
+        expect(updater.projectId, project.id);
+        expect(updater.expected, same(project.audioAsset));
+        expect(updater.replacement, same(updated.audioAsset));
+        expect(find.text('更换伴奏'), findsOneWidget);
+        expect(
+          find.textContaining(outcome == 'updated' ? '同步到当前播放队列' : '切换歌曲'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('导入伴奏失败'), findsNothing);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
+  testWidgets('cancelled import does not update playback', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+      );
+      final updater = _Updater('updated');
+      await _showProject(tester, project, const Size(1366, 768), updater: updater);
+      await tester.tap(find.text('导入已有伴奏'));
+      await tester.pumpAndSettle();
+      expect(updater.calls, 0);
+      expect(find.textContaining('伴奏已导入'), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('completed import syncs even after detail screen is closed', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
+      );
+      final pending = Completer<ProjectManifest?>();
+      final updater = _Updater('updated');
+      await _showProject(
+        tester, project, const Size(1366, 768),
+        importer: _Importer(onImport: (_) => pending.future), updater: updater,
+      );
+      await tester.tap(find.text('导入已有伴奏'));
+      await tester.pump();
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      pending.complete(project.copyWith(
+        audioAsset: project.audioAsset!.copyWith(instrumentalPath: '/backing.mp3'),
+      ));
+      await tester.pumpAndSettle();
+      expect(updater.calls, 1);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('desktop import reports a project conflict', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
@@ -246,6 +340,29 @@ void main() {
     expect(find.text('人声与伴奏已经准备好'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+}
+
+class _Updater implements ActiveProjectPlaybackSourceUpdater {
+  _Updater(this.outcome);
+  final String outcome;
+  int calls = 0;
+  String? projectId;
+  AudioAsset? expected;
+  AudioAsset? replacement;
+
+  @override
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) async {
+    calls++;
+    this.projectId = projectId;
+    this.expected = expected;
+    this.replacement = replacement;
+    if (outcome == 'error') throw StateError('sync failed');
+    return outcome == 'updated';
+  }
 }
 
 class _Projects extends Fake implements ProjectRepository {
