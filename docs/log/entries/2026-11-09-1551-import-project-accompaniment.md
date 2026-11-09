@@ -1,0 +1,7 @@
+# [2026-11-09 15:51] Import existing project accompaniment
+
+- Scope: Let desktop users attach an existing accompaniment to a project for KTV without claiming automatic separation.
+- Files: Project accompaniment importer contract, file service, project detail assembly/UI, KTV copy, README/PRD, targeted service/widget/documentation tests, this entry, generated work-log navigation, index and handoff.
+- Validation: Pinned Flutter GitHub Actions run 42581625717 passed focused accompaniment, project, KTV and documentation tests and the full quality gate, with Dart format and work-log new/write/check. First focused run 42581481158 failed three widget tests because their platform override was not reset before Flutter invariant checks; fixed before this run. Local git diff --check passed; Flutter/Dart are unavailable locally. Final PR checks reported separately.
+- Notes: Desktop file picker copies an existing nonempty supported-extension file to app storage, with revision-conditional project update and replacement confirmation. File extension does not validate audio content or timing; no automatic separation or vocal import. The currently playing project must be switched away from before reopening to load its new audio asset. Old or failed-save copies are retained to avoid deleting files still referenced by an in-memory project; safe garbage collection remains future work. No native file picker, platform sandbox, audio playback or physical device checks performed. #320 remains open.
+- Commit: `feat: import existing project accompaniment`
