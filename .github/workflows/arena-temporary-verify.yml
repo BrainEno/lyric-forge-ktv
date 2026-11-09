@@ -1,4 +1,4 @@
-name: Temporary ASR review verification
+name: Temporary ASR review log verification
 on:
   push:
     branches: [arena/1806f5be-lyric-forge-ktv]
@@ -7,38 +7,38 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
-      - name: Format changed Dart files
+      - name: Create entry and generate work logs
         run: |
-          git diff --name-only 7e9232ac8baaf259464057ad41b4fa4f24a5ba9b HEAD -- '*.dart' | xargs -r dart format
-      - name: Resolve dependencies
-        run: flutter pub get --enforce-lockfile
-      - name: Run targeted tests
-        run: |
-          set -o pipefail
-          flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart test/features/lyrics/presentation/lyric_review_strings_test.dart 2>&1 | tee /tmp/test.log
-      - name: Analyze
-        run: |
-          set -o pipefail
-          flutter analyze --no-pub --no-fatal-infos lib test tool 2>&1 | tee /tmp/analyze.log
-      - name: Return formatter patch and failure details
+          dart tool/work_log.dart new --timestamp "2026-11-07 23:00" --slug guard-incomparable-asr-review --title "Guard incomparable ASR review evidence"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('docs/log/entries/2026-11-07-2300-guard-incomparable-asr-review.md')
+          s = p.read_text()
+          s = s.replace('TODO — describe the task purpose.', 'Keep empty-normalized ASR evidence in review rather than marking it as agreement.')
+          s = s.replace('TODO — list changed files.', 'ASR consensus analyzer, first-pass pipeline and review reason, Chinese label, targeted tests, ASR review, log entry, generated navigation, index and handoff.')
+          s = s.replace('  - dart format ... => TODO', '  - Pinned Flutter Actions run 42623215036: dart format on changed Dart files passed.')
+          s = s.replace('  - flutter analyze ... => TODO', '  - Pinned Flutter Actions run 42623215036: flutter analyze --no-pub --no-fatal-infos lib test tool passed; earlier run 42622964603 used fatal infos and failed.')
+          s = s.replace('  - flutter test ... => TODO', '  - Pinned Flutter Actions run 42623215036: targeted consensus, first-pass pipeline and Chinese review strings tests passed. Local Flutter/Dart unavailable; final PR checks reported separately.')
+          s = s.replace('TODO — record risks and unverified behavior.', 'No lyric text or timestamps are rewritten. Normalization uses existing rules, which do not discard every Unicode symbol; over-budget comparisons remain conservative. Protected lines remain locked. Real-song accuracy, boundary joins and manual UI/device behavior are not validated.')
+          s = s.replace('TODO: replace with the actual English imperative subject', 'Guard incomparable ASR review evidence')
+          p.write_text(s)
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Return generated patch
         if: always()
         run: |
+          git add -N docs/log/entries/2026-11-07-2300-guard-incomparable-asr-review.md || true
           python3 - <<'PY'
           import base64, gzip, subprocess
-          patch = subprocess.check_output(['git','diff','--','*.dart'])
+          patch = subprocess.check_output(['git','diff','--','docs'])
           data = base64.b64encode(gzip.compress(patch)).decode()
           for i in range(0, len(data), 60000):
               print(f'::notice::PATCH{i//60000:03d}:{data[i:i+60000]}')
-          for path in ['/tmp/analyze.log','/tmp/test.log']:
-              try:
-                  lines = open(path).read().splitlines()
-                  hits = [x for x in lines if '[E]' in x or 'Error:' in x or 'error •' in x or 'warning •' in x or 'Some tests failed' in x]
-                  for line in (hits + lines[-10:])[-35:]: print('::notice::' + line[:900])
-              except FileNotFoundError: pass
           PY
