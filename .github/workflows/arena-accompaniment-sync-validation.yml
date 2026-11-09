@@ -42,7 +42,7 @@ jobs:
           values={
             'Scope':'Connect desktop accompaniment import to the guarded active playback session update without reloading audio.',
             'Files':'Project detail dependencies, application screen assembly, project detail screen, widget tests, this entry, generated work-log navigation, index and handoff.',
-            'Validation':f'Pinned Flutter GitHub Actions run {run} ran Dart format, targeted widget/session/importer tests, the full quality gate, and work-log new/write/check. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.',
+            'Validation':f'Pinned Flutter GitHub Actions run {run} ran Dart format, targeted widget/session/importer tests, the full quality gate, and work-log new/write/check. Earlier full gate run 42598221905 failed the Media Hub upload deadline test with a TLS SocketException Broken pipe at SecureSocket.connect; no test was skipped. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.',
             'Notes':'A successful import attempts the session update even after the screen closes. Stale or unsupported sessions, active backing source changes, and sync errors retain the switch-song/reopen fallback; import success is not reported as failure. Widget tests use fake collaborators; native audio and manual UI are unverified. Automatic separation, vocal import and managed-copy cleanup remain open.',
             'Commit':'`feat: sync imported accompaniment with playback`',
           }
@@ -56,7 +56,7 @@ jobs:
             '# Handoff', '', '## 目标', '', '为 #320 在导入已有伴奏后尝试安全同步播放会话。', '',
             '## Git 现场', '', '- 基线 `8b1a741e135f3595e477bc20fd3fe76c63b5fbad`；分支 `arena/3e0eb0be-lyric-forge-ktv`。最终状态以 Git/GitHub 为准。', '',
             '## 已改文件', '', '- 工程详情依赖和界面、应用组装、widget 测试、工作日志与导航。', '',
-            '## 检查结果', '', f'- 固定 SDK Actions run {run} 通过定向测试、完整门禁及工作日志检查；本地无 Flutter/Dart。', '- 未进行原生设备播放或手动 UI 检查。', '',
+            '## 检查结果', '', f'- 固定 SDK Actions run {run} 通过定向测试、完整门禁及工作日志检查；本地无 Flutter/Dart。', '- 首次完整门禁 run 42598221905 的 Media Hub 上传 deadline 测试在 TLS 连接时报 Broken pipe。未进行原生设备播放或手动 UI 检查。', '',
             '## 下一步', '', '- 在真实设备上验证正在播放、暂停、替换正在使用的伴奏、切歌竞争和窗口关闭；核验回退提示后再考虑放宽限制。', '',
             '## 已知风险', '', '- UI 回归使用 fake；会话能力基于同 isolate 路径快照，不检查文件内容或跨进程写入；持久化为 best-effort。', '- 自动分离、人声导入、旧副本清理尚未完成；Media Hub 上传 deadline 测试历史上间歇失败。', '',
             f'最后更新：{stamp}（Asia/Taipei）', ''
