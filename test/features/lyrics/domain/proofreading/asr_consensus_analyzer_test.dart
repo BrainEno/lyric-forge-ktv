@@ -166,41 +166,60 @@ void main() {
     }
   });
 
-  test('secondary confidence honors threshold and ignores unscored placeholders', () {
-    for (final score in [60, 100]) {
-      final result = analyzer.analyze(
+  test(
+    'secondary confidence honors threshold and ignores unscored placeholders',
+    () {
+      for (final score in [60, 100]) {
+        final result = analyzer.analyze(
+          primary: doc([line('hello world', 0, 2000)]),
+          secondary: doc([
+            line('hello', 0, 1000, confidence: score),
+            line(
+              'world',
+              1000,
+              2000,
+              confidence: 0,
+              confidenceSource: LyricConfidenceSource.unscored,
+            ),
+          ]),
+        );
+        expect(result.rows.single.secondaryConfidence, score);
+        expect(result.rows.single.status, AsrConsensusStatus.agreement);
+        expect(result.rows.single.reasons, isEmpty);
+      }
+      final mixed = analyzer.analyze(
         primary: doc([line('hello world', 0, 2000)]),
         secondary: doc([
-          line('hello', 0, 1000, confidence: score),
-          line('world', 1000, 2000, confidence: 0,
-              confidenceSource: LyricConfidenceSource.unscored),
+          line('hello', 0, 1000, confidence: 59),
+          line(
+            'world',
+            1000,
+            2000,
+            confidence: 100,
+            confidenceSource: LyricConfidenceSource.unscored,
+          ),
         ]),
       );
-      expect(result.rows.single.secondaryConfidence, score);
-      expect(result.rows.single.status, AsrConsensusStatus.agreement);
-      expect(result.rows.single.reasons, isEmpty);
-    }
-    final mixed = analyzer.analyze(
-      primary: doc([line('hello world', 0, 2000)]),
-      secondary: doc([
-        line('hello', 0, 1000, confidence: 59),
-        line('world', 1000, 2000, confidence: 100,
-            confidenceSource: LyricConfidenceSource.unscored),
-      ]),
-    );
-    expect(mixed.rows.single.secondaryConfidence, 59);
-    expect(mixed.rows.single.reasons, contains(AsrConsensusReason.lowSecondaryConfidence));
-    const stricter = AsrConsensusAnalyzer(reviewConfidenceThreshold: 80);
-    final custom = stricter.analyze(
-      primary: doc([line('hello world', 0, 2000)]),
-      secondary: doc([
-        line('hello', 0, 1000, confidence: 79),
-        line('world', 1000, 2000, confidence: 100),
-      ]),
-    );
-    expect(custom.rows.single.secondaryConfidence, 90);
-    expect(custom.rows.single.reasons, contains(AsrConsensusReason.lowSecondaryConfidence));
-  });
+      expect(mixed.rows.single.secondaryConfidence, 59);
+      expect(
+        mixed.rows.single.reasons,
+        contains(AsrConsensusReason.lowSecondaryConfidence),
+      );
+      const stricter = AsrConsensusAnalyzer(reviewConfidenceThreshold: 80);
+      final custom = stricter.analyze(
+        primary: doc([line('hello world', 0, 2000)]),
+        secondary: doc([
+          line('hello', 0, 1000, confidence: 79),
+          line('world', 1000, 2000, confidence: 100),
+        ]),
+      );
+      expect(custom.rows.single.secondaryConfidence, 90);
+      expect(
+        custom.rows.single.reasons,
+        contains(AsrConsensusReason.lowSecondaryConfidence),
+      );
+    },
+  );
 
   test('low confidence on either engine keeps matching text in review', () {
     final result = analyzer.analyze(

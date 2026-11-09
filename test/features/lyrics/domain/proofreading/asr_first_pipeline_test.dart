@@ -252,9 +252,18 @@ void main() {
     expectInvariants(result, input: primary, inputSnapshot: primarySnapshot);
     expect(snapshotLyricDocument(secondary), secondarySnapshot);
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
-    expect(result.lines.single.reasons, contains(ProofreadReason.lowConfidence));
-    expect(result.lines.single.reasons, isNot(contains(ProofreadReason.asrAgreement)));
-    expect(result.lines.single.reasons, isNot(contains(ProofreadReason.asrDisagreement)));
+    expect(
+      result.lines.single.reasons,
+      contains(ProofreadReason.lowConfidence),
+    );
+    expect(
+      result.lines.single.reasons,
+      isNot(contains(ProofreadReason.asrAgreement)),
+    );
+    expect(
+      result.lines.single.reasons,
+      isNot(contains(ProofreadReason.asrDisagreement)),
+    );
     expect(result.proposedDocument.lines, primary.lines);
   });
 
@@ -264,10 +273,13 @@ void main() {
       secondary: doc([row('goodbye world', 0, 2000, confidence: 40)]),
     );
     expect(result.lines.single.verdict, ProofreadVerdict.amber);
-    expect(result.lines.single.reasons, containsAll([
-      ProofreadReason.lowConfidence,
-      ProofreadReason.asrDisagreement,
-    ]));
+    expect(
+      result.lines.single.reasons,
+      containsAll([
+        ProofreadReason.lowConfidence,
+        ProofreadReason.asrDisagreement,
+      ]),
+    );
   });
 
   test('disagreement is amber and does not auto-replace primary text', () {

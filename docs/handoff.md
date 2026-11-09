@@ -2,37 +2,44 @@
 
 ## 目标
 
-修复 ASR 校对将不可比较的空归一化文本误判为一致的问题。
+避免校对时次引擎分段的低置信度被平均分掩盖，保留人工复核。
 
 ## Git 现场
 
-- 基线 `7e9232ac8baaf259464057ad41b4fa4f24a5ba9b`，分支 `arena/1806f5be-lyric-forge-ktv`。验证时快照：
+基线 `7910e3beed8ceb9346f417a789f2a926d1dcf8c3`，分支 `arena/67b864b7-lyric-forge-ktv`。验证后、写入本交接前快照：
 
 ```
-8cd785b Format ASR review changes for verification
-b3af8b0 Improve temporary validation diagnostics
-191602c Verify incomparable ASR review evidence
-7e9232a Merge pull request #392
+ M docs/reviews/2026-11-07-asr-and-proofreading-review.md
+ M docs/work_log_index.md
+ M lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart
+ M test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart
+ M test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart
+ docs/reviews/2026-11-07-asr-and-proofreading-review.md | 1 +
+ docs/work_log_index.md | 2 +-
+ lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart | 6 +-
+ test/features/lyrics/domain/proofreading/asr_consensus_analyzer_test.dart | 81 +++++++++++++---------
+ test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart | 26 +++++--
+ 5 files changed, 74 insertions(+), 42 deletions(-)
+970330a Protect low confidence split ASR evidence
+7910e3b Merge pull request #393 from BrainEno/arena/1806f5be-lyric-forge-ktv
 ```
 
-最终 PR 中不保留临时验证 workflow；以当前 Git 状态为准。
+暂存区为空。最终 PR 不保留临时验证 workflow；以当前 Git 状态为准。
 
 ## 已改文件
 
-- ASR 共识、校对 pipeline、复核原因及中文提示、定向测试、审查报告和工作日志导航。
+ASR 共识分析器、ASR-first pipeline、对应测试、审查报告和工作日志导航。
 
 ## 检查结果
 
-- 固定 SDK Actions run 42623215036 通过格式化、三组定向测试和 `flutter analyze --no-pub --no-fatal-infos lib test tool`。初次验证分析命令未使用质量门禁的非致命 info 参数，失败后按门禁参数重跑通过。
-- 本地无 Flutter/Dart；没有真实歌曲评测或手动 UI 检查。最终 PR 完整检查以 GitHub 状态为准。
+固定 SDK Actions run 42626819397 在依赖解析后格式化，校对目录定向测试和完整静态分析通过。本地无 Flutter/Dart；无真实歌曲或手动 UI/设备验证。最终 PR 检查以 GitHub 状态为准。
 
 ## 下一步
 
-- 准备授权、人工核对的真实歌曲语料，建立分语种的识别与时间误差基准；评估相邻行拼接误报后再调整策略。
+用授权、人工核对的歌曲语料评估识别质量及相邻行混入；另行评估重复建议仍使用汇总平均分的风险。
 
 ## 已知风险
 
-- 归一化规则沿用现有校对服务，并不覆盖所有可能的 Unicode 符号；超预算仍保守复核。双引擎一致不证明歌词正确。
-- 原生设备、真实歌曲识别和用户界面尚未手动验证；工程跨进程写入及其他无条件写入风险仍未解决。
+相邻无关片段的低分可能造成保守复核；重复建议独立使用平均分，未在本阶段改变。未评分不等于高置信。合成回归不能证明真实歌曲准确率；工程跨进程和其他无条件写入仍有风险。
 
 最后更新：2026-11-07（Asia/Taipei）

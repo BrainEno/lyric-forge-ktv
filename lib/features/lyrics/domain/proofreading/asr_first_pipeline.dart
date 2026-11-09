@@ -131,9 +131,9 @@ class AsrFirstPipeline {
         reasons.add(ProofreadReason.asrDisagreement);
       }
       if (consensusRow?.reasons.contains(
-            AsrConsensusReason.lowSecondaryConfidence,
-          ) ==
-          true ||
+                AsrConsensusReason.lowSecondaryConfidence,
+              ) ==
+              true ||
           consensusRow?.reasons.contains(
                 AsrConsensusReason.lowPrimaryConfidence,
               ) ==
