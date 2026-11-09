@@ -1,0 +1,7 @@
+# [2026-11-09 17:30] Guard active project session source updates
+
+- Scope: Add guarded active-project audio source updates to the app-scoped playback session while preserving queue and transport state.
+- Files: Playback session domain capability, default session implementation and decorators, session source-update tests, this entry, generated work-log navigation, index and handoff.
+- Validation: Pinned Flutter GitHub Actions run 42593597602 passed focused session/audio/remote tests and the full quality gate, including Dart format and work-log new/write/check. Earlier full gate run 42593178811 failed the Media Hub upload deadline test; available log did not include the exception. Local git diff --check passed. Local Flutter/Dart unavailable; final PR checks reported separately.
+- Notes: An update requires matching current project ID, expected source paths, loaded current item and audio-layer approval; no await separates the checks, player update and queue replacement. Non-source queue asset metadata is retained; an inactive path may be cleared. Queue changes use existing best-effort session persistence. Tests use fake audio and storage and cover paused/playing state, position, queue/modes, snapshot persistence, stale or remote items, in-flight switch, backend refusal and decorator forwarding. No UI invokes this capability yet; the documented accompaniment workaround remains. Native playback and device behavior are unverified, and #320 remains open.
+- Commit: `feat: guard active project session source updates`

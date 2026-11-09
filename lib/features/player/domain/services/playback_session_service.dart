@@ -77,11 +77,12 @@ class PlaybackSessionState {
 
   PlaybackItem? get currentItem =>
       currentIndex >= 0 && currentIndex < queue.length
-          ? queue[currentIndex]
-          : null;
+      ? queue[currentIndex]
+      : null;
 
   bool get canSkipPrevious => currentItem != null;
-  bool get canSkipNext => currentItem != null &&
+  bool get canSkipNext =>
+      currentItem != null &&
       (currentIndex + 1 < queue.length ||
           (repeatMode == PlaybackRepeatMode.all && queue.isNotEmpty));
   int get upcomingCount =>
@@ -102,20 +103,28 @@ class PlaybackSessionState {
   }
 }
 
+/// Optional capability to update inactive source paths for the current project
+/// without reloading audio. Implementations must compare the active project and
+/// queue snapshot before updating the player and queue together.
+abstract interface class ActiveProjectPlaybackSourceUpdater {
+  /// Returns false without changing either side when the current project or
+  /// expected sources are stale, a load is in progress, or the audio backend
+  /// cannot safely update. Successful updates preserve transport and queue state.
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  });
+}
+
 abstract class PlaybackSessionService {
   Stream<PlaybackSessionState> get stateStream;
   PlaybackSessionState get currentState;
   PlaybackState get playbackState;
 
-  Future<void> playItem(
-    PlaybackItem item, {
-    Duration? resumeFrom,
-  });
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom});
 
-  Future<void> setQueue(
-    List<PlaybackItem> items, {
-    int startIndex = 0,
-  });
+  Future<void> setQueue(List<PlaybackItem> items, {int startIndex = 0});
 
   Future<void> enqueue(PlaybackItem item);
 

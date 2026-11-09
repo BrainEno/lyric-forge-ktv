@@ -7,6 +7,7 @@ import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/services/playback_session_service.dart';
+import '../../../project/domain/models/audio_asset.dart';
 
 /// Enriches playback items before delegating to the normal app-scoped session.
 ///
@@ -15,7 +16,8 @@ import '../../domain/services/playback_session_service.dart';
 /// while their artwork is hydrated asynchronously into app-owned storage. Once
 /// cached, the queue item is updated with a local artwork path so Now Playing,
 /// queue rows and platform lock-screen metadata all use the same image source.
-class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
+class LibraryMetadataPlaybackSessionService
+    implements PlaybackSessionService, ActiveProjectPlaybackSourceUpdater {
   static const int _maxArtworkBytes = 16 * 1024 * 1024;
   static const int _maxCachedArtworkFiles = 96;
   static const int _maxConcurrentArtworkDownloads = 3;
@@ -60,7 +62,9 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
     return item.copyWith(
       title: title == null || title.isEmpty ? item.title : title,
       artist: artist == null || artist.isEmpty ? item.artist : artist,
-      artworkPath: artwork == null || artwork.isEmpty ? item.artworkPath : artwork,
+      artworkPath: artwork == null || artwork.isEmpty
+          ? item.artworkPath
+          : artwork,
     );
   }
 
@@ -236,8 +240,9 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
       }
 
       final extension = _extensionFor(contentType);
-      final destination =
-          File('${directory.path}${Platform.pathSeparator}$prefix$extension');
+      final destination = File(
+        '${directory.path}${Platform.pathSeparator}$prefix$extension',
+      );
       partial = File('${destination.path}.part');
       if (await partial.exists()) await partial.delete();
 
@@ -355,6 +360,23 @@ class LibraryMetadataPlaybackSessionService implements PlaybackSessionService {
     final enriched = await _enrich(item);
     await delegate.enqueue(enriched);
     _scheduleRemoteArtwork(enriched);
+  }
+
+  @override
+  Future<bool> updateActiveProjectSources({
+    required String projectId,
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) {
+    final session = delegate;
+    if (session is! ActiveProjectPlaybackSourceUpdater)
+      return Future.value(false);
+    return (session as ActiveProjectPlaybackSourceUpdater)
+        .updateActiveProjectSources(
+          projectId: projectId,
+          expected: expected,
+          replacement: replacement,
+        );
   }
 
   @override
