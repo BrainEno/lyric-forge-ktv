@@ -30,7 +30,7 @@ jobs:
           python3 - <<'PY'
           import base64, gzip, subprocess
           data = base64.b64encode(gzip.compress(subprocess.check_output(['git','diff','--','*.dart']))).decode()
-          for i in range(0, len(data), 60000): print(f'::notice::PATCH{i//60000:03d}:{data[i:i+60000]}')
+          for i in range(0, len(data), 3000): print(f'::notice::PATCH{i//3000:03d}:{data[i:i+3000]}')
           for path in ['/tmp/evidence-test.log','/tmp/evidence-analyze.log']:
               try:
                   lines = open(path).read().splitlines()
