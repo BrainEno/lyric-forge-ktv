@@ -103,7 +103,7 @@ Future<void> _expectKtvBacking(WidgetTester tester, bool enabled) async {
     find.ancestor(of: find.text('纯伴奏'), matching: find.byType(ListTile)),
   );
   expect(tile.enabled, enabled);
-  await tester.pageBack();
+  Navigator.of(tester.element(find.text('纯伴奏'))).pop();
   await tester.pumpAndSettle();
 }
 
