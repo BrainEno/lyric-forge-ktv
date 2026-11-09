@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
+import '../../domain/services/project_audio_source_update.dart';
 import 'desktop_audio_backend.dart';
 
 /// just_audio 实现的音频播放器服务。
@@ -12,11 +13,12 @@ import 'desktop_audio_backend.dart';
 /// Windows/Linux 会在构造底层 AudioPlayer 前注册 media-kit/libmpv/FFmpeg
 /// 后端，以兼容 VBR、较老 MPEG Layer III 变体以及宿主系统解码器不支持的
 /// MP3 文件。移动端继续使用 just_audio 原生后端。
-class JustAudioPlayerService implements AudioPlayerService {
+class JustAudioPlayerService implements AudioPlayerService, ActiveProjectAudioSourceUpdater {
   late final AudioPlayer _player;
   AudioAsset? _currentAsset;
   AudioSourceType? _currentSource;
   String? _lastError;
+  int _loadsInFlight = 0;
 
   final _stateController = StreamController<PlaybackState>.broadcast();
   PlaybackState _currentState = const PlaybackState.idle();
@@ -57,13 +59,33 @@ class JustAudioPlayerService implements AudioPlayerService {
 
   Future<void> _runLoad(Future<void> Function() operation) async {
     _lastError = null;
+    _loadsInFlight++;
     try {
       await operation();
     } catch (error) {
       _lastError = _friendlyPlaybackError(error);
       _updateState();
       rethrow;
+    } finally {
+      _loadsInFlight--;
     }
+  }
+
+  @override
+  bool updateActiveProjectAudioSources({
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) {
+    if (_loadsInFlight > 0 || _lastError != null) return false;
+    final next = safeProjectAudioSourceUpdate(
+      current: _currentAsset,
+      expected: expected,
+      replacement: replacement,
+      activeSource: _currentSource,
+    );
+    if (next == null) return false;
+    _currentAsset = next;
+    return true;
   }
 
   void _updateState() {

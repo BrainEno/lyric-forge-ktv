@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
+import '../../../player/domain/services/project_audio_source_update.dart';
 import '../../../project/domain/models/audio_asset.dart';
 import '../../domain/models/media_hub_connection.dart';
 import '../../domain/services/media_hub_client_service.dart';
@@ -30,7 +31,8 @@ class _MediaHubProxyTarget {
 /// adapters cannot be configured with this app's per-connection certificate
 /// pin. The proxy is loopback-only, strips query credentials and preserves
 /// HTTP Range semantics while authenticating the upstream HTTPS request.
-class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
+class MediaHubRebindingAudioPlayerService
+    implements AudioPlayerService, ActiveProjectAudioSourceUpdater {
   final AudioPlayerService delegate;
   final MediaHubClientService client;
   final MediaHubConnectionStore connectionStore;
@@ -38,6 +40,7 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
 
   HttpServer? _proxyServer;
   bool _proxyListening = false;
+  int _loadsInFlight = 0;
   final Map<String, _MediaHubProxyTarget> _proxyTargets =
       <String, _MediaHubProxyTarget>{};
 
@@ -60,15 +63,32 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
   Stream<Duration?> get durationStream => delegate.durationStream;
 
   @override
+  bool updateActiveProjectAudioSources({
+    required AudioAsset expected,
+    required AudioAsset replacement,
+  }) {
+    if (_loadsInFlight > 0) return false;
+    final player = delegate;
+    if (player is! ActiveProjectAudioSourceUpdater) return false;
+    return (player as ActiveProjectAudioSourceUpdater)
+        .updateActiveProjectAudioSources(expected: expected, replacement: replacement);
+  }
+
+  @override
   Future<void> loadProjectAudio({
     required AudioAsset audioAsset,
     AudioSourceType preferredSource = AudioSourceType.instrumental,
   }) async {
-    await delegate.loadProjectAudio(
-      audioAsset: audioAsset,
-      preferredSource: preferredSource,
-    );
-    _proxyTargets.clear();
+    _loadsInFlight++;
+    try {
+      await delegate.loadProjectAudio(
+        audioAsset: audioAsset,
+        preferredSource: preferredSource,
+      );
+      _proxyTargets.clear();
+    } finally {
+      _loadsInFlight--;
+    }
   }
 
   @override
@@ -76,6 +96,15 @@ class MediaHubRebindingAudioPlayerService implements AudioPlayerService {
     required Uri uri,
     AudioSourceType source = AudioSourceType.original,
   }) async {
+    _loadsInFlight++;
+    try {
+      await _loadAudioUri(uri, source);
+    } finally {
+      _loadsInFlight--;
+    }
+  }
+
+  Future<void> _loadAudioUri(Uri uri, AudioSourceType source) async {
     final resolved = await _latestMediaHubUri(uri);
     if (!_looksLikeMediaHubAudio(resolved)) {
       await delegate.loadAudioUri(uri: resolved, source: source);
