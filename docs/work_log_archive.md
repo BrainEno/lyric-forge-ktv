@@ -94,6 +94,7 @@
 - [2026-11-07 19:20] Document and test vendored audio backend ([entry](log/entries/2026-11-07-1920-vendored-audio-provenance.md))
 - [2026-11-07 18:43] Remove unused proofreading constants ([entry](log/entries/2026-11-07-1843-remove-dead-proofread-constants.md))
 - [2026-11-07 18:24] Harden Media Hub audio uploads ([entry](log/entries/2026-11-07-1824-harden-audio-uploads.md))
+- [2026-11-07 18:05] Synchronize imported accompaniment with playback ([entry](log/entries/2026-11-07-1805-sync-imported-accompaniment.md))
 - [2026-11-07 17:40] Preserve disagreement evidence beyond highlight limit ([entry](log/entries/2026-11-07-1740-preserve-disagreement-evidence.md))
 - [2026-11-07 16:58] Surface unreviewed high-confidence engine disagreements ([entry](log/entries/2026-11-07-1658-surface-high-confidence-engine-disagreements.md))
 - [2026-11-07 16:18] Preserve project status on ASR cancellation ([entry](log/entries/2026-11-07-1618-preserve-ready-on-asr-cancellation.md))

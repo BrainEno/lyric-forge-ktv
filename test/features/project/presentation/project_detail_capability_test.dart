@@ -199,10 +199,12 @@ void main() {
         );
         final projects = _Projects(project);
         final updater = _Updater(outcome);
-        final importer = _Importer(onImport: (_) async {
-          projects.project = updated;
-          return updated;
-        });
+        final importer = _Importer(
+          onImport: (_) async {
+            projects.project = updated;
+            return updated;
+          },
+        );
         await _showProject(
           tester,
           project,
@@ -238,7 +240,12 @@ void main() {
         audio: const AudioAsset(originalPath: '/song.mp3', format: 'mp3'),
       );
       final updater = _Updater('updated');
-      await _showProject(tester, project, const Size(1366, 768), updater: updater);
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        updater: updater,
+      );
       await tester.tap(find.text('导入已有伴奏'));
       await tester.pumpAndSettle();
       expect(updater.calls, 0);
@@ -248,7 +255,9 @@ void main() {
     }
   });
 
-  testWidgets('completed import syncs even after detail screen is closed', (tester) async {
+  testWidgets('completed import syncs even after detail screen is closed', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
       final project = _project(
@@ -258,15 +267,22 @@ void main() {
       final pending = Completer<ProjectManifest?>();
       final updater = _Updater('updated');
       await _showProject(
-        tester, project, const Size(1366, 768),
-        importer: _Importer(onImport: (_) => pending.future), updater: updater,
+        tester,
+        project,
+        const Size(1366, 768),
+        importer: _Importer(onImport: (_) => pending.future),
+        updater: updater,
       );
       await tester.tap(find.text('导入已有伴奏'));
       await tester.pump();
       await tester.pumpWidget(const MaterialApp(home: SizedBox()));
-      pending.complete(project.copyWith(
-        audioAsset: project.audioAsset!.copyWith(instrumentalPath: '/backing.mp3'),
-      ));
+      pending.complete(
+        project.copyWith(
+          audioAsset: project.audioAsset!.copyWith(
+            instrumentalPath: '/backing.mp3',
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(updater.calls, 1);
       expect(tester.takeException(), isNull);
