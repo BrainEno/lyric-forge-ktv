@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-09 01:51] Protect metadata during audio relink ([entry](log/entries/2026-11-09-0151-protect-relink-metadata.md))
 - [2026-11-08 00:47] Handle background lyric link failures ([entry](log/entries/2026-11-08-0047-handle-background-lyric-link-failures.md))
 - [2026-11-08 00:28] Protect lyric associations from partial metadata ([entry](log/entries/2026-11-08-0028-protect-lyric-associations-from-partial-metadata.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
