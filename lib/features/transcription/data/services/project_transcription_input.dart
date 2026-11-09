@@ -9,7 +9,11 @@ Future<String> resolveProjectTranscriptionInput(ProjectManifest project) async {
   if (audio == null) {
     throw const TranscriptionException.input('工程还没有可识别的音频');
   }
-  for (final path in [audio.vocalPath, audio.normalizedPath, audio.originalPath]) {
+  for (final path in [
+    audio.vocalPath,
+    audio.normalizedPath,
+    audio.originalPath,
+  ]) {
     if (path == null || path.trim().isEmpty) continue;
     if (await File(path).exists()) return path;
   }

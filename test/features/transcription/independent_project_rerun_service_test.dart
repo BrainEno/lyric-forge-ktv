@@ -11,9 +11,35 @@ import 'package:lyric_forge_ktv/features/transcription/data/services/independent
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 
-const config = TranscriptionConfig(whisperExecutable: 'whisper', modelPath: 'model');
-const manual = LyricDocument(language: 'en', lines: [LyricLine(id: 'manual', text: 'human edit', startTime: Duration.zero, endTime: Duration(seconds: 2))], metadata: {'manual': ['manual']});
-const draft = LyricDocument(language: 'en', lines: [LyricLine(text: 'new interpretation', startTime: Duration.zero, endTime: Duration(seconds: 2))], metadata: {'rawJsonPath': 'temporary', 'generatedBy': 'test'});
+const config = TranscriptionConfig(
+  whisperExecutable: 'whisper',
+  modelPath: 'model',
+);
+const manual = LyricDocument(
+  language: 'en',
+  lines: [
+    LyricLine(
+      id: 'manual',
+      text: 'human edit',
+      startTime: Duration.zero,
+      endTime: Duration(seconds: 2),
+    ),
+  ],
+  metadata: {
+    'manual': ['manual'],
+  },
+);
+const draft = LyricDocument(
+  language: 'en',
+  lines: [
+    LyricLine(
+      text: 'new interpretation',
+      startTime: Duration.zero,
+      endTime: Duration(seconds: 2),
+    ),
+  ],
+  metadata: {'rawJsonPath': 'temporary', 'generatedBy': 'test'},
+);
 
 void main() {
   late Directory root;
@@ -31,86 +57,255 @@ void main() {
     await original.writeAsBytes([1, 2, 3]);
     await vocal.writeAsBytes([4, 5, 6]);
     final now = DateTime.utc(2026);
-    repository = _Repository(ProjectManifest(id: 'p', name: 'Song', createdAt: now, updatedAt: now, revision: 7, audioAsset: AudioAsset(originalPath: original.path, vocalPath: vocal.path, format: 'wav'), lyricDocument: manual, projectDirectory: root.path));
+    repository = _Repository(
+      ProjectManifest(
+        id: 'p',
+        name: 'Song',
+        createdAt: now,
+        updatedAt: now,
+        revision: 7,
+        audioAsset: AudioAsset(
+          originalPath: original.path,
+          vocalPath: vocal.path,
+          format: 'wav',
+        ),
+        lyricDocument: manual,
+        projectDirectory: root.path,
+      ),
+    );
     qwen = _Engine();
     whisper = _Engine();
-    runner = IndependentProjectRerunService(projects: repository, createQwen: () => qwen, createWhisper: () => whisper);
+    runner = IndependentProjectRerunService(
+      projects: repository,
+      createQwen: () => qwen,
+      createWhisper: () => whisper,
+    );
   });
   tearDown(() => root.delete(recursive: true));
 
-  test('each selection really runs one engine in isolated storage without project writes', () async {
-    for (final engine in IndependentRerunEngine.values) {
-      final chosen = engine == IndependentRerunEngine.qwen ? qwen : whisper;
-      final pair = await runner.run(projectId: 'p', engine: engine, config: config);
-      expect(pair.engine, engine);
-      expect(pair.projectRevision, 7);
-      expect(pair.inputAudioPath, vocal.path);
-      expect(pair.inputAudioSha256, sha256.convert([4, 5, 6]).toString());
-      expect(pair.original.lines.single.text, 'human edit');
-      expect(pair.candidate.lines.single.text, 'new interpretation');
-      expect(pair.candidate.metadata, isNot(contains('rawJsonPath')));
-      pair.original.lines.clear();
-      expect(pair.original.lines.single.text, 'human edit');
-      expect(chosen.requests.single.normalizedInputAudioPath, isNull);
-      expect(chosen.requests.single.inputAudioPath, vocal.path);
-      expect(await Directory(chosen.requests.single.outputDirectory).exists(), isFalse);
-      expect(chosen.disposed, isTrue);
-    }
-    expect(qwen.requests.length, 1);
-    expect(whisper.requests.length, 1);
-    expect(repository.writes, 0);
-    expect(repository.project.lyricDocument!.toJson(), manual.toJson());
-    expect(await root.list().length, 2);
-  });
+  test(
+    'each selection really runs one engine in isolated storage without project writes',
+    () async {
+      for (final engine in IndependentRerunEngine.values) {
+        final chosen = engine == IndependentRerunEngine.qwen ? qwen : whisper;
+        final pair = await runner.run(
+          projectId: 'p',
+          engine: engine,
+          config: config,
+        );
+        expect(pair.engine, engine);
+        expect(pair.projectRevision, 7);
+        expect(pair.inputAudioPath, vocal.path);
+        expect(pair.inputAudioSha256, sha256.convert([4, 5, 6]).toString());
+        expect(pair.modelReference, engine == IndependentRerunEngine.qwen ? config.qwenModelPath : config.modelPath);
+        expect(pair.alignerReference, engine == IndependentRerunEngine.qwen ? config.qwenAlignerModelPath : null);
+        expect(pair.requestedLanguage, config.language);
+        expect(pair.original.lines.single.text, 'human edit');
+        expect(pair.candidate.lines.single.text, 'new interpretation');
+        expect(pair.candidate.metadata, isNot(contains('rawJsonPath')));
+        pair.original.lines.clear();
+        expect(pair.original.lines.single.text, 'human edit');
+        expect(chosen.requests.single.normalizedInputAudioPath, isNull);
+        expect(chosen.requests.single.inputAudioPath, vocal.path);
+        expect(
+          await Directory(chosen.requests.single.outputDirectory).exists(),
+          isFalse,
+        );
+        expect(chosen.disposed, isTrue);
+      }
+      expect(qwen.requests.length, 1);
+      expect(whisper.requests.length, 1);
+      expect(repository.writes, 0);
+      expect(repository.project.lyricDocument!.toJson(), manual.toJson());
+      expect(await root.list().length, 2);
+    },
+  );
 
-  test('concurrent project edit invalidates candidate without touching edited lyrics', () async {
-    qwen.callback = (_) async {
-      repository.project = repository.project.copyWith(revision: 8, lyricDocument: draft);
-    };
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.input)));
-    expect(repository.project.lyricDocument!.toJson(), draft.toJson());
-    expect(repository.writes, 0);
-    expect(await Directory(qwen.requests.single.outputDirectory).exists(), isFalse);
-  });
+  test(
+    'concurrent project edit invalidates candidate without touching edited lyrics',
+    () async {
+      qwen.callback = (_) async {
+        repository.project = repository.project.copyWith(
+          revision: 8,
+          lyricDocument: draft,
+        );
+      };
+      await expectLater(
+        runner.run(
+          projectId: 'p',
+          engine: IndependentRerunEngine.qwen,
+          config: config,
+        ),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.input,
+          ),
+        ),
+      );
+      expect(repository.project.lyricDocument!.toJson(), draft.toJson());
+      expect(repository.writes, 0);
+      expect(
+        await Directory(qwen.requests.single.outputDirectory).exists(),
+        isFalse,
+      );
+    },
+  );
 
-  test('audio mutation and preferred-input changes invalidate candidate', () async {
-    qwen.callback = (_) async { await vocal.writeAsBytes([9, 9, 9]); };
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>()));
-    await vocal.writeAsBytes([4, 5, 6]);
-    qwen.callback = (_) async { await vocal.delete(); };
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>()));
-    expect(repository.writes, 0);
-  });
+  test(
+    'audio mutation and preferred-input changes invalidate candidate',
+    () async {
+      qwen.callback = (_) async {
+        await vocal.writeAsBytes([9, 9, 9]);
+      };
+      await expectLater(
+        runner.run(
+          projectId: 'p',
+          engine: IndependentRerunEngine.qwen,
+          config: config,
+        ),
+        throwsA(isA<TranscriptionException>()),
+      );
+      await vocal.writeAsBytes([4, 5, 6]);
+      qwen.callback = (_) async {
+        await vocal.delete();
+      };
+      await expectLater(
+        runner.run(
+          projectId: 'p',
+          engine: IndependentRerunEngine.qwen,
+          config: config,
+        ),
+        throwsA(isA<TranscriptionException>()),
+      );
+      expect(repository.writes, 0);
+    },
+  );
 
-  test('new higher priority input invalidates candidate even if old file remains', () async {
-    await vocal.delete();
-    qwen.callback = (_) async { await vocal.writeAsBytes([4, 5, 6]); };
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>()));
-    expect(qwen.requests.single.inputAudioPath, original.path);
-  });
+  test(
+    'new higher priority input invalidates candidate even if old file remains',
+    () async {
+      await vocal.delete();
+      qwen.callback = (_) async {
+        await vocal.writeAsBytes([4, 5, 6]);
+      };
+      await expectLater(
+        runner.run(
+          projectId: 'p',
+          engine: IndependentRerunEngine.qwen,
+          config: config,
+        ),
+        throwsA(isA<TranscriptionException>()),
+      );
+      expect(qwen.requests.single.inputAudioPath, original.path);
+    },
+  );
 
-  test('cancellation and overlapping calls do not return or save results', () async {
+  test(
+    'cancellation and overlapping calls do not return or save results',
+    () async {
+      final started = Completer<void>();
+      final release = Completer<void>();
+      qwen.callback = (_) async {
+        started.complete();
+        await release.future;
+      };
+      final running = runner.run(
+        projectId: 'p',
+        engine: IndependentRerunEngine.qwen,
+        config: config,
+      );
+      final assertion = expectLater(
+        running,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await started.future;
+      await expectLater(
+        runner.run(
+          projectId: 'p',
+          engine: IndependentRerunEngine.whisper,
+          config: config,
+        ),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      await runner.cancel();
+      expect(qwen.cancelled, isTrue);
+      release.complete();
+      await assertion;
+      expect(repository.writes, 0);
+      expect(whisper.requests, isEmpty);
+      expect(
+        await Directory(qwen.requests.single.outputDirectory).exists(),
+        isFalse,
+      );
+      expect(runner.isRunning, isFalse);
+    },
+  );
+
+  test('cancellation during cleanup does not return a candidate', () async {
     final started = Completer<void>();
     final release = Completer<void>();
-    qwen.callback = (_) async { started.complete(); await release.future; };
-    final running = runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config);
-    final assertion = expectLater(running, throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
+    qwen.onDispose = () async { started.complete(); await release.future; };
+    final run = runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config);
+    final assertion = expectLater(run, throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
     await started.future;
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.whisper, config: config), throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.busy)));
     await runner.cancel();
-    expect(qwen.cancelled, isTrue);
     release.complete();
     await assertion;
-    expect(repository.writes, 0);
-    expect(whisper.requests, isEmpty);
     expect(await Directory(qwen.requests.single.outputDirectory).exists(), isFalse);
-    expect(runner.isRunning, isFalse);
+    expect(repository.writes, 0);
+  });
+
+  test('cancellation while loading the project never starts an engine', () async {
+    final started = Completer<void>();
+    final release = Completer<void>();
+    repository.beforeRead = () async { started.complete(); await release.future; };
+    final run = runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config);
+    final assertion = expectLater(run, throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
+    await started.future;
+    await runner.cancel();
+    release.complete();
+    await assertion;
+    expect(qwen.requests, isEmpty);
+    expect(qwen.cancelled, isFalse);
+    expect(repository.writes, 0);
   });
 
   test('failure cleans the isolated workspace without saving', () async {
-    qwen.callback = (_) async { throw const TranscriptionException.environment('failed'); };
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.environment)));
-    expect(await Directory(qwen.requests.single.outputDirectory).exists(), isFalse);
+    qwen.callback = (_) async {
+      throw const TranscriptionException.environment('failed');
+    };
+    await expectLater(
+      runner.run(
+        projectId: 'p',
+        engine: IndependentRerunEngine.qwen,
+        config: config,
+      ),
+      throwsA(
+        isA<TranscriptionException>().having(
+          (e) => e.kind,
+          'kind',
+          TranscriptionFailureKind.environment,
+        ),
+      ),
+    );
+    expect(
+      await Directory(qwen.requests.single.outputDirectory).exists(),
+      isFalse,
+    );
     expect(qwen.disposed, isTrue);
     expect(repository.writes, 0);
     expect(repository.project.lyricDocument!.toJson(), manual.toJson());
@@ -118,7 +313,20 @@ void main() {
 
   test('a busy preexisting adapter is not cancelled or disposed', () async {
     qwen.busy = true;
-    await expectLater(runner.run(projectId: 'p', engine: IndependentRerunEngine.qwen, config: config), throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.busy)));
+    await expectLater(
+      runner.run(
+        projectId: 'p',
+        engine: IndependentRerunEngine.qwen,
+        config: config,
+      ),
+      throwsA(
+        isA<TranscriptionException>().having(
+          (e) => e.kind,
+          'kind',
+          TranscriptionFailureKind.busy,
+        ),
+      ),
+    );
     expect(qwen.cancelled, isFalse);
     expect(qwen.disposed, isFalse);
     expect(qwen.requests, isEmpty);
@@ -128,13 +336,28 @@ void main() {
 class _Repository implements ProjectRepository {
   ProjectManifest project;
   int writes = 0;
+  Future<void> Function()? beforeRead;
   _Repository(this.project);
   @override
-  Future<ProjectManifest?> getProjectById(String id) async => id == project.id ? project : null;
+  Future<ProjectManifest?> getProjectById(String id) async {
+    if (beforeRead != null) await beforeRead!();
+    return id == project.id ? project : null;
+  }
   @override
-  Future<ProjectManifest> updateProject(ProjectManifest project) async { writes++; throw StateError('unexpected write'); }
+  Future<ProjectManifest> updateProject(ProjectManifest project) async {
+    writes++;
+    throw StateError('unexpected write');
+  }
+
   @override
-  Future<ProjectManifest> updateProjectIfUnchanged(ProjectManifest project, {required int expectedRevision}) async { writes++; throw StateError('unexpected write'); }
+  Future<ProjectManifest> updateProjectIfUnchanged(
+    ProjectManifest project, {
+    required int expectedRevision,
+  }) async {
+    writes++;
+    throw StateError('unexpected write');
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -142,6 +365,7 @@ class _Repository implements ProjectRepository {
 class _Engine implements TranscriptionService {
   final requests = <TranscriptionRequest>[];
   Future<void> Function(TranscriptionRequest)? callback;
+  Future<void> Function()? onDispose;
   bool cancelled = false;
   bool disposed = false;
   bool busy = false;
@@ -152,12 +376,26 @@ class _Engine implements TranscriptionService {
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     requests.add(request);
-    await File('${request.outputDirectory}/raw.json').writeAsString('temporary');
+    await File(
+      '${request.outputDirectory}/raw.json',
+    ).writeAsString('temporary');
     if (callback != null) await callback!(request);
-    return const TranscriptionResult(lyrics: draft, normalizedAudioPath: 'unused', rawJsonPath: 'unused', detectedLanguage: 'en');
+    return const TranscriptionResult(
+      lyrics: draft,
+      normalizedAudioPath: 'unused',
+      rawJsonPath: 'unused',
+      detectedLanguage: 'en',
+    );
   }
+
   @override
-  Future<void> cancel() async { cancelled = true; }
+  Future<void> cancel() async {
+    cancelled = true;
+  }
+
   @override
-  Future<void> dispose() async { disposed = true; }
+  Future<void> dispose() async {
+    disposed = true;
+    if (onDispose != null) await onDispose!();
+  }
 }
