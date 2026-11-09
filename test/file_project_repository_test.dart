@@ -208,7 +208,9 @@ void main() {
       final reopened = FileProjectRepository(rootDirectory: root);
       expect((await reopened.getProjectById(valid.id))?.name, 'Updated');
       expect(
-        (await reopened.getProjectById(valid.id))?.lyricDocument?.lines.single.text,
+        (await reopened.getProjectById(
+          valid.id,
+        ))?.lyricDocument?.lines.single.text,
         '保留歌词',
       );
     });
@@ -224,7 +226,10 @@ void main() {
 
     await Future.wait([
       expectLater(repository.getRecentProjects(), throwsFormatException),
-      expectLater(repository.createProject(name: 'No write'), throwsFormatException),
+      expectLater(
+        repository.createProject(name: 'No write'),
+        throwsFormatException,
+      ),
     ]);
     expect(await store.readAsString(), broken);
     await expectLater(repository.getAllProjects(), throwsFormatException);
@@ -247,7 +252,12 @@ void main() {
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
     );
-    await store.writeAsString(jsonEncode({'version': 1, 'projects': [project.toJson()]}));
+    await store.writeAsString(
+      jsonEncode({
+        'version': 1,
+        'projects': [project.toJson()],
+      }),
+    );
     final repository = FileProjectRepository(rootDirectory: root);
     expect((await repository.getAllProjects()).single.id, project.id);
 
