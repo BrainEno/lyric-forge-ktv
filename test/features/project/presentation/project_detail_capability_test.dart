@@ -128,7 +128,7 @@ void main() {
 
   testWidgets('desktop import shows progress, updates project and confirms replacement', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    try {
     final project = _project(
       stage: ProcessingStage.lyricsEdited,
       audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
@@ -153,11 +153,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(importer.calls, 1);
     expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('desktop import reports a project conflict', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    try {
     final project = _project(
       stage: ProcessingStage.lyricsEdited,
       audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
@@ -169,17 +172,23 @@ void main() {
     expect(find.textContaining('工程已发生变化'), findsOneWidget);
     expect(find.text('导入已有伴奏'), findsOneWidget);
     expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('mobile does not expose desktop accompaniment import', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    try {
     await _showProject(tester, _project(
       stage: ProcessingStage.lyricsEdited,
       audio: const AudioAsset(originalPath: '/music/song.mp3', format: 'mp3'),
     ), const Size(390, 844));
     expect(find.text('导入已有伴奏'), findsNothing);
     expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('legacy separation stage does not claim the tracks are ready', (
