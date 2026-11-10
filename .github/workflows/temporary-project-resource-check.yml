@@ -1,0 +1,35 @@
+name: Temporary project resource check
+on:
+  push:
+    branches: [arena/95dd575f-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and publish patch
+        run: |
+          dart format lib/app/app_services.dart lib/app/screen_assembly.dart lib/features/transcription/data/services/local_project_transcription_workflow.dart test/architecture/workflow_screen_injection_contract_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart
+          git diff | gzip -c | base64 -w0 > /tmp/patch64
+          python3 - <<'PY'
+          s = open('/tmp/patch64').read()
+          for i in range(0, len(s), 3000):
+              print('::notice title=PATCH%03d::%s' % (i // 3000, s[i:i+3000]))
+          PY
+      - name: Targeted tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/transcription/local_project_transcription_cancellation_test.dart test/features/transcription/independent_project_rerun_workflow_test.dart test/file_batch_transcription_queue_test.dart test/features/transcription/asr_end_to_end_smoke_test_service_test.dart test/features/project/presentation/project_detail_capability_test.dart test/architecture/workflow_screen_injection_contract_test.dart 2>&1 | tee /tmp/test.log || { python3 - <<'PY'
+          s = open('/tmp/test.log').read()
+          for line in s.splitlines():
+              if '[E]' in line or line.startswith(('Expected:', '  Actual:', 'Which:', '══╡', 'Test failed.', 'EXCEPTION', 'The following', 'Error:')):
+                  print('::error::' + line.replace('%', '%25'))
+          PY
+          exit 1; }
+      - name: Analyze
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool

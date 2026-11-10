@@ -13,7 +13,7 @@ void main() {
     expect(screen, isNot(contains('AppServices')));
     expect(screen, contains('required this.dependencies'));
     expect(router, contains('assembleProjectDetailDependencies(services)'));
-    expect(assembly, contains('services.projectTranscriptionWorkflow'));
+    expect(assembly, contains('services.createProjectTranscriptionWorkflow()'));
   });
 
   test('import screens and queue recovery share explicit dependencies', () {
