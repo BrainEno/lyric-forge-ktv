@@ -11,7 +11,7 @@
 | [#317](https://github.com/BrainEno/lyric-forge-ktv/issues/317) | 共享多语种比较和回归测试已有较多修复；仍需逐项审查 Issue 验收标准及长歌/分片真实样本，不因代码存在就宣布真实歌曲识别准确。 |
 | [#332](https://github.com/BrainEno/lyric-forge-ktv/issues/332) | 当前队列代码不再以置信度 100 排除引擎分歧，已有 100/99/85/70 测试和显式复核标记；仍需全面核验验收条件，Issue 保持开放。 |
 | [#320](https://github.com/BrainEno/lyric-forge-ktv/issues/320) | 已有用户导入伴奏的若干步骤；外部人声导入、真实设备验证及自动分离等仍需单独核验。可用人声轨可能改善输入，但没有基准不能保证效果。 |
-| [#321](https://github.com/BrainEno/lyric-forge-ktv/issues/321) | 结构化取消主要路径已修；Issue 评论记录的分片终态和取消竞态需要基于当前实现继续核验，不能仅凭旧 Issue 状态判断。 |
+| [#321](https://github.com/BrainEno/lyric-forge-ktv/issues/321) | 结构化取消主要路径已修；分片包装器现在统一发出任务终态，避免分片重试、子任务完成和取消混成整首完成，合并阶段也检查取消。已覆盖短音频、分片和恢复检查点的自动化测试；仍需全面核验 Issue 验收条件和实际设备。 |
 | [#323](https://github.com/BrainEno/lyric-forge-ktv/issues/323) | 校对编排、可测试性和文档仍需分阶段改进；应支持新流程而不是一次性重写整个编辑器。 |
 
 其他相关但并非识别算法本身的开放项包括 [#231](https://github.com/BrainEno/lyric-forge-ktv/issues/231)（大文件）、[#327](https://github.com/BrainEno/lyric-forge-ktv/issues/327)（跨 feature 依赖）和 [#233](https://github.com/BrainEno/lyric-forge-ktv/issues/233)（诊断）。不能把这些重构或诊断问题当作已提升准确率。

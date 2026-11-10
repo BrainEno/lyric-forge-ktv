@@ -2,36 +2,36 @@
 
 ## 目标
 
-继续实现选用不同模型独立重识别、保存新旧歌词并审核。本阶段串联所选引擎运行时检查、独立重跑与候选持久化，不更改当前歌词。
+继续修复歌词识别相关问题。本阶段针对 #321 修复分片转写将单次尝试的终态误当整项任务终态，以及合并阶段取消未被及时检查的问题。
 
 ## Git 现场
 
-基线 `0931afbc1b853af57c7d63bd02928c5e9431eee4`，分支 `arena/fd8aa424-lyric-forge-ktv`。写入交接前：
+基线 `e6fb9afc1f73b7262059635b5b82cc4215829442`，分支 `arena/b6d630ec-lyric-forge-ktv`。写入交接前：
 
 ```
- M test/features/transcription/independent_project_rerun_workflow_test.dart
- .../independent_project_rerun_workflow_test.dart | 56 +++++++++++++++-------
-eb8c1c4 Cover explicit engine and repaired configuration
-55b0439 Orchestrate independent model reruns
-0931afb Merge pull request #400 from BrainEno/arena/f690cad4-lyric-forge-ktv
+ M test/resumable_chunked_transcription_service_test.dart
+ test/resumable_chunked_transcription_service_test.dart | 5 ++++-
+2b5cba2 Preserve failure handling around checkpoint writes
+30b8dd1 Own terminal events for chunked transcription
+e6fb9af Merge pull request #401 from BrainEno/arena/fd8aa424-lyric-forge-ktv
 ```
 
-后续文档与格式化会变化；以实际 Git 状态为准。临时验证 workflow 不应保留在最终 PR。
+文档和格式化会继续变化；以实际 Git 状态为准。临时验证 workflow 不应保留在最终 PR。
 
 ## 已改文件
 
-新增独立重跑编排和定向测试；更新产品跟进、日志导航和交接。
+分片转写服务和定向测试，产品跟进、工作日志导航与交接。
 
 ## 检查结果
 
-固定 SDK Actions run 42658407465：依赖解析后格式化、重跑编排/重跑服务/候选存储定向测试，以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。本地无 Flutter/Dart；正式 PR 门禁另行运行。测试使用假引擎，未运行真实模型。
+固定 SDK Actions run 42749129906：依赖解析后格式化、分片/双引擎/项目取消/结构化取消契约测试，以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。本地没有 Flutter/Dart；正式 PR 门禁另行运行。没有执行真实模型或设备验证。
 
 ## 下一步
 
-实现覆盖现有普通转写、Qwen 对齐、运行时安装和新候选重跑的应用级资源协调，再接入产品界面；并处理长歌分片、进度、候选删除、显式审阅及安全应用/回退。
+继续 #319：在接入重识别 UI 前完成覆盖普通转写、候选重跑、对齐和运行时安装的资源协调，再实现候选管理、审核和安全应用；同时逐项核验 #321 等开放 Issue 验收条件。
 
 ## 已知风险
 
-新编排默认可创建真实 Qwen/Whisper 适配器，但尚无生产调用者；它只防止自身并发，运行时安装状态检查不是锁。未经全局资源租约不能安全接入 UI，否则可能与现有任务争抢硬件；Qwen 服务还会空闲驻留。保存开始后取消返回 false，不保证可中止提交；现有仓库写失败可能已改变内存。模型内容、跨进程 CAS、TOCTOU、分片完整性及真实歌曲准确率均未验证。
+终态按包装器实际整体结果发布；短音频和分片经测试但未在原生设备验证。开始写入检查点后先完成 JSON 与 manifest 的更新，随后响应取消；这是可恢复性策略而非跨文件原子事务，异常中断或存储错误仍可能导致不完整检查点。取消发生在最终文件写入期间可能留下已生成的 merged_result.json，但不会返回成功结果。真实歌曲准确率与重跑 UI 尚未验证。
 
 最后更新：2026-11-07（Asia/Taipei）
