@@ -84,8 +84,11 @@ void main() {
       expect(owner.isInstalling, isTrue);
       await expectLater(owner.installRecommended(config), throwsA(busy));
       await expectLater(other.installRecommended(config), throwsA(busy));
+      delegate.installing = true;
+      expect(other.isInstalling, isTrue);
       await other.cancel();
       expect(delegate.cancelCalls, 0);
+      delegate.installing = false;
       final firstCancel = owner.cancel();
       final secondCancel = owner.cancel();
       expect(delegate.cancelCalls, 1);
@@ -130,10 +133,9 @@ void main() {
   test('cancel failure is reported and still releases the lease', () async {
     final resources = AsrResourceCoordinator();
     final install = Completer<TranscriptionConfig>();
-    final delegate = _Runtime()
-      ..onInstall = () =>
-          install.future
-            ..onCancel = () => Future.error(StateError('cancel failed'));
+    final delegate = _Runtime();
+    delegate.onInstall = () => install.future;
+    delegate.onCancel = () => Future.error(StateError('cancel failed'));
     final facade = CoordinatedAsrInstallManager(
       delegate: delegate,
       resources: resources,
@@ -188,12 +190,13 @@ void main() {
 
 class _Runtime implements AsrRuntimeManager {
   int installCalls = 0, cancelCalls = 0;
+  bool installing = false;
   Future<TranscriptionConfig> Function()? onInstall;
   Future<void> Function()? onCancel;
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream => const Stream.empty();
   @override
-  bool get isInstalling => false;
+  bool get isInstalling => installing;
   @override
   Future<AsrRuntimeStatus> inspect(TranscriptionConfig config) async => status;
   @override
