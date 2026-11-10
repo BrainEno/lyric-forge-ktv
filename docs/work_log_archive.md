@@ -89,6 +89,7 @@
 - [2026-11-08 00:28] Protect lyric associations from partial metadata ([entry](log/entries/2026-11-08-0028-protect-lyric-associations-from-partial-metadata.md))
 - [2026-11-07 23:59] Assess saved ASR candidate freshness ([entry](log/entries/2026-11-07-2359-assess-asr-candidates.md))
 - [2026-11-07 23:58] Orchestrate independent model reruns ([entry](log/entries/2026-11-07-2358-orchestrate-independent-rerun.md))
+- [2026-11-07 23:57] Fix chunk transcription terminal events ([entry](log/entries/2026-11-07-2357-chunk-transcription-terminal-events.md))
 - [2026-11-07 23:55] Persist independent ASR candidates ([entry](log/entries/2026-11-07-2355-persist-asr-candidates.md))
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
