@@ -8,16 +8,41 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Format and expose patch
-        run: |
-          dart format lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart test/features/transcription/storage_preflight_install_cancellation_test.dart
-          git diff --binary | gzip -c | base64 -w 0 > /tmp/format.b64
-          python3 - <<'PY'
-          import pathlib
-          s = pathlib.Path('/tmp/format.b64').read_text()
-          for i in range(0, len(s), 3000): print(f'::notice title=FORMAT{i//3000:03d}::{s[i:i+3000]}')
-          PY
+      - run: dart format lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart test/features/transcription/storage_preflight_install_cancellation_test.dart
       - run: flutter test --no-pub test/features/transcription/storage_preflight_install_cancellation_test.dart test/features/transcription/asr_storage_preflight_test.dart test/features/transcription/asr_runtime_health_test.dart
       - run: flutter analyze --no-pub --no-fatal-infos lib test tool
+      - name: Generate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-10 20:51' --slug asr-install-preflight-cancellation --title 'Guard ASR installation preflight cancellation'
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('docs/log/entries/2026-11-10-2051-asr-install-preflight-cancellation.md')
+          s=p.read_text()
+          for a,b in {
+            'TODO — describe the task purpose.':'Avoid starting ASR downloads after cancellation during installation preflight and reject overlapping installs on the same manager.',
+            'TODO — list changed files.':'Storage preflight runtime manager, cancellation tests, handoff, generated work log, index and archive.',
+            'dart format ... => TODO':'dart format changed Dart files => passed on pinned SDK.',
+            'flutter analyze ... => TODO':'flutter analyze --no-pub --no-fatal-infos lib test tool => passed on pinned SDK.',
+            'flutter test ... => TODO':'flutter test --no-pub storage_preflight_install_cancellation_test.dart asr_storage_preflight_test.dart asr_runtime_health_test.dart (full paths under test/features/transcription/) => passed on pinned SDK.',
+            'TODO — record risks and unverified behavior.':'Cancellation waits for in-flight preflight operations; it cannot undo invalidation or cleanup. Shared-caller ownership, external UI preflight, isInstalling visibility, resource leases, and real-device validation remain follow-ups.',
+            'TODO: replace with the actual English imperative subject':'Guard cancellation during ASR installation preflight',
+          }.items():
+              assert a in s, a
+              s=s.replace(a,b)
+          p.write_text(s)
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+      - name: Expose patch
+        run: |
+          git add -N docs/log/entries/2026-11-10-2051-asr-install-preflight-cancellation.md
+          git diff --binary -- lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart test/features/transcription/storage_preflight_install_cancellation_test.dart docs | gzip -c | base64 -w 0 > /tmp/patch.b64
+          python3 - <<'PY'
+          import pathlib
+          s=pathlib.Path('/tmp/patch.b64').read_text()
+          for i in range(0,len(s),3000): print(f'::notice title=PATCH{i//3000:03d}::{s[i:i+3000]}')
+          PY

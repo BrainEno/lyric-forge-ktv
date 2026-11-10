@@ -22,12 +22,14 @@ class StoragePreflightAsrRuntimeManager implements AsrRuntimeManager {
     required this.storagePreflightService,
     AsrRuntimeHealthChecker? healthChecker,
     Future<bool> Function()? storageAuthorizationRequired,
-  })  : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker(),
-        storageAuthorizationRequired = storageAuthorizationRequired ??
-            LocalAsrManagedStorageService().needsSecurityScopedAuthorization;
+  }) : healthChecker = healthChecker ?? LocalAsrRuntimeHealthChecker(),
+       storageAuthorizationRequired =
+           storageAuthorizationRequired ??
+           LocalAsrManagedStorageService().needsSecurityScopedAuthorization;
 
   @override
-  Stream<AsrRuntimeInstallProgress> get progressStream => delegate.progressStream;
+  Stream<AsrRuntimeInstallProgress> get progressStream =>
+      delegate.progressStream;
 
   // Keep the existing delegate-facing status until callers have independent
   // cancellation ownership; exposing preflight here would let a different
