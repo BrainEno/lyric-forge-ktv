@@ -135,65 +135,93 @@ void main() {
     },
   );
 
-  test('busy pauses the queue, persists, and retries only on request', () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-busy-');
-    addTearDown(() => root.delete(recursive: true));
-    final audioA = File('${root.path}/busy.mp3');
-    final audioB = File('${root.path}/later.mp3');
-    await audioA.writeAsBytes([1]);
-    await audioB.writeAsBytes([2]);
-    final repository = FileProjectRepository(rootDirectory: Directory('${root.path}/projects'));
-    final queueRoot = Directory('${root.path}/queue');
-    final workflow = _FakeWorkflow(repository, busy: true);
-    final first = FileBatchTranscriptionQueue(projectRepository: repository,
-        workflow: workflow, rootDirectory: queueRoot);
-    await first.initialize();
-    await first.enqueuePaths([audioA.path, audioB.path]);
-    await _waitUntil(() => first.current.isResourceBusy && !first.current.isProcessing);
-    expect(workflow.calls, 1);
-    expect(first.current.failedCount, 0);
-    expect(first.current.completedCount, 0);
-    expect(first.current.queuedCount, 2);
-    expect(first.current.isEnvironmentBlocked, isFalse);
-    expect(first.current.pauseMessage, contains('模型'));
-    final projectId = first.current.items.first.projectId;
-    expect(projectId, isNotNull);
-    await first.dispose();
+  test(
+    'busy pauses the queue, persists, and retries only on request',
+    () async {
+      final root = await Directory.systemTemp.createTemp('lyricforge-busy-');
+      addTearDown(() => root.delete(recursive: true));
+      final audioA = File('${root.path}/busy.mp3');
+      final audioB = File('${root.path}/later.mp3');
+      await audioA.writeAsBytes([1]);
+      await audioB.writeAsBytes([2]);
+      final repository = FileProjectRepository(
+        rootDirectory: Directory('${root.path}/projects'),
+      );
+      final queueRoot = Directory('${root.path}/queue');
+      final workflow = _FakeWorkflow(repository, busy: true);
+      final first = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: workflow,
+        rootDirectory: queueRoot,
+      );
+      await first.initialize();
+      await first.enqueuePaths([audioA.path, audioB.path]);
+      await _waitUntil(
+        () => first.current.isResourceBusy && !first.current.isProcessing,
+      );
+      expect(workflow.calls, 1);
+      expect(first.current.failedCount, 0);
+      expect(first.current.completedCount, 0);
+      expect(first.current.queuedCount, 2);
+      expect(first.current.isEnvironmentBlocked, isFalse);
+      expect(first.current.pauseMessage, contains('模型'));
+      final projectId = first.current.items.first.projectId;
+      expect(projectId, isNotNull);
+      await first.dispose();
 
-    final retryWorkflow = _FakeWorkflow(repository, busy: true);
-    final second = FileBatchTranscriptionQueue(projectRepository: repository,
-        workflow: retryWorkflow, rootDirectory: queueRoot);
-    await second.initialize();
-    expect(second.current.isResourceBusy, isTrue);
-    expect(second.current.items.first.projectId, projectId);
-    expect(retryWorkflow.calls, 0);
-    await second.resume();
-    await _waitUntil(() => second.current.isResourceBusy && !second.current.isProcessing);
-    expect(retryWorkflow.calls, 1);
-    expect(second.current.queuedCount, 2);
-    retryWorkflow.busy = false;
-    await second.resume();
-    await _waitUntil(() => second.current.completedCount == 2 && !second.current.isProcessing);
-    expect(second.current.pauseReason, isNull);
-    expect(second.current.pauseMessage, isNull);
-    expect(second.current.failedCount, 0);
-    expect(second.current.items.first.projectId, projectId);
-    expect(await repository.getAllProjects(), hasLength(2));
-    await second.dispose();
-  });
+      final retryWorkflow = _FakeWorkflow(repository, busy: true);
+      final second = FileBatchTranscriptionQueue(
+        projectRepository: repository,
+        workflow: retryWorkflow,
+        rootDirectory: queueRoot,
+      );
+      await second.initialize();
+      expect(second.current.isResourceBusy, isTrue);
+      expect(second.current.items.first.projectId, projectId);
+      expect(retryWorkflow.calls, 0);
+      await second.resume();
+      await _waitUntil(
+        () => second.current.isResourceBusy && !second.current.isProcessing,
+      );
+      expect(retryWorkflow.calls, 1);
+      expect(second.current.queuedCount, 2);
+      retryWorkflow.busy = false;
+      await second.resume();
+      await _waitUntil(
+        () =>
+            second.current.completedCount == 2 && !second.current.isProcessing,
+      );
+      expect(second.current.pauseReason, isNull);
+      expect(second.current.pauseMessage, isNull);
+      expect(second.current.failedCount, 0);
+      expect(second.current.items.first.projectId, projectId);
+      expect(await repository.getAllProjects(), hasLength(2));
+      await second.dispose();
+    },
+  );
 
   test('manual pause wins when a busy failure arrives later', () async {
-    final root = await Directory.systemTemp.createTemp('lyricforge-busy-manual-');
+    final root = await Directory.systemTemp.createTemp(
+      'lyricforge-busy-manual-',
+    );
     addTearDown(() => root.delete(recursive: true));
     final audio = File('${root.path}/song.mp3');
     await audio.writeAsBytes([1]);
-    final repository = FileProjectRepository(rootDirectory: Directory('${root.path}/projects'));
+    final repository = FileProjectRepository(
+      rootDirectory: Directory('${root.path}/projects'),
+    );
     final entered = Completer<void>();
     final release = Completer<void>();
     final workflow = _FakeWorkflow(repository, busy: true);
-    workflow.beforeBusy = () async { entered.complete(); await release.future; };
-    final queue = FileBatchTranscriptionQueue(projectRepository: repository,
-        workflow: workflow, rootDirectory: Directory('${root.path}/queue'));
+    workflow.beforeBusy = () async {
+      entered.complete();
+      await release.future;
+    };
+    final queue = FileBatchTranscriptionQueue(
+      projectRepository: repository,
+      workflow: workflow,
+      rootDirectory: Directory('${root.path}/queue'),
+    );
     await queue.initialize();
     await queue.enqueuePaths([audio.path]);
     await entered.future;
@@ -201,7 +229,10 @@ void main() {
     release.complete();
     await _waitUntil(() => !queue.current.isProcessing);
     expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
-    expect(queue.current.items.single.status, TranscriptionQueueItemStatus.paused);
+    expect(
+      queue.current.items.single.status,
+      TranscriptionQueueItemStatus.paused,
+    );
     expect(queue.current.failedCount, 0);
     await queue.dispose();
   });
@@ -381,7 +412,11 @@ class _FakeWorkflow implements ProjectTranscriptionWorkflow {
       StreamController<TranscriptionProgress>.broadcast();
   bool _running = false;
 
-  _FakeWorkflow(this.repository, {this.blockEnvironment = true, this.busy = false});
+  _FakeWorkflow(
+    this.repository, {
+    this.blockEnvironment = true,
+    this.busy = false,
+  });
 
   @override
   Stream<TranscriptionProgress> get progressStream => _controller.stream;

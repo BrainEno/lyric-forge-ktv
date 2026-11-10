@@ -1,16 +1,6 @@
-enum TranscriptionQueueItemStatus {
-  queued,
-  running,
-  paused,
-  completed,
-  failed,
-}
+enum TranscriptionQueueItemStatus { queued, running, paused, completed, failed }
 
-enum TranscriptionQueuePauseReason {
-  manual,
-  environment,
-  resourceBusy,
-}
+enum TranscriptionQueuePauseReason { manual, environment, resourceBusy }
 
 class TranscriptionQueueItem {
   final String id;
@@ -61,17 +51,17 @@ class TranscriptionQueueItem {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'sourcePath': sourcePath,
-        'projectName': projectName,
-        'projectId': projectId,
-        'status': status.name,
-        'progress': progress,
-        'message': message,
-        'error': error,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'sourcePath': sourcePath,
+    'projectName': projectName,
+    'projectId': projectId,
+    'status': status.name,
+    'progress': progress,
+    'message': message,
+    'error': error,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   factory TranscriptionQueueItem.fromJson(Map<String, dynamic> json) {
     final statusName = json['status'] as String?;
@@ -80,7 +70,8 @@ class TranscriptionQueueItem {
       sourcePath: json['sourcePath'] as String,
       projectName: json['projectName'] as String,
       projectId: json['projectId'] as String?,
-      status: TranscriptionQueueItemStatus.values.asNameMap()[statusName] ??
+      status:
+          TranscriptionQueueItemStatus.values.asNameMap()[statusName] ??
           TranscriptionQueueItemStatus.queued,
       progress: (json['progress'] as num?)?.toDouble() ?? 0,
       message: json['message'] as String? ?? '等待识别',

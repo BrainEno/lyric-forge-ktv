@@ -5,31 +5,23 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  log:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Format and publish patch
+      - name: Check formatting and generate work log
         run: |
-          dart format lib/features/transcription/data/services/file_batch_transcription_queue.dart lib/features/transcription/domain/models/transcription_queue_models.dart lib/features/transcription/presentation/widgets/transcription_queue_panel.dart test/file_batch_transcription_queue_test.dart test/features/transcription/transcription_queue_busy_panel_test.dart
+          dart format --output=none --set-exit-if-changed lib/features/transcription/data/services/file_batch_transcription_queue.dart lib/features/transcription/domain/models/transcription_queue_models.dart lib/features/transcription/presentation/widgets/transcription_queue_panel.dart test/file_batch_transcription_queue_test.dart test/features/transcription/transcription_queue_busy_panel_test.dart
+          dart tool/work_log.dart new --timestamp '2026-11-07 23:52' --slug protect-busy-transcription-queue --title 'Protect transcription queue when resources are busy'
+          echo 'IyBbMjAyNi0xMS0wNyAyMzo1Ml0gUHJvdGVjdCB0cmFuc2NyaXB0aW9uIHF1ZXVlIHdoZW4gcmVzb3VyY2VzIGFyZSBidXN5CgotIFNjb3BlOiBQcmVzZXJ2ZSBiYXRjaCByZWNvZ25pdGlvbiBpdGVtcyB3aGVuIHRoZSBBU1IgcmVzb3VyY2UgaXMgYnVzeSwgZXhwbGFpbiB0aGUgcGF1c2UgYW5kIHBlcm1pdCBleHBsaWNpdCByZXRyeSB3aXRob3V0IHRyZWF0aW5nIGNvbnRlbnRpb24gYXMgYSBmYWlsZWQgc29uZyBvciBhbiBpbnN0YWxsYXRpb24gZmF1bHQuCi0gRmlsZXM6IFF1ZXVlIG1vZGVsLCBmaWxlIHF1ZXVlLCBxdWV1ZSBwYW5lbCwgcXVldWUgYW5kIHdpZGdldCB0ZXN0cywgaGFuZG9mZiwgaW5kZXgsIGVudHJ5IGFuZCBnZW5lcmF0ZWQgd29yay1sb2cgbmF2aWdhdGlvbi4KLSBWYWxpZGF0aW9uOgogIC0gUGlubmVkIEZsdXR0ZXIgQWN0aW9ucyBydW4gNDI3ODUzOTI5OTk6IGZvcm1hdCBhZnRlciBkZXBlbmRlbmN5IHJlc29sdXRpb24sIHF1ZXVlLCBidXN5LXBhbmVsLCBlbnZpcm9ubWVudCByZWNvdmVyeSBhbmQgcHJvdGVjdGl2ZS1wYXVzZSBjb250cmFjdCB0ZXN0cywgYW5kIGZsdXR0ZXIgYW5hbHl6ZSAtLW5vLXB1YiAtLW5vLWZhdGFsLWluZm9zIGxpYiB0ZXN0IHRvb2wgcGFzc2VkLgogIC0gVGVtcG9yYXJ5IEFjdGlvbnMgd29yay1sb2cgcnVuIGNoZWNrZWQgZm9ybWF0dGluZyBhbmQgZ2VuZXJhdGVkL2NoZWNrZWQgbmF2aWdhdGlvbjsgZmluYWwgUFIgZ2F0ZSByZXBvcnRlZCBzZXBhcmF0ZWx5LiBMb2NhbCBGbHV0dGVyL0RhcnQgdW5hdmFpbGFibGUuCi0gTm90ZXM6IFR5cGVkIGJ1c3kgcGF1c2VzIHBlcnNpc3QgYWNyb3NzIHJlc3RhcnQgYW5kIHJlcXVpcmUgbWFudWFsIHJlc3VtZSwgd2hpY2ggbWF5IHBhdXNlIGFnYWluIGlmIHN0aWxsIGJ1c3kuIE1hbnVhbCBwYXVzZSB3aW5zIGEgcmFjZTsgbm8gcmV0cnkgdGltZXIgaXMgYWRkZWQuIE90aGVyIEFTUiBvcGVyYXRpb25zIGFyZSBub3QgeWV0IHdpcmVkIHRvIHRoZSBjb29yZGluYXRvciwgYW5kIHJlYWwgZGV2aWNlcy9tb2RlbHMgd2VyZSBub3QgdGVzdGVkLgotIENvbW1pdDogYFByb3RlY3QgdHJhbnNjcmlwdGlvbiBxdWV1ZSB3aGVuIHJlc291cmNlcyBhcmUgYnVzeWAK' | base64 -d > docs/log/entries/2026-11-07-2352-protect-busy-transcription-queue.md
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2352-protect-busy-transcription-queue.md
           git diff | gzip -c | base64 -w0 > /tmp/patch64
-          python3 - <<'PY'
+          python3 - <<'PYCODE'
           s = open('/tmp/patch64').read()
           for i in range(0, len(s), 3000):
               print('::notice title=PATCH%03d::%s' % (i // 3000, s[i:i+3000]))
-          PY
-      - name: Targeted tests
-        run: |
-          set -o pipefail
-          flutter test --no-pub --reporter expanded test/file_batch_transcription_queue_test.dart test/features/transcription/transcription_queue_busy_panel_test.dart test/features/transcription/transcription_queue_environment_recovery_test.dart test/features/transcription/transcription_queue_protective_pause_contract_test.dart 2>&1 | tee /tmp/test.log || { python3 - <<'PY'
-          s = open('/tmp/test.log').read()
-          for line in s.splitlines():
-              if '[E]' in line or line.startswith(('Expected:', '  Actual:', 'Which:', '══╡', 'Test failed.', 'EXCEPTION', 'The following')):
-                  print('::error::' + line.replace('%', '%25'))
-          PY
-          exit 1; }
-      - name: Analyze
-        run: flutter analyze --no-pub --no-fatal-infos lib test tool
+          PYCODE
