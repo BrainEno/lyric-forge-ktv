@@ -128,15 +128,31 @@ void main() {
     ('原文', '', '原文', ''),
   ]) {
     testWidgets('review highlights text changes $example', (tester) async {
-      await tester.pumpWidget(host(Builder(builder: (context) => FilledButton(
-        onPressed: () => showLyricProofreadV2ReviewDialog(
-          context, summary: '琥珀色 1', explanation: '复核差异',
-          items: [LyricProofreadV2ReviewItem(proposalIndex: 0, sourceIndex: 0,
-            originalLine: line(example.$1), proposedLine: line(example.$2),
-            verdict: LyricProofreadReviewVerdict.amber)],
-          droppedItems: const [], onPreviewDraftLine: null),
-        child: const Text('open diff'),
-      ))));
+      await tester.pumpWidget(
+        host(
+          Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showLyricProofreadV2ReviewDialog(
+                context,
+                summary: '琥珀色 1',
+                explanation: '复核差异',
+                items: [
+                  LyricProofreadV2ReviewItem(
+                    proposalIndex: 0,
+                    sourceIndex: 0,
+                    originalLine: line(example.$1),
+                    proposedLine: line(example.$2),
+                    verdict: LyricProofreadReviewVerdict.amber,
+                  ),
+                ],
+                droppedItems: const [],
+                onPreviewDraftLine: null,
+              ),
+              child: const Text('open diff'),
+            ),
+          ),
+        ),
+      );
       await tester.tap(find.text('open diff'));
       await tester.pumpAndSettle();
 
@@ -144,36 +160,65 @@ void main() {
         ('original', '原文：${example.$1}', example.$3),
         ('proposed', '建议：${example.$2}', example.$4),
       ]) {
-        final widget = tester.widget<Text>(find.byKey(ValueKey('proofread_${side.$1}_diff_0')));
+        final widget = tester.widget<Text>(
+          find.byKey(ValueKey('proofread_${side.$1}_diff_0')),
+        );
         final root = widget.textSpan! as TextSpan;
         expect(root.toPlainText(), side.$2);
-        final highlighted = root.children!.cast<TextSpan>().where(
-          (span) => span.style?.decoration == TextDecoration.underline,
-        ).map((span) => span.text).join();
+        final highlighted = root.children!
+            .cast<TextSpan>()
+            .where((span) => span.style?.decoration == TextDecoration.underline)
+            .map((span) => span.text)
+            .join();
         expect(highlighted, side.$3);
       }
       expect(tester.takeException(), isNull);
     });
   }
 
-  testWidgets('timing-only changes and inserted rows retain plain text', (tester) async {
-    await tester.pumpWidget(host(Builder(builder: (context) => FilledButton(
-      onPressed: () => showLyricProofreadV2ReviewDialog(context,
-        summary: '琥珀色 2', explanation: '复核', items: [
-          LyricProofreadV2ReviewItem(proposalIndex: 0, sourceIndex: 0,
-            originalLine: line('same'), proposedLine: line('same', startMs: 100),
-            verdict: LyricProofreadReviewVerdict.amber),
-          LyricProofreadV2ReviewItem(proposalIndex: 1, sourceIndex: null,
-            originalLine: null, proposedLine: line('新增歌词'),
-            verdict: LyricProofreadReviewVerdict.amber),
-        ], droppedItems: const [], onPreviewDraftLine: null),
-      child: const Text('open unchanged'),
-    ))));
+  testWidgets('timing-only changes and inserted rows retain plain text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => showLyricProofreadV2ReviewDialog(
+              context,
+              summary: '琥珀色 2',
+              explanation: '复核',
+              items: [
+                LyricProofreadV2ReviewItem(
+                  proposalIndex: 0,
+                  sourceIndex: 0,
+                  originalLine: line('same'),
+                  proposedLine: line('same', startMs: 100),
+                  verdict: LyricProofreadReviewVerdict.amber,
+                ),
+                LyricProofreadV2ReviewItem(
+                  proposalIndex: 1,
+                  sourceIndex: null,
+                  originalLine: null,
+                  proposedLine: line('新增歌词'),
+                  verdict: LyricProofreadReviewVerdict.amber,
+                ),
+              ],
+              droppedItems: const [],
+              onPreviewDraftLine: null,
+            ),
+            child: const Text('open unchanged'),
+          ),
+        ),
+      ),
+    );
     await tester.tap(find.text('open unchanged'));
     await tester.pumpAndSettle();
     expect(find.text('原文：same'), findsOneWidget);
     expect(find.text('建议：same'), findsOneWidget);
-    expect(find.byKey(const ValueKey('proofread_original_diff_0')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('proofread_original_diff_0')),
+      findsNothing,
+    );
     await tester.drag(find.byType(ListView), const Offset(0, -250));
     await tester.pumpAndSettle();
     expect(find.text('原文：无（这是待插入的参考行）'), findsOneWidget);
@@ -459,8 +504,24 @@ void main() {
 
       await tester.tap(find.text('open review'));
       await tester.pumpAndSettle();
-      expect(tester.widget<Text>(find.byKey(const ValueKey('proofread_original_diff_0'))).textSpan!.toPlainText(), '原文：old green');
-      expect(tester.widget<Text>(find.byKey(const ValueKey('proofread_proposed_diff_0'))).textSpan!.toPlainText(), '建议：corrected green');
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey('proofread_original_diff_0')),
+            )
+            .textSpan!
+            .toPlainText(),
+        '原文：old green',
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey('proofread_proposed_diff_0')),
+            )
+            .textSpan!
+            .toPlainText(),
+        '建议：corrected green',
+      );
       expect(find.text('依据：参考文本纠正'), findsOneWidget);
       expect(find.textContaining('琥珀色 · 逐行复核'), findsOneWidget);
       await tester.drag(find.byType(ListView), const Offset(0, -300));

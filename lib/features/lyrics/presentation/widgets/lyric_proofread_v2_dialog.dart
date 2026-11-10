@@ -548,7 +548,9 @@ class _LyricProofreadV2ReviewDialogState
           TextSpan(text: proposed ? '建议：' : '原文：'),
           for (final segment in segments)
             if (segment.type !=
-                (proposed ? CharacterDiffType.delete : CharacterDiffType.insert))
+                (proposed
+                    ? CharacterDiffType.delete
+                    : CharacterDiffType.insert))
               TextSpan(
                 text: segment.text,
                 style: segment.isEqual
@@ -561,7 +563,9 @@ class _LyricProofreadV2ReviewDialogState
               ),
         ],
       ),
-      key: ValueKey('proofread_${proposed ? 'proposed' : 'original'}_diff_$proposalIndex'),
+      key: ValueKey(
+        'proofread_${proposed ? 'proposed' : 'original'}_diff_$proposalIndex',
+      ),
       style: proposed ? const TextStyle(fontWeight: FontWeight.w600) : null,
     );
   }

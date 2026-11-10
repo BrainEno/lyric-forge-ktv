@@ -5,31 +5,23 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  log:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
-      - name: Format and publish patch
+      - name: Check formatting and generate work log
         run: |
-          dart format lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
+          dart format --output=none --set-exit-if-changed lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
+          dart tool/work_log.dart new --timestamp '2026-11-07 23:54' --slug proofread-v2-text-diff --title 'Highlight differences in proofreading proposals'
+          echo 'IyBbMjAyNi0xMS0wNyAyMzo1NF0gSGlnaGxpZ2h0IGRpZmZlcmVuY2VzIGluIHByb29mcmVhZGluZyBwcm9wb3NhbHMKCi0gU2NvcGU6IE1ha2UgY2hhbmdlZCB0ZXh0IGVhc2llciB0byBzcG90IGluIFYyIHByb29mcmVhZGluZyByZXZpZXcgd2l0aG91dCBtb2RpZnlpbmcgcHJvcG9zYWwgYWNjZXB0YW5jZSBvciBzYXZpbmcuCi0gRmlsZXM6IFYyIHJldmlldyBkaWFsb2cgYW5kIHdpZGdldCB0ZXN0cywgaGFuZG9mZiwgaW5kZXgsIGVudHJ5IGFuZCBnZW5lcmF0ZWQgd29yay1sb2cgbmF2aWdhdGlvbi4KLSBWYWxpZGF0aW9uOgogIC0gUGlubmVkIEZsdXR0ZXIgQWN0aW9ucyBydW4gNDI3Njc0NzE3MzM6IGZvcm1hdCBhZnRlciBkZXBlbmRlbmN5IHJlc29sdXRpb24sIFYyIGRpYWxvZywgY2hhcmFjdGVyIGRpZmYgYW5kIGRvY3VtZW50IGNvbXBvc2VyIHRlc3RzLCBhbmQgZmx1dHRlciBhbmFseXplIC0tbm8tcHViIC0tbm8tZmF0YWwtaW5mb3MgbGliIHRlc3QgdG9vbCBwYXNzZWQuCiAgLSBUZW1wb3JhcnkgQWN0aW9ucyBydW4gY2hlY2tlZCBmb3JtYXR0aW5nIGFuZCBnZW5lcmF0ZWQvY2hlY2tlZCB3b3JrLWxvZyBmaWxlczsgZmluYWwgUFIgZ2F0ZSByZXBvcnRlZCBzZXBhcmF0ZWx5LiBMb2NhbCBGbHV0dGVyL0RhcnQgdW5hdmFpbGFibGUuCi0gTm90ZXM6IFRleHQtb25seSBkaXNwbGF5OyB0aW1pbmctb25seSBjaGFuZ2VzIGFuZCBpbnNlcnRlZCByb3dzIHN0YXkgcmVhZGFibGUsIGFwcHJvdmFsIGxvZ2ljIGlzIHVuY2hhbmdlZC4gVGhlIGV4aXN0aW5nIGRpZmYgdXNlcyBVbmljb2RlIGNvZGUgcG9pbnRzLCBub3QgZ3JhcGhlbWUgY2x1c3RlcnMsIGFuZCBtYXJrcyBlbnRpcmUgbG9uZyBpbnB1dHMgd2hlbiB0aGUgbWF0cml4IGxpbWl0IGlzIGV4Y2VlZGVkLiBBY3R1YWwgZGV2aWNlcyBhbmQgcmVhbC1zb25nIGFjY3VyYWN5IHJlbWFpbiB1bnZlcmlmaWVkLgotIENvbW1pdDogYEhpZ2hsaWdodCBkaWZmZXJlbmNlcyBpbiBwcm9vZnJlYWRpbmcgcHJvcG9zYWxzYAo=' | base64 -d > docs/log/entries/2026-11-07-2354-proofread-v2-text-diff.md
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2354-proofread-v2-text-diff.md
           git diff | gzip -c | base64 -w0 > /tmp/patch64
-          python3 - <<'PY'
+          python3 - <<'PYCODE'
           s = open('/tmp/patch64').read()
           for i in range(0, len(s), 3000):
               print('::notice title=PATCH%03d::%s' % (i // 3000, s[i:i+3000]))
-          PY
-      - name: Targeted tests
-        run: |
-          set -o pipefail
-          flutter test --no-pub --reporter expanded test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/domain/services/character_diff_service_test.dart test/features/lyrics/domain/proofreading/proofread_v2_document_composer_test.dart 2>&1 | tee /tmp/test.log || { python3 - <<'PY'
-          s = open('/tmp/test.log').read()
-          for line in s.splitlines():
-              if '[E]' in line or line.startswith(('Expected:', '  Actual:', 'Which:', '══╡', 'Test failed.', 'EXCEPTION', 'The following')):
-                  print('::error::' + line.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-          PY
-          exit 1; }
-      - name: Analyze
-        run: flutter analyze --no-pub --no-fatal-infos lib test tool
+          PYCODE
