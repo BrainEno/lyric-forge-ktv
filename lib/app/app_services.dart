@@ -60,6 +60,7 @@ import '../features/transcription/data/services/storage_preflight_asr_runtime_ma
 import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../features/transcription/domain/services/asr_download_connection_checker.dart';
+import '../features/transcription/domain/services/asr_resource_coordinator.dart';
 import '../features/transcription/domain/services/asr_runtime_manager.dart';
 import '../features/transcription/domain/services/asr_storage_preflight_service.dart';
 import '../features/transcription/domain/services/batch_transcription_queue.dart';
@@ -143,7 +144,7 @@ class AppServices {
   late final TranscriptionSettingsStore transcriptionSettingsStore;
   late final TranscriptionDownloadProxyStore transcriptionDownloadProxyStore;
   late final AsrDownloadConnectionChecker asrDownloadConnectionChecker;
-  late final ProjectTranscriptionWorkflow projectTranscriptionWorkflow;
+  late final AsrResourceCoordinator asrResourceCoordinator;
   late final AsrEndToEndSmokeTestService asrEndToEndSmokeTestService;
   late final BatchTranscriptionQueue transcriptionQueue;
   late final MediaHubClientService mediaHubClientService;
@@ -318,28 +319,33 @@ class AppServices {
       settingsStore: transcriptionSettingsStore,
     );
     ktvTakeHistoryStore = const FileKtvTakeHistoryStore();
-    projectTranscriptionWorkflow = LocalProjectTranscriptionWorkflow(
-      projectRepository: projectRepository,
-      transcriptionService: transcriptionService,
-      settingsStore: transcriptionSettingsStore,
-      profileResolver: transcriptionProfileResolver,
-      runtimeManager: asrRuntimeManager,
-      mediaMetadataRepository: localMediaMetadataRepository,
-      playbackSession: playbackSessionService,
-      pathCanonicalizer: audioPathCanonicalizer,
-    );
+    asrResourceCoordinator = AsrResourceCoordinator();
     asrEndToEndSmokeTestService = LocalAsrEndToEndSmokeTestService(
       projectRepository: projectRepository,
-      workflow: projectTranscriptionWorkflow,
+      workflow: createProjectTranscriptionWorkflow(),
       settingsStore: transcriptionSettingsStore,
       runtimeManager: asrRuntimeManager,
     );
     transcriptionQueue = FileBatchTranscriptionQueue(
       projectRepository: projectRepository,
-      workflow: projectTranscriptionWorkflow,
+      workflow: createProjectTranscriptionWorkflow(),
     );
     unawaited(transcriptionQueue.initialize());
   }
+
+  /// Per-consumer cancellation ownership with one shared resource gate.
+  ProjectTranscriptionWorkflow createProjectTranscriptionWorkflow() =>
+      LocalProjectTranscriptionWorkflow(
+        projectRepository: projectRepository,
+        transcriptionService: transcriptionService,
+        settingsStore: transcriptionSettingsStore,
+        profileResolver: transcriptionProfileResolver,
+        runtimeManager: asrRuntimeManager,
+        resources: asrResourceCoordinator,
+        mediaMetadataRepository: localMediaMetadataRepository,
+        playbackSession: playbackSessionService,
+        pathCanonicalizer: audioPathCanonicalizer,
+      );
 }
 
 bool _isSupportedIncomingAudio(String path) {

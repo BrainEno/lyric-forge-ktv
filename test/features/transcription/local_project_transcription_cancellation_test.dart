@@ -12,6 +12,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/local_project_transcription_workflow.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_resource_coordinator.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
@@ -34,6 +35,214 @@ const _profile = ResolvedTranscriptionProfile(
 );
 
 void main() {
+  test(
+    'shared lease excludes other workflows and releases on preparation cancellation',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final first = _workflow(
+        repository,
+        null,
+        resources: resources,
+        onSettingsLoad: () async {
+          entered.complete();
+          await release.future;
+        },
+      );
+      final secondService = _Service(null, null);
+      final second = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: secondService,
+      );
+      final operation = first.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      expect(first.isRunning, isTrue);
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      await expectLater(
+        second.transcribeProject('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      await second.cancel();
+      expect(secondService.cancelCalls, 0);
+      await first.cancel();
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      release.complete();
+      await cancelled;
+      expect(first.isRunning, isFalse);
+      expect(resources.activeUse, isNull);
+      expect(repository.statuses, isEmpty);
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      await second.transcribeProject('p');
+      expect(resources.activeUse, isNull);
+    },
+  );
+
+  test(
+    'cancellation during start write restores the project before release',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      repository.beforeConditionalWrite = (_, value) async {
+        if (value.status == ProjectStatus.transcribing) {
+          entered.complete();
+          await release.future;
+        }
+      };
+      final service = _Service(null, null);
+      final workflow = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      final operation = workflow.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      await workflow.cancel();
+      release.complete();
+      await cancelled;
+      expect(repository.project.status, ProjectStatus.editing);
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      expect(service.cancelCalls, 0);
+      expect(resources.activeUse, isNull);
+    },
+  );
+
+  test(
+    'lease waits for in-flight engine cancellation before another run',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final inferenceDone = Completer<void>();
+      final cancelDone = Completer<void>();
+      final service = _Service(null, () async {
+        entered.complete();
+        await inferenceDone.future;
+      });
+      service.onCancel = () async {
+        await cancelDone.future;
+      };
+      final workflow = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      final operation = workflow.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      final other = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      await other.cancel();
+      expect(service.cancelCalls, 0);
+      await expectLater(
+        other.transcribeProject('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      await other.cancel();
+      expect(service.cancelCalls, 0);
+      final cancel = workflow.cancel();
+      expect(service.cancelCalls, 1);
+      inferenceDone.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      expect(resources.tryAcquire(AsrResourceUse.independentRerun), isNull);
+      cancelDone.complete();
+      await cancel;
+      await cancelled;
+      expect(resources.activeUse, isNull);
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+    },
+  );
+
+  test('saving is non-cancellable and holds lease until completion', () async {
+    final repository = await _createRepository();
+    final resources = AsrResourceCoordinator();
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    repository.beforeConditionalWrite = (_, value) async {
+      if (value.currentStage == ProcessingStage.transcriptionComplete) {
+        entered.complete();
+        await release.future;
+      }
+    };
+    final service = _Service(null, null);
+    final workflow = _workflow(
+      repository,
+      null,
+      resources: resources,
+      service: service,
+    );
+    final operation = workflow.transcribeProject('p');
+    await entered.future;
+    await workflow.cancel();
+    expect(service.cancelCalls, 0);
+    expect(resources.activeUse, AsrResourceUse.transcription);
+    release.complete();
+    await operation;
+    expect(resources.activeUse, isNull);
+    expect(repository.project.lyricDocument!.lines.single.text, 'ASR draft');
+  });
+
   for (final originalStatus in [
     ProjectStatus.draft,
     ProjectStatus.editing,
@@ -453,12 +662,15 @@ LocalProjectTranscriptionWorkflow _workflow(
   TranscriptionException? error, {
   Future<void> Function()? onTranscribe,
   Future<void> Function()? onSettingsLoad,
+  AsrResourceCoordinator? resources,
+  _Service? service,
 }) => LocalProjectTranscriptionWorkflow(
   projectRepository: repository,
-  transcriptionService: _Service(error, onTranscribe),
+  transcriptionService: service ?? _Service(error, onTranscribe),
   settingsStore: _Settings(onSettingsLoad),
   profileResolver: _Resolver(),
   runtimeManager: _Runtime(),
+  resources: resources ?? AsrResourceCoordinator(),
   mediaMetadataRepository: _UnusedMetadata(),
   playbackSession: _UnusedPlayback(),
   pathCanonicalizer: _UnusedCanonicalizer(),
@@ -498,6 +710,8 @@ class _Service implements TranscriptionService {
   final TranscriptionException? error;
   final Future<void> Function()? onTranscribe;
   _Service(this.error, this.onTranscribe);
+  Future<void> Function()? onCancel;
+  int cancelCalls = 0;
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
     await onTranscribe?.call();
@@ -524,7 +738,11 @@ class _Service implements TranscriptionService {
   @override
   bool get isRunning => false;
   @override
-  Future<void> cancel() async {}
+  Future<void> cancel() async {
+    cancelCalls++;
+    await onCancel?.call();
+  }
+
   @override
   Future<void> dispose() async {}
 }

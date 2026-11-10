@@ -13,12 +13,15 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/asr_resource_coordinator.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
 import 'project_transcription_input.dart';
+
+enum _WorkflowPhase { idle, preparing, recognizing, committing }
 
 /// Persists ASR output as the editable timeline consumed by lyric editing and
 /// synchronized playback surfaces. Playback consumers reload the persisted
@@ -34,6 +37,10 @@ class LocalProjectTranscriptionWorkflow
   final TranscriptionSettingsStore _settingsStore;
   final TranscriptionProfileResolver _profileResolver;
   final AsrRuntimeManager _runtimeManager;
+  final AsrResourceCoordinator _resources;
+  _WorkflowPhase _phase = _WorkflowPhase.idle;
+  bool _cancelRequested = false;
+  Future<void>? _pendingCancel;
   final LocalMediaMetadataRepository _mediaMetadataRepository;
   final PlaybackSessionService _playbackSession;
   final AudioPathCanonicalizer _pathCanonicalizer;
@@ -44,6 +51,7 @@ class LocalProjectTranscriptionWorkflow
     required TranscriptionSettingsStore settingsStore,
     required TranscriptionProfileResolver profileResolver,
     required AsrRuntimeManager runtimeManager,
+    required AsrResourceCoordinator resources,
     required LocalMediaMetadataRepository mediaMetadataRepository,
     required PlaybackSessionService playbackSession,
     required AudioPathCanonicalizer pathCanonicalizer,
@@ -52,6 +60,7 @@ class LocalProjectTranscriptionWorkflow
        _settingsStore = settingsStore,
        _profileResolver = profileResolver,
        _runtimeManager = runtimeManager,
+       _resources = resources,
        _mediaMetadataRepository = mediaMetadataRepository,
        _playbackSession = playbackSession,
        _pathCanonicalizer = pathCanonicalizer;
@@ -61,11 +70,34 @@ class LocalProjectTranscriptionWorkflow
       _transcriptionService.progressStream;
 
   @override
-  bool get isRunning => _transcriptionService.isRunning;
+  bool get isRunning => _phase != _WorkflowPhase.idle;
 
   @override
   Future<void> transcribeProject(String projectId) async {
+    if (isRunning) throw const TranscriptionException.busy('已有歌词识别任务正在运行');
+    final lease = _resources.tryAcquire(AsrResourceUse.transcription);
+    if (lease == null)
+      throw const TranscriptionException.busy('识别资源正在使用，请稍后重试');
+    _phase = _WorkflowPhase.preparing;
+    _cancelRequested = false;
+    try {
+      await _transcribeProject(projectId);
+    } finally {
+      try {
+        final pendingCancel = _pendingCancel;
+        if (pendingCancel != null) await pendingCancel;
+      } finally {
+        _pendingCancel = null;
+        _cancelRequested = false;
+        _phase = _WorkflowPhase.idle;
+        lease.release();
+      }
+    }
+  }
+
+  Future<void> _transcribeProject(String projectId) async {
     final project = await _projectRepository.getProjectById(projectId);
+    _checkCancelled();
     if (project == null) {
       throw const TranscriptionException.input('工程不存在');
     }
@@ -76,6 +108,7 @@ class LocalProjectTranscriptionWorkflow
     }
 
     final config = await _settingsStore.load();
+    _checkCancelled();
     if (config == null || !config.isConfigured) {
       throw const TranscriptionException.environment('请先完成本地歌词识别运行时配置');
     }
@@ -84,7 +117,9 @@ class LocalProjectTranscriptionWorkflow
     late final TranscriptionConfig runtimeConfig;
     try {
       resolvedProfile = await _profileResolver.resolve(config);
+      _checkCancelled();
       runtimeConfig = await _runtimeManager.repair(resolvedProfile.config);
+      _checkCancelled();
       if (!runtimeConfig.isConfigured) {
         throw const TranscriptionException.environment(
           '本机识别环境尚未准备完成，请先运行自动安装向导',
@@ -92,6 +127,7 @@ class LocalProjectTranscriptionWorkflow
       }
 
       final runtimeStatus = await _runtimeManager.inspect(runtimeConfig);
+      _checkCancelled();
       // Only the Whisper baseline may block recognition. A missing second
       // engine is not a reason to refuse the song: the transcription service
       // degrades to Whisper and records why, so the user still gets a draft.
@@ -115,8 +151,11 @@ class LocalProjectTranscriptionWorkflow
     }
 
     final inputPath = await resolveProjectTranscriptionInput(project);
+    _checkCancelled();
     final outputDirectory = await _outputDirectory(project);
+    _checkCancelled();
     await _backupExistingLyrics(project, outputDirectory);
+    _checkCancelled();
 
     final runId = const Uuid().v4();
     late final ProjectManifest started;
@@ -135,6 +174,9 @@ class LocalProjectTranscriptionWorkflow
     }
 
     try {
+      // If cancellation arrived during the start write, restore the run marker.
+      _checkCancelled();
+      _phase = _WorkflowPhase.recognizing;
       final result = await _transcriptionService.transcribe(
         TranscriptionRequest(
           inputAudioPath: inputPath,
@@ -144,6 +186,9 @@ class LocalProjectTranscriptionWorkflow
         ),
       );
 
+      _checkCancelled();
+      // From here a project write may commit; do not report cancellation.
+      _phase = _WorkflowPhase.committing;
       final editableLyrics = result.lyrics.copyWith(
         metadata: {
           ...result.lyrics.metadata,
@@ -333,5 +378,17 @@ class LocalProjectTranscriptionWorkflow
   }
 
   @override
-  Future<void> cancel() => _transcriptionService.cancel();
+  Future<void> cancel() async {
+    if (_phase == _WorkflowPhase.idle || _phase == _WorkflowPhase.committing)
+      return;
+    _cancelRequested = true;
+    if (_phase == _WorkflowPhase.recognizing) {
+      await (_pendingCancel ??= _transcriptionService.cancel());
+    }
+  }
+
+  void _checkCancelled() {
+    if (_cancelRequested)
+      throw const TranscriptionException.cancelled('歌词识别已取消');
+  }
 }

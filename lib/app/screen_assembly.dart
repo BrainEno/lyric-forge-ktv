@@ -19,7 +19,7 @@ ProjectDetailDependencies assembleProjectDetailDependencies(
         services.playbackSessionService is ActiveProjectPlaybackSourceUpdater
         ? services.playbackSessionService as ActiveProjectPlaybackSourceUpdater
         : null,
-    transcriptionWorkflow: services.projectTranscriptionWorkflow,
+    transcriptionWorkflow: services.createProjectTranscriptionWorkflow(),
     asrRuntimeSetupDependencies: assembleAsrRuntimeSetupDependencies(services),
   );
 }
