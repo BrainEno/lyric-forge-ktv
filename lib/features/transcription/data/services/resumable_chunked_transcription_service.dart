@@ -287,7 +287,6 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         // Once checkpoint writing begins, finish the JSON/manifest pair before
         // honoring cancellation so a committed chunk remains resumable.
         await _writeManifest(manifestFile, manifest);
-        _throwIfCancelled();
 
         // The chunk WAV and the delegate's per-chunk working directory are
         // reproducible; the checkpoint JSON is the valuable state. Leaving the
@@ -297,6 +296,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         if (await chunkOutput.exists()) {
           await chunkOutput.delete(recursive: true);
         }
+        _throwIfCancelled();
       }
 
       _throwIfCancelled();
@@ -355,17 +355,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         _emitCancellation(chunkSessionStarted);
         rethrow;
       }
-      if (_cancelRequested) {
-        _emitCancellation(chunkSessionStarted);
-        throw const TranscriptionException.cancelled('歌词识别已取消');
-      }
       _emit(TranscriptionStage.failed, 0.0, '歌词识别失败');
       rethrow;
     } catch (_) {
-      if (_cancelRequested) {
-        _emitCancellation(chunkSessionStarted);
-        throw const TranscriptionException.cancelled('歌词识别已取消');
-      }
       _emit(TranscriptionStage.failed, 0.0, '歌词识别失败');
       rethrow;
     } finally {
@@ -533,7 +525,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       if (_cancelRequested ||
           p.stage == TranscriptionStage.completed ||
           p.stage == TranscriptionStage.failed ||
-          p.stage == TranscriptionStage.cancelled) return;
+          p.stage == TranscriptionStage.cancelled)
+        return;
       _emit(
         p.stage,
         (base + p.progress * span).clamp(0.0, 1.0).toDouble(),
@@ -542,6 +535,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     });
     try {
       return await delegate.transcribe(request);
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+      _throwIfCancelled();
+      rethrow;
+    } catch (_) {
+      _throwIfCancelled();
+      rethrow;
     } finally {
       await subscription.cancel();
     }
