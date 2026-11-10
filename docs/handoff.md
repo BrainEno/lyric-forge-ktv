@@ -24,7 +24,7 @@ e6fb9af Merge pull request #401 from BrainEno/arena/fd8aa424-lyric-forge-ktv
 
 ## 检查结果
 
-固定 SDK Actions run 42749129906：依赖解析后格式化、分片/双引擎/项目取消/结构化取消契约测试，以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。本地没有 Flutter/Dart；正式 PR 门禁另行运行。没有执行真实模型或设备验证。
+固定 SDK Actions run 42749328039：依赖解析后格式化、分片/双引擎/项目取消/结构化取消契约测试，以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。本地没有 Flutter/Dart；正式 PR 门禁另行运行。没有执行真实模型或设备验证。
 
 ## 下一步
 

@@ -215,24 +215,45 @@ void main() {
     }
 
     test('checkpoint write failure reports failure, not completion', () async {
-      final directory = await Directory.systemTemp.createTemp('chunk-checkpoint-error-');
+      final directory = await Directory.systemTemp.createTemp(
+        'chunk-checkpoint-error-',
+      );
       addTearDown(() => directory.delete(recursive: true));
       final input = File('${directory.path}/song.wav');
       await input.writeAsBytes(List<int>.filled(128, 1));
       final delegate = _AsyncService((request, service) async {
-        final blocked = Directory('${directory.path}/chunk_session/chunks/chunk_0000.json');
+        final blocked = Directory(
+          '${directory.path}/chunk_session/chunks/chunk_0000.json',
+        );
         await blocked.create();
         return _emptyResult(request);
       });
-      final service = ResumableChunkedTranscriptionService(delegate: delegate, chunkDuration: const Duration(seconds: 3), overlap: const Duration(seconds: 1), processSupervisor: _FfmpegStub(durationLabel: '00:00:04.000').supervisor);
+      final service = ResumableChunkedTranscriptionService(
+        delegate: delegate,
+        chunkDuration: const Duration(seconds: 3),
+        overlap: const Duration(seconds: 1),
+        processSupervisor: _FfmpegStub(
+          durationLabel: '00:00:04.000',
+        ).supervisor,
+      );
       addTearDown(service.dispose);
       final events = <TranscriptionProgress>[];
       final subscription = service.progressStream.listen(events.add);
       addTearDown(subscription.cancel);
-      await expectLater(service.transcribe(_request(input.path, directory.path)), throwsA(isA<FileSystemException>()));
+      await expectLater(
+        service.transcribe(_request(input.path, directory.path)),
+        throwsA(isA<FileSystemException>()),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(events.last.stage, TranscriptionStage.failed);
-      expect(events.where((e) => e.stage == TranscriptionStage.completed || e.stage == TranscriptionStage.cancelled), isEmpty);
+      expect(
+        events.where(
+          (e) =>
+              e.stage == TranscriptionStage.completed ||
+              e.stage == TranscriptionStage.cancelled,
+        ),
+        isEmpty,
+      );
     });
 
     test(
