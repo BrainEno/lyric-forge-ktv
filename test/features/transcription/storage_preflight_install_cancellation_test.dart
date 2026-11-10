@@ -81,10 +81,17 @@ void main() {
   test('cancel during runtime inspection stops before health check', () async {
     final gate = Completer<AsrRuntimeStatus>();
     final entered = Completer<void>();
-    final delegate = _Runtime()..onInspect = () { entered.complete(); return gate.future; };
+    final delegate = _Runtime()
+      ..onInspect = () {
+        entered.complete();
+        return gate.future;
+      };
     final health = _Health();
     final manager = _manager(delegate, health, _Storage());
-    final result = expectLater(manager.installRecommended(config), throwsA(cancelled));
+    final result = expectLater(
+      manager.installRecommended(config),
+      throwsA(cancelled),
+    );
     await entered.future;
     await manager.cancel();
     gate.complete(status);
@@ -98,13 +105,17 @@ void main() {
     final entered = Completer<void>();
     var count = 0;
     final delegate = _Runtime();
-    final health = _Health()..onVerify = () {
-      if (++count == 1) return Future.value(status);
-      entered.complete();
-      return gate.future;
-    };
+    final health = _Health()
+      ..onVerify = () {
+        if (++count == 1) return Future.value(status);
+        entered.complete();
+        return gate.future;
+      };
     final manager = _manager(delegate, health, _Storage());
-    final result = expectLater(manager.installRecommended(config), throwsA(cancelled));
+    final result = expectLater(
+      manager.installRecommended(config),
+      throwsA(cancelled),
+    );
     await entered.future;
     await manager.cancel();
     gate.complete(status);
