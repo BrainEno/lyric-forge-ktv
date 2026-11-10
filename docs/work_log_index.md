@@ -20,7 +20,7 @@
 
 ## Recent work areas
 
-- **ASR installation safety:** installation preflight cooperatively observes cancellation and rejects overlapping installs on the same manager; caller-specific cancellation and app-scoped installation leases remain unconnected. See [preflight cancellation](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md) and `docs/handoff.md`.
+- **ASR installation safety:** preflight cancellation and a per-caller installation lease wrapper are tested; the wrapper has no production callers, and shared-caller cancellation and app-scoped installation leases remain unconnected. See [installation ownership](log/entries/2026-11-07-2050-coordinate-asr-installation.md), [preflight cancellation](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md), and `docs/handoff.md`.
 
 - **Immersive KTV chrome lifecycle:** App-level chrome notifications must occur after route mount/dispose frames so a child route cannot mark an ancestor `ValueListenableBuilder` dirty while the tree is building. Regression coverage is in `immersive_ktv_recording_test.dart`.
 - **Phase 4.5 CI workflow simplification:** the ASR client-only, transcription execution-failure, transcription readiness, transcription settings, and root widget focused workflows are removed because the universal Flutter Quality Gate runs their analyze/tests; native, KTV recovery, runtime-release, and icon workflows remain for separate audits.
