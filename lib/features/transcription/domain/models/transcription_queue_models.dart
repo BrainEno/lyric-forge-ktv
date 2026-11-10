@@ -9,6 +9,7 @@ enum TranscriptionQueueItemStatus {
 enum TranscriptionQueuePauseReason {
   manual,
   environment,
+  resourceBusy,
 }
 
 class TranscriptionQueueItem {
@@ -107,6 +108,9 @@ class TranscriptionQueueSnapshot {
 
   bool get isEnvironmentBlocked =>
       isPaused && pauseReason == TranscriptionQueuePauseReason.environment;
+
+  bool get isResourceBusy =>
+      isPaused && pauseReason == TranscriptionQueuePauseReason.resourceBusy;
 
   int get queuedCount => items
       .where((item) => item.status == TranscriptionQueueItemStatus.queued)
