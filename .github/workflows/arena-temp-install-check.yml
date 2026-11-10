@@ -1,0 +1,23 @@
+name: Arena temporary install check
+on:
+  push:
+    branches: [arena/e1b4d4bc-lyric-forge-ktv]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and expose patch
+        run: |
+          dart format lib/features/transcription/data/services/storage_preflight_asr_runtime_manager.dart test/features/transcription/storage_preflight_install_cancellation_test.dart
+          git diff --binary | gzip -c | base64 -w 0 > /tmp/format.b64
+          python3 - <<'PY'
+          import pathlib
+          s = pathlib.Path('/tmp/format.b64').read_text()
+          for i in range(0, len(s), 3000): print(f'::notice title=FORMAT{i//3000:03d}::{s[i:i+3000]}')
+          PY
+      - run: flutter test --no-pub test/features/transcription/storage_preflight_install_cancellation_test.dart test/features/transcription/asr_storage_preflight_test.dart test/features/transcription/asr_runtime_health_test.dart
+      - run: flutter analyze --no-pub --no-fatal-infos lib test tool
