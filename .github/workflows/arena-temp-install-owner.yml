@@ -21,5 +21,15 @@ jobs:
           s=pathlib.Path('/tmp/format.b64').read_text()
           for i in range(0,len(s),3000): print(f'::notice title=FORMAT{i//3000:03d}::{s[i:i+3000]}')
           PY
-      - run: flutter test --no-pub test/features/transcription/coordinated_asr_install_manager_test.dart test/features/transcription/storage_preflight_install_cancellation_test.dart test/features/transcription/asr_resource_coordinator_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart test/features/transcription/independent_project_rerun_workflow_test.dart test/features/transcription/asr_end_to_end_smoke_test_service_test.dart
+      - name: Targeted tests
+        run: |
+          if ! flutter test --no-pub --reporter expanded test/features/transcription/coordinated_asr_install_manager_test.dart test/features/transcription/storage_preflight_install_cancellation_test.dart test/features/transcription/asr_resource_coordinator_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart test/features/transcription/independent_project_rerun_workflow_test.dart test/features/transcription/asr_end_to_end_smoke_test_service_test.dart > /tmp/tests.log 2>&1; then
+            python3 - <<'PY2'
+          import pathlib,base64,gzip
+          s=base64.b64encode(gzip.compress(pathlib.Path('/tmp/tests.log').read_bytes())).decode()
+          for i in range(0,len(s),3000): print(f'::notice title=TESTLOG{i//3000:03d}::{s[i:i+3000]}')
+          PY2
+            exit 1
+          fi
+          tail -n 3 /tmp/tests.log
       - run: flutter analyze --no-pub --no-fatal-infos lib test tool

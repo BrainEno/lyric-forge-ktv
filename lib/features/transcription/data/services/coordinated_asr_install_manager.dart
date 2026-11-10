@@ -17,10 +17,14 @@ class CoordinatedAsrInstallManager implements AsrRuntimeManager {
   bool _ownsInstallation = false;
   Future<void>? _pendingCancel;
 
-  CoordinatedAsrInstallManager({required this.delegate, required this.resources});
+  CoordinatedAsrInstallManager({
+    required this.delegate,
+    required this.resources,
+  });
 
   @override
-  Stream<AsrRuntimeInstallProgress> get progressStream => delegate.progressStream;
+  Stream<AsrRuntimeInstallProgress> get progressStream =>
+      delegate.progressStream;
 
   @override
   bool get isInstalling => _ownsInstallation || delegate.isInstalling;
@@ -34,7 +38,9 @@ class CoordinatedAsrInstallManager implements AsrRuntimeManager {
       delegate.repair(config);
 
   @override
-  Future<TranscriptionConfig> installRecommended(TranscriptionConfig config) async {
+  Future<TranscriptionConfig> installRecommended(
+    TranscriptionConfig config,
+  ) async {
     if (_ownsInstallation) {
       throw const TranscriptionException.busy('已有识别环境安装任务正在运行');
     }
