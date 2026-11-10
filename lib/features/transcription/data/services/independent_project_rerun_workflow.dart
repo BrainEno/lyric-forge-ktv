@@ -1,5 +1,6 @@
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/services/asr_resource_coordinator.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
@@ -13,31 +14,35 @@ enum IndependentRerunPhase { idle, preparing, recognizing, saving }
 
 /// Selects exactly one real engine and saves its result as a separate pair.
 ///
-/// This instance only serializes its own calls. The caller must hold an
-/// app-wide ASR resource lease before use: other transcription, alignment or
-/// runtime-install operations may otherwise compete for the same resources.
-/// This does not provide the lease and is not wired into the app yet.
+/// A shared coordinator serializes cooperating callers in one isolate. Normal
+/// transcription, alignment and runtime installation must also use that same
+/// coordinator before this workflow can safely be wired into the app. An idle
+/// native server may still retain resources even when no lease is held.
 class IndependentProjectRerunWorkflow {
   final ProjectRepository _projects;
   final TranscriptionSettingsStore _settings;
   final TranscriptionProfileResolver _profiles;
   final AsrRuntimeManager _runtime;
+  final AsrResourceCoordinator _resources;
   final IndependentProjectRerunService _runner;
   final ProjectRerunCandidateStore _store;
   IndependentRerunPhase _phase = IndependentRerunPhase.idle;
   bool _cancelled = false;
+  Future<void>? _pendingCancel;
 
   IndependentProjectRerunWorkflow({
     required ProjectRepository projects,
     required TranscriptionSettingsStore settings,
     required TranscriptionProfileResolver profiles,
     required AsrRuntimeManager runtime,
+    required AsrResourceCoordinator resources,
     TranscriptionService Function()? createQwen,
     TranscriptionService Function()? createWhisper,
   }) : _projects = projects,
        _settings = settings,
        _profiles = profiles,
        _runtime = runtime,
+       _resources = resources,
        _runner = IndependentProjectRerunService(
          projects: projects,
          createQwen: createQwen ?? Qwen3AsrNativeTranscriptionService.new,
@@ -53,6 +58,10 @@ class IndependentProjectRerunWorkflow {
     required IndependentRerunEngine engine,
   }) async {
     if (isRunning) throw const TranscriptionException.busy('已有独立识别任务正在运行');
+    final lease = _resources.tryAcquire(AsrResourceUse.independentRerun);
+    if (lease == null) {
+      throw const TranscriptionException.busy('识别资源正在使用，请稍后重试');
+    }
     _phase = IndependentRerunPhase.preparing;
     _cancelled = false;
     try {
@@ -119,8 +128,16 @@ class IndependentProjectRerunWorkflow {
       _phase = IndependentRerunPhase.saving;
       return await _store.save(pair);
     } finally {
-      _phase = IndependentRerunPhase.idle;
-      _cancelled = false;
+      try {
+        // Cancellation may still be stopping an adapter after run() unwinds.
+        final pendingCancel = _pendingCancel;
+        if (pendingCancel != null) await pendingCancel;
+      } finally {
+        _pendingCancel = null;
+        _phase = IndependentRerunPhase.idle;
+        _cancelled = false;
+        lease.release();
+      }
     }
   }
 
@@ -132,7 +149,9 @@ class IndependentProjectRerunWorkflow {
         _phase == IndependentRerunPhase.saving)
       return false;
     _cancelled = true;
-    if (_phase == IndependentRerunPhase.recognizing) await _runner.cancel();
+    if (_phase == IndependentRerunPhase.recognizing) {
+      await (_pendingCancel ??= _runner.cancel());
+    }
     return true;
   }
 

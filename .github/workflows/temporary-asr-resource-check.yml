@@ -1,0 +1,35 @@
+name: Temporary ASR resource check
+on:
+  push:
+    branches: [arena/45d76760-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and publish patch
+        run: |
+          dart format lib/features/transcription/domain/services/asr_resource_coordinator.dart lib/features/transcription/data/services/independent_project_rerun_workflow.dart test/features/transcription/asr_resource_coordinator_test.dart test/features/transcription/independent_project_rerun_workflow_test.dart
+          git diff | gzip -c | base64 -w0 > /tmp/patch64
+          python3 - <<'PY'
+          s = open('/tmp/patch64').read()
+          for i in range(0, len(s), 3000):
+              print('::notice title=PATCH%03d::%s' % (i // 3000, s[i:i+3000]))
+          PY
+      - name: Targeted tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/transcription/asr_resource_coordinator_test.dart test/features/transcription/independent_project_rerun_workflow_test.dart test/features/transcription/independent_project_rerun_service_test.dart test/features/transcription/project_rerun_candidate_store_test.dart 2>&1 | tee /tmp/test.log || { python3 - <<'PY'
+          s = open('/tmp/test.log').read()
+          for line in s.splitlines():
+              if '[E]' in line or line.startswith(('Expected:', '  Actual:', 'Which:', '══╡', 'Test failed.', 'EXCEPTION', 'The following')):
+                  print('::error::' + line.replace('%', '%25'))
+          PY
+          exit 1; }
+      - name: Analyze
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool
