@@ -1052,75 +1052,152 @@ void main() {
       },
     );
 
-    test('chunk merge preserves real repeats and remaps review evidence', () async {
-      final directory = await Directory.systemTemp.createTemp('chunk-repeats-');
-      addTearDown(() => directory.delete(recursive: true));
-      final input = File('${directory.path}/song.wav');
-      await input.writeAsBytes(List<int>.filled(128, 1));
-      final delegate = _ScriptedService((chunk) {
-        LyricLine line(String text, int start, int end, [int confidence = 50]) =>
-            LyricLine(text: text, startTime: Duration(milliseconds: start),
-                endTime: Duration(milliseconds: end), confidence: confidence);
-        final lines = chunk == 0
-            ? [line('again', 0, 400), line('again', 500, 900),
-                line('echo', 1600, 1900), line('echo', 2100, 2400),
-                line('echo', 2500, 2800)]
-            : [line('echo', 100, 400, 90), line('echo', 500, 800, 90),
-                line('echo', 550, 750), line('echo', 1050, 1200)];
-        return LyricDocument(language: 'en', lines: lines, metadata: {
-          'suspiciousLineIndexes': [for (var i = 0; i < lines.length; i++) i],
-          'fallbackCandidates': [for (var i = 0; i < lines.length; i++)
-            {'lineIndex': i, 'primaryText': lines[i].text}],
+    test(
+      'chunk merge preserves real repeats and remaps review evidence',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-repeats-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File('${directory.path}/song.wav');
+        await input.writeAsBytes(List<int>.filled(128, 1));
+        final delegate = _ScriptedService((chunk) {
+          LyricLine line(
+            String text,
+            int start,
+            int end, [
+            int confidence = 50,
+          ]) => LyricLine(
+            text: text,
+            startTime: Duration(milliseconds: start),
+            endTime: Duration(milliseconds: end),
+            confidence: confidence,
+          );
+          final lines = chunk == 0
+              ? [
+                  line('again', 0, 400),
+                  line('again', 500, 900),
+                  line('echo', 1600, 1900),
+                  line('echo', 2100, 2400),
+                  line('echo', 2500, 2800),
+                ]
+              : [
+                  line('echo', 100, 400, 90),
+                  line('echo', 500, 800, 90),
+                  line('echo', 550, 750),
+                  line('echo', 1050, 1200),
+                ];
+          return LyricDocument(
+            language: 'en',
+            lines: lines,
+            metadata: {
+              'suspiciousLineIndexes': [
+                for (var i = 0; i < lines.length; i++) i,
+              ],
+              'fallbackCandidates': [
+                for (var i = 0; i < lines.length; i++)
+                  {'lineIndex': i, 'primaryText': lines[i].text},
+              ],
+            },
+          );
         });
-      });
-      final service = ResumableChunkedTranscriptionService(
-        delegate: delegate, chunkDuration: const Duration(seconds: 3),
-        overlap: const Duration(seconds: 1),
-        processSupervisor: _FfmpegStub(durationLabel: '00:00:04.000').supervisor,
-      );
-      addTearDown(service.dispose);
-      final request = _request(input.path, directory.path);
-      final result = await service.transcribe(request);
-      expect(result.lyrics.lines.map((line) => line.text),
-          ['again', 'again', 'echo', 'echo', 'echo', 'echo', 'echo']);
-      expect(result.lyrics.lines.map((line) => line.startTime.inMilliseconds),
-          [0, 500, 1600, 2100, 2500, 2550, 3050]);
-      expect(result.lyrics.lines[3].confidence, 90);
-      expect(result.lyrics.lines[4].confidence, 90);
-      expect(result.lyrics.metadata['suspiciousLineIndexes'], [0, 1, 2, 3, 4, 5, 6]);
-      final candidates = result.lyrics.metadata['fallbackCandidates'] as List;
-      expect(candidates.map((c) => (c as Map)['lineIndex']).toSet(),
-          {0, 1, 2, 3, 4, 5, 6});
-      final resumed = await service.transcribe(request);
-      expect(delegate.outputDirectories, hasLength(2));
-      expect(resumed.lyrics.lines.map((line) => line.startTime.inMilliseconds),
-          [0, 500, 1600, 2100, 2500, 2550, 3050]);
-    });
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          processSupervisor: _FfmpegStub(
+            durationLabel: '00:00:04.000',
+          ).supervisor,
+        );
+        addTearDown(service.dispose);
+        final request = _request(input.path, directory.path);
+        final result = await service.transcribe(request);
+        expect(result.lyrics.lines.map((line) => line.text), [
+          'again',
+          'again',
+          'echo',
+          'echo',
+          'echo',
+          'echo',
+          'echo',
+        ]);
+        expect(
+          result.lyrics.lines.map((line) => line.startTime.inMilliseconds),
+          [0, 500, 1600, 2100, 2500, 2550, 3050],
+        );
+        expect(result.lyrics.lines[3].confidence, 90);
+        expect(result.lyrics.lines[4].confidence, 90);
+        expect(result.lyrics.metadata['suspiciousLineIndexes'], [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+        ]);
+        final candidates = result.lyrics.metadata['fallbackCandidates'] as List;
+        expect(candidates.map((c) => (c as Map)['lineIndex']).toSet(), {
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+        });
+        final resumed = await service.transcribe(request);
+        expect(delegate.outputDirectories, hasLength(2));
+        expect(
+          resumed.lyrics.lines.map((line) => line.startTime.inMilliseconds),
+          [0, 500, 1600, 2100, 2500, 2550, 3050],
+        );
+      },
+    );
 
-    test('large overlap deduplicates one occurrence across three chunks', () async {
-      final directory = await Directory.systemTemp.createTemp('chunk-wide-overlap-');
-      addTearDown(() => directory.delete(recursive: true));
-      final input = File('${directory.path}/song.wav');
-      await input.writeAsBytes(List<int>.filled(128, 1));
-      final delegate = _ScriptedService((chunk) => LyricDocument(
-        language: 'en', lines: [LyricLine(text: 'repeat',
-          startTime: Duration(milliseconds: 2100 - chunk * 1000),
-          endTime: Duration(milliseconds: 2400 - chunk * 1000),
-          confidence: 50 + chunk * 10)],
-        metadata: {'suspiciousLineIndexes': [0]},
-      ));
-      final service = ResumableChunkedTranscriptionService(
-        delegate: delegate, chunkDuration: const Duration(seconds: 3),
-        overlap: const Duration(seconds: 2),
-        processSupervisor: _FfmpegStub(durationLabel: '00:00:05.000').supervisor,
-      );
-      addTearDown(service.dispose);
-      final result = await service.transcribe(_request(input.path, directory.path));
-      expect(delegate.outputDirectories, hasLength(3));
-      expect(result.lyrics.lines, hasLength(1));
-      expect(result.lyrics.lines.single.confidence, 70);
-      expect(result.lyrics.metadata['suspiciousLineIndexes'], [0]);
-    });
+    test(
+      'large overlap deduplicates one occurrence across three chunks',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'chunk-wide-overlap-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File('${directory.path}/song.wav');
+        await input.writeAsBytes(List<int>.filled(128, 1));
+        final delegate = _ScriptedService(
+          (chunk) => LyricDocument(
+            language: 'en',
+            lines: [
+              LyricLine(
+                text: 'repeat',
+                startTime: Duration(milliseconds: 2100 - chunk * 1000),
+                endTime: Duration(milliseconds: 2400 - chunk * 1000),
+                confidence: 50 + chunk * 10,
+              ),
+            ],
+            metadata: {
+              'suspiciousLineIndexes': [0],
+            },
+          ),
+        );
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 2),
+          processSupervisor: _FfmpegStub(
+            durationLabel: '00:00:05.000',
+          ).supervisor,
+        );
+        addTearDown(service.dispose);
+        final result = await service.transcribe(
+          _request(input.path, directory.path),
+        );
+        expect(delegate.outputDirectories, hasLength(3));
+        expect(result.lyrics.lines, hasLength(1));
+        expect(result.lyrics.lines.single.confidence, 70);
+        expect(result.lyrics.metadata['suspiciousLineIndexes'], [0]);
+      },
+    );
 
     test('only old dual-engine checkpoints are invalidated', () async {
       final directory = await Directory.systemTemp.createTemp(

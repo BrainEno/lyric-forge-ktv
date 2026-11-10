@@ -613,19 +613,28 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           final previous = documents[chunk - 1];
           final overlapStart = plan[chunk].start;
           final overlapEnd = plan[chunk - 1].end;
-          for (var candidate = 0; candidate < previous.lines.length; candidate++) {
+          for (
+            var candidate = 0;
+            candidate < previous.lines.length;
+            candidate++
+          ) {
             final other = previous.lines[candidate];
             // Require positive time intersection inside the shared audio, not
             // merely similar starts. Each previous line may match only once.
             if (usedPrevious.contains(candidate) ||
                 _textComparison.normalize(other.text) != normalizedText ||
                 overlapStart >= overlapEnd ||
-                line.startTime >= overlapEnd || other.startTime >= overlapEnd ||
-                line.endTime <= overlapStart || other.endTime <= overlapStart ||
-                line.startTime >= other.endTime || other.startTime >= line.endTime) {
+                line.startTime >= overlapEnd ||
+                other.startTime >= overlapEnd ||
+                line.endTime <= overlapStart ||
+                other.endTime <= overlapStart ||
+                line.startTime >= other.endTime ||
+                other.startTime >= line.endTime) {
               continue;
             }
-            final distance = _absoluteDuration(other.startTime - line.startTime);
+            final distance = _absoluteDuration(
+              other.startTime - line.startTime,
+            );
             if (bestDistance == null || distance < bestDistance) {
               bestDistance = distance;
               previousIndex = candidate;
