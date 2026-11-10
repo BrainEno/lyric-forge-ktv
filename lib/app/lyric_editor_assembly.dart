@@ -33,37 +33,38 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
 ForcedAlignmentRunner buildForcedAlignmentRunner(AppServices services) {
   return coordinateForcedAlignmentRunner(
     resources: services.asrResourceCoordinator,
-    delegate: ({
-    required String audioPath,
-    required String text,
-    required String language,
-    required Duration audioDuration,
-  }) async {
-    final savedConfig = await services.transcriptionSettingsStore.load();
-    if (savedConfig == null) {
-      throw Exception('尚未配置本地转写运行时。');
-    }
-    final resolved = await services.transcriptionProfileResolver.resolve(
-      savedConfig,
-    );
-    final runtimeStatus = await services.asrRuntimeManager.inspect(
-      resolved.config,
-    );
-    final runtimeReady = runtimeStatus.hasReadyComponents(const {
-      AsrRuntimeComponent.qwenRuntime,
-      AsrRuntimeComponent.qwenAligner,
-    });
-    if (!runtimeReady) {
-      throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
-    }
-    return services.qwenNativeTranscriptionService.alignReference(
-      audioPath: audioPath,
-      text: text,
-      language: language,
-      audioDuration: audioDuration,
-      config: resolved.config,
-    );
-  },
+    delegate:
+        ({
+          required String audioPath,
+          required String text,
+          required String language,
+          required Duration audioDuration,
+        }) async {
+          final savedConfig = await services.transcriptionSettingsStore.load();
+          if (savedConfig == null) {
+            throw Exception('尚未配置本地转写运行时。');
+          }
+          final resolved = await services.transcriptionProfileResolver.resolve(
+            savedConfig,
+          );
+          final runtimeStatus = await services.asrRuntimeManager.inspect(
+            resolved.config,
+          );
+          final runtimeReady = runtimeStatus.hasReadyComponents(const {
+            AsrRuntimeComponent.qwenRuntime,
+            AsrRuntimeComponent.qwenAligner,
+          });
+          if (!runtimeReady) {
+            throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
+          }
+          return services.qwenNativeTranscriptionService.alignReference(
+            audioPath: audioPath,
+            text: text,
+            language: language,
+            audioDuration: audioDuration,
+            config: resolved.config,
+          );
+        },
   );
 }
 
