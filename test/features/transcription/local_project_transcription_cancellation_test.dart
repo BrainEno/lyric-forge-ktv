@@ -186,11 +186,13 @@ void main() {
       expect(service.cancelCalls, 0);
       await expectLater(
         other.transcribeProject('p'),
-        throwsA(isA<TranscriptionException>().having(
-          (e) => e.kind,
-          'kind',
-          TranscriptionFailureKind.busy,
-        )),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
       );
       await other.cancel();
       expect(service.cancelCalls, 0);
