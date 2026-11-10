@@ -321,7 +321,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         if (language != null && language.isNotEmpty) languages.add(language);
       }
 
-      final merged = _mergeDocuments(documents);
+      final merged = _mergeDocuments(documents, plan);
       final finalFile = File(
         '${root.path}${Platform.pathSeparator}merged_result.json',
       );
@@ -590,38 +590,60 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     return candidate;
   }
 
-  LyricDocument _mergeDocuments(List<LyricDocument> documents) {
+  LyricDocument _mergeDocuments(
+    List<LyricDocument> documents,
+    List<_Chunk> plan,
+  ) {
     if (documents.isEmpty) {
       return const LyricDocument(language: 'unknown', lines: []);
     }
     final lines = <LyricLine>[];
-    final normalizedTexts = <String>[];
     // For each chunk: its own line index -> index in `lines` before sorting.
     final indexMaps = <List<int>>[];
-    for (final document in documents) {
+    for (var chunk = 0; chunk < documents.length; chunk++) {
+      final document = documents[chunk];
       final indexMap = List<int>.filled(document.lines.length, -1);
+      final usedPrevious = <int>{};
       for (var index = 0; index < document.lines.length; index++) {
         final line = document.lines[index];
         final normalizedText = _textComparison.normalize(line.text);
-        var duplicateIndex = -1;
-        if (normalizedText.isNotEmpty) {
+        var previousIndex = -1;
+        Duration? bestDistance;
+        if (chunk > 0 && normalizedText.isNotEmpty) {
+          final previous = documents[chunk - 1];
+          final overlapStart = plan[chunk].start;
+          final overlapEnd = plan[chunk - 1].end;
           for (
-            var existingIndex = normalizedTexts.length - 1;
-            existingIndex >= 0;
-            existingIndex--
+            var candidate = 0;
+            candidate < previous.lines.length;
+            candidate++
           ) {
-            if (normalizedTexts[existingIndex] != normalizedText ||
-                _absoluteDuration(
-                      lines[existingIndex].startTime - line.startTime,
-                    ) >
-                    overlap) {
+            final other = previous.lines[candidate];
+            // Require positive time intersection inside the shared audio, not
+            // merely similar starts. Each previous line may match only once.
+            if (usedPrevious.contains(candidate) ||
+                _textComparison.normalize(other.text) != normalizedText ||
+                overlapStart >= overlapEnd ||
+                line.startTime >= overlapEnd ||
+                other.startTime >= overlapEnd ||
+                line.endTime <= overlapStart ||
+                other.endTime <= overlapStart ||
+                line.startTime >= other.endTime ||
+                other.startTime >= line.endTime) {
               continue;
             }
-            duplicateIndex = existingIndex;
-            break;
+            final distance = _absoluteDuration(
+              other.startTime - line.startTime,
+            );
+            if (bestDistance == null || distance < bestDistance) {
+              bestDistance = distance;
+              previousIndex = candidate;
+            }
           }
         }
-        if (duplicateIndex >= 0) {
+        if (previousIndex >= 0) {
+          usedPrevious.add(previousIndex);
+          final duplicateIndex = indexMaps[chunk - 1][previousIndex];
           indexMap[index] = duplicateIndex;
           if (line.confidence > lines[duplicateIndex].confidence) {
             lines[duplicateIndex] = line;
@@ -629,7 +651,6 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         } else {
           indexMap[index] = lines.length;
           lines.add(line);
-          normalizedTexts.add(normalizedText);
         }
       }
       indexMaps.add(indexMap);
