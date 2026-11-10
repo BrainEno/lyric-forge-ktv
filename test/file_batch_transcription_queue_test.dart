@@ -60,7 +60,8 @@ void main() {
     final repository = _BlockingRepository(Directory('${root.path}/projects'));
     final workflow = _FakeWorkflow(repository);
     final queue = FileBatchTranscriptionQueue(
-      projectRepository: repository, workflow: workflow,
+      projectRepository: repository,
+      workflow: workflow,
       rootDirectory: Directory('${root.path}/queue'),
     );
     await queue.initialize();
@@ -71,7 +72,10 @@ void main() {
     await _waitUntil(() => !queue.current.isProcessing);
     expect(workflow.calls, 0);
     expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
-    expect(queue.current.items.single.status, TranscriptionQueueItemStatus.paused);
+    expect(
+      queue.current.items.single.status,
+      TranscriptionQueueItemStatus.paused,
+    );
     expect(queue.current.items.single.projectId, isNotNull);
     await queue.dispose();
   });
@@ -431,7 +435,11 @@ class _BlockingRepository extends FileProjectRepository {
   final started = Completer<void>();
   final release = Completer<void>();
   @override
-  Future<ProjectManifest> createProject({required String name, String? artist, String? album}) async {
+  Future<ProjectManifest> createProject({
+    required String name,
+    String? artist,
+    String? album,
+  }) async {
     started.complete();
     await release.future;
     return super.createProject(name: name, artist: artist, album: album);

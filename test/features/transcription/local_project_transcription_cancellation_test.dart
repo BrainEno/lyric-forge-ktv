@@ -176,7 +176,26 @@ void main() {
         ),
       );
       await entered.future;
+      final other = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      await other.cancel();
+      expect(service.cancelCalls, 0);
+      await expectLater(
+        other.transcribeProject('p'),
+        throwsA(isA<TranscriptionException>().having(
+          (e) => e.kind,
+          'kind',
+          TranscriptionFailureKind.busy,
+        )),
+      );
+      await other.cancel();
+      expect(service.cancelCalls, 0);
       final cancel = workflow.cancel();
+      expect(service.cancelCalls, 1);
       inferenceDone.complete();
       await Future<void>.delayed(Duration.zero);
       expect(resources.activeUse, AsrResourceUse.transcription);
