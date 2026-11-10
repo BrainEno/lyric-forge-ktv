@@ -120,6 +120,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       if (duration <= chunkDuration) {
         final result = await _runDelegate(request, prefix: '');
         _throwIfCancelled();
+        _emit(TranscriptionStage.completed, 1.0, '歌词识别完成');
         return result;
       }
 
@@ -283,6 +284,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         completed.add(id);
         manifest['completed'] = completed.toList()..sort();
         manifest['updatedAt'] = DateTime.now().toUtc().toIso8601String();
+        // Once checkpoint writing begins, finish the JSON/manifest pair before
+        // honoring cancellation so a committed chunk remains resumable.
         await _writeManifest(manifestFile, manifest);
 
         // The chunk WAV and the delegate's per-chunk working directory are
@@ -293,6 +296,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         if (await chunkOutput.exists()) {
           await chunkOutput.delete(recursive: true);
         }
+        _throwIfCancelled();
       }
 
       _throwIfCancelled();
@@ -307,6 +311,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                   ).readAsString(),
                 )
                 as Map<String, dynamic>;
+        _throwIfCancelled();
         documents.add(
           LyricDocument.fromJson(
             Map<String, dynamic>.from(json['lyrics'] as Map),
@@ -324,6 +329,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         const JsonEncoder.withIndent('  ').convert(merged.toJson()),
         flush: true,
       );
+      _throwIfCancelled();
       _emit(TranscriptionStage.completed, 1.0, '全部 ${plan.length} 个分片识别并合并完成');
 
       return TranscriptionResult(
@@ -342,20 +348,17 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         detectedLanguage: _mostCommon(languages),
       );
     } on _ChunkCancelled {
-      _emit(
-        TranscriptionStage.cancelled,
-        0.0,
-        chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
-      );
+      _emitCancellation(chunkSessionStarted);
       throw const TranscriptionException.cancelled('歌词识别已取消');
     } on TranscriptionException catch (error) {
       if (error.kind == TranscriptionFailureKind.cancelled) {
-        _emit(
-          TranscriptionStage.cancelled,
-          0.0,
-          chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
-        );
+        _emitCancellation(chunkSessionStarted);
+        rethrow;
       }
+      _emit(TranscriptionStage.failed, 0.0, '歌词识别失败');
+      rethrow;
+    } catch (_) {
+      _emit(TranscriptionStage.failed, 0.0, '歌词识别失败');
       rethrow;
     } finally {
       _running = false;
@@ -517,9 +520,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     double span = 1,
   }) async {
     final subscription = delegate.progressStream.listen((p) {
-      // The wrapper owns its terminal cancellation event, even when a child
-      // reports cancellation before throwing the typed exception.
-      if (_cancelRequested || p.stage == TranscriptionStage.cancelled) return;
+      // A child's terminal event describes only that attempt, not the whole
+      // session. The wrapper emits exactly one terminal after its own outcome.
+      if (_cancelRequested ||
+          p.stage == TranscriptionStage.completed ||
+          p.stage == TranscriptionStage.failed ||
+          p.stage == TranscriptionStage.cancelled)
+        return;
       _emit(
         p.stage,
         (base + p.progress * span).clamp(0.0, 1.0).toDouble(),
@@ -528,6 +535,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     });
     try {
       return await delegate.transcribe(request);
+    } on TranscriptionException catch (error) {
+      if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+      _throwIfCancelled();
+      rethrow;
+    } catch (_) {
+      _throwIfCancelled();
+      rethrow;
     } finally {
       await subscription.cancel();
     }
@@ -787,6 +801,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       counts[value] = (counts[value] ?? 0) + 1;
     }
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
+  void _emitCancellation(bool chunkSessionStarted) {
+    _emit(
+      TranscriptionStage.cancelled,
+      0.0,
+      chunkSessionStarted ? '分片识别已取消，已完成进度已保存' : '歌词识别已取消',
+    );
   }
 
   void _emit(TranscriptionStage stage, double progress, String message) {
