@@ -395,6 +395,18 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
           message: '已暂停，当前歌曲进度已保留',
           updatedAt: DateTime.now(),
         );
+      } else if (error.kind == TranscriptionFailureKind.busy) {
+        // Busy is transient, not a song failure or a broken installation. Keep
+        // the whole queue paused until the user explicitly retries.
+        _paused = true;
+        _pauseReason = TranscriptionQueuePauseReason.resourceBusy;
+        _pauseMessage = error.toString();
+        _items[index] = _items[index].copyWith(
+          status: TranscriptionQueueItemStatus.queued,
+          message: '识别资源正忙，队列已暂停；空闲后可继续',
+          error: error.toString(),
+          updatedAt: DateTime.now(),
+        );
       } else if (_isEnvironmentBlocked(error)) {
         _paused = true;
         _pauseReason = TranscriptionQueuePauseReason.environment;

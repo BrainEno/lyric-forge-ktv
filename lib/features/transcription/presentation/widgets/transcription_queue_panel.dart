@@ -101,6 +101,8 @@ class TranscriptionQueuePanel extends StatelessWidget {
                   _StatusBadge(
                     label: state.isEnvironmentBlocked
                         ? '环境阻塞'
+                        : state.isResourceBusy
+                        ? '资源正忙'
                         : state.isPaused
                         ? (state.isProcessing ? '正在暂停' : '已暂停')
                         : (state.isProcessing ? '处理中' : '等待中'),
@@ -298,6 +300,9 @@ class TranscriptionQueuePanel extends StatelessWidget {
   ) {
     if (state.isEnvironmentBlocked) {
       return '识别环境需要处理，后续歌曲已保护性暂停，不会继续批量失败';
+    }
+    if (state.isResourceBusy) {
+      return '识别资源正忙，队列已暂停；请在其他任务结束后继续';
     }
     if (state.isPaused) {
       return running == null
