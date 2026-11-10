@@ -15,19 +15,7 @@ jobs:
         run: |
           dart format --output=none --set-exit-if-changed lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/resumable_chunked_transcription_service_test.dart
           dart tool/work_log.dart new --timestamp '2026-11-07 23:58' --slug preserve-chunked-lyric-repeats --title 'Preserve repeated lyrics when merging chunks'
-          python3 - <<'PY'
-          p = 'docs/log/entries/2026-11-07-2358-preserve-chunked-lyric-repeats.md'
-          open(p, 'w').write('''# [2026-11-07 23:58] Preserve repeated lyrics when merging chunks
-
-- Scope: Avoid deleting real repeated lyrics when stitching long-audio transcription chunks, while deduplicating confident overlap matches.
-- Files: Chunk transcription service and regression tests, handoff, index, entry and generated work-log navigation.
-- Validation:
-  - Pinned Flutter Actions run 42753283509: format after dependency resolution, chunk and high-quality transcription tests, and flutter analyze --no-pub --no-fatal-infos lib test tool passed.
-  - Temporary Actions work-log run checked formatting and generated/checked work-log files; final PR gate reported separately. Local Flutter/Dart unavailable.
-- Notes: Match only adjacent chunks with equal normalized text and positive time intersection inside shared audio, one-to-one. Conflicting timestamps or text can leave duplicates; inaccurate overlapping timestamps can still mispair repeated lines. Native devices and real songs were not tested; no measured accuracy gain is claimed.
-- Commit: `Preserve repeated lyrics when merging chunks`
-''')
-          PY
+          echo 'IyBbMjAyNi0xMS0wNyAyMzo1OF0gUHJlc2VydmUgcmVwZWF0ZWQgbHlyaWNzIHdoZW4gbWVyZ2luZyBjaHVua3MKCi0gU2NvcGU6IEF2b2lkIGRlbGV0aW5nIHJlYWwgcmVwZWF0ZWQgbHlyaWNzIHdoZW4gc3RpdGNoaW5nIGxvbmctYXVkaW8gdHJhbnNjcmlwdGlvbiBjaHVua3MsIHdoaWxlIGRlZHVwbGljYXRpbmcgY29uZmlkZW50IG92ZXJsYXAgbWF0Y2hlcy4KLSBGaWxlczogQ2h1bmsgdHJhbnNjcmlwdGlvbiBzZXJ2aWNlIGFuZCByZWdyZXNzaW9uIHRlc3RzLCBoYW5kb2ZmLCBpbmRleCwgZW50cnkgYW5kIGdlbmVyYXRlZCB3b3JrLWxvZyBuYXZpZ2F0aW9uLgotIFZhbGlkYXRpb246CiAgLSBQaW5uZWQgRmx1dHRlciBBY3Rpb25zIHJ1biA0Mjc1MzI4MzUwOTogZm9ybWF0IGFmdGVyIGRlcGVuZGVuY3kgcmVzb2x1dGlvbiwgY2h1bmsgYW5kIGhpZ2gtcXVhbGl0eSB0cmFuc2NyaXB0aW9uIHRlc3RzLCBhbmQgZmx1dHRlciBhbmFseXplIC0tbm8tcHViIC0tbm8tZmF0YWwtaW5mb3MgbGliIHRlc3QgdG9vbCBwYXNzZWQuCiAgLSBUZW1wb3JhcnkgQWN0aW9ucyB3b3JrLWxvZyBydW4gY2hlY2tlZCBmb3JtYXR0aW5nIGFuZCBnZW5lcmF0ZWQvY2hlY2tlZCB3b3JrLWxvZyBmaWxlczsgZmluYWwgUFIgZ2F0ZSByZXBvcnRlZCBzZXBhcmF0ZWx5LiBMb2NhbCBGbHV0dGVyL0RhcnQgdW5hdmFpbGFibGUuCi0gTm90ZXM6IE1hdGNoIG9ubHkgYWRqYWNlbnQgY2h1bmtzIHdpdGggZXF1YWwgbm9ybWFsaXplZCB0ZXh0IGFuZCBwb3NpdGl2ZSB0aW1lIGludGVyc2VjdGlvbiBpbnNpZGUgc2hhcmVkIGF1ZGlvLCBvbmUtdG8tb25lLiBDb25mbGljdGluZyB0aW1lc3RhbXBzIG9yIHRleHQgY2FuIGxlYXZlIGR1cGxpY2F0ZXM7IGluYWNjdXJhdGUgb3ZlcmxhcHBpbmcgdGltZXN0YW1wcyBjYW4gc3RpbGwgbWlzcGFpciByZXBlYXRlZCBsaW5lcy4gTmF0aXZlIGRldmljZXMgYW5kIHJlYWwgc29uZ3Mgd2VyZSBub3QgdGVzdGVkOyBubyBtZWFzdXJlZCBhY2N1cmFjeSBnYWluIGlzIGNsYWltZWQuCi0gQ29tbWl0OiBgUHJlc2VydmUgcmVwZWF0ZWQgbHlyaWNzIHdoZW4gbWVyZ2luZyBjaHVua3NgCg==' | base64 -d > docs/log/entries/2026-11-07-2358-preserve-chunked-lyric-repeats.md
           dart tool/work_log.dart write
           dart tool/work_log.dart check
           git add -N docs/log/entries/2026-11-07-2358-preserve-chunked-lyric-repeats.md
