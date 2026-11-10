@@ -96,6 +96,7 @@
 - [2026-11-07 23:53] Coordinate independent ASR rerun resources ([entry](log/entries/2026-11-07-2353-coordinate-independent-asr-resources.md))
 - [2026-11-07 23:52] Protect transcription queue when resources are busy ([entry](log/entries/2026-11-07-2352-protect-busy-transcription-queue.md))
 - [2026-11-07 23:51] Coordinate project transcription resources ([entry](log/entries/2026-11-07-2351-coordinate-project-asr.md))
+- [2026-11-07 23:50] Coordinate forced alignment with ASR tasks ([entry](log/entries/2026-11-07-2350-coordinate-forced-alignment-asr.md))
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
 - [2026-11-07 23:20] Compare ASR candidate versions ([entry](log/entries/2026-11-07-2320-compare-asr-candidates.md))

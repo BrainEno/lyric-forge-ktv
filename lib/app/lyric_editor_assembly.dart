@@ -1,5 +1,6 @@
 import '../features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../features/lyrics/presentation/lyric_editor_dependencies.dart';
+import '../features/transcription/domain/services/asr_resource_coordinator.dart';
 import '../features/transcription/domain/services/asr_runtime_manager.dart';
 import 'app_services.dart';
 
@@ -27,39 +28,69 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
 
 /// Adapts the native path to [ForcedAlignmentRunner].
 ///
-/// Every failure is an exception with a message meant for the user: the
-/// proofread flow surfaces it as the reason the run could not start, which is
-/// more useful than a silent fall back to "no evidence".
+/// A busy resource is reported separately so the user can retry. Other
+/// failures retain the proofreading service's unavailable-evidence fallback.
 ForcedAlignmentRunner buildForcedAlignmentRunner(AppServices services) {
+  return coordinateForcedAlignmentRunner(
+    resources: services.asrResourceCoordinator,
+    delegate:
+        ({
+          required String audioPath,
+          required String text,
+          required String language,
+          required Duration audioDuration,
+        }) async {
+          final savedConfig = await services.transcriptionSettingsStore.load();
+          if (savedConfig == null) {
+            throw Exception('尚未配置本地转写运行时。');
+          }
+          final resolved = await services.transcriptionProfileResolver.resolve(
+            savedConfig,
+          );
+          final runtimeStatus = await services.asrRuntimeManager.inspect(
+            resolved.config,
+          );
+          final runtimeReady = runtimeStatus.hasReadyComponents(const {
+            AsrRuntimeComponent.qwenRuntime,
+            AsrRuntimeComponent.qwenAligner,
+          });
+          if (!runtimeReady) {
+            throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
+          }
+          return services.qwenNativeTranscriptionService.alignReference(
+            audioPath: audioPath,
+            text: text,
+            language: language,
+            audioDuration: audioDuration,
+            config: resolved.config,
+          );
+        },
+  );
+}
+
+/// Holds the shared resource through preflight, native alignment and cleanup.
+/// The delegate is not called when busy and is not cancelled by this wrapper.
+ForcedAlignmentRunner coordinateForcedAlignmentRunner({
+  required AsrResourceCoordinator resources,
+  required ForcedAlignmentRunner delegate,
+}) {
   return ({
     required String audioPath,
     required String text,
     required String language,
     required Duration audioDuration,
   }) async {
-    final savedConfig = await services.transcriptionSettingsStore.load();
-    if (savedConfig == null) {
-      throw Exception('尚未配置本地转写运行时。');
+    final lease = resources.tryAcquire(AsrResourceUse.alignment);
+    if (lease == null) throw const ForcedAlignmentResourceBusyException();
+    try {
+      return await delegate(
+        audioPath: audioPath,
+        text: text,
+        language: language,
+        audioDuration: audioDuration,
+      );
+    } finally {
+      lease.release();
     }
-    final resolved = await services.transcriptionProfileResolver.resolve(
-      savedConfig,
-    );
-    final runtimeStatus = await services.asrRuntimeManager.inspect(
-      resolved.config,
-    );
-    final runtimeReady = runtimeStatus.hasReadyComponents(const {
-      AsrRuntimeComponent.qwenRuntime,
-      AsrRuntimeComponent.qwenAligner,
-    });
-    if (!runtimeReady) {
-      throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
-    }
-    return services.qwenNativeTranscriptionService.alignReference(
-      audioPath: audioPath,
-      text: text,
-      language: language,
-      audioDuration: audioDuration,
-      config: resolved.config,
-    );
   };
 }

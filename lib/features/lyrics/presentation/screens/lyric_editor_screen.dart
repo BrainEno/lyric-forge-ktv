@@ -834,6 +834,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!mounted) return;
       final detail = error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
+          : error is ForcedAlignmentResourceBusyException
+          ? LyricReviewStrings.forcedAlignmentBusy
           : '$error';
       ScaffoldMessenger.of(
         context,

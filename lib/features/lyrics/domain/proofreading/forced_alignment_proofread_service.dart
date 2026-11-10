@@ -23,6 +23,12 @@ typedef ForcedAlignmentRunner =
       required Duration audioDuration,
     });
 
+/// Alignment was not started because a cooperating ASR operation owns the
+/// shared resource. Callers should let the user retry, not report bad setup.
+class ForcedAlignmentResourceBusyException implements Exception {
+  const ForcedAlignmentResourceBusyException();
+}
+
 /// A safe boundary between the native arbitrary-text aligner and lyric review.
 ///
 /// Alignment output is evidence only: this service never applies timestamps to
@@ -75,6 +81,8 @@ class ForcedAlignmentProofreadService {
         result: result,
         alignmentAvailable: true,
       );
+    } on ForcedAlignmentResourceBusyException {
+      rethrow;
     } on Exception catch (_) {
       final result = pipeline.build(
         draft: draft,
