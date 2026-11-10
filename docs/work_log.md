@@ -11,7 +11,7 @@
 - [2026-11-09 12:19] Show dashboard history read failures `fix: show dashboard history read failures` ([entry](log/entries/2026-11-09-1219-dashboard-history-errors.md))
 - [2026-11-09 11:54] Clarify project separation status `fix: clarify project separation status` ([entry](log/entries/2026-11-09-1154-clarify-project-separation-status.md))
 
-<!-- 259 entries total: 8 active, 251 archived. -->
+<!-- 260 entries total: 8 active, 252 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)
