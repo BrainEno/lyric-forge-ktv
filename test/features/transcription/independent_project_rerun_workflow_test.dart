@@ -90,52 +90,113 @@ void main() {
   });
   tearDown(() async => root.delete(recursive: true));
 
-  test('shared lease rejects work before preflight without touching owner', () async {
-    for (final use in [AsrResourceUse.transcription, AsrResourceUse.alignment,
-        AsrResourceUse.installation, AsrResourceUse.independentRerun]) {
-      final owner = resources.tryAcquire(use)!;
-      await expectLater(workflow.run(projectId: project.id, engine: IndependentRerunEngine.qwen),
-          throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.busy)));
-      expect(resources.activeUse, use);
-      expect(workflow.phase, IndependentRerunPhase.idle);
-      expect(qwen.requests, isEmpty);
-      expect(runtime.inspected, isNull);
-      owner.release();
-    }
-    await workflow.run(projectId: project.id, engine: IndependentRerunEngine.qwen);
-    expect(resources.activeUse, isNull);
-  });
+  test(
+    'shared lease rejects work before preflight without touching owner',
+    () async {
+      for (final use in [
+        AsrResourceUse.transcription,
+        AsrResourceUse.alignment,
+        AsrResourceUse.installation,
+        AsrResourceUse.independentRerun,
+      ]) {
+        final owner = resources.tryAcquire(use)!;
+        await expectLater(
+          workflow.run(
+            projectId: project.id,
+            engine: IndependentRerunEngine.qwen,
+          ),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (e) => e.kind,
+              'kind',
+              TranscriptionFailureKind.busy,
+            ),
+          ),
+        );
+        expect(resources.activeUse, use);
+        expect(workflow.phase, IndependentRerunPhase.idle);
+        expect(qwen.requests, isEmpty);
+        expect(runtime.inspected, isNull);
+        owner.release();
+      }
+      await workflow.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.qwen,
+      );
+      expect(resources.activeUse, isNull);
+    },
+  );
 
-  test('two workflows share the lease across cancellation and adapter cleanup', () async {
-    final started = Completer<void>();
-    final finishInference = Completer<void>();
-    final finishCancel = Completer<void>();
-    final disposed = Completer<void>();
-    qwen.onDispose = () { disposed.complete(); };
-    qwen.onRun = () async { started.complete(); await finishInference.future; };
-    qwen.onCancel = () async { await finishCancel.future; };
-    final second = IndependentProjectRerunWorkflow(
-      projects: repo, settings: settings, profiles: profiles, runtime: runtime,
-      resources: resources, createQwen: () => _Engine(), createWhisper: () => _Engine(),
-    );
-    final operation = workflow.run(projectId: project.id, engine: IndependentRerunEngine.qwen);
-    final cancelled = expectLater(operation, throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
-    await started.future;
-    final cancel = workflow.cancel();
-    finishInference.complete();
-    // Wait for adapter disposal; cancellation itself is still in flight.
-    await disposed.future;
-    expect(resources.activeUse, AsrResourceUse.independentRerun);
-    await expectLater(second.run(projectId: project.id, engine: IndependentRerunEngine.whisper),
-        throwsA(isA<TranscriptionException>().having((e) => e.kind, 'kind', TranscriptionFailureKind.busy)));
-    finishCancel.complete();
-    expect(await cancel, isTrue);
-    await cancelled;
-    expect(resources.activeUse, isNull);
-    await second.run(projectId: project.id, engine: IndependentRerunEngine.whisper);
-    expect(resources.activeUse, isNull);
-  });
+  test(
+    'two workflows share the lease across cancellation and adapter cleanup',
+    () async {
+      final started = Completer<void>();
+      final finishInference = Completer<void>();
+      final finishCancel = Completer<void>();
+      final disposed = Completer<void>();
+      qwen.onDispose = () {
+        disposed.complete();
+      };
+      qwen.onRun = () async {
+        started.complete();
+        await finishInference.future;
+      };
+      qwen.onCancel = () async {
+        await finishCancel.future;
+      };
+      final second = IndependentProjectRerunWorkflow(
+        projects: repo,
+        settings: settings,
+        profiles: profiles,
+        runtime: runtime,
+        resources: resources,
+        createQwen: () => _Engine(),
+        createWhisper: () => _Engine(),
+      );
+      final operation = workflow.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.qwen,
+      );
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await started.future;
+      final cancel = workflow.cancel();
+      finishInference.complete();
+      // Wait for adapter disposal; cancellation itself is still in flight.
+      await disposed.future;
+      expect(resources.activeUse, AsrResourceUse.independentRerun);
+      await expectLater(
+        second.run(
+          projectId: project.id,
+          engine: IndependentRerunEngine.whisper,
+        ),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      finishCancel.complete();
+      expect(await cancel, isTrue);
+      await cancelled;
+      expect(resources.activeUse, isNull);
+      await second.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.whisper,
+      );
+      expect(resources.activeUse, isNull);
+    },
+  );
 
   test('selected engine alone runs and both versions persist', () async {
     for (final engine in IndependentRerunEngine.values) {
