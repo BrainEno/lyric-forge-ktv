@@ -76,7 +76,8 @@ class LocalProjectTranscriptionWorkflow
   Future<void> transcribeProject(String projectId) async {
     if (isRunning) throw const TranscriptionException.busy('已有歌词识别任务正在运行');
     final lease = _resources.tryAcquire(AsrResourceUse.transcription);
-    if (lease == null) throw const TranscriptionException.busy('识别资源正在使用，请稍后重试');
+    if (lease == null)
+      throw const TranscriptionException.busy('识别资源正在使用，请稍后重试');
     _phase = _WorkflowPhase.preparing;
     _cancelRequested = false;
     try {
@@ -378,7 +379,8 @@ class LocalProjectTranscriptionWorkflow
 
   @override
   Future<void> cancel() async {
-    if (_phase == _WorkflowPhase.idle || _phase == _WorkflowPhase.committing) return;
+    if (_phase == _WorkflowPhase.idle || _phase == _WorkflowPhase.committing)
+      return;
     _cancelRequested = true;
     if (_phase == _WorkflowPhase.recognizing) {
       await (_pendingCancel ??= _transcriptionService.cancel());
@@ -386,6 +388,7 @@ class LocalProjectTranscriptionWorkflow
   }
 
   void _checkCancelled() {
-    if (_cancelRequested) throw const TranscriptionException.cancelled('歌词识别已取消');
+    if (_cancelRequested)
+      throw const TranscriptionException.cancelled('歌词识别已取消');
   }
 }

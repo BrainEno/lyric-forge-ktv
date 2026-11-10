@@ -52,6 +52,30 @@ void main() {
     await queue.dispose();
   });
 
+  test('pause during queue project creation prevents recognition', () async {
+    final root = await Directory.systemTemp.createTemp('queue-pause-prepare-');
+    addTearDown(() => root.delete(recursive: true));
+    final audio = File('${root.path}/song.mp3');
+    await audio.writeAsBytes([1]);
+    final repository = _BlockingRepository(Directory('${root.path}/projects'));
+    final workflow = _FakeWorkflow(repository);
+    final queue = FileBatchTranscriptionQueue(
+      projectRepository: repository, workflow: workflow,
+      rootDirectory: Directory('${root.path}/queue'),
+    );
+    await queue.initialize();
+    await queue.enqueuePaths([audio.path]);
+    await repository.started.future;
+    await queue.pause();
+    repository.release.complete();
+    await _waitUntil(() => !queue.current.isProcessing);
+    expect(workflow.calls, 0);
+    expect(queue.current.pauseReason, TranscriptionQueuePauseReason.manual);
+    expect(queue.current.items.single.status, TranscriptionQueueItemStatus.paused);
+    expect(queue.current.items.single.projectId, isNotNull);
+    await queue.dispose();
+  });
+
   test(
     'typed cancellation pauses the queue without recording failure',
     () async {
@@ -399,6 +423,18 @@ Future<void> _waitUntil(bool Function() predicate) async {
       fail('Timed out waiting for queue state');
     }
     await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+}
+
+class _BlockingRepository extends FileProjectRepository {
+  _BlockingRepository(Directory root) : super(rootDirectory: root);
+  final started = Completer<void>();
+  final release = Completer<void>();
+  @override
+  Future<ProjectManifest> createProject({required String name, String? artist, String? album}) async {
+    started.complete();
+    await release.future;
+    return super.createProject(name: name, artist: artist, album: album);
   }
 }
 

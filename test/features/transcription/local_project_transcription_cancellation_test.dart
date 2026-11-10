@@ -35,88 +35,163 @@ const _profile = ResolvedTranscriptionProfile(
 );
 
 void main() {
-  test('shared lease excludes other workflows and releases on preparation cancellation', () async {
-    final repository = await _createRepository();
-    final resources = AsrResourceCoordinator();
-    final entered = Completer<void>();
-    final release = Completer<void>();
-    final first = _workflow(repository, null, resources: resources, onSettingsLoad: () async {
-      entered.complete();
-      await release.future;
-    });
-    final secondService = _Service(null, null);
-    final second = _workflow(repository, null, resources: resources, service: secondService);
-    final operation = first.transcribeProject('p');
-    final cancelled = expectLater(operation, throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
-    await entered.future;
-    expect(first.isRunning, isTrue);
-    expect(resources.activeUse, AsrResourceUse.transcription);
-    await expectLater(second.transcribeProject('p'), throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.busy)));
-    await second.cancel();
-    expect(secondService.cancelCalls, 0);
-    await first.cancel();
-    expect(resources.activeUse, AsrResourceUse.transcription);
-    release.complete();
-    await cancelled;
-    expect(first.isRunning, isFalse);
-    expect(resources.activeUse, isNull);
-    expect(repository.statuses, isEmpty);
-    expect(repository.project.lyricDocument!.lines.single.text, 'original');
-    await second.transcribeProject('p');
-    expect(resources.activeUse, isNull);
-  });
+  test(
+    'shared lease excludes other workflows and releases on preparation cancellation',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final first = _workflow(
+        repository,
+        null,
+        resources: resources,
+        onSettingsLoad: () async {
+          entered.complete();
+          await release.future;
+        },
+      );
+      final secondService = _Service(null, null);
+      final second = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: secondService,
+      );
+      final operation = first.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      expect(first.isRunning, isTrue);
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      await expectLater(
+        second.transcribeProject('p'),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      await second.cancel();
+      expect(secondService.cancelCalls, 0);
+      await first.cancel();
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      release.complete();
+      await cancelled;
+      expect(first.isRunning, isFalse);
+      expect(resources.activeUse, isNull);
+      expect(repository.statuses, isEmpty);
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      await second.transcribeProject('p');
+      expect(resources.activeUse, isNull);
+    },
+  );
 
-  test('cancellation during start write restores the project before release', () async {
-    final repository = await _createRepository();
-    final resources = AsrResourceCoordinator();
-    final entered = Completer<void>();
-    final release = Completer<void>();
-    repository.beforeConditionalWrite = (_, value) async {
-      if (value.status == ProjectStatus.transcribing) { entered.complete(); await release.future; }
-    };
-    final service = _Service(null, null);
-    final workflow = _workflow(repository, null, resources: resources, service: service);
-    final operation = workflow.transcribeProject('p');
-    final cancelled = expectLater(operation, throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
-    await entered.future;
-    await workflow.cancel();
-    release.complete();
-    await cancelled;
-    expect(repository.project.status, ProjectStatus.editing);
-    expect(repository.project.metadata.containsKey('activeTranscriptionRunId'), isFalse);
-    expect(repository.project.lyricDocument!.lines.single.text, 'original');
-    expect(service.cancelCalls, 0);
-    expect(resources.activeUse, isNull);
-  });
+  test(
+    'cancellation during start write restores the project before release',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      repository.beforeConditionalWrite = (_, value) async {
+        if (value.status == ProjectStatus.transcribing) {
+          entered.complete();
+          await release.future;
+        }
+      };
+      final service = _Service(null, null);
+      final workflow = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      final operation = workflow.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      await workflow.cancel();
+      release.complete();
+      await cancelled;
+      expect(repository.project.status, ProjectStatus.editing);
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      expect(service.cancelCalls, 0);
+      expect(resources.activeUse, isNull);
+    },
+  );
 
-  test('lease waits for in-flight engine cancellation before another run', () async {
-    final repository = await _createRepository();
-    final resources = AsrResourceCoordinator();
-    final entered = Completer<void>();
-    final inferenceDone = Completer<void>();
-    final cancelDone = Completer<void>();
-    final service = _Service(null, () async { entered.complete(); await inferenceDone.future; });
-    service.onCancel = () async { await cancelDone.future; };
-    final workflow = _workflow(repository, null, resources: resources, service: service);
-    final operation = workflow.transcribeProject('p');
-    final cancelled = expectLater(operation, throwsA(isA<TranscriptionException>().having(
-        (e) => e.kind, 'kind', TranscriptionFailureKind.cancelled)));
-    await entered.future;
-    final cancel = workflow.cancel();
-    inferenceDone.complete();
-    await Future<void>.delayed(Duration.zero);
-    expect(resources.activeUse, AsrResourceUse.transcription);
-    expect(resources.tryAcquire(AsrResourceUse.independentRerun), isNull);
-    cancelDone.complete();
-    await cancel;
-    await cancelled;
-    expect(resources.activeUse, isNull);
-    expect(repository.project.lyricDocument!.lines.single.text, 'original');
-    expect(repository.project.metadata.containsKey('activeTranscriptionRunId'), isFalse);
-  });
+  test(
+    'lease waits for in-flight engine cancellation before another run',
+    () async {
+      final repository = await _createRepository();
+      final resources = AsrResourceCoordinator();
+      final entered = Completer<void>();
+      final inferenceDone = Completer<void>();
+      final cancelDone = Completer<void>();
+      final service = _Service(null, () async {
+        entered.complete();
+        await inferenceDone.future;
+      });
+      service.onCancel = () async {
+        await cancelDone.future;
+      };
+      final workflow = _workflow(
+        repository,
+        null,
+        resources: resources,
+        service: service,
+      );
+      final operation = workflow.transcribeProject('p');
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await entered.future;
+      final cancel = workflow.cancel();
+      inferenceDone.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(resources.activeUse, AsrResourceUse.transcription);
+      expect(resources.tryAcquire(AsrResourceUse.independentRerun), isNull);
+      cancelDone.complete();
+      await cancel;
+      await cancelled;
+      expect(resources.activeUse, isNull);
+      expect(repository.project.lyricDocument!.lines.single.text, 'original');
+      expect(
+        repository.project.metadata.containsKey('activeTranscriptionRunId'),
+        isFalse,
+      );
+    },
+  );
 
   test('saving is non-cancellable and holds lease until completion', () async {
     final repository = await _createRepository();
@@ -124,10 +199,18 @@ void main() {
     final entered = Completer<void>();
     final release = Completer<void>();
     repository.beforeConditionalWrite = (_, value) async {
-      if (value.currentStage == ProcessingStage.transcriptionComplete) { entered.complete(); await release.future; }
+      if (value.currentStage == ProcessingStage.transcriptionComplete) {
+        entered.complete();
+        await release.future;
+      }
     };
     final service = _Service(null, null);
-    final workflow = _workflow(repository, null, resources: resources, service: service);
+    final workflow = _workflow(
+      repository,
+      null,
+      resources: resources,
+      service: service,
+    );
     final operation = workflow.transcribeProject('p');
     await entered.future;
     await workflow.cancel();
@@ -638,6 +721,7 @@ class _Service implements TranscriptionService {
     cancelCalls++;
     await onCancel?.call();
   }
+
   @override
   Future<void> dispose() async {}
 }

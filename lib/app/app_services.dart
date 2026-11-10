@@ -336,16 +336,16 @@ class AppServices {
   /// Per-consumer cancellation ownership with one shared resource gate.
   ProjectTranscriptionWorkflow createProjectTranscriptionWorkflow() =>
       LocalProjectTranscriptionWorkflow(
-      projectRepository: projectRepository,
-      transcriptionService: transcriptionService,
-      settingsStore: transcriptionSettingsStore,
-      profileResolver: transcriptionProfileResolver,
-      runtimeManager: asrRuntimeManager,
-      resources: asrResourceCoordinator,
-      mediaMetadataRepository: localMediaMetadataRepository,
-      playbackSession: playbackSessionService,
-      pathCanonicalizer: audioPathCanonicalizer,
-    );
+        projectRepository: projectRepository,
+        transcriptionService: transcriptionService,
+        settingsStore: transcriptionSettingsStore,
+        profileResolver: transcriptionProfileResolver,
+        runtimeManager: asrRuntimeManager,
+        resources: asrResourceCoordinator,
+        mediaMetadataRepository: localMediaMetadataRepository,
+        playbackSession: playbackSessionService,
+        pathCanonicalizer: audioPathCanonicalizer,
+      );
 }
 
 bool _isSupportedIncomingAudio(String path) {

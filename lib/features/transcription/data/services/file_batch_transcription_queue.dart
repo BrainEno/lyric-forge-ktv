@@ -375,6 +375,11 @@ class FileBatchTranscriptionQueue implements BatchTranscriptionQueue {
         _emit();
       });
 
+      // Pause may have been requested while the queue was creating or loading
+      // a project, before this queue owned any transcription workflow.
+      if (_pauseRequested) {
+        throw const TranscriptionException.cancelled('队列已暂停');
+      }
       await workflow.transcribeProject(project.id);
       _items[index] = _items[index].copyWith(
         status: TranscriptionQueueItemStatus.completed,

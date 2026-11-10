@@ -14,7 +14,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Format and publish patch
         run: |
-          dart format lib/app/app_services.dart lib/app/screen_assembly.dart lib/features/transcription/data/services/local_project_transcription_workflow.dart test/architecture/workflow_screen_injection_contract_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart
+          dart format lib/features/transcription/data/services/file_batch_transcription_queue.dart test/file_batch_transcription_queue_test.dart lib/app/app_services.dart lib/app/screen_assembly.dart lib/features/transcription/data/services/local_project_transcription_workflow.dart test/architecture/workflow_screen_injection_contract_test.dart test/features/transcription/local_project_transcription_cancellation_test.dart
           git diff | gzip -c | base64 -w0 > /tmp/patch64
           python3 - <<'PY'
           s = open('/tmp/patch64').read()
