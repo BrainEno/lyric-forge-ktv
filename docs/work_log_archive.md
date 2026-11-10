@@ -93,6 +93,7 @@
 - [2026-11-07 23:56] Preserve repeated lyrics when merging chunks ([entry](log/entries/2026-11-07-2356-preserve-chunked-lyric-repeats.md))
 - [2026-11-07 23:55] Persist independent ASR candidates ([entry](log/entries/2026-11-07-2355-persist-asr-candidates.md))
 - [2026-11-07 23:54] Highlight differences in proofreading proposals ([entry](log/entries/2026-11-07-2354-proofread-v2-text-diff.md))
+- [2026-11-07 23:53] Coordinate independent ASR rerun resources ([entry](log/entries/2026-11-07-2353-coordinate-independent-asr-resources.md))
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
 - [2026-11-07 23:20] Compare ASR candidate versions ([entry](log/entries/2026-11-07-2320-compare-asr-candidates.md))

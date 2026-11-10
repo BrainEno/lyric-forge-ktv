@@ -11,6 +11,7 @@ import 'package:lyric_forge_ktv/features/transcription/data/services/independent
 import 'package:lyric_forge_ktv/features/transcription/data/services/independent_project_rerun_workflow.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/project_rerun_candidate_store.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_resource_coordinator.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/asr_runtime_manager.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_profile_resolver.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
@@ -55,6 +56,7 @@ void main() {
   late _Runtime runtime;
   late _Engine qwen;
   late _Engine whisper;
+  late AsrResourceCoordinator resources;
   late IndependentProjectRerunWorkflow workflow;
 
   setUp(() async {
@@ -75,16 +77,126 @@ void main() {
     runtime = _Runtime(profiles);
     qwen = _Engine();
     whisper = _Engine();
+    resources = AsrResourceCoordinator();
     workflow = IndependentProjectRerunWorkflow(
       projects: repo,
       settings: settings,
       profiles: profiles,
       runtime: runtime,
+      resources: resources,
       createQwen: () => qwen,
       createWhisper: () => whisper,
     );
   });
   tearDown(() async => root.delete(recursive: true));
+
+  test(
+    'shared lease rejects work before preflight without touching owner',
+    () async {
+      for (final use in [
+        AsrResourceUse.transcription,
+        AsrResourceUse.alignment,
+        AsrResourceUse.installation,
+        AsrResourceUse.independentRerun,
+      ]) {
+        final owner = resources.tryAcquire(use)!;
+        await expectLater(
+          workflow.run(
+            projectId: project.id,
+            engine: IndependentRerunEngine.qwen,
+          ),
+          throwsA(
+            isA<TranscriptionException>().having(
+              (e) => e.kind,
+              'kind',
+              TranscriptionFailureKind.busy,
+            ),
+          ),
+        );
+        expect(resources.activeUse, use);
+        expect(workflow.phase, IndependentRerunPhase.idle);
+        expect(qwen.requests, isEmpty);
+        expect(runtime.inspected, isNull);
+        owner.release();
+      }
+      await workflow.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.qwen,
+      );
+      expect(resources.activeUse, isNull);
+    },
+  );
+
+  test(
+    'two workflows share the lease across cancellation and adapter cleanup',
+    () async {
+      final started = Completer<void>();
+      final finishInference = Completer<void>();
+      final finishCancel = Completer<void>();
+      final disposed = Completer<void>();
+      qwen.onDispose = () {
+        disposed.complete();
+      };
+      qwen.onRun = () async {
+        started.complete();
+        await finishInference.future;
+      };
+      qwen.onCancel = () async {
+        await finishCancel.future;
+      };
+      final second = IndependentProjectRerunWorkflow(
+        projects: repo,
+        settings: settings,
+        profiles: profiles,
+        runtime: runtime,
+        resources: resources,
+        createQwen: () => _Engine(),
+        createWhisper: () => _Engine(),
+      );
+      final operation = workflow.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.qwen,
+      );
+      final cancelled = expectLater(
+        operation,
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.cancelled,
+          ),
+        ),
+      );
+      await started.future;
+      final cancel = workflow.cancel();
+      finishInference.complete();
+      // Wait for adapter disposal; cancellation itself is still in flight.
+      await disposed.future;
+      expect(resources.activeUse, AsrResourceUse.independentRerun);
+      await expectLater(
+        second.run(
+          projectId: project.id,
+          engine: IndependentRerunEngine.whisper,
+        ),
+        throwsA(
+          isA<TranscriptionException>().having(
+            (e) => e.kind,
+            'kind',
+            TranscriptionFailureKind.busy,
+          ),
+        ),
+      );
+      finishCancel.complete();
+      expect(await cancel, isTrue);
+      await cancelled;
+      expect(resources.activeUse, isNull);
+      await second.run(
+        projectId: project.id,
+        engine: IndependentRerunEngine.whisper,
+      );
+      expect(resources.activeUse, isNull);
+    },
+  );
 
   test('selected engine alone runs and both versions persist', () async {
     for (final engine in IndependentRerunEngine.values) {
@@ -134,6 +246,7 @@ void main() {
       );
       expect(qwen.requests, hasLength(1));
       expect(qwen.disposed, isTrue);
+      expect(resources.activeUse, isNull);
       expect(whisper.requests, isEmpty);
       final latest = (await disk.getProjectById(project.id))!;
       expect(ProjectRerunCandidateStore(disk).read(latest), isEmpty);
@@ -264,8 +377,10 @@ void main() {
         ),
       );
       expect(await workflow.cancel(), isTrue);
+      expect(resources.activeUse, AsrResourceUse.independentRerun);
       release.complete();
       await assertion;
+      expect(resources.activeUse, isNull);
       expect(qwen.requests, isEmpty);
       expect(whisper.requests, isEmpty);
       expect(runtime.cancelled, isFalse);
@@ -321,6 +436,7 @@ void main() {
     );
     await started.future;
     expect(workflow.phase, IndependentRerunPhase.saving);
+    expect(resources.activeUse, AsrResourceUse.independentRerun);
     expect(await workflow.cancel(), isFalse);
     release.complete();
     final result = await operation;
@@ -448,6 +564,8 @@ class _Engine implements TranscriptionService {
   Future<void> Function()? onRun;
   bool cancelled = false;
   bool disposed = false;
+  Future<void> Function()? onCancel;
+  void Function()? onDispose;
   @override
   bool get isRunning => false;
   @override
@@ -467,10 +585,12 @@ class _Engine implements TranscriptionService {
   @override
   Future<void> cancel() async {
     cancelled = true;
+    if (onCancel != null) await onCancel!();
   }
 
   @override
   Future<void> dispose() async {
     disposed = true;
+    onDispose?.call();
   }
 }
