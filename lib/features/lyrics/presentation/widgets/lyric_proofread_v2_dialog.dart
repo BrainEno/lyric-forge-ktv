@@ -5,6 +5,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_review_proposal.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
+import '../../domain/services/character_diff_service.dart';
 import '../lyric_review_strings.dart';
 
 class ProofreadV2RunOptions {
@@ -258,6 +259,13 @@ class _LyricProofreadV2ReviewDialogState
   final Set<int> _acceptedAmber = {};
   final Set<int> _restoredDraftIndices = {};
   final Map<int, String> _auditionFeedbackByProposal = {};
+  final Map<(String, String), List<CharacterDiffSegment>> _textDiffs = {};
+
+  @override
+  void didUpdateWidget(covariant _LyricProofreadV2ReviewDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items) _textDiffs.clear();
+  }
 
   List<LyricProofreadV2ReviewItem> get _greenItems => widget.items
       .where((item) => item.verdict == LyricProofreadReviewVerdict.green)
@@ -375,7 +383,7 @@ class _LyricProofreadV2ReviewDialogState
             const SizedBox(height: 8),
             Text(
               '绿色行可批量应用；琥珀色行默认不采纳，需逐项勾选；'
-              '灰色行默认排除，勾选后会恢复原文。每行均保留原文与建议的逐行对比。',
+              '灰色行默认排除，勾选后会恢复原文。原文与建议中加粗、下划线标出文字差异。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const Divider(height: 20),
@@ -529,8 +537,46 @@ class _LyricProofreadV2ReviewDialogState
     );
   }
 
+  Widget _buildDiffText(
+    int proposalIndex,
+    List<CharacterDiffSegment> segments, {
+    required bool proposed,
+  }) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: proposed ? '建议：' : '原文：'),
+          for (final segment in segments)
+            if (segment.type !=
+                (proposed ? CharacterDiffType.delete : CharacterDiffType.insert))
+              TextSpan(
+                text: segment.text,
+                style: segment.isEqual
+                    ? null
+                    : TextStyle(
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                        backgroundColor: AppColors.info.withAlpha(70),
+                      ),
+              ),
+        ],
+      ),
+      key: ValueKey('proofread_${proposed ? 'proposed' : 'original'}_diff_$proposalIndex'),
+      style: proposed ? const TextStyle(fontWeight: FontWeight.w600) : null,
+    );
+  }
+
   Widget _buildProposalCard(LyricProofreadV2ReviewItem item) {
     final original = item.originalLine;
+    final segments = original != null && original.text != item.proposedLine.text
+        ? _textDiffs.putIfAbsent(
+            (original.text, item.proposedLine.text),
+            () => const CharacterDiffService().diff(
+              original.text,
+              item.proposedLine.text,
+            ),
+          )
+        : null;
     final reasonText = [
       ...item.referenceReasons.map(LyricReviewStrings.referenceReason),
       ...item.proofreadReasons.map(LyricReviewStrings.proofreadReason),
@@ -606,16 +652,22 @@ class _LyricProofreadV2ReviewDialogState
             if (original == null)
               const Text('原文：无（这是待插入的参考行）')
             else ...[
-              Text('原文：${original.text}'),
+              if (segments == null)
+                Text('原文：${original.text}')
+              else
+                _buildDiffText(item.proposalIndex, segments, proposed: false),
               Text(
                 '时间：${_formatTime(original.startTime)} – '
                 '${_formatTime(original.endTime)}',
               ),
             ],
-            Text(
-              '建议：${item.proposedLine.text}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+            if (segments == null)
+              Text(
+                '建议：${item.proposedLine.text}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              )
+            else
+              _buildDiffText(item.proposalIndex, segments, proposed: true),
             Text(
               '建议时间：${_formatTime(item.proposedLine.startTime)} – '
               '${_formatTime(item.proposedLine.endTime)}',

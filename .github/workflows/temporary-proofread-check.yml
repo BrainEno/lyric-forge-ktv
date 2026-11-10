@@ -1,0 +1,35 @@
+name: Temporary proofread check
+on:
+  push:
+    branches: [arena/039c9439-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and publish patch
+        run: |
+          dart format lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
+          git diff | gzip -c | base64 -w0 > /tmp/patch64
+          python3 - <<'PY'
+          s = open('/tmp/patch64').read()
+          for i in range(0, len(s), 3000):
+              print('::notice title=PATCH%03d::%s' % (i // 3000, s[i:i+3000]))
+          PY
+      - name: Targeted tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/domain/services/character_diff_service_test.dart test/features/lyrics/domain/proofreading/proofread_v2_document_composer_test.dart 2>&1 | tee /tmp/test.log || { python3 - <<'PY'
+          s = open('/tmp/test.log').read()
+          for line in s.splitlines():
+              if '[E]' in line or line.startswith(('Expected:', '  Actual:', 'Which:', '══╡', 'Test failed.', 'EXCEPTION', 'The following')):
+                  print('::error::' + line.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PY
+          exit 1; }
+      - name: Analyze
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool
