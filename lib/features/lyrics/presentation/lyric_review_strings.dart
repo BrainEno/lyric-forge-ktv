@@ -64,6 +64,8 @@ abstract final class LyricReviewStrings {
     };
   }
 
+  static const forcedAlignmentBusy = '识别资源正忙，请等待其他任务结束后重试。';
+
   static String forcedAlignmentLanguageError(
     ForcedAlignmentLanguageResolutionException error,
   ) => '无法从工程语言“${error.language}”确定 ForcedAligner 语言；请将工程语言设为中文、英文或日文。';

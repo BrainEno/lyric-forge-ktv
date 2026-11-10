@@ -9,10 +9,51 @@ import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dar
 import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/playback_session_service.dart';
 import 'package:lyric_forge_ktv/features/project/data/repositories/memory_project_repository.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
+  testWidgets('busy alignment explains retry and never changes lyrics', (tester) async {
+    final repository = MemoryProjectRepository();
+    var project = await repository.createProject(name: 'Song');
+    project = await repository.updateProject(project.copyWith(
+      lyricDocument: _document('Human lyric'),
+      audioAsset: const AudioAsset(originalPath: 'song.wav', format: 'wav', duration: Duration(seconds: 3)),
+    ));
+    var calls = 0;
+    final dependencies = LyricEditorDependencies(
+      projectRepository: repository, playbackSession: _FakePlaybackSession(),
+      audioPlayer: _FakeAudioPlayer(), lyricFileExport: _FakeLyricFileExport(),
+      lyricFileImport: _FakeLyricFileImport(),
+      forcedAlignmentRunner: ({required audioPath, required text, required language, required audioDuration}) async {
+        calls++;
+        throw const ForcedAlignmentResourceBusyException();
+      },
+    );
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(home: LyricEditorScreen(projectId: project.id, dependencies: dependencies)));
+    await _settleAndAssertNoFrameworkException(tester, 'initial render');
+    await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('智能校对 V2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ASR 优先'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('forced_alignment_review_toggle')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(calls, 1);
+    expect(find.textContaining('识别资源正忙，请等待其他任务结束后重试'), findsOneWidget);
+    expect(find.text('智能校对提案复核'), findsNothing);
+    expect((await repository.getProjectById(project.id))!.lyricDocument!.lines.single.text, 'Human lyric');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'stale editor save is rejected, edits remain, and explicit overwrite preserves new metadata',
     (tester) async {
