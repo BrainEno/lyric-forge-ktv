@@ -8,6 +8,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_re
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_dialog.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_review.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_export_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
@@ -23,6 +24,266 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
+  group('reference proofreading revision guards', () {
+    for (final action in ['参考歌词纠正', '逐行智能纠错（保留时间戳）']) {
+      testWidgets('$action discards an edit made during reference input', (
+        tester,
+      ) async {
+        final editor = await _openEditor(tester, _emptyAlignment);
+        await _openReferenceFlow(tester, action);
+        editor.updateLine(
+          0,
+          editor.document!.lines.single.copyWith(text: 'New edit'),
+        );
+        await tester.pump();
+        _submitReference(tester, 'Human lyric');
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.text, 'New edit');
+        expect(editor.canUndo, isTrue);
+        expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+        expect(find.byType(ReferenceAlignmentReviewSheet), findsNothing);
+        expect(find.text('导入独立 ASR 时间证据'), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('$action rejects edit followed by undo', (tester) async {
+        final editor = await _openEditor(tester, _emptyAlignment);
+        await _openReferenceFlow(tester, action);
+        editor.updateLine(
+          0,
+          editor.document!.lines.single.copyWith(text: 'temporary'),
+        );
+        expect(editor.undo().applied, isTrue);
+        _submitReference(tester, 'Human lyric');
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(editor.canRedo, isTrue);
+        expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('alignment review cannot overwrite later edits', (
+      tester,
+    ) async {
+      final editor = await _openEditor(tester, _emptyAlignment);
+      await _openReferenceFlow(tester, '参考歌词纠正');
+      _submitReference(tester, 'Human lyric');
+      await tester.pumpAndSettle();
+      expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(
+          text: 'Edited during alignment review',
+        ),
+      );
+      await tester.pump();
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        editor.document!.lines.single.text,
+        'Edited during alignment review',
+      );
+      expect(editor.alignmentSnapshot, isNull);
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'proofreading discards edits while timing evidence dialog is open',
+      (tester) async {
+        final editor = await _openEditor(tester, _emptyAlignment);
+        await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+        _submitReference(tester, 'Human lyrics');
+        await tester.pumpAndSettle();
+        expect(find.text('导入独立 ASR 时间证据'), findsOneWidget);
+        editor.setLineReviewed(0, reviewed: true);
+        await tester.tap(find.text('跳过校时'));
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(find.text('参考歌词智能纠错'), findsNothing);
+        expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    for (final withEvidence in [false, true]) {
+      testWidgets(
+        'proofreading review discards edits with evidence=$withEvidence',
+        (tester) async {
+          final editor = await _openEditor(
+            tester,
+            _emptyAlignment,
+            initialDocument: _document('Hello word'),
+          );
+          await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+          _submitReference(tester, 'Hello world');
+          await tester.pumpAndSettle();
+          final timingTitle = find.text('导入独立 ASR 时间证据');
+          if (withEvidence) {
+            Navigator.of(
+              tester.element(timingTitle),
+            ).pop(_document('Hello world'));
+          } else {
+            await tester.tap(find.text('跳过校时'));
+          }
+          await tester.pumpAndSettle();
+          final title = find.text(withEvidence ? '参考歌词纠错与校时复核' : '参考歌词智能纠错');
+          expect(title, findsOneWidget);
+          editor.updateLine(
+            0,
+            editor.document!.lines.single.copyWith(
+              text: 'Changed during proofreading review',
+            ),
+          );
+          await tester.pump();
+          Navigator.of(tester.element(title)).pop(<int>{0});
+          await tester.pumpAndSettle();
+          expect(
+            editor.document!.lines.single.text,
+            'Changed during proofreading review',
+          );
+          expect(editor.alignmentSnapshot, isNull);
+          expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('unchanged text-only review applies and can be undone', (
+      tester,
+    ) async {
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        initialDocument: _document('Hello word'),
+      );
+      await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+      _submitReference(tester, 'Hello world');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('跳过校时'));
+      await tester.pumpAndSettle();
+      final title = find.text('参考歌词智能纠错');
+      expect(title, findsOneWidget);
+      Navigator.of(tester.element(title)).pop(<int>{0});
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.single.text, 'Hello world');
+      expect(editor.document!.lines.single.startTime, Duration.zero);
+      expect(editor.undo().applied, isTrue);
+      expect(editor.document!.lines.single.text, 'Hello word');
+      expect(editor.redo().applied, isTrue);
+      expect(editor.document!.lines.single.text, 'Hello world');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('selection changes alone do not invalidate reference review', (
+      tester,
+    ) async {
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        initialDocument: _document('Hello word'),
+      );
+      await _openReferenceFlow(tester, '逐行智能纠错（保留时间戳）');
+      editor.select(null);
+      _submitReference(tester, 'Hello world');
+      await tester.pumpAndSettle();
+      expect(find.text('导入独立 ASR 时间证据'), findsOneWidget);
+      await tester.tap(find.text('跳过校时'));
+      await tester.pumpAndSettle();
+      expect(find.text('参考歌词智能纠错'), findsOneWidget);
+      expect(find.textContaining('原提案已丢弃'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final changeDuringConfirmation in [false, true]) {
+      testWidgets(
+        'alignment timeline confirmation respects revision: edit=$changeDuringConfirmation',
+        (tester) async {
+          final editor = await _openEditor(tester, _emptyAlignment);
+          await _openReferenceFlow(tester, '参考歌词纠正');
+          Navigator.of(
+            tester.element(find.byType(ReferenceAlignmentDialog)),
+          ).pop(
+            const ReferenceLyricInput(
+              lines: [
+                ReferenceLyricLine(
+                  text: 'Human lyric',
+                  startTime: Duration(seconds: 4),
+                  endTime: Duration(seconds: 5),
+                ),
+              ],
+              timed: true,
+              format: 'lrc',
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
+          Navigator.of(
+            tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+          ).pop(
+            const ReferenceAlignmentReviewDecision(
+              acceptedReferenceIndices: {},
+              acceptedMissingReferenceIndices: {},
+              overriddenAsrLineIndices: {},
+              applyReferenceTiming: true,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('这次对齐引入了时间轴冲突'), findsOneWidget);
+          if (changeDuringConfirmation) {
+            editor.updateLine(
+              0,
+              editor.document!.lines.single.copyWith(
+                text: 'Edited at confirmation',
+              ),
+            );
+            await tester.pump();
+          }
+          await tester.tap(find.text('保留并检查'));
+          await tester.pumpAndSettle();
+          if (changeDuringConfirmation) {
+            expect(
+              editor.document!.lines.single.text,
+              'Edited at confirmation',
+            );
+            expect(editor.document!.lines.single.startTime, Duration.zero);
+            expect(editor.alignmentSnapshot, isNull);
+            expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+          } else {
+            expect(
+              editor.document!.lines.single.startTime,
+              const Duration(seconds: 4),
+            );
+            expect(editor.alignmentSnapshot, isNotNull);
+            expect(editor.undo().applied, isTrue);
+            expect(editor.document!.lines.single.startTime, Duration.zero);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('disposed editor ignores a pending reference input', (
+      tester,
+    ) async {
+      await _openEditor(tester, _emptyAlignment);
+      await _openReferenceFlow(tester, '参考歌词纠正');
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   testWidgets('delayed alignment discards edits and blocks a second run', (
     tester,
   ) async {
@@ -558,6 +819,24 @@ void main() {
       });
       expect(explicitlyOverwritten?.revision, backgroundUpdate.revision + 1);
     },
+  );
+}
+
+Future<void> _openReferenceFlow(WidgetTester tester, String action) async {
+  await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(action));
+  await tester.pumpAndSettle();
+  expect(find.byType(ReferenceAlignmentDialog), findsOneWidget);
+}
+
+void _submitReference(WidgetTester tester, String text) {
+  Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
+    ReferenceLyricInput(
+      lines: [ReferenceLyricLine(text: text)],
+      timed: false,
+      format: 'plain',
+    ),
   );
 }
 
