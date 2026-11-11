@@ -5,7 +5,7 @@
 > 主要分叉（提案 → 已实现）：
 > - 跨端传输：shelf HTTP 服务 → `dart:io` 的 `HttpServer.bindSecure`（TLS 证书指纹固定、Bearer 令牌），实现为 `HttpMediaHubService`；不绑定 `0.0.0.0`，只绑定局域网/Tailscale/loopback 接口。
 > - 本地存储：移动端 Hive → 全平台统一的 JSON 文件存储，经 `AtomicJsonFile` 做校验、备份轮换与原子替换。
-> - 状态管理：flutter_bloc/BLoC → 无第三方状态框架，使用 `setState` + `StreamController`，由 `lib/app/app_services.dart` 集中装配。
+> - 状态管理：未采用 BLoC；局部 `setState`、服务 `Stream` 和局部 Provider/ChangeNotifier 并存，播放状态仍以 app 级服务为事实源。依赖由 `lib/app/` 组合根装配，详见 D-012 与 D-013。
 > - 传输协议：`/connect`、`/download` → 见下文「API 端点（已实现）」的 `/v1/*` 接口。
 
 ## 整体架构图
@@ -289,7 +289,9 @@ POST /v1/incoming/audio?filename=...     回传音频（2 GiB 等限额，见实
 
 ## 状态管理策略（已实现）
 
-未采用 BLoC 或任何第三方状态管理框架：界面状态以 `setState` 为主，播放/队列/会话等长生命周期状态由领域服务以 `Stream` 暴露，播放会话收敛为单一 app 级模型（`PlaybackSessionService`）；依赖装配集中在 `lib/app/`（Phase 4.2 从 `lib/core/services/service_locator.dart` 迁出，包含服务图、路由表、App widget 与各屏的依赖装配）。所有 feature screen 都经必填构造参数接收依赖，`lib/features/` 不再导入 `lib/app/` 或直接读取 `AppServices.instance`；架构契约将 singleton 调用数约束为 0。相关取舍与后续重构诉求见 issue #235。
+未采用 BLoC；已引入 `provider`，与局部 `setState` 和领域服务 `Stream` 按职责共同使用。`PlaybackSessionService` 等 app 级服务是播放/队列的唯一事实源，UI 不维护第二套全局播放状态。歌词编辑器的文档 controller 是局部 `ChangeNotifier`，由其子树的 Provider/Selector 订阅；短生命周期交互仍可使用 `setState`。选型、生命周期和错误边界见 [D-013](decisions.md#d-013-状态管理选型及依赖装配边界)。
+
+依赖由 `lib/app/` 组合根装配（包含服务图、路由表与各屏依赖），feature screen 接收构造参数，不反向导入 app shell 或直接访问全局 service locator。既有跨 feature 依赖仍需逐步收敛；assembly 和分层契约测试约束方向，不能代替行为测试。
 
 ## 依赖清单（已实现快照，以 pubspec.yaml 为准）
 
@@ -307,6 +309,9 @@ dependencies:
   # KTV 麦克风采集与低延迟监听
   record: 6.2.1
   flutter_soloud: 4.1.7          # pin 原因见 pubspec.yaml 注释与决策 D-002
+
+  # 局部可观察状态
+  provider: ^6.1.2
 
   # 本地存储：无第三方数据库；JSON 文件 + AtomicJsonFile 原子替换
   path_provider: ^2.1.2
@@ -328,7 +333,7 @@ dependencies:
   cupertino_icons: ^1.0.8
 ```
 
-状态管理与代码生成依赖（flutter_bloc、hive_generator、build_runner、permission_handler）均未引入。
+未引入 flutter_bloc、hive_generator、build_runner、permission_handler；`provider` 已引入并用于局部编辑器状态。
 
 ## 实现顺序
 
