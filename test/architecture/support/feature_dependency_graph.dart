@@ -226,7 +226,14 @@ List<_Token> _tokenize(String source) {
       continue;
     }
     if (!inDirective && c == '@') {
-      throw FormatException('Annotated directives require scanner support');
+      final annotation = RegExp(
+        r'^@(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*(?:\s*\([^;]*?\))?\s*(?:import|export|library|part)\b',
+      );
+      if (annotation.hasMatch(source.substring(i))) {
+        throw FormatException('Annotated directives require scanner support');
+      }
+      // Annotations on declarations mark the end of the directive section.
+      break;
     }
     final raw =
         (c == 'r' || c == 'R') &&
