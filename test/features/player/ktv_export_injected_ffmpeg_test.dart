@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/player/data/services/local_ktv_recording_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_recording_session.dart';
-import 'package:lyric_forge_ktv/features/player/domain/services/ktv_recording_service.dart';
 
 import '../../support/ktv_export_fixture.dart';
 
