@@ -269,7 +269,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           );
         }
 
-        final shifted = _shiftDocument(result.lyrics, chunk.start);
+        final shifted = _shiftDocument(result.lyrics, chunk.start, index);
         await resultFile.writeAsString(
           const JsonEncoder.withIndent('  ').convert({
             'id': id,
@@ -547,7 +547,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     }
   }
 
-  LyricDocument _shiftDocument(LyricDocument document, Duration offset) {
+  LyricDocument _shiftDocument(
+    LyricDocument document,
+    Duration offset,
+    int chunkIndex,
+  ) {
     final metadata = document.metadata;
     final candidates = metadata['fallbackCandidates'];
     return document.copyWith(
@@ -570,6 +574,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                     _shiftCandidateTimes(
                       Map<String, dynamic>.from(entry),
                       offset,
+                      chunkIndex,
                     ),
               ],
             }
@@ -580,6 +585,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   Map<String, dynamic> _shiftCandidateTimes(
     Map<String, dynamic> candidate,
     Duration offset,
+    int chunkIndex,
   ) {
     void shift(Map<String, dynamic> entry) {
       for (final key in const ['startMs', 'endMs']) {
@@ -593,6 +599,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     shift(candidate);
     final segments = candidate['secondarySegments'];
     if (segments is List) {
+      // sourceIndex is local to this chunk's secondary engine invocation.
+      candidate['secondarySegmentChunkIndex'] = chunkIndex;
       candidate['secondarySegments'] = [
         for (final segment in segments)
           if (segment is Map && segment.keys.every((key) => key is String))
