@@ -984,7 +984,10 @@ void main() {
             );
             expect(overlap['startMs'], 2100);
             expect(overlap['endMs'], 2500);
-            expect(overlap['secondarySegmentChunkIndex'], expectedSecond ? 1 : 0);
+            expect(
+              overlap['secondarySegmentChunkIndex'],
+              expectedSecond ? 1 : 0,
+            );
             expect(overlap['secondarySegments'], [
               {
                 'sourceIndex': 7,
@@ -995,9 +998,9 @@ void main() {
               'unrecognized legacy entry',
             ]);
             expect((originalSegments[1].first as Map)['startMs'], 100);
-            final legacyCandidate = candidates.singleWhere(
-              (entry) => entry['lineIndex'] == 2,
-            ) as Map;
+            final legacyCandidate =
+                candidates.singleWhere((entry) => entry['lineIndex'] == 2)
+                    as Map;
             expect(legacyCandidate['alternativeText'], 'independent');
             expect(legacyCandidate.containsKey('secondarySegments'), isFalse);
             expect(
