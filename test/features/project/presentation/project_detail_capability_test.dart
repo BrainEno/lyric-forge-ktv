@@ -79,7 +79,9 @@ Future<void> _showProject(
   await tester.pumpWidget(
     MaterialApp(
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
       home: ProjectDetailScreen(
@@ -533,12 +535,23 @@ void main() {
   });
 
   for (final size in [const Size(320, 568), const Size(800, 480)]) {
-    testWidgets('vocal import remains reachable at $size with enlarged text', (tester) async {
+    testWidgets('vocal import remains reachable at $size with enlarged text', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       try {
-        final project = _project(stage: ProcessingStage.lyricsEdited, audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'));
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+        );
         final importer = _VocalImporter();
-        await _showProject(tester, project, size, vocalImporter: importer, textScale: 2);
+        await _showProject(
+          tester,
+          project,
+          size,
+          vocalImporter: importer,
+          textScale: 2,
+        );
         final button = find.widgetWithText(OutlinedButton, '导入已有人声');
         await tester.ensureVisible(button);
         await tester.pumpAndSettle();
@@ -547,23 +560,53 @@ void main() {
         await tester.pumpAndSettle();
         expect(importer.calls, 1);
         expect(tester.takeException(), isNull);
-      } finally { debugDefaultTargetPlatformOverride = null; }
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
   }
 
-  testWidgets('vocal importer failure releases both import controls', (tester) async {
+  testWidgets('vocal importer failure releases both import controls', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     try {
-      final project = _project(stage: ProcessingStage.lyricsEdited, audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'));
-      final importer = _VocalImporter(onImport: (_) async => throw StateError('bad file'));
-      await _showProject(tester, project, const Size(1366, 768), vocalImporter: importer);
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+      );
+      final importer = _VocalImporter(
+        onImport: (_) async => throw StateError('bad file'),
+      );
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        vocalImporter: importer,
+      );
       await tester.tap(find.text('导入已有人声'));
       await tester.pumpAndSettle();
       expect(find.textContaining('导入人声失败'), findsOneWidget);
-      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '导入已有伴奏')).onPressed, isNotNull);
-      expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '导入已有人声')).onPressed, isNotNull);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '导入已有伴奏'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '导入已有人声'),
+            )
+            .onPressed,
+        isNotNull,
+      );
       expect(tester.takeException(), isNull);
-    } finally { debugDefaultTargetPlatformOverride = null; }
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('mobile does not expose desktop accompaniment import', (

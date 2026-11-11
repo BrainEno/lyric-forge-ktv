@@ -45,3 +45,31 @@ jobs:
             grep -E 'error •|warning •|error -|warning -' /tmp/vocal-analyze.log | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           }
+      - name: Generate work log
+        if: success()
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 23:13' --slug import-project-vocals --title 'Import existing vocal stems into projects'
+          python3 - <<'PY'
+          p='docs/log/entries/2026-11-07-2313-import-project-vocals.md'
+          s=open(p).read()
+          s=s.replace('- Scope: TODO — describe the task purpose.', '- Scope: Let desktop users import and replace existing vocal stems, preserve revision-checked project writes and use the stem for transcription and alignment.')
+          s=s.replace('- Files: TODO — list changed files.', '- Files: Project stem importer, domain port, app assembly, detail screen and tests; transcription and editor path tests; README, PRD, work-log navigation and handoff.')
+          s=s.replace('  - dart format ... => TODO\n  - flutter analyze ... => TODO\n  - flutter test ... => TODO', '  - Pinned Flutter GitHub Actions run 43021086377 passed dependency install, dart format, targeted project/widget/transcription/editor/documentation/architecture tests and flutter analyze --no-pub --no-fatal-infos lib test tool.\n  - Work-log write/check run separately; final PR checks to be reviewed. Local Flutter/Dart unavailable.')
+          s=s.replace('- Notes: TODO — record risks and unverified behavior.', '- Notes: No automatic source separation, synchronization, audio-content validation, physical-device, native picker or real ASR verification. Failed-save copies and replaced files are retained to avoid deleting referenced audio.')
+          s=s.replace('- Commit: `TODO: replace with the actual English imperative subject`', '- Commit: `Allow importing existing project vocal stems`')
+          assert 'TODO' not in s
+          open(p,'w').write(s)
+          PY
+          dart tool/work_log.dart write
+          set -o pipefail
+          dart tool/work_log.dart check 2>&1 | tee /tmp/logcheck.txt || {
+            while IFS= read -r line; do echo "::error::$line"; done < /tmp/logcheck.txt
+            exit 1
+          }
+          git add -N docs/log/entries/2026-11-07-2313-import-project-vocals.md
+          git diff -- docs/log/entries/2026-11-07-2313-import-project-vocals.md docs/work_log.md docs/work_log_index.md docs/work_log_archive.md > /tmp/log.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/log.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=LOG{i//3000}::{data[i:i+3000]}')
+          PY
