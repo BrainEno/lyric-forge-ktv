@@ -737,7 +737,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     );
 
     final candidates = <Map<String, dynamic>>[];
-    final candidateLines = <int>{};
+    final candidatePositions = <int, int>{};
     var appliedCount = 0;
     var hasCandidateKey = false;
     for (var chunk = 0; chunk < documents.length; chunk++) {
@@ -752,11 +752,17 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         final candidate = Map<String, dynamic>.from(entry);
         final lineIndex = remap(chunk, candidate['lineIndex']);
         if (lineIndex < 0) continue;
-        // A line that both chunks saw twice needs one candidate, not two; the
-        // editor looks candidates up per line.
-        if (!candidateLines.add(lineIndex)) continue;
         candidate['lineIndex'] = lineIndex;
-        candidates.add(candidate);
+        final position = candidatePositions[lineIndex];
+        if (position == null) {
+          candidatePositions[lineIndex] = candidates.length;
+          candidates.add(candidate);
+        } else if (candidate['sharedSecondaryAcrossPrimaryLines'] == true &&
+            candidates[position]['sharedSecondaryAcrossPrimaryLines'] != true) {
+          // Keep the complete ambiguous evidence, not just its flag: the
+          // alternative text and times must describe the same candidate.
+          candidates[position] = candidate;
+        }
       }
     }
 
