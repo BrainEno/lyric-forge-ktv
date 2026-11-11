@@ -45,3 +45,33 @@ jobs:
             grep -E 'error •|warning •|error -|warning -' /tmp/v2-analyze.log | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           }
+      - name: Generate and validate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 20:55' --slug extract-v2-proofread-use-case --title 'Extract V2 proofreading orchestration'
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('docs/log/entries/2026-11-07-2055-extract-v2-proofread-use-case.md')
+          s=p.read_text()
+          replacements={
+           'TODO — describe the task purpose.':'Extract V2 proofreading orchestration from the editor without changing existing strategy behavior (partial #323).',
+           'TODO — list changed files.':'V2 domain use case, editor screen, use-case tests, UX undo guidance, handoff and work-log navigation.',
+           'dart format ... => TODO':'dart format changed Dart files with pinned SDK => passed in Actions 43023659317.',
+           'flutter analyze ... => TODO':'flutter analyze --no-pub --no-fatal-infos lib test tool => passed in Actions 43023659317.',
+           'flutter test ... => TODO':'flutter test --no-pub on V2 use case, pipelines, review widgets, editor and architecture contracts => passed in Actions 43023659317.',
+           'TODO — record risks and unverified behavior.':'#323 remains open; other workflows and the screen size and UX audit remain. #319 reference-first forced alignment and automatic secondary transcript are not implemented. Real devices, audio, ASR and real-song quality were not tested.',
+           'TODO: replace with the actual English imperative subject':'Extract V2 proofreading orchestration',
+          }
+          for a,b in replacements.items():
+            assert a in s, a
+            s=s.replace(a,b)
+          p.write_text(s)
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2055-extract-v2-proofread-use-case.md
+          git diff -- docs > /tmp/worklog.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/worklog.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=WORKLOG{i//3000}::{data[i:i+3000]}')
+          PY
