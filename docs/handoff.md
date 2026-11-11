@@ -2,26 +2,26 @@
 
 ## 目标
 
-为跨 feature 依赖建立可收缩 SCC 和跨 feature presentation 引用基线，并记录状态管理与依赖装配边界。
+拆除 player → transcription 的 feature 依赖，将 KTV 混音的 FFmpeg 设置读取连接留在 app 装配层，保持既有导出行为。
 
 ## Git 现场
 
-活动分支 `arena/8d81bdb2-lyric-forge-ktv`，基线 `cce30b84645612ad2aa1acd9171b601145b9422f`。以 `git status --short`、`git diff --stat`、`git log --oneline -5` 核对最终状态；临时验证 workflow 交付前删除，不更改正式 CI。
+活动分支 `arena/c6a1709e-lyric-forge-ktv`，基线 `fcd072bfbd636cd98004328c06b9ca8d2b41d14a`。使用 `git status --short`、`git diff --stat` 和 `git log --oneline -5` 核对最终状态；临时验证 workflow 交付前删除，正式 CI 未改。
 
 ## 已改文件
 
-`test/architecture/` 中的依赖图、基线、算法及文档契约测试；`docs/architecture_player.md`、`docs/decisions.md`、生成的工作日志导航及本交接。
+KTV 录音服务、应用装配与 app services，feature 依赖图基线及测试，KTV 导出和真实/替身设置装配测试、工作日志和本交接。
 
 ## 检查结果
 
-本地无 Flutter/Dart，固定 Flutter 3.47.7 的 GitHub Actions 执行格式化、架构测试及分析；最终运行编号和结果以工作日志及 PR 检查为准。格式化补丁由临时 CI 回传；生成的日志通过 Dart 工具 write/check。
+本地无 Flutter/Dart。固定 Flutter 3.47.7 的 Actions run 43014094131：锁定依赖、格式、架构和 KTV 定向测试、`flutter analyze --no-pub --no-fatal-infos lib test tool` 通过；日志检查另行执行，最终 PR Quality Gate 以检查结果为准。FFmpeg 进程和音频设备使用替身，并非实际声音/硬件测试。
 
 ## 下一步
 
-继续 #327：选择 project/transcription 或 player/transcription 的一条反向依赖，移动所有权并经 app 组合根注入，补装配行为测试；消除边后同步缩减 SCC 基线。现阶段仅建立防回退基线，没有拆环，不应关闭 #327。
+继续按 #327 的可收缩基线拆解其余跨 feature 环和 presentation 引用；已移除的 player → transcription 边不可恢复。检查 #415 的 runtime 协议与设备安全实现能力，不能仅在客户端添加假认证。
 
 ## 已知风险
 
-依赖图只覆盖静态 feature 内 Dart import/export 的可解析 URI，不覆盖动态反射、生成文件或绕过 feature 路径的间接依赖；不支持的指令 URI/注解需显式处理。现有环和跨 feature presentation 引用仍在；不得把静态架构测试当作运行时行为验证。#415 本机 runtime 认证/端口争用、#416 实际屏幕阅读器、#413 实歌基线仍待独立工作。
+现存 lyrics、player、project、transcription 仍有其他循环，静态依赖图不覆盖间接依赖或运行时行为。此次测试使用真实临时文件、真实设置存储与虚拟进程，但没有验证实际 FFmpeg 输出、Windows/macOS 设备和 KTV 音质。#416 屏幕阅读器和 #413 实歌基线仍待人工验证。
 
 最后更新：2026-11-07（Asia/Taipei）
