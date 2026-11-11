@@ -91,9 +91,15 @@ void main() {
       expect(uris, ['real.dart']);
     });
 
-    test('rejects annotations before directives instead of silently skipping them', () {
-      expect(() => directiveUris("@deprecated import 'a.dart';"), throwsFormatException);
-    });
+    test(
+      'rejects annotations before directives instead of silently skipping them',
+      () {
+        expect(
+          () => directiveUris("@deprecated import 'a.dart';"),
+          throwsFormatException,
+        );
+      },
+    );
 
     test('does not parse interpolated code after the directive section', () {
       final source = r'''import 'a.dart';

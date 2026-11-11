@@ -168,7 +168,8 @@ List<String> directiveUris(String source) {
     }
     if (i + 1 >= tokens.length || !tokens[i + 1].isString) continue;
     var j = i + 1;
-    while (j < tokens.length && (tokens[j].isString || tokens[j].value != ';')) {
+    while (j < tokens.length &&
+        (tokens[j].isString || tokens[j].value != ';')) {
       if (tokens[j].isString) {
         if (tokens[j].value.startsWith('\u0000')) {
           throw FormatException('Escaped directive URI is not supported');
@@ -270,7 +271,7 @@ List<_Token> _tokenize(String source) {
         tokens.add(const _Token(';'));
         inDirective = false;
       } else if (!inDirective && c.trim().isNotEmpty) {
-        throw FormatException('Unexpected token before directives: $c');
+        break; // A declaration may start with a record type or other symbol.
       }
       i++;
     }
