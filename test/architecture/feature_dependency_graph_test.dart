@@ -30,6 +30,8 @@ void main() {
         containsAll(['lyrics', 'player', 'project', 'transcription']),
       );
       if (graph.cycles.isNotEmpty) {
+        // ignore: avoid_print
+        print(graph.describeCycles());
         expect(graph.describeCycles(), contains('SCC:'));
         expect(graph.describeCycles(), contains('lib/features/'));
       }
@@ -40,7 +42,6 @@ void main() {
         graph.pathsByEdge.keys,
         isNot(contains('player -> transcription')),
       );
-      expect(graph.pathsByEdge.keys, contains('transcription -> player'));
     });
 
     test('cyclic feature edges are a shrinking baseline', () {

@@ -6,6 +6,7 @@ import 'package:lyric_forge_ktv/app/ktv_recording_assembly.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/ktv_recording_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_recording_session.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/file_transcription_settings_store.dart';
 
 import '../support/ktv_export_fixture.dart';
 
@@ -85,6 +86,30 @@ void main() {
         },
       );
     }
+
+    test('real persisted settings are reloaded by the assembled exporter', () async {
+      final file = File('${fixture.root.path}${Platform.pathSeparator}settings.json');
+      final store = FileTranscriptionSettingsStore(fileResolver: () async => file);
+      await service.dispose();
+      service = assembleKtvRecordingService(
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
+        settingsStore: store,
+        processRunner: runner.run,
+      );
+      final configured = TranscriptionConfig(
+        whisperExecutable: '/whisper', modelPath: '/model',
+        ffmpegExecutable: '/ffmpeg/first',
+      );
+      await store.save(configured);
+      await service.exportMix(fixture.session);
+      await store.save(configured.copyWith(ffmpegExecutable: '/ffmpeg/second'));
+      await service.exportMix(fixture.session);
+      await store.clear();
+      await service.exportMix(fixture.session);
+      expect(runner.executables, ['/ffmpeg/first', '/ffmpeg/second', 'ffmpeg']);
+      expect((await fixture.readSession()).mixedOutputPath, isNotNull);
+    });
 
     test(
       'resolves current settings on every export instead of caching them',
