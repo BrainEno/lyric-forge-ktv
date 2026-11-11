@@ -19,6 +19,7 @@ import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
+import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/reference_proofread_review_builder.dart';
@@ -700,17 +701,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     try {
-      final run = await RunProofreadV2UseCase(
-        runner: widget.dependencies.forcedAlignmentRunner,
-      ).build(
-        draft: document,
-        strategy: options.strategy,
-        audioAsset: project.audioAsset,
-        reference: reference,
-        secondary: secondaryAsr,
-        useForcedAlignment: options.useForcedAlignment,
-        manuallyEditedIndices: _manuallyEditedLineIndices,
-      );
+      final run =
+          await RunProofreadV2UseCase(
+            runner: widget.dependencies.forcedAlignmentRunner,
+          ).build(
+            draft: document,
+            strategy: options.strategy,
+            audioAsset: project.audioAsset,
+            reference: reference,
+            secondary: secondaryAsr,
+            useForcedAlignment: options.useForcedAlignment,
+            manuallyEditedIndices: _manuallyEditedLineIndices,
+          );
       if (!_proofreadV2IsCurrent(revision)) return;
       final assembly = run.assembly;
       final decision = run.decision;

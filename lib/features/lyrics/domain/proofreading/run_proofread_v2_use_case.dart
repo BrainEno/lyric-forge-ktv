@@ -50,10 +50,14 @@ class RunProofreadV2UseCase {
   }) async {
     final coverage = reference == null
         ? null
-        : const ReferenceTokenAligner().align(
-            referenceText: reference.lines.map((line) => line.text).join(' '),
-            draftText: draft.lines.map((line) => line.text).join(' '),
-          ).referenceCoverage;
+        : const ReferenceTokenAligner()
+              .align(
+                referenceText: reference.lines
+                    .map((line) => line.text)
+                    .join(' '),
+                draftText: draft.lines.map((line) => line.text).join(' '),
+              )
+              .referenceCoverage;
     final decision = const ProofreadStrategySelector().select(
       requestedStrategy: strategy,
       hasReference: reference != null,
@@ -81,7 +85,9 @@ class RunProofreadV2UseCase {
       late final ProofreadResult result;
       if (useForcedAlignment) {
         final duration = audioAsset?.duration;
-        if (audioAsset == null || duration == null || duration <= Duration.zero) {
+        if (audioAsset == null ||
+            duration == null ||
+            duration <= Duration.zero) {
           throw const ProofreadV2MissingAudioException();
         }
         final language = ForcedAlignmentLanguage.resolve(draft.language);
