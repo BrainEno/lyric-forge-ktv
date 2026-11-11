@@ -74,7 +74,12 @@ void main() {
               matching: find.byType(Scrollable),
             ),
           );
-          expect(tester.getRect(explanation).overlaps(tester.getRect(find.byType(ListView))), isTrue);
+          expect(
+            tester
+                .getRect(explanation)
+                .overlaps(tester.getRect(find.byType(ListView))),
+            isTrue,
+          );
           final card = find.byKey(const ValueKey('proofread_proposal_0'));
           await tester.scrollUntilVisible(
             card,
@@ -85,7 +90,12 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
-          expect(tester.getRect(card).overlaps(tester.getRect(find.byType(ListView))), isTrue);
+          expect(
+            tester
+                .getRect(card)
+                .overlaps(tester.getRect(find.byType(ListView))),
+            isTrue,
+          );
           expect(find.text('取消').hitTestable(), findsOneWidget);
           await tester.tap(find.text('取消'));
           await tester.pumpAndSettle();
