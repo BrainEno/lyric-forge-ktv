@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_dialog.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_export_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
@@ -19,10 +22,17 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
-  testWidgets('delayed alignment discards edits and blocks a second run', (tester) async {
+  testWidgets('delayed alignment discards edits and blocks a second run', (
+    tester,
+  ) async {
     final pending = Completer<List<ForcedAlignedSpan>>();
     var calls = 0;
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) {
+    final editor = await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) {
       calls++;
       return pending.future;
     });
@@ -31,7 +41,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
     expect(find.text('智能校对 V2'), findsNothing);
-    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'New manual edit'));
+    editor.updateLine(
+      0,
+      editor.document!.lines.single.copyWith(text: 'New manual edit'),
+    );
     await tester.pump();
     pending.complete([]);
     await tester.pumpAndSettle();
@@ -43,11 +56,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('edit then undo still invalidates a delayed result', (tester) async {
+  testWidgets('edit then undo still invalidates a delayed result', (
+    tester,
+  ) async {
     final pending = Completer<List<ForcedAlignedSpan>>();
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) => pending.future);
+    final editor = await _openEditor(
+      tester,
+      ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) => pending.future,
+    );
     await _startAlignment(tester);
-    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'temporary'));
+    editor.updateLine(
+      0,
+      editor.document!.lines.single.copyWith(text: 'temporary'),
+    );
     editor.undo();
     pending.complete([]);
     await tester.pumpAndSettle();
@@ -62,10 +88,16 @@ void main() {
     final editor = await _openEditor(tester, _emptyAlignment);
     await _startAlignment(tester);
     expect(find.text('智能校对提案复核'), findsOneWidget);
-    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'Changed during review'));
+    editor.updateLine(
+      0,
+      editor.document!.lines.single.copyWith(text: 'Changed during review'),
+    );
     await tester.pump();
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(acceptedProposalIndices: {0}, restoredDraftIndices: {}),
+      LyricProofreadV2Selection(
+        acceptedProposalIndices: {0},
+        restoredDraftIndices: {},
+      ),
     );
     await tester.pumpAndSettle();
     expect(editor.document!.lines.single.text, 'Changed during review');
@@ -74,15 +106,76 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('late alignment after disposal does not access disposed state', (tester) async {
+  testWidgets('late alignment after disposal does not access disposed state', (
+    tester,
+  ) async {
     final pending = Completer<List<ForcedAlignedSpan>>();
-    await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) => pending.future);
+    await _openEditor(
+      tester,
+      ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) => pending.future,
+    );
     await _startAlignment(tester);
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
     pending.complete([]);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('智能校对提案复核'), findsNothing);
+  });
+
+  testWidgets('a change in the options dialog aborts before running', (tester) async {
+    var calls = 0;
+    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+      calls++;
+      return [];
+    });
+    await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('智能校对 V2'));
+    await tester.pumpAndSettle();
+    editor.setLineReviewed(0, reviewed: true);
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+    expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('unchanged reference proposal applies and remains undoable', (tester) async {
+    final editor = await _openEditor(tester, _emptyAlignment);
+    await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('智能校对 V2'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('参考歌词优先'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    editor.select(null);
+    Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
+      ReferenceLyricInput(
+        lines: [ReferenceLyricLine(text: 'Human lyric', startTime: const Duration(milliseconds: 500), endTime: const Duration(milliseconds: 1500))],
+        timed: true,
+        format: 'lrc',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('智能校对提案复核'), findsOneWidget);
+    Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
+      LyricProofreadV2Selection(acceptedProposalIndices: {0}, restoredDraftIndices: {}),
+    );
+    await tester.pumpAndSettle();
+    expect(editor.document!.lines.single.startTime, const Duration(milliseconds: 500));
+    expect(editor.alignmentSnapshot, isNotNull);
+    expect(editor.undo().applied, isTrue);
+    expect(editor.document!.lines.single.startTime, Duration.zero);
+    expect(editor.redo().applied, isTrue);
+    expect(editor.document!.lines.single.startTime, const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('busy alignment explains retry and never changes lyrics', (
@@ -256,28 +349,43 @@ Future<LyricEditorDocumentController> _openEditor(
 ) async {
   final repository = MemoryProjectRepository();
   var project = await repository.createProject(name: 'Song');
-  project = await repository.updateProject(project.copyWith(
-    lyricDocument: _document('Human lyric'),
-    audioAsset: const AudioAsset(originalPath: 'song.wav', format: 'wav', duration: Duration(seconds: 3)),
-  ));
+  project = await repository.updateProject(
+    project.copyWith(
+      lyricDocument: _document('Human lyric'),
+      audioAsset: const AudioAsset(
+        originalPath: 'song.wav',
+        format: 'wav',
+        duration: Duration(seconds: 3),
+      ),
+    ),
+  );
   tester.view.physicalSize = const Size(1600, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(home: LyricEditorScreen(
-    projectId: project.id,
-    dependencies: LyricEditorDependencies(
-      projectRepository: repository,
-      playbackSession: _FakePlaybackSession(),
-      audioPlayer: _FakeAudioPlayer(),
-      lyricFileExport: _FakeLyricFileExport(),
-      lyricFileImport: _FakeLyricFileImport(),
-      forcedAlignmentRunner: runner,
+  await tester.pumpWidget(
+    MaterialApp(
+      home: LyricEditorScreen(
+        projectId: project.id,
+        dependencies: LyricEditorDependencies(
+          projectRepository: repository,
+          playbackSession: _FakePlaybackSession(),
+          audioPlayer: _FakeAudioPlayer(),
+          lyricFileExport: _FakeLyricFileExport(),
+          lyricFileImport: _FakeLyricFileImport(),
+          forcedAlignmentRunner: runner,
+        ),
+      ),
     ),
-  )));
+  );
   await tester.pumpAndSettle();
-  final field = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == '歌词文本');
-  return Provider.of<LyricEditorDocumentController>(tester.element(field), listen: false);
+  final field = find.byWidgetPredicate(
+    (w) => w is TextField && w.decoration?.labelText == '歌词文本',
+  );
+  return Provider.of<LyricEditorDocumentController>(
+    tester.element(field),
+    listen: false,
+  );
 }
 
 Future<void> _startAlignment(WidgetTester tester) async {
@@ -287,7 +395,9 @@ Future<void> _startAlignment(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('ASR 优先'));
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const ValueKey('forced_alignment_review_toggle')));
+  await tester.tap(
+    find.byKey(const ValueKey('forced_alignment_review_toggle')),
+  );
   await tester.pumpAndSettle();
   await tester.tap(find.text('继续'));
   await tester.pumpAndSettle();
