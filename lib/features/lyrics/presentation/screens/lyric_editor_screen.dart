@@ -558,12 +558,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
     final selected = plan.hasTimingEvidence
         ? await showReferenceProofreadTimingReviewDialog(
-            context, document: document, items: plan.timedItems,
+            context,
+            document: document,
+            items: plan.timedItems,
           )
         : await showReferenceProofreadReviewDialog(
-            context, document: document, suggestions: plan.suggestions,
+            context,
+            document: document,
+            suggestions: plan.suggestions,
           );
-    if (selected == null || selected.isEmpty || !_proofreadIsCurrent(revision)) {
+    if (selected == null ||
+        selected.isEmpty ||
+        !_proofreadIsCurrent(revision)) {
       return;
     }
     final applied = plan.apply(selected);

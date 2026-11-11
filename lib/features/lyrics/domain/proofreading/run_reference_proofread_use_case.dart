@@ -23,7 +23,8 @@ class ReferenceProofreadPlan {
        suggestions = List.unmodifiable(suggestions),
        timedItems = List.unmodifiable(timedItems);
 
-  bool get isEmpty => hasTimingEvidence ? timedItems.isEmpty : suggestions.isEmpty;
+  bool get isEmpty =>
+      hasTimingEvidence ? timedItems.isEmpty : suggestions.isEmpty;
 
   /// Applies only explicitly selected, validated proposals to the snapshot.
   ReferenceProofreadAppliedChange apply(Set<int> selectedDraftIndices) {
@@ -76,11 +77,13 @@ class RunReferenceProofreadUseCase {
     return ReferenceProofreadPlan._(
       draft: draft,
       protectedDraftIndices: protected,
-      suggestions: const AsrReferenceCorrectionSuggester().suggest(
-        draft: draft,
-        reference: reference,
-        protectedDraftIndices: protected,
-      ).suggestions,
+      suggestions: const AsrReferenceCorrectionSuggester()
+          .suggest(
+            draft: draft,
+            reference: reference,
+            protectedDraftIndices: protected,
+          )
+          .suggestions,
       timedItems: const [],
       hasTimingEvidence: false,
     );
