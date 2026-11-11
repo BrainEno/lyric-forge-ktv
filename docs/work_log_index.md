@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **V2 proofreading orchestration (#323):** strategy, protection, alignment requests, and review assembly now have a UI-independent use case. Other editor flows, screen size, and full UX audit remain open; reference-first alignment is still not executed (#319).
+
 - **Fusion timing snapshots:** dual-engine output records exact-text hashes and fusion-specific realignment flags; aligned input remains unknown, and consumers must validate the snapshot against current rows. No automatic alignment or playback certification. See [timing evidence](log/entries/2026-11-07-2054-record-fusion-timing-evidence.md).
 
 - **V2 stale proposal guard:** editor mutations and history restoration advance an in-memory revision; asynchronous V2 proposals are discarded on mismatch and only one run is allowed per editor. See [F-01 guard](log/entries/2026-11-07-2053-guard-proofread-editor-state.md). Other asynchronous edit flows need separate audit.
@@ -80,7 +82,7 @@
 - **Engineering review risk register:** [engineering_risks_roadmap.md](engineering_risks_roadmap.md) tracks the remaining ASR process-timeout, JSON-store scale, audio-clock alignment, and Media Hub token/range risks.
 
 - **Dashboard history (#223):** propagated read errors are distinguished from empty results; failed file-history initial loads may be retried after repair. Successful loads remain cached, while partial-read behavior and other repositories remain separate concerns.
-- **Separation scope (#320):** desktop project details can copy and attach a user-supplied accompaniment; automatic separation, vocal import, alignment and managed-copy cleanup remain open. Referenced tracks still require accessible files; project details attempts a guarded playback-session update after import; rejected or unsupported updates still require switching away and reopening. The open project player and KTV entry sheet use the matching session item; stale sheet selections are rejected before and after switching. Real-device playback remains unverified.
+- **Separation scope (#320):** desktop project details can copy and attach user-supplied accompaniment and vocal tracks; automatic separation, alignment and managed-copy cleanup remain open. Referenced tracks still require accessible files; project details attempts a guarded playback-session update after import; rejected or unsupported updates still require switching away and reopening. The open project player and KTV entry sheet use the matching session item; stale sheet selections are rejected before and after switching. Real-device playback remains unverified.
 - Creating lyrics in another project may silently replace an existing audio→project link; conflict confirmation was deferred. Audio relink now checks metadata completeness and rejects destination metadata conflicts before migration, but later failures and concurrent writes can still leave partially migrated stores.
 - Playback lyric resolution fails closed on propagated read errors and incomplete file-backed media metadata, while display reads remain best effort. Project stores reject partial or duplicate records; failed project and history loads can retry after repair, but other stores may skip malformed records or cache failures. Successful loads stay cached; link writes lack compare-and-swap protection. First-lyric background link failures are caught and logged but have no user-facing warning or automatic retry.
 - Real Windows/macOS microphone switching, latency, and end-to-end audio checks were not fully verified.

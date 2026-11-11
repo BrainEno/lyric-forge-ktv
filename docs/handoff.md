@@ -2,26 +2,26 @@
 
 ## 目标
 
-完成 #320 的外部人声轨导入，与现有伴奏导入共同支持用户提供的分离音轨；不宣称自动分离或自动校准。
+推进 #323：将 V2 校对的策略、保护行、可选对齐与复核组装从编辑器抽取到无 UI 用例，不改变行为。此轮不关闭该 issue。
 
 ## Git 现场
 
-活动分支 `arena/5e9bca3d-lyric-forge-ktv`，基线 `fbdade388a4d3cbe1f5bb5496d49c55c1369a007`。以 `git status --short`、`git diff --stat`、`git log --oneline -5` 核对最终状态。临时 CI workflow 在交付前删除，不改正式 CI。
+活动分支 `arena/9f2ab423-lyric-forge-ktv`，基线 `09dd38a59c40e57bf12998f3f073b66d8b28d462`。检查最终状态请运行 `git status --short`、`git diff --stat` 和 `git log --oneline -5`；临时验证 workflow 不应出现在交付差异中。
 
 ## 已改文件
 
-工程音轨导入数据服务、领域契约、详情页及装配；README、PRD、文档契约；人声与伴奏导入、详情页、转写及对齐路径测试；工作日志和本交接。
+V2 编排用例、编辑器 screen 的调用、用例单元测试、校对 UX 撤销说明、工作日志与本交接。UI 仍负责引用输入、review、revision 防护、时间轴确认及提交。
 
 ## 检查结果
 
-本地无 Flutter/Dart；固定 Flutter 3.47.7 的 Actions 43021086377 通过锁定依赖、格式、音轨导入/详情页/识别/对齐/文档和架构定向测试以及 scoped analyze。工作日志使用 Dart 工具生成并另行检查，最终 PR 质量门禁以 GitHub 检查为准。
+本地无 Flutter/Dart。固定 Flutter 3.47.7 的 Actions 43023659317 通过格式、定向领域/编辑器/架构测试和 `flutter analyze --no-pub --no-fatal-infos lib test tool`；首次验证发现的 token 类型导入缺失已修复。正式 PR 全量质量门禁另行检查。
 
 ## 下一步
 
-在 Windows/macOS/Linux 真实设备上通过文件选择器导入人声和伴奏，切换播放器与 KTV 模式，检查有效音频、时间轴、重启后工程持久化；验证识别与 ForcedAligner 使用人声。按响应式矩阵和大字号手动检查。
+继续 #323：抽取其他两个编辑流程，缩减 screen 并核对所有验收条件；独立审计其他异步编辑流程及时间轴确认竞态。
 
 ## 已知风险
 
-导入只验证扩展名和非空，不验证音频内容、时长或时间同步；未实现自动音源分离、音轨校准或实歌质量验证。保存失败时为避免删除仍被引用的音轨而保留复制文件，未来需安全垃圾回收；替换保留旧文件。虚拟 runner 测试不能证明实际 ASR/音频行为，原生文件选择器和辅助技术也未人工验证。#415 runtime 安全、#416 屏幕阅读器和 #413 实歌基线仍开放。
+#323 的 screen 行数、其他流程和全部 UX 文档仍未满足验收。#319 的 Whisper 第二意见自动读取及参考优先策略使用 ForcedAligner 尚未实现，本次保留原行为。未在真实设备手测 UI、屏幕阅读器、音频、ASR 或实歌准确率；对齐测试使用注入 runner。执行中的原生对齐不会被取消。
 
 最后更新：2026-11-07（Asia/Taipei）
