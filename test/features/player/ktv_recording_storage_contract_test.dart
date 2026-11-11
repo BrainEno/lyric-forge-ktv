@@ -11,8 +11,6 @@ import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_ser
 import 'package:lyric_forge_ktv/features/player/domain/services/ktv_microphone_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
 
 void main() {
   test('recording writes through the injected project storage resolver', () async {
@@ -26,7 +24,7 @@ void main() {
     final service = LocalKtvRecordingService(
       audioService: audio,
       microphoneService: microphone,
-      settingsStore: _FakeSettingsStore(),
+      loadFfmpegExecutable: () async => null,
       projectDirectoryResolver: (project) async {
         resolverCalls++;
         expect(project.id, 'song');
@@ -73,7 +71,7 @@ void main() {
     final service = LocalKtvRecordingService(
       audioService: audio,
       microphoneService: microphone,
-      settingsStore: _FakeSettingsStore(),
+      loadFfmpegExecutable: () async => null,
       projectDirectoryResolver: (project) async {
         resolverCalls++;
         return managed;
@@ -254,15 +252,4 @@ class _FakeMicrophoneService implements KtvMicrophoneService {
     await _stateController.close();
     await _pcmController.close();
   }
-}
-
-class _FakeSettingsStore implements TranscriptionSettingsStore {
-  @override
-  Future<TranscriptionConfig?> load() async => null;
-
-  @override
-  Future<void> save(TranscriptionConfig config) async {}
-
-  @override
-  Future<void> clear() async {}
 }

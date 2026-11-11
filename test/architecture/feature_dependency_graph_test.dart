@@ -35,6 +35,11 @@ void main() {
       }
     });
 
+    test('player no longer imports transcription', () {
+      expect(graph.pathsByEdge.keys, isNot(contains('player -> transcription')));
+      expect(graph.pathsByEdge.keys, contains('transcription -> player'));
+    });
+
     test('cyclic feature edges are a shrinking baseline', () {
       expectRatchet(
         graph.cyclicEdges,

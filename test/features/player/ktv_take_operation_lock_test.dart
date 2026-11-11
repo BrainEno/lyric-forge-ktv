@@ -12,8 +12,6 @@ import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_ser
 import 'package:lyric_forge_ktv/features/player/domain/services/ktv_microphone_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
 
 void main() {
   test('active export blocks another export and a new recording', () async {
@@ -164,7 +162,7 @@ class _Fixture {
     return LocalKtvRecordingService(
       audioService: audio,
       microphoneService: microphone,
-      settingsStore: _FakeSettingsStore(),
+      loadFfmpegExecutable: () async => null,
       projectDirectoryResolver: (_) async => root,
       processRunner: processRunner,
     );
@@ -262,13 +260,4 @@ class _FakeMicrophoneService implements KtvMicrophoneService {
   Future<void> startMonitoring() async {}
   @override
   Future<void> stopMonitoring() async {}
-}
-
-class _FakeSettingsStore implements TranscriptionSettingsStore {
-  @override
-  Future<void> clear() async {}
-  @override
-  Future<TranscriptionConfig?> load() async => null;
-  @override
-  Future<void> save(TranscriptionConfig config) async {}
 }

@@ -5,7 +5,6 @@ import 'dart:typed_data';
 
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
-import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../domain/models/ktv_recording_session.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
@@ -17,7 +16,7 @@ import 'pcm16_wav_writer.dart';
 class LocalKtvRecordingService implements KtvRecordingService {
   final AudioPlayerService _audioService;
   final KtvMicrophoneService _microphoneService;
-  final TranscriptionSettingsStore _settingsStore;
+  final Future<String?> Function() _loadFfmpegExecutable;
   final Future<Directory> Function(ProjectManifest) _projectDirectoryResolver;
   final Future<ProcessResult> Function(String, List<String>) _processRunner;
   final StreamController<KtvRecordingState> _stateController =
@@ -35,12 +34,12 @@ class LocalKtvRecordingService implements KtvRecordingService {
   LocalKtvRecordingService({
     required AudioPlayerService audioService,
     required KtvMicrophoneService microphoneService,
-    required TranscriptionSettingsStore settingsStore,
+    required Future<String?> Function() loadFfmpegExecutable,
     Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
     Future<ProcessResult> Function(String, List<String>)? processRunner,
   })  : _audioService = audioService,
         _microphoneService = microphoneService,
-        _settingsStore = settingsStore,
+        _loadFfmpegExecutable = loadFfmpegExecutable,
         _projectDirectoryResolver = projectDirectoryResolver ??
             ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
         _processRunner = processRunner ??
@@ -298,10 +297,10 @@ class LocalKtvRecordingService implements KtvRecordingService {
 
     _emit(_state.copyWith(isExporting: true, clearError: true));
     try {
-      final settings = await _settingsStore.load();
-      final ffmpeg = settings?.ffmpegExecutable.trim().isNotEmpty == true
-          ? settings!.ffmpegExecutable.trim()
-          : 'ffmpeg';
+      final configured = (await _loadFfmpegExecutable())?.trim();
+      final ffmpeg = configured == null || configured.isEmpty
+          ? 'ffmpeg'
+          : configured;
       final outputPath = _join(File(session.manifestPath).parent.path, 'mix.wav');
       final args = buildKtvMixFfmpegArguments(
         session,
