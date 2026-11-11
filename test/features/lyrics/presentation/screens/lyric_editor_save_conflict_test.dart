@@ -206,48 +206,71 @@ void main() {
     });
 
     for (final changeDuringConfirmation in [false, true]) {
-      testWidgets('alignment timeline confirmation respects revision: edit=$changeDuringConfirmation', (tester) async {
-        final editor = await _openEditor(tester, _emptyAlignment);
-        await _openReferenceFlow(tester, '参考歌词纠正');
-        Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
-          const ReferenceLyricInput(
-            lines: [ReferenceLyricLine(
-              text: 'Human lyric',
-              startTime: Duration(seconds: 4),
-              endTime: Duration(seconds: 5),
-            )],
-            timed: true, format: 'lrc',
-          ),
-        );
-        await tester.pumpAndSettle();
-        expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
-        Navigator.of(tester.element(find.byType(ReferenceAlignmentReviewSheet))).pop(
-          const ReferenceAlignmentReviewDecision(
-            acceptedReferenceIndices: {}, acceptedMissingReferenceIndices: {},
-            overriddenAsrLineIndices: {}, applyReferenceTiming: true,
-          ),
-        );
-        await tester.pumpAndSettle();
-        expect(find.text('这次对齐引入了时间轴冲突'), findsOneWidget);
-        if (changeDuringConfirmation) {
-          editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'Edited at confirmation'));
-          await tester.pump();
-        }
-        await tester.tap(find.text('保留并检查'));
-        await tester.pumpAndSettle();
-        if (changeDuringConfirmation) {
-          expect(editor.document!.lines.single.text, 'Edited at confirmation');
-          expect(editor.document!.lines.single.startTime, Duration.zero);
-          expect(editor.alignmentSnapshot, isNull);
-          expect(find.textContaining('原提案已丢弃'), findsOneWidget);
-        } else {
-          expect(editor.document!.lines.single.startTime, const Duration(seconds: 4));
-          expect(editor.alignmentSnapshot, isNotNull);
-          expect(editor.undo().applied, isTrue);
-          expect(editor.document!.lines.single.startTime, Duration.zero);
-        }
-        expect(tester.takeException(), isNull);
-      });
+      testWidgets(
+        'alignment timeline confirmation respects revision: edit=$changeDuringConfirmation',
+        (tester) async {
+          final editor = await _openEditor(tester, _emptyAlignment);
+          await _openReferenceFlow(tester, '参考歌词纠正');
+          Navigator.of(
+            tester.element(find.byType(ReferenceAlignmentDialog)),
+          ).pop(
+            const ReferenceLyricInput(
+              lines: [
+                ReferenceLyricLine(
+                  text: 'Human lyric',
+                  startTime: Duration(seconds: 4),
+                  endTime: Duration(seconds: 5),
+                ),
+              ],
+              timed: true,
+              format: 'lrc',
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
+          Navigator.of(
+            tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+          ).pop(
+            const ReferenceAlignmentReviewDecision(
+              acceptedReferenceIndices: {},
+              acceptedMissingReferenceIndices: {},
+              overriddenAsrLineIndices: {},
+              applyReferenceTiming: true,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(find.text('这次对齐引入了时间轴冲突'), findsOneWidget);
+          if (changeDuringConfirmation) {
+            editor.updateLine(
+              0,
+              editor.document!.lines.single.copyWith(
+                text: 'Edited at confirmation',
+              ),
+            );
+            await tester.pump();
+          }
+          await tester.tap(find.text('保留并检查'));
+          await tester.pumpAndSettle();
+          if (changeDuringConfirmation) {
+            expect(
+              editor.document!.lines.single.text,
+              'Edited at confirmation',
+            );
+            expect(editor.document!.lines.single.startTime, Duration.zero);
+            expect(editor.alignmentSnapshot, isNull);
+            expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+          } else {
+            expect(
+              editor.document!.lines.single.startTime,
+              const Duration(seconds: 4),
+            );
+            expect(editor.alignmentSnapshot, isNotNull);
+            expect(editor.undo().applied, isTrue);
+            expect(editor.document!.lines.single.startTime, Duration.zero);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
 
     testWidgets('disposed editor ignores a pending reference input', (
