@@ -399,7 +399,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       alignment: plan.alignment,
       input: input,
       manuallyEditedLineIndices: plan.protectedLineIndices,
-      timingUnavailableReason: _referenceTimingUnavailableReason(plan.timingUnavailableReason),
+      timingUnavailableReason: _referenceTimingUnavailableReason(
+        plan.timingUnavailableReason,
+      ),
       minimumSimilarity: plan.minimumSimilarity,
     );
     if (decision == null || !_proofreadIsCurrent(revision)) return;
@@ -811,7 +813,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  String? _referenceTimingUnavailableReason(ReferenceTimingUnavailableReason? reason) {
+  String? _referenceTimingUnavailableReason(
+    ReferenceTimingUnavailableReason? reason,
+  ) {
     return switch (reason) {
       ReferenceTimingUnavailableReason.partiallyTimed =>
         '参考歌词只有部分行带时间戳，无法整体替换时间轴；本次只纠正文字并补全漏行。',

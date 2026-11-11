@@ -46,14 +46,16 @@ class ReferenceAlignmentPlan {
     required Set<int> overriddenAsrLineIndices,
     required bool applyReferenceTiming,
   }) {
-    final result = ReferenceAlignmentApplier(minimumSimilarity: minimumSimilarity)
-        .apply(
+    final result =
+        ReferenceAlignmentApplier(minimumSimilarity: minimumSimilarity).apply(
           document: draft,
           alignment: alignment,
           applyReferenceTiming: applyReferenceTiming,
           acceptedReferenceIndices: acceptedReferenceIndices,
           acceptedMissingReferenceIndices: acceptedMissingReferenceIndices,
-          protectedLineIndices: protectedLineIndices.difference(overriddenAsrLineIndices),
+          protectedLineIndices: protectedLineIndices.difference(
+            overriddenAsrLineIndices,
+          ),
           audioDuration: audioDuration,
         );
     return ReferenceAlignmentProposal._(
@@ -92,7 +94,9 @@ class ReferenceAlignmentProposal {
     final appliedDocument = applyReferenceTiming
         ? result.document.copyWith(globalOffset: Duration.zero)
         : result.document;
-    final withIds = const LyricManualEditMarkerService().assignMissingLineIds(appliedDocument);
+    final withIds = const LyricManualEditMarkerService().assignMissingLineIds(
+      appliedDocument,
+    );
     final backupMetadata = Map<String, dynamic>.from(plan.draft.metadata)
       ..remove(kReferenceAlignmentBackupKey);
     final backup = LyricDocument(
