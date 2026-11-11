@@ -1,0 +1,48 @@
+name: Temporary auto evidence validation
+on:
+  push:
+    branches: [arena/ab5280bf-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format
+        run: |
+          dart format lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart lib/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart lib/features/lyrics/presentation/lyric_review_strings.dart lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart test/features/lyrics/domain/proofreading/proofread_v2_evidence_selection_test.dart test/features/lyrics/presentation/lyric_review_strings_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/proofread_v2_auto_evidence_test.dart test/features/lyrics/presentation/widgets/proofread_v2_review_evidence_accessibility_test.dart
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=FORMAT{i//3000}::{data[i:i+3000]}')
+          PY
+      - name: Tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/proofread_v2_evidence_selection_test.dart test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart test/features/lyrics/domain/proofreading/proofread_v2_review_assembler_test.dart test/features/lyrics/presentation/lyric_review_strings_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/presentation/widgets/proofread_v2_options_accessibility_test.dart test/features/lyrics/presentation/widgets/proofread_v2_auto_evidence_test.dart test/features/lyrics/presentation/widgets/proofread_v2_review_evidence_accessibility_test.dart test/architecture test/architecture_layer_imports_contract_test.dart 2>&1 | tee /tmp/evidence-test.log
+      - name: Report failures
+        if: failure()
+        run: |
+          if [ -f /tmp/evidence-test.log ]; then
+            python3 - <<'PY'
+          lines=open('/tmp/evidence-test.log').readlines()
+          for i,line in enumerate(lines):
+            if '[E]' in line or 'EXCEPTION CAUGHT' in line or 'Error:' in line or 'Expected:' in line:
+              for item in lines[i:i+14]: print('::error::'+item.strip().replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+          PY
+          fi
+      - name: Analyze
+        if: always()
+        run: |
+          set -o pipefail
+          flutter analyze --no-pub --no-fatal-infos lib test tool 2>&1 | tee /tmp/evidence-analyze.log || {
+            grep -E 'error •|warning •|error -|warning -' /tmp/evidence-analyze.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
