@@ -63,11 +63,13 @@ class _ProofreadV2RunOptionsDialogState
           if (!focused) return;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!context.mounted) return;
-            unawaited(Scrollable.ensureVisible(
-              context,
-              duration: const Duration(milliseconds: 120),
-              alignment: 0.2,
-            ));
+            unawaited(
+              Scrollable.ensureVisible(
+                context,
+                duration: const Duration(milliseconds: 120),
+                alignment: 0.2,
+              ),
+            );
           });
         },
         child: child,
@@ -99,7 +101,7 @@ class _ProofreadV2RunOptionsDialogState
                     selected: _strategy == LyricSourceStrategy.auto,
                     onSelected: (_) =>
                         setState(() => _strategy = LyricSourceStrategy.auto),
-                  )
+                  ),
                 ),
                 _revealOnFocus(
                   ChoiceChip(
@@ -109,7 +111,7 @@ class _ProofreadV2RunOptionsDialogState
                       _strategy = LyricSourceStrategy.referenceFirst;
                       _useReference = true;
                     }),
-                  )
+                  ),
                 ),
                 _revealOnFocus(
                   ChoiceChip(
@@ -119,7 +121,7 @@ class _ProofreadV2RunOptionsDialogState
                       _strategy = LyricSourceStrategy.asrFirst;
                       _useReference = false;
                     }),
-                  )
+                  ),
                 ),
               ],
             ),
@@ -134,7 +136,7 @@ class _ProofreadV2RunOptionsDialogState
                   title: const Text('本次提供参考歌词'),
                   subtitle: const Text('自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。'),
                   controlAffinity: ListTileControlAffinity.leading,
-                )
+                ),
               ),
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
@@ -158,7 +160,7 @@ class _ProofreadV2RunOptionsDialogState
                     '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
-                )
+                ),
               ),
               const SizedBox(height: 8),
               _revealOnFocus(
@@ -173,7 +175,7 @@ class _ProofreadV2RunOptionsDialogState
                     border: OutlineInputBorder(),
                     alignLabelWithHint: true,
                   ),
-                )
+                ),
               ),
             ],
           ],

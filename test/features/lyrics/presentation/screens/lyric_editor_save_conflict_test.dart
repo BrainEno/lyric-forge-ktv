@@ -202,33 +202,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('editing another row while alignment runs preserves it and allows retry', (tester) async {
-    final firstRun = Completer<List<ForcedAlignedSpan>>();
-    var calls = 0;
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) {
-      calls++;
-      return calls == 1 ? firstRun.future : Future.value([]);
-    }, initialDocument: _twoLineDocument());
-    await _startAlignment(tester);
-    expect(calls, 1);
-    expect(editor.selectedLineIndex, 0);
-    editor.updateLine(1, editor.document!.lines[1].copyWith(text: 'Second line edited'));
-    await tester.pump();
-    firstRun.complete([]);
-    await tester.pumpAndSettle();
-    expect(editor.document!.lines.map((line) => line.text), ['Human lyric', 'Second line edited']);
-    expect(editor.canUndo, isTrue);
-    expect(find.textContaining('原提案已丢弃'), findsOneWidget);
-    expect(find.text('智能校对提案复核'), findsNothing);
-    await _startAlignment(tester);
-    expect(calls, 2);
-    expect(find.text('智能校对提案复核'), findsOneWidget);
-    expect(editor.document!.lines[1].text, 'Second line edited');
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'editing another row while alignment runs preserves it and allows retry',
+    (tester) async {
+      final firstRun = Completer<List<ForcedAlignedSpan>>();
+      var calls = 0;
+      final editor = await _openEditor(tester, ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) {
+        calls++;
+        return calls == 1 ? firstRun.future : Future.value([]);
+      }, initialDocument: _twoLineDocument());
+      await _startAlignment(tester);
+      expect(calls, 1);
+      expect(editor.selectedLineIndex, 0);
+      editor.updateLine(
+        1,
+        editor.document!.lines[1].copyWith(text: 'Second line edited'),
+      );
+      await tester.pump();
+      firstRun.complete([]);
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.map((line) => line.text), [
+        'Human lyric',
+        'Second line edited',
+      ]);
+      expect(editor.canUndo, isTrue);
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
+      await _startAlignment(tester);
+      expect(calls, 2);
+      expect(find.text('智能校对提案复核'), findsOneWidget);
+      expect(editor.document!.lines[1].text, 'Second line edited');
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('an edit to another row invalidates a real reference proposal', (tester) async {
-    final editor = await _openEditor(tester, _emptyAlignment, initialDocument: _twoLineDocument());
+  testWidgets('an edit to another row invalidates a real reference proposal', (
+    tester,
+  ) async {
+    final editor = await _openEditor(
+      tester,
+      _emptyAlignment,
+      initialDocument: _twoLineDocument(),
+    );
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('智能校对 V2'));
@@ -240,8 +260,16 @@ void main() {
     Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
       ReferenceLyricInput(
         lines: [
-          ReferenceLyricLine(text: 'Human lyric', startTime: const Duration(milliseconds: 500), endTime: const Duration(milliseconds: 1500)),
-          ReferenceLyricLine(text: 'Second line', startTime: const Duration(milliseconds: 2100), endTime: const Duration(milliseconds: 2900)),
+          ReferenceLyricLine(
+            text: 'Human lyric',
+            startTime: const Duration(milliseconds: 500),
+            endTime: const Duration(milliseconds: 1500),
+          ),
+          ReferenceLyricLine(
+            text: 'Second line',
+            startTime: const Duration(milliseconds: 2100),
+            endTime: const Duration(milliseconds: 2900),
+          ),
         ],
         timed: true,
         format: 'lrc',
@@ -249,10 +277,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('智能校对提案复核'), findsOneWidget);
-    editor.updateLine(1, editor.document!.lines[1].copyWith(text: 'My second line'));
+    editor.updateLine(
+      1,
+      editor.document!.lines[1].copyWith(text: 'My second line'),
+    );
     await tester.pump();
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(acceptedProposalIndices: {0, 1}, restoredDraftIndices: {}),
+      LyricProofreadV2Selection(
+        acceptedProposalIndices: {0, 1},
+        restoredDraftIndices: {},
+      ),
     );
     await tester.pumpAndSettle();
     expect(editor.document!.lines[0].startTime, Duration.zero);
@@ -266,9 +300,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('reloading while alignment runs discards the old song result', (tester) async {
+  testWidgets('reloading while alignment runs discards the old song result', (
+    tester,
+  ) async {
     final pending = Completer<List<ForcedAlignedSpan>>();
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) => pending.future, initialDocument: _twoLineDocument());
+    final editor = await _openEditor(
+      tester,
+      ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) => pending.future,
+      initialDocument: _twoLineDocument(),
+    );
     await _startAlignment(tester);
     editor.load(_document('Reloaded lyric'));
     await tester.pump();
@@ -533,7 +578,11 @@ LyricDocument _twoLineDocument() => LyricDocument(
   language: 'en',
   lines: [
     ..._document('Human lyric').lines,
-    const LyricLine(text: 'Second line', startTime: Duration(milliseconds: 2100), endTime: Duration(milliseconds: 2900)),
+    const LyricLine(
+      text: 'Second line',
+      startTime: Duration(milliseconds: 2100),
+      endTime: Duration(milliseconds: 2900),
+    ),
   ],
 );
 

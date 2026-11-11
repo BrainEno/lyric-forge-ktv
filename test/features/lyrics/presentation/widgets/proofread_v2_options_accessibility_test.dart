@@ -18,10 +18,9 @@ void main() {
     ) async {
       ProofreadV2RunOptions? result;
       await _configureView(tester, scenario.size);
-      await tester.pumpWidget(_host(
-        scale: scenario.scale,
-        onResult: (value) => result = value,
-      ));
+      await tester.pumpWidget(
+        _host(scale: scenario.scale, onResult: (value) => result = value),
+      );
       await _open(tester);
       _expectNoException(tester, 'opening');
 
@@ -30,13 +29,17 @@ void main() {
       await tester.pumpAndSettle();
       _expectNoException(tester, 'switching strategy');
 
-      final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
+      final toggle = find.byKey(
+        const ValueKey('forced_alignment_review_toggle'),
+      );
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
       _expectNoException(tester, 'toggling alignment');
 
-      final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
+      final field = find.byKey(
+        const ValueKey('secondary_asr_transcript_input'),
+      );
       await tester.ensureVisible(field);
       await tester.enterText(field, '[00:01.00] 第一行\n[00:02.00] second line');
       await tester.pumpAndSettle();
@@ -49,26 +52,38 @@ void main() {
       _expectNoException(tester, 'continuing');
       expect(result?.strategy, LyricSourceStrategy.asrFirst);
       expect(result?.useForcedAlignment, isTrue);
-      expect(result?.secondaryTranscriptText, '[00:01.00] 第一行\n[00:02.00] second line');
+      expect(
+        result?.secondaryTranscriptText,
+        '[00:01.00] 第一行\n[00:02.00] second line',
+      );
     });
 
-    testWidgets('cancel stays reachable after scrolling: $scenario', (tester) async {
+    testWidgets('cancel stays reachable after scrolling: $scenario', (
+      tester,
+    ) async {
       var completed = false;
       ProofreadV2RunOptions? result;
       await _configureView(tester, scenario.size);
-      await tester.pumpWidget(_host(
-        scale: scenario.scale,
-        onResult: (value) {
-          completed = true;
-          result = value;
-        },
-      ));
+      await tester.pumpWidget(
+        _host(
+          scale: scenario.scale,
+          onResult: (value) {
+            completed = true;
+            result = value;
+          },
+        ),
+      );
       await _open(tester);
       await tester.ensureVisible(find.text('ASR 优先'));
       await tester.tap(find.text('ASR 优先'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const ValueKey('secondary_asr_transcript_input')));
-      await tester.enterText(find.byKey(const ValueKey('secondary_asr_transcript_input')), 'long draft');
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('secondary_asr_transcript_input')),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('secondary_asr_transcript_input')),
+        'long draft',
+      );
       await tester.pumpAndSettle();
       expect(find.text('取消').hitTestable(), findsOneWidget);
       await tester.tap(find.text('取消'));
@@ -79,10 +94,14 @@ void main() {
     });
   }
 
-  testWidgets('long pasted input survives scrolling and strategy changes', (tester) async {
+  testWidgets('long pasted input survives scrolling and strategy changes', (
+    tester,
+  ) async {
     ProofreadV2RunOptions? result;
     await _configureView(tester, const Size(320, 568));
-    await tester.pumpWidget(_host(scale: 2, onResult: (value) => result = value));
+    await tester.pumpWidget(
+      _host(scale: 2, onResult: (value) => result = value),
+    );
     await _open(tester);
     await tester.ensureVisible(find.text('ASR 优先'));
     await tester.tap(find.text('ASR 优先'));
@@ -109,7 +128,9 @@ void main() {
   testWidgets('empty secondary input stays optional', (tester) async {
     ProofreadV2RunOptions? result;
     await _configureView(tester, const Size(320, 568));
-    await tester.pumpWidget(_host(scale: 2, onResult: (value) => result = value));
+    await tester.pumpWidget(
+      _host(scale: 2, onResult: (value) => result = value),
+    );
     await _open(tester);
     await tester.ensureVisible(find.text('ASR 优先'));
     await tester.tap(find.text('ASR 优先'));
@@ -124,9 +145,10 @@ void main() {
     _expectNoException(tester, 'empty input');
   });
 
-  testWidgets('strategy, alignment and actions have accessible semantics', (tester) async {
+  testWidgets('strategy, alignment and actions have accessible semantics', (
+    tester,
+  ) async {
     final semantics = tester.ensureSemantics();
-    addTearDown(semantics.dispose);
     await _configureView(tester, const Size(320, 568));
     await tester.pumpWidget(_host(scale: 2, onResult: (_) {}));
     await _open(tester);
@@ -136,16 +158,24 @@ void main() {
     final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
     await tester.ensureVisible(toggle);
     await tester.pumpAndSettle();
-    expect(find.bySemanticsLabel(RegExp('使用 ForcedAligner 词级时间证据')), findsWidgets);
+    expect(
+      find.bySemanticsLabel(RegExp('使用 ForcedAligner 词级时间证据')),
+      findsWidgets,
+    );
     expect(find.bySemanticsLabel(RegExp('继续')), findsWidgets);
     expect(find.bySemanticsLabel(RegExp('取消')), findsWidgets);
     _expectNoException(tester, 'semantics');
+    semantics.dispose();
   });
 
-  testWidgets('keyboard traverses strategy, toggle, text and continue', (tester) async {
+  testWidgets('keyboard traverses strategy, toggle, text and continue', (
+    tester,
+  ) async {
     ProofreadV2RunOptions? result;
     await _configureView(tester, const Size(320, 568));
-    await tester.pumpWidget(_host(scale: 2, onResult: (value) => result = value));
+    await tester.pumpWidget(
+      _host(scale: 2, onResult: (value) => result = value),
+    );
     await _open(tester);
     await _tabUntil(tester, find.text('ASR 优先'));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -175,17 +205,29 @@ Future<void> _configureView(WidgetTester tester, Size size) async {
   addTearDown(tester.view.resetDevicePixelRatio);
 }
 
-Widget _host({required double scale, required void Function(ProofreadV2RunOptions?) onResult}) {
+Widget _host({
+  required double scale,
+  required void Function(ProofreadV2RunOptions?) onResult,
+}) {
   return MaterialApp(
     theme: ThemeData.dark(),
     builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: TextScaler.linear(scale)),
       child: child!,
     ),
-    home: Scaffold(body: Center(child: Builder(builder: (context) => FilledButton(
-      onPressed: () async => onResult(await showProofreadV2RunOptionsDialog(context)),
-      child: const Text('open'),
-    )))),
+    home: Scaffold(
+      body: Center(
+        child: Builder(
+          builder: (context) => FilledButton(
+            onPressed: () async =>
+                onResult(await showProofreadV2RunOptionsDialog(context)),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -203,7 +245,11 @@ Future<void> _tabUntil(WidgetTester tester, Finder target) async {
   for (var i = 0; i < 20; i++) {
     final context = tester.element(target);
     if (Focus.of(context).hasFocus) {
-      expect(target.hitTestable(), findsOneWidget, reason: 'focused control should be visible');
+      expect(
+        target.hitTestable(),
+        findsOneWidget,
+        reason: 'focused control should be visible',
+      );
       return;
     }
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
