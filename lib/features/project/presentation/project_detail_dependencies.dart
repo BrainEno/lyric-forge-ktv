@@ -1,6 +1,7 @@
 import '../../player/domain/services/playback_session_service.dart';
 import '../domain/repositories/project_repository.dart';
 import '../domain/services/project_accompaniment_importer.dart';
+import '../domain/services/project_vocal_importer.dart';
 import '../../transcription/domain/services/asr_runtime_manager.dart';
 import '../../transcription/domain/services/project_transcription_workflow.dart';
 import '../../transcription/domain/services/transcription_settings_store.dart';
@@ -10,6 +11,7 @@ import '../../transcription/presentation/transcription_screen_dependencies.dart'
 class ProjectDetailDependencies {
   final ProjectRepository projectRepository;
   final ProjectAccompanimentImporter accompanimentImporter;
+  final ProjectVocalImporter vocalImporter;
   final ActiveProjectPlaybackSourceUpdater? playbackSourceUpdater;
   final ProjectTranscriptionWorkflow transcriptionWorkflow;
   final AsrRuntimeSetupDependencies asrRuntimeSetupDependencies;
@@ -22,6 +24,7 @@ class ProjectDetailDependencies {
   const ProjectDetailDependencies({
     required this.projectRepository,
     required this.accompanimentImporter,
+    required this.vocalImporter,
     this.playbackSourceUpdater,
     required this.transcriptionWorkflow,
     required this.asrRuntimeSetupDependencies,

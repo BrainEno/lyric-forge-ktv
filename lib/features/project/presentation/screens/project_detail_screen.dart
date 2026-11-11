@@ -42,7 +42,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   StreamSubscription<TranscriptionProgress>? _progressSubscription;
   TranscriptionProgress? _liveProgress;
   bool _isTranscribing = false;
-  bool _isImportingAccompaniment = false;
+  bool _isImportingStem = false;
+  bool _importingVocal = false;
 
   bool get _isDesktop =>
       !kIsWeb &&
@@ -108,7 +109,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   Future<void> _startTranscription(ProjectManifest project) async {
     if (!_isDesktop ||
         _isTranscribing ||
-        _isImportingAccompaniment ||
+        _isImportingStem ||
         project.audioAsset == null)
       return;
 
@@ -197,37 +198,30 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
-  Future<void> _importAccompaniment(ProjectManifest project) async {
-    if (!_isDesktop ||
-        _isTranscribing ||
-        _isImportingAccompaniment ||
-        project.audioAsset == null)
-      return;
-    if (project.audioAsset!.instrumentalPath != null) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('更换伴奏？'),
-          content: const Text('工程将使用新选择的伴奏，原文件不会删除。请选择与原曲时间轴一致的音频。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('选择新伴奏'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true || !mounted) return;
-    }
-    setState(() => _isImportingAccompaniment = true);
+  Future<void> _importStem(ProjectManifest project, {required bool vocal}) async {
+    if (!_isDesktop || _isTranscribing || _isImportingStem || project.audioAsset == null) return;
+    // Reserve the operation before awaiting the confirmation dialog or picker.
+    setState(() { _isImportingStem = true; _importingVocal = vocal; });
+    final label = vocal ? '人声' : '伴奏';
     try {
-      final updated = await widget.dependencies.accompanimentImporter.importFor(
-        project,
-      );
+      final existing = vocal ? project.audioAsset!.vocalPath : project.audioAsset!.instrumentalPath;
+      if (existing != null) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('更换$label？'),
+            content: Text('工程将使用新选择的$label，原文件不会删除。请选择与原曲时间轴一致的音频。'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('选择新$label')),
+            ],
+          ),
+        );
+        if (confirmed != true || !mounted) return;
+      }
+      final updated = vocal
+          ? await widget.dependencies.vocalImporter.importVocalFor(project)
+          : await widget.dependencies.accompanimentImporter.importFor(project);
       if (updated == null) return;
       var synchronized = false;
       final updater = widget.dependencies.playbackSourceUpdater;
@@ -248,11 +242,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            synchronized
-                ? '伴奏已导入，并同步到当前播放队列。'
-                : '伴奏已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。',
-          ),
+          content: Text(synchronized
+              ? '$label已导入，并同步到当前播放队列。'
+              : '$label已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。'),
           duration: const Duration(seconds: 7),
         ),
       );
@@ -260,16 +252,16 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (!mounted) return;
       await _refreshProject();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('工程已发生变化，未替换伴奏；请刷新后重试。')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('工程已发生变化，未替换$label；请刷新后重试。')),
+      );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('导入伴奏失败，请检查文件和存储空间后重试。')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入$label失败，请检查文件和存储空间后重试。')),
+      );
     } finally {
-      if (mounted) setState(() => _isImportingAccompaniment = false);
+      if (mounted) setState(() => _isImportingStem = false);
     }
   }
 
@@ -298,9 +290,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             onRefresh: _refreshProject,
             isDesktop: _isDesktop,
             isTranscribing: _isTranscribing,
-            isImportingAccompaniment: _isImportingAccompaniment,
+            isImportingStem: _isImportingStem,
+            isImportingVocal: _importingVocal,
             liveProgress: _liveProgress,
-            onImportAccompaniment: () => _importAccompaniment(project),
+            onImportAccompaniment: () => _importStem(project, vocal: false),
+            onImportVocal: () => _importStem(project, vocal: true),
             onTranscribe: () => _startTranscription(project),
             onCancelTranscription: _cancelTranscription,
             onConfigureTranscription: _configureTranscription,
@@ -366,9 +360,11 @@ class _ProjectDetailContent extends StatelessWidget {
   final VoidCallback onRefresh;
   final bool isDesktop;
   final bool isTranscribing;
-  final bool isImportingAccompaniment;
+  final bool isImportingStem;
+  final bool isImportingVocal;
   final TranscriptionProgress? liveProgress;
   final VoidCallback onImportAccompaniment;
+  final VoidCallback onImportVocal;
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
@@ -378,9 +374,11 @@ class _ProjectDetailContent extends StatelessWidget {
     required this.onRefresh,
     required this.isDesktop,
     required this.isTranscribing,
-    required this.isImportingAccompaniment,
+    required this.isImportingStem,
+    required this.isImportingVocal,
     required this.liveProgress,
     required this.onImportAccompaniment,
+    required this.onImportVocal,
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
@@ -465,9 +463,11 @@ class _ProjectDetailContent extends StatelessWidget {
                                 project: project,
                                 isDesktop: isDesktop,
                                 isTranscribing: isTranscribing,
-                                isImportingAccompaniment:
-                                    isImportingAccompaniment,
+                                isImportingStem:
+                                    isImportingStem,
+                                isImportingVocal: isImportingVocal,
                                 onImportAccompaniment: onImportAccompaniment,
+                                onImportVocal: onImportVocal,
                                 onTranscribe: onTranscribe,
                                 onCancelTranscription: onCancelTranscription,
                                 onConfigureTranscription:
@@ -1021,8 +1021,10 @@ class _ActionPanel extends StatelessWidget {
   final ProjectManifest project;
   final bool isDesktop;
   final bool isTranscribing;
-  final bool isImportingAccompaniment;
+  final bool isImportingStem;
+  final bool isImportingVocal;
   final VoidCallback onImportAccompaniment;
+  final VoidCallback onImportVocal;
   final VoidCallback onTranscribe;
   final VoidCallback onCancelTranscription;
   final VoidCallback onConfigureTranscription;
@@ -1031,8 +1033,10 @@ class _ActionPanel extends StatelessWidget {
     required this.project,
     required this.isDesktop,
     required this.isTranscribing,
-    required this.isImportingAccompaniment,
+    required this.isImportingStem,
+    required this.isImportingVocal,
     required this.onImportAccompaniment,
+    required this.onImportVocal,
     required this.onTranscribe,
     required this.onCancelTranscription,
     required this.onConfigureTranscription,
@@ -1081,7 +1085,7 @@ class _ActionPanel extends StatelessWidget {
               style: buttonStyle,
               onPressed:
                   isTranscribing ||
-                      isImportingAccompaniment ||
+                      isImportingStem ||
                       project.audioAsset == null
                   ? null
                   : onTranscribe,
@@ -1116,7 +1120,7 @@ class _ActionPanel extends StatelessWidget {
           if (isDesktop && project.hasLyrics && !isTranscribing) ...[
             const SizedBox(height: AppSpacing.sm),
             TextButton.icon(
-              onPressed: isImportingAccompaniment ? null : onTranscribe,
+              onPressed: isImportingStem ? null : onTranscribe,
               icon: const Icon(Icons.replay_rounded),
               label: const Text('重新识别歌词'),
             ),
@@ -1134,21 +1138,28 @@ class _ActionPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               style: outlinedStyle,
-              onPressed: isTranscribing || isImportingAccompaniment
+              onPressed: isTranscribing || isImportingStem
                   ? null
                   : onImportAccompaniment,
               icon: const Icon(Icons.library_music_outlined),
               label: Text(
-                isImportingAccompaniment
+                isImportingStem && !isImportingVocal
                     ? '正在导入伴奏…'
                     : project.audioAsset!.instrumentalPath == null
                     ? '导入已有伴奏'
                     : '更换伴奏',
               ),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton.icon(
+              style: outlinedStyle,
+              onPressed: isTranscribing || isImportingStem ? null : onImportVocal,
+              icon: const Icon(Icons.mic_none_rounded),
+              label: Text(isImportingStem && isImportingVocal ? '正在导入人声…' : project.audioAsset!.vocalPath == null ? '导入已有人声' : '更换人声'),
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '选择与原曲时间轴一致的伴奏；应用不会自动分离或校准。',
+              '选择与原曲时间轴一致的人声或伴奏；应用不会自动分离或校准。',
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
