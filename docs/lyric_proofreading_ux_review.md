@@ -158,7 +158,7 @@
 
 ### 6.1 必须做（影响正确性或数据安全）
 
-1. **撤销栈**：为逐行编辑引入 `UndoManager`（最多 50 步，内存快照），`Ctrl+Z / Cmd+Z` 可用；当前只有参考对齐的单次 `_AlignmentUndoSnapshot`，误改 5 行后无法回退。
+1. **撤销栈（已实现，历史说明）**：编辑器现使用 `LyricEditHistory` 的多步撤销/重做，支持键盘快捷键；校对应用也进入编辑历史。历史只在内存中，不能替代保存或跨会话恢复；不同异步校对流程的并发保护仍需分别检查。
 2. **保存按钮可达性**：移动端在 `_BottomBar` 增加常驻「保存」图标，AppBar 的保存仅作冗余；或底部上浮 FAB，`hasChanges` 时脉冲提示。
 3. **BottomSheet 防遮**：编辑 sheet 改为 `DraggableScrollableSheet`，支持半展开时仍能看到列表上下文。
 4. **删除二次确认**：行内删除（尤其是键盘 Delete）加 `SnackBar` 撤销，而非立即删；Inspector 内的删除按钮改为 `AlertDialog` 二次确认。
