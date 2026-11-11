@@ -17,15 +17,10 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
 import '../../domain/proofreading/asr_reference_correction_suggester.dart';
-import '../../domain/proofreading/asr_first_pipeline.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
-import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
-import '../../domain/proofreading/proofread_v2_review_assembler.dart';
-import '../../domain/proofreading/proofread_strategy_selector.dart';
-import '../../domain/proofreading/reference_first_pipeline.dart';
-import '../../domain/proofreading/reference_token_aligner.dart';
+import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/reference_proofread_review_builder.dart';
 import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_alignment_service.dart';
@@ -705,100 +700,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     try {
-      final referenceCoverage = reference == null
-          ? null
-          : const ReferenceTokenAligner()
-                .align(
-                  referenceText: reference.lines
-                      .map((line) => line.text)
-                      .join(' '),
-                  draftText: document.lines.map((line) => line.text).join(' '),
-                )
-                .referenceCoverage;
-      final decision = const ProofreadStrategySelector().select(
-        requestedStrategy: options.strategy,
-        hasReference: reference != null,
-        referenceCoverage: referenceCoverage,
+      final run = await RunProofreadV2UseCase(
+        runner: widget.dependencies.forcedAlignmentRunner,
+      ).build(
+        draft: document,
+        strategy: options.strategy,
+        audioAsset: project.audioAsset,
+        reference: reference,
+        secondary: secondaryAsr,
+        useForcedAlignment: options.useForcedAlignment,
+        manuallyEditedIndices: _manuallyEditedLineIndices,
       );
-
-      final reviewedIndices = const LyricReviewDecisionService()
-          .reviewedIndices(document);
-      final protectedDraftIndices = <int>{
-        ..._manuallyEditedLineIndices,
-        ...reviewedIndices,
-      };
-
-      const assembler = ProofreadV2ReviewAssembler();
-      late final ProofreadV2ReviewAssembly assembly;
-      ForcedAlignmentProofreadOutcome? alignmentOutcome;
-
-      if (decision.effectiveStrategy == LyricSourceStrategy.referenceFirst) {
-        final input = reference;
-        if (input == null) {
-          throw StateError('参考歌词优先策略需要参考歌词输入。');
-        }
-        assembly = assembler.referenceFirst(
-          draft: document,
-          requestedStrategy: options.strategy,
-          result: const ReferenceFirstPipeline().build(
-            draft: document,
-            reference: input,
-            protectedDraftIndices: protectedDraftIndices,
-            audioDuration: project.audioAsset?.duration,
-          ),
-        );
-      } else {
-        late final ProofreadResult result;
-        if (options.useForcedAlignment) {
-          final audioAsset = project.audioAsset;
-          final audioDuration = audioAsset?.duration;
-          if (audioAsset == null ||
-              audioDuration == null ||
-              audioDuration <= Duration.zero) {
-            throw StateError('ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。');
-          }
-          final language = ForcedAlignmentLanguage.resolve(document.language);
-          // The runner (settings store, profile resolver, runtime inspection,
-          // native aligner) is assembled in `lib/app/lyric_editor_assembly.dart`;
-          // this screen only supplies the request.
-          final alignmentService = ForcedAlignmentProofreadService(
-            runner: widget.dependencies.forcedAlignmentRunner,
-          );
-          alignmentOutcome = await alignmentService.buildReview(
-            draft: document,
-            audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
-            referenceText: document.lines.map((line) => line.text).join('\n'),
-            language: language,
-            audioDuration: audioDuration,
-            secondary: secondaryAsr,
-            protectedDraftIndices: protectedDraftIndices,
-          );
-          result = alignmentOutcome.result;
-        } else {
-          result = const AsrFirstPipeline().build(
-            draft: document,
-            secondary: secondaryAsr,
-            protectedDraftIndices: protectedDraftIndices,
-            audioDuration: project.audioAsset?.duration,
-          );
-        }
-        assembly = assembler.asrFirst(
-          draft: document,
-          result: result,
-          usedForcedAlignment: options.useForcedAlignment,
-          hasSecondaryTranscript: secondaryAsr != null,
-          autoFellBackToAsr: decision.autoFellBackToAsr,
-          alignmentOutcome: alignmentOutcome,
-        );
-      }
-
       if (!_proofreadV2IsCurrent(revision)) return;
-      final summary = assembler.summary(
-        effectiveStrategy: decision.effectiveStrategy,
-        items: assembly.items,
-        droppedItems: assembly.droppedItems,
-        referenceCoverage: referenceCoverage,
-      );
+      final assembly = run.assembly;
+      final decision = run.decision;
+      final summary = run.summary;
 
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
@@ -860,6 +776,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (!_proofreadV2IsCurrent(revision)) return;
       final detail = error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
+          : error is ProofreadV2MissingAudioException
+          ? 'Bad state: ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。'
           : error is ForcedAlignmentResourceBusyException
           ? LyricReviewStrings.forcedAlignmentBusy
           : '$error';
