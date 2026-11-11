@@ -2,26 +2,26 @@
 
 ## 目标
 
-改进 V2 校对配置弹窗在小窗口、放大字体和键盘操作下的可用性，并增加异步校对跨行冲突回归。
+为跨 feature 依赖建立可收缩 SCC 和跨 feature presentation 引用基线，并记录状态管理与依赖装配边界。
 
 ## Git 现场
 
-活动分支 `arena/98b2215d-lyric-forge-ktv`，基线 `9cc8ce7175eca03667dbe6af8b8fbc06cc9e19d6`。本轮工作分为配置弹窗与冲突测试的阶段提交；使用 `git status --short`、`git diff --stat`、`git log --oneline -5` 核对最终现场。临时验证 workflow 在交付前删除，不修改正式 CI。
+活动分支 `arena/8d81bdb2-lyric-forge-ktv`，基线 `cce30b84645612ad2aa1acd9171b601145b9422f`。以 `git status --short`、`git diff --stat`、`git log --oneline -5` 核对最终状态；临时验证 workflow 交付前删除，不更改正式 CI。
 
 ## 已改文件
 
-`lyric_proofread_v2_dialog.dart` 添加滚动和聚焦可见处理；新增 `proofread_v2_options_accessibility_test.dart`；扩展 `lyric_editor_save_conflict_test.dart`，并更新工作日志及本交接。
+`test/architecture/` 中的依赖图、基线、算法及文档契约测试；`docs/architecture_player.md`、`docs/decisions.md`、生成的工作日志导航及本交接。
 
 ## 检查结果
 
-本地无 Flutter/Dart。固定 SDK GitHub Actions run 42996726179：锁定依赖安装、Dart 格式化、配置/复核对话框及编辑器/控制器/复核优先级/结构化取消定向测试和 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过；最终 PR 的正式门禁请另行核对。
+本地无 Flutter/Dart，固定 Flutter 3.47.7 的 GitHub Actions 执行格式化、架构测试及分析；最终运行编号和结果以工作日志及 PR 检查为准。格式化补丁由临时 CI 回传；生成的日志通过 Dart 工具 write/check。
 
 ## 下一步
 
-在真实目标设备上按 #416 执行至少一种屏幕阅读器、键盘、320×568 和 800×480 与 200% 字号的人工验收，特别检查焦点提示和复核列表；完成前保留该 Issue。
+继续 #327：选择 project/transcription 或 player/transcription 的一条反向依赖，移动所有权并经 app 组合根注入，补装配行为测试；消除边后同步缩减 SCC 基线。现阶段仅建立防回退基线，没有拆环，不应关闭 #327。
 
 ## 已知风险
 
-Widget 和 semantics 测试不能代替真实辅助技术或设备人工验收；尚未单独动态覆盖 #414 最终时间轴冲突确认对话框中的并发编辑。#413 仍需合法真实歌曲和人工标注、团队确认门槛，不能用合成测试冒充。此前 PR #418 的 Media Hub 超时测试曾失败重跑成功，根因未确认。
+依赖图只覆盖静态 feature 内 Dart import/export 的可解析 URI，不覆盖动态反射、生成文件或绕过 feature 路径的间接依赖；不支持的指令 URI/注解需显式处理。现有环和跨 feature presentation 引用仍在；不得把静态架构测试当作运行时行为验证。#415 本机 runtime 认证/端口争用、#416 实际屏幕阅读器、#413 实歌基线仍待独立工作。
 
 最后更新：2026-11-07（Asia/Taipei）
