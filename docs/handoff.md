@@ -2,26 +2,26 @@
 
 ## 目标
 
-继续 #319 独立重识别的安全接入。本阶段修复安装管理器内部预检的协作式取消，并防止同一管理器重叠安装；不接入资源协调器。
+继续 #319 独立重识别的安全接入。本阶段实现并测试调用者独立的安装资源协调包装器，但不在生产环境接线。
 
 ## Git 现场
 
-基线 `a2410fc6a3a7ac5c3b9edc3740307ba81a1f52ee`，分支 `arena/e1b4d4bc-lyric-forge-ktv`。以 `git status --short`、`git diff --stat`、`git log --oneline -5` 为准；临时验证 workflow 不应进入 PR。
+基线 `6722216f5649e1a85000c935448f4a0dc36b1d17`，分支 `arena/6d6af082-lyric-forge-ktv`。记录时 `git status --short`、`git diff --stat` 均为空；近期 `git log --oneline -5` 为 `199a65f Fix installation ownership test setup`、`11be2c0 Format installation ownership tests`、`b0ebfc7 Coordinate ASR installation ownership`、`6722216 Merge pull request #409`。以当前 Git 状态为准，临时验证 workflow 不应进入 PR。
 
 ## 已改文件
 
-`storage_preflight_asr_runtime_manager.dart` 和取消竞态测试；交接及工具生成的工作日志。
+新增 `coordinated_asr_install_manager.dart` 与其定向测试，以及交接、日志和导航。
 
 ## 检查结果
 
-本地无 Flutter/Dart。Actions 42819023204 固定 SDK 定向测试（安装取消、存储预检、运行健康）和全量 analyze 通过；Actions 42819281331 补充竞态测试和 analyze 通过；最终日志检查见后续 Actions。未验证真实设备、下载或歌曲。
+本地无 Flutter/Dart。固定 SDK Actions 42848531494：格式、协调包装器及预检取消、协调器、普通识别取消、独立重跑、自检定向测试、`flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。首次测试桩级联赋值编译失败，修正后通过；日志及正式 PR 门禁另见后续 Actions。未验证真实模型或设备。
 
 ## 下一步
 
-为安装入口实现每个调用者独立取消所有权，使用同一个 app-scoped 安装租约包住整个安装预检/清理；特别处理设置和向导的 UI 预检、busy 后不应运行独立 repair，以及自检取消不能影响其他入口。增加并发和 widget 测试后再生产接线。
+统一梳理设置、向导和自检安装入口，确保每个 UI State/自检使用独立包装器、所有安装都使用同一 app-scoped coordinator 且无绕过；处理界面管理器外预检、busy 时不触发独立 repair、自检取消时间边界后添加端到端竞态与 widget 测试，再生产接线。
 
 ## 已知风险
 
-取消是协作式的：已开始的检查、失效文件处理和清理不会被中断或回滚；请求取消后正在执行的下载由底层取消。当前 `isInstalling` 仍只反映 delegate，不能反映本次外层预检或供自检在预检中取消；现有共享管理器的取消归属仍不隔离。独立 repair、模型迁移/导入/删除与安装仍未纳入资源协调，协调器也不保护跨进程或空闲 Qwen 显存；独立重跑尚无生产调用者。建议在设备上分别于安装预检、下载、健康检查阶段暂停并复核后重试，检查其他入口没有受影响，人工歌词未改变。
+新包装器目前没有生产调用者；已有自检可能取消其他入口的安装，生产安装尚未受共享资源锁保护。包装器的取消所有权依赖所有同 delegate 的安装调用均使用不同实例和同一 coordinator；绕过会破坏保证。它等待 delegate 安装和 pending cancel 完成，但不能强制 delegate 响应取消；进度流和 delegate 的运行状态仍是共享的。repair、迁移、导入、删除、跨 isolate/进程及闲置 Qwen 显存均未协调；独立重跑尚无生产调用者，也无真实歌曲人工基准。
 
 最后更新：2026-11-07（Asia/Taipei）
