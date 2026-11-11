@@ -172,13 +172,20 @@ List<String> directiveUris(String source) {
         (tokens[i].value != 'import' && tokens[i].value != 'export')) {
       continue;
     }
-    if (i + 1 >= tokens.length || !tokens[i + 1].isString) continue;
+    if (i + 1 >= tokens.length || !tokens[i + 1].isString) {
+      throw FormatException('Unsupported import/export directive');
+    }
     var j = i + 1;
     while (j < tokens.length &&
         (tokens[j].isString || tokens[j].value != ';')) {
       if (tokens[j].isString) {
-        if (tokens[j].value.startsWith('\u0000')) {
-          throw FormatException('Escaped directive URI is not supported');
+        if (tokens[j].value.startsWith('\u0000') ||
+            tokens[j].value.contains('%') ||
+            tokens[j].value.contains(r'\') ||
+            tokens[j].value.contains(r'$') ||
+            tokens[j].value.contains('?') ||
+            tokens[j].value.contains('#')) {
+          throw FormatException('Encoded or interpolated directive URI is not supported');
         }
         result.add(tokens[j].value);
       }

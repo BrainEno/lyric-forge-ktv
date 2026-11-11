@@ -130,6 +130,12 @@ void main() {
       );
     });
 
+    test('rejects percent-encoded paths and URI suffixes', () {
+      for (final uri in ['../b/%79.dart', '../b/x.dart?ignored', '../b/x.dart#fragment']) {
+        expect(() => directiveUris("import '$uri';"), throwsFormatException);
+      }
+    });
+
     test('unrelated escaped strings do not fail parsing', () {
       expect(directiveUris(r"import 'real.dart'; final s = 'line\n';"), [
         'real.dart',
