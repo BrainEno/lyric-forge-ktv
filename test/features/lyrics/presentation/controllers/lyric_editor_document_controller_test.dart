@@ -42,6 +42,47 @@ void main() {
     );
   }
 
+  test('document revision tracks mutations, not selection or save bookkeeping', () {
+    final c = build(loaded: document([line('a', id: 'a')])).controller;
+    var revision = c.documentRevision;
+    void changed() {
+      expect(c.documentRevision, greaterThan(revision));
+      revision = c.documentRevision;
+    }
+
+    c.select(null);
+    c.markSaved();
+    c.updateLine(3, line('invalid'));
+    expect(c.documentRevision, revision);
+    c.updateLine(0, line('edited', id: 'a'));
+    changed();
+    c.markSaved();
+    expect(c.documentRevision, revision);
+    c.undo();
+    changed();
+    c.redo();
+    changed();
+    c.setLineReviewed(0, reviewed: true);
+    changed();
+    c.replaceDocument(c.document!, label: 'batch', selectedLineIndex: 0, keepBatchSnapshot: true);
+    changed();
+    c.undoBatchChange();
+    changed();
+    c.restoreDocument(c.document!, label: 'restore');
+    changed();
+    c.load(c.document!);
+    changed();
+    c.addLine();
+    changed();
+    c.insertLineAt(const Duration(seconds: 3));
+    changed();
+    c.deleteLine(0);
+    changed();
+    c.updateGlobalOffset(const Duration(milliseconds: 50));
+    changed();
+    c.dispose();
+  });
+
   group('load', () {
     test('assigns ids, restores persisted marks and selects the first row', () {
       final persisted = const LyricManualEditMarkerService().persist(

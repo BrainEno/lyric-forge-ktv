@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_export_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
@@ -14,6 +19,72 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
+  testWidgets('delayed alignment discards edits and blocks a second run', (tester) async {
+    final pending = Completer<List<ForcedAlignedSpan>>();
+    var calls = 0;
+    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) {
+      calls++;
+      return pending.future;
+    });
+    await _startAlignment(tester);
+    expect(calls, 1);
+    await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+    await tester.pumpAndSettle();
+    expect(find.text('智能校对 V2'), findsNothing);
+    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'New manual edit'));
+    await tester.pump();
+    pending.complete([]);
+    await tester.pumpAndSettle();
+    expect(editor.document!.lines.single.text, 'New manual edit');
+    expect(editor.canUndo, isTrue);
+    expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+    expect(find.text('智能校对提案复核'), findsNothing);
+    expect(calls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('edit then undo still invalidates a delayed result', (tester) async {
+    final pending = Completer<List<ForcedAlignedSpan>>();
+    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) => pending.future);
+    await _startAlignment(tester);
+    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'temporary'));
+    editor.undo();
+    pending.complete([]);
+    await tester.pumpAndSettle();
+    expect(editor.document!.lines.single.text, 'Human lyric');
+    expect(editor.canRedo, isTrue);
+    expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+    expect(find.text('智能校对提案复核'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('changes while review is open block application', (tester) async {
+    final editor = await _openEditor(tester, _emptyAlignment);
+    await _startAlignment(tester);
+    expect(find.text('智能校对提案复核'), findsOneWidget);
+    editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'Changed during review'));
+    await tester.pump();
+    Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
+      LyricProofreadV2Selection(acceptedProposalIndices: {0}, restoredDraftIndices: {}),
+    );
+    await tester.pumpAndSettle();
+    expect(editor.document!.lines.single.text, 'Changed during review');
+    expect(editor.canUndo, isTrue);
+    expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('late alignment after disposal does not access disposed state', (tester) async {
+    final pending = Completer<List<ForcedAlignedSpan>>();
+    await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) => pending.future);
+    await _startAlignment(tester);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    pending.complete([]);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('智能校对提案复核'), findsNothing);
+  });
+
   testWidgets('busy alignment explains retry and never changes lyrics', (
     tester,
   ) async {
@@ -177,6 +248,49 @@ void main() {
       expect(explicitlyOverwritten?.revision, backgroundUpdate.revision + 1);
     },
   );
+}
+
+Future<LyricEditorDocumentController> _openEditor(
+  WidgetTester tester,
+  ForcedAlignmentRunner runner,
+) async {
+  final repository = MemoryProjectRepository();
+  var project = await repository.createProject(name: 'Song');
+  project = await repository.updateProject(project.copyWith(
+    lyricDocument: _document('Human lyric'),
+    audioAsset: const AudioAsset(originalPath: 'song.wav', format: 'wav', duration: Duration(seconds: 3)),
+  ));
+  tester.view.physicalSize = const Size(1600, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pumpWidget(MaterialApp(home: LyricEditorScreen(
+    projectId: project.id,
+    dependencies: LyricEditorDependencies(
+      projectRepository: repository,
+      playbackSession: _FakePlaybackSession(),
+      audioPlayer: _FakeAudioPlayer(),
+      lyricFileExport: _FakeLyricFileExport(),
+      lyricFileImport: _FakeLyricFileImport(),
+      forcedAlignmentRunner: runner,
+    ),
+  )));
+  await tester.pumpAndSettle();
+  final field = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == '歌词文本');
+  return Provider.of<LyricEditorDocumentController>(tester.element(field), listen: false);
+}
+
+Future<void> _startAlignment(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('智能校对 V2'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('ASR 优先'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const ValueKey('forced_alignment_review_toggle')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('继续'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _settleAndAssertNoFrameworkException(

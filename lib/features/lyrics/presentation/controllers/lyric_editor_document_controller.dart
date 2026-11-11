@@ -104,12 +104,17 @@ class LyricEditorDocumentController extends ChangeNotifier {
   );
 
   LyricDocument? _document;
+  int _documentRevision = 0;
   bool _hasChanges = false;
   int? _selectedLineIndex;
   final Set<String> _manuallyEditedLineIds = <String>{};
   LyricEditorSnapshot? _alignmentSnapshot;
 
   LyricDocument? get document => _document;
+
+  /// Monotonic in-memory generation for document and manual protection state.
+  /// Selection and save bookkeeping do not invalidate an asynchronous proposal.
+  int get documentRevision => _documentRevision;
 
   bool get hasChanges => _hasChanges;
 
@@ -149,6 +154,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
   LyricDocument load(LyricDocument loaded) {
     final document = markerService.assignMissingLineIds(loaded);
     _document = document;
+    _documentRevision++;
     _hasChanges = false;
     _alignmentSnapshot = null;
     history.clear();
@@ -446,6 +452,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
     _selectedLineIndex = snapshot.selectedLineIndex;
     _hasChanges = snapshot.hasChanges;
     _alignmentSnapshot = null;
+    _documentRevision++;
     notifyListeners();
     return const LyricEditResult(clearsAudition: true);
   }
@@ -464,6 +471,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
   }
 
   void _restoreHistoryEntry(LyricEditSnapshot snapshot) {
+    _documentRevision++;
     _document = snapshot.document;
     final index = snapshot.selectedLineIndex;
     _selectedLineIndex =
@@ -478,6 +486,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
   }
 
   void _markEdited() {
+    _documentRevision++;
     _hasChanges = true;
     _alignmentSnapshot = null;
   }

@@ -95,6 +95,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   /// and the undo history; this screen only decides what to show.
   late final LyricEditorDocumentController _editor;
 
+  bool _proofreadV2InProgress = false;
   bool _followPlayback = true;
   LyricReviewFilter _filter = LyricReviewFilter.all;
 
@@ -621,10 +622,34 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   Future<void> _openProofreadV2(ProjectManifest project) async {
     final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
+    if (_proofreadV2InProgress || document == null || document.lines.isEmpty) {
+      return;
+    }
+    final revision = _editor.documentRevision;
+    setState(() => _proofreadV2InProgress = true);
+    try {
+      await _runProofreadV2(project, document, revision);
+    } finally {
+      if (mounted) setState(() => _proofreadV2InProgress = false);
+    }
+  }
 
+  bool _proofreadV2IsCurrent(int revision) {
+    if (!mounted) return false;
+    if (_editor.documentRevision == revision) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('歌词在校对期间已更改，原提案已丢弃；当前修改仍保留，请重新生成校对提案。')),
+    );
+    return false;
+  }
+
+  Future<void> _runProofreadV2(
+    ProjectManifest project,
+    LyricDocument document,
+    int revision,
+  ) async {
     final options = await showProofreadV2RunOptionsDialog(context);
-    if (options == null || !mounted) return;
+    if (options == null || !_proofreadV2IsCurrent(revision)) return;
 
     LyricDocument? secondaryAsr;
     final secondaryText = options.secondaryTranscriptText;
@@ -676,7 +701,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         initialTitle: project.name,
         initialArtist: project.artist,
       );
-      if (reference == null || !mounted) return;
+      if (reference == null || !_proofreadV2IsCurrent(revision)) return;
     }
 
     try {
@@ -767,7 +792,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         );
       }
 
-      if (!mounted) return;
+      if (!_proofreadV2IsCurrent(revision)) return;
       final summary = assembler.summary(
         effectiveStrategy: decision.effectiveStrategy,
         items: assembly.items,
@@ -798,7 +823,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),
       );
-      if (selection == null || !mounted) return;
+      if (selection == null || !_proofreadV2IsCurrent(revision)) return;
 
       const composer = ProofreadV2DocumentComposer();
       final after = composer.compose(
@@ -827,11 +852,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           comparison,
           autoRepairCount: 0,
         );
-        if (!mounted || keep != true) return;
+        if (keep != true || !_proofreadV2IsCurrent(revision)) return;
       }
+      if (!_proofreadV2IsCurrent(revision)) return;
       _commitProofreadV2Document(after);
     } catch (error) {
-      if (!mounted) return;
+      if (!_proofreadV2IsCurrent(revision)) return;
       final detail = error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
           : error is ForcedAlignmentResourceBusyException
@@ -1519,7 +1545,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                         onReferenceProofread: document.lines.isEmpty
                             ? null
                             : () => _openReferenceProofread(project),
-                        onProofreadV2: document.lines.isEmpty
+                        onProofreadV2:
+                            document.lines.isEmpty || _proofreadV2InProgress
                             ? null
                             : () => _openProofreadV2(project),
                         onUndoReferenceAlignment:

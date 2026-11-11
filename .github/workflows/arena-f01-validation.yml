@@ -1,0 +1,28 @@
+name: Temporary F01 validation
+on:
+  push:
+    branches: [arena/cc41bdc1-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format
+        run: |
+          dart format lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart lib/features/lyrics/presentation/screens/lyric_editor_screen.dart test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=FORMAT{i//3000}::{data[i:i+3000]}')
+          PY
+      - name: Targeted tests
+        run: flutter test --no-pub --reporter expanded test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/domain/proofreading/forced_alignment_proofread_service_test.dart
+      - name: Analyze
+        if: always()
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool
