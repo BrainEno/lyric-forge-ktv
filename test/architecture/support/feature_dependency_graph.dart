@@ -63,7 +63,8 @@ class FeatureDependencyGraph {
         if (!indices.containsKey(neighbor)) {
           visit(neighbor);
           if (low[neighbor]! < low[node]!) low[node] = low[neighbor]!;
-        } else if (active.contains(neighbor) && indices[neighbor]! < low[node]!) {
+        } else if (active.contains(neighbor) &&
+            indices[neighbor]! < low[node]!) {
           low[node] = indices[neighbor]!;
         }
       }
@@ -78,6 +79,7 @@ class FeatureDependencyGraph {
         if (component.length > 1) result.add(component);
       }
     }
+
     for (final feature in features.toList()..sort()) {
       if (!indices.containsKey(feature)) visit(feature);
     }
@@ -127,7 +129,8 @@ String? _feature(String path) {
 
 String? _resolve(String importer, String uri) {
   const prefix = 'package:lyric_forge_ktv/';
-  if (uri.startsWith(prefix)) return _normalize('lib/${uri.substring(prefix.length)}');
+  if (uri.startsWith(prefix))
+    return _normalize('lib/${uri.substring(prefix.length)}');
   if (uri.contains(':') || uri.startsWith('/')) return null;
   return _normalize('${importer.substring(0, importer.lastIndexOf('/'))}/$uri');
 }
@@ -165,7 +168,7 @@ List<String> directiveUris(String source) {
     }
     if (i + 1 >= tokens.length || !tokens[i + 1].isString) continue;
     var j = i + 1;
-    while (j < tokens.length && tokens[j].value != ';') {
+    while (j < tokens.length && (tokens[j].isString || tokens[j].value != ';')) {
       if (tokens[j].isString) {
         if (tokens[j].value.startsWith('\u0000')) {
           throw FormatException('Escaped directive URI is not supported');
@@ -183,8 +186,13 @@ List<String> directiveUris(String source) {
 List<_Token> _tokenize(String source) {
   final tokens = <_Token>[];
   var i = 0;
-  bool identifier(int c) => (c >= 65 && c <= 90) ||
-      (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95 || c == 36;
+  var inDirective = false;
+  bool identifier(int c) =>
+      (c >= 65 && c <= 90) ||
+      (c >= 97 && c <= 122) ||
+      (c >= 48 && c <= 57) ||
+      c == 95 ||
+      c == 36;
   while (i < source.length) {
     final c = source[i];
     if (c == '/' && i + 1 < source.length && source[i + 1] == '/') {
@@ -199,7 +207,8 @@ List<_Token> _tokenize(String source) {
         if (i + 1 < source.length && source.substring(i, i + 2) == '/*') {
           depth++;
           i += 2;
-        } else if (i + 1 < source.length && source.substring(i, i + 2) == '*/') {
+        } else if (i + 1 < source.length &&
+            source.substring(i, i + 2) == '*/') {
           depth--;
           i += 2;
         } else {
@@ -209,12 +218,18 @@ List<_Token> _tokenize(String source) {
       if (depth != 0) throw FormatException('Unterminated comment');
       continue;
     }
-    final raw = (c == 'r' || c == 'R') && i + 1 < source.length &&
+    if (!inDirective && c == '@') {
+      throw FormatException('Annotated directives require scanner support');
+    }
+    final raw =
+        (c == 'r' || c == 'R') &&
+        i + 1 < source.length &&
         (source[i + 1] == "'" || source[i + 1] == '"');
     if (c == "'" || c == '"' || raw) {
       if (raw) i++;
       final quote = source[i];
-      final triple = i + 2 < source.length && source.substring(i, i + 3) == quote * 3;
+      final triple =
+          i + 2 < source.length && source.substring(i, i + 3) == quote * 3;
       final delimiter = triple ? quote * 3 : quote;
       i += delimiter.length;
       final content = StringBuffer();
@@ -236,15 +251,27 @@ List<_Token> _tokenize(String source) {
       }
       if (!terminated) throw FormatException('Unterminated string');
       // Escaped strings are valid elsewhere; reject only if used as a URI.
-      tokens.add(_Token(escaped ? '\u0000$content' : content.toString(), isString: true));
+      tokens.add(
+        _Token(escaped ? '\u0000$content' : content.toString(), isString: true),
+      );
       continue;
     }
     if (identifier(source.codeUnitAt(i))) {
       final start = i++;
       while (i < source.length && identifier(source.codeUnitAt(i))) i++;
-      tokens.add(_Token(source.substring(start, i)));
+      final word = source.substring(start, i);
+      if (!inDirective) {
+        if (!{'import', 'export', 'library', 'part'}.contains(word)) break;
+        inDirective = true;
+      }
+      tokens.add(_Token(word));
     } else {
-      if (c == ';') tokens.add(const _Token(';'));
+      if (c == ';') {
+        tokens.add(const _Token(';'));
+        inDirective = false;
+      } else if (!inDirective && c.trim().isNotEmpty) {
+        throw FormatException('Unexpected token before directives: $c');
+      }
       i++;
     }
   }
