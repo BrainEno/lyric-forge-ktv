@@ -226,10 +226,7 @@ List<_Token> _tokenize(String source) {
       continue;
     }
     if (!inDirective && c == '@') {
-      final annotation = RegExp(
-        r'^@(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*(?:\s*\([^;]*?\))?\s*(?:import|export|library|part)\b',
-      );
-      if (annotation.hasMatch(source.substring(i))) {
+      if (_metadataPrecedesDirective(source, i)) {
         throw FormatException('Annotated directives require scanner support');
       }
       // Annotations on declarations mark the end of the directive section.
@@ -290,4 +287,68 @@ List<_Token> _tokenize(String source) {
     }
   }
   return tokens;
+}
+
+// Distinguish metadata on a declaration from metadata on a directive. If a
+// metadata expression cannot be scanned safely, fail instead of hiding edges.
+bool _metadataPrecedesDirective(String source, int offset) {
+  var i = offset;
+  final name = RegExp(r'[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*');
+  int skipTrivia(int at) {
+    while (at < source.length) {
+      if (source[at].trim().isEmpty) { at++; continue; }
+      if (source.startsWith('//', at)) {
+        final end = source.indexOf('\n', at + 2);
+        at = end < 0 ? source.length : end + 1;
+        continue;
+      }
+      if (source.startsWith('/*', at)) {
+        var depth = 1;
+        at += 2;
+        while (at < source.length && depth > 0) {
+          if (source.startsWith('/*', at)) { depth++; at += 2; }
+          else if (source.startsWith('*/', at)) { depth--; at += 2; }
+          else { at++; }
+        }
+        if (depth != 0) throw FormatException('Unterminated metadata comment');
+        continue;
+      }
+      break;
+    }
+    return at;
+  }
+
+  while (i < source.length && source[i] == '@') {
+    i++;
+    final match = name.matchAsPrefix(source, i);
+    if (match == null) throw FormatException('Unsupported metadata name');
+    i = skipTrivia(match.end);
+    if (i < source.length && source[i] == '(') {
+      var depth = 1;
+      i++;
+      while (i < source.length && depth > 0) {
+        i = skipTrivia(i);
+        if (i >= source.length) break;
+        final char = source[i];
+        if (char == "'" || char == '"') {
+          final triple = source.startsWith(char * 3, i);
+          final quote = triple ? char * 3 : char;
+          i += quote.length;
+          var closed = false;
+          while (i < source.length) {
+            if (source.startsWith(quote, i)) { i += quote.length; closed = true; break; }
+            if (source[i] == r'\') i++;
+            i++;
+          }
+          if (!closed) throw FormatException('Unterminated metadata string');
+        } else if (char == '(') { depth++; i++; }
+        else if (char == ')') { depth--; i++; }
+        else { i++; }
+      }
+      if (depth != 0) throw FormatException('Unterminated metadata');
+      i = skipTrivia(i);
+    }
+  }
+  final next = name.matchAsPrefix(source, i)?.group(0);
+  return const {'import', 'export', 'library', 'part'}.contains(next);
 }

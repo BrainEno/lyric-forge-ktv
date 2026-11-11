@@ -101,6 +101,17 @@ void main() {
       },
     );
 
+    test('rejects chained metadata and comments before directives', () {
+      expect(
+        () => directiveUris("@first /* comment */ @second('x', nested(1)) export 'a.dart';"),
+        throwsFormatException,
+      );
+    });
+
+    test('accepts metadata on declarations after imports', () {
+      expect(directiveUris("import 'a.dart'; @first @second('x') class Example {}"), ['a.dart']);
+    });
+
     test('does not parse interpolated code after the directive section', () {
       final source = r'''import 'a.dart';
       final text = 'nested ${map['key']}';''';
