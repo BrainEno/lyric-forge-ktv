@@ -39,4 +39,9 @@ jobs:
           fi
       - name: Analyze
         if: always()
-        run: flutter analyze --no-pub --no-fatal-infos lib test tool
+        run: |
+          set -o pipefail
+          flutter analyze --no-pub --no-fatal-infos lib test tool 2>&1 | tee /tmp/ktv-analyze.log || {
+            grep -E 'error •|warning •|error -|warning -' /tmp/ktv-analyze.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          }
