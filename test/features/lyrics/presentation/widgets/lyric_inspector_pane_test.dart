@@ -124,6 +124,34 @@ void main() {
     expect(updated?.endTime, current.endTime);
   });
 
+  testWidgets('shared secondary evidence requires manual multi-line review', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    LyricLine? updated;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: LineInspector(
+      index: 0,
+      line: const LyricLine(text: 'we are', startTime: Duration.zero, endTime: Duration(seconds: 2)),
+      fallbackCandidate: const {
+        'primaryEngine': 'qwen', 'primaryText': 'we are',
+        'alternativeEngine': 'whisper', 'alternativeText': 'we are here now',
+        'sharedSecondaryAcrossPrimaryLines': true,
+      },
+      isReviewed: false, onReviewDecision: (_) {}, isCurrentPlaybackLine: false,
+      isPlaying: false, onUpdate: (line) => updated = line, onDelete: () {}, onPreview: () {},
+    ))));
+    expect(tester.widget<Text>(find.byKey(const ValueKey('alternative_candidate_text'))).textSpan!.toPlainText(), 'we are here now');
+    expect(find.text('备选片段对应多行歌词，无法直接替换单行；请结合音频手动校对。'), findsOneWidget);
+    expect(find.text('采用备选'), findsNothing);
+    expect(updated, isNull);
+    await tester.enterText(find.byType(TextField), 'we are here');
+    await tester.pump();
+    expect(updated?.text, 'we are here');
+    expect(updated?.startTime, Duration.zero);
+    expect(updated?.endTime, const Duration(seconds: 2));
+  });
+
   testWidgets('without original evidence compares against edited text', (
     tester,
   ) async {

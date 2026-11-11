@@ -601,18 +601,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final lines = List<LyricLine>.from(whisperPrimary.lines);
     final candidates = <_RankedCandidate>[];
     final matchedSecondaryIndices = <int>{};
+    final matching = _matchSecondaryLines(whisperPrimary.lines, qwenSecondOpinion.lines);
 
     for (var index = 0; index < whisperPrimary.lines.length; index++) {
       final whisperLine = whisperPrimary.lines[index];
-      final overlappingIndices = _overlappingLineIndices(
-        whisperLine,
-        qwenSecondOpinion.lines,
-      );
-      final correspondingIndices = _correspondingSecondaryLineIndices(
-        primaryLine: whisperLine,
-        secondaryLines: qwenSecondOpinion.lines,
-        overlappingIndices: overlappingIndices,
-      );
+      final correspondingIndices = matching.byPrimary[index];
+      final hasSharedSecondary = correspondingIndices.any(matching.shared.contains);
       matchedSecondaryIndices.addAll(correspondingIndices);
       final qwenLines = [
         for (final secondaryIndex in correspondingIndices)
@@ -634,7 +628,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'whisperText': whisperLine.text,
                 'whisperConfidence': whisperLine.confidence,
                 'selected': 'whisper',
-                'reason': overlappingIndices.isEmpty
+                'reason': _overlappingLineIndices(whisperLine, qwenSecondOpinion.lines).isEmpty
                     ? 'qwen_no_overlap'
                     : 'qwen_no_corresponding_line',
               },
@@ -651,11 +645,18 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final durationRatio = _durationRatio(whisperLine, qwenLines);
 
       final suspicious =
+          hasSharedSecondary ||
           _isPrimarySuspicious(whisperLine, config) ||
           similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
-      final decision = _decideWhisperPrimaryCandidate(
+      final decision = hasSharedSecondary
+          ? _AlternativeDecision(
+              useAlternative: false,
+              outputConfidence: whisperLine.confidence,
+              reason: 'shared_secondary_spans_multiple_primary_lines',
+            )
+          : _decideWhisperPrimaryCandidate(
         whisperLine: whisperLine,
         qwenText: qwenText,
         qwenConfidence: qwenConfidence,
@@ -679,6 +680,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryConfidence': whisperLine.confidence,
             'alternativeEngine': 'qwen',
             'alternativeText': qwenText,
+            if (hasSharedSecondary) 'sharedSecondaryAcrossPrimaryLines': true,
             'alternativeConfidence': qwenConfidence,
             'whisperText': whisperLine.text,
             'whisperConfidence': whisperLine.confidence,
@@ -993,18 +995,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final lines = List<LyricLine>.from(primary.lines);
     final candidates = <_RankedCandidate>[];
     final matchedSecondaryIndices = <int>{};
+    final matching = _matchSecondaryLines(primary.lines, fallback.lines);
 
     for (var index = 0; index < primary.lines.length; index++) {
       final qwenLine = primary.lines[index];
-      final overlappingIndices = _overlappingLineIndices(
-        qwenLine,
-        fallback.lines,
-      );
-      final correspondingIndices = _correspondingSecondaryLineIndices(
-        primaryLine: qwenLine,
-        secondaryLines: fallback.lines,
-        overlappingIndices: overlappingIndices,
-      );
+      final correspondingIndices = matching.byPrimary[index];
+      final hasSharedSecondary = correspondingIndices.any(matching.shared.contains);
       matchedSecondaryIndices.addAll(correspondingIndices);
       final whisperLines = [
         for (final secondaryIndex in correspondingIndices)
@@ -1022,7 +1018,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'qwenText': qwenLine.text,
                 'qwenConfidence': qwenLine.confidence,
                 'selected': 'qwen',
-                'reason': overlappingIndices.isEmpty
+                'reason': _overlappingLineIndices(qwenLine, fallback.lines).isEmpty
                     ? 'whisper_no_overlap'
                     : 'whisper_no_corresponding_line',
               },
@@ -1039,11 +1035,18 @@ class HighQualityTranscriptionService implements TranscriptionService {
       final durationRatio = _durationRatio(qwenLine, whisperLines);
 
       final suspicious =
+          hasSharedSecondary ||
           _isPrimarySuspicious(qwenLine, config) ||
           similarity < _reviewDisagreementThreshold;
       if (!suspicious) continue;
 
-      final decision = _decideCandidate(
+      final decision = hasSharedSecondary
+          ? _CandidateDecision(
+              useWhisper: false,
+              outputConfidence: qwenLine.confidence,
+              reason: 'shared_secondary_spans_multiple_primary_lines',
+            )
+          : _decideCandidate(
         qwenLine: qwenLine,
         whisperText: whisperText,
         whisperConfidence: whisperConfidence,
@@ -1067,6 +1070,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryConfidence': qwenLine.confidence,
             'alternativeEngine': 'whisper',
             'alternativeText': whisperText,
+            if (hasSharedSecondary) 'sharedSecondaryAcrossPrimaryLines': true,
             'alternativeConfidence': whisperConfidence,
             'qwenText': qwenLine.text,
             'qwenConfidence': qwenLine.confidence,
@@ -1140,6 +1144,31 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (overlapEnd > overlapStart) result.add(index);
     }
     return result;
+  }
+
+  // Determine sharing before making any replacement decisions: a secondary
+  // segment can correspond to several shorter primary rows.
+  ({List<List<int>> byPrimary, Set<int> shared}) _matchSecondaryLines(
+    List<LyricLine> primary,
+    List<LyricLine> secondary,
+  ) {
+    final byPrimary = <List<int>>[];
+    final counts = <int, int>{};
+    for (final line in primary) {
+      final matches = _correspondingSecondaryLineIndices(
+        primaryLine: line,
+        secondaryLines: secondary,
+        overlappingIndices: _overlappingLineIndices(line, secondary),
+      );
+      byPrimary.add(matches);
+      for (final index in matches) {
+        counts[index] = (counts[index] ?? 0) + 1;
+      }
+    }
+    return (
+      byPrimary: byPrimary,
+      shared: {for (final entry in counts.entries) if (entry.value > 1) entry.key},
+    );
   }
 
   /// Select secondary rows that plausibly describe the same lyric as the
