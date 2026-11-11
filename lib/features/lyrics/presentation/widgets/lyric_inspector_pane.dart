@@ -367,10 +367,15 @@ class _LineInspectorState extends State<LineInspector> {
               primaryText: _primaryText(),
               currentText: _workingLine.text,
               alternativeText: alternative!,
-              onApply: widget.fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] == true
+              onApply:
+                  widget.fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] ==
+                      true
                   ? null
                   : () => _applyCandidate(alternative),
-              sharedSecondary: widget.fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] == true,
+              sharedSecondary:
+                  widget
+                      .fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] ==
+                  true,
               onApplyPrimary: _primaryText() == null
                   ? null
                   : () => _applyCandidate(_primaryText()!),
@@ -580,9 +585,9 @@ class AlternativeCandidateCard extends StatelessWidget {
           if (sharedSecondary)
             Text(
               '备选片段对应多行歌词，无法直接替换单行；请结合音频手动校对。',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
             )
           else
             Align(

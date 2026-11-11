@@ -1621,47 +1621,89 @@ void main() {
 
       await service.dispose();
     });
-    test('shared secondary segment stays review-only for both engine orders', () async {
-      for (final engineOrder in TranscriptionEngineOrder.values) {
-        for (final confidence in [35, 95]) {
-          final split = [
-            LyricLine(id: 'a', text: 'we are', startTime: const Duration(seconds: 10),
-                endTime: const Duration(seconds: 12), confidence: confidence),
-            LyricLine(id: 'b', text: 'here now', startTime: const Duration(seconds: 11),
-                endTime: const Duration(seconds: 13), confidence: confidence),
-          ];
-          const combined = LyricLine(text: 'we are here now',
-              startTime: Duration(seconds: 10), endTime: Duration(seconds: 13),
-              confidence: 92);
-          final qwenIsPrimary = engineOrder == TranscriptionEngineOrder.qwenPrimary;
-          final service = HighQualityTranscriptionService(
-            primary: _FakeTranscriptionService(result: _resultLines(qwenIsPrimary ? split : [combined])),
-            fallback: _FakeTranscriptionService(result: _resultLines(qwenIsPrimary ? [combined] : split)),
-          );
-          try {
-            final result = await service.transcribe(_request(tempDirectory.path, engineOrder: engineOrder));
-            expect(result.lyrics.lines.map((line) => line.text), ['we are', 'here now']);
-            expect(result.lyrics.lines.map((line) => line.id), ['a', 'b']);
-            expect(result.lyrics.lines.map((line) => line.confidence), [confidence, confidence]);
-            expect(result.lyrics.lines.map((line) => line.startTime), split.map((line) => line.startTime));
-            expect(result.lyrics.lines.map((line) => line.endTime), split.map((line) => line.endTime));
-            expect(result.lyrics.metadata['fallbackAppliedCount'], 0);
-            expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
-            final candidates = result.lyrics.metadata['fallbackCandidates'] as List;
-            expect(candidates, hasLength(2));
-            expect(candidates.map((c) => c['lineIndex']).toSet(), {0, 1});
-            for (final candidate in candidates) {
-              expect(candidate['sharedSecondaryAcrossPrimaryLines'], isTrue);
-              expect(candidate['reason'], 'shared_secondary_spans_multiple_primary_lines');
-              expect(candidate['alternativeText'], combined.text);
-              expect(candidate['selected'], qwenIsPrimary ? 'qwen' : 'whisper');
+    test(
+      'shared secondary segment stays review-only for both engine orders',
+      () async {
+        for (final engineOrder in TranscriptionEngineOrder.values) {
+          for (final confidence in [35, 95]) {
+            final split = [
+              LyricLine(
+                id: 'a',
+                text: 'we are',
+                startTime: const Duration(seconds: 10),
+                endTime: const Duration(seconds: 12),
+                confidence: confidence,
+              ),
+              LyricLine(
+                id: 'b',
+                text: 'here now',
+                startTime: const Duration(seconds: 11),
+                endTime: const Duration(seconds: 13),
+                confidence: confidence,
+              ),
+            ];
+            const combined = LyricLine(
+              text: 'we are here now',
+              startTime: Duration(seconds: 10),
+              endTime: Duration(seconds: 13),
+              confidence: 92,
+            );
+            final qwenIsPrimary =
+                engineOrder == TranscriptionEngineOrder.qwenPrimary;
+            final service = HighQualityTranscriptionService(
+              primary: _FakeTranscriptionService(
+                result: _resultLines(qwenIsPrimary ? split : [combined]),
+              ),
+              fallback: _FakeTranscriptionService(
+                result: _resultLines(qwenIsPrimary ? [combined] : split),
+              ),
+            );
+            try {
+              final result = await service.transcribe(
+                _request(tempDirectory.path, engineOrder: engineOrder),
+              );
+              expect(result.lyrics.lines.map((line) => line.text), [
+                'we are',
+                'here now',
+              ]);
+              expect(result.lyrics.lines.map((line) => line.id), ['a', 'b']);
+              expect(result.lyrics.lines.map((line) => line.confidence), [
+                confidence,
+                confidence,
+              ]);
+              expect(
+                result.lyrics.lines.map((line) => line.startTime),
+                split.map((line) => line.startTime),
+              );
+              expect(
+                result.lyrics.lines.map((line) => line.endTime),
+                split.map((line) => line.endTime),
+              );
+              expect(result.lyrics.metadata['fallbackAppliedCount'], 0);
+              expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);
+              final candidates =
+                  result.lyrics.metadata['fallbackCandidates'] as List;
+              expect(candidates, hasLength(2));
+              expect(candidates.map((c) => c['lineIndex']).toSet(), {0, 1});
+              for (final candidate in candidates) {
+                expect(candidate['sharedSecondaryAcrossPrimaryLines'], isTrue);
+                expect(
+                  candidate['reason'],
+                  'shared_secondary_spans_multiple_primary_lines',
+                );
+                expect(candidate['alternativeText'], combined.text);
+                expect(
+                  candidate['selected'],
+                  qwenIsPrimary ? 'qwen' : 'whisper',
+                );
+              }
+            } finally {
+              await service.dispose();
             }
-          } finally {
-            await service.dispose();
           }
         }
-      }
-    });
+      },
+    );
 
     test('preserves a novel secondary lyric inside an overlapping primary segment '
         'for both engine orders', () async {

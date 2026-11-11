@@ -601,12 +601,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
     final lines = List<LyricLine>.from(whisperPrimary.lines);
     final candidates = <_RankedCandidate>[];
     final matchedSecondaryIndices = <int>{};
-    final matching = _matchSecondaryLines(whisperPrimary.lines, qwenSecondOpinion.lines);
+    final matching = _matchSecondaryLines(
+      whisperPrimary.lines,
+      qwenSecondOpinion.lines,
+    );
 
     for (var index = 0; index < whisperPrimary.lines.length; index++) {
       final whisperLine = whisperPrimary.lines[index];
       final correspondingIndices = matching.byPrimary[index];
-      final hasSharedSecondary = correspondingIndices.any(matching.shared.contains);
+      final hasSharedSecondary = correspondingIndices.any(
+        matching.shared.contains,
+      );
       matchedSecondaryIndices.addAll(correspondingIndices);
       final qwenLines = [
         for (final secondaryIndex in correspondingIndices)
@@ -628,7 +633,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'whisperText': whisperLine.text,
                 'whisperConfidence': whisperLine.confidence,
                 'selected': 'whisper',
-                'reason': _overlappingLineIndices(whisperLine, qwenSecondOpinion.lines).isEmpty
+                'reason':
+                    _overlappingLineIndices(
+                      whisperLine,
+                      qwenSecondOpinion.lines,
+                    ).isEmpty
                     ? 'qwen_no_overlap'
                     : 'qwen_no_corresponding_line',
               },
@@ -657,13 +666,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
               reason: 'shared_secondary_spans_multiple_primary_lines',
             )
           : _decideWhisperPrimaryCandidate(
-        whisperLine: whisperLine,
-        qwenText: qwenText,
-        qwenConfidence: qwenConfidence,
-        qwenConfidenceSource: qwenConfidenceSource,
-        similarity: similarity,
-        durationRatio: durationRatio,
-      );
+              whisperLine: whisperLine,
+              qwenText: qwenText,
+              qwenConfidence: qwenConfidence,
+              qwenConfidenceSource: qwenConfidenceSource,
+              similarity: similarity,
+              durationRatio: durationRatio,
+            );
 
       candidates.add(
         _RankedCandidate(
@@ -1000,7 +1009,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
     for (var index = 0; index < primary.lines.length; index++) {
       final qwenLine = primary.lines[index];
       final correspondingIndices = matching.byPrimary[index];
-      final hasSharedSecondary = correspondingIndices.any(matching.shared.contains);
+      final hasSharedSecondary = correspondingIndices.any(
+        matching.shared.contains,
+      );
       matchedSecondaryIndices.addAll(correspondingIndices);
       final whisperLines = [
         for (final secondaryIndex in correspondingIndices)
@@ -1018,7 +1029,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 'qwenText': qwenLine.text,
                 'qwenConfidence': qwenLine.confidence,
                 'selected': 'qwen',
-                'reason': _overlappingLineIndices(qwenLine, fallback.lines).isEmpty
+                'reason':
+                    _overlappingLineIndices(qwenLine, fallback.lines).isEmpty
                     ? 'whisper_no_overlap'
                     : 'whisper_no_corresponding_line',
               },
@@ -1047,13 +1059,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
               reason: 'shared_secondary_spans_multiple_primary_lines',
             )
           : _decideCandidate(
-        qwenLine: qwenLine,
-        whisperText: whisperText,
-        whisperConfidence: whisperConfidence,
-        whisperConfidenceSource: whisperConfidenceSource,
-        similarity: similarity,
-        durationRatio: durationRatio,
-      );
+              qwenLine: qwenLine,
+              whisperText: whisperText,
+              whisperConfidence: whisperConfidence,
+              whisperConfidenceSource: whisperConfidenceSource,
+              similarity: similarity,
+              durationRatio: durationRatio,
+            );
 
       candidates.add(
         _RankedCandidate(
@@ -1167,7 +1179,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
     return (
       byPrimary: byPrimary,
-      shared: {for (final entry in counts.entries) if (entry.value > 1) entry.key},
+      shared: {
+        for (final entry in counts.entries)
+          if (entry.value > 1) entry.key,
+      },
     );
   }
 

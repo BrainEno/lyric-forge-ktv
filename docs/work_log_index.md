@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **ASR segmentation safety:** a secondary segment shared by multiple primary rows remains review-only, with one-click single-line adoption withheld. See [shared ASR segments](log/entries/2026-11-07-2049-protect-shared-asr-segments.md); accuracy against manually reviewed songs is still unmeasured.
+
 - **ASR installation safety:** preflight cancellation and a per-caller installation lease wrapper are tested; the wrapper has no production callers, and shared-caller cancellation and app-scoped installation leases remain unconnected. See [installation ownership](log/entries/2026-11-07-2050-coordinate-asr-installation.md), [preflight cancellation](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md), and `docs/handoff.md`.
 
 - **Immersive KTV chrome lifecycle:** App-level chrome notifications must occur after route mount/dispose frames so a child route cannot mark an ancestor `ValueListenableBuilder` dirty while the tree is building. Regression coverage is in `immersive_ktv_recording_test.dart`.
