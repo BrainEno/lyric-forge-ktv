@@ -1,0 +1,28 @@
+name: Temporary fusion timing validation
+on:
+  push:
+    branches: [arena/e0a7c405-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format
+        run: |
+          dart format lib/features/transcription/domain/models/fusion_timing_evidence.dart lib/features/transcription/data/services/high_quality_transcription_service.dart lib/features/transcription/data/services/resumable_chunked_transcription_service.dart test/features/transcription/domain/models/fusion_timing_evidence_test.dart test/high_quality_transcription_service_test.dart test/resumable_chunked_transcription_service_test.dart
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=FORMAT{i//3000}::{data[i:i+3000]}')
+          PY
+      - name: Targeted tests
+        run: flutter test --no-pub --reporter expanded test/features/transcription/domain/models/fusion_timing_evidence_test.dart test/high_quality_transcription_service_test.dart test/resumable_chunked_transcription_service_test.dart test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart test/architecture_layer_imports_contract_test.dart
+      - name: Analyze
+        if: always()
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool

@@ -7,6 +7,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/transcription/data/services/asr_process_supervisor.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/resumable_chunked_transcription_service.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
+import 'package:lyric_forge_ktv/features/transcription/domain/models/fusion_timing_evidence.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_service.dart';
 
 void main() {
@@ -868,6 +869,50 @@ void main() {
         );
       },
     );
+
+    test('chunk evidence follows the winning row and restored checkpoints; legacy rows remain unknown', () async {
+      for (final legacyWinner in [false, true]) {
+        final directory = await Directory.systemTemp.createTemp('chunk-timing-evidence-');
+        addTearDown(() => directory.delete(recursive: true));
+        final input = File('${directory.path}/song.wav');
+        await input.writeAsBytes(List<int>.filled(128, 1));
+        final delegate = _ScriptedService((chunk) {
+          final line = chunk == 0
+              ? const LyricLine(text: 'hold on!', startTime: Duration(milliseconds: 2100), endTime: Duration(milliseconds: 2500), confidence: 60)
+              : const LyricLine(text: 'hold on', startTime: Duration(milliseconds: 100), endTime: Duration(milliseconds: 500), confidence: 90);
+          return LyricDocument(language: 'en', lines: [line], metadata: {
+            if (chunk == 0 || !legacyWinner)
+              FusionTimingEvidence.metadataKey: FusionTimingEvidence.wrap([
+                FusionTimingEvidence.entry(lineIndex: 0, result: line, timedText: chunk == 0 ? line.text : 'different original', secondaryOnly: false),
+              ]),
+          });
+        });
+        final service = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          processSupervisor: _FfmpegStub(durationLabel: '00:00:04.000').supervisor,
+        );
+        addTearDown(service.dispose);
+        final request = _request(input.path, directory.path);
+        final result = await service.transcribe(request);
+        expect(result.lyrics.lines.single.text, 'hold on');
+        expect(result.lyrics.lines.single.startTime, const Duration(milliseconds: 2100));
+        final evidence = FusionTimingEvidence.forLine(result.lyrics, 0);
+        if (legacyWinner) {
+          expect(evidence, isNull);
+          expect(result.lyrics.metadata.containsKey(FusionTimingEvidence.metadataKey), isFalse);
+        } else {
+          expect(evidence!['timedTextHash'], FusionTimingEvidence.textHash('different original'));
+          expect(evidence['needsRealignment'], isTrue);
+          expect(evidence['startMs'], 2100);
+          expect(evidence['endMs'], 2500);
+        }
+        final resumed = await service.transcribe(request);
+        expect(FusionTimingEvidence.forLine(resumed.lyrics, 0), evidence);
+        expect(delegate.outputDirectories, hasLength(2));
+      }
+    });
 
     test(
       'chunk overlap preserves the complete shared-segment review candidate',

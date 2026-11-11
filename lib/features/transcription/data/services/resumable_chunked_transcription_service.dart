@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/independent_asr_evidence.dart';
+import '../../domain/models/fusion_timing_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -554,6 +555,22 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   ) {
     final metadata = document.metadata;
     final candidates = metadata['fallbackCandidates'];
+    final timingEntries = <Map<String, dynamic>>[];
+    final validTiming = FusionTimingEvidence.validatedEntries(document);
+    for (var index = 0; index < document.lines.length; index++) {
+      final evidence = validTiming[index];
+      if (evidence == null) continue;
+      timingEntries.add({
+        ...evidence,
+        'startMs': document.lines[index].startTime.inMilliseconds + offset.inMilliseconds,
+        'endMs': document.lines[index].endTime.inMilliseconds + offset.inMilliseconds,
+      });
+    }
+    final shiftedMetadata = Map<String, dynamic>.from(metadata)
+      ..remove(FusionTimingEvidence.metadataKey);
+    if (timingEntries.isNotEmpty) {
+      shiftedMetadata[FusionTimingEvidence.metadataKey] = FusionTimingEvidence.wrap(timingEntries);
+    }
     return document.copyWith(
       lines: document.lines
           .map(
@@ -567,7 +584,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       // local time would describe the wrong part of the song.
       metadata: candidates is List
           ? {
-              ...metadata,
+              ...shiftedMetadata,
               'fallbackCandidates': <Map<String, dynamic>>[
                 for (final entry in candidates)
                   if (entry is Map)
@@ -578,7 +595,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                     ),
               ],
             }
-          : metadata,
+          : shiftedMetadata,
     );
   }
 
@@ -624,6 +641,9 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       return const LyricDocument(language: 'unknown', lines: []);
     }
     final lines = <LyricLine>[];
+    // Track the exact source row chosen by deduplication, not merely any
+    // overlapping row with similar text and potentially different timing.
+    final origins = <({int chunk, int index})>[];
     // For each chunk: its own line index -> index in `lines` before sorting.
     final indexMaps = <List<int>>[];
     for (var chunk = 0; chunk < documents.length; chunk++) {
@@ -673,10 +693,12 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           indexMap[index] = duplicateIndex;
           if (line.confidence > lines[duplicateIndex].confidence) {
             lines[duplicateIndex] = line;
+            origins[duplicateIndex] = (chunk: chunk, index: index);
           }
         } else {
           indexMap[index] = lines.length;
           lines.add(line);
+          origins.add((chunk: chunk, index: index));
         }
       }
       indexMaps.add(indexMap);
@@ -698,10 +720,19 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         ],
     ];
 
-    return documents.first.copyWith(
-      lines: sortedLines,
-      metadata: _mergeMetadata(documents, finalMaps),
-    );
+    final timingEntries = <Map<String, dynamic>>[];
+    final validTiming = [for (final document in documents) FusionTimingEvidence.validatedEntries(document)];
+    for (var index = 0; index < order.length; index++) {
+      final origin = origins[order[index]];
+      final evidence = validTiming[origin.chunk][origin.index];
+      if (evidence != null) timingEntries.add({...evidence, 'lineIndex': index});
+    }
+    final metadata = _mergeMetadata(documents, finalMaps);
+    metadata.remove(FusionTimingEvidence.metadataKey);
+    if (timingEntries.isNotEmpty) {
+      metadata[FusionTimingEvidence.metadataKey] = FusionTimingEvidence.wrap(timingEntries);
+    }
+    return documents.first.copyWith(lines: sortedLines, metadata: metadata);
   }
 
   /// Rebuilds document metadata across chunks instead of dropping it.
