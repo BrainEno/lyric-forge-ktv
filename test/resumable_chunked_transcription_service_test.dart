@@ -880,8 +880,19 @@ void main() {
             addTearDown(() => directory.delete(recursive: true));
             final input = File('${directory.path}/song.wav');
             await input.writeAsBytes(List<int>.filled(128, 1));
+            final originalSegments = <List<dynamic>>[];
             final delegate = _ScriptedService((chunk) {
               final shared = chunk == 0 ? firstShared : secondShared;
+              final segments = <dynamic>[
+                {
+                  'sourceIndex': 7,
+                  'text': chunk == 0 ? 'first evidence' : 'second evidence',
+                  'startMs': chunk == 0 ? 2100 : 100,
+                  'endMs': chunk == 0 ? 2900 : 900,
+                },
+                'unrecognized legacy entry',
+              ];
+              originalSegments.add(segments);
               return LyricDocument(
                 language: 'en',
                 lines: chunk == 0
@@ -921,6 +932,7 @@ void main() {
                           : 'second evidence',
                       'startMs': chunk == 0 ? 2100 : 100,
                       'endMs': chunk == 0 ? 2500 : 500,
+                      'secondarySegments': segments,
                       if (shared) 'sharedSecondaryAcrossPrimaryLines': true,
                       'reason': shared
                           ? 'shared_secondary_spans_multiple_primary_lines'
@@ -972,6 +984,16 @@ void main() {
             );
             expect(overlap['startMs'], 2100);
             expect(overlap['endMs'], 2500);
+            expect(overlap['secondarySegments'], [
+              {
+                'sourceIndex': 7,
+                'text': expectedSecond ? 'second evidence' : 'first evidence',
+                'startMs': 2100,
+                'endMs': 2900,
+              },
+              'unrecognized legacy entry',
+            ]);
+            expect((originalSegments[1].first as Map)['startMs'], 100);
             expect(
               candidates.singleWhere(
                 (entry) => entry['lineIndex'] == 2,

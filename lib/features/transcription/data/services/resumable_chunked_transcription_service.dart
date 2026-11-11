@@ -581,11 +581,29 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     Map<String, dynamic> candidate,
     Duration offset,
   ) {
-    for (final key in const ['startMs', 'endMs']) {
-      final value = candidate[key];
-      if (value is num) {
-        candidate[key] = value.toInt() + offset.inMilliseconds;
+    void shift(Map<String, dynamic> entry) {
+      for (final key in const ['startMs', 'endMs']) {
+        final value = entry[key];
+        if (value is num) {
+          entry[key] = value.toInt() + offset.inMilliseconds;
+        }
       }
+    }
+
+    shift(candidate);
+    final segments = candidate['secondarySegments'];
+    if (segments is List) {
+      candidate['secondarySegments'] = [
+        for (final segment in segments)
+          if (segment is Map && segment.keys.every((key) => key is String))
+            (() {
+              final copy = Map<String, dynamic>.from(segment);
+              shift(copy);
+              return copy;
+            })()
+          else
+            segment,
+      ];
     }
     return candidate;
   }

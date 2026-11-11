@@ -1687,6 +1687,14 @@ void main() {
               expect(candidates.map((c) => c['lineIndex']).toSet(), {0, 1});
               for (final candidate in candidates) {
                 expect(candidate['sharedSecondaryAcrossPrimaryLines'], isTrue);
+                expect(candidate['secondarySegments'], [
+                  {
+                    'sourceIndex': 0,
+                    'text': combined.text,
+                    'startMs': 10000,
+                    'endMs': 13000,
+                  },
+                ]);
                 expect(
                   candidate['reason'],
                   'shared_secondary_spans_multiple_primary_lines',
@@ -1783,6 +1791,31 @@ void main() {
           // raised. A review candidate is not an inserted row: the merged text
           // stays exactly the primary line.
           expect(result.lyrics.metadata['fallbackCandidateCount'], 1);
+          if (engineOrder == TranscriptionEngineOrder.qwenPrimary) {
+            final candidate =
+                (result.lyrics.metadata['fallbackCandidates'] as List).single
+                    as Map;
+            expect(candidate['secondarySegments'], [
+              {
+                'sourceIndex': 0,
+                'text': 'we are dancing',
+                'startMs': 10000,
+                'endMs': 11700,
+              },
+              {
+                'sourceIndex': 2,
+                'text': 'dancing',
+                'startMs': 12350,
+                'endMs': 12700,
+              },
+              {
+                'sourceIndex': 3,
+                'text': 'through the night',
+                'startMs': 12700,
+                'endMs': 13900,
+              },
+            ]);
+          }
           expect(lines.map((line) => line.text).toSet(), hasLength(2));
         } finally {
           await service.dispose();
