@@ -2,26 +2,26 @@
 
 ## 目标
 
-推进 #323：把参考歌词对齐的准备、保护行应用、时间轴可用性判断与备份/溯源组装迁至无 UI 用例；保留编辑器 revision 守卫与用户确认。本轮不关闭 #323。
+推进 #319：允许智能校对 V2 的自动策略配置第二份带时间戳的 ASR 稿和 ForcedAligner，并在复核中说明实际采用和未采用的证据。本轮不关闭 #319。
 
 ## Git 现场
 
-活动分支 `arena/e784ef9f-lyric-forge-ktv`，基线 `90d35f5c6af5b7ea008b3da31d1402984d43bfeb`。最终状态请用 `git status --short`、`git diff --stat`、`git log --oneline -5` 核对；临时验证 workflow 不应留在交付差异中。
+活动分支 `arena/ab5280bf-lyric-forge-ktv`，基线 `9fe4f89d1dd5e48441f5fbe4651923afade4f34c`。最终状态请运行 `git status --short`、`git diff --stat`、`git log --oneline -5`；临时验证 workflow 不应留在交付差异中。
 
 ## 已改文件
 
-参考对齐领域用例、编辑器 screen、领域用例及编辑器 widget 回归测试、工作日志导航和本交接。用例只生成提案，不持久化；调用方仍须检查 revision 并在必要时确认时间轴冲突。
+V2 配置及复核弹窗、结构化解释与复核组装器、编排用例；策略矩阵、配置/复核可达性、编辑器回归测试及文案测试；工作日志和本交接。自动策略提供的第二稿在确定策略之前先校验格式。
 
 ## 检查结果
 
-本地无 Flutter/Dart。固定 Flutter 3.47.7 的 Actions 43048158770 通过变更文件格式、领域/编辑器/架构定向测试与 `flutter analyze --no-pub --no-fatal-infos lib test tool`。工作日志由 Dart 工具生成并检查，正式 PR 质量门禁另行检查。
+本地无 Flutter/Dart。固定 Flutter 3.47.7 的 Actions 43065960949 通过变更文件格式、定向领域/编辑器/小窗口/键盘和架构测试，及 `flutter analyze --no-pub --no-fatal-infos lib test tool`；工作日志通过 Dart 工具生成与检查，正式 PR 质量门禁另行检查。
 
 ## 下一步
 
-继续 #323：screen 仍 2014 行，三个入口仍需缩短，并完成 UX 文档全量审计；也需审计校对之外的其他异步操作。
+继续 #319：先安全验证工程现有独立双引擎快照的来源和时效，再设计生产接入；参考歌词配合 ForcedAligner 生成可复核时间提案仍需独立设计与验证。
 
 ## 已知风险
 
-#323 未达到全部验收，#319 第二意见自动读取和参考优先 ForcedAligner 仍未实现。内存 revision 守卫不替代持久化并发控制。未在真实设备或原生文件选择器、真实音频和屏幕阅读器上手测，也未评估实歌准确率。
+未自动读取 Whisper/工程快照或支持分片证据；参考优先仍不运行 ForcedAligner，结果中明确说明；真实对齐由测试替身模拟，不代表实歌准确率。未在原生设备、真实屏幕阅读器和音频环境人工测试；#416 未满足人工读屏验收，#323 整体重构仍未完成。
 
 最后更新：2026-11-07（Asia/Taipei）

@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Automatic V2 evidence (#319):** auto strategy accepts optional pasted ASR evidence and ForcedAligner; review identifies ignored evidence and fallbacks. Reference-first alignment and automatic snapshot loading remain open.
+
 - **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
 
 - **Reference proofreading extraction (#323):** a domain plan prepares and applies text-only or evidence-backed corrections; reference alignment and proofreading now check editor revisions across modal waits. Other editor flows and screen size remain follow-up work.
