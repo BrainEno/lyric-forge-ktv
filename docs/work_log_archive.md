@@ -100,6 +100,7 @@
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
 - [2026-11-07 23:20] Compare ASR candidate versions ([entry](log/entries/2026-11-07-2320-compare-asr-candidates.md))
+- [2026-11-07 23:11] Track feature dependencies and state ownership ([entry](log/entries/2026-11-07-2311-feature-dependency-ratchet.md))
 - [2026-11-07 23:10] Protect split ASR confidence evidence ([entry](log/entries/2026-11-07-2310-protect-split-asr-confidence.md))
 - [2026-11-07 23:05] Make proofreading options accessible ([entry](log/entries/2026-11-07-2305-accessible-proofread-options.md))
 - [2026-11-07 23:00] Guard incomparable ASR review evidence ([entry](log/entries/2026-11-07-2300-guard-incomparable-asr-review.md))

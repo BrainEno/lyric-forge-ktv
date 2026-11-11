@@ -131,7 +131,9 @@ void main() {
     });
 
     test('handles a byte-order mark and script shebang before imports', () {
-      expect(directiveUris('\uFEFF#!/usr/bin/env dart\nimport \'a.dart\';'), ['a.dart']);
+      expect(directiveUris('\uFEFF#!/usr/bin/env dart\nimport \'a.dart\';'), [
+        'a.dart',
+      ]);
     });
 
     test('rejects percent-encoded paths and URI suffixes', () {

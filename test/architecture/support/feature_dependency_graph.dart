@@ -211,8 +211,12 @@ List<_Token> _tokenize(String source) {
       c == 36;
   while (i < source.length) {
     final c = source[i];
-    if (i == 0 && c == '\uFEFF') { i++; continue; }
-    if ((i == 0 || (i == 1 && source[0] == '\uFEFF')) && source.startsWith('#!', i)) {
+    if (i == 0 && c == '\uFEFF') {
+      i++;
+      continue;
+    }
+    if ((i == 0 || (i == 1 && source[0] == '\uFEFF')) &&
+        source.startsWith('#!', i)) {
       final end = source.indexOf('\n', i + 2);
       i = end == -1 ? source.length : end + 1;
       continue;
