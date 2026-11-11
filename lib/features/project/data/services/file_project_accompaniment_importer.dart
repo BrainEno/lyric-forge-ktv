@@ -11,7 +11,8 @@ import '../../domain/services/project_accompaniment_importer.dart';
 import '../../domain/services/project_vocal_importer.dart';
 
 /// Copies a user-selected stem into application storage before linking it.
-class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter, ProjectVocalImporter {
+class FileProjectAccompanimentImporter
+    implements ProjectAccompanimentImporter, ProjectVocalImporter {
   final ProjectRepository projectRepository;
   final Directory? storageDirectory;
   final Future<String?> Function()? pickPath;
@@ -49,7 +50,10 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter, 
   Future<ProjectManifest?> importVocalFor(ProjectManifest project) =>
       _import(project, vocal: true);
 
-  Future<ProjectManifest?> _import(ProjectManifest project, {required bool vocal}) async {
+  Future<ProjectManifest?> _import(
+    ProjectManifest project, {
+    required bool vocal,
+  }) async {
     final audio = project.audioAsset;
     if (audio == null) throw StateError('Project has no original audio');
     final path = await _pick(vocal: vocal);

@@ -198,13 +198,25 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     }
   }
 
-  Future<void> _importStem(ProjectManifest project, {required bool vocal}) async {
-    if (!_isDesktop || _isTranscribing || _isImportingStem || project.audioAsset == null) return;
+  Future<void> _importStem(
+    ProjectManifest project, {
+    required bool vocal,
+  }) async {
+    if (!_isDesktop ||
+        _isTranscribing ||
+        _isImportingStem ||
+        project.audioAsset == null)
+      return;
     // Reserve the operation before awaiting the confirmation dialog or picker.
-    setState(() { _isImportingStem = true; _importingVocal = vocal; });
+    setState(() {
+      _isImportingStem = true;
+      _importingVocal = vocal;
+    });
     final label = vocal ? '人声' : '伴奏';
     try {
-      final existing = vocal ? project.audioAsset!.vocalPath : project.audioAsset!.instrumentalPath;
+      final existing = vocal
+          ? project.audioAsset!.vocalPath
+          : project.audioAsset!.instrumentalPath;
       if (existing != null) {
         final confirmed = await showDialog<bool>(
           context: context,
@@ -212,8 +224,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             title: Text('更换$label？'),
             content: Text('工程将使用新选择的$label，原文件不会删除。请选择与原曲时间轴一致的音频。'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('选择新$label')),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('选择新$label'),
+              ),
             ],
           ),
         );
@@ -242,9 +260,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(synchronized
-              ? '$label已导入，并同步到当前播放队列。'
-              : '$label已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。'),
+          content: Text(
+            synchronized
+                ? '$label已导入，并同步到当前播放队列。'
+                : '$label已导入。若此工程正在播放，请先切换歌曲，再重新打开工程播放器。',
+          ),
           duration: const Duration(seconds: 7),
         ),
       );
@@ -252,14 +272,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       if (!mounted) return;
       await _refreshProject();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('工程已发生变化，未替换$label；请刷新后重试。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('工程已发生变化，未替换$label；请刷新后重试。')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('导入$label失败，请检查文件和存储空间后重试。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('导入$label失败，请检查文件和存储空间后重试。')));
     } finally {
       if (mounted) setState(() => _isImportingStem = false);
     }
@@ -463,8 +483,7 @@ class _ProjectDetailContent extends StatelessWidget {
                                 project: project,
                                 isDesktop: isDesktop,
                                 isTranscribing: isTranscribing,
-                                isImportingStem:
-                                    isImportingStem,
+                                isImportingStem: isImportingStem,
                                 isImportingVocal: isImportingVocal,
                                 onImportAccompaniment: onImportAccompaniment,
                                 onImportVocal: onImportVocal,
@@ -1153,9 +1172,17 @@ class _ActionPanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               style: outlinedStyle,
-              onPressed: isTranscribing || isImportingStem ? null : onImportVocal,
+              onPressed: isTranscribing || isImportingStem
+                  ? null
+                  : onImportVocal,
               icon: const Icon(Icons.mic_none_rounded),
-              label: Text(isImportingStem && isImportingVocal ? '正在导入人声…' : project.audioAsset!.vocalPath == null ? '导入已有人声' : '更换人声'),
+              label: Text(
+                isImportingStem && isImportingVocal
+                    ? '正在导入人声…'
+                    : project.audioAsset!.vocalPath == null
+                    ? '导入已有人声'
+                    : '更换人声',
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(

@@ -44,7 +44,10 @@ void main() {
         );
         expect(readme, contains('import an existing accompaniment file'));
         expect(readme, contains('an existing vocal stem'));
-        expect(readme, contains('preferred for transcription and forced alignment'));
+        expect(
+          readme,
+          contains('preferred for transcription and forced alignment'),
+        );
         expect(readme, contains('referenced file must be accessible'));
         expect(prd, contains('当前版本尚未实现人声/伴奏分离'));
         expect(prd, contains('桌面工程详情可导入已有伴奏'));

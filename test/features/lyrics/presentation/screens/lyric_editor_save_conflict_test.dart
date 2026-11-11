@@ -59,7 +59,12 @@ void main() {
 
   testWidgets('forced alignment uses the imported vocal path', (tester) async {
     String? usedPath;
-    await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+    await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) async {
       usedPath = audioPath;
       return [];
     }, vocalPath: '/managed/人声.wav');
@@ -69,9 +74,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('forced alignment falls back to original when no vocal exists', (tester) async {
+  testWidgets('forced alignment falls back to original when no vocal exists', (
+    tester,
+  ) async {
     String? usedPath;
-    await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+    await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) async {
       usedPath = audioPath;
       return [];
     });
