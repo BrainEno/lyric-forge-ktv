@@ -11,6 +11,7 @@ import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_a
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_export_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_import_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/data/services/local_lyric_file_import_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_editor_dependencies.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/screens/lyric_editor_screen.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/playback_state.dart';
@@ -326,29 +327,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('untimed secondary input reports an error without modifying lyrics', (tester) async {
-    var calls = 0;
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
-      calls++;
-      return [];
-    });
-    await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('智能校对 V2'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('ASR 优先'));
-    await tester.pumpAndSettle();
-    final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
-    await tester.ensureVisible(field);
-    await tester.enterText(field, 'no timestamps here');
-    await tester.tap(find.text('继续'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('必须为每行都带时间戳'), findsOneWidget);
-    expect(editor.document!.lines.single.text, 'Human lyric');
-    expect(editor.hasChanges, isFalse);
-    expect(calls, 0);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'untimed secondary input reports an error without modifying lyrics',
+    (tester) async {
+      var calls = 0;
+      final editor = await _openEditor(tester, ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) async {
+        calls++;
+        return [];
+      });
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ASR 优先'));
+      await tester.pumpAndSettle();
+      final field = find.byKey(
+        const ValueKey('secondary_asr_transcript_input'),
+      );
+      await tester.ensureVisible(field);
+      await tester.enterText(field, 'no timestamps here');
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('必须为每行都带时间戳'), findsOneWidget);
+      expect(editor.document!.lines.single.text, 'Human lyric');
+      expect(editor.hasChanges, isFalse);
+      expect(calls, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('busy alignment explains retry and never changes lyrics', (
     tester,
@@ -545,7 +556,7 @@ Future<LyricEditorDocumentController> _openEditor(
           playbackSession: _FakePlaybackSession(),
           audioPlayer: _FakeAudioPlayer(),
           lyricFileExport: _FakeLyricFileExport(),
-          lyricFileImport: _FakeLyricFileImport(),
+          lyricFileImport: LocalLyricFileImportService(),
           forcedAlignmentRunner: runner,
         ),
       ),

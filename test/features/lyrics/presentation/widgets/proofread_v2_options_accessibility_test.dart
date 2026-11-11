@@ -168,14 +168,21 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('keyboard can cancel after entering a transcript', (tester) async {
+  testWidgets('keyboard can cancel after entering a transcript', (
+    tester,
+  ) async {
     var completed = false;
     ProofreadV2RunOptions? result;
     await _configureView(tester, const Size(800, 480));
-    await tester.pumpWidget(_host(scale: 2, onResult: (value) {
-      completed = true;
-      result = value;
-    }));
+    await tester.pumpWidget(
+      _host(
+        scale: 2,
+        onResult: (value) {
+          completed = true;
+          result = value;
+        },
+      ),
+    );
     await _open(tester);
     await _tabUntil(tester, find.text('ASR 优先'));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -192,30 +199,44 @@ void main() {
     _expectNoException(tester, 'keyboard cancellation');
   });
 
-  testWidgets('resizing preserves entered options and leaves actions reachable', (tester) async {
-    ProofreadV2RunOptions? result;
-    await _configureView(tester, const Size(800, 600));
-    await tester.pumpWidget(_host(scale: 2, onResult: (value) => result = value));
-    await _open(tester);
-    await tester.ensureVisible(find.text('ASR 优先'));
-    await tester.tap(find.text('ASR 优先'));
-    await tester.pumpAndSettle();
-    final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
-    await tester.ensureVisible(field);
-    await tester.enterText(field, '[00:01.00] retained');
-    await tester.pumpAndSettle();
-    for (final size in [const Size(320, 568), const Size(800, 480), const Size(1024, 768)]) {
-      tester.view.physicalSize = size;
+  testWidgets(
+    'resizing preserves entered options and leaves actions reachable',
+    (tester) async {
+      ProofreadV2RunOptions? result;
+      await _configureView(tester, const Size(800, 600));
+      await tester.pumpWidget(
+        _host(scale: 2, onResult: (value) => result = value),
+      );
+      await _open(tester);
+      await tester.ensureVisible(find.text('ASR 优先'));
+      await tester.tap(find.text('ASR 优先'));
       await tester.pumpAndSettle();
-      _expectNoException(tester, 'resizing to $size');
-      expect(tester.widget<TextField>(field).controller!.text, '[00:01.00] retained');
-      expect(find.text('继续').hitTestable(), findsOneWidget);
-      expect(find.text('取消').hitTestable(), findsOneWidget);
-    }
-    await tester.tap(find.text('继续'));
-    await tester.pumpAndSettle();
-    expect(result?.secondaryTranscriptText, '[00:01.00] retained');
-  });
+      final field = find.byKey(
+        const ValueKey('secondary_asr_transcript_input'),
+      );
+      await tester.ensureVisible(field);
+      await tester.enterText(field, '[00:01.00] retained');
+      await tester.pumpAndSettle();
+      for (final size in [
+        const Size(320, 568),
+        const Size(800, 480),
+        const Size(1024, 768),
+      ]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        _expectNoException(tester, 'resizing to $size');
+        expect(
+          tester.widget<TextField>(field).controller!.text,
+          '[00:01.00] retained',
+        );
+        expect(find.text('继续').hitTestable(), findsOneWidget);
+        expect(find.text('取消').hitTestable(), findsOneWidget);
+      }
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+      expect(result?.secondaryTranscriptText, '[00:01.00] retained');
+    },
+  );
 
   testWidgets('keyboard traverses strategy, toggle, text and continue', (
     tester,
