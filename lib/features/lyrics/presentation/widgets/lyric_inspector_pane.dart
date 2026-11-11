@@ -367,7 +367,15 @@ class _LineInspectorState extends State<LineInspector> {
               primaryText: _primaryText(),
               currentText: _workingLine.text,
               alternativeText: alternative!,
-              onApply: () => _applyCandidate(alternative),
+              onApply:
+                  widget.fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] ==
+                      true
+                  ? null
+                  : () => _applyCandidate(alternative),
+              sharedSecondary:
+                  widget
+                      .fallbackCandidate!['sharedSecondaryAcrossPrimaryLines'] ==
+                  true,
               onApplyPrimary: _primaryText() == null
                   ? null
                   : () => _applyCandidate(_primaryText()!),
@@ -518,8 +526,9 @@ class AlternativeCandidateCard extends StatelessWidget {
   final String? primaryText;
   final String currentText;
   final String alternativeText;
-  final VoidCallback onApply;
+  final VoidCallback? onApply;
   final VoidCallback? onApplyPrimary;
+  final bool sharedSecondary;
 
   const AlternativeCandidateCard({
     required this.primaryEngine,
@@ -529,6 +538,7 @@ class AlternativeCandidateCard extends StatelessWidget {
     required this.alternativeText,
     required this.onApply,
     required this.onApplyPrimary,
+    this.sharedSecondary = false,
   });
 
   @override
@@ -572,14 +582,22 @@ class AlternativeCandidateCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           _CandidateDiffText(segments: segments, showAlternative: true),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: onApply,
-              style: TextButton.styleFrom(minimumSize: Size(0, minHeight)),
-              child: const Text('采用备选'),
+          if (sharedSecondary)
+            Text(
+              '备选片段对应多行歌词，无法直接替换单行；请结合音频手动校对。',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onApply,
+                style: TextButton.styleFrom(minimumSize: Size(0, minHeight)),
+                child: const Text('采用备选'),
+              ),
             ),
-          ),
           Text(
             '高亮为两份文本的差异；编辑框显示当前歌词。采用只替换文字，不更改时间。',
             style: Theme.of(
