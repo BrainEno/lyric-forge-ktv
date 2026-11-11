@@ -689,6 +689,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryConfidence': whisperLine.confidence,
             'alternativeEngine': 'qwen',
             'alternativeText': qwenText,
+            'secondarySegments': _secondarySegmentEvidence(
+              qwenSecondOpinion.lines,
+              correspondingIndices,
+            ),
             if (hasSharedSecondary) 'sharedSecondaryAcrossPrimaryLines': true,
             'alternativeConfidence': qwenConfidence,
             'whisperText': whisperLine.text,
@@ -1082,6 +1086,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'primaryConfidence': qwenLine.confidence,
             'alternativeEngine': 'whisper',
             'alternativeText': whisperText,
+            'secondarySegments': _secondarySegmentEvidence(
+              fallback.lines,
+              correspondingIndices,
+            ),
             if (hasSharedSecondary) 'sharedSecondaryAcrossPrimaryLines': true,
             'alternativeConfidence': whisperConfidence,
             'qwenText': qwenLine.text,
@@ -1157,6 +1165,21 @@ class HighQualityTranscriptionService implements TranscriptionService {
     }
     return result;
   }
+
+  // These are the secondary engine's local segments, not the primary row's
+  // timestamps. The index is meaningful only within this engine invocation.
+  List<Map<String, Object>> _secondarySegmentEvidence(
+    List<LyricLine> lines,
+    List<int> indices,
+  ) => [
+    for (final index in indices)
+      {
+        'sourceIndex': index,
+        'text': lines[index].text,
+        'startMs': lines[index].startTime.inMilliseconds,
+        'endMs': lines[index].endTime.inMilliseconds,
+      },
+  ];
 
   // Determine sharing before making any replacement decisions: a secondary
   // segment can correspond to several shorter primary rows.

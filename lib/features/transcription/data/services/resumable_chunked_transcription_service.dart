@@ -269,7 +269,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           );
         }
 
-        final shifted = _shiftDocument(result.lyrics, chunk.start);
+        final shifted = _shiftDocument(result.lyrics, chunk.start, index);
         await resultFile.writeAsString(
           const JsonEncoder.withIndent('  ').convert({
             'id': id,
@@ -547,7 +547,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     }
   }
 
-  LyricDocument _shiftDocument(LyricDocument document, Duration offset) {
+  LyricDocument _shiftDocument(
+    LyricDocument document,
+    Duration offset,
+    int chunkIndex,
+  ) {
     final metadata = document.metadata;
     final candidates = metadata['fallbackCandidates'];
     return document.copyWith(
@@ -570,6 +574,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                     _shiftCandidateTimes(
                       Map<String, dynamic>.from(entry),
                       offset,
+                      chunkIndex,
                     ),
               ],
             }
@@ -580,12 +585,33 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   Map<String, dynamic> _shiftCandidateTimes(
     Map<String, dynamic> candidate,
     Duration offset,
+    int chunkIndex,
   ) {
-    for (final key in const ['startMs', 'endMs']) {
-      final value = candidate[key];
-      if (value is num) {
-        candidate[key] = value.toInt() + offset.inMilliseconds;
+    void shift(Map<String, dynamic> entry) {
+      for (final key in const ['startMs', 'endMs']) {
+        final value = entry[key];
+        if (value is num) {
+          entry[key] = value.toInt() + offset.inMilliseconds;
+        }
       }
+    }
+
+    shift(candidate);
+    final segments = candidate['secondarySegments'];
+    if (segments is List) {
+      // sourceIndex is local to this chunk's secondary engine invocation.
+      candidate['secondarySegmentChunkIndex'] = chunkIndex;
+      candidate['secondarySegments'] = [
+        for (final segment in segments)
+          if (segment is Map && segment.keys.every((key) => key is String))
+            (() {
+              final copy = Map<String, dynamic>.from(segment);
+              shift(copy);
+              return copy;
+            })()
+          else
+            segment,
+      ];
     }
     return candidate;
   }
@@ -737,7 +763,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     );
 
     final candidates = <Map<String, dynamic>>[];
-    final candidateLines = <int>{};
+    final candidatePositions = <int, int>{};
     var appliedCount = 0;
     var hasCandidateKey = false;
     for (var chunk = 0; chunk < documents.length; chunk++) {
@@ -752,11 +778,19 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         final candidate = Map<String, dynamic>.from(entry);
         final lineIndex = remap(chunk, candidate['lineIndex']);
         if (lineIndex < 0) continue;
-        // A line that both chunks saw twice needs one candidate, not two; the
-        // editor looks candidates up per line.
-        if (!candidateLines.add(lineIndex)) continue;
         candidate['lineIndex'] = lineIndex;
-        candidates.add(candidate);
+        // Overlap copies map to one row. Prefer evidence that disables unsafe
+        // single-row adoption; otherwise retain the first candidate.
+        final position = candidatePositions[lineIndex];
+        if (position == null) {
+          candidatePositions[lineIndex] = candidates.length;
+          candidates.add(candidate);
+        } else if (candidate['sharedSecondaryAcrossPrimaryLines'] == true &&
+            candidates[position]['sharedSecondaryAcrossPrimaryLines'] != true) {
+          // Keep the complete ambiguous evidence, not just its flag: the
+          // alternative text and times must describe the same candidate.
+          candidates[position] = candidate;
+        }
       }
     }
 

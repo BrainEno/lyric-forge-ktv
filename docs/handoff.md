@@ -2,30 +2,28 @@
 
 ## 目标
 
-继续改进歌词识别质量和 #319 独立重识别安全接入。本阶段修复双引擎多对一分段时，次引擎长句可能自动替换多个主引擎行的问题；跨行候选只供人工复核，校对面板不提供单行一键采用。
+继续解决跨分片的双引擎重复歌词。本阶段为双引擎候选保存每个次引擎片段的原文、源序号和时间，分片结果换算成整段音频时间并标记分片来源；只增加证据，不自动检测、替换或删除歌词。
 
 ## Git 现场
 
-基线 `c6e6406e2b71674d52664aae3a52d6d8306c1ee0`，分支 `arena/fe82655d-lyric-forge-ktv`。记录前 `git status --short` 显示融合服务、校对面板和各自测试 4 个已修改文件，`git diff --stat` 为 4 files changed, 165 insertions(+), 76 deletions(-)（相对首个提交的格式调整）；`git log --oneline -5` 为 `50c4073 Protect shared secondary ASR segments`、`c6e6406 Merge pull request #410`。以当前 Git 状态为准，临时验证 workflow 不应进入 PR。
+活动分支 `arena/d30617d4-lyric-forge-ktv`，开放 PR #412。阶段起点 `df947c51d4d2970b368b90f65da1578bbc58b058`，原始 main 基线 `5bea6660ca5ec95e2a0c4f9d702fcdba6a7f79bf`。记录前 `git status --short`：`M test/resumable_chunked_transcription_service_test.dart`；`git diff --stat`：1 file changed, 7 insertions(+), 4 deletions(-)（格式调整）。`git log --oneline -5`：`da859f2 Track secondary evidence chunk origin`、`81a14bb Record secondary ASR segment evidence`、`df947c5 Record ASR chunk review validation`、`be97a21 Document shared ASR chunk review`、`828a63a Preserve shared ASR review across chunks`。以当前 Git 状态为准；临时验证 workflow 不应进入 PR。
 
 ## 已改文件
 
-`high_quality_transcription_service.dart`、`lyric_inspector_pane.dart`、相应双引擎与 widget 测试、交接及工作日志导航。
+双引擎融合与分片服务、对应定向测试，以及交接和工作日志导航；前一阶段的分片复核保护也仍在 PR #412。
 
 ## 检查结果
 
-本地无 Flutter/Dart。固定 SDK Actions 42943660214：格式、`test/high_quality_transcription_service_test.dart`、`test/resumable_chunked_transcription_service_test.dart`、`test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart` 及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。工作日志和正式 PR 门禁另见后续 Actions；真实模型、歌曲和设备未验证。
+本地无 Flutter/Dart。固定 SDK Actions 42952041778：格式、双引擎融合/分片/校对面板测试以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。工作日志及最终 PR 门禁见后续 Actions。没有真实歌曲、真实模型或设备验证。
 
 ## 下一步
 
-统一接入设置、向导、自检的调用者独立安装包装器和 app-scoped 协调器，禁止绕过；先处理界面外层预检、busy 后独立 repair、自检取消时序，再增加并发及 widget 测试。
+在相邻分片的独立检查点合并前研究跨分片候选对应：先验证相同备选引擎、文本和共享音频内有效时间交集及主稿行是否不同，再以保守、可审查方案阻止复制；使用人工基准和真实副歌重复负例验证，不得静默改写人工歌词。
 
 ## 已知风险
 
-对应行依赖时间与文本启发式，错误时间戳或分句仍可能误匹配、漏字或误报；本阶段仅保护被检测到的跨多条主稿的共享次引擎段，未修复所有融合风险。旧工程候选没有新标记，不受新界面限制。人工歌词不会在复核时静默改写，但基于模型置信度的一对一自动融合仍是草稿策略。真实歌曲人工标注基准缺失，无法声称 CER、召回或准确率提升；应按 `docs/asr_quality_baseline.md` 测量原模型和双引擎结果。
+`secondarySegments` 仅是次引擎候选片段证据，时间戳未验证且不保证对齐准确；`sourceIndex` 仅在该次引擎调用内有效，`secondarySegmentChunkIndex` 仅在当前分片会话内有效，不是模型身份或音频哈希。合并后每行仍只保留一个候选，其他分片证据可能只存在对应检查点；旧工程或已完成旧检查点可能缺字段，不会自动补齐。相邻分片共享关系尚未检测，跨分片自动重复替换仍可能发生；安装资源协调也仍未生产接线。真实歌曲人工基准缺失，不能声称 CER/召回改善或全部重复消除。
 
-手工验证：用两种主引擎顺序构造短行对应同一长行的音频结果，检查主稿和时间不变、两行均显示备选和跨行提示、无一键采用，仍能人工编辑；普通单行备选仍可主动采用；检查紧凑/宽屏布局和重开工程后的提示。未在设备执行。
-
-安装协调包装器未生产接线，自检仍可能取消其他入口的安装；独立 repair、迁移/导入/删除和跨进程资源未协调，独立重跑无生产调用者。
+手工验证建议：真实长歌曲在重叠分片边界生成候选，检查检查点与合并结果的片段文本、源分片序号和整曲时间，再中断恢复对比；同时核对重复副歌不被自动删除。当前未在设备执行。
 
 最后更新：2026-11-07（Asia/Taipei）
