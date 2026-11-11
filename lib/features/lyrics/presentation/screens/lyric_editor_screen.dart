@@ -16,13 +16,12 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
-import '../../domain/proofreading/asr_reference_correction_suggester.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
-import '../../domain/proofreading/reference_proofread_review_builder.dart';
+import '../../domain/proofreading/run_reference_proofread_use_case.dart';
 import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_audition_window_service.dart';
@@ -374,6 +373,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   Future<void> _openReferenceAlignment(ProjectManifest project) async {
     final document = _editingDocument;
     if (document == null || document.lines.isEmpty) return;
+    final revision = _editor.documentRevision;
 
     final input = await showReferenceAlignmentDialog(
       context,
@@ -381,7 +381,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       initialTitle: project.name,
       initialArtist: project.artist,
     );
-    if (input == null || !mounted) return;
+    if (input == null || !_proofreadIsCurrent(revision)) return;
 
     const alignmentService = LyricAlignmentService();
     const applier = ReferenceAlignmentApplier();
@@ -415,7 +415,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       timingUnavailableReason: timingUnavailableReason,
       minimumSimilarity: applier.minimumSimilarity,
     );
-    if (decision == null || !mounted) return;
+    if (decision == null || !_proofreadIsCurrent(revision)) return;
     if (!decision.hasChanges) return;
 
     final result = applier.apply(
@@ -438,7 +438,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         comparison,
         autoRepairCount: result.timelineRepairs.length,
       );
-      if (!mounted || keep != true) return;
+      if (keep != true || !_proofreadIsCurrent(revision)) return;
     }
 
     final appliedDocument = decision.applyReferenceTiming
@@ -531,6 +531,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   Future<void> _openReferenceProofread(ProjectManifest project) async {
     final document = _editingDocument;
     if (document == null || document.lines.isEmpty) return;
+    final revision = _editor.documentRevision;
 
     final input = await showReferenceAlignmentDialog(
       context,
@@ -538,81 +539,39 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       initialTitle: project.name,
       initialArtist: project.artist,
     );
-    if (input == null || !mounted) return;
+    if (input == null || !_proofreadIsCurrent(revision)) return;
 
     final evidence = await showTimingEvidenceImportDialog(context);
-    if (!mounted) return;
-
-    final protectedIndices = _manuallyEditedLineIndices;
-    if (evidence != null) {
-      final items = const ReferenceProofreadReviewBuilder().build(
-        draft: document,
-        reference: input,
-        timingEvidence: evidence,
-        protectedDraftIndices: protectedIndices,
-        audioDuration: project.audioAsset?.duration,
-      );
-      if (items.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
-        return;
-      }
-      final selected = await showReferenceProofreadTimingReviewDialog(
-        context,
-        document: document,
-        items: items,
-      );
-      if (selected == null || selected.isEmpty || !mounted) return;
-
-      final applied = const ReferenceProofreadChangeSet().apply(
-        draft: document,
-        proposals: items,
-        selectedDraftIndices: selected,
-        protectedDraftIndices: protectedIndices,
-      );
-      _commitReferenceProofreadChange(
-        applied,
-        message:
-            '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；'
-            '请试听检查并保存。',
-      );
-      return;
-    }
-
-    // No independent timing evidence supplied: keep the explicit text-only
-    // workflow, preserving all existing timestamps.
-    final suggestions = const AsrReferenceCorrectionSuggester()
-        .suggest(
-          draft: document,
-          reference: input,
-          protectedDraftIndices: protectedIndices,
-        )
-        .suggestions;
-    if (suggestions.isEmpty) {
+    if (!_proofreadIsCurrent(revision)) return;
+    final plan = const RunReferenceProofreadUseCase().build(
+      draft: document,
+      reference: input,
+      timingEvidence: evidence,
+      protectedDraftIndices: _manuallyEditedLineIndices,
+      audioDuration: project.audioAsset?.duration,
+    );
+    if (plan.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
       return;
     }
-    final selected = await showReferenceProofreadReviewDialog(
-      context,
-      document: document,
-      suggestions: suggestions,
-    );
-    if (selected == null || selected.isEmpty || !mounted) return;
-
-    final applied = const ReferenceProofreadChangeSet().applyTextOnly(
-      draft: document,
-      suggestions: suggestions,
-      selectedDraftIndices: selected,
-      protectedDraftIndices: protectedIndices,
-    );
+    final selected = plan.hasTimingEvidence
+        ? await showReferenceProofreadTimingReviewDialog(
+            context, document: document, items: plan.timedItems,
+          )
+        : await showReferenceProofreadReviewDialog(
+            context, document: document, suggestions: plan.suggestions,
+          );
+    if (selected == null || selected.isEmpty || !_proofreadIsCurrent(revision)) {
+      return;
+    }
+    final applied = plan.apply(selected);
     _commitReferenceProofreadChange(
       applied,
-      message:
-          '已应用 ${applied.changedDraftIndices.length} 行文字纠错；'
-          '现有时间戳保持不变，请试听检查并保存。',
+      message: plan.hasTimingEvidence
+          ? '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；请试听检查并保存。'
+          : '已应用 ${applied.changedDraftIndices.length} 行文字纠错；现有时间戳保持不变，请试听检查并保存。',
     );
   }
 
@@ -630,7 +589,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
   }
 
-  bool _proofreadV2IsCurrent(int revision) {
+  bool _proofreadIsCurrent(int revision) {
     if (!mounted) return false;
     if (_editor.documentRevision == revision) return true;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -645,7 +604,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     int revision,
   ) async {
     final options = await showProofreadV2RunOptionsDialog(context);
-    if (options == null || !_proofreadV2IsCurrent(revision)) return;
+    if (options == null || !_proofreadIsCurrent(revision)) return;
 
     LyricDocument? secondaryAsr;
     final secondaryText = options.secondaryTranscriptText;
@@ -697,7 +656,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         initialTitle: project.name,
         initialArtist: project.artist,
       );
-      if (reference == null || !_proofreadV2IsCurrent(revision)) return;
+      if (reference == null || !_proofreadIsCurrent(revision)) return;
     }
 
     try {
@@ -713,7 +672,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             useForcedAlignment: options.useForcedAlignment,
             manuallyEditedIndices: _manuallyEditedLineIndices,
           );
-      if (!_proofreadV2IsCurrent(revision)) return;
+      if (!_proofreadIsCurrent(revision)) return;
       final assembly = run.assembly;
       final decision = run.decision;
       final summary = run.summary;
@@ -741,7 +700,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),
       );
-      if (selection == null || !_proofreadV2IsCurrent(revision)) return;
+      if (selection == null || !_proofreadIsCurrent(revision)) return;
 
       const composer = ProofreadV2DocumentComposer();
       final after = composer.compose(
@@ -770,12 +729,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           comparison,
           autoRepairCount: 0,
         );
-        if (keep != true || !_proofreadV2IsCurrent(revision)) return;
+        if (keep != true || !_proofreadIsCurrent(revision)) return;
       }
-      if (!_proofreadV2IsCurrent(revision)) return;
+      if (!_proofreadIsCurrent(revision)) return;
       _commitProofreadV2Document(after);
     } catch (error) {
-      if (!_proofreadV2IsCurrent(revision)) return;
+      if (!_proofreadIsCurrent(revision)) return;
       final detail = error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
           : error is ProofreadV2MissingAudioException
