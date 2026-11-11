@@ -17,7 +17,8 @@ KtvRecordingService assembleKtvRecordingService({
   return LocalKtvRecordingService(
     audioService: audioService,
     microphoneService: microphoneService,
-    loadFfmpegExecutable: () async => (await settingsStore.load())?.ffmpegExecutable,
+    loadFfmpegExecutable: () async =>
+        (await settingsStore.load())?.ffmpegExecutable,
     processRunner: processRunner,
   );
 }

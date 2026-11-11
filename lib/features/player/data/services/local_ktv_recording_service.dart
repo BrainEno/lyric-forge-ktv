@@ -37,14 +37,16 @@ class LocalKtvRecordingService implements KtvRecordingService {
     required Future<String?> Function() loadFfmpegExecutable,
     Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
     Future<ProcessResult> Function(String, List<String>)? processRunner,
-  })  : _audioService = audioService,
-        _microphoneService = microphoneService,
-        _loadFfmpegExecutable = loadFfmpegExecutable,
-        _projectDirectoryResolver = projectDirectoryResolver ??
-            ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
-        _processRunner = processRunner ??
-            ((executable, arguments) =>
-                Process.run(executable, arguments, runInShell: false));
+  }) : _audioService = audioService,
+       _microphoneService = microphoneService,
+       _loadFfmpegExecutable = loadFfmpegExecutable,
+       _projectDirectoryResolver =
+           projectDirectoryResolver ??
+           ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
+       _processRunner =
+           processRunner ??
+           ((executable, arguments) =>
+               Process.run(executable, arguments, runInShell: false));
 
   @override
   Stream<KtvRecordingState> get stateStream => _stateController.stream;
@@ -136,7 +138,9 @@ class LocalKtvRecordingService implements KtvRecordingService {
         _markAlignmentIssue('麦克风输入在录音中断开：$error');
       },
     );
-    _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
+    _playbackSubscription = _audioService.stateStream.listen(
+      _handlePlaybackState,
+    );
 
     _emit(
       _state.copyWith(
@@ -184,7 +188,8 @@ class LocalKtvRecordingService implements KtvRecordingService {
       _markAlignmentIssue('录音过程中切换了伴唱音轨');
       return;
     }
-    if (!playback.isPlaying && clock.elapsed > const Duration(milliseconds: 350)) {
+    if (!playback.isPlaying &&
+        clock.elapsed > const Duration(milliseconds: 350)) {
       _markAlignmentIssue('录音过程中歌曲被暂停或停止');
       return;
     }
@@ -301,7 +306,10 @@ class LocalKtvRecordingService implements KtvRecordingService {
       final ffmpeg = configured == null || configured.isEmpty
           ? 'ffmpeg'
           : configured;
-      final outputPath = _join(File(session.manifestPath).parent.path, 'mix.wav');
+      final outputPath = _join(
+        File(session.manifestPath).parent.path,
+        'mix.wav',
+      );
       final args = buildKtvMixFfmpegArguments(
         session,
         outputPath: outputPath,
@@ -464,8 +472,9 @@ List<String> buildKtvMixFfmpegArguments(
   double? backingVolume,
 }) {
   final voice = voiceVolume.clamp(0.0, 2.0).toDouble();
-  final backing =
-      (backingVolume ?? session.backingVolume).clamp(0.0, 1.0).toDouble();
+  final backing = (backingVolume ?? session.backingVolume)
+      .clamp(0.0, 1.0)
+      .toDouble();
   final startSeconds =
       (session.startPosition.inMicroseconds / Duration.microsecondsPerSecond)
           .toStringAsFixed(6);
@@ -499,7 +508,6 @@ List<String> buildKtvMixFfmpegArguments(
   ];
 }
 
-String _join(String left, String right) =>
-    left.endsWith(Platform.pathSeparator)
-        ? '$left$right'
-        : '$left${Platform.pathSeparator}$right';
+String _join(String left, String right) => left.endsWith(Platform.pathSeparator)
+    ? '$left$right'
+    : '$left${Platform.pathSeparator}$right';

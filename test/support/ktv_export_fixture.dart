@@ -16,7 +16,13 @@ class KtvExportFixture {
   final File manifest;
   final KtvRecordingSession session;
 
-  KtvExportFixture._(this.root, this.backing, this.voice, this.manifest, this.session);
+  KtvExportFixture._(
+    this.root,
+    this.backing,
+    this.voice,
+    this.manifest,
+    this.session,
+  );
 
   static Future<KtvExportFixture> create() async {
     final root = await Directory.systemTemp.createTemp('ktv assembly 中文 ');
@@ -28,7 +34,8 @@ class KtvExportFixture {
     await backing.writeAsBytes([1, 2, 3]);
     await voice.writeAsBytes([4, 5, 6]);
     final session = KtvRecordingSession(
-      id: 'take-1', projectId: 'project-1',
+      id: 'take-1',
+      projectId: 'project-1',
       startedAt: DateTime.utc(2026, 1, 1),
       completedAt: DateTime.utc(2026, 1, 1, 0, 1),
       backingSource: AudioSourceType.instrumental,
@@ -50,9 +57,10 @@ class KtvExportFixture {
     await manifest.writeAsString(jsonEncode(session.toJson()), flush: true);
   }
 
-  Future<KtvRecordingSession> readSession() async => KtvRecordingSession.fromJson(
-    jsonDecode(await manifest.readAsString()) as Map<String, dynamic>,
-  );
+  Future<KtvRecordingSession> readSession() async =>
+      KtvRecordingSession.fromJson(
+        jsonDecode(await manifest.readAsString()) as Map<String, dynamic>,
+      );
 
   Future<void> dispose() async {
     if (await root.exists()) await root.delete(recursive: true);
@@ -72,14 +80,20 @@ class MutableSettingsStore implements TranscriptionSettingsStore {
   }
 
   @override
-  Future<void> save(TranscriptionConfig config) async { value = config; }
+  Future<void> save(TranscriptionConfig config) async {
+    value = config;
+  }
 
   @override
-  Future<void> clear() async { value = null; }
+  Future<void> clear() async {
+    value = null;
+  }
 }
 
 TranscriptionConfig configWithFfmpeg(String path) => TranscriptionConfig(
-  whisperExecutable: '', modelPath: '', ffmpegExecutable: path,
+  whisperExecutable: '',
+  modelPath: '',
+  ffmpegExecutable: path,
 );
 
 class UnusedAudioPlayer implements AudioPlayerService {

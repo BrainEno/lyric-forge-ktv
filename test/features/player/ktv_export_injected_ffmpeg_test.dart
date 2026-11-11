@@ -24,7 +24,10 @@ void main() {
     service = LocalKtvRecordingService(
       audioService: UnusedAudioPlayer(),
       microphoneService: UnusedMicrophone(),
-      loadFfmpegExecutable: () async { loads++; return path; },
+      loadFfmpegExecutable: () async {
+        loads++;
+        return path;
+      },
       processRunner: runner.run,
     );
   });
@@ -35,20 +38,27 @@ void main() {
   });
 
   group('KTV mix export with injected executable', () {
-    test('keeps Unicode paths as individual arguments without shell quoting', () async {
-      await service.exportMix(fixture.session);
-      final args = runner.argumentLists.single;
-      expect(args.where((arg) => arg == '-i').length, 2);
-      final first = args.indexOf('-i');
-      expect(args[first + 1], fixture.backing.path);
-      expect(args[first + 2], '-i');
-      expect(args[first + 3], fixture.voice.path);
-      expect(args.last, endsWith('${Platform.pathSeparator}mix.wav'));
-      expect(runner.executables, ['/configured/ffmpeg']);
-    });
+    test(
+      'keeps Unicode paths as individual arguments without shell quoting',
+      () async {
+        await service.exportMix(fixture.session);
+        final args = runner.argumentLists.single;
+        expect(args.where((arg) => arg == '-i').length, 2);
+        final first = args.indexOf('-i');
+        expect(args[first + 1], fixture.backing.path);
+        expect(args[first + 2], '-i');
+        expect(args[first + 3], fixture.voice.path);
+        expect(args.last, endsWith('${Platform.pathSeparator}mix.wav'));
+        expect(runner.executables, ['/configured/ffmpeg']);
+      },
+    );
 
     test('preserves start time, duration and caller-selected volume', () async {
-      await service.exportMix(fixture.session, voiceVolume: 1.25, backingVolume: 0.4);
+      await service.exportMix(
+        fixture.session,
+        voiceVolume: 1.25,
+        backingVolume: 0.4,
+      );
       final args = runner.argumentLists.single;
       final filter = args[args.indexOf('-filter_complex') + 1];
       expect(filter, contains('atrim=start=1.350000:duration=3.450000'));
@@ -68,7 +78,11 @@ void main() {
     });
 
     test('clamps volume parameters to the supported range', () async {
-      await service.exportMix(fixture.session, voiceVolume: 99, backingVolume: -1);
+      await service.exportMix(
+        fixture.session,
+        voiceVolume: 99,
+        backingVolume: -1,
+      );
       final args = runner.argumentLists.single;
       final filter = args[args.indexOf('-filter_complex') + 1];
       expect(filter, contains('volume=0.0000[b]'));
@@ -77,7 +91,16 @@ void main() {
 
     test('reports a process launch failure and permits retry', () async {
       runner.failure = ProcessException('/configured/ffmpeg', [], 'not found');
-      await expectLater(service.exportMix(fixture.session), throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('无法启动 FFmpeg'))));
+      await expectLater(
+        service.exportMix(fixture.session),
+        throwsA(
+          isA<KtvRecordingException>().having(
+            (e) => e.message,
+            'message',
+            contains('无法启动 FFmpeg'),
+          ),
+        ),
+      );
       expect(service.currentState.isExporting, isFalse);
       expect(service.currentState.error, contains('无法启动 FFmpeg'));
       expect((await fixture.readSession()).mixedOutputPath, isNull);
@@ -87,25 +110,55 @@ void main() {
       expect(service.currentState.error, isNull);
     });
 
-    test('non-zero exit preserves stderr and does not mark output as exported', () async {
-      runner.exitCode = 9;
-      runner.stderr = 'permission denied by test runner';
-      await expectLater(service.exportMix(fixture.session), throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('permission denied by test runner'))));
-      expect((await fixture.readSession()).mixedOutputPath, isNull);
-      expect(service.currentState.isExporting, isFalse);
-      expect(loads, 1);
-    });
+    test(
+      'non-zero exit preserves stderr and does not mark output as exported',
+      () async {
+        runner.exitCode = 9;
+        runner.stderr = 'permission denied by test runner';
+        await expectLater(
+          service.exportMix(fixture.session),
+          throwsA(
+            isA<KtvRecordingException>().having(
+              (e) => e.message,
+              'message',
+              contains('permission denied by test runner'),
+            ),
+          ),
+        );
+        expect((await fixture.readSession()).mixedOutputPath, isNull);
+        expect(service.currentState.isExporting, isFalse);
+        expect(loads, 1);
+      },
+    );
 
     test('exit zero without output remains a failure', () async {
       runner.createOutput = false;
-      await expectLater(service.exportMix(fixture.session), throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('FFmpeg 混音失败'))));
+      await expectLater(
+        service.exportMix(fixture.session),
+        throwsA(
+          isA<KtvRecordingException>().having(
+            (e) => e.message,
+            'message',
+            contains('FFmpeg 混音失败'),
+          ),
+        ),
+      );
       expect((await fixture.readSession()).mixedOutputPath, isNull);
       expect(service.currentState.isExporting, isFalse);
     });
 
     test('rejects zero duration before asking for executable', () async {
       final invalid = fixture.session.copyWith(duration: Duration.zero);
-      await expectLater(service.exportMix(invalid), throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('录音内容为空'))));
+      await expectLater(
+        service.exportMix(invalid),
+        throwsA(
+          isA<KtvRecordingException>().having(
+            (e) => e.message,
+            'message',
+            contains('录音内容为空'),
+          ),
+        ),
+      );
       expect(loads, 0);
       expect(runner.executables, isEmpty);
     });
@@ -114,7 +167,8 @@ void main() {
       await service.dispose();
       final original = await fixture.manifest.readAsString();
       service = LocalKtvRecordingService(
-        audioService: UnusedAudioPlayer(), microphoneService: UnusedMicrophone(),
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
         loadFfmpegExecutable: () async => throw StateError('read failed'),
         processRunner: runner.run,
       );
@@ -130,13 +184,19 @@ void main() {
       final started = Completer<List<String>>();
       final gate = Completer<ProcessResult>();
       service = LocalKtvRecordingService(
-        audioService: UnusedAudioPlayer(), microphoneService: UnusedMicrophone(),
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
         loadFfmpegExecutable: () async => path,
-        processRunner: (executable, args) { started.complete(args); return gate.future; },
+        processRunner: (executable, args) {
+          started.complete(args);
+          return gate.future;
+        },
       );
       final pending = service.exportMix(fixture.session);
       final args = await started.future;
-      await fixture.writeSession(fixture.session.copyWith(displayName: '新名称', isFavorite: true));
+      await fixture.writeSession(
+        fixture.session.copyWith(displayName: '新名称', isFavorite: true),
+      );
       await File(args.last).writeAsBytes([7]);
       gate.complete(ProcessResult(1, 0, '', ''));
       final result = await pending;
@@ -151,9 +211,13 @@ void main() {
       final started = Completer<List<String>>();
       final gate = Completer<ProcessResult>();
       service = LocalKtvRecordingService(
-        audioService: UnusedAudioPlayer(), microphoneService: UnusedMicrophone(),
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
         loadFfmpegExecutable: () async => path,
-        processRunner: (executable, args) { started.complete(args); return gate.future; },
+        processRunner: (executable, args) {
+          started.complete(args);
+          return gate.future;
+        },
       );
       final pending = service.exportMix(fixture.session);
       final args = await started.future;
@@ -161,8 +225,20 @@ void main() {
       await fixture.manifest.writeAsString(jsonEncode(changed));
       await File(args.last).writeAsBytes([7]);
       gate.complete(ProcessResult(1, 0, '', ''));
-      await expectLater(pending, throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('身份变化'))));
-      expect((jsonDecode(await fixture.manifest.readAsString()) as Map)['id'], 'other-take');
+      await expectLater(
+        pending,
+        throwsA(
+          isA<KtvRecordingException>().having(
+            (e) => e.message,
+            'message',
+            contains('身份变化'),
+          ),
+        ),
+      );
+      expect(
+        (jsonDecode(await fixture.manifest.readAsString()) as Map)['id'],
+        'other-take',
+      );
       expect(service.currentState.isExporting, isFalse);
     });
 
@@ -171,16 +247,29 @@ void main() {
       final started = Completer<List<String>>();
       final gate = Completer<ProcessResult>();
       service = LocalKtvRecordingService(
-        audioService: UnusedAudioPlayer(), microphoneService: UnusedMicrophone(),
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
         loadFfmpegExecutable: () async => path,
-        processRunner: (executable, args) { started.complete(args); return gate.future; },
+        processRunner: (executable, args) {
+          started.complete(args);
+          return gate.future;
+        },
       );
       final pending = service.exportMix(fixture.session);
       final args = await started.future;
       await fixture.manifest.delete();
       await File(args.last).writeAsBytes([7]);
       gate.complete(ProcessResult(1, 0, '', ''));
-      await expectLater(pending, throwsA(isA<KtvRecordingException>().having((e) => e.message, 'message', contains('移动或删除'))));
+      await expectLater(
+        pending,
+        throwsA(
+          isA<KtvRecordingException>().having(
+            (e) => e.message,
+            'message',
+            contains('移动或删除'),
+          ),
+        ),
+      );
       expect(await fixture.manifest.exists(), isFalse);
       expect(service.currentState.isExporting, isFalse);
     });
