@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **V2 stale proposal guard:** editor mutations and history restoration advance an in-memory revision; asynchronous V2 proposals are discarded on mismatch and only one run is allowed per editor. See [F-01 guard](log/entries/2026-11-07-2053-guard-proofread-editor-state.md). Other asynchronous edit flows need separate audit.
+
 - **ASR segmentation safety:** shared secondary segments remain review-only, and overlap chunk merging preserves the restrictive candidate. Candidate evidence now records individual secondary segment times and chunk origin; cross-chunk matching is not yet implemented. See [segment evidence](log/entries/2026-11-07-2047-record-secondary-asr-segments.md) and [chunk review safety](log/entries/2026-11-07-2048-preserve-shared-asr-chunk-review.md). Real-song accuracy remains unmeasured.
 
 - **ASR installation safety:** preflight cancellation and a per-caller installation lease wrapper are tested; the wrapper has no production callers, and shared-caller cancellation and app-scoped installation leases remain unconnected. See [installation ownership](log/entries/2026-11-07-2050-coordinate-asr-installation.md), [preflight cancellation](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md), and `docs/handoff.md`.

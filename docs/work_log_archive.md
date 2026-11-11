@@ -105,6 +105,7 @@
 - [2026-11-07 22:44] Protect partial project stores ([entry](log/entries/2026-11-07-2244-protect-partial-project-store.md))
 - [2026-11-07 21:54] Protect partial media metadata stores ([entry](log/entries/2026-11-07-2154-protect-partial-metadata-store.md))
 - [2026-11-07 21:20] Protect lyric links on read failures ([entry](log/entries/2026-11-07-2120-protect-lyric-links-on-read-failure.md))
+- [2026-11-07 20:53] Guard proofreading against stale editor state ([entry](log/entries/2026-11-07-2053-guard-proofread-editor-state.md))
 - [2026-11-07 20:52] Clarify KTV accompaniment availability ([entry](log/entries/2026-11-07-2052-ktv-entry-backing-availability.md))
 - [2026-11-07 20:51] Guard ASR installation preflight cancellation ([entry](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md))
 - [2026-11-07 20:50] Coordinate ASR installation ownership ([entry](log/entries/2026-11-07-2050-coordinate-asr-installation.md))

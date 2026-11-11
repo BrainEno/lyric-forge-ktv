@@ -2,28 +2,28 @@
 
 ## 目标
 
-继续解决跨分片的双引擎重复歌词。本阶段为双引擎候选保存每个次引擎片段的原文、源序号和时间，分片结果换算成整段音频时间并标记分片来源；只增加证据，不自动检测、替换或删除歌词。
+完成审查 F-01：防止 V2 异步校对使用旧的内存歌词覆盖人工编辑；后续按报告依次处理真实歌曲质量基线、#319/#323、小窗口无障碍和本地 Qwen 会话身份等独立任务。
 
 ## Git 现场
 
-活动分支 `arena/d30617d4-lyric-forge-ktv`，开放 PR #412。阶段起点 `df947c51d4d2970b368b90f65da1578bbc58b058`，原始 main 基线 `5bea6660ca5ec95e2a0c4f9d702fcdba6a7f79bf`。记录前 `git status --short`：`M test/resumable_chunked_transcription_service_test.dart`；`git diff --stat`：1 file changed, 7 insertions(+), 4 deletions(-)（格式调整）。`git log --oneline -5`：`da859f2 Track secondary evidence chunk origin`、`81a14bb Record secondary ASR segment evidence`、`df947c5 Record ASR chunk review validation`、`be97a21 Document shared ASR chunk review`、`828a63a Preserve shared ASR review across chunks`。以当前 Git 状态为准；临时验证 workflow 不应进入 PR。
+活动分支 `arena/cc41bdc1-lyric-forge-ktv`，基线 `4621b5e`（PR #412 已合并）。阶段提交包括 `d338780 Guard proofreading against stale editor state` 与 `54647b5 Exercise proofreading revision guard`；以当前 `git status --short`、`git diff --stat`、`git log --oneline -5` 为准。临时验证 workflow 最终必须删除，不更改正式 CI；不要自动合并或关闭 Issue。
 
 ## 已改文件
 
-双引擎融合与分片服务、对应定向测试，以及交接和工作日志导航；前一阶段的分片复核保护也仍在 PR #412。
+歌词编辑文档控制器、V2 校对屏幕、控制器和屏幕测试；本交接、日志和导航文件。
 
 ## 检查结果
 
-本地无 Flutter/Dart。固定 SDK Actions 42952041778：格式、双引擎融合/分片/校对面板测试以及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。工作日志及最终 PR 门禁见后续 Actions。没有真实歌曲、真实模型或设备验证。
+本地无 Flutter/Dart。固定 SDK Actions 42956931315：依赖解析、格式化、控制器/编辑器/V2 弹窗/ForcedAligner 定向测试和 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。最终日志检查另行运行。尚无真实设备/屏幕阅读器或真实歌曲测试。
 
 ## 下一步
 
-在相邻分片的独立检查点合并前研究跨分片候选对应：先验证相同备选引擎、文本和共享音频内有效时间交集及主稿行是否不同，再以保守、可审查方案阻止复制；使用人工基准和真实副歌重复负例验证，不得静默改写人工歌词。
+按报告阶段 1 建立可复现真实歌曲人工参考及许可、哈希、引擎参数和发布阈值；缺少可用合法样本前勿宣称识别准确率改善。之后单独处理 #319、#323、F-04 和 F-03。
 
 ## 已知风险
 
-`secondarySegments` 仅是次引擎候选片段证据，时间戳未验证且不保证对齐准确；`sourceIndex` 仅在该次引擎调用内有效，`secondarySegmentChunkIndex` 仅在当前分片会话内有效，不是模型身份或音频哈希。合并后每行仍只保留一个候选，其他分片证据可能只存在对应检查点；旧工程或已完成旧检查点可能缺字段，不会自动补齐。相邻分片共享关系尚未检测，跨分片自动重复替换仍可能发生；安装资源协调也仍未生产接线。真实歌曲人工基准缺失，不能声称 CER/召回改善或全部重复消除。
+仅 V2 入口使用新的内存修订守卫，其他异步校对/保存路径尚需独立审查；磁盘 CAS 与内存修订是不同机制。复核后和最终提交前均验证修订，时间轴冲突确认期间修改的实际交互尚未单独模拟；不取消原生对齐，只忽略过期结果。会话内并发受限，不代表跨进程锁。#412 跨分片共享候选自动检测与安装协调生产接线仍未完成。
 
-手工验证建议：真实长歌曲在重叠分片边界生成候选，检查检查点与合并结果的片段文本、源分片序号和整曲时间，再中断恢复对比；同时核对重复副歌不被自动删除。当前未在设备执行。
+手工验证建议：启动慢速 ForcedAligner，编辑或撤销歌词后等待结果，确认提示保留修改；重复启动、复核弹窗和时间轴确认期间修改、退出页面后迟到结果，均不应覆盖。检查正常应用及撤销重做、保存冲突和屏幕阅读器提示。上述设备检查尚未执行。
 
 最后更新：2026-11-07（Asia/Taipei）
