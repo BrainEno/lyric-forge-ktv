@@ -26,6 +26,78 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 
 void main() {
+  group('auto proofreading evidence routing', () {
+    for (final mode in ['no reference', 'matching reference', 'unrelated reference']) {
+      testWidgets('auto $mode reports evidence actually used', (tester) async {
+        var calls = 0;
+        String? path;
+        final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+          calls++;
+          path = audioPath;
+          return [];
+        }, vocalPath: '/managed/vocals.wav');
+        await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('智能校对 V2'));
+        await tester.pumpAndSettle();
+        if (mode != 'no reference') {
+          await tester.ensureVisible(find.text('本次提供参考歌词'));
+          await tester.tap(find.text('本次提供参考歌词'));
+          await tester.pumpAndSettle();
+        }
+        final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
+        await tester.ensureVisible(toggle);
+        await tester.tap(toggle);
+        final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
+        await tester.ensureVisible(field);
+        await tester.enterText(field, '[00:00.00] Human lyric');
+        await tester.tap(find.text('继续'));
+        await tester.pumpAndSettle();
+        if (mode != 'no reference') {
+          expect(find.byType(ReferenceAlignmentDialog), findsOneWidget);
+          _submitReference(tester, mode == 'matching reference' ? 'Human lyric' : 'completely unrelated words');
+          await tester.pumpAndSettle();
+        }
+        expect(find.text('智能校对提案复核'), findsOneWidget);
+        if (mode == 'matching reference') {
+          expect(calls, 0);
+          expect(find.textContaining('ForcedAligner 未运行'), findsOneWidget);
+          expect(find.textContaining('第二份 ASR 转写稿未参与本次复核'), findsOneWidget);
+        } else {
+          expect(calls, 1);
+          expect(path, '/managed/vocals.wav');
+          expect(find.textContaining('已将第二份带时间戳的转写稿作为独立证据'), findsOneWidget);
+          if (mode == 'unrelated reference') {
+            expect(find.textContaining('自动策略因参考文本覆盖率低于 25%'), findsOneWidget);
+            expect(find.textContaining('未用参考歌词替换草稿'), findsOneWidget);
+          }
+        }
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('automatic strategy validates secondary text before running', (tester) async {
+      var calls = 0;
+      final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async { calls++; return []; });
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
+      await tester.ensureVisible(field);
+      await tester.enterText(field, 'no timestamps');
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('必须为每行都带时间戳'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
+      expect(editor.hasChanges, isFalse);
+      expect(calls, 0);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('reference proofreading revision guards', () {
     for (final action in ['参考歌词纠正', '逐行智能纠错（保留时间戳）']) {
       testWidgets('$action discards an edit made during reference input', (

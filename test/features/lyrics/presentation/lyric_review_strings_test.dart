@@ -139,7 +139,17 @@ void main() {
                 LyricProofreadV2ExplanationCode.referenceInputWarnings,
                 referenceWarningCount: 2,
               ),
-          LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
+          LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference:
+              LyricProofreadV2Explanation(LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference),
+          LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference:
+              LyricProofreadV2Explanation(LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference),
+          LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference:
+          '本次选择了参考歌词优先，ForcedAligner 未运行；参考优先暂不支持强制对齐。',
+      LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference:
+          '本次选择了参考歌词优先，第二份 ASR 转写稿未参与本次复核。',
+      LyricProofreadV2ExplanationCode.referenceIgnoredByAsr:
+          '本次 ASR 优先未用参考歌词替换草稿文字或时间；在自动策略中仅用于覆盖率判断。',
+      LyricProofreadV2ExplanationCode.automaticFallbackToAsr:
               LyricProofreadV2Explanation(
                 LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
               ),
