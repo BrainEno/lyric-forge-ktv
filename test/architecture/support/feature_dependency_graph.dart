@@ -185,7 +185,9 @@ List<String> directiveUris(String source) {
             tokens[j].value.contains(r'$') ||
             tokens[j].value.contains('?') ||
             tokens[j].value.contains('#')) {
-          throw FormatException('Encoded or interpolated directive URI is not supported');
+          throw FormatException(
+            'Encoded or interpolated directive URI is not supported',
+          );
         }
         result.add(tokens[j].value);
       }

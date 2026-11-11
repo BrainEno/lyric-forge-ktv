@@ -17,7 +17,10 @@ void main() {
 
   group('state management documentation (#235)', () {
     test('documents the dependency actually declared in pubspec', () {
-      final dependency = RegExp(r'^\s+provider:\s*(\S+)', multiLine: true).firstMatch(pubspec);
+      final dependency = RegExp(
+        r'^\s+provider:\s*(\S+)',
+        multiLine: true,
+      ).firstMatch(pubspec);
       expect(dependency, isNotNull);
       expect(playerArchitecture, contains('provider: ${dependency!.group(1)}'));
       expect(playerArchitecture, isNot(contains('未采用 BLoC 或任何第三方状态管理框架')));

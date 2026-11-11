@@ -43,9 +43,9 @@ jobs:
       - name: Generate work log
         if: success()
         run: |
-          dart tool/work_log.dart new --timestamp '2026-11-07 23:10' --slug feature-dependency-ratchet --title 'Track feature dependencies and state ownership'
+          dart tool/work_log.dart new --timestamp '2026-11-07 23:11' --slug feature-dependency-ratchet --title 'Track feature dependencies and state ownership'
           python3 - <<'PY'
-          p='docs/log/entries/2026-11-07-2310-feature-dependency-ratchet.md'
+          p='docs/log/entries/2026-11-07-2311-feature-dependency-ratchet.md'
           s=open(p).read()
           s=s.replace('- Scope: TODO — describe the task purpose.', '- Scope: Add a shrinking baseline for feature dependency cycles and presentation imports; document state ownership and app assembly conventions.')
           s=s.replace('- Files: TODO — list changed files.', '- Files: Feature dependency graph, baseline and focused architecture tests; state management decision and architecture documentation; work-log navigation and handoff.')
@@ -55,10 +55,14 @@ jobs:
           assert 'TODO' not in s
           open(p,'w').write(s)
           PY
-          dart tool/work_log.dart write
-          dart tool/work_log.dart check
-          git add -N docs/log/entries/2026-11-07-2310-feature-dependency-ratchet.md
-          git diff -- docs/log/entries/2026-11-07-2310-feature-dependency-ratchet.md docs/work_log.md docs/work_log_index.md docs/work_log_archive.md > /tmp/log.patch
+          dart tool/work_log.dart write 2>&1 | tee /tmp/worklog-write.txt
+          set -o pipefail
+          dart tool/work_log.dart check 2>&1 | tee /tmp/worklog-check.txt || {
+            while IFS= read -r line; do echo "::error::$line"; done < /tmp/worklog-check.txt
+            exit 1
+          }
+          git add -N docs/log/entries/2026-11-07-2311-feature-dependency-ratchet.md
+          git diff -- docs/log/entries/2026-11-07-2311-feature-dependency-ratchet.md docs/work_log.md docs/work_log_index.md docs/work_log_archive.md > /tmp/log.patch
           python3 - <<'PY'
           import gzip,base64
           data=base64.b64encode(gzip.compress(open('/tmp/log.patch','rb').read())).decode()
