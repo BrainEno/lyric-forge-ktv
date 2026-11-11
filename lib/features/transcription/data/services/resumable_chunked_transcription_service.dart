@@ -753,6 +753,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
         final lineIndex = remap(chunk, candidate['lineIndex']);
         if (lineIndex < 0) continue;
         candidate['lineIndex'] = lineIndex;
+        // Overlap copies map to one row. Prefer evidence that disables unsafe
+        // single-row adoption; otherwise retain the first candidate.
         final position = candidatePositions[lineIndex];
         if (position == null) {
           candidatePositions[lineIndex] = candidates.length;

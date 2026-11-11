@@ -869,72 +869,127 @@ void main() {
       },
     );
 
-    test('chunk overlap preserves the complete shared-segment review candidate', () async {
-      for (final firstShared in [false, true]) {
-        for (final secondShared in [false, true]) {
-          final directory = await Directory.systemTemp.createTemp('chunk-shared-review-');
-          addTearDown(() => directory.delete(recursive: true));
-          final input = File('${directory.path}/song.wav');
-          await input.writeAsBytes(List<int>.filled(128, 1));
-          final delegate = _ScriptedService((chunk) {
-            final shared = chunk == 0 ? firstShared : secondShared;
-            return LyricDocument(
-              language: 'en',
-              lines: chunk == 0
-                  ? const [
-                      LyricLine(text: 'before', startTime: Duration.zero, endTime: Duration(milliseconds: 400)),
-                      LyricLine(text: 'hold on', startTime: Duration(milliseconds: 2100), endTime: Duration(milliseconds: 2500), confidence: 60),
-                    ]
-                  : const [
-                      LyricLine(text: 'hold on', startTime: Duration(milliseconds: 100), endTime: Duration(milliseconds: 500), confidence: 90),
-                      LyricLine(text: 'later', startTime: Duration(milliseconds: 1100), endTime: Duration(milliseconds: 1500)),
-                    ],
-              metadata: {
-                'fallbackCandidates': [
-                  {
-                    'lineIndex': chunk == 0 ? 1 : 0,
-                    'primaryText': 'hold on',
-                    'alternativeText': chunk == 0 ? 'first evidence' : 'second evidence',
-                    'startMs': chunk == 0 ? 2100 : 100,
-                    'endMs': chunk == 0 ? 2500 : 500,
-                    if (shared) 'sharedSecondaryAcrossPrimaryLines': true,
-                    'reason': shared ? 'shared_secondary_spans_multiple_primary_lines' : 'engine_disagreement_review',
-                  },
-                  if (chunk == 1) {'lineIndex': 1, 'alternativeText': 'independent'},
-                ],
-              },
+    test(
+      'chunk overlap preserves the complete shared-segment review candidate',
+      () async {
+        for (final firstShared in [false, true]) {
+          for (final secondShared in [false, true]) {
+            final directory = await Directory.systemTemp.createTemp(
+              'chunk-shared-review-',
             );
-          });
-          final service = ResumableChunkedTranscriptionService(
-            delegate: delegate,
-            chunkDuration: const Duration(seconds: 3),
-            overlap: const Duration(seconds: 1),
-            processSupervisor: _FfmpegStub(durationLabel: '00:00:04.000').supervisor,
-          );
-          addTearDown(service.dispose);
-          final request = _request(input.path, directory.path);
-          final result = await service.transcribe(request);
-          expect(result.lyrics.lines.map((line) => line.text), ['before', 'hold on', 'later']);
-          expect(result.lyrics.lines[1].confidence, 90);
-          expect(result.lyrics.metadata['fallbackCandidateCount'], 2);
-          final candidates = result.lyrics.metadata['fallbackCandidates'] as List;
-          final overlap = candidates.singleWhere((entry) => entry['lineIndex'] == 1) as Map;
-          final expectedSecond = !firstShared && secondShared;
-          expect(overlap['alternativeText'], expectedSecond ? 'second evidence' : 'first evidence');
-          expect(overlap['sharedSecondaryAcrossPrimaryLines'] == true, firstShared || secondShared);
-          expect(overlap['reason'], firstShared || secondShared
-              ? 'shared_secondary_spans_multiple_primary_lines'
-              : 'engine_disagreement_review');
-          expect(overlap['startMs'], 2100);
-          expect(overlap['endMs'], 2500);
-          expect(candidates.singleWhere((entry) => entry['lineIndex'] == 2)['alternativeText'], 'independent');
-          final resumed = await service.transcribe(request);
-          final resumedCandidates = resumed.lyrics.metadata['fallbackCandidates'] as List;
-          expect(resumedCandidates.singleWhere((entry) => entry['lineIndex'] == 1), overlap);
-          expect(delegate.outputDirectories, hasLength(2));
+            addTearDown(() => directory.delete(recursive: true));
+            final input = File('${directory.path}/song.wav');
+            await input.writeAsBytes(List<int>.filled(128, 1));
+            final delegate = _ScriptedService((chunk) {
+              final shared = chunk == 0 ? firstShared : secondShared;
+              return LyricDocument(
+                language: 'en',
+                lines: chunk == 0
+                    ? const [
+                        LyricLine(
+                          text: 'before',
+                          startTime: Duration.zero,
+                          endTime: Duration(milliseconds: 400),
+                        ),
+                        LyricLine(
+                          text: 'hold on',
+                          startTime: Duration(milliseconds: 2100),
+                          endTime: Duration(milliseconds: 2500),
+                          confidence: 60,
+                        ),
+                      ]
+                    : const [
+                        LyricLine(
+                          text: 'hold on',
+                          startTime: Duration(milliseconds: 100),
+                          endTime: Duration(milliseconds: 500),
+                          confidence: 90,
+                        ),
+                        LyricLine(
+                          text: 'later',
+                          startTime: Duration(milliseconds: 1100),
+                          endTime: Duration(milliseconds: 1500),
+                        ),
+                      ],
+                metadata: {
+                  'fallbackCandidates': [
+                    {
+                      'lineIndex': chunk == 0 ? 1 : 0,
+                      'primaryText': 'hold on',
+                      'alternativeText': chunk == 0
+                          ? 'first evidence'
+                          : 'second evidence',
+                      'startMs': chunk == 0 ? 2100 : 100,
+                      'endMs': chunk == 0 ? 2500 : 500,
+                      if (shared) 'sharedSecondaryAcrossPrimaryLines': true,
+                      'reason': shared
+                          ? 'shared_secondary_spans_multiple_primary_lines'
+                          : 'engine_disagreement_review',
+                    },
+                    if (chunk == 1)
+                      {'lineIndex': 1, 'alternativeText': 'independent'},
+                  ],
+                },
+              );
+            });
+            final service = ResumableChunkedTranscriptionService(
+              delegate: delegate,
+              chunkDuration: const Duration(seconds: 3),
+              overlap: const Duration(seconds: 1),
+              processSupervisor: _FfmpegStub(
+                durationLabel: '00:00:04.000',
+              ).supervisor,
+            );
+            addTearDown(service.dispose);
+            final request = _request(input.path, directory.path);
+            final result = await service.transcribe(request);
+            expect(result.lyrics.lines.map((line) => line.text), [
+              'before',
+              'hold on',
+              'later',
+            ]);
+            expect(result.lyrics.lines[1].confidence, 90);
+            expect(result.lyrics.metadata['fallbackCandidateCount'], 2);
+            final candidates =
+                result.lyrics.metadata['fallbackCandidates'] as List;
+            final overlap =
+                candidates.singleWhere((entry) => entry['lineIndex'] == 1)
+                    as Map;
+            final expectedSecond = !firstShared && secondShared;
+            expect(
+              overlap['alternativeText'],
+              expectedSecond ? 'second evidence' : 'first evidence',
+            );
+            expect(
+              overlap['sharedSecondaryAcrossPrimaryLines'] == true,
+              firstShared || secondShared,
+            );
+            expect(
+              overlap['reason'],
+              firstShared || secondShared
+                  ? 'shared_secondary_spans_multiple_primary_lines'
+                  : 'engine_disagreement_review',
+            );
+            expect(overlap['startMs'], 2100);
+            expect(overlap['endMs'], 2500);
+            expect(
+              candidates.singleWhere(
+                (entry) => entry['lineIndex'] == 2,
+              )['alternativeText'],
+              'independent',
+            );
+            final resumed = await service.transcribe(request);
+            final resumedCandidates =
+                resumed.lyrics.metadata['fallbackCandidates'] as List;
+            expect(
+              resumedCandidates.singleWhere((entry) => entry['lineIndex'] == 1),
+              overlap,
+            );
+            expect(delegate.outputDirectories, hasLength(2));
+          }
         }
-      }
-    });
+      },
+    );
 
     test('chunk merge keeps engine identity and remaps indices', () async {
       final directory = await Directory.systemTemp.createTemp('chunk-merge-');
