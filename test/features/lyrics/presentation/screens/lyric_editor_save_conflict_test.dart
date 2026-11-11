@@ -7,6 +7,8 @@ import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_e
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_alignment_restore_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_alignment_provenance_builder.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_dialog.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/reference_alignment_review.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
@@ -265,6 +267,14 @@ void main() {
               const Duration(seconds: 4),
             );
             expect(editor.alignmentSnapshot, isNotNull);
+            final backup =
+                editor.document!.metadata[kReferenceAlignmentBackupKey] as Map;
+            expect(backup['lineCount'], 1);
+            final provenance =
+                editor.document!.metadata[ReferenceAlignmentProvenanceBuilder
+                        .metadataKey]
+                    as Map;
+            expect(provenance['timingUpdatedCount'], 1);
             expect(editor.undo().applied, isTrue);
             expect(editor.document!.lines.single.startTime, Duration.zero);
           }
@@ -272,6 +282,101 @@ void main() {
         },
       );
     }
+
+    testWidgets('reference correction writes provenance only after review', (
+      tester,
+    ) async {
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        initialDocument: _document('Hello word'),
+      );
+      await _openReferenceFlow(tester, '参考歌词纠正');
+      _submitReference(tester, 'Hello world');
+      await tester.pumpAndSettle();
+      expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
+      expect(
+        editor.document!.metadata.containsKey(kReferenceAlignmentBackupKey),
+        isFalse,
+      );
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {0},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.single.text, 'Hello world');
+      expect(editor.document!.lines.single.startTime, Duration.zero);
+      final backup =
+          editor.document!.metadata[kReferenceAlignmentBackupKey] as Map;
+      expect((backup['document'] as Map)['lines'], isNotEmpty);
+      final provenance =
+          editor.document!.metadata[ReferenceAlignmentProvenanceBuilder
+                  .metadataKey]
+              as Map;
+      expect(provenance['appliedCorrectionCount'], 1);
+      expect(editor.undo().applied, isTrue);
+      expect(editor.document!.lines.single.text, 'Hello word');
+      expect(
+        editor.document!.metadata.containsKey(kReferenceAlignmentBackupKey),
+        isFalse,
+      );
+      expect(editor.redo().applied, isTrue);
+      expect(editor.document!.lines.single.text, 'Hello world');
+      expect(
+        editor.document!.metadata.containsKey(kReferenceAlignmentBackupKey),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('rejecting timeline warning never commits backup or changes', (
+      tester,
+    ) async {
+      final editor = await _openEditor(tester, _emptyAlignment);
+      await _openReferenceFlow(tester, '参考歌词纠正');
+      Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
+        const ReferenceLyricInput(
+          lines: [
+            ReferenceLyricLine(
+              text: 'Human lyric',
+              startTime: Duration(seconds: 4),
+              endTime: Duration(seconds: 5),
+            ),
+          ],
+          timed: true,
+          format: 'lrc',
+        ),
+      );
+      await tester.pumpAndSettle();
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('这次对齐引入了时间轴冲突'), findsOneWidget);
+      await tester.tap(find.text('撤销本次对齐'));
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.single.startTime, Duration.zero);
+      expect(
+        editor.document!.metadata.containsKey(kReferenceAlignmentBackupKey),
+        isFalse,
+      );
+      expect(editor.alignmentSnapshot, isNull);
+      expect(editor.canUndo, isFalse);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('disposed editor ignores a pending reference input', (
       tester,

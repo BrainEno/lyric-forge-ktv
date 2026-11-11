@@ -109,6 +109,7 @@
 - [2026-11-07 22:44] Protect partial project stores ([entry](log/entries/2026-11-07-2244-protect-partial-project-store.md))
 - [2026-11-07 21:54] Protect partial media metadata stores ([entry](log/entries/2026-11-07-2154-protect-partial-metadata-store.md))
 - [2026-11-07 21:20] Protect lyric links on read failures ([entry](log/entries/2026-11-07-2120-protect-lyric-links-on-read-failure.md))
+- [2026-11-07 20:57] Extract reference alignment application workflow ([entry](log/entries/2026-11-07-2057-extract-reference-alignment.md))
 - [2026-11-07 20:56] Guard and extract reference proofreading workflows ([entry](log/entries/2026-11-07-2056-extract-reference-proofread-use-case.md))
 - [2026-11-07 20:55] Extract V2 proofreading orchestration ([entry](log/entries/2026-11-07-2055-extract-v2-proofread-use-case.md))
 - [2026-11-07 20:54] Record fusion timing text provenance ([entry](log/entries/2026-11-07-2054-record-fusion-timing-evidence.md))
