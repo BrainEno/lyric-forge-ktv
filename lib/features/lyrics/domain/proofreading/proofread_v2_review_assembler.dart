@@ -41,6 +41,8 @@ class ProofreadV2ReviewAssembler {
     required LyricDocument draft,
     required ReferenceFirstPipelineResult result,
     required LyricSourceStrategy requestedStrategy,
+    bool requestedForcedAlignment = false,
+    bool hasSecondaryTranscript = false,
   }) {
     return ProofreadV2ReviewAssembly(
       proposalDocument: result.proposedDocument.copyWith(
@@ -92,6 +94,14 @@ class ProofreadV2ReviewAssembler {
         const LyricProofreadV2Explanation(
           LyricProofreadV2ExplanationCode.referenceFirstGuidance,
         ),
+        if (requestedForcedAlignment)
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference,
+          ),
+        if (hasSecondaryTranscript)
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference,
+          ),
         if (result.tokenDpBudgetExceeded)
           const LyricProofreadV2Explanation(
             LyricProofreadV2ExplanationCode.referenceAlignmentBudgetExceeded,
@@ -111,6 +121,7 @@ class ProofreadV2ReviewAssembler {
     required bool usedForcedAlignment,
     required bool hasSecondaryTranscript,
     bool autoFellBackToAsr = false,
+    bool hasReference = false,
     ForcedAlignmentProofreadOutcome? alignmentOutcome,
   }) {
     return ProofreadV2ReviewAssembly(
@@ -151,12 +162,18 @@ class ProofreadV2ReviewAssembler {
           ),
       ],
       explanations: [
+        if (autoFellBackToAsr)
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.automaticFallbackToAsr,
+          ),
+        if (hasReference)
+          const LyricProofreadV2Explanation(
+            LyricProofreadV2ExplanationCode.referenceIgnoredByAsr,
+          ),
         LyricProofreadV2Explanation(
-          autoFellBackToAsr
-              ? LyricProofreadV2ExplanationCode.automaticFallbackToAsr
-              : !hasSecondaryTranscript
-              ? LyricProofreadV2ExplanationCode.missingSecondaryTranscript
-              : LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence,
+          hasSecondaryTranscript
+              ? LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence
+              : LyricProofreadV2ExplanationCode.missingSecondaryTranscript,
         ),
         const LyricProofreadV2Explanation(
           LyricProofreadV2ExplanationCode.asrFirstConservativeTiming,

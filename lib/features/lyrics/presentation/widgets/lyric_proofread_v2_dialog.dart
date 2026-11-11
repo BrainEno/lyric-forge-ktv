@@ -141,7 +141,17 @@ class _ProofreadV2RunOptionsDialogState
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
               const Text('下一步需要粘贴或导入参考歌词。'),
-            ] else ...[
+              if (_useForcedAlignment ||
+                  _secondaryTranscriptController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text('之前配置的 ASR 第二意见或 ForcedAligner 在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
+              ],
+            ],
+            if (_strategy != LyricSourceStrategy.referenceFirst) ...[
+              if (_strategy == LyricSourceStrategy.auto) ...[
+                const SizedBox(height: 8),
+                const Text('以下证据仅在最终选择 ASR 优先时使用；若自动选择参考歌词优先，会在复核中说明未使用的选项。填写的转写稿会先检查格式。'),
+              ],
               const SizedBox(height: 8),
               const Text(
                 '可粘贴第二份带时间戳的转写稿（LRC、SRT 或 WebVTT）。'
@@ -194,12 +204,12 @@ class _ProofreadV2RunOptionsDialogState
                   _strategy == LyricSourceStrategy.referenceFirst ||
                   (_strategy == LyricSourceStrategy.auto && _useReference),
               secondaryTranscriptText:
-                  _strategy == LyricSourceStrategy.asrFirst &&
+                  _strategy != LyricSourceStrategy.referenceFirst &&
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
               useForcedAlignment:
-                  _strategy == LyricSourceStrategy.asrFirst &&
+                  _strategy != LyricSourceStrategy.referenceFirst &&
                   _useForcedAlignment,
             ),
           ),
@@ -406,8 +416,7 @@ class _LyricProofreadV2ReviewDialogState
       content: SizedBox(
         width: (viewport.width - 80).clamp(200.0, 900.0).toDouble(),
         height: (viewport.height - 230).clamp(240.0, 620.0).toDouble(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ListView(
           children: [
             Text(widget.summary, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
@@ -424,9 +433,6 @@ class _LyricProofreadV2ReviewDialogState
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const Divider(height: 20),
-            Expanded(
-              child: ListView(
-                children: [
                   for (final item in widget.items) _buildProposalCard(item),
                   if (widget.droppedItems.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -496,9 +502,6 @@ class _LyricProofreadV2ReviewDialogState
                         ),
                       ),
                   ],
-                ],
-              ),
-            ),
           ],
         ),
       ),
