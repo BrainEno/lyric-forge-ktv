@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Reference proofreading extraction (#323):** a domain plan prepares and applies text-only or evidence-backed corrections; reference alignment and proofreading now check editor revisions across modal waits. Other editor flows and screen size remain follow-up work.
+
 - **V2 proofreading orchestration (#323):** strategy, protection, alignment requests, and review assembly now have a UI-independent use case. Other editor flows, screen size, and full UX audit remain open; reference-first alignment is still not executed (#319).
 
 - **Fusion timing snapshots:** dual-engine output records exact-text hashes and fusion-specific realignment flags; aligned input remains unknown, and consumers must validate the snapshot against current rows. No automatic alignment or playback certification. See [timing evidence](log/entries/2026-11-07-2054-record-fusion-timing-evidence.md).
