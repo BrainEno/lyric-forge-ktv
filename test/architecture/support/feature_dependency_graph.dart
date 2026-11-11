@@ -14,7 +14,13 @@ class FeatureDependencyGraph {
     if (from == null) return;
     features.add(from);
     scannedFiles++;
-    for (final uri in directiveUris(source)) {
+    late final List<String> uris;
+    try {
+      uris = directiveUris(source);
+    } on FormatException catch (error) {
+      throw FormatException('$importer: ${error.message}');
+    }
+    for (final uri in uris) {
       final target = _resolve(importer, uri);
       if (target == null) continue;
       final to = _feature(target);
