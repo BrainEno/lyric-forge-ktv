@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
@@ -53,10 +55,33 @@ class _ProofreadV2RunOptionsDialogState
     super.dispose();
   }
 
+  Widget _revealOnFocus(Widget child) {
+    return Builder(
+      builder: (context) => Focus(
+        canRequestFocus: false,
+        onFocusChange: (focused) {
+          if (!focused) return;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            unawaited(
+              Scrollable.ensureVisible(
+                context,
+                duration: const Duration(milliseconds: 120),
+                alignment: 0.2,
+              ),
+            );
+          });
+        },
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.bgElevated,
+      scrollable: true,
       title: const Text('歌词智能校对 V2'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
@@ -70,40 +95,48 @@ class _ProofreadV2RunOptionsDialogState
               spacing: 8,
               runSpacing: 8,
               children: [
-                ChoiceChip(
-                  label: const Text('自动选择'),
-                  selected: _strategy == LyricSourceStrategy.auto,
-                  onSelected: (_) =>
-                      setState(() => _strategy = LyricSourceStrategy.auto),
+                _revealOnFocus(
+                  ChoiceChip(
+                    label: const Text('自动选择'),
+                    selected: _strategy == LyricSourceStrategy.auto,
+                    onSelected: (_) =>
+                        setState(() => _strategy = LyricSourceStrategy.auto),
+                  ),
                 ),
-                ChoiceChip(
-                  label: const Text('参考歌词优先'),
-                  selected: _strategy == LyricSourceStrategy.referenceFirst,
-                  onSelected: (_) => setState(() {
-                    _strategy = LyricSourceStrategy.referenceFirst;
-                    _useReference = true;
-                  }),
+                _revealOnFocus(
+                  ChoiceChip(
+                    label: const Text('参考歌词优先'),
+                    selected: _strategy == LyricSourceStrategy.referenceFirst,
+                    onSelected: (_) => setState(() {
+                      _strategy = LyricSourceStrategy.referenceFirst;
+                      _useReference = true;
+                    }),
+                  ),
                 ),
-                ChoiceChip(
-                  label: const Text('ASR 优先'),
-                  selected: _strategy == LyricSourceStrategy.asrFirst,
-                  onSelected: (_) => setState(() {
-                    _strategy = LyricSourceStrategy.asrFirst;
-                    _useReference = false;
-                  }),
+                _revealOnFocus(
+                  ChoiceChip(
+                    label: const Text('ASR 优先'),
+                    selected: _strategy == LyricSourceStrategy.asrFirst,
+                    onSelected: (_) => setState(() {
+                      _strategy = LyricSourceStrategy.asrFirst;
+                      _useReference = false;
+                    }),
+                  ),
                 ),
               ],
             ),
             if (_strategy == LyricSourceStrategy.auto) ...[
               const SizedBox(height: 12),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _useReference,
-                onChanged: (value) =>
-                    setState(() => _useReference = value ?? false),
-                title: const Text('本次提供参考歌词'),
-                subtitle: const Text('自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。'),
-                controlAffinity: ListTileControlAffinity.leading,
+              _revealOnFocus(
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _useReference,
+                  onChanged: (value) =>
+                      setState(() => _useReference = value ?? false),
+                  title: const Text('本次提供参考歌词'),
+                  subtitle: const Text('自动策略会先计算文本覆盖率；覆盖率不足时退回 ASR 复核。'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
               ),
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
@@ -115,29 +148,33 @@ class _ProofreadV2RunOptionsDialogState
                 '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
               ),
               const SizedBox(height: 8),
-              CheckboxListTile(
-                key: const ValueKey('forced_alignment_review_toggle'),
-                contentPadding: EdgeInsets.zero,
-                value: _useForcedAlignment,
-                onChanged: (value) =>
-                    setState(() => _useForcedAlignment = value ?? false),
-                title: const Text('使用 ForcedAligner 词级时间证据'),
-                subtitle: const Text(
-                  '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
+              _revealOnFocus(
+                CheckboxListTile(
+                  key: const ValueKey('forced_alignment_review_toggle'),
+                  contentPadding: EdgeInsets.zero,
+                  value: _useForcedAlignment,
+                  onChanged: (value) =>
+                      setState(() => _useForcedAlignment = value ?? false),
+                  title: const Text('使用 ForcedAligner 词级时间证据'),
+                  subtitle: const Text(
+                    '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
+                  ),
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
-                controlAffinity: ListTileControlAffinity.leading,
               ),
               const SizedBox(height: 8),
-              TextField(
-                key: const ValueKey('secondary_asr_transcript_input'),
-                controller: _secondaryTranscriptController,
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: '第二份 ASR 转写稿（可选）',
-                  hintText: '[00:12.30] lyric line…',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
+              _revealOnFocus(
+                TextField(
+                  key: const ValueKey('secondary_asr_transcript_input'),
+                  controller: _secondaryTranscriptController,
+                  minLines: 3,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: '第二份 ASR 转写稿（可选）',
+                    hintText: '[00:12.30] lyric line…',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
                 ),
               ),
             ],
