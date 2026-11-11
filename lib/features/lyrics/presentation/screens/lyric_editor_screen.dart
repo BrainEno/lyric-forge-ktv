@@ -16,6 +16,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/reference_lyric_input.dart';
+import '../../domain/proofreading/apply_reference_alignment_use_case.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
@@ -23,15 +24,12 @@ import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/run_reference_proofread_use_case.dart';
 import '../../domain/proofreading/reference_proofread_change_set.dart';
-import '../../domain/services/lyric_alignment_service.dart';
 import '../../domain/services/lyric_audition_window_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
-import '../../domain/services/reference_alignment_applier.dart';
-import '../../domain/services/reference_alignment_provenance_builder.dart';
 import '../../domain/services/reference_alignment_restore_service.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
@@ -81,7 +79,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   late final AudioPlayerService _audioService;
   late final LyricFileExportService _exportService;
   late final LyricManualEditMarkerService _lineMarkers;
-  static const _provenance = ReferenceAlignmentProvenanceBuilder();
   late final ReferenceLyricTextParser _referenceParser;
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
@@ -383,52 +380,38 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
     if (input == null || !_proofreadIsCurrent(revision)) return;
 
-    const alignmentService = LyricAlignmentService();
-    const applier = ReferenceAlignmentApplier();
-    final alignment = alignmentService.align(
-      document: document,
-      referenceLines: input.lines,
+    final plan = const ApplyReferenceAlignmentUseCase().prepare(
+      draft: document,
+      input: input,
+      protectedLineIndices: _manuallyEditedLineIndices,
+      audioDuration: project.audioAsset?.duration,
     );
-    if (alignment.entries.isEmpty) {
+    if (plan.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
       return;
     }
 
-    final allReferenceLinesTimed = alignment.entries.every(
-      (entry) => entry.referenceHasTimestamp,
-    );
-    final timingUnavailableReason = _referenceTimingUnavailableReason(
-      input: input,
-      alignment: alignment,
-      allReferenceLinesTimed: allReferenceLinesTimed,
-      documentLineCount: document.lines.length,
-    );
-
     final decision = await showReferenceAlignmentReview(
       context,
       document: document,
-      alignment: alignment,
+      alignment: plan.alignment,
       input: input,
-      manuallyEditedLineIndices: _manuallyEditedLineIndices,
-      timingUnavailableReason: timingUnavailableReason,
-      minimumSimilarity: applier.minimumSimilarity,
+      manuallyEditedLineIndices: plan.protectedLineIndices,
+      timingUnavailableReason: _referenceTimingUnavailableReason(plan.timingUnavailableReason),
+      minimumSimilarity: plan.minimumSimilarity,
     );
     if (decision == null || !_proofreadIsCurrent(revision)) return;
     if (!decision.hasChanges) return;
 
-    final result = applier.apply(
-      document: document,
-      alignment: alignment,
+    final proposal = plan.apply(
       applyReferenceTiming: decision.applyReferenceTiming,
       acceptedReferenceIndices: decision.acceptedReferenceIndices,
       acceptedMissingReferenceIndices: decision.acceptedMissingReferenceIndices,
-      protectedLineIndices: _manuallyEditedLineIndices.difference(
-        decision.overriddenAsrLineIndices,
-      ),
-      audioDuration: project.audioAsset?.duration,
+      overriddenAsrLineIndices: decision.overriddenAsrLineIndices,
     );
+    final result = proposal.result;
     if (!result.hasChanges) return;
 
     // 时间轴校验门：允许先看预览，但严重的新冲突必须由用户明确决定保留。
@@ -441,48 +424,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       if (keep != true || !_proofreadIsCurrent(revision)) return;
     }
 
-    final appliedDocument = decision.applyReferenceTiming
-        ? result.document.copyWith(globalOffset: Duration.zero)
-        : result.document;
-    // 对齐补入的新行缺少稳定标识，先统一补齐；手工编辑保护按标识定位，无需按索引平移。
-    final appliedWithLineIds = _lineMarkers.assignMissingLineIds(
-      appliedDocument,
-    );
-
-    final now = DateTime.now();
-    final backupMetadata = Map<String, dynamic>.from(document.metadata)
-      ..remove(kReferenceAlignmentBackupKey);
-    final backupDocument = LyricDocument(
-      language: document.language,
-      lines: document.lines,
-      globalOffset: document.globalOffset,
-      metadata: backupMetadata,
-    );
-
-    final metadata = Map<String, dynamic>.from(document.metadata)
-      ..[kReferenceAlignmentBackupKey] = <String, dynamic>{
-        'createdAt': now.toIso8601String(),
-        'reason': 'reference-alignment',
-        'source': input.sourcePath == null ? 'paste' : 'file',
-        if (input.sourcePath != null) 'sourcePath': input.sourcePath,
-        'format': input.format,
-        'timed': input.timed,
-        'referenceOffsetMs': input.offset.inMilliseconds,
-        'lineCount': document.lines.length,
-        'document': backupDocument.toJson(),
-      }
-      ..[ReferenceAlignmentProvenanceBuilder.metadataKey] = _provenance.build(
-        appliedAt: now,
-        input: input,
-        minimumSimilarity: applier.minimumSimilarity,
-        applyReferenceTiming: decision.applyReferenceTiming,
-        acceptedReferenceCount: decision.acceptedReferenceIndices.length,
-        acceptedMissingReferenceCount:
-            decision.acceptedMissingReferenceIndices.length,
-        overriddenManuallyEditedCount: decision.overriddenAsrLineIndices.length,
-        result: result,
-        appliedDocument: appliedWithLineIds,
-      );
+    final appliedDocument = proposal.materialize(appliedAt: DateTime.now());
 
     final selection = result.corrections.isNotEmpty
         ? result.corrections.first.asrLineIndex
@@ -492,7 +434,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final shouldPauseAudition = _audition.isSounding;
     setState(() {
       _editor.replaceDocument(
-        appliedWithLineIds.copyWith(metadata: metadata),
+        appliedDocument,
         label: '应用参考歌词对齐',
         selectedLineIndex: selection,
         keepBatchSnapshot: true,
@@ -869,27 +811,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  String? _referenceTimingUnavailableReason({
-    required ReferenceLyricInput input,
-    required LyricAlignmentResult alignment,
-    required bool allReferenceLinesTimed,
-    required int documentLineCount,
-  }) {
-    if (!input.timed) return null;
-    if (!allReferenceLinesTimed) {
-      return '参考歌词只有部分行带时间戳，无法整体替换时间轴；本次只纠正文字并补全漏行。';
-    }
-    if (alignment.missingReferenceIndices.isNotEmpty ||
-        alignment.unmatchedAsrIndices.isNotEmpty ||
-        alignment.asrLines.length != documentLineCount) {
-      return '参考歌词与当前草稿不是一一对应（存在漏行、多余行或空行），'
-          '本次只纠正文字、补全漏行并保留原时间轴。';
-    }
-    if (_manuallyEditedLineIndices.isNotEmpty) {
-      return '本次有手动编辑过的行，先只纠正文字以避免打乱时间轴；'
-          '需要替换时间轴时请先保存并重新打开工程。';
-    }
-    return null;
+  String? _referenceTimingUnavailableReason(ReferenceTimingUnavailableReason? reason) {
+    return switch (reason) {
+      ReferenceTimingUnavailableReason.partiallyTimed =>
+        '参考歌词只有部分行带时间戳，无法整体替换时间轴；本次只纠正文字并补全漏行。',
+      ReferenceTimingUnavailableReason.structuralMismatch =>
+        '参考歌词与当前草稿不是一一对应（存在漏行、多余行或空行），本次只纠正文字、补全漏行并保留原时间轴。',
+      ReferenceTimingUnavailableReason.protectedLines =>
+        '本次有手动编辑过的行，先只纠正文字以避免打乱时间轴；需要替换时间轴时请先保存并重新打开工程。',
+      null => null,
+    };
   }
 
   /// 恢复对齐前的单槽备份：二次确认后替换编辑中的文档，不自动保存。
