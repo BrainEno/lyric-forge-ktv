@@ -66,12 +66,14 @@ void main() {
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(find.textContaining('ForcedAligner 未运行'), findsOneWidget);
-          await tester.ensureVisible(find.textContaining('new text').first);
-          await tester.pumpAndSettle();
-          expect(
-            find.textContaining('new text').first.hitTestable(),
-            findsOneWidget,
+          final card = find.byKey(const ValueKey('proofread_proposal_0'));
+          await tester.scrollUntilVisible(
+            card,
+            180,
+            scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)),
           );
+          await tester.pumpAndSettle();
+          expect(card.hitTestable(), findsOneWidget);
           expect(find.text('取消').hitTestable(), findsOneWidget);
           await tester.tap(find.text('取消'));
           await tester.pumpAndSettle();
