@@ -111,3 +111,12 @@
 - 影响：Provider 不成为全局 service locator，不创建第二个播放器/队列，也不要求把全部编辑器 UI 状态搬进 store。识别与歌词编辑语义保持由现有 controller/service 测试保护。
 - 状态：生效
 - 来源：[Phase 4.4 最终交付记录](log/entries/2026-11-03-2113-phase44-state-management-final.md)
+
+## D-013 状态管理选型及依赖装配边界
+
+- 日期：2026-11-07
+- 背景：局部 widget 状态、异步服务状态与编辑器文档状态生命周期不同；误把 Provider 当全局容器或复制播放状态会造成双重事实源。D-012 已约束编辑器与播放状态，本决定补充新功能的选择依据。
+- 决定：短生命周期、只影响当前 widget 且不跨导航保留的交互状态使用 `setState`，在 dispose 后不得继续更新。播放、队列和长任务等已有领域服务保持为事实源，通过服务契约与 Stream 发布异步状态；订阅者负责释放订阅并处理错误、完成与取消。需要在同一子树共享可变 UI 文档且有明确所有者时，可使用 ChangeNotifier + Provider；只读取必要字段时使用 Selector，controller 在创建子树前初始化，由创建者负责释放。一次性不可变配置通过构造参数传递，不为了方便而新增全局 store。
+- 影响：先复用现有服务/状态，不为同一实体再创建平行事实源；选择其他方案需说明生命周期、所有权、错误与取消行为并补相应测试。依赖在 `lib/app/` 组合根创建并注入 screen/use case；feature 不反向引用 app shell 或 service locator。跨 feature 通过稳定 domain 契约协作，现存依赖环和跨 feature presentation 引用需逐步收敛，不能因为存在基线而继续扩大。assembly、分层与依赖图契约是静态保护，不替代实际行为测试。
+- 状态：生效
+- 来源：[Phase 4.4 状态管理](log/entries/2026-11-03-2113-phase44-state-management-final.md)；issue #235。
