@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
+
 - **Reference proofreading extraction (#323):** a domain plan prepares and applies text-only or evidence-backed corrections; reference alignment and proofreading now check editor revisions across modal waits. Other editor flows and screen size remain follow-up work.
 
 - **V2 proofreading orchestration (#323):** strategy, protection, alignment requests, and review assembly now have a UI-independent use case. Other editor flows, screen size, and full UX audit remain open; reference-first alignment is still not executed (#319).
