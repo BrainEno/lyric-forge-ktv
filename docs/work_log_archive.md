@@ -109,6 +109,7 @@
 - [2026-11-07 20:51] Guard ASR installation preflight cancellation ([entry](log/entries/2026-11-07-2051-asr-install-preflight-cancellation.md))
 - [2026-11-07 20:50] Coordinate ASR installation ownership ([entry](log/entries/2026-11-07-2050-coordinate-asr-installation.md))
 - [2026-11-07 20:49] Protect shared secondary ASR segments ([entry](log/entries/2026-11-07-2049-protect-shared-asr-segments.md))
+- [2026-11-07 20:48] Preserve shared ASR review across chunks ([entry](log/entries/2026-11-07-2048-preserve-shared-asr-chunk-review.md))
 - [2026-11-07 20:05] Preserve chunk cancellation boundaries ([entry](log/entries/2026-11-07-2005-chunk-cancellation-terminal.md))
 - [2026-11-07 19:20] Document and test vendored audio backend ([entry](log/entries/2026-11-07-1920-vendored-audio-provenance.md))
 - [2026-11-07 18:43] Remove unused proofreading constants ([entry](log/entries/2026-11-07-1843-remove-dead-proofread-constants.md))
