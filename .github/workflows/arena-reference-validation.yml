@@ -26,7 +26,7 @@ jobs:
       - name: Tests
         run: |
           set -o pipefail
-          flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/run_reference_proofread_use_case_test.dart test/features/lyrics/domain/proofreading/reference_proofread_review_builder_test.dart test/features/lyrics/domain/proofreading/reference_proofread_change_set_test.dart test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/reference_proofread_review_dialog_test.dart test/features/lyrics/presentation/widgets/reference_proofread_timing_review_dialog_test.dart test/architecture test/architecture_layer_imports_contract_test.dart 2>&1 | tee /tmp/ref-test.log
+          flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/run_reference_proofread_use_case_test.dart test/features/lyrics/domain/proofreading/reference_proofread_review_builder_test.dart test/features/lyrics/domain/proofreading/reference_proofread_change_set_test.dart test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart test/architecture test/architecture_layer_imports_contract_test.dart 2>&1 | tee /tmp/ref-test.log
       - name: Report failures
         if: failure()
         run: |
