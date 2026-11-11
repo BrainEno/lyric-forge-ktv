@@ -296,7 +296,10 @@ bool _metadataPrecedesDirective(String source, int offset) {
   final name = RegExp(r'[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*');
   int skipTrivia(int at) {
     while (at < source.length) {
-      if (source[at].trim().isEmpty) { at++; continue; }
+      if (source[at].trim().isEmpty) {
+        at++;
+        continue;
+      }
       if (source.startsWith('//', at)) {
         final end = source.indexOf('\n', at + 2);
         at = end < 0 ? source.length : end + 1;
@@ -306,9 +309,15 @@ bool _metadataPrecedesDirective(String source, int offset) {
         var depth = 1;
         at += 2;
         while (at < source.length && depth > 0) {
-          if (source.startsWith('/*', at)) { depth++; at += 2; }
-          else if (source.startsWith('*/', at)) { depth--; at += 2; }
-          else { at++; }
+          if (source.startsWith('/*', at)) {
+            depth++;
+            at += 2;
+          } else if (source.startsWith('*/', at)) {
+            depth--;
+            at += 2;
+          } else {
+            at++;
+          }
         }
         if (depth != 0) throw FormatException('Unterminated metadata comment');
         continue;
@@ -336,14 +345,24 @@ bool _metadataPrecedesDirective(String source, int offset) {
           i += quote.length;
           var closed = false;
           while (i < source.length) {
-            if (source.startsWith(quote, i)) { i += quote.length; closed = true; break; }
+            if (source.startsWith(quote, i)) {
+              i += quote.length;
+              closed = true;
+              break;
+            }
             if (source[i] == r'\') i++;
             i++;
           }
           if (!closed) throw FormatException('Unterminated metadata string');
-        } else if (char == '(') { depth++; i++; }
-        else if (char == ')') { depth--; i++; }
-        else { i++; }
+        } else if (char == '(') {
+          depth++;
+          i++;
+        } else if (char == ')') {
+          depth--;
+          i++;
+        } else {
+          i++;
+        }
       }
       if (depth != 0) throw FormatException('Unterminated metadata');
       i = skipTrivia(i);
