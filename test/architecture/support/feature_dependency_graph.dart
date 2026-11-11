@@ -211,6 +211,12 @@ List<_Token> _tokenize(String source) {
       c == 36;
   while (i < source.length) {
     final c = source[i];
+    if (i == 0 && c == '\uFEFF') { i++; continue; }
+    if ((i == 0 || (i == 1 && source[0] == '\uFEFF')) && source.startsWith('#!', i)) {
+      final end = source.indexOf('\n', i + 2);
+      i = end == -1 ? source.length : end + 1;
+      continue;
+    }
     if (c == '/' && i + 1 < source.length && source[i + 1] == '/') {
       final end = source.indexOf('\n', i + 2);
       i = end == -1 ? source.length : end + 1;
@@ -290,7 +296,8 @@ List<_Token> _tokenize(String source) {
         tokens.add(const _Token(';'));
         inDirective = false;
       } else if (!inDirective && c.trim().isNotEmpty) {
-        break; // A declaration may start with a record type or other symbol.
+        if (c == '(') break; // A declaration can start with a record type.
+        throw FormatException('Unsupported token before directive: $c');
       }
       i++;
     }
