@@ -46,3 +46,33 @@ jobs:
             grep -E 'error •|warning •|error -|warning -' /tmp/ref-analyze.log | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           }
+      - name: Generate and validate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 20:56' --slug extract-reference-proofread-use-case --title 'Guard and extract reference proofreading workflows'
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('docs/log/entries/2026-11-07-2056-extract-reference-proofread-use-case.md')
+          s=p.read_text()
+          replacements={
+           'TODO — describe the task purpose.':'Extract reference proofreading orchestration and discard stale reference alignment and proofreading proposals (partial #323).',
+           'TODO — list changed files.':'Reference proofreading use case and tests, editor revision guards and widget tests, handoff and work-log navigation.',
+           'dart format ... => TODO':'dart format changed Dart files with pinned SDK => passed in Actions 43035295663.',
+           'flutter analyze ... => TODO':'flutter analyze --no-pub --no-fatal-infos lib test tool => passed in Actions 43035295663.',
+           'flutter test ... => TODO':'flutter test --no-pub targeted reference and V2 use cases, editor widgets, review menu and architecture contracts => passed in Actions 43035295663.',
+           'TODO — record risks and unverified behavior.':'#323 remains open, including reference alignment extraction, screen size and full UX audit. The in-memory revision guard is separate from persistent save conflicts; other asynchronous operations remain unaudited. No real device, native file picker, audio or song quality checks.',
+           'TODO: replace with the actual English imperative subject':'Guard and extract reference proofreading workflows',
+          }
+          for a,b in replacements.items():
+            assert a in s, a
+            s=s.replace(a,b)
+          p.write_text(s)
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2056-extract-reference-proofread-use-case.md
+          git diff -- docs > /tmp/worklog.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/worklog.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=WORKLOG{i//3000}::{data[i:i+3000]}')
+          PY
