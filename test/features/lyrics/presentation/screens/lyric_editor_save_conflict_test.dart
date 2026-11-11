@@ -127,9 +127,16 @@ void main() {
     expect(find.text('智能校对提案复核'), findsNothing);
   });
 
-  testWidgets('a change in the options dialog aborts before running', (tester) async {
+  testWidgets('a change in the options dialog aborts before running', (
+    tester,
+  ) async {
     var calls = 0;
-    final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+    final editor = await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) async {
       calls++;
       return [];
     });
@@ -145,7 +152,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('unchanged reference proposal applies and remains undoable', (tester) async {
+  testWidgets('unchanged reference proposal applies and remains undoable', (
+    tester,
+  ) async {
     final editor = await _openEditor(tester, _emptyAlignment);
     await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
     await tester.pumpAndSettle();
@@ -158,7 +167,13 @@ void main() {
     editor.select(null);
     Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog))).pop(
       ReferenceLyricInput(
-        lines: [ReferenceLyricLine(text: 'Human lyric', startTime: const Duration(milliseconds: 500), endTime: const Duration(milliseconds: 1500))],
+        lines: [
+          ReferenceLyricLine(
+            text: 'Human lyric',
+            startTime: const Duration(milliseconds: 500),
+            endTime: const Duration(milliseconds: 1500),
+          ),
+        ],
         timed: true,
         format: 'lrc',
       ),
@@ -166,15 +181,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('智能校对提案复核'), findsOneWidget);
     Navigator.of(tester.element(find.text('智能校对提案复核'))).pop(
-      LyricProofreadV2Selection(acceptedProposalIndices: {0}, restoredDraftIndices: {}),
+      LyricProofreadV2Selection(
+        acceptedProposalIndices: {0},
+        restoredDraftIndices: {},
+      ),
     );
     await tester.pumpAndSettle();
-    expect(editor.document!.lines.single.startTime, const Duration(milliseconds: 500));
+    expect(
+      editor.document!.lines.single.startTime,
+      const Duration(milliseconds: 500),
+    );
     expect(editor.alignmentSnapshot, isNotNull);
     expect(editor.undo().applied, isTrue);
     expect(editor.document!.lines.single.startTime, Duration.zero);
     expect(editor.redo().applied, isTrue);
-    expect(editor.document!.lines.single.startTime, const Duration(milliseconds: 500));
+    expect(
+      editor.document!.lines.single.startTime,
+      const Duration(milliseconds: 500),
+    );
     expect(tester.takeException(), isNull);
   });
 
