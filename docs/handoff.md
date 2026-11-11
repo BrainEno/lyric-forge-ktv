@@ -2,28 +2,26 @@
 
 ## 目标
 
-完成审查 F-01：防止 V2 异步校对使用旧的内存歌词覆盖人工编辑；后续按报告依次处理真实歌曲质量基线、#319/#323、小窗口无障碍和本地 Qwen 会话身份等独立任务。
+按“一次生成可用于播放的歌词”方案完成首个独立工作包：记录双引擎融合后的文字/时间快照与需重新对齐的融合风险，不改变模型、歌词或时间选择。
 
 ## Git 现场
 
-活动分支 `arena/cc41bdc1-lyric-forge-ktv`，基线 `4621b5e`（PR #412 已合并）。阶段提交包括 `d338780 Guard proofreading against stale editor state` 与 `54647b5 Exercise proofreading revision guard`；以当前 `git status --short`、`git diff --stat`、`git log --oneline -5` 为准。临时验证 workflow 最终必须删除，不更改正式 CI；不要自动合并或关闭 Issue。
+活动分支 `arena/e0a7c405-lyric-forge-ktv`，基线 `452eedb562287749a4592c71a421bbded9a834e0`。阶段提交 `2166194 Record fusion timing text provenance`、`aaa11ba Document and validate fusion timing snapshots`；使用当前 `git status --short`、`git diff --stat`、`git log --oneline -5` 确认最终现场。临时验证 workflow 必须删除，不更改正式 CI；不得自动合并 PR 或关闭 Issue。
 
 ## 已改文件
 
-歌词编辑文档控制器、V2 校对屏幕、控制器和屏幕测试；本交接、日志和导航文件。
+`FusionTimingEvidence` 契约、双引擎融合和可恢复分片服务、定向测试；`docs/asr_quality_baseline.md`、工作日志、导航和本交接。
 
 ## 检查结果
 
-本地无 Flutter/Dart。固定 SDK Actions 42956931315：依赖解析、格式化、控制器/编辑器/V2 弹窗/ForcedAligner 定向测试和 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。最终日志检查另行运行。尚无真实设备/屏幕阅读器或真实歌曲测试。
+本地无 Flutter/Dart。固定 SDK Actions 42976781024：依赖、格式、融合/分片/证据/歌词检查器/架构契约定向测试及 `flutter analyze --no-pub --no-fatal-infos lib test tool` 通过。日志检查另行执行；没有实歌、实际模型、设备和性能验证。
 
 ## 下一步
 
-按报告阶段 1 建立可复现真实歌曲人工参考及许可、哈希、引擎参数和发布阈值；缺少可用合法样本前勿宣称识别准确率改善。之后单独处理 #319、#323、F-04 和 F-03。
+先依据 #413 建立合法、经人工核对的真实歌曲基线与负例门禁，再独立设计可取消的局部重对齐；需要音频、最终文本、真实 aligner 输入/模型及预处理身份，结果只能作为可复核建议并保护人工修改。
 
 ## 已知风险
 
-仅 V2 入口使用新的内存修订守卫，其他异步校对/保存路径尚需独立审查；磁盘 CAS 与内存修订是不同机制。复核后和最终提交前均验证修订，时间轴冲突确认期间修改的实际交互尚未单独模拟；不取消原生对齐，只忽略过期结果。会话内并发受限，不代表跨进程锁。#412 跨分片共享候选自动检测与安装协调生产接线仍未完成。
-
-手工验证建议：启动慢速 ForcedAligner，编辑或撤销歌词后等待结果，确认提示保留修改；重复启动、复核弹窗和时间轴确认期间修改、退出页面后迟到结果，均不应覆盖。检查正常应用及撤销重做、保存冲突和屏幕阅读器提示。上述设备检查尚未执行。
+`timedTextHash` 仅记录与时间一起返回的文本，不证明该文本是对齐器输入；`alignedTextHash` 为 null。`needsRealignment: false` 只表示融合未触发指定风险，不表示已对齐或可播放。使用快照前必须验证索引、文本和时间；不验证音频、模型、录音版本或用户编辑历史。旧/单引擎/降级或获胜旧分片没有此证据；索引变化后可能失效。哈希仍属敏感数据。没有接 UI、自动重对齐或质量放行；真实歌词错误率和时间准确度未知。
 
 最后更新：2026-11-07（Asia/Taipei）

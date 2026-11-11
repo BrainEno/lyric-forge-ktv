@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Fusion timing snapshots:** dual-engine output records exact-text hashes and fusion-specific realignment flags; aligned input remains unknown, and consumers must validate the snapshot against current rows. No automatic alignment or playback certification. See [timing evidence](log/entries/2026-11-07-2054-record-fusion-timing-evidence.md).
+
 - **V2 stale proposal guard:** editor mutations and history restoration advance an in-memory revision; asynchronous V2 proposals are discarded on mismatch and only one run is allowed per editor. See [F-01 guard](log/entries/2026-11-07-2053-guard-proofread-editor-state.md). Other asynchronous edit flows need separate audit.
 
 - **ASR segmentation safety:** shared secondary segments remain review-only, and overlap chunk merging preserves the restrictive candidate. Candidate evidence now records individual secondary segment times and chunk origin; cross-chunk matching is not yet implemented. See [segment evidence](log/entries/2026-11-07-2047-record-secondary-asr-segments.md) and [chunk review safety](log/entries/2026-11-07-2048-preserve-shared-asr-chunk-review.md). Real-song accuracy remains unmeasured.
