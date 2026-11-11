@@ -5,7 +5,6 @@ const cyclicEdgeBaseline = <String>{
   'lyrics -> project',
   'player -> lyrics',
   'player -> project',
-  'player -> transcription',
   'project -> player',
   'project -> transcription',
   'transcription -> lyrics',

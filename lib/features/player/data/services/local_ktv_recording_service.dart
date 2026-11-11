@@ -5,7 +5,6 @@ import 'dart:typed_data';
 
 import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/project_manifest.dart';
-import '../../../transcription/domain/services/transcription_settings_store.dart';
 import '../../domain/models/ktv_recording_session.dart';
 import '../../domain/models/playback_state.dart';
 import '../../domain/services/audio_player_service.dart';
@@ -17,7 +16,7 @@ import 'pcm16_wav_writer.dart';
 class LocalKtvRecordingService implements KtvRecordingService {
   final AudioPlayerService _audioService;
   final KtvMicrophoneService _microphoneService;
-  final TranscriptionSettingsStore _settingsStore;
+  final Future<String?> Function() _loadFfmpegExecutable;
   final Future<Directory> Function(ProjectManifest) _projectDirectoryResolver;
   final Future<ProcessResult> Function(String, List<String>) _processRunner;
   final StreamController<KtvRecordingState> _stateController =
@@ -35,17 +34,19 @@ class LocalKtvRecordingService implements KtvRecordingService {
   LocalKtvRecordingService({
     required AudioPlayerService audioService,
     required KtvMicrophoneService microphoneService,
-    required TranscriptionSettingsStore settingsStore,
+    required Future<String?> Function() loadFfmpegExecutable,
     Future<Directory> Function(ProjectManifest)? projectDirectoryResolver,
     Future<ProcessResult> Function(String, List<String>)? processRunner,
-  })  : _audioService = audioService,
-        _microphoneService = microphoneService,
-        _settingsStore = settingsStore,
-        _projectDirectoryResolver = projectDirectoryResolver ??
-            ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
-        _processRunner = processRunner ??
-            ((executable, arguments) =>
-                Process.run(executable, arguments, runInShell: false));
+  }) : _audioService = audioService,
+       _microphoneService = microphoneService,
+       _loadFfmpegExecutable = loadFfmpegExecutable,
+       _projectDirectoryResolver =
+           projectDirectoryResolver ??
+           ((project) => KtvProjectStorage.resolveProjectDirectory(project)),
+       _processRunner =
+           processRunner ??
+           ((executable, arguments) =>
+               Process.run(executable, arguments, runInShell: false));
 
   @override
   Stream<KtvRecordingState> get stateStream => _stateController.stream;
@@ -137,7 +138,9 @@ class LocalKtvRecordingService implements KtvRecordingService {
         _markAlignmentIssue('麦克风输入在录音中断开：$error');
       },
     );
-    _playbackSubscription = _audioService.stateStream.listen(_handlePlaybackState);
+    _playbackSubscription = _audioService.stateStream.listen(
+      _handlePlaybackState,
+    );
 
     _emit(
       _state.copyWith(
@@ -185,7 +188,8 @@ class LocalKtvRecordingService implements KtvRecordingService {
       _markAlignmentIssue('录音过程中切换了伴唱音轨');
       return;
     }
-    if (!playback.isPlaying && clock.elapsed > const Duration(milliseconds: 350)) {
+    if (!playback.isPlaying &&
+        clock.elapsed > const Duration(milliseconds: 350)) {
       _markAlignmentIssue('录音过程中歌曲被暂停或停止');
       return;
     }
@@ -298,11 +302,14 @@ class LocalKtvRecordingService implements KtvRecordingService {
 
     _emit(_state.copyWith(isExporting: true, clearError: true));
     try {
-      final settings = await _settingsStore.load();
-      final ffmpeg = settings?.ffmpegExecutable.trim().isNotEmpty == true
-          ? settings!.ffmpegExecutable.trim()
-          : 'ffmpeg';
-      final outputPath = _join(File(session.manifestPath).parent.path, 'mix.wav');
+      final configured = (await _loadFfmpegExecutable())?.trim();
+      final ffmpeg = configured == null || configured.isEmpty
+          ? 'ffmpeg'
+          : configured;
+      final outputPath = _join(
+        File(session.manifestPath).parent.path,
+        'mix.wav',
+      );
       final args = buildKtvMixFfmpegArguments(
         session,
         outputPath: outputPath,
@@ -465,8 +472,9 @@ List<String> buildKtvMixFfmpegArguments(
   double? backingVolume,
 }) {
   final voice = voiceVolume.clamp(0.0, 2.0).toDouble();
-  final backing =
-      (backingVolume ?? session.backingVolume).clamp(0.0, 1.0).toDouble();
+  final backing = (backingVolume ?? session.backingVolume)
+      .clamp(0.0, 1.0)
+      .toDouble();
   final startSeconds =
       (session.startPosition.inMicroseconds / Duration.microsecondsPerSecond)
           .toStringAsFixed(6);
@@ -500,7 +508,6 @@ List<String> buildKtvMixFfmpegArguments(
   ];
 }
 
-String _join(String left, String right) =>
-    left.endsWith(Platform.pathSeparator)
-        ? '$left$right'
-        : '$left${Platform.pathSeparator}$right';
+String _join(String left, String right) => left.endsWith(Platform.pathSeparator)
+    ? '$left$right'
+    : '$left${Platform.pathSeparator}$right';

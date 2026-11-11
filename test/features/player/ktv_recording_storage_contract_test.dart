@@ -11,52 +11,55 @@ import 'package:lyric_forge_ktv/features/player/domain/services/audio_player_ser
 import 'package:lyric_forge_ktv/features/player/domain/services/ktv_microphone_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
-import 'package:lyric_forge_ktv/features/transcription/domain/services/transcription_settings_store.dart';
 
 void main() {
-  test('recording writes through the injected project storage resolver', () async {
-    final root = await Directory.systemTemp.createTemp('ktv-recording-storage-');
-    final managed = Directory(_join(root.path, 'managed-project'));
-    final audio = _FakeAudioPlayerService(_playing(AudioSourceType.original));
-    final microphone = _FakeMicrophoneService(
-      initialState: const KtvMicrophoneState(isMonitoring: true),
-    );
-    var resolverCalls = 0;
-    final service = LocalKtvRecordingService(
-      audioService: audio,
-      microphoneService: microphone,
-      settingsStore: _FakeSettingsStore(),
-      projectDirectoryResolver: (project) async {
-        resolverCalls++;
-        expect(project.id, 'song');
-        return managed;
-      },
-    );
+  test(
+    'recording writes through the injected project storage resolver',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'ktv-recording-storage-',
+      );
+      final managed = Directory(_join(root.path, 'managed-project'));
+      final audio = _FakeAudioPlayerService(_playing(AudioSourceType.original));
+      final microphone = _FakeMicrophoneService(
+        initialState: const KtvMicrophoneState(isMonitoring: true),
+      );
+      var resolverCalls = 0;
+      final service = LocalKtvRecordingService(
+        audioService: audio,
+        microphoneService: microphone,
+        loadFfmpegExecutable: () async => null,
+        projectDirectoryResolver: (project) async {
+          resolverCalls++;
+          expect(project.id, 'song');
+          return managed;
+        },
+      );
 
-    addTearDown(() async {
-      await service.dispose();
-      await microphone.dispose();
-      await audio.dispose();
-      if (await root.exists()) await root.delete(recursive: true);
-    });
+      addTearDown(() async {
+        await service.dispose();
+        await microphone.dispose();
+        await audio.dispose();
+        if (await root.exists()) await root.delete(recursive: true);
+      });
 
-    await service.startRecording(_project());
+      await service.startRecording(_project());
 
-    final session = service.currentState.currentSession;
-    expect(service.currentState.isRecording, isTrue);
-    expect(session, isNotNull);
-    expect(resolverCalls, 1);
-    expect(
-      File(session!.manifestPath).parent.parent.path,
-      _join(managed.path, 'recordings'),
-    );
-    expect(await File(session.manifestPath).exists(), isTrue);
-    expect(await File(session.micStemPath).exists(), isTrue);
+      final session = service.currentState.currentSession;
+      expect(service.currentState.isRecording, isTrue);
+      expect(session, isNotNull);
+      expect(resolverCalls, 1);
+      expect(
+        File(session!.manifestPath).parent.parent.path,
+        _join(managed.path, 'recordings'),
+      );
+      expect(await File(session.manifestPath).exists(), isTrue);
+      expect(await File(session.micStemPath).exists(), isTrue);
 
-    await service.stopRecording();
-    expect(service.currentState.isRecording, isFalse);
-  });
+      await service.stopRecording();
+      expect(service.currentState.isRecording, isFalse);
+    },
+  );
 
   test('failed final playback validation creates no orphan take', () async {
     final root = await Directory.systemTemp.createTemp('ktv-recording-orphan-');
@@ -73,7 +76,7 @@ void main() {
     final service = LocalKtvRecordingService(
       audioService: audio,
       microphoneService: microphone,
-      settingsStore: _FakeSettingsStore(),
+      loadFfmpegExecutable: () async => null,
       projectDirectoryResolver: (project) async {
         resolverCalls++;
         return managed;
@@ -105,35 +108,34 @@ void main() {
 }
 
 ProjectManifest _project() => ProjectManifest(
-      id: 'song',
-      name: 'Song',
-      createdAt: DateTime.utc(2026, 10, 9),
-      updatedAt: DateTime.utc(2026, 10, 9),
-      audioAsset: const AudioAsset(
-        originalPath: '/music/song.wav',
-        vocalPath: '/music/vocals.wav',
-        instrumentalPath: '/music/instrumental.wav',
-        format: 'wav',
-      ),
-    );
+  id: 'song',
+  name: 'Song',
+  createdAt: DateTime.utc(2026, 10, 9),
+  updatedAt: DateTime.utc(2026, 10, 9),
+  audioAsset: const AudioAsset(
+    originalPath: '/music/song.wav',
+    vocalPath: '/music/vocals.wav',
+    instrumentalPath: '/music/instrumental.wav',
+    format: 'wav',
+  ),
+);
 
 PlaybackState _playing(AudioSourceType source) => PlaybackState(
-      isPlaying: true,
-      isBuffering: false,
-      isCompleted: false,
-      isLoading: false,
-      position: const Duration(seconds: 12),
-      duration: const Duration(minutes: 3),
-      bufferedPosition: const Duration(minutes: 3),
-      speed: 1,
-      volume: 0.8,
-      currentSource: source,
-    );
+  isPlaying: true,
+  isBuffering: false,
+  isCompleted: false,
+  isLoading: false,
+  position: const Duration(seconds: 12),
+  duration: const Duration(minutes: 3),
+  bufferedPosition: const Duration(minutes: 3),
+  speed: 1,
+  volume: 0.8,
+  currentSource: source,
+);
 
-String _join(String left, String right) =>
-    left.endsWith(Platform.pathSeparator)
-        ? '$left$right'
-        : '$left${Platform.pathSeparator}$right';
+String _join(String left, String right) => left.endsWith(Platform.pathSeparator)
+    ? '$left$right'
+    : '$left${Platform.pathSeparator}$right';
 
 class _FakeAudioPlayerService implements AudioPlayerService {
   PlaybackState _state;
@@ -254,15 +256,4 @@ class _FakeMicrophoneService implements KtvMicrophoneService {
     await _stateController.close();
     await _pcmController.close();
   }
-}
-
-class _FakeSettingsStore implements TranscriptionSettingsStore {
-  @override
-  Future<TranscriptionConfig?> load() async => null;
-
-  @override
-  Future<void> save(TranscriptionConfig config) async {}
-
-  @override
-  Future<void> clear() async {}
 }

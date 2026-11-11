@@ -30,9 +30,18 @@ void main() {
         containsAll(['lyrics', 'player', 'project', 'transcription']),
       );
       if (graph.cycles.isNotEmpty) {
+        // ignore: avoid_print
+        print(graph.describeCycles());
         expect(graph.describeCycles(), contains('SCC:'));
         expect(graph.describeCycles(), contains('lib/features/'));
       }
+    });
+
+    test('player no longer imports transcription', () {
+      expect(
+        graph.pathsByEdge.keys,
+        isNot(contains('player -> transcription')),
+      );
     });
 
     test('cyclic feature edges are a shrinking baseline', () {
