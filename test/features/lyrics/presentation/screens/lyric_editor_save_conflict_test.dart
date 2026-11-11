@@ -57,6 +57,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('forced alignment uses the imported vocal path', (tester) async {
+    String? usedPath;
+    await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) async {
+      usedPath = audioPath;
+      return [];
+    }, vocalPath: '/managed/人声.wav');
+    await _startAlignment(tester);
+    expect(usedPath, '/managed/人声.wav');
+    expect(find.text('智能校对提案复核'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('forced alignment falls back to original when no vocal exists', (
+    tester,
+  ) async {
+    String? usedPath;
+    await _openEditor(tester, ({
+      required audioPath,
+      required text,
+      required language,
+      required audioDuration,
+    }) async {
+      usedPath = audioPath;
+      return [];
+    });
+    await _startAlignment(tester);
+    expect(usedPath, 'song.wav');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('edit then undo still invalidates a delayed result', (
     tester,
   ) async {
@@ -530,14 +565,16 @@ Future<LyricEditorDocumentController> _openEditor(
   WidgetTester tester,
   ForcedAlignmentRunner runner, {
   LyricDocument? initialDocument,
+  String? vocalPath,
 }) async {
   final repository = MemoryProjectRepository();
   var project = await repository.createProject(name: 'Song');
   project = await repository.updateProject(
     project.copyWith(
       lyricDocument: initialDocument ?? _document('Human lyric'),
-      audioAsset: const AudioAsset(
+      audioAsset: AudioAsset(
         originalPath: 'song.wav',
+        vocalPath: vocalPath,
         format: 'wav',
         duration: Duration(seconds: 3),
       ),

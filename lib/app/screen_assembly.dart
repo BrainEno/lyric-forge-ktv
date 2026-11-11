@@ -15,6 +15,9 @@ ProjectDetailDependencies assembleProjectDetailDependencies(
     accompanimentImporter: FileProjectAccompanimentImporter(
       projectRepository: services.projectRepository,
     ),
+    vocalImporter: FileProjectAccompanimentImporter(
+      projectRepository: services.projectRepository,
+    ),
     playbackSourceUpdater:
         services.playbackSessionService is ActiveProjectPlaybackSourceUpdater
         ? services.playbackSessionService as ActiveProjectPlaybackSourceUpdater

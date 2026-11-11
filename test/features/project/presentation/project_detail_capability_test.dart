@@ -9,6 +9,7 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.dart';
 import 'package:lyric_forge_ktv/features/project/domain/repositories/project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/services/project_accompaniment_importer.dart';
+import 'package:lyric_forge_ktv/features/project/domain/services/project_vocal_importer.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/project_detail_dependencies.dart';
 import 'package:lyric_forge_ktv/features/project/presentation/screens/project_detail_screen.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
@@ -47,7 +48,9 @@ Future<void> _showProject(
   Size size, {
   _Projects? projects,
   ProjectAccompanimentImporter? importer,
+  ProjectVocalImporter? vocalImporter,
   ActiveProjectPlaybackSourceUpdater? updater,
+  double textScale = 1,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -58,6 +61,7 @@ Future<void> _showProject(
   final dependencies = ProjectDetailDependencies(
     projectRepository: projects ?? _Projects(project),
     accompanimentImporter: importer ?? _Importer(),
+    vocalImporter: vocalImporter ?? _VocalImporter(),
     playbackSourceUpdater: updater,
     transcriptionWorkflow: _Workflow(),
     asrRuntimeSetupDependencies: AsrRuntimeSetupDependencies(
@@ -74,6 +78,12 @@ Future<void> _showProject(
   );
   await tester.pumpWidget(
     MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: ProjectDetailScreen(
         projectId: project.id,
         dependencies: dependencies,
@@ -318,6 +328,287 @@ void main() {
     }
   });
 
+  testWidgets(
+    'vocal import disables competing operations and confirms replacement',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+        );
+        final projects = _Projects(project);
+        final pending = Completer<ProjectManifest?>();
+        final importer = _VocalImporter(onImport: (_) => pending.future);
+        await _showProject(
+          tester,
+          project,
+          const Size(1366, 768),
+          projects: projects,
+          vocalImporter: importer,
+        );
+        await tester.tap(find.text('导入已有人声'));
+        await tester.pump();
+        expect(importer.calls, 1);
+        expect(
+          tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, '正在导入人声…'),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(
+          tester
+              .widget<OutlinedButton>(
+                find.widgetWithText(OutlinedButton, '导入已有伴奏'),
+              )
+              .onPressed,
+          isNull,
+        );
+        projects.project = project.copyWith(
+          audioAsset: project.audioAsset!.copyWith(
+            vocalPath: '/managed/vocal.wav',
+          ),
+        );
+        pending.complete(projects.project);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('人声已导入'), findsOneWidget);
+        expect(find.text('更换人声'), findsOneWidget);
+        await tester.tap(find.text('更换人声'));
+        await tester.pumpAndSettle();
+        expect(find.text('更换人声？'), findsOneWidget);
+        expect(find.textContaining('原文件不会删除'), findsOneWidget);
+        await tester.tap(find.text('取消'));
+        await tester.pumpAndSettle();
+        expect(importer.calls, 1);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets('vocal replacement proceeds only after confirmation', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(
+          originalPath: '/song.wav',
+          vocalPath: '/old.wav',
+          format: 'wav',
+        ),
+      );
+      final importer = _VocalImporter();
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        vocalImporter: importer,
+      );
+      await tester.tap(find.text('更换人声'));
+      await tester.pumpAndSettle();
+      expect(importer.calls, 0);
+      await tester.tap(find.text('选择新人声'));
+      await tester.pumpAndSettle();
+      expect(importer.calls, 1);
+      expect(find.text('更换人声'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  for (final outcome in ['updated', 'rejected', 'error']) {
+    testWidgets('vocal import handles playback sync $outcome', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+        );
+        final updated = project.copyWith(
+          audioAsset: project.audioAsset!.copyWith(
+            vocalPath: '/managed/vocal.wav',
+          ),
+        );
+        final projects = _Projects(project);
+        final importer = _VocalImporter(
+          onImport: (_) async {
+            projects.project = updated;
+            return updated;
+          },
+        );
+        final updater = _Updater(outcome);
+        await _showProject(
+          tester,
+          project,
+          const Size(1366, 768),
+          projects: projects,
+          vocalImporter: importer,
+          updater: updater,
+        );
+        await tester.tap(find.text('导入已有人声'));
+        await tester.pumpAndSettle();
+        expect(updater.calls, 1);
+        expect(updater.expected, same(project.audioAsset));
+        expect(updater.replacement, same(updated.audioAsset));
+        expect(find.text('更换人声'), findsOneWidget);
+        expect(
+          find.textContaining(outcome == 'updated' ? '同步到当前播放队列' : '切换歌曲'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('导入人声失败'), findsNothing);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
+  testWidgets('vocal import reports stale revision and supports retry', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+      );
+      final importer = _VocalImporter(
+        onImport: (_) async =>
+            throw const ProjectUpdateConflictException(currentProject: null),
+      );
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        vocalImporter: importer,
+      );
+      await tester.tap(find.text('导入已有人声'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('工程已发生变化，未替换人声'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '导入已有人声'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('cancelled vocal picker does not update playback or project', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+      );
+      final updater = _Updater('updated');
+      final importer = _VocalImporter();
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        vocalImporter: importer,
+        updater: updater,
+      );
+      await tester.tap(find.text('导入已有人声'));
+      await tester.pumpAndSettle();
+      expect(importer.calls, 1);
+      expect(updater.calls, 0);
+      expect(find.text('导入已有人声'), findsOneWidget);
+      expect(find.textContaining('人声已导入'), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  for (final size in [const Size(320, 568), const Size(800, 480)]) {
+    testWidgets('vocal import remains reachable at $size with enlarged text', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final project = _project(
+          stage: ProcessingStage.lyricsEdited,
+          audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+        );
+        final importer = _VocalImporter();
+        await _showProject(
+          tester,
+          project,
+          size,
+          vocalImporter: importer,
+          textScale: 2,
+        );
+        final button = find.widgetWithText(OutlinedButton, '导入已有人声');
+        await tester.ensureVisible(button);
+        await tester.pumpAndSettle();
+        expect(button.hitTestable(), findsOneWidget);
+        await tester.tap(button);
+        await tester.pumpAndSettle();
+        expect(importer.calls, 1);
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  }
+
+  testWidgets('vocal importer failure releases both import controls', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final project = _project(
+        stage: ProcessingStage.lyricsEdited,
+        audio: const AudioAsset(originalPath: '/song.wav', format: 'wav'),
+      );
+      final importer = _VocalImporter(
+        onImport: (_) async => throw StateError('bad file'),
+      );
+      await _showProject(
+        tester,
+        project,
+        const Size(1366, 768),
+        vocalImporter: importer,
+      );
+      await tester.tap(find.text('导入已有人声'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('导入人声失败'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '导入已有伴奏'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '导入已有人声'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('mobile does not expose desktop accompaniment import', (
     tester,
   ) async {
@@ -335,6 +626,7 @@ void main() {
         const Size(390, 844),
       );
       expect(find.text('导入已有伴奏'), findsNothing);
+      expect(find.text('导入已有人声'), findsNothing);
       expect(tester.takeException(), isNull);
     } finally {
       debugDefaultTargetPlatformOverride = null;
@@ -395,6 +687,17 @@ class _Importer extends Fake implements ProjectAccompanimentImporter {
 
   @override
   Future<ProjectManifest?> importFor(ProjectManifest project) {
+    calls++;
+    return onImport?.call(project) ?? Future.value(null);
+  }
+}
+
+class _VocalImporter extends Fake implements ProjectVocalImporter {
+  _VocalImporter({this.onImport});
+  final Future<ProjectManifest?> Function(ProjectManifest)? onImport;
+  int calls = 0;
+  @override
+  Future<ProjectManifest?> importVocalFor(ProjectManifest project) {
     calls++;
     return onImport?.call(project) ?? Future.value(null);
   }

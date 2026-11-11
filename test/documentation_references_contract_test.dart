@@ -43,11 +43,17 @@ void main() {
           contains('cannot generate separated vocal/accompaniment tracks'),
         );
         expect(readme, contains('import an existing accompaniment file'));
-        expect(readme, contains('Vocal stem import is not yet supported'));
+        expect(readme, contains('an existing vocal stem'));
+        expect(
+          readme,
+          contains('preferred for transcription and forced alignment'),
+        );
         expect(readme, contains('referenced file must be accessible'));
         expect(prd, contains('当前版本尚未实现人声/伴奏分离'));
         expect(prd, contains('桌面工程详情可导入已有伴奏'));
-        expect(prd, contains('尚不支持导入人声轨'));
+        expect(prd, contains('可导入已有伴奏和人声轨'));
+        expect(prd, contains('人声轨优先用于识别与强制对齐'));
+        expect(prd, isNot(contains('尚不支持导入人声轨')));
         expect(prd, contains('分离仍是桌面端待完成的产品目标'));
         expect(prd, contains('7.1 桌面端必须有'));
       },

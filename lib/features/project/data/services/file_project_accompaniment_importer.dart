@@ -8,9 +8,11 @@ import '../../../player/domain/services/audio_library_import_service.dart';
 import '../../domain/models/project_manifest.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../domain/services/project_accompaniment_importer.dart';
+import '../../domain/services/project_vocal_importer.dart';
 
-/// Copies a user-selected track into application storage before linking it.
-class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
+/// Copies a user-selected stem into application storage before linking it.
+class FileProjectAccompanimentImporter
+    implements ProjectAccompanimentImporter, ProjectVocalImporter {
   final ProjectRepository projectRepository;
   final Directory? storageDirectory;
   final Future<String?> Function()? pickPath;
@@ -21,7 +23,7 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     this.pickPath,
   });
 
-  Future<String?> _pick() async {
+  Future<String?> _pick({required bool vocal}) async {
     final picker = pickPath;
     if (picker != null) return picker();
     final unfiltered = Platform.isMacOS;
@@ -29,7 +31,7 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
       type: unfiltered ? FileType.any : FileType.custom,
       allowedExtensions: unfiltered ? null : supportedLocalAudioExtensions,
       allowMultiple: false,
-      dialogTitle: '选择已有伴奏音频',
+      dialogTitle: vocal ? '选择已有人声音频' : '选择已有伴奏音频',
       withData: false,
       withReadStream: false,
     );
@@ -41,10 +43,20 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
   }
 
   @override
-  Future<ProjectManifest?> importFor(ProjectManifest project) async {
+  Future<ProjectManifest?> importFor(ProjectManifest project) =>
+      _import(project, vocal: false);
+
+  @override
+  Future<ProjectManifest?> importVocalFor(ProjectManifest project) =>
+      _import(project, vocal: true);
+
+  Future<ProjectManifest?> _import(
+    ProjectManifest project, {
+    required bool vocal,
+  }) async {
     final audio = project.audioAsset;
     if (audio == null) throw StateError('Project has no original audio');
-    final path = await _pick();
+    final path = await _pick(vocal: vocal);
     if (path == null) return null;
     final source = File(path);
     final name = source.uri.pathSegments.last;
@@ -59,7 +71,7 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     final root =
         storageDirectory ??
         Directory(
-          '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}Accompaniment',
+          '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}LyricForge${Platform.pathSeparator}${vocal ? 'Vocals' : 'Accompaniment'}',
         );
     await root.create(recursive: true);
     final destination = File(
@@ -81,7 +93,9 @@ class FileProjectAccompanimentImporter implements ProjectAccompanimentImporter {
     // deleted file; unused copies can be cleaned up by a future safe GC.
     return projectRepository.updateProjectIfUnchanged(
       project.copyWith(
-        audioAsset: audio.copyWith(instrumentalPath: destination.path),
+        audioAsset: vocal
+            ? audio.copyWith(vocalPath: destination.path)
+            : audio.copyWith(instrumentalPath: destination.path),
       ),
       expectedRevision: project.revision,
     );

@@ -36,6 +36,40 @@ const _profile = ResolvedTranscriptionProfile(
 
 void main() {
   test(
+    'transcription request prefers an existing imported vocal stem',
+    () async {
+      final repository = await _createRepository();
+      final vocal = File('${repository.project.projectDirectory}/人声.wav');
+      await vocal.writeAsBytes([1, 2, 3]);
+      repository.project = repository.project.copyWith(
+        audioAsset: repository.project.audioAsset!.copyWith(
+          vocalPath: vocal.path,
+        ),
+      );
+      final service = _Service(null, null);
+      await _workflow(
+        repository,
+        null,
+        service: service,
+      ).transcribeProject('p');
+      expect(service.lastRequest?.inputAudioPath, vocal.path);
+    },
+  );
+
+  test('missing vocal stem falls back to the original audio', () async {
+    final repository = await _createRepository();
+    final original = repository.project.audioAsset!.originalPath;
+    repository.project = repository.project.copyWith(
+      audioAsset: repository.project.audioAsset!.copyWith(
+        vocalPath: '${repository.project.projectDirectory}/missing.wav',
+      ),
+    );
+    final service = _Service(null, null);
+    await _workflow(repository, null, service: service).transcribeProject('p');
+    expect(service.lastRequest?.inputAudioPath, original);
+  });
+
+  test(
     'shared lease excludes other workflows and releases on preparation cancellation',
     () async {
       final repository = await _createRepository();
@@ -712,8 +746,10 @@ class _Service implements TranscriptionService {
   _Service(this.error, this.onTranscribe);
   Future<void> Function()? onCancel;
   int cancelCalls = 0;
+  TranscriptionRequest? lastRequest;
   @override
   Future<TranscriptionResult> transcribe(TranscriptionRequest request) async {
+    lastRequest = request;
     await onTranscribe?.call();
     if (error != null) throw error!;
     return const TranscriptionResult(
