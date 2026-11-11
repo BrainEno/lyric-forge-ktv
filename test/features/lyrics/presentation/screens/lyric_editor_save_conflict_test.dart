@@ -27,11 +27,20 @@ import 'package:lyric_forge_ktv/features/project/domain/models/project_manifest.
 
 void main() {
   group('auto proofreading evidence routing', () {
-    for (final mode in ['no reference', 'matching reference', 'unrelated reference']) {
+    for (final mode in [
+      'no reference',
+      'matching reference',
+      'unrelated reference',
+    ]) {
       testWidgets('auto $mode reports evidence actually used', (tester) async {
         var calls = 0;
         String? path;
-        final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async {
+        final editor = await _openEditor(tester, ({
+          required audioPath,
+          required text,
+          required language,
+          required audioDuration,
+        }) async {
           calls++;
           path = audioPath;
           return [];
@@ -45,17 +54,26 @@ void main() {
           await tester.tap(find.text('本次提供参考歌词'));
           await tester.pumpAndSettle();
         }
-        final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
+        final toggle = find.byKey(
+          const ValueKey('forced_alignment_review_toggle'),
+        );
         await tester.ensureVisible(toggle);
         await tester.tap(toggle);
-        final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
+        final field = find.byKey(
+          const ValueKey('secondary_asr_transcript_input'),
+        );
         await tester.ensureVisible(field);
         await tester.enterText(field, '[00:00.00] Human lyric');
         await tester.tap(find.text('继续'));
         await tester.pumpAndSettle();
         if (mode != 'no reference') {
           expect(find.byType(ReferenceAlignmentDialog), findsOneWidget);
-          _submitReference(tester, mode == 'matching reference' ? 'Human lyric' : 'completely unrelated words');
+          _submitReference(
+            tester,
+            mode == 'matching reference'
+                ? 'Human lyric'
+                : 'completely unrelated words',
+          );
           await tester.pumpAndSettle();
         }
         expect(find.text('智能校对提案复核'), findsOneWidget);
@@ -78,14 +96,26 @@ void main() {
       });
     }
 
-    testWidgets('automatic strategy validates secondary text before running', (tester) async {
+    testWidgets('automatic strategy validates secondary text before running', (
+      tester,
+    ) async {
       var calls = 0;
-      final editor = await _openEditor(tester, ({required audioPath, required text, required language, required audioDuration}) async { calls++; return []; });
+      final editor = await _openEditor(tester, ({
+        required audioPath,
+        required text,
+        required language,
+        required audioDuration,
+      }) async {
+        calls++;
+        return [];
+      });
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('智能校对 V2'));
       await tester.pumpAndSettle();
-      final field = find.byKey(const ValueKey('secondary_asr_transcript_input'));
+      final field = find.byKey(
+        const ValueKey('secondary_asr_transcript_input'),
+      );
       await tester.ensureVisible(field);
       await tester.enterText(field, 'no timestamps');
       await tester.tap(find.text('继续'));

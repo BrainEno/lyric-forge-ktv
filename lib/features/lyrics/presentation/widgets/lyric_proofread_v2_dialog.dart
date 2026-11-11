@@ -144,13 +144,17 @@ class _ProofreadV2RunOptionsDialogState
               if (_useForcedAlignment ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text('之前配置的 ASR 第二意见或 ForcedAligner 在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
+                const Text(
+                  '之前配置的 ASR 第二意见或 ForcedAligner 在参考歌词优先模式下不会使用；切回其他策略可继续编辑。',
+                ),
               ],
             ],
             if (_strategy != LyricSourceStrategy.referenceFirst) ...[
               if (_strategy == LyricSourceStrategy.auto) ...[
                 const SizedBox(height: 8),
-                const Text('以下证据仅在最终选择 ASR 优先时使用；若自动选择参考歌词优先，会在复核中说明未使用的选项。填写的转写稿会先检查格式。'),
+                const Text(
+                  '以下证据仅在最终选择 ASR 优先时使用；若自动选择参考歌词优先，会在复核中说明未使用的选项。填写的转写稿会先检查格式。',
+                ),
               ],
               const SizedBox(height: 8),
               const Text(
@@ -433,75 +437,69 @@ class _LyricProofreadV2ReviewDialogState
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const Divider(height: 20),
-                  for (final item in widget.items) _buildProposalCard(item),
-                  if (widget.droppedItems.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      '灰色行 · 疑似多余（${widget.droppedItems.length}）',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 4),
-                    for (final item in widget.droppedItems)
-                      CheckboxListTile(
-                        key: ValueKey('restore_dropped_${item.sourceIndex}'),
-                        value: _restoredDraftIndices.contains(item.sourceIndex),
-                        onChanged: (checked) => setState(() {
-                          if (checked == true) {
-                            _restoredDraftIndices.add(item.sourceIndex);
-                          } else {
-                            _restoredDraftIndices.remove(item.sourceIndex);
-                          }
-                        }),
-                        controlAffinity: ListTileControlAffinity.leading,
-                        secondary:
-                            widget.onPreviewTimedLine == null &&
-                                widget.onPreviewDraftLine == null
-                            ? null
-                            : IconButton(
-                                key: ValueKey(
-                                  'preview_dropped_${item.sourceIndex}',
+            for (final item in widget.items) _buildProposalCard(item),
+            if (widget.droppedItems.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                '灰色行 · 疑似多余（${widget.droppedItems.length}）',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 4),
+              for (final item in widget.droppedItems)
+                CheckboxListTile(
+                  key: ValueKey('restore_dropped_${item.sourceIndex}'),
+                  value: _restoredDraftIndices.contains(item.sourceIndex),
+                  onChanged: (checked) => setState(() {
+                    if (checked == true) {
+                      _restoredDraftIndices.add(item.sourceIndex);
+                    } else {
+                      _restoredDraftIndices.remove(item.sourceIndex);
+                    }
+                  }),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  secondary:
+                      widget.onPreviewTimedLine == null &&
+                          widget.onPreviewDraftLine == null
+                      ? null
+                      : IconButton(
+                          key: ValueKey('preview_dropped_${item.sourceIndex}'),
+                          tooltip: '试听原始行',
+                          onPressed: widget.onPreviewTimedLine == null
+                              ? () =>
+                                    widget.onPreviewDraftLine!(item.sourceIndex)
+                              : () => _previewTimedLine(
+                                  proposalIndex: -item.sourceIndex - 1,
+                                  sourceIndex: item.sourceIndex,
+                                  line: item.line,
+                                  globalOffset: widget.originalGlobalOffset,
+                                  label: '原始',
                                 ),
-                                tooltip: '试听原始行',
-                                onPressed: widget.onPreviewTimedLine == null
-                                    ? () => widget.onPreviewDraftLine!(
-                                        item.sourceIndex,
-                                      )
-                                    : () => _previewTimedLine(
-                                        proposalIndex: -item.sourceIndex - 1,
-                                        sourceIndex: item.sourceIndex,
-                                        line: item.line,
-                                        globalOffset:
-                                            widget.originalGlobalOffset,
-                                        label: '原始',
-                                      ),
-                                icon: const Icon(Icons.play_circle_outline),
-                              ),
-                        title: Text(
-                          '第 ${item.sourceIndex + 1} 行 · ${item.line.text}',
+                          icon: const Icon(Icons.play_circle_outline),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${_formatTime(item.line.startTime)} – '
-                              '${_formatTime(item.line.endTime)} · '
-                              '${LyricReviewStrings.droppedReferenceItemReason}',
-                            ),
-                            if (_auditionFeedbackByProposal[-item.sourceIndex -
-                                    1] !=
-                                null)
-                              Text(
-                                _auditionFeedbackByProposal[-item.sourceIndex -
-                                    1]!,
-                                key: ValueKey(
-                                  'audition_feedback_dropped_${item.sourceIndex}',
-                                ),
-                              ),
-                          ],
-                        ),
+                  title: Text(
+                    '第 ${item.sourceIndex + 1} 行 · ${item.line.text}',
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${_formatTime(item.line.startTime)} – '
+                        '${_formatTime(item.line.endTime)} · '
+                        '${LyricReviewStrings.droppedReferenceItemReason}',
                       ),
-                  ],
+                      if (_auditionFeedbackByProposal[-item.sourceIndex - 1] !=
+                          null)
+                        Text(
+                          _auditionFeedbackByProposal[-item.sourceIndex - 1]!,
+                          key: ValueKey(
+                            'audition_feedback_dropped_${item.sourceIndex}',
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),

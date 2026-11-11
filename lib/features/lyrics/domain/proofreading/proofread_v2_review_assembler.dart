@@ -100,7 +100,8 @@ class ProofreadV2ReviewAssembler {
           ),
         if (hasSecondaryTranscript)
           const LyricProofreadV2Explanation(
-            LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference,
+            LyricProofreadV2ExplanationCode
+                .secondaryTranscriptIgnoredByReference,
           ),
         if (result.tokenDpBudgetExceeded)
           const LyricProofreadV2Explanation(
