@@ -65,12 +65,21 @@ void main() {
           await tester.tap(find.text('open review'));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.textContaining('ForcedAligner 未运行'), findsOneWidget);
+          final explanation = find.textContaining('ForcedAligner 未运行');
+          await tester.scrollUntilVisible(
+            explanation,
+            100,
+            scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)),
+          );
+          expect(explanation.hitTestable(), findsOneWidget);
           final card = find.byKey(const ValueKey('proofread_proposal_0'));
           await tester.scrollUntilVisible(
             card,
             180,
-            scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)),
+            scrollable: find.descendant(
+              of: find.byType(ListView),
+              matching: find.byType(Scrollable),
+            ),
           );
           await tester.pumpAndSettle();
           expect(card.hitTestable(), findsOneWidget);
