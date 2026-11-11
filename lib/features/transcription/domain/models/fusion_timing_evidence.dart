@@ -12,7 +12,8 @@ abstract final class FusionTimingEvidence {
   static const version = 1;
 
   /// Hash the exact UTF-8 text, including punctuation and whitespace.
-  static String textHash(String text) => sha256.convert(utf8.encode(text)).toString();
+  static String textHash(String text) =>
+      sha256.convert(utf8.encode(text)).toString();
 
   static Map<String, dynamic> entry({
     required int lineIndex,
@@ -43,9 +44,12 @@ abstract final class FusionTimingEvidence {
 
   /// Reject stale, ambiguous or malformed rows. Absence means unknown, never
   /// verified. The index, exact text and timing must all still match.
-  static Map<int, Map<String, dynamic>> validatedEntries(LyricDocument document) {
+  static Map<int, Map<String, dynamic>> validatedEntries(
+    LyricDocument document,
+  ) {
     final raw = document.metadata[metadataKey];
-    if (raw is! Map || raw['version'] != version || raw['entries'] is! List) return {};
+    if (raw is! Map || raw['version'] != version || raw['entries'] is! List)
+      return {};
     final result = <int, Map<String, dynamic>>{};
     final seen = <int>{};
     final duplicates = <int>{};
@@ -58,8 +62,10 @@ abstract final class FusionTimingEvidence {
         result.remove(index);
         continue;
       }
-      if (index < 0 || index >= document.lines.length ||
-          item.keys.any((key) => key is! String)) continue;
+      if (index < 0 ||
+          index >= document.lines.length ||
+          item.keys.any((key) => key is! String))
+        continue;
       final line = document.lines[index];
       final timed = item['timedTextHash'];
       final changed = item['primaryTextChanged'];
@@ -67,14 +73,20 @@ abstract final class FusionTimingEvidence {
       if (item['finalTextHash'] != textHash(line.text) ||
           item['startMs'] != line.startTime.inMilliseconds ||
           item['endMs'] != line.endTime.inMilliseconds ||
-          timed is! String || !digest.hasMatch(timed) ||
-          item['alignedTextHash'] != null || secondaryOnly is! bool ||
+          timed is! String ||
+          !digest.hasMatch(timed) ||
+          item['alignedTextHash'] != null ||
+          secondaryOnly is! bool ||
           (secondaryOnly ? changed != null : changed is! bool) ||
+          (secondaryOnly && timed != item['finalTextHash']) ||
           (!secondaryOnly && changed != (timed != item['finalTextHash'])) ||
-          item['needsRealignment'] != (secondaryOnly || changed == true)) continue;
+          item['needsRealignment'] != (secondaryOnly || changed == true))
+        continue;
       result[index] = Map<String, dynamic>.from(item);
     }
-    for (final index in duplicates) { result.remove(index); }
+    for (final index in duplicates) {
+      result.remove(index);
+    }
     return result;
   }
 

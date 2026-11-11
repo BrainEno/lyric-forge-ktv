@@ -75,8 +75,12 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (request.config.mode == TranscriptionMode.whisperOnly) {
         final result = await _runWhisperOnly(request);
         _throwIfCancelled();
-        if (!result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey) &&
-            !result.lyrics.metadata.containsKey(FusionTimingEvidence.metadataKey)) {
+        if (!result.lyrics.metadata.containsKey(
+              IndependentAsrEvidence.metadataKey,
+            ) &&
+            !result.lyrics.metadata.containsKey(
+              FusionTimingEvidence.metadataKey,
+            )) {
           return result;
         }
         return TranscriptionResult(
@@ -898,10 +902,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
   Map<String, dynamic> _withoutIndependentEvidence(
     Map<String, dynamic> metadata,
-  ) =>
-      Map<String, dynamic>.from(metadata)
-        ..remove(IndependentAsrEvidence.metadataKey)
-        ..remove(FusionTimingEvidence.metadataKey);
+  ) => Map<String, dynamic>.from(metadata)
+    ..remove(IndependentAsrEvidence.metadataKey)
+    ..remove(FusionTimingEvidence.metadataKey);
 
   Future<String?> _tryHashSource(String path) async {
     try {

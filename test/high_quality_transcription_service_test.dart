@@ -27,54 +27,129 @@ void main() {
       }
     });
 
-    test('fusion timing snapshots distinguish replacement, additions and repeated chorus in either engine order', () async {
-      for (final order in TranscriptionEngineOrder.values) {
-        final primaryLines = <LyricLine>[
-          const LyricLine(text: 'hello hello hello hello', startTime: Duration(seconds: 1), endTime: Duration(seconds: 4), confidence: 35),
-          const LyricLine(text: '副歌 🎵', startTime: Duration(seconds: 10), endTime: Duration(seconds: 12), confidence: 90),
-          const LyricLine(text: '副歌 🎵', startTime: Duration(seconds: 20), endTime: Duration(seconds: 22), confidence: 90),
-        ];
-        final secondaryLines = <LyricLine>[
-          const LyricLine(text: 'yellow submarine', startTime: Duration(milliseconds: 1100), endTime: Duration(milliseconds: 3900), confidence: 92),
-          const LyricLine(text: 'new lyric', startTime: Duration(seconds: 6), endTime: Duration(seconds: 7), confidence: 92),
-          const LyricLine(text: '副歌 🎵', startTime: Duration(seconds: 10), endTime: Duration(seconds: 12), confidence: 90),
-          const LyricLine(text: '副歌 🎵', startTime: Duration(seconds: 20), endTime: Duration(seconds: 22), confidence: 90),
-        ];
-        final qwenPrimary = order == TranscriptionEngineOrder.qwenPrimary;
-        final service = HighQualityTranscriptionService(
-          primary: _FakeTranscriptionService(result: _resultLines(qwenPrimary ? primaryLines : secondaryLines)),
-          fallback: _FakeTranscriptionService(result: _resultLines(qwenPrimary ? secondaryLines : primaryLines)),
-        );
-        try {
-          final result = await service.transcribe(_request(tempDirectory.path, engineOrder: order));
-          final document = LyricDocument.fromJson(jsonDecode(jsonEncode(result.lyrics.toJson())) as Map<String, dynamic>);
-          expect(document.lines.map((l) => l.text), ['yellow submarine', 'new lyric', '副歌 🎵', '副歌 🎵']);
-          final changed = FusionTimingEvidence.forLine(document, 0)!;
-          expect(changed['primaryTextChanged'], isTrue);
-          expect(changed['needsRealignment'], isTrue);
-          expect(changed['timedTextHash'], FusionTimingEvidence.textHash(primaryLines[0].text));
-          expect(changed['finalTextHash'], FusionTimingEvidence.textHash('yellow submarine'));
-          expect(changed['alignedTextHash'], isNull);
-          final inserted = FusionTimingEvidence.forLine(document, 1)!;
-          expect(inserted['secondaryOnly'], isTrue);
-          expect(inserted['primaryTextChanged'], isNull);
-          expect(inserted['needsRealignment'], isTrue);
-          for (final index in [2, 3]) {
-            final evidence = FusionTimingEvidence.forLine(document, index)!;
-            expect(evidence['primaryTextChanged'], isFalse);
-            expect(evidence['needsRealignment'], isFalse);
-            expect(evidence['finalTextHash'], FusionTimingEvidence.textHash('副歌 🎵'));
+    test(
+      'fusion timing snapshots distinguish replacement, additions and repeated chorus in either engine order',
+      () async {
+        for (final order in TranscriptionEngineOrder.values) {
+          final primaryLines = <LyricLine>[
+            const LyricLine(
+              text: 'hello hello hello hello',
+              startTime: Duration(seconds: 1),
+              endTime: Duration(seconds: 4),
+              confidence: 35,
+            ),
+            const LyricLine(
+              text: '副歌 🎵',
+              startTime: Duration(seconds: 10),
+              endTime: Duration(seconds: 12),
+              confidence: 90,
+            ),
+            const LyricLine(
+              text: '副歌 🎵',
+              startTime: Duration(seconds: 20),
+              endTime: Duration(seconds: 22),
+              confidence: 90,
+            ),
+          ];
+          final secondaryLines = <LyricLine>[
+            const LyricLine(
+              text: 'yellow submarine',
+              startTime: Duration(milliseconds: 1100),
+              endTime: Duration(milliseconds: 3900),
+              confidence: 92,
+            ),
+            const LyricLine(
+              text: 'new lyric',
+              startTime: Duration(seconds: 6),
+              endTime: Duration(seconds: 7),
+              confidence: 92,
+            ),
+            const LyricLine(
+              text: '副歌 🎵',
+              startTime: Duration(seconds: 10),
+              endTime: Duration(seconds: 12),
+              confidence: 90,
+            ),
+            const LyricLine(
+              text: '副歌 🎵',
+              startTime: Duration(seconds: 20),
+              endTime: Duration(seconds: 22),
+              confidence: 90,
+            ),
+          ];
+          final qwenPrimary = order == TranscriptionEngineOrder.qwenPrimary;
+          final service = HighQualityTranscriptionService(
+            primary: _FakeTranscriptionService(
+              result: _resultLines(qwenPrimary ? primaryLines : secondaryLines),
+            ),
+            fallback: _FakeTranscriptionService(
+              result: _resultLines(qwenPrimary ? secondaryLines : primaryLines),
+            ),
+          );
+          try {
+            final result = await service.transcribe(
+              _request(tempDirectory.path, engineOrder: order),
+            );
+            final document = LyricDocument.fromJson(
+              jsonDecode(jsonEncode(result.lyrics.toJson()))
+                  as Map<String, dynamic>,
+            );
+            expect(document.lines.map((l) => l.text), [
+              'yellow submarine',
+              'new lyric',
+              '副歌 🎵',
+              '副歌 🎵',
+            ]);
+            final changed = FusionTimingEvidence.forLine(document, 0)!;
+            expect(changed['primaryTextChanged'], isTrue);
+            expect(changed['needsRealignment'], isTrue);
+            expect(
+              changed['timedTextHash'],
+              FusionTimingEvidence.textHash(primaryLines[0].text),
+            );
+            expect(
+              changed['finalTextHash'],
+              FusionTimingEvidence.textHash('yellow submarine'),
+            );
+            expect(changed['alignedTextHash'], isNull);
+            final inserted = FusionTimingEvidence.forLine(document, 1)!;
+            expect(inserted['secondaryOnly'], isTrue);
+            expect(inserted['primaryTextChanged'], isNull);
+            expect(inserted['needsRealignment'], isTrue);
+            for (final index in [2, 3]) {
+              final evidence = FusionTimingEvidence.forLine(document, index)!;
+              expect(evidence['primaryTextChanged'], isFalse);
+              expect(evidence['needsRealignment'], isFalse);
+              expect(
+                evidence['finalTextHash'],
+                FusionTimingEvidence.textHash('副歌 🎵'),
+              );
+            }
+            final edited = document.copyWith(
+              lines: [...document.lines]
+                ..[0] = document.lines[0].copyWith(text: 'human edit'),
+            );
+            expect(FusionTimingEvidence.forLine(edited, 0), isNull);
+            final retimed = document.copyWith(
+              lines: [...document.lines]
+                ..[2] = document.lines[2].copyWith(
+                  startTime: const Duration(seconds: 11),
+                ),
+            );
+            expect(FusionTimingEvidence.forLine(retimed, 2), isNull);
+            expect(
+              FusionTimingEvidence.forLine(
+                document.copyWith(lines: document.lines.reversed.toList()),
+                0,
+              ),
+              isNull,
+            );
+          } finally {
+            await service.dispose();
           }
-          final edited = document.copyWith(lines: [...document.lines]..[0] = document.lines[0].copyWith(text: 'human edit'));
-          expect(FusionTimingEvidence.forLine(edited, 0), isNull);
-          final retimed = document.copyWith(lines: [...document.lines]..[2] = document.lines[2].copyWith(startTime: const Duration(seconds: 11)));
-          expect(FusionTimingEvidence.forLine(retimed, 2), isNull);
-          expect(FusionTimingEvidence.forLine(document.copyWith(lines: document.lines.reversed.toList()), 0), isNull);
-        } finally {
-          await service.dispose();
         }
-      }
-    });
+      },
+    );
 
     test('source hashes bind evidence to the selected audio bytes', () async {
       final input = File('${tempDirectory.path}/source.wav');
@@ -1730,10 +1805,16 @@ void main() {
                 split.map((line) => line.endTime),
               );
               for (var i = 0; i < 2; i++) {
-                final evidence = FusionTimingEvidence.forLine(result.lyrics, i)!;
+                final evidence = FusionTimingEvidence.forLine(
+                  result.lyrics,
+                  i,
+                )!;
                 expect(evidence['primaryTextChanged'], isFalse);
                 expect(evidence['needsRealignment'], isFalse);
-                expect(evidence['timedTextHash'], FusionTimingEvidence.textHash(split[i].text));
+                expect(
+                  evidence['timedTextHash'],
+                  FusionTimingEvidence.textHash(split[i].text),
+                );
               }
               expect(result.lyrics.metadata['fallbackAppliedCount'], 0);
               expect(result.lyrics.metadata['secondaryOnlyLineCount'], 0);

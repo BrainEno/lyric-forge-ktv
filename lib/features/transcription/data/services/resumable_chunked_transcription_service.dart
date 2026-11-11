@@ -562,14 +562,19 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       if (evidence == null) continue;
       timingEntries.add({
         ...evidence,
-        'startMs': document.lines[index].startTime.inMilliseconds + offset.inMilliseconds,
-        'endMs': document.lines[index].endTime.inMilliseconds + offset.inMilliseconds,
+        'startMs':
+            document.lines[index].startTime.inMilliseconds +
+            offset.inMilliseconds,
+        'endMs':
+            document.lines[index].endTime.inMilliseconds +
+            offset.inMilliseconds,
       });
     }
     final shiftedMetadata = Map<String, dynamic>.from(metadata)
       ..remove(FusionTimingEvidence.metadataKey);
     if (timingEntries.isNotEmpty) {
-      shiftedMetadata[FusionTimingEvidence.metadataKey] = FusionTimingEvidence.wrap(timingEntries);
+      shiftedMetadata[FusionTimingEvidence.metadataKey] =
+          FusionTimingEvidence.wrap(timingEntries);
     }
     return document.copyWith(
       lines: document.lines
@@ -721,16 +726,22 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     ];
 
     final timingEntries = <Map<String, dynamic>>[];
-    final validTiming = [for (final document in documents) FusionTimingEvidence.validatedEntries(document)];
+    final validTiming = [
+      for (final document in documents)
+        FusionTimingEvidence.validatedEntries(document),
+    ];
     for (var index = 0; index < order.length; index++) {
       final origin = origins[order[index]];
       final evidence = validTiming[origin.chunk][origin.index];
-      if (evidence != null) timingEntries.add({...evidence, 'lineIndex': index});
+      if (evidence != null)
+        timingEntries.add({...evidence, 'lineIndex': index});
     }
     final metadata = _mergeMetadata(documents, finalMaps);
     metadata.remove(FusionTimingEvidence.metadataKey);
     if (timingEntries.isNotEmpty) {
-      metadata[FusionTimingEvidence.metadataKey] = FusionTimingEvidence.wrap(timingEntries);
+      metadata[FusionTimingEvidence.metadataKey] = FusionTimingEvidence.wrap(
+        timingEntries,
+      );
     }
     return documents.first.copyWith(lines: sortedLines, metadata: metadata);
   }
