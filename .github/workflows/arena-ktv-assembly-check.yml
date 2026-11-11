@@ -1,0 +1,42 @@
+name: Temporary KTV assembly validation
+on:
+  push:
+    branches: [arena/c6a1709e-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format
+        run: |
+          dart format lib/app/app_services.dart lib/app/ktv_recording_assembly.dart lib/features/player/data/services/local_ktv_recording_service.dart test/architecture/feature_dependency_graph_test.dart test/architecture/support/feature_dependency_baseline.dart test/app/ktv_recording_assembly_test.dart test/features/player/ktv_export_injected_ffmpeg_test.dart test/features/player/ktv_recording_storage_contract_test.dart test/features/player/ktv_take_operation_lock_test.dart test/support/ktv_export_fixture.dart
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          data=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(data),3000): print(f'::notice title=FORMAT{i//3000}::{data[i:i+3000]}')
+          PY
+      - name: Tests
+        run: |
+          set -o pipefail
+          flutter test --no-pub --reporter expanded test/app/ktv_recording_assembly_test.dart test/features/player/ktv_export_injected_ffmpeg_test.dart test/features/player/ktv_recording_storage_contract_test.dart test/features/player/ktv_take_operation_lock_test.dart test/architecture test/architecture_layer_imports_contract_test.dart 2>&1 | tee /tmp/ktv-test.log
+      - name: Report failures
+        if: failure()
+        run: |
+          if [ -f /tmp/ktv-test.log ]; then
+            python3 - <<'PY'
+          lines=open('/tmp/ktv-test.log').readlines()
+          for i,line in enumerate(lines):
+            if '[E]' in line or 'EXCEPTION CAUGHT' in line or 'Error:' in line or 'Expected:' in line:
+              for item in lines[i:i+15]:
+                print('::error::'+item.strip().replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+          PY
+          fi
+      - name: Analyze
+        if: always()
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool
