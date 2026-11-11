@@ -182,3 +182,30 @@ dart run tool/asr_quality_report.dart \
 - 行匹配阈值默认 0.6，对「一行被切成两半」这类情况偏宽松（半句相似度可能低于阈值 → 反而算漏行）。调整用 `--match-threshold`，但**一旦改变阈值，旧的基线报告不可直接比较**。
 - 单个文档最多 300 行（超过请先拆分歌曲），这是为了避免 DP 对齐爆炸。
 - 报告不含生成时间，便于直接 diff；版本号在 `schemaVersion` 与 `evaluator` 字段里。
+
+### Fusion timing evidence (experimental, not a quality gate)
+
+Successful two-engine fusion records a `fusionTimingEvidence` v1 snapshot for
+output rows: SHA-256 of the exact UTF-8 final text and the text returned with
+the retained source timing, a primary-text-changed flag, and a fusion-specific
+`needsRealignment` flag for changed or secondary-only rows. This is diagnostic
+metadata only: existing timestamps, model selection and application policy are
+unchanged. Hashes of short lyrics can be guessed and should be treated as
+sensitive content, not anonymization.
+
+The returned timed text is **not necessarily the actual ForcedAligner input**;
+therefore `alignedTextHash` is null until such input is independently captured.
+Unchanged text and `needsRealignment: false` do not verify audio identity, model
+version, alignment quality, completeness, or playback readiness. Older or
+single-engine/degraded results may have no evidence and must be treated as
+unknown. No automatic re-alignment or playback certification is implemented.
+
+Evidence is indexed by the output row and is a snapshot, not a live editor
+state. Consumers must use `FusionTimingEvidence.forLine` or
+`validatedEntries` to reject malformed, duplicate, text-changed, retimed or
+reordered entries; missing data is unknown. Text and line times alone cannot
+establish that the audio or model is unchanged. Chunk merging keeps the
+snapshot associated with the selected overlap row, converts its times to the
+song clock, and leaves a row unknown if its selected checkpoint lacks evidence.
+The source/model/audio and preprocessing identity needed for future re-alignment
+must be verified separately before applying any suggestions.

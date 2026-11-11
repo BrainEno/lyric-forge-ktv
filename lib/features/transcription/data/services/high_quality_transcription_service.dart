@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/independent_asr_evidence.dart';
+import '../../domain/models/fusion_timing_evidence.dart';
 import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
@@ -75,8 +76,11 @@ class HighQualityTranscriptionService implements TranscriptionService {
         final result = await _runWhisperOnly(request);
         _throwIfCancelled();
         if (!result.lyrics.metadata.containsKey(
-          IndependentAsrEvidence.metadataKey,
-        )) {
+              IndependentAsrEvidence.metadataKey,
+            ) &&
+            !result.lyrics.metadata.containsKey(
+              FusionTimingEvidence.metadataKey,
+            )) {
           return result;
         }
         return TranscriptionResult(
@@ -246,6 +250,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         metadata: {
           ..._withoutIndependentEvidence(primaryResult.lyrics.metadata),
           if (evidence != null) IndependentAsrEvidence.metadataKey: evidence,
+          FusionTimingEvidence.metadataKey: merge.timingEvidence,
           'qualityMode': 'highestQuality',
           'primaryEngine': TranscriptionModelIdentity.qwenAsrEngine(
             request.config.qwenModelPath,
@@ -548,6 +553,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       metadata: {
         ..._withoutIndependentEvidence(whisperResult.lyrics.metadata),
         if (evidence != null) IndependentAsrEvidence.metadataKey: evidence,
+        FusionTimingEvidence.metadataKey: merge.timingEvidence,
         'qualityMode': 'highestQuality',
         'primaryEngine': TranscriptionModelIdentity.whisperEngine(
           request.config.modelPath,
@@ -741,6 +747,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
       candidates: remappedCandidates,
       appliedCount: appliedCount,
       secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
+      timingEvidence: _fusionTimingEvidence(timeline, whisperPrimary.lines),
     );
   }
 
@@ -895,9 +902,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
   Map<String, dynamic> _withoutIndependentEvidence(
     Map<String, dynamic> metadata,
-  ) =>
-      Map<String, dynamic>.from(metadata)
-        ..remove(IndependentAsrEvidence.metadataKey);
+  ) => Map<String, dynamic>.from(metadata)
+    ..remove(IndependentAsrEvidence.metadataKey)
+    ..remove(FusionTimingEvidence.metadataKey);
 
   Future<String?> _tryHashSource(String path) async {
     try {
@@ -1137,7 +1144,29 @@ class HighQualityTranscriptionService implements TranscriptionService {
       candidates: remappedCandidates,
       appliedCount: appliedCount,
       secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
+      timingEvidence: _fusionTimingEvidence(timeline, primary.lines),
     );
+  }
+
+  Map<String, dynamic> _fusionTimingEvidence(
+    _MergedTimeline timeline,
+    List<LyricLine> primaryLines,
+  ) {
+    final primaryByMerged = {
+      for (final entry in timeline.primaryIndexToMergedIndex.entries)
+        entry.value: entry.key,
+    };
+    return FusionTimingEvidence.wrap([
+      for (var index = 0; index < timeline.lines.length; index++)
+        FusionTimingEvidence.entry(
+          lineIndex: index,
+          result: timeline.lines[index],
+          timedText: primaryByMerged.containsKey(index)
+              ? primaryLines[primaryByMerged[index]!].text
+              : timeline.lines[index].text,
+          secondaryOnly: !primaryByMerged.containsKey(index),
+        ),
+    ]);
   }
 
   bool _isPrimarySuspicious(LyricLine line, TranscriptionConfig config) {
@@ -1638,11 +1667,13 @@ class _MergeResult {
   final List<Map<String, dynamic>> candidates;
   final int appliedCount;
   final List<int> secondaryOnlyLineIndices;
+  final Map<String, dynamic> timingEvidence;
 
   const _MergeResult({
     required this.lines,
     required this.candidates,
     required this.appliedCount,
+    required this.timingEvidence,
     this.secondaryOnlyLineIndices = const [],
   });
 }
