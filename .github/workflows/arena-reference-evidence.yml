@@ -30,3 +30,12 @@ jobs:
             gzip -c /tmp/tests.log | base64 -w0 | fold -w 4000 | awk '{print "::notice title=TESTLOG" NR "::" $0}'
           fi
           exit "$status"
+      - name: Generate and validate work log
+        run: |
+          dart tool/work_log.dart new --timestamp "2026-11-07 23:47" --slug show-reference-alignment-evidence --title "Show reference alignment evidence"
+          python3 -c "from pathlib import Path; p=Path('docs/log/entries/2026-11-07-2347-show-reference-alignment-evidence.md'); s=p.read_text(); s=s.replace('TODO — describe the task purpose.', 'Allow V2 reference-first review to show read-only ForcedAligner line timing evidence without applying it.').replace('TODO — list changed files.', 'V2 use case, review model and assembler, editor dialogs and strings, domain and widget tests, product follow-up, work-log navigation and handoff.').replace('dart format ... => TODO', 'dart format changed Dart files => passed in Actions 43162831435.').replace('flutter analyze ... => TODO', 'flutter analyze --no-pub --no-fatal-infos lib test tool => passed in Actions 43162831435.').replace('flutter test ... => TODO', 'Targeted planner, orchestration, composer, editor, accessible dialog and architecture tests => passed in Actions 43162831435.').replace('TODO — record risks and unverified behavior.', 'Reference timing is read-only and not persisted or auditionable; applying it and handling offsets and provenance remain open. No real audio, runtime, device or screen-reader validation.').replace('TODO: replace with the actual English imperative subject', 'Route reference alignment into review evidence'); p.write_text(s)"
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2347-show-reference-alignment-evidence.md
+          git diff -- docs > /tmp/worklog.patch
+          gzip -c /tmp/worklog.patch | base64 -w0 | fold -w 4000 | awk '{print "::notice title=WORKLOG" NR "::" $0}'
