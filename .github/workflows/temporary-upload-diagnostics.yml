@@ -1,0 +1,33 @@
+name: Temporary upload test diagnostics
+on:
+  push:
+    branches: [arena/fda03db7-lyric-forge-ktv]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Diagnose full suite
+        shell: bash
+        run: |
+          set +e
+          flutter test --no-pub --reporter expanded > /tmp/full.log 2>&1
+          result=$?
+          python3 - <<'PY'
+          import gzip,base64,re
+          lines=open('/tmp/full.log').read().splitlines()
+          hits=[i for i,l in enumerate(lines) if '[E]' in l or 'Some tests failed' in l or 'All tests passed' in l]
+          selected=[]
+          for i in hits:
+              selected.extend(lines[max(0,i-2):min(len(lines),i+30)])
+          data=gzip.compress(('\n'.join(selected)).encode())
+          text=base64.b64encode(data).decode()
+          for i in range(0,len(text),3000):
+              print(f'::notice title=DIAG{i//3000:04d}::{text[i:i+3000]}')
+          PY
+          exit "$result"
