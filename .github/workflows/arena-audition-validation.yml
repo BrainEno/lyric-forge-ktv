@@ -1,0 +1,37 @@
+name: Arena reference audition validation
+on:
+  push:
+    branches: ['arena/4a5f5d3a-lyric-forge-ktv']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and report patch
+        run: |
+          git diff --name-only --diff-filter=AM df7a96a65739f581d58990024721d6ac13af2470 -- '*.dart' > /tmp/files
+          xargs -d '\n' dart format < /tmp/files
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          s=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(s),4000): print(f'::notice title=FORMAT{i//4000}::{s[i:i+4000]}')
+          PY
+      - name: Analyze and test
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos lib test tool > /tmp/check.log 2>&1
+          a=$?
+          flutter test --no-pub test/features/lyrics/domain/proofreading/reference_timing_audition_planner_test.dart test/features/lyrics/presentation/controllers/line_audition_controller_test.dart test/features/lyrics/presentation/controllers/reference_timing_audition_coordinator_test.dart test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart test/features/lyrics/presentation/widgets/reference_alignment_timing_selection_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/architecture_layer_imports_contract_test.dart >> /tmp/check.log 2>&1
+          b=$?
+          python3 - <<'PY'
+          import gzip,base64
+          s=base64.b64encode(gzip.compress(open('/tmp/check.log','rb').read())).decode()
+          for i in range(0,len(s),4000): print(f'::notice title=TESTLOG{i//4000}::{s[i:i+4000]}')
+          PY
+          exit $((a || b))
