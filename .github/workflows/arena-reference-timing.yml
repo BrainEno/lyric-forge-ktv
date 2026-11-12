@@ -1,0 +1,36 @@
+name: Arena reference timing validation
+on:
+  push:
+    branches: ['arena/b0dee6eb-lyric-forge-ktv']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and report patch
+        run: |
+          dart format $(git diff --name-only 12b89758629b9f784792ec187d55cef3e19bbfd2 -- lib test | grep "[.]dart$")
+          git diff > /tmp/format.patch
+          python3 - <<'PY'
+          import gzip,base64
+          s=base64.b64encode(gzip.compress(open('/tmp/format.patch','rb').read())).decode()
+          for i in range(0,len(s),4000): print(f'::notice title=FORMAT{i//4000}::{s[i:i+4000]}')
+          PY
+      - name: Analyze and test
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos > /tmp/check.log 2>&1
+          a=$?
+          flutter test test/features/lyrics/domain/proofreading test/features/lyrics/domain/services/lyric_timeline_validator_test.dart test/features/lyrics/domain/services/reference_alignment_applier_test.dart test/features/transcription/reference_alignment_audio_guard_test.dart test/features/lyrics/presentation/widgets/reference_alignment_evidence_accessibility_test.dart test/features/lyrics/presentation/widgets/reference_alignment_timing_selection_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart >> /tmp/check.log 2>&1
+          b=$?
+          python3 - <<'PY'
+          import gzip,base64
+          s=base64.b64encode(gzip.compress(open('/tmp/check.log','rb').read())).decode()
+          for i in range(0,len(s),4000): print(f'::notice title=TESTLOG{i//4000}::{s[i:i+4000]}')
+          PY
+          exit $((a || b))
