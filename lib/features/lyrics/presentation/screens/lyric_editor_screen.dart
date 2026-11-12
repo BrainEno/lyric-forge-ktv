@@ -760,6 +760,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 final request = LineAuditionRequest(
                   projectId: project.id,
                   lineIndex: sourceIndex ?? -proposalIndex - 1,
+                  previewKey: 'reference:$proposalIndex',
                   lineId: sourceIndex == null
                       ? null
                       : document.lines[sourceIndex].id,
@@ -774,7 +775,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   isPlaybackStillValid: () {
                     final current = playbackSnapshot();
                     return current.projectId == timingSnapshot.projectId &&
-                        !current.isRemote && !current.isLoading &&
+                        !current.isRemote &&
+                        !current.isLoading &&
                         current.audioPath == timingSnapshot.audioPath;
                   },
                 );

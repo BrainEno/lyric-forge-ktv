@@ -545,7 +545,9 @@ class _LyricProofreadV2ReviewDialogState
                       : IconButton(
                           key: ValueKey('preview_dropped_${item.sourceIndex}'),
                           tooltip: '试听原始行',
-                          onPressed: _previewPending ? null : widget.onPreviewTimedLine == null
+                          onPressed: _previewPending
+                              ? null
+                              : widget.onPreviewTimedLine == null
                               ? () =>
                                     widget.onPreviewDraftLine!(item.sourceIndex)
                               : () => _previewTimedLine(
@@ -763,7 +765,9 @@ class _LyricProofreadV2ReviewDialogState
                     key: ValueKey('preview_original_${item.proposalIndex}'),
                     tooltip: '试听原始行',
                     visualDensity: VisualDensity.compact,
-                    onPressed: _previewPending ? null : widget.onPreviewTimedLine == null
+                    onPressed: _previewPending
+                        ? null
+                        : widget.onPreviewTimedLine == null
                         ? () => widget.onPreviewDraftLine!(item.sourceIndex!)
                         : () => _previewTimedLine(
                             proposalIndex: item.proposalIndex,
@@ -780,13 +784,15 @@ class _LyricProofreadV2ReviewDialogState
                     key: ValueKey('preview_proposed_${item.proposalIndex}'),
                     tooltip: '试听建议时间',
                     visualDensity: VisualDensity.compact,
-                    onPressed: _previewPending ? null : () => _previewTimedLine(
-                      proposalIndex: item.proposalIndex,
-                      sourceIndex: item.sourceIndex!,
-                      line: item.proposedLine,
-                      globalOffset: widget.proposedGlobalOffset,
-                      label: '建议',
-                    ),
+                    onPressed: _previewPending
+                        ? null
+                        : () => _previewTimedLine(
+                            proposalIndex: item.proposalIndex,
+                            sourceIndex: item.sourceIndex!,
+                            line: item.proposedLine,
+                            globalOffset: widget.proposedGlobalOffset,
+                            label: '建议',
+                          ),
                     icon: const Icon(Icons.hearing_rounded),
                   ),
               ],

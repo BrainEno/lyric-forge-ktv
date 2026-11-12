@@ -358,25 +358,46 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('changing source during seek refuses late playback', (tester) async {
+    testWidgets('changing source during seek refuses late playback', (
+      tester,
+    ) async {
       final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
       final session = _PreviewPlaybackSession()..seekGate = Completer<void>();
-      await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: _ReferenceTimingGuard(), previewAudio: audio, previewSession: session);
+      await _openEditor(
+        tester,
+        align,
+        vocalPath: '/vocal.wav',
+        timingGuard: _ReferenceTimingGuard(),
+        previewAudio: audio,
+        previewSession: session,
+      );
       await _openReferenceEvidenceReview(tester, 'Human lyric');
       await tester.ensureVisible(button);
       await tester.tap(button);
       await tester.pump();
-      audio.state = audio.state.copyWith(currentSource: AudioSourceType.original);
+      audio.state = audio.state.copyWith(
+        currentSource: AudioSourceType.original,
+      );
       session.seekGate!.complete();
       await tester.pumpAndSettle();
       expect(audio.playCalls, 0);
       expect(find.textContaining('试听失败'), findsOneWidget);
     });
 
-    testWidgets('closing while play starts pauses the owned late playback', (tester) async {
-      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals)..playGate = Completer<void>();
+    testWidgets('closing while play starts pauses the owned late playback', (
+      tester,
+    ) async {
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals)
+        ..playGate = Completer<void>();
       final session = _PreviewPlaybackSession();
-      await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: _ReferenceTimingGuard(), previewAudio: audio, previewSession: session);
+      await _openEditor(
+        tester,
+        align,
+        vocalPath: '/vocal.wav',
+        timingGuard: _ReferenceTimingGuard(),
+        previewAudio: audio,
+        previewSession: session,
+      );
       await _openReferenceEvidenceReview(tester, 'Human lyric');
       await tester.ensureVisible(button);
       await tester.tap(button);

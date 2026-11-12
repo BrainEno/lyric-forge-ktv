@@ -210,6 +210,16 @@ void main() {
       },
     );
 
+    test('different controls with identical windows start independently', () async {
+      await controller.start(request: request, prepare: noPrepare);
+      const reference = LineAuditionRequest(projectId: 'p1', lineIndex: 0, lineId: 'line-a', previewKey: 'reference:0', window: window);
+      final result = await controller.toggle(request: reference, prepare: noPrepare);
+      expect(result.action, LineAuditionAction.started);
+      expect(session.seeks, [const Duration(seconds: 10), const Duration(seconds: 10)]);
+      expect(controller.active!.previewKey, 'reference:0');
+      expect(audio.pauseCalls, 0);
+    });
+
     test('a stale request cannot interrupt an active audition', () async {
       await controller.start(request: request, prepare: noPrepare);
       final result = await controller.toggle(
@@ -242,29 +252,53 @@ void main() {
   });
 
   group('audition source changes', () {
-    test('a changed source clears the bound window without pausing new playback', () async {
-      var sameSource = true;
-      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => sameSource);
-      sameSource = false;
-      audio.emitPosition(const Duration(seconds: 14));
-      await pumpEventQueue();
-      expect(controller.isActive, isFalse);
-      expect(audio.isPlaying, isTrue);
-      expect(audio.pauseCalls, 0);
-    });
+    test(
+      'a changed source clears the bound window without pausing new playback',
+      () async {
+        var sameSource = true;
+        await controller.start(
+          request: request,
+          prepare: noPrepare,
+          isPlaybackStillValid: () => sameSource,
+        );
+        sameSource = false;
+        audio.emitPosition(const Duration(seconds: 14));
+        await pumpEventQueue();
+        expect(controller.isActive, isFalse);
+        expect(audio.isPlaying, isTrue);
+        expect(audio.pauseCalls, 0);
+      },
+    );
 
-    test('a stale bound does not make a later toggle pause a different source', () async {
-      var sameSource = true;
-      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => sameSource);
-      sameSource = false;
-      final result = await controller.toggle(request: request, prepare: noPrepare);
-      expect(result.action, LineAuditionAction.started);
-      expect(audio.pauseCalls, 0);
-      expect(session.seeks, [const Duration(seconds: 10), const Duration(seconds: 10)]);
-    });
+    test(
+      'a stale bound does not make a later toggle pause a different source',
+      () async {
+        var sameSource = true;
+        await controller.start(
+          request: request,
+          prepare: noPrepare,
+          isPlaybackStillValid: () => sameSource,
+        );
+        sameSource = false;
+        final result = await controller.toggle(
+          request: request,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(audio.pauseCalls, 0);
+        expect(session.seeks, [
+          const Duration(seconds: 10),
+          const Duration(seconds: 10),
+        ]);
+      },
+    );
 
     test('unchanged source still pauses at its bound', () async {
-      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => true);
+      await controller.start(
+        request: request,
+        prepare: noPrepare,
+        isPlaybackStillValid: () => true,
+      );
       audio.emitPosition(const Duration(seconds: 14));
       await pumpEventQueue();
       expect(audio.isPlaying, isFalse);

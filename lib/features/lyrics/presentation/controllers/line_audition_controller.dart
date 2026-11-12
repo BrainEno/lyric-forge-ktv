@@ -17,12 +17,17 @@ class LineAuditionRequest {
   /// insertions, deletions and reordering instead of drifting to another row.
   final String? lineId;
 
+  /// Separates distinct controls targeting the same row and time window.
+  /// Null identifies the editor's ordinary line audition.
+  final String? previewKey;
+
   final LyricAuditionWindow window;
 
   const LineAuditionRequest({
     required this.projectId,
     required this.lineIndex,
     required this.lineId,
+    this.previewKey,
     required this.window,
   });
 
@@ -202,7 +207,9 @@ class LineAuditionController extends ChangeNotifier {
       return LineAuditionResult.failed('试听条件已变化，请重试。');
     }
     var active = _active;
-    if (active != null && _activePlaybackValid != null && !_activePlaybackValid!()) {
+    if (active != null &&
+        _activePlaybackValid != null &&
+        !_activePlaybackValid!()) {
       clear();
       active = null;
     }
@@ -211,8 +218,10 @@ class LineAuditionController extends ChangeNotifier {
     );
     if (active != null &&
         active.isSameLineAs(request) &&
+        active.previewKey == request.previewKey &&
         active.hasSameWindowAs(request) &&
         playbackBelongsToProject) {
+      _activePlaybackValid = isPlaybackStillValid;
       final playback = _audioService.currentState;
       if (playback.isPlaying) {
         await _audioService.pause();
@@ -290,7 +299,8 @@ class LineAuditionController extends ChangeNotifier {
 
     if (!active.belongsTo(
           _playbackSession.currentState.currentItem?.projectId,
-        ) || (_activePlaybackValid != null && !_activePlaybackValid!())) {
+        ) ||
+        (_activePlaybackValid != null && !_activePlaybackValid!())) {
       clear();
       return;
     }
