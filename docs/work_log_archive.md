@@ -99,6 +99,7 @@
 - [2026-11-07 23:50] Coordinate forced alignment with ASR tasks ([entry](log/entries/2026-11-07-2350-coordinate-forced-alignment-asr.md))
 - [2026-11-07 23:49] Reuse verified ASR evidence for proofreading ([entry](log/entries/2026-11-07-2349-reuse-verified-asr-proofread-evidence.md))
 - [2026-11-07 23:48] Plan reference forced alignment timings ([entry](log/entries/2026-11-07-2348-plan-reference-forced-alignment.md))
+- [2026-11-07 23:47] Show reference alignment evidence ([entry](log/entries/2026-11-07-2347-show-reference-alignment-evidence.md))
 - [2026-11-07 23:45] Build isolated ASR rerun candidates ([entry](log/entries/2026-11-07-2345-isolated-asr-rerun.md))
 - [2026-11-07 23:30] Preserve independent ASR transcript evidence ([entry](log/entries/2026-11-07-2330-preserve-independent-asr-evidence.md))
 - [2026-11-07 23:20] Compare ASR candidate versions ([entry](log/entries/2026-11-07-2320-compare-asr-candidates.md))
