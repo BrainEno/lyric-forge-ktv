@@ -6,10 +6,12 @@ import 'package:crypto/crypto.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/independent_asr_evidence.dart';
+import '../../domain/models/chunked_independent_asr_evidence.dart';
 import '../../domain/models/fusion_timing_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
+import 'asr_evidence_audio_verifier.dart';
 import 'asr_process_supervisor.dart';
 import 'asr_text_comparison.dart';
 
@@ -140,6 +142,31 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final plan = _buildPlan(duration);
       final fingerprint = await _fingerprint(request.inputAudioPath);
       final configFingerprint = checkpointConfigFingerprint(request.config);
+      // Stat-based checkpoint compatibility is insufficient for provenance.
+      // Hash only highest-quality chunk runs; failure disables evidence, not ASR.
+      final sourceHashCandidate =
+          request.config.mode == TranscriptionMode.highestQuality &&
+              plan.length <= ChunkedIndependentAsrEvidence.maxChunks
+          ? await _tryHashAudio(request.inputAudioPath)
+          : null;
+      _throwIfCancelled();
+      // The initial duration probe predates the hash. Re-probe after hashing
+      // so a replaced file cannot inherit a plan from the previous source.
+      // Failure only disables evidence; the existing transcription can proceed.
+      String? sourceHash;
+      if (sourceHashCandidate != null) {
+        try {
+          final observedDuration = await _probeDuration(
+            request.config.ffmpegExecutable,
+            request.inputAudioPath,
+          );
+          if (observedDuration == duration) sourceHash = sourceHashCandidate;
+        } on TranscriptionException catch (error) {
+          _throwIfCancelled();
+          if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+        }
+      }
+      _throwIfCancelled();
       final manifestFile = File(
         '${root.path}${Platform.pathSeparator}session.json',
       );
@@ -169,12 +196,22 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           'chunkMs': chunkDuration.inMilliseconds,
           'overlapMs': overlap.inMilliseconds,
           'durationMs': duration.inMilliseconds,
+          if (sourceHash != null) ...{
+            'independentChunkEvidenceVersion': 1,
+            'independentSourceSha256': sourceHash,
+          },
           'completed': <String>[],
           'updatedAt': DateTime.now().toUtc().toIso8601String(),
         };
         await _writeManifest(manifestFile, manifest);
       }
 
+      // Never retrofit provenance onto legacy checkpoints or a changed source.
+      final canCaptureEvidence =
+          sourceHash != null &&
+          manifest['independentChunkEvidenceVersion'] == 1 &&
+          manifest['independentSourceSha256'] == sourceHash &&
+          manifest['durationMs'] == duration.inMilliseconds;
       final completed = ((manifest['completed'] as List?) ?? const [])
           .map((e) => e.toString())
           .toSet();
@@ -210,6 +247,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           start: chunk.start,
           duration: chunk.end - chunk.start,
         );
+        _throwIfCancelled();
+        final chunkHashBefore = canCaptureEvidence
+            ? await _tryHashAudio(wav.path)
+            : null;
         _throwIfCancelled();
 
         TranscriptionResult? result;
@@ -270,6 +311,17 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           );
         }
 
+        final rawEvidence =
+            result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+        final parsedEvidence = IndependentAsrEvidence.tryParse(rawEvidence);
+        final chunkHashAfter = chunkHashBefore == null
+            ? null
+            : await _tryHashAudio(wav.path);
+        _throwIfCancelled();
+        final verifiedChunk =
+            chunkHashBefore != null &&
+            chunkHashBefore == chunkHashAfter &&
+            parsedEvidence?.sourceAudioSha256 == chunkHashBefore;
         final shifted = _shiftDocument(result.lyrics, chunk.start, index);
         await resultFile.writeAsString(
           const JsonEncoder.withIndent('  ').convert({
@@ -278,6 +330,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             'startMs': chunk.start.inMilliseconds,
             'endMs': chunk.end.inMilliseconds,
             'language': result.detectedLanguage,
+            if (verifiedChunk)
+              'independentEvidence': {
+                'version': 1,
+                'sourceAudioSha256': sourceHash,
+                'chunkAudioSha256': chunkHashBefore,
+                'evidenceSha256': _evidenceDigest(parsedEvidence!.toJson()),
+                'evidence': parsedEvidence.toJson(),
+              },
             'lyrics': shifted.toJson(),
           }),
           flush: true,
@@ -304,6 +364,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       _emit(TranscriptionStage.parsing, 0.98, '正在合并分片并清理重叠歌词');
       final documents = <LyricDocument>[];
       final languages = <String>[];
+      final evidenceChunks = <Map<String, dynamic>>[];
       for (var index = 0; index < plan.length; index++) {
         final json =
             jsonDecode(
@@ -318,11 +379,57 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             Map<String, dynamic>.from(json['lyrics'] as Map),
           ),
         );
+        final proof = json['independentEvidence'];
+        if (canCaptureEvidence &&
+            json['id'] == _chunkId(index) &&
+            json['index'] == index &&
+            json['startMs'] == plan[index].start.inMilliseconds &&
+            json['endMs'] == plan[index].end.inMilliseconds &&
+            proof is Map &&
+            proof['version'] == 1 &&
+            proof['sourceAudioSha256'] == sourceHash &&
+            proof['chunkAudioSha256'] is String &&
+            proof['evidence'] is Map &&
+            proof['evidenceSha256'] is String &&
+            proof['evidenceSha256'] == _evidenceDigest(proof['evidence']) &&
+            (proof['evidence'] as Map)['sourceAudioSha256'] ==
+                proof['chunkAudioSha256']) {
+          evidenceChunks.add({
+            'index': index,
+            'startMs': plan[index].start.inMilliseconds,
+            'endMs': plan[index].end.inMilliseconds,
+            'evidence': proof['evidence'],
+          });
+        }
         final language = json['language']?.toString();
         if (language != null && language.isNotEmpty) languages.add(language);
       }
 
-      final merged = _mergeDocuments(documents, plan);
+      var merged = _mergeDocuments(documents, plan);
+      if (canCaptureEvidence && evidenceChunks.length == plan.length) {
+        final sourceAfter = await _tryHashAudio(request.inputAudioPath);
+        _throwIfCancelled();
+        if (sourceAfter == sourceHash) {
+          final raw = {
+            'schemaVersion': ChunkedIndependentAsrEvidence.schemaVersion,
+            'scope': 'completeChunkPlan',
+            'sourceAudioSha256': sourceHash,
+            'durationMs': duration.inMilliseconds,
+            'chunkDurationMs': chunkDuration.inMilliseconds,
+            'overlapMs': overlap.inMilliseconds,
+            'chunks': evidenceChunks,
+          };
+          final evidence = ChunkedIndependentAsrEvidence.tryParse(raw);
+          if (evidence != null) {
+            merged = merged.copyWith(
+              metadata: {
+                ...merged.metadata,
+                ChunkedIndependentAsrEvidence.metadataKey: evidence.toJson(),
+              },
+            );
+          }
+        }
+      }
       final finalFile = File(
         '${root.path}${Platform.pathSeparator}merged_result.json',
       );
@@ -571,7 +678,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       });
     }
     final shiftedMetadata = Map<String, dynamic>.from(metadata)
-      ..remove(FusionTimingEvidence.metadataKey);
+      ..remove(FusionTimingEvidence.metadataKey)
+      // Persist original evidence only in the verified checkpoint envelope.
+      ..remove(IndependentAsrEvidence.metadataKey)
+      ..remove(ChunkedIndependentAsrEvidence.metadataKey);
     if (timingEntries.isNotEmpty) {
       shiftedMetadata[FusionTimingEvidence.metadataKey] =
           FusionTimingEvidence.wrap(timingEntries);
@@ -770,7 +880,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       ..remove('whisperRawJsonPath')
       // A chunk's independent transcripts use chunk-local time and do not
       // represent both engines' output for the entire merged recording.
-      ..remove(IndependentAsrEvidence.metadataKey);
+      ..remove(IndependentAsrEvidence.metadataKey)
+      ..remove(ChunkedIndependentAsrEvidence.metadataKey);
 
     int remap(int chunk, Object? rawIndex) {
       if (rawIndex is! num) return -1;
@@ -861,6 +972,21 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   Duration _absoluteDuration(Duration value) =>
       value.isNegative ? -value : value;
+
+  // Detect accidental checkpoint corruption, not malicious replacement: the
+  // digest and payload are stored together and are not authenticated.
+  String _evidenceDigest(Object? raw) =>
+      sha256.convert(utf8.encode(jsonEncode(raw))).toString();
+
+  Future<String?> _tryHashAudio(String path) async {
+    try {
+      return await hashAsrAudioFile(path, onChunk: _throwIfCancelled);
+    } on AsrAudioChangedDuringHashException {
+      return null;
+    } on FileSystemException {
+      return null;
+    }
+  }
 
   Future<String> _fingerprint(String path) async {
     final file = File(path);
