@@ -2,6 +2,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../services/lyric_manual_edit_marker_service.dart';
 import 'proofread_review_proposal.dart';
 import 'proofread_strategy_selector.dart';
+import 'reference_alignment_timing_applier.dart';
 
 /// Builds the document that the review dialog's selection describes.
 ///
@@ -35,7 +36,7 @@ class ProofreadV2DocumentComposer {
     final accepted = selection.acceptedProposalIndices;
     final droppedIndices = droppedItems.map((item) => item.sourceIndex).toSet();
     final consumedDraftIndices = <int>{};
-    final candidates = <({LyricLine line, int order})>[];
+    final candidates = <({LyricLine line, int order, int? proposalIndex})>[];
     var order = 0;
 
     for (final item in items) {
@@ -52,18 +53,19 @@ class ProofreadV2DocumentComposer {
         candidates.add((
           line: shouldAccept ? item.proposedLine : before.lines[sourceIndex],
           order: order++,
+          proposalIndex: item.proposalIndex,
         ));
       } else if (shouldAccept) {
-        candidates.add((line: item.proposedLine, order: order++));
+        candidates.add((line: item.proposedLine, order: order++, proposalIndex: item.proposalIndex));
       }
     }
 
-    final restoredCandidates = <({LyricLine line, int order})>[];
+    final restoredCandidates = <({LyricLine line, int order, int? proposalIndex})>[];
     for (var index = 0; index < before.lines.length; index++) {
       if (consumedDraftIndices.contains(index)) continue;
       final shouldRestore = selection.restoredDraftIndices.contains(index);
       if (shouldRestore || !droppedIndices.contains(index)) {
-        restoredCandidates.add((line: before.lines[index], order: order++));
+        restoredCandidates.add((line: before.lines[index], order: order++, proposalIndex: null));
       }
     }
     restoredCandidates.sort((left, right) {
@@ -125,7 +127,19 @@ class ProofreadV2DocumentComposer {
       globalOffset: offset,
       metadata: metadata,
     );
-    return markerService.assignMissingLineIds(candidate);
+    final withIds = markerService.assignMissingLineIds(candidate);
+    return const ReferenceAlignmentTimingApplier().apply(
+      before: before,
+      composed: withIds,
+      items: items,
+      selection: selection,
+      effectiveStrategy: effectiveStrategy,
+      outputIndexByProposal: {
+        for (var index = 0; index < candidates.length; index++)
+          if (candidates[index].proposalIndex case final int proposalIndex)
+            proposalIndex: index,
+      },
+    );
   }
 
   /// Whether [after] differs from [before] in any way a commit would record.

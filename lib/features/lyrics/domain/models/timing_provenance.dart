@@ -18,6 +18,9 @@ enum LyricTimingProvenance {
   /// 自动收紧了结束时间以消除明确的重叠或音频边界冲突。
   autoRepaired,
 
+  /// 用户显式采纳的参考文本 ForcedAligner 时间。
+  forcedAlignmentReference,
+
   /// 用户在编辑器中手动校准过的时间。
   manual;
 
