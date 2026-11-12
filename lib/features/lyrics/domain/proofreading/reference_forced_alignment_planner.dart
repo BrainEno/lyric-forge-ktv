@@ -139,7 +139,8 @@ class ReferenceForcedAlignmentPlanner {
     final lines = <ReferenceAlignmentLine>[];
     var cleanIndex = 0;
     for (var index = 0; index < reference.lines.length; index++) {
-      if (removed.contains(index) || reference.lines[index].text.trim().isEmpty) {
+      if (removed.contains(index) ||
+          reference.lines[index].text.trim().isEmpty) {
         continue;
       }
       if (cleanIndex >= sanitized.lines.length) {
@@ -202,7 +203,10 @@ class ReferenceForcedAlignmentPlanner {
       final span = spans[index];
       totalSpanLength += span.text.length;
       if (totalSpanLength > maxTotalSpanCodeUnits) {
-        return failure(ReferenceForcedAlignmentStatus.spanLimitExceeded, span: index);
+        return failure(
+          ReferenceForcedAlignmentStatus.spanLimitExceeded,
+          span: index,
+        );
       }
       if (span.text.length > maxSpanCodeUnits ||
           _normalize(span.text).isEmpty ||
@@ -240,12 +244,14 @@ class ReferenceForcedAlignmentPlanner {
         matched += piece.length;
         cursor++;
       }
-      proposals.add(ReferenceForcedTimingProposal._(
-        referenceIndex: line.referenceIndex,
-        referenceText: line.text,
-        start: spans[firstSpan].start,
-        end: spans[cursor - 1].end,
-      ));
+      proposals.add(
+        ReferenceForcedTimingProposal._(
+          referenceIndex: line.referenceIndex,
+          referenceText: line.text,
+          start: spans[firstSpan].start,
+          end: spans[cursor - 1].end,
+        ),
+      );
     }
     if (cursor != spans.length) {
       return failure(ReferenceForcedAlignmentStatus.extraSpans, span: cursor);
