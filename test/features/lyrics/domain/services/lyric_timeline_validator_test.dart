@@ -194,6 +194,22 @@ void main() {
   });
 
   group('前后对比', () {
+    test('前后偏移不同时分别判断有效开始时间', () {
+      final lines = [line(startMs: 100, endMs: 2000)];
+      final introduced = const LyricTimelineValidator().compare(
+        before: lines, after: lines,
+        beforeGlobalOffset: Duration.zero,
+        globalOffset: const Duration(milliseconds: -500),
+      );
+      expect(introduced.introduced.map((issue) => issue.type), contains(TimelineIssueType.negativeEffectiveStart));
+      final resolved = const LyricTimelineValidator().compare(
+        before: lines, after: lines,
+        beforeGlobalOffset: const Duration(milliseconds: -500),
+        globalOffset: Duration.zero,
+      );
+      expect(resolved.resolved.map((issue) => issue.type), contains(TimelineIssueType.negativeEffectiveStart));
+    });
+
     test('只把新引入的问题算作 introduced，原有冲突不重复报警', () {
       final before = [
         line(startMs: 0, endMs: 5000),

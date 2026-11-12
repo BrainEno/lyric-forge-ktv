@@ -756,6 +756,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         before: document.lines,
         after: after.lines,
         audioDuration: project.audioAsset?.duration,
+        beforeGlobalOffset: document.globalOffset ?? Duration.zero,
         globalOffset: after.globalOffset ?? Duration.zero,
       );
       if (comparison.hasIntroducedSeriousIssues) {
