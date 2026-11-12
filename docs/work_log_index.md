@@ -20,7 +20,7 @@
 
 ## Recent work areas
 
-- **Automatic V2 evidence (#319):** auto strategy accepts optional pasted ASR evidence and ForcedAligner; review identifies ignored evidence and fallbacks. Reference-first alignment and automatic snapshot loading remain open.
+- **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Snapshot reuse requires the draft to match the primary transcript; reference-first alignment and broader fused/chunked reuse remain open.
 
 - **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
 
