@@ -17,12 +17,17 @@ class LineAuditionRequest {
   /// insertions, deletions and reordering instead of drifting to another row.
   final String? lineId;
 
+  /// Separates distinct controls targeting the same row and time window.
+  /// Null identifies the editor's ordinary line audition.
+  final String? previewKey;
+
   final LyricAuditionWindow window;
 
   const LineAuditionRequest({
     required this.projectId,
     required this.lineIndex,
     required this.lineId,
+    this.previewKey,
     required this.window,
   });
 
@@ -110,6 +115,7 @@ class LineAuditionController extends ChangeNotifier {
 
   StreamSubscription<Duration>? _positionSubscription;
   LineAuditionRequest? _active;
+  bool Function()? _activePlaybackValid;
   bool _loopEnabled = false;
   bool _boundaryActionInFlight = false;
 
@@ -155,6 +161,7 @@ class LineAuditionController extends ChangeNotifier {
   void clear() {
     if (_active == null) return;
     _active = null;
+    _activePlaybackValid = null;
     _notify();
   }
 
@@ -193,14 +200,28 @@ class LineAuditionController extends ChangeNotifier {
   Future<LineAuditionResult> toggle({
     required LineAuditionRequest request,
     required Future<void> Function() prepare,
+    bool Function()? isStillValid,
+    bool Function()? isPlaybackStillValid,
   }) async {
-    final active = _active;
+    if (isStillValid != null && !isStillValid()) {
+      return LineAuditionResult.failed('试听条件已变化，请重试。');
+    }
+    var active = _active;
+    if (active != null &&
+        _activePlaybackValid != null &&
+        !_activePlaybackValid!()) {
+      clear();
+      active = null;
+    }
     final playbackBelongsToProject = request.belongsTo(
       _playbackSession.currentState.currentItem?.projectId,
     );
     if (active != null &&
         active.isSameLineAs(request) &&
+        active.previewKey == request.previewKey &&
+        active.hasSameWindowAs(request) &&
         playbackBelongsToProject) {
+      _activePlaybackValid = isPlaybackStillValid;
       final playback = _audioService.currentState;
       if (playback.isPlaying) {
         await _audioService.pause();
@@ -215,14 +236,24 @@ class LineAuditionController extends ChangeNotifier {
         return const LineAuditionResult.resumed();
       }
     }
-    return start(request: request, prepare: prepare);
+    return start(
+      request: request,
+      prepare: prepare,
+      isStillValid: isStillValid,
+      isPlaybackStillValid: isPlaybackStillValid,
+    );
   }
 
   /// Starts the window from its lead-in position.
   Future<LineAuditionResult> start({
     required LineAuditionRequest request,
     required Future<void> Function() prepare,
+    bool Function()? isStillValid,
+    bool Function()? isPlaybackStillValid,
   }) async {
+    if (isStillValid != null && !isStillValid()) {
+      return LineAuditionResult.failed('试听条件已变化，请重试。');
+    }
     if (!request.window.canAudition) {
       // Pause first, then drop the window: pauseIfSounding needs to know which
       // project the sounding audition belonged to.
@@ -238,8 +269,15 @@ class LineAuditionController extends ChangeNotifier {
         await prepare();
       }
 
+      if (isStillValid != null && !isStillValid()) {
+        return LineAuditionResult.failed('试听条件已变化，请重试。');
+      }
       await _playbackSession.seek(request.window.startAt);
+      if (isStillValid != null && !isStillValid()) {
+        return LineAuditionResult.failed('试听条件已变化，请重试。');
+      }
       _active = request;
+      _activePlaybackValid = isPlaybackStillValid;
       _notify();
       if (!_audioService.currentState.isPlaying) {
         await _audioService.play();
@@ -260,8 +298,9 @@ class LineAuditionController extends ChangeNotifier {
     if (active == null || endAt == null) return;
 
     if (!active.belongsTo(
-      _playbackSession.currentState.currentItem?.projectId,
-    )) {
+          _playbackSession.currentState.currentItem?.projectId,
+        ) ||
+        (_activePlaybackValid != null && !_activePlaybackValid!())) {
       clear();
       return;
     }
@@ -285,6 +324,7 @@ class LineAuditionController extends ChangeNotifier {
           _loopEnabled && playback.isCompleted;
       if (_disposed ||
           !identical(_active, active) ||
+          (_activePlaybackValid != null && !_activePlaybackValid!()) ||
           !active.belongsTo(
             _playbackSession.currentState.currentItem?.projectId,
           ) ||
@@ -296,6 +336,7 @@ class LineAuditionController extends ChangeNotifier {
         await _playbackSession.seek(active.window.startAt);
         if (_disposed ||
             !identical(_active, active) ||
+            (_activePlaybackValid != null && !_activePlaybackValid!()) ||
             !active.belongsTo(
               _playbackSession.currentState.currentItem?.projectId,
             )) {

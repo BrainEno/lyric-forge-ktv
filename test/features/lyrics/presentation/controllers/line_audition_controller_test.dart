@@ -164,6 +164,163 @@ void main() {
     });
   });
 
+  group('distinct windows and stale preview conditions', () {
+    const alternative = LineAuditionRequest(
+      projectId: 'p1',
+      lineIndex: 0,
+      lineId: 'line-a',
+      window: LyricAuditionWindow(
+        startAt: Duration(seconds: 20),
+        endAt: Duration(seconds: 22),
+        canAudition: true,
+      ),
+    );
+
+    test(
+      'same row, different interval starts new playback instead of pausing',
+      () async {
+        await controller.start(request: request, prepare: noPrepare);
+        final result = await controller.toggle(
+          request: alternative,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(session.seeks, [
+          const Duration(seconds: 10),
+          const Duration(seconds: 20),
+        ]);
+        expect(controller.active!.window.endAt, const Duration(seconds: 22));
+        expect(audio.isPlaying, isTrue);
+      },
+    );
+
+    test(
+      'same row, different interval while paused starts from its own start',
+      () async {
+        await controller.start(request: request, prepare: noPrepare);
+        await audio.pause();
+        audio.emitPosition(const Duration(seconds: 11));
+        final result = await controller.toggle(
+          request: alternative,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(session.seeks.last, const Duration(seconds: 20));
+        expect(audio.isPlaying, isTrue);
+      },
+    );
+
+    test(
+      'different controls with identical windows start independently',
+      () async {
+        await controller.start(request: request, prepare: noPrepare);
+        const reference = LineAuditionRequest(
+          projectId: 'p1',
+          lineIndex: 0,
+          lineId: 'line-a',
+          previewKey: 'reference:0',
+          window: window,
+        );
+        final result = await controller.toggle(
+          request: reference,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(session.seeks, [
+          const Duration(seconds: 10),
+          const Duration(seconds: 10),
+        ]);
+        expect(controller.active!.previewKey, 'reference:0');
+        expect(audio.pauseCalls, 0);
+      },
+    );
+
+    test('a stale request cannot interrupt an active audition', () async {
+      await controller.start(request: request, prepare: noPrepare);
+      final result = await controller.toggle(
+        request: alternative,
+        prepare: noPrepare,
+        isStillValid: () => false,
+      );
+      expect(result.action, LineAuditionAction.failed);
+      expect(session.seeks, [const Duration(seconds: 10)]);
+      expect(controller.active!.window.endAt, const Duration(seconds: 14));
+      expect(audio.isPlaying, isTrue);
+    });
+
+    test('validation runs again after a delayed prepare', () async {
+      session.setProject('other');
+      final gate = Completer<void>();
+      var valid = true;
+      final pending = controller.start(
+        request: request,
+        prepare: () => gate.future,
+        isStillValid: () => valid,
+      );
+      valid = false;
+      gate.complete();
+      final result = await pending;
+      expect(result.action, LineAuditionAction.failed);
+      expect(session.seeks, isEmpty);
+      expect(audio.isPlaying, isFalse);
+    });
+  });
+
+  group('audition source changes', () {
+    test(
+      'a changed source clears the bound window without pausing new playback',
+      () async {
+        var sameSource = true;
+        await controller.start(
+          request: request,
+          prepare: noPrepare,
+          isPlaybackStillValid: () => sameSource,
+        );
+        sameSource = false;
+        audio.emitPosition(const Duration(seconds: 14));
+        await pumpEventQueue();
+        expect(controller.isActive, isFalse);
+        expect(audio.isPlaying, isTrue);
+        expect(audio.pauseCalls, 0);
+      },
+    );
+
+    test(
+      'a stale bound does not make a later toggle pause a different source',
+      () async {
+        var sameSource = true;
+        await controller.start(
+          request: request,
+          prepare: noPrepare,
+          isPlaybackStillValid: () => sameSource,
+        );
+        sameSource = false;
+        final result = await controller.toggle(
+          request: request,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(audio.pauseCalls, 0);
+        expect(session.seeks, [
+          const Duration(seconds: 10),
+          const Duration(seconds: 10),
+        ]);
+      },
+    );
+
+    test('unchanged source still pauses at its bound', () async {
+      await controller.start(
+        request: request,
+        prepare: noPrepare,
+        isPlaybackStillValid: () => true,
+      );
+      audio.emitPosition(const Duration(seconds: 14));
+      await pumpEventQueue();
+      expect(audio.isPlaying, isFalse);
+      expect(audio.pauseCalls, 1);
+    });
+  });
+
   group('播放到窗口结尾', () {
     test('不循环时在结尾暂停', () async {
       await controller.start(request: request, prepare: noPrepare);

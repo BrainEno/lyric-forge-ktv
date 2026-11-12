@@ -20,7 +20,7 @@
 
 ## Recent work areas
 
-- **Reference ForcedAligner review (#319):** V2 supports separately selected reference alignment times with audio/project point-in-time checks, protected rows, conflict confirmation, undo and line provenance; real-audio accuracy and native accessibility remain open.
+- **Reference ForcedAligner review (#319):** V2 supports separately selected reference alignment times and bounded absolute-time audition on the verified active local audio source; audio/project checks are point-in-time, and real-audio accuracy and native accessibility remain open.
 
 - **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Snapshot reuse requires the draft to match the primary transcript; broader fused/chunked reuse remains open.
 
