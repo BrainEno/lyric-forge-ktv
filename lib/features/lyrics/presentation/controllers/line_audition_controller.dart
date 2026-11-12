@@ -193,13 +193,18 @@ class LineAuditionController extends ChangeNotifier {
   Future<LineAuditionResult> toggle({
     required LineAuditionRequest request,
     required Future<void> Function() prepare,
+    bool Function()? isStillValid,
   }) async {
+    if (isStillValid != null && !isStillValid()) {
+      return LineAuditionResult.failed('试听条件已变化，请重试。');
+    }
     final active = _active;
     final playbackBelongsToProject = request.belongsTo(
       _playbackSession.currentState.currentItem?.projectId,
     );
     if (active != null &&
         active.isSameLineAs(request) &&
+        active.hasSameWindowAs(request) &&
         playbackBelongsToProject) {
       final playback = _audioService.currentState;
       if (playback.isPlaying) {
@@ -215,14 +220,18 @@ class LineAuditionController extends ChangeNotifier {
         return const LineAuditionResult.resumed();
       }
     }
-    return start(request: request, prepare: prepare);
+    return start(request: request, prepare: prepare, isStillValid: isStillValid);
   }
 
   /// Starts the window from its lead-in position.
   Future<LineAuditionResult> start({
     required LineAuditionRequest request,
     required Future<void> Function() prepare,
+    bool Function()? isStillValid,
   }) async {
+    if (isStillValid != null && !isStillValid()) {
+      return LineAuditionResult.failed('试听条件已变化，请重试。');
+    }
     if (!request.window.canAudition) {
       // Pause first, then drop the window: pauseIfSounding needs to know which
       // project the sounding audition belonged to.
@@ -238,7 +247,13 @@ class LineAuditionController extends ChangeNotifier {
         await prepare();
       }
 
+      if (isStillValid != null && !isStillValid()) {
+        return LineAuditionResult.failed('试听条件已变化，请重试。');
+      }
       await _playbackSession.seek(request.window.startAt);
+      if (isStillValid != null && !isStillValid()) {
+        return LineAuditionResult.failed('试听条件已变化，请重试。');
+      }
       _active = request;
       _notify();
       if (!_audioService.currentState.isPlaying) {
