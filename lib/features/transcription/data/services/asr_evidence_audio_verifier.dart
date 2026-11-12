@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 
 import '../../domain/models/independent_asr_evidence.dart';
+import '../../domain/models/chunked_independent_asr_evidence.dart';
 
 /// A point-in-time check, not permission to overwrite lyrics or a file lock.
 enum AsrEvidenceAudioStatus {
@@ -52,9 +53,12 @@ class AsrEvidenceAudioVerifier {
     required String? currentAudioPath,
   }) async {
     if (rawEvidence == null) return AsrEvidenceAudioStatus.missingEvidence;
-    final evidence = IndependentAsrEvidence.tryParse(rawEvidence);
-    if (evidence == null) return AsrEvidenceAudioStatus.invalidEvidence;
-    final expected = evidence.sourceAudioSha256;
+    final single = IndependentAsrEvidence.tryParse(rawEvidence);
+    final chunked = single == null
+        ? ChunkedIndependentAsrEvidence.tryParse(rawEvidence)
+        : null;
+    if (single == null && chunked == null) return AsrEvidenceAudioStatus.invalidEvidence;
+    final expected = single?.sourceAudioSha256 ?? chunked?.sourceAudioSha256;
     if (expected == null) return AsrEvidenceAudioStatus.unverified;
     if (currentAudioPath == null || currentAudioPath.trim().isEmpty) {
       return AsrEvidenceAudioStatus.audioUnavailable;
