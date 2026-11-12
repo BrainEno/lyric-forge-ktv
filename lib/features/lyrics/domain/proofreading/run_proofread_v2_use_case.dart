@@ -73,6 +73,8 @@ class RunProofreadV2UseCase {
       assembly = assembler.referenceFirst(
         draft: draft,
         requestedStrategy: strategy,
+        requestedForcedAlignment: useForcedAlignment,
+        hasSecondaryTranscript: secondary != null,
         result: const ReferenceFirstPipeline().build(
           draft: draft,
           reference: reference!,
@@ -116,6 +118,7 @@ class RunProofreadV2UseCase {
         usedForcedAlignment: useForcedAlignment,
         hasSecondaryTranscript: secondary != null,
         autoFellBackToAsr: decision.autoFellBackToAsr,
+        hasReference: reference != null,
         alignmentOutcome: alignmentOutcome,
       );
     }

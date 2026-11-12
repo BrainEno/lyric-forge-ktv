@@ -83,6 +83,12 @@ abstract final class LyricReviewStrings {
         '词级对齐达到计算预算上限，覆盖率不能作为完整证据。',
       LyricProofreadV2ExplanationCode.referenceInputWarnings =>
         '参考输入包含 ${explanation.referenceWarningCount!} 条冲突或警告，相关行会要求复核。',
+      LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference =>
+        '本次选择了参考歌词优先，ForcedAligner 未运行；参考优先暂不支持强制对齐。',
+      LyricProofreadV2ExplanationCode.secondaryTranscriptIgnoredByReference =>
+        '本次选择了参考歌词优先，第二份 ASR 转写稿未参与本次复核。',
+      LyricProofreadV2ExplanationCode.referenceIgnoredByAsr =>
+        '本次 ASR 优先未用参考歌词替换草稿文字或时间；在自动策略中仅用于覆盖率判断。',
       LyricProofreadV2ExplanationCode.automaticFallbackToAsr =>
         '自动策略因参考文本覆盖率低于 25% 而退回 ASR 优先。',
       LyricProofreadV2ExplanationCode.missingSecondaryTranscript =>
