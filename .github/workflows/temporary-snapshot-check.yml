@@ -20,7 +20,7 @@ jobs:
           mapfile -t files < <(git diff --name-only --diff-filter=AM 5c1f9442a472192108a5a33644dc63abbee53fa8 HEAD -- '*.dart')
           dart format "${files[@]}"
           tar -czf /tmp/formatted.tar.gz "${files[@]}"
-          base64 -w0 /tmp/formatted.tar.gz | fold -w 5000 | awk '{printf "::notice title=FORMAT%04d::%s\n", NR, $0}'
+          base64 -w0 /tmp/formatted.tar.gz | fold -w 3000 | awk '{printf "::notice title=FORMAT%04d::%s\n", NR, $0}'
       - name: Analyze and targeted tests
         shell: bash
         run: |
@@ -31,5 +31,5 @@ jobs:
           t=$?
           printf '\nANALYZE_EXIT=%s TEST_EXIT=%s\n' "$a" "$t" >> /tmp/tests.log
           cat /tmp/analysis.log >> /tmp/tests.log
-          gzip -c /tmp/tests.log | base64 -w0 | fold -w 5000 | awk '{printf "::notice title=TESTLOG%04d::%s\n", NR, $0}'
+          gzip -c /tmp/tests.log | base64 -w0 | fold -w 3000 | awk '{printf "::notice title=TESTLOG%04d::%s\n", NR, $0}'
           test "$a" = 0 && test "$t" = 0
