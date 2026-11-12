@@ -318,7 +318,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                 'version': 1,
                 'sourceAudioSha256': sourceHash,
                 'chunkAudioSha256': chunkHashBefore,
-                'evidence': parsedEvidence!.toJson(),
+                'evidenceSha256': _evidenceDigest(parsedEvidence!.toJson()),
+                'evidence': parsedEvidence.toJson(),
               },
             'lyrics': shifted.toJson(),
           }),
@@ -372,6 +373,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             proof['sourceAudioSha256'] == sourceHash &&
             proof['chunkAudioSha256'] is String &&
             proof['evidence'] is Map &&
+            proof['evidenceSha256'] is String &&
+            proof['evidenceSha256'] == _evidenceDigest(proof['evidence']) &&
             (proof['evidence'] as Map)['sourceAudioSha256'] ==
                 proof['chunkAudioSha256']) {
           evidenceChunks.add({
@@ -658,7 +661,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       });
     }
     final shiftedMetadata = Map<String, dynamic>.from(metadata)
-      ..remove(FusionTimingEvidence.metadataKey);
+      ..remove(FusionTimingEvidence.metadataKey)
+      // Persist original evidence only in the verified checkpoint envelope.
+      ..remove(IndependentAsrEvidence.metadataKey)
+      ..remove(ChunkedIndependentAsrEvidence.metadataKey);
     if (timingEntries.isNotEmpty) {
       shiftedMetadata[FusionTimingEvidence.metadataKey] =
           FusionTimingEvidence.wrap(timingEntries);
@@ -949,6 +955,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
   Duration _absoluteDuration(Duration value) =>
       value.isNegative ? -value : value;
+
+  // Detect accidental checkpoint corruption, not malicious replacement: the
+  // digest and payload are stored together and are not authenticated.
+  String _evidenceDigest(Object? raw) =>
+      sha256.convert(utf8.encode(jsonEncode(raw))).toString();
 
   Future<String?> _tryHashAudio(String path) async {
     try {

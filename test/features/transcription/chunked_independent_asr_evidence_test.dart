@@ -53,8 +53,18 @@ Map<String, dynamic> fixture() => {
   'chunkDurationMs': 3000,
   'overlapMs': 1000,
   'chunks': <dynamic>[
-    <String, dynamic>{'index': 0, 'startMs': 0, 'endMs': 3000, 'evidence': pair()},
-    <String, dynamic>{'index': 1, 'startMs': 2000, 'endMs': 4000, 'evidence': pair()},
+    <String, dynamic>{
+      'index': 0,
+      'startMs': 0,
+      'endMs': 3000,
+      'evidence': pair(),
+    },
+    <String, dynamic>{
+      'index': 1,
+      'startMs': 2000,
+      'endMs': 4000,
+      'evidence': pair(),
+    },
   ],
 };
 

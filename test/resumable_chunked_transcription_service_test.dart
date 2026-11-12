@@ -1816,6 +1816,8 @@ void main() {
       'wrong-index',
       'wrong-time',
       'bad-evidence',
+      'changed-text',
+      'wrong-evidence-digest',
     ]) {
       test(
         'corrupted restored checkpoint $corruption cannot supply a full pair',
@@ -1841,6 +1843,11 @@ void main() {
               checkpointData['startMs'] = 1;
             case 'bad-evidence':
               (proof['evidence'] as Map)['scope'] = 'invalid';
+            case 'changed-text':
+              final original = (proof['evidence'] as Map)['primary'] as Map;
+              (original['lines'] as List).first['text'] = 'corrupted text';
+            case 'wrong-evidence-digest':
+              proof['evidenceSha256'] = '0' * 64;
           }
           await writeCheckpoint(0, checkpointData);
           final resumedDelegate = _AsyncService(
