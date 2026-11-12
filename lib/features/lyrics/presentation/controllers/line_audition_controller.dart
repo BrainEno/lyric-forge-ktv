@@ -201,7 +201,11 @@ class LineAuditionController extends ChangeNotifier {
     if (isStillValid != null && !isStillValid()) {
       return LineAuditionResult.failed('试听条件已变化，请重试。');
     }
-    final active = _active;
+    var active = _active;
+    if (active != null && _activePlaybackValid != null && !_activePlaybackValid!()) {
+      clear();
+      active = null;
+    }
     final playbackBelongsToProject = request.belongsTo(
       _playbackSession.currentState.currentItem?.projectId,
     );

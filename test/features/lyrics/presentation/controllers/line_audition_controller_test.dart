@@ -253,6 +253,16 @@ void main() {
       expect(audio.pauseCalls, 0);
     });
 
+    test('a stale bound does not make a later toggle pause a different source', () async {
+      var sameSource = true;
+      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => sameSource);
+      sameSource = false;
+      final result = await controller.toggle(request: request, prepare: noPrepare);
+      expect(result.action, LineAuditionAction.started);
+      expect(audio.pauseCalls, 0);
+      expect(session.seeks, [const Duration(seconds: 10), const Duration(seconds: 10)]);
+    });
+
     test('unchanged source still pauses at its bound', () async {
       await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => true);
       audio.emitPosition(const Duration(seconds: 14));
