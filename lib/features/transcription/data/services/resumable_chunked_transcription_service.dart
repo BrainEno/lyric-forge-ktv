@@ -144,11 +144,28 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final configFingerprint = checkpointConfigFingerprint(request.config);
       // Stat-based checkpoint compatibility is insufficient for provenance.
       // Hash only highest-quality chunk runs; failure disables evidence, not ASR.
-      final sourceHash =
+      final sourceHashCandidate =
           request.config.mode == TranscriptionMode.highestQuality &&
               plan.length <= ChunkedIndependentAsrEvidence.maxChunks
           ? await _tryHashAudio(request.inputAudioPath)
           : null;
+      _throwIfCancelled();
+      // The initial duration probe predates the hash. Re-probe after hashing
+      // so a replaced file cannot inherit a plan from the previous source.
+      // Failure only disables evidence; the existing transcription can proceed.
+      String? sourceHash;
+      if (sourceHashCandidate != null) {
+        try {
+          final observedDuration = await _probeDuration(
+            request.config.ffmpegExecutable,
+            request.inputAudioPath,
+          );
+          if (observedDuration == duration) sourceHash = sourceHashCandidate;
+        } on TranscriptionException catch (error) {
+          _throwIfCancelled();
+          if (error.kind == TranscriptionFailureKind.cancelled) rethrow;
+        }
+      }
       _throwIfCancelled();
       final manifestFile = File(
         '${root.path}${Platform.pathSeparator}session.json',
