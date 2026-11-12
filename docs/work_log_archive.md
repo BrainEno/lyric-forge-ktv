@@ -109,6 +109,7 @@
 - [2026-11-07 23:10] Protect split ASR confidence evidence ([entry](log/entries/2026-11-07-2310-protect-split-asr-confidence.md))
 - [2026-11-07 23:05] Make proofreading options accessible ([entry](log/entries/2026-11-07-2305-accessible-proofread-options.md))
 - [2026-11-07 23:00] Guard incomparable ASR review evidence ([entry](log/entries/2026-11-07-2300-guard-incomparable-asr-review.md))
+- [2026-11-07 22:46] Audition verified reference alignment timing ([entry](log/entries/2026-11-07-2246-audition-reference-alignment-timing.md))
 - [2026-11-07 22:45] Apply reference alignment timing by explicit row choice ([entry](log/entries/2026-11-07-2245-apply-reference-alignment-timing.md))
 - [2026-11-07 22:44] Protect partial project stores ([entry](log/entries/2026-11-07-2244-protect-partial-project-store.md))
 - [2026-11-07 21:54] Protect partial media metadata stores ([entry](log/entries/2026-11-07-2154-protect-partial-metadata-store.md))
