@@ -8,6 +8,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-flutter
       - run: flutter pub get --enforce-lockfile
       - name: Format and report patch
