@@ -455,22 +455,22 @@ void main() {
       expect(spy.calls, 0);
     });
 
-    test(
-      'reference strategy does not call aligner even if requested',
-      () async {
-        final run = await useCase.build(
-          draft: draft(),
-          strategy: LyricSourceStrategy.referenceFirst,
-          reference: reference(['hello world', 'sing tonight']),
-          useForcedAlignment: true,
-        );
-        expect(
-          run.decision.effectiveStrategy,
-          LyricSourceStrategy.referenceFirst,
-        );
-        expect(spy.calls, 0);
-      },
-    );
+    test('reference strategy sends reference text to the aligner', () async {
+      final run = await useCase.build(
+        draft: draft(),
+        strategy: LyricSourceStrategy.referenceFirst,
+        reference: reference(['hello world', 'sing tonight']),
+        audioAsset: audio,
+        useForcedAlignment: true,
+      );
+      expect(
+        run.decision.effectiveStrategy,
+        LyricSourceStrategy.referenceFirst,
+      );
+      expect(spy.calls, 1);
+      expect(spy.text, 'hello world\nsing tonight');
+      expect(run.assembly.referenceAlignmentPlan, isNotNull);
+    });
 
     test(
       'runner may finish later without modifying the original draft',

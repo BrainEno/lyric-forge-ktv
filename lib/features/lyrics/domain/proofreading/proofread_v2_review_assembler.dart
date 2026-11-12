@@ -4,6 +4,7 @@ import 'proofread_result.dart';
 import 'proofread_review_proposal.dart';
 import 'proofread_strategy_selector.dart';
 import 'reference_first_pipeline.dart';
+import 'reference_forced_alignment_planner.dart';
 
 /// Everything the proofread review dialog needs from one pipeline run.
 ///
@@ -16,6 +17,7 @@ class ProofreadV2ReviewAssembly {
   final List<LyricProofreadV2DroppedItem> droppedItems;
   final List<LyricProofreadV2Explanation> explanations;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
+  final ReferenceForcedAlignmentPlan? referenceAlignmentPlan;
 
   ProofreadV2ReviewAssembly({
     required this.proposalDocument,
@@ -23,6 +25,7 @@ class ProofreadV2ReviewAssembly {
     required List<LyricProofreadV2DroppedItem> droppedItems,
     required List<LyricProofreadV2Explanation> explanations,
     this.alignmentDiagnostics,
+    this.referenceAlignmentPlan,
   }) : items = List.unmodifiable(items),
        droppedItems = List.unmodifiable(droppedItems),
        explanations = List.unmodifiable(explanations);
@@ -43,8 +46,16 @@ class ProofreadV2ReviewAssembler {
     required LyricSourceStrategy requestedStrategy,
     bool requestedForcedAlignment = false,
     bool hasSecondaryTranscript = false,
+    ReferenceForcedAlignmentPlan? referenceAlignmentPlan,
   }) {
+    final referenceTimes = {
+      for (final proposal
+          in referenceAlignmentPlan?.proposals ??
+              const <ReferenceForcedTimingProposal>[])
+        proposal.referenceIndex: proposal,
+    };
     return ProofreadV2ReviewAssembly(
+      referenceAlignmentPlan: referenceAlignmentPlan,
       proposalDocument: result.proposedDocument.copyWith(
         globalOffset: Duration.zero,
       ),
@@ -64,6 +75,7 @@ class ProofreadV2ReviewAssembler {
               sourceIndex: sourceIndex,
               proposedLine: row.line,
               originalLine: original,
+              referenceTimingEvidence: referenceTimes[row.referenceIndex],
               verdict: switch (row.verdict) {
                 ReferenceFirstVerdictLevel.locked =>
                   LyricProofreadReviewVerdict.locked,
@@ -94,7 +106,7 @@ class ProofreadV2ReviewAssembler {
         const LyricProofreadV2Explanation(
           LyricProofreadV2ExplanationCode.referenceFirstGuidance,
         ),
-        if (requestedForcedAlignment)
+        if (requestedForcedAlignment && referenceAlignmentPlan == null)
           const LyricProofreadV2Explanation(
             LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference,
           ),

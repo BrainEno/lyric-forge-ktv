@@ -148,41 +148,38 @@ class _ProofreadV2RunOptionsDialogState
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
               const Text('下一步需要粘贴或导入参考歌词。'),
-              if (_useForcedAlignment ||
-                  _useProjectEvidence ||
+              if (_useProjectEvidence ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  '之前配置的 ASR 第二意见或 ForcedAligner 在参考歌词优先模式下不会使用；切回其他策略可继续编辑。',
-                ),
+                const Text('之前配置的 ASR 第二意见在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
               ],
             ],
+            const SizedBox(height: 8),
+            _revealOnFocus(
+              CheckboxListTile(
+                key: const ValueKey('forced_alignment_review_toggle'),
+                contentPadding: EdgeInsets.zero,
+                value: _useForcedAlignment,
+                onChanged: (value) =>
+                    setState(() => _useForcedAlignment = value ?? false),
+                title: const Text('使用 ForcedAligner 词级时间证据'),
+                subtitle: const Text(
+                  '需要本机 Qwen ForcedAligner；ASR 优先对齐草稿，参考优先对齐参考文本。时间仅供复核，不会写入歌词。',
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ),
             if (_strategy != LyricSourceStrategy.referenceFirst) ...[
               if (_strategy == LyricSourceStrategy.auto) ...[
                 const SizedBox(height: 8),
                 const Text(
-                  '以下证据仅在最终选择 ASR 优先时使用；若自动选择参考歌词优先，会在复核中说明未使用的选项。填写的转写稿会先检查格式。',
+                  '第二份 ASR 仅在最终选择 ASR 优先时使用；ForcedAligner 使用最终策略的文本。填写的转写稿会先检查格式。',
                 ),
               ],
               const SizedBox(height: 8),
               const Text(
                 '可粘贴第二份带时间戳的转写稿（LRC、SRT 或 WebVTT）。'
                 '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
-              ),
-              const SizedBox(height: 8),
-              _revealOnFocus(
-                CheckboxListTile(
-                  key: const ValueKey('forced_alignment_review_toggle'),
-                  contentPadding: EdgeInsets.zero,
-                  value: _useForcedAlignment,
-                  onChanged: (value) =>
-                      setState(() => _useForcedAlignment = value ?? false),
-                  title: const Text('使用 ForcedAligner 词级时间证据'),
-                  subtitle: const Text(
-                    '需要本机 Qwen ForcedAligner 运行时；结果只用于复核，不自动修改歌词时间。',
-                  ),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
               ),
               const SizedBox(height: 8),
               if (widget.allowProjectEvidence) ...[
@@ -242,9 +239,7 @@ class _ProofreadV2RunOptionsDialogState
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
-              useForcedAlignment:
-                  _strategy != LyricSourceStrategy.referenceFirst &&
-                  _useForcedAlignment,
+              useForcedAlignment: _useForcedAlignment,
             ),
           ),
           child: const Text('继续'),
@@ -744,6 +739,26 @@ class _LyricProofreadV2ReviewDialogState
               '建议时间：${_formatTime(item.proposedLine.startTime)} – '
               '${_formatTime(item.proposedLine.endTime)}',
             ),
+            if (item.referenceTimingEvidence case final evidence?)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '参考文本对齐证据 · ${evidence.source}',
+                      key: ValueKey(
+                        'reference_alignment_source_${item.proposalIndex}',
+                      ),
+                    ),
+                    Text('对齐文本：${evidence.referenceText}'),
+                    Text(
+                      '对齐时间（绝对音频时间）：${_formatTime(evidence.start)} – ${_formatTime(evidence.end)}',
+                    ),
+                    const Text('仅供人工复核；此时间不会随应用建议写入歌词。'),
+                  ],
+                ),
+              ),
             if (reasonText.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),

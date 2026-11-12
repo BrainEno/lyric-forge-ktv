@@ -13,7 +13,7 @@ void main() {
         ProofreadV2RunOptions? result;
         await configure(tester, size, scale, (value) => result = value);
         expect(find.text('自动选择'), findsOneWidget);
-        expect(find.textContaining('以下证据仅在最终选择 ASR 优先时使用'), findsOneWidget);
+        expect(find.textContaining('第二份 ASR 仅在最终选择 ASR 优先时使用'), findsOneWidget);
         await tester.ensureVisible(find.text('本次提供参考歌词'));
         await tester.tap(find.text('本次提供参考歌词'));
         await tester.pumpAndSettle();
@@ -42,6 +42,37 @@ void main() {
     }
   }
 
+  for (final scale in [1.0, 2.0]) {
+    testWidgets('reference mode exposes alignment option at scale $scale', (
+      tester,
+    ) async {
+      ProofreadV2RunOptions? result;
+      await configure(
+        tester,
+        const Size(320, 568),
+        scale,
+        (value) => result = value,
+      );
+      await tester.ensureVisible(find.text('参考歌词优先'));
+      await tester.tap(find.text('参考歌词优先'));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(
+        const ValueKey('forced_alignment_review_toggle'),
+      );
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('参考优先对齐参考文本'), findsOneWidget);
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+      expect(result!.strategy, LyricSourceStrategy.referenceFirst);
+      expect(result!.useReference, isTrue);
+      expect(result!.useForcedAlignment, isTrue);
+      expect(result!.secondaryTranscriptText, isNull);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('automatic defaults do not request evidence or reference', (
     tester,
   ) async {
@@ -57,7 +88,7 @@ void main() {
   });
 
   testWidgets(
-    'reference-first warns of previously entered evidence and does not submit it',
+    'reference-first keeps alignment but suppresses previously entered second ASR',
     (tester) async {
       ProofreadV2RunOptions? result;
       await configure(
@@ -79,10 +110,7 @@ void main() {
       await tester.ensureVisible(find.text('参考歌词优先'));
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('之前配置的 ASR 第二意见或 ForcedAligner'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('之前配置的 ASR 第二意见'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('secondary_asr_transcript_input')),
         findsNothing,
@@ -91,7 +119,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(result?.strategy, LyricSourceStrategy.referenceFirst);
       expect(result?.useReference, isTrue);
-      expect(result?.useForcedAlignment, isFalse);
+      expect(result?.useForcedAlignment, isTrue);
       expect(result?.secondaryTranscriptText, isNull);
       expect(tester.takeException(), isNull);
     },

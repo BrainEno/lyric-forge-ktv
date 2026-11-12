@@ -130,7 +130,7 @@ void main() {
         );
 
         test(
-          'matching reference identifies ignored evidence: second=$hasSecondary alignment=$alignment',
+          'matching reference routes alignment and ignores secondary: second=$hasSecondary alignment=$alignment',
           () async {
             final draft = transcript('hello world');
             final secondary = hasSecondary ? transcript('hello world') : null;
@@ -146,14 +146,19 @@ void main() {
               run.decision.effectiveStrategy,
               LyricSourceStrategy.referenceFirst,
             );
-            expect(calls, 0);
+            expect(calls, alignment ? 1 : 0);
+            expect(run.assembly.referenceAlignmentPlan != null, alignment);
             expect(
               codes(run).contains(
                 LyricProofreadV2ExplanationCode
                     .forcedAlignmentIgnoredByReference,
               ),
-              alignment,
+              isFalse,
             );
+            if (alignment) {
+              expect(alignedText, 'hello world');
+              expect(alignedPath, '/voice.wav');
+            }
             expect(
               codes(run).contains(
                 LyricProofreadV2ExplanationCode
@@ -255,30 +260,18 @@ void main() {
     }
 
     test(
-      'reference-first ignores alignment without demanding an audio asset',
+      'reference-first requires audio when alignment is requested',
       () async {
-        final run = await useCase.build(
-          draft: transcript('hello world'),
-          strategy: LyricSourceStrategy.referenceFirst,
-          reference: reference('hello world'),
-          useForcedAlignment: true,
+        await expectLater(
+          useCase.build(
+            draft: transcript('hello world'),
+            strategy: LyricSourceStrategy.referenceFirst,
+            reference: reference('hello world'),
+            useForcedAlignment: true,
+          ),
+          throwsA(isA<ProofreadV2MissingAudioException>()),
         );
         expect(calls, 0);
-        expect(
-          codes(run),
-          contains(
-            LyricProofreadV2ExplanationCode.forcedAlignmentIgnoredByReference,
-          ),
-        );
-        expect(
-          codes(run),
-          isNot(
-            contains(
-              LyricProofreadV2ExplanationCode
-                  .secondaryTranscriptIgnoredByReference,
-            ),
-          ),
-        );
       },
     );
 

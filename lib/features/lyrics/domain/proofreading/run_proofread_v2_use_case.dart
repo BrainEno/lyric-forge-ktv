@@ -10,6 +10,7 @@ import 'proofread_review_proposal.dart';
 import 'proofread_strategy_selector.dart';
 import 'proofread_v2_review_assembler.dart';
 import 'reference_first_pipeline.dart';
+import 'reference_forced_alignment_planner.dart';
 import 'reference_token_aligner.dart';
 
 /// A forced-alignment request lacks a usable audio source or duration.
@@ -33,8 +34,8 @@ class ProofreadV2RunResult {
 /// Builds a V2 proposal without mutating the draft or persisting any result.
 ///
 /// The caller owns cancellation, editor revision checks, review, timeline
-/// confirmation, and committing the accepted changes. The optional alignment
-/// runner is only called in the ASR-first branch, as in the existing workflow.
+/// confirmation, and committing the accepted changes. Reference alignment is
+/// separate review evidence and never changes proposed or accepted timestamps.
 class RunProofreadV2UseCase {
   final ForcedAlignmentRunner runner;
   const RunProofreadV2UseCase({required this.runner});
@@ -70,17 +71,36 @@ class RunProofreadV2UseCase {
     const assembler = ProofreadV2ReviewAssembler();
     late final ProofreadV2ReviewAssembly assembly;
     if (decision.effectiveStrategy == LyricSourceStrategy.referenceFirst) {
+      final result = const ReferenceFirstPipeline().build(
+        draft: draft,
+        reference: reference!,
+        protectedDraftIndices: protectedIndices,
+        audioDuration: audioAsset?.duration,
+      );
+      ReferenceForcedAlignmentPlan? referenceAlignmentPlan;
+      if (useForcedAlignment) {
+        final duration = audioAsset?.duration;
+        if (audioAsset == null ||
+            duration == null ||
+            duration <= Duration.zero) {
+          throw const ProofreadV2MissingAudioException();
+        }
+        final language = ForcedAlignmentLanguage.resolve(draft.language);
+        referenceAlignmentPlan =
+            await ReferenceForcedAlignmentService(runner: runner).build(
+              reference: reference,
+              audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
+              language: language,
+              audioDuration: duration,
+            );
+      }
       assembly = assembler.referenceFirst(
         draft: draft,
         requestedStrategy: strategy,
         requestedForcedAlignment: useForcedAlignment,
+        referenceAlignmentPlan: referenceAlignmentPlan,
         hasSecondaryTranscript: secondary != null,
-        result: const ReferenceFirstPipeline().build(
-          draft: draft,
-          reference: reference!,
-          protectedDraftIndices: protectedIndices,
-          audioDuration: audioAsset?.duration,
-        ),
+        result: result,
       );
     } else {
       ForcedAlignmentProofreadOutcome? alignmentOutcome;

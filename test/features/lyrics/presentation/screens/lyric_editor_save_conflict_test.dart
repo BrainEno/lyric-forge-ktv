@@ -79,8 +79,9 @@ void main() {
         }
         expect(find.text('智能校对提案复核'), findsOneWidget);
         if (mode == 'matching reference') {
-          expect(calls, 0);
-          expect(find.textContaining('ForcedAligner 未运行'), findsOneWidget);
+          expect(calls, 1);
+          expect(path, '/managed/vocals.wav');
+          expect(find.textContaining('对齐结果不完整'), findsOneWidget);
           expect(find.textContaining('第二份 ASR 转写稿未参与本次复核'), findsOneWidget);
         } else {
           expect(calls, 1);
@@ -126,6 +127,122 @@ void main() {
       expect(editor.hasChanges, isFalse);
       expect(calls, 0);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('reference forced-alignment evidence', () {
+    testWidgets(
+      'reference evidence reaches review without changing the editor',
+      (tester) async {
+        String? calledText;
+        String? path;
+        final editor = await _openEditor(tester, ({
+          required audioPath,
+          required text,
+          required language,
+          required audioDuration,
+        }) async {
+          calledText = text;
+          path = audioPath;
+          return const [
+            ForcedAlignedSpan(
+              text: 'Human lyric',
+              start: Duration(milliseconds: 500),
+              end: Duration(milliseconds: 1200),
+            ),
+          ];
+        }, vocalPath: '/managed/vocals.wav');
+        await _openReferenceEvidenceReview(tester, 'Human lyric');
+        expect(calledText, 'Human lyric');
+        expect(path, '/managed/vocals.wav');
+        expect(
+          find.textContaining('forcedAlignment(reference)'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('对齐时间（绝对音频时间）：0.50 s – 1.20 s'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('此时间不会随应用建议写入歌词'), findsOneWidget);
+        expect(editor.document!.lines.single.startTime, Duration.zero);
+        expect(editor.hasChanges, isFalse);
+        await tester.tap(find.text('取消'));
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.startTime, Duration.zero);
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'invalid alignment explains failure without presenting partial evidence',
+      (tester) async {
+        final editor = await _openEditor(
+          tester,
+          ({
+            required audioPath,
+            required text,
+            required language,
+            required audioDuration,
+          }) async => const [
+            ForcedAlignedSpan(
+              text: 'wrong',
+              start: Duration.zero,
+              end: Duration(seconds: 1),
+            ),
+          ],
+        );
+        await _openReferenceEvidenceReview(tester, 'Human lyric');
+        expect(find.textContaining('对齐片段与参考歌词不匹配'), findsOneWidget);
+        expect(find.textContaining('已保留普通参考校对提案'), findsOneWidget);
+        expect(find.textContaining('forcedAlignment(reference)'), findsNothing);
+        expect(editor.hasChanges, isFalse);
+      },
+    );
+
+    testWidgets('edit during reference alignment discards the stale proposal', (
+      tester,
+    ) async {
+      final pending = Completer<List<ForcedAlignedSpan>>();
+      final editor = await _openEditor(
+        tester,
+        ({
+          required audioPath,
+          required text,
+          required language,
+          required audioDuration,
+        }) => pending.future,
+      );
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('参考歌词优先'));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(
+        const ValueKey('forced_alignment_review_toggle'),
+      );
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+      _submitReference(tester, 'Human lyric');
+      await tester.pump();
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(text: 'Edited while aligning'),
+      );
+      pending.complete(const [
+        ForcedAlignedSpan(
+          text: 'Human lyric',
+          start: Duration(milliseconds: 500),
+          end: Duration(milliseconds: 1200),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
+      expect(editor.document!.lines.single.text, 'Edited while aligning');
     });
   });
 
@@ -1126,6 +1243,27 @@ void main() {
       expect(explicitlyOverwritten?.revision, backgroundUpdate.revision + 1);
     },
   );
+}
+
+Future<void> _openReferenceEvidenceReview(
+  WidgetTester tester,
+  String reference,
+) async {
+  await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('智能校对 V2'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('参考歌词优先'));
+  await tester.pumpAndSettle();
+  final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.tap(find.text('继续'));
+  await tester.pumpAndSettle();
+  expect(find.byType(ReferenceAlignmentDialog), findsOneWidget);
+  _submitReference(tester, reference);
+  await tester.pumpAndSettle();
+  expect(find.text('智能校对提案复核'), findsOneWidget);
 }
 
 Future<void> _selectProjectEvidence(WidgetTester tester) async {

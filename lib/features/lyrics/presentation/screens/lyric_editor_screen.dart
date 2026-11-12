@@ -671,6 +671,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           if (projectEvidence != null)
             '工程独立第二稿：${projectEvidence.secondaryEngine} · ${projectEvidence.capturedAtUtc!.toIso8601String()}；音频已核对，模型内容未校验。',
           LyricReviewStrings.proofreadV2Explanations(assembly.explanations),
+          if (assembly.referenceAlignmentPlan case final plan?)
+            LyricReviewStrings.referenceAlignmentSummary(plan),
         ].join(' '),
         alignmentDiagnostics: assembly.alignmentDiagnostics,
         items: assembly.items,
