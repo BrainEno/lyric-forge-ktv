@@ -14,6 +14,52 @@ void main() {
     return LyricDocument(language: 'zh', lines: lines);
   }
 
+  test('previously adopted reference alignment is not silently trimmed', () {
+    final document = LyricDocument(
+      language: 'en',
+      lines: const [
+        LyricLine(
+          id: 'a',
+          text: 'first line',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          id: 'b',
+          text: 'second line',
+          startTime: Duration(seconds: 5),
+          endTime: Duration(seconds: 6),
+        ),
+      ],
+      metadata: const {
+        'timingProvenance': {'a': 'forcedAlignmentReference'},
+      },
+    );
+    final alignment = alignmentService.align(
+      document: document,
+      referenceLines: const [
+        ReferenceLyricLine(text: 'first line'),
+        ReferenceLyricLine(
+          text: 'second line',
+          startTime: Duration(seconds: 2),
+          endTime: Duration(seconds: 3),
+        ),
+      ],
+    );
+    final result = applier.apply(
+      document: document,
+      alignment: alignment,
+      applyReferenceTiming: true,
+      acceptedReferenceIndices: {1},
+    );
+    expect(result.document.lines[0].endTime, const Duration(seconds: 4));
+    expect(result.document.lines[1].startTime, const Duration(seconds: 2));
+    expect(
+      result.timelineRepairs.where((repair) => repair.lineIndex == 0),
+      isEmpty,
+    );
+  });
+
   group('文本纠正', () {
     test('高相似度错字被纠正，时间戳保持不变', () {
       final document = buildDocument([

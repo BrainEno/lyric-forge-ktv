@@ -20,15 +20,15 @@
 
 ## Recent work areas
 
-- **Reference ForcedAligner review (#319):** V2 can show complete, exact, ordered reference alignment as read-only absolute-time evidence; protected rows stay unchanged and rejected output is explained. Applying and persisting aligned times remains open.
+- **Reference ForcedAligner review (#319):** V2 supports separately selected reference alignment times with audio/project point-in-time checks, protected rows, conflict confirmation, undo and line provenance; real-audio accuracy and native accessibility remain open.
 
-- **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Snapshot reuse requires the draft to match the primary transcript; applying reference-first alignment and broader fused/chunked reuse remain open.
+- **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Snapshot reuse requires the draft to match the primary transcript; broader fused/chunked reuse remains open.
 
 - **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
 
 - **Reference proofreading extraction (#323):** a domain plan prepares and applies text-only or evidence-backed corrections; reference alignment and proofreading now check editor revisions across modal waits. Other editor flows and screen size remain follow-up work.
 
-- **V2 proofreading orchestration (#323):** strategy, protection, alignment requests, and review assembly now have a UI-independent use case. Other editor flows, screen size, and full UX audit remain open; reference-first alignment is read-only evidence, not an applicable time proposal (#319).
+- **V2 proofreading orchestration (#323):** strategy, protection, alignment requests, and review assembly now have a UI-independent use case. Other editor flows, screen size, and full UX audit remain open; reference timing is selected independently from text and verified before application (#319).
 
 - **Fusion timing snapshots:** dual-engine output records exact-text hashes and fusion-specific realignment flags; aligned input remains unknown, and consumers must validate the snapshot against current rows. No automatic alignment or playback certification. See [timing evidence](log/entries/2026-11-07-2054-record-fusion-timing-evidence.md).
 

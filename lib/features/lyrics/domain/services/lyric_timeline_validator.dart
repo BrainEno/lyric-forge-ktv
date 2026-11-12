@@ -306,11 +306,12 @@ class LyricTimelineValidator {
     required List<LyricLine> after,
     Duration? audioDuration,
     Duration globalOffset = Duration.zero,
+    Duration? beforeGlobalOffset,
   }) {
     final beforeResult = validate(
       lines: before,
       audioDuration: audioDuration,
-      globalOffset: globalOffset,
+      globalOffset: beforeGlobalOffset ?? globalOffset,
     );
     final afterResult = validate(
       lines: after,

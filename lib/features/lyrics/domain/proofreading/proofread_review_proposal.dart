@@ -144,9 +144,16 @@ class LyricProofreadV2Selection {
   final Set<int> acceptedProposalIndices;
   final Set<int> restoredDraftIndices;
 
+  /// Explicit choices, separate from ordinary text/timing proposal acceptance.
+  final Set<int> acceptedReferenceTimingIndices;
+
   LyricProofreadV2Selection({
     required Set<int> acceptedProposalIndices,
     required Set<int> restoredDraftIndices,
-  }) : acceptedProposalIndices = Set.unmodifiable(acceptedProposalIndices),
+    Set<int> acceptedReferenceTimingIndices = const {},
+  }) : acceptedReferenceTimingIndices = Set.unmodifiable(
+         acceptedReferenceTimingIndices,
+       ),
+       acceptedProposalIndices = Set.unmodifiable(acceptedProposalIndices),
        restoredDraftIndices = Set.unmodifiable(restoredDraftIndices);
 }

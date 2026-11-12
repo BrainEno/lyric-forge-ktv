@@ -109,7 +109,7 @@ void main() {
             find.textContaining('对齐时间（绝对音频时间）：0.50 s – 1.50 s'),
             findsOneWidget,
           );
-          expect(find.textContaining('此时间不会随应用建议写入歌词'), findsOneWidget);
+          expect(find.textContaining('音源尚未通过校验，暂不可采纳'), findsOneWidget);
           expect(
             find.bySemanticsLabel(RegExp('forcedAlignment\\(reference\\)')),
             findsWidgets,

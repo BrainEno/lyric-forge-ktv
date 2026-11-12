@@ -411,7 +411,9 @@ class ReferenceAlignmentApplier {
             (originalTimingProvenance[lineId] ==
                     LyricTimingProvenance.manual.name ||
                 originalTimingProvenance[lineId] ==
-                    LyricTimingProvenance.reference.name)) {
+                    LyricTimingProvenance.reference.name ||
+                originalTimingProvenance[lineId] ==
+                    LyricTimingProvenance.forcedAlignmentReference.name)) {
           protectedTimelineIndices.add(index);
         }
       }
