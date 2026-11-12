@@ -2,6 +2,7 @@ import '../domain/proofreading/forced_alignment_language.dart';
 import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
 import '../domain/proofreading/project_proofread_evidence.dart';
+import '../domain/proofreading/reference_forced_alignment_planner.dart';
 import '../domain/proofreading/proofread_strategy_selector.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
@@ -85,6 +86,29 @@ abstract final class LyricReviewStrings {
     ProjectProofreadEvidenceStatus.unsupportedOffsets =>
       '歌词或转写快照带有偏移，暂不能安全比较工程证据。',
   };
+
+  /// Reference timing is separate from the editable proposal and is never applied.
+  static String referenceAlignmentSummary(ReferenceForcedAlignmentPlan plan) {
+    final detail = switch (plan.status) {
+      ReferenceForcedAlignmentStatus.ready => '已生成 ${plan.proposals.length} 行参考文本对齐证据。时间仅供复核，不会随建议写入歌词；对齐结果不保证准确。',
+      ReferenceForcedAlignmentStatus.noUsableLyrics => '参考歌词没有可用于对齐的行。',
+      ReferenceForcedAlignmentStatus.invalidReference => '参考歌词格式不适合对齐。',
+      ReferenceForcedAlignmentStatus.referenceLimitExceeded => '参考歌词超过对齐安全限制。',
+      ReferenceForcedAlignmentStatus.invalidAudio => '音频、语言或时长不可用于对齐。',
+      ReferenceForcedAlignmentStatus.alignmentUnavailable => 'ForcedAligner 不可用或运行失败。',
+      ReferenceForcedAlignmentStatus.spanLimitExceeded => '对齐响应超过安全限制。',
+      ReferenceForcedAlignmentStatus.invalidSpan => '对齐响应包含无效、重叠或超出音频范围的片段。',
+      ReferenceForcedAlignmentStatus.textMismatch => '对齐片段与参考歌词不匹配或跨行。',
+      ReferenceForcedAlignmentStatus.incompleteAlignment => '对齐结果不完整。',
+      ReferenceForcedAlignmentStatus.extraSpans => '对齐结果包含多余片段。',
+    };
+    if (plan.isReady) return detail;
+    final location = [
+      if (plan.referenceIndex != null) '参考第 ${plan.referenceIndex! + 1} 行',
+      if (plan.spanIndex != null) '片段位置 ${plan.spanIndex! + 1}',
+    ].join('，');
+    return '参考文本 ForcedAligner 未生成时间证据：$detail${location.isEmpty ? '' : '（$location）'} 已保留普通参考校对提案。';
+  }
 
   static const forcedAlignmentBusy = '识别资源正忙，请等待其他任务结束后重试。';
 
