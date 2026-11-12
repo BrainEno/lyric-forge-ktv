@@ -74,6 +74,7 @@ abstract final class LyricReviewStrings {
     ProjectProofreadEvidenceStatus status,
   ) => switch (status) {
     ProjectProofreadEvidenceStatus.available => '工程证据可用。',
+    ProjectProofreadEvidenceStatus.auditOnly => '原始双引擎快照仅供查看，不能用于当前歌词的独立一致性判断。',
     ProjectProofreadEvidenceStatus.projectChanged => '工程已在其他位置更新，请刷新后重试。',
     ProjectProofreadEvidenceStatus.missingEvidence =>
       '工程没有完整的独立双引擎快照；可改为粘贴第二份转写稿。',

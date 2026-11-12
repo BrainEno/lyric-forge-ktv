@@ -7,9 +7,9 @@ import '../../domain/models/transcription_models.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'project_transcription_input.dart';
 
-/// Reuses only a verified single-input pair whose primary remains the draft.
-/// Checking the entire baseline prevents comparing a fused or edited row with
-/// the same secondary source and incorrectly reporting independent agreement.
+/// Reuses a verified single-input pair only when the primary remains the draft.
+/// Otherwise, the original pair is exposed solely for read-only inspection;
+/// no original transcript becomes evidence about the edited or fused draft.
 class VerifiedProjectProofreadEvidenceLoader {
   final ProjectRepository projects;
   final Future<String> Function(ProjectManifest) resolveInput;
@@ -58,9 +58,7 @@ class VerifiedProjectProofreadEvidenceLoader {
         (draft.globalOffset ?? Duration.zero) != Duration.zero) {
       return unavailable(ProjectProofreadEvidenceStatus.unsupportedOffsets);
     }
-    if (!_matchesPrimary(draft, evidence.primary)) {
-      return unavailable(ProjectProofreadEvidenceStatus.draftChanged);
-    }
+    final matchesPrimary = _matchesPrimary(draft, evidence.primary);
     if (evidence.sourceAudioSha256 == null) {
       return unavailable(ProjectProofreadEvidenceStatus.unverifiedAudio);
     }
@@ -103,6 +101,15 @@ class VerifiedProjectProofreadEvidenceLoader {
     final latest = await projects.getProjectById(projectId);
     if (latest == null || latest.revision != expectedProjectRevision) {
       return unavailable(ProjectProofreadEvidenceStatus.projectChanged);
+    }
+    if (!matchesPrimary) {
+      return ProjectProofreadEvidenceResult.auditOnly(
+        primary: evidence.primary.toDocument(),
+        primaryEngine: evidence.primary.engine,
+        secondary: evidence.secondary.toDocument(),
+        secondaryEngine: evidence.secondary.engine,
+        capturedAtUtc: evidence.capturedAtUtc,
+      );
     }
     return ProjectProofreadEvidenceResult.available(
       secondary: evidence.secondary.toDocument(),

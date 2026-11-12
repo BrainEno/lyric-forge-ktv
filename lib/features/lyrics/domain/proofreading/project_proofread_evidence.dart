@@ -3,6 +3,9 @@ import '../../../project/domain/models/lyric_document.dart';
 /// Why persisted evidence could not safely be used for this draft.
 enum ProjectProofreadEvidenceStatus {
   available,
+
+  /// The original pair is verified but cannot be compared to this draft.
+  auditOnly,
   projectChanged,
   missingEvidence,
   invalidEvidence,
@@ -17,12 +20,17 @@ enum ProjectProofreadEvidenceStatus {
 /// A point-in-time assessment, not a guarantee of recognition accuracy.
 class ProjectProofreadEvidenceResult {
   final ProjectProofreadEvidenceStatus status;
+  final LyricDocument? primary;
+  final String? primaryEngine;
   final LyricDocument? secondary;
   final String? secondaryEngine;
   final DateTime? capturedAtUtc;
 
   const ProjectProofreadEvidenceResult.unavailable(this.status)
     : assert(status != ProjectProofreadEvidenceStatus.available),
+      assert(status != ProjectProofreadEvidenceStatus.auditOnly),
+      primary = null,
+      primaryEngine = null,
       secondary = null,
       secondaryEngine = null,
       capturedAtUtc = null;
@@ -31,7 +39,18 @@ class ProjectProofreadEvidenceResult {
     required LyricDocument this.secondary,
     required String this.secondaryEngine,
     required DateTime this.capturedAtUtc,
-  }) : status = ProjectProofreadEvidenceStatus.available;
+  }) : primary = null,
+       primaryEngine = null,
+       status = ProjectProofreadEvidenceStatus.available;
+
+  /// Originals only: neither transcript can be treated as the current draft.
+  const ProjectProofreadEvidenceResult.auditOnly({
+    required LyricDocument this.primary,
+    required String this.primaryEngine,
+    required LyricDocument this.secondary,
+    required String this.secondaryEngine,
+    required DateTime this.capturedAtUtc,
+  }) : status = ProjectProofreadEvidenceStatus.auditOnly;
 }
 
 /// The caller owns editor revision checks and explicitly chooses whether to use

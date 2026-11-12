@@ -197,7 +197,7 @@ void main() {
   );
 
   test(
-    'rejects changed text, timing, confidence, order, count and language',
+    'changed draft only exposes originals for read-only inspection',
     () async {
       final first = primary.lines.first;
       final variants = [
@@ -235,7 +235,7 @@ void main() {
       for (final doc in variants) {
         expect(
           (await load(doc: doc)).status,
-          ProjectProofreadEvidenceStatus.draftChanged,
+          ProjectProofreadEvidenceStatus.auditOnly,
         );
       }
     },
@@ -357,4 +357,120 @@ void main() {
       }
     },
   );
+
+  group('read-only original snapshot audit', () {
+    final changed = primary.copyWith(lines: [
+      primary.lines.first.copyWith(text: 'fused or manually edited'),
+      primary.lines.last,
+    ]);
+
+    test('returns both originals, not the changed draft, with provenance', () async {
+      final before = (await repo.getProjectById(id))!.toJson();
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.auditOnly);
+      expect(result.primary!.toJson(), primary.toJson());
+      expect(result.secondary!.toJson(), secondary.toJson());
+      expect(result.primaryEngine, 'qwen3-asr-1.7b');
+      expect(result.secondaryEngine, 'whisper.cpp-large-v3');
+      expect(result.capturedAtUtc, DateTime.utc(2026, 11, 7));
+      expect(result.primary!.lines.first.text, isNot(changed.lines.first.text));
+      expect((await repo.getProjectById(id))!.toJson(), before);
+    });
+
+    test('unverified source never exposes original transcript pair', () async {
+      await save(evidence());
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.unverifiedAudio);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('changed source never exposes original transcript pair', () async {
+      await audio.writeAsBytes([4, 5, 6]);
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.audioChanged);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('missing selected input never exposes original transcript pair', () async {
+      await audio.delete();
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.audioUnavailable);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('different selected stem cannot reuse matching original file', () async {
+      await vocal.writeAsBytes([8, 9]);
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.audioChanged);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('changing selected stem during verification rejects audit', () async {
+      loader = VerifiedProjectProofreadEvidenceLoader(
+        projects: repo,
+        verifyAudio: ({required rawEvidence, required currentAudioPath}) async {
+          await vocal.writeAsBytes([1, 2, 3]);
+          return AsrEvidenceAudioStatus.audioMatches;
+        },
+      );
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.audioSelectionChanged);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('project revision changing during verification rejects audit', () async {
+      loader = VerifiedProjectProofreadEvidenceLoader(
+        projects: repo,
+        verifyAudio: ({required rawEvidence, required currentAudioPath}) async {
+          final current = (await repo.getProjectById(id))!;
+          await repo.updateProject(current.copyWith(name: 'Changed concurrently'));
+          return AsrEvidenceAudioStatus.audioMatches;
+        },
+      );
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.projectChanged);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('unsupported draft or source offset is not converted', () async {
+      final shifted = changed.copyWith(globalOffset: const Duration(seconds: 1));
+      final result = await load(doc: shifted);
+      expect(result.status, ProjectProofreadEvidenceStatus.unsupportedOffsets);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('malformed or chunk scoped metadata cannot supply originals', () async {
+      for (final scope in ['chunk', 'multiInput', 'unknown']) {
+        final raw = evidence(sourceHash: hash)..['scope'] = scope;
+        await save(raw);
+        final result = await load(doc: changed);
+        expect(result.status, ProjectProofreadEvidenceStatus.invalidEvidence);
+        expect(result.primary, isNull);
+        expect(result.secondary, isNull);
+      }
+    });
+
+    test('unknown engine identity cannot supply originals', () async {
+      await save(evidence(sourceHash: hash, second: 'unknown'));
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.invalidEvidence);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+
+    test('same engine identities cannot supply originals', () async {
+      await save(evidence(sourceHash: hash, second: 'qwen3-asr-1.7b'));
+      final result = await load(doc: changed);
+      expect(result.status, ProjectProofreadEvidenceStatus.invalidEvidence);
+      expect(result.primary, isNull);
+      expect(result.secondary, isNull);
+    });
+  });
 }
