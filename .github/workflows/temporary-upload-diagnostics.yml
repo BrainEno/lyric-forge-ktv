@@ -16,8 +16,13 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter test --no-pub --reporter expanded > /tmp/full.log 2>&1
-          result=$?
+          result=0
+          for iteration in 1 2 3; do
+            echo "Full suite iteration $iteration"
+            flutter test --no-pub --reporter expanded > /tmp/full.log 2>&1
+            result=$?
+            if [ "$result" != 0 ]; then break; fi
+          done
           python3 - <<'PY'
           import gzip,base64,re
           lines=open('/tmp/full.log').read().splitlines()
