@@ -1,5 +1,8 @@
 name: Arena reference alignment planner
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [arena/009f50f7-lyric-forge-ktv]
 jobs:
   check:
     runs-on: ubuntu-latest
