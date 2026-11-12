@@ -1543,194 +1543,385 @@ void main() {
           processSupervisor: ffmpeg.supervisor,
         );
 
-    TranscriptionRequest request() => _request(input.path, directory.path, config: config);
+    TranscriptionRequest request() =>
+        _request(input.path, directory.path, config: config);
 
-    File checkpoint(int index) => File('${directory.path}/chunk_session/chunks/chunk_000$index.json');
+    File checkpoint(int index) =>
+        File('${directory.path}/chunk_session/chunks/chunk_000$index.json');
 
     Future<Map<String, dynamic>> checkpointJson(int index) async =>
-        Map<String, dynamic>.from(jsonDecode(await checkpoint(index).readAsString()) as Map);
+        Map<String, dynamic>.from(
+          jsonDecode(await checkpoint(index).readAsString()) as Map,
+        );
 
     Future<void> writeCheckpoint(int index, Map<String, dynamic> value) async {
       await checkpoint(index).writeAsString(jsonEncode(value));
     }
 
-    test('complete verified chunks are persisted without flattening overlap', () async {
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final wrapper = service(delegate);
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      final raw = result.lyrics.metadata[ChunkedIndependentAsrEvidence.metadataKey];
-      final evidence = ChunkedIndependentAsrEvidence.tryParse(raw)!;
-      expect(evidence.sourceAudioSha256, sha256.convert(await input.readAsBytes()).toString());
-      expect(evidence.chunks, hasLength(2));
-      expect(evidence.chunks[0].start, Duration.zero);
-      expect(evidence.chunks[1].start, const Duration(seconds: 2));
-      expect(evidence.chunks[1].globalTranscript(primary: false).lines.single.startTime,
-          const Duration(milliseconds: 2500));
-      expect(result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey), isFalse);
-      final output = jsonDecode(await File(result.rawJsonPath).readAsString()) as Map;
-      expect((output['metadata'] as Map)[ChunkedIndependentAsrEvidence.metadataKey], raw);
-      final first = await checkpointJson(0);
-      expect((first['independentEvidence'] as Map)['sourceAudioSha256'], evidence.sourceAudioSha256);
-      expect(ffmpeg.chunkStartRequests, 2);
-    });
+    test(
+      'complete verified chunks are persisted without flattening overlap',
+      () async {
+        final delegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
+        final wrapper = service(delegate);
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        final raw =
+            result.lyrics.metadata[ChunkedIndependentAsrEvidence.metadataKey];
+        final evidence = ChunkedIndependentAsrEvidence.tryParse(raw)!;
+        expect(
+          evidence.sourceAudioSha256,
+          sha256.convert(await input.readAsBytes()).toString(),
+        );
+        expect(evidence.chunks, hasLength(2));
+        expect(evidence.chunks[0].start, Duration.zero);
+        expect(evidence.chunks[1].start, const Duration(seconds: 2));
+        expect(
+          evidence.chunks[1]
+              .globalTranscript(primary: false)
+              .lines
+              .single
+              .startTime,
+          const Duration(milliseconds: 2500),
+        );
+        expect(
+          result.lyrics.metadata.containsKey(
+            IndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        final output =
+            jsonDecode(await File(result.rawJsonPath).readAsString()) as Map;
+        expect(
+          (output['metadata']
+              as Map)[ChunkedIndependentAsrEvidence.metadataKey],
+          raw,
+        );
+        final first = await checkpointJson(0);
+        expect(
+          (first['independentEvidence'] as Map)['sourceAudioSha256'],
+          evidence.sourceAudioSha256,
+        );
+        expect(ffmpeg.chunkStartRequests, 2);
+      },
+    );
 
-    test('missing second opinion in any chunk omits the whole collection', () async {
-      final delegate = _AsyncService((request, fake) async =>
-          _chunkEvidenceResult(request, includeEvidence: fake.calls == 1));
-      final wrapper = service(delegate);
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      expect(result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey), isFalse);
-      expect((await checkpointJson(1)).containsKey('independentEvidence'), isFalse);
-    });
+    test(
+      'missing second opinion in any chunk omits the whole collection',
+      () async {
+        final delegate = _AsyncService(
+          (request, fake) async =>
+              _chunkEvidenceResult(request, includeEvidence: fake.calls == 1),
+        );
+        final wrapper = service(delegate);
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          result.lyrics.metadata.containsKey(
+            IndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          (await checkpointJson(1)).containsKey('independentEvidence'),
+          isFalse,
+        );
+      },
+    );
 
     test('a mismatched hash from the delegate cannot prove a chunk', () async {
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request, hashOverride: 'a' * 64));
+      final delegate = _AsyncService(
+        (request, _) => _chunkEvidenceResult(request, hashOverride: 'a' * 64),
+      );
       final wrapper = service(delegate);
       addTearDown(wrapper.dispose);
       final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      expect((await checkpointJson(0)).containsKey('independentEvidence'), isFalse);
+      expect(
+        result.lyrics.metadata.containsKey(
+          ChunkedIndependentAsrEvidence.metadataKey,
+        ),
+        isFalse,
+      );
+      expect(
+        (await checkpointJson(0)).containsKey('independentEvidence'),
+        isFalse,
+      );
     });
 
-    test('chunk audio changed during the delegate run is not trusted', () async {
-      final delegate = _AsyncService((request, _) async {
-        final result = await _chunkEvidenceResult(request);
-        await File(request.inputAudioPath).writeAsBytes(List<int>.filled(128, 3));
-        return result;
-      });
-      final wrapper = service(delegate);
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      expect((await checkpointJson(0)).containsKey('independentEvidence'), isFalse);
-    });
+    test(
+      'chunk audio changed during the delegate run is not trusted',
+      () async {
+        final delegate = _AsyncService((request, _) async {
+          final result = await _chunkEvidenceResult(request);
+          await File(
+            request.inputAudioPath,
+          ).writeAsBytes(List<int>.filled(128, 3));
+          return result;
+        });
+        final wrapper = service(delegate);
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          (await checkpointJson(0)).containsKey('independentEvidence'),
+          isFalse,
+        );
+      },
+    );
 
-    test('full source changed during recognition prevents evidence publication', () async {
-      final delegate = _AsyncService((request, fake) async {
-        final result = await _chunkEvidenceResult(request);
-        if (fake.calls == 2) await input.writeAsBytes(List<int>.filled(128, 8));
-        return result;
-      });
-      final wrapper = service(delegate);
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      expect((await checkpointJson(0)).containsKey('independentEvidence'), isTrue);
-    });
+    test(
+      'full source changed during recognition prevents evidence publication',
+      () async {
+        final delegate = _AsyncService((request, fake) async {
+          final result = await _chunkEvidenceResult(request);
+          if (fake.calls == 2)
+            await input.writeAsBytes(List<int>.filled(128, 8));
+          return result;
+        });
+        final wrapper = service(delegate);
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          (await checkpointJson(0)).containsKey('independentEvidence'),
+          isTrue,
+        );
+      },
+    );
 
-    test('resuming cryptographically bound completed chunks preserves originals', () async {
-      final firstDelegate = _AsyncService((request, fake) async {
-        if (fake.calls == 2) throw const TranscriptionException('pause');
-        return _chunkEvidenceResult(request);
-      });
-      final first = service(firstDelegate);
-      await expectLater(first.transcribe(request()), throwsA(isA<TranscriptionException>()));
-      await first.dispose();
-      expect((await checkpointJson(0)).containsKey('independentEvidence'), isTrue);
-      final resumedDelegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final resumed = service(resumedDelegate);
-      addTearDown(resumed.dispose);
-      final result = await resumed.transcribe(request());
-      expect(resumedDelegate.calls, 1);
-      expect(ChunkedIndependentAsrEvidence.tryParse(result.lyrics.metadata[ChunkedIndependentAsrEvidence.metadataKey])!.chunks, hasLength(2));
-    });
-
-    test('legacy manifest may resume lyrics but cannot acquire chunk provenance', () async {
-      final firstDelegate = _AsyncService((request, fake) async {
-        if (fake.calls == 2) throw const TranscriptionException('pause');
-        return _chunkEvidenceResult(request);
-      });
-      final first = service(firstDelegate);
-      await expectLater(first.transcribe(request()), throwsA(isA<TranscriptionException>()));
-      await first.dispose();
-      final manifestFile = File('${directory.path}/chunk_session/session.json');
-      final manifest = Map<String, dynamic>.from(jsonDecode(await manifestFile.readAsString()) as Map);
-      manifest.remove('independentChunkEvidenceVersion');
-      manifest.remove('independentSourceSha256');
-      await manifestFile.writeAsString(jsonEncode(manifest));
-      final resumedDelegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final resumed = service(resumedDelegate);
-      addTearDown(resumed.dispose);
-      final result = await resumed.transcribe(request());
-      expect(resumedDelegate.calls, 1);
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-    });
-
-    test('same size and timestamp but different bytes cannot validate resumed evidence', () async {
-      final firstDelegate = _AsyncService((request, fake) async {
-        if (fake.calls == 2) throw const TranscriptionException('pause');
-        return _chunkEvidenceResult(request);
-      });
-      final first = service(firstDelegate);
-      await expectLater(first.transcribe(request()), throwsA(isA<TranscriptionException>()));
-      await first.dispose();
-      final modified = (await input.stat()).modified;
-      await input.writeAsBytes(List<int>.filled(128, 9));
-      await input.setLastModified(modified);
-      final resumedDelegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final resumed = service(resumedDelegate);
-      addTearDown(resumed.dispose);
-      final result = await resumed.transcribe(request());
-      expect(resumedDelegate.calls, 1);
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-    });
-
-    for (final corruption in ['missing', 'wrong-source', 'wrong-chunk', 'wrong-index', 'wrong-time', 'bad-evidence']) {
-      test('corrupted restored checkpoint $corruption cannot supply a full pair', () async {
-        final firstDelegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
+    test(
+      'resuming cryptographically bound completed chunks preserves originals',
+      () async {
+        final firstDelegate = _AsyncService((request, fake) async {
+          if (fake.calls == 2) throw const TranscriptionException('pause');
+          return _chunkEvidenceResult(request);
+        });
         final first = service(firstDelegate);
-        await first.transcribe(request());
+        await expectLater(
+          first.transcribe(request()),
+          throwsA(isA<TranscriptionException>()),
+        );
         await first.dispose();
-        final checkpointData = await checkpointJson(0);
-        final proof = checkpointData['independentEvidence'] as Map;
-        switch (corruption) {
-          case 'missing': checkpointData.remove('independentEvidence');
-          case 'wrong-source': proof['sourceAudioSha256'] = 'f' * 64;
-          case 'wrong-chunk': proof['chunkAudioSha256'] = 'f' * 64;
-          case 'wrong-index': checkpointData['index'] = 1;
-          case 'wrong-time': checkpointData['startMs'] = 1;
-          case 'bad-evidence': (proof['evidence'] as Map)['scope'] = 'invalid';
-        }
-        await writeCheckpoint(0, checkpointData);
-        final resumedDelegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
+        expect(
+          (await checkpointJson(0)).containsKey('independentEvidence'),
+          isTrue,
+        );
+        final resumedDelegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
         final resumed = service(resumedDelegate);
         addTearDown(resumed.dispose);
         final result = await resumed.transcribe(request());
-        expect(resumedDelegate.calls, 0);
-        expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      });
+        expect(resumedDelegate.calls, 1);
+        expect(
+          ChunkedIndependentAsrEvidence.tryParse(
+            result.lyrics.metadata[ChunkedIndependentAsrEvidence.metadataKey],
+          )!.chunks,
+          hasLength(2),
+        );
+      },
+    );
+
+    test(
+      'legacy manifest may resume lyrics but cannot acquire chunk provenance',
+      () async {
+        final firstDelegate = _AsyncService((request, fake) async {
+          if (fake.calls == 2) throw const TranscriptionException('pause');
+          return _chunkEvidenceResult(request);
+        });
+        final first = service(firstDelegate);
+        await expectLater(
+          first.transcribe(request()),
+          throwsA(isA<TranscriptionException>()),
+        );
+        await first.dispose();
+        final manifestFile = File(
+          '${directory.path}/chunk_session/session.json',
+        );
+        final manifest = Map<String, dynamic>.from(
+          jsonDecode(await manifestFile.readAsString()) as Map,
+        );
+        manifest.remove('independentChunkEvidenceVersion');
+        manifest.remove('independentSourceSha256');
+        await manifestFile.writeAsString(jsonEncode(manifest));
+        final resumedDelegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
+        final resumed = service(resumedDelegate);
+        addTearDown(resumed.dispose);
+        final result = await resumed.transcribe(request());
+        expect(resumedDelegate.calls, 1);
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'same size and timestamp but different bytes cannot validate resumed evidence',
+      () async {
+        final firstDelegate = _AsyncService((request, fake) async {
+          if (fake.calls == 2) throw const TranscriptionException('pause');
+          return _chunkEvidenceResult(request);
+        });
+        final first = service(firstDelegate);
+        await expectLater(
+          first.transcribe(request()),
+          throwsA(isA<TranscriptionException>()),
+        );
+        await first.dispose();
+        final modified = (await input.stat()).modified;
+        await input.writeAsBytes(List<int>.filled(128, 9));
+        await input.setLastModified(modified);
+        final resumedDelegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
+        final resumed = service(resumedDelegate);
+        addTearDown(resumed.dispose);
+        final result = await resumed.transcribe(request());
+        expect(resumedDelegate.calls, 1);
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    for (final corruption in [
+      'missing',
+      'wrong-source',
+      'wrong-chunk',
+      'wrong-index',
+      'wrong-time',
+      'bad-evidence',
+    ]) {
+      test(
+        'corrupted restored checkpoint $corruption cannot supply a full pair',
+        () async {
+          final firstDelegate = _AsyncService(
+            (request, _) => _chunkEvidenceResult(request),
+          );
+          final first = service(firstDelegate);
+          await first.transcribe(request());
+          await first.dispose();
+          final checkpointData = await checkpointJson(0);
+          final proof = checkpointData['independentEvidence'] as Map;
+          switch (corruption) {
+            case 'missing':
+              checkpointData.remove('independentEvidence');
+            case 'wrong-source':
+              proof['sourceAudioSha256'] = 'f' * 64;
+            case 'wrong-chunk':
+              proof['chunkAudioSha256'] = 'f' * 64;
+            case 'wrong-index':
+              checkpointData['index'] = 1;
+            case 'wrong-time':
+              checkpointData['startMs'] = 1;
+            case 'bad-evidence':
+              (proof['evidence'] as Map)['scope'] = 'invalid';
+          }
+          await writeCheckpoint(0, checkpointData);
+          final resumedDelegate = _AsyncService(
+            (request, _) => _chunkEvidenceResult(request),
+          );
+          final resumed = service(resumedDelegate);
+          addTearDown(resumed.dispose);
+          final result = await resumed.transcribe(request());
+          expect(resumedDelegate.calls, 0);
+          expect(
+            result.lyrics.metadata.containsKey(
+              ChunkedIndependentAsrEvidence.metadataKey,
+            ),
+            isFalse,
+          );
+        },
+      );
     }
 
-    test('out-of-bounds local evidence is not converted into global evidence', () async {
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request, badTimes: true));
-      final wrapper = service(delegate);
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-    });
+    test(
+      'out-of-bounds local evidence is not converted into global evidence',
+      () async {
+        final delegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request, badTimes: true),
+        );
+        final wrapper = service(delegate);
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('unknown engine identities and degraded chunks fail closed', () async {
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request, badEngine: true));
+      final delegate = _AsyncService(
+        (request, _) => _chunkEvidenceResult(request, badEngine: true),
+      );
       final wrapper = service(delegate);
       addTearDown(wrapper.dispose);
       final result = await wrapper.transcribe(request());
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
+      expect(
+        result.lyrics.metadata.containsKey(
+          ChunkedIndependentAsrEvidence.metadataKey,
+        ),
+        isFalse,
+      );
     });
 
     test('whisper-only path never publishes injected chunk metadata', () async {
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
+      final delegate = _AsyncService(
+        (request, _) => _chunkEvidenceResult(request),
+      );
       final wrapper = service(delegate);
       addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(_request(input.path, directory.path,
-          config: TranscriptionConfig(whisperExecutable: 'whisper', modelPath: 'model.bin', mode: TranscriptionMode.whisperOnly)));
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-      expect(result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey), isFalse);
+      final result = await wrapper.transcribe(
+        _request(
+          input.path,
+          directory.path,
+          config: TranscriptionConfig(
+            whisperExecutable: 'whisper',
+            modelPath: 'model.bin',
+            mode: TranscriptionMode.whisperOnly,
+          ),
+        ),
+      );
+      expect(
+        result.lyrics.metadata.containsKey(
+          ChunkedIndependentAsrEvidence.metadataKey,
+        ),
+        isFalse,
+      );
+      expect(
+        result.lyrics.metadata.containsKey(IndependentAsrEvidence.metadataKey),
+        isFalse,
+      );
     });
   });
-
 }
 
 TranscriptionConfig _config({String modelPath = 'model.bin'}) =>
@@ -1952,25 +2143,52 @@ Future<TranscriptionResult> _chunkEvidenceResult(
   bool badTimes = false,
   bool badEngine = false,
 }) async {
-  final hash = hashOverride ?? sha256.convert(await File(request.inputAudioPath).readAsBytes()).toString();
-  final primary = LyricDocument(language: 'en', lines: [
-    LyricLine(text: 'primary', startTime: Duration.zero,
-      endTime: badTimes ? const Duration(seconds: 10) : const Duration(seconds: 1)),
-  ]);
-  final secondary = LyricDocument(language: 'en', lines: [
-    LyricLine(text: 'secondary', startTime: const Duration(milliseconds: 500), endTime: const Duration(milliseconds: 1500)),
-  ]);
+  final hash =
+      hashOverride ??
+      sha256
+          .convert(await File(request.inputAudioPath).readAsBytes())
+          .toString();
+  final primary = LyricDocument(
+    language: 'en',
+    lines: [
+      LyricLine(
+        text: 'primary',
+        startTime: Duration.zero,
+        endTime: badTimes
+            ? const Duration(seconds: 10)
+            : const Duration(seconds: 1),
+      ),
+    ],
+  );
+  final secondary = LyricDocument(
+    language: 'en',
+    lines: [
+      LyricLine(
+        text: 'secondary',
+        startTime: const Duration(milliseconds: 500),
+        endTime: const Duration(milliseconds: 1500),
+      ),
+    ],
+  );
   final proof = IndependentAsrEvidence(
     capturedAt: DateTime.utc(2026, 11, 7),
     sourceAudioSha256: hash,
-    primary: IndependentAsrTranscript(engine: 'qwen3-asr-1.7b', document: primary),
-    secondary: IndependentAsrTranscript(engine: badEngine ? 'unknown' : 'whisper.cpp-large-v3', document: secondary),
+    primary: IndependentAsrTranscript(
+      engine: 'qwen3-asr-1.7b',
+      document: primary,
+    ),
+    secondary: IndependentAsrTranscript(
+      engine: badEngine ? 'unknown' : 'whisper.cpp-large-v3',
+      document: secondary,
+    ),
   );
   return TranscriptionResult(
-    lyrics: primary.copyWith(metadata: {
-      if (includeEvidence) IndependentAsrEvidence.metadataKey: proof.toJson(),
-      ChunkedIndependentAsrEvidence.metadataKey: {'scope': 'forged'},
-    }),
+    lyrics: primary.copyWith(
+      metadata: {
+        if (includeEvidence) IndependentAsrEvidence.metadataKey: proof.toJson(),
+        ChunkedIndependentAsrEvidence.metadataKey: {'scope': 'forged'},
+      },
+    ),
     normalizedAudioPath: request.inputAudioPath,
     rawJsonPath: '${request.outputDirectory}/raw.json',
     detectedLanguage: 'en',

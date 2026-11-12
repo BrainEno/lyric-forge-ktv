@@ -62,8 +62,14 @@ class ChunkedIndependentAsrEvidence {
     final length = raw['chunkDurationMs'] as int;
     final overlap = raw['overlapMs'] as int;
     final rawChunks = raw['chunks'] as List;
-    if (total <= 0 || total > maxDurationMs || length <= 0 || overlap < 0 || overlap >= length ||
-        total <= length || rawChunks.length < 2 || rawChunks.length > maxChunks) {
+    if (total <= 0 ||
+        total > maxDurationMs ||
+        length <= 0 ||
+        overlap < 0 ||
+        overlap >= length ||
+        total <= length ||
+        rawChunks.length < 2 ||
+        rawChunks.length > maxChunks) {
       return null;
     }
     final step = length - overlap;
@@ -76,18 +82,31 @@ class ChunkedIndependentAsrEvidence {
     for (var i = 0; i < rawChunks.length; i++) {
       final item = rawChunks[i];
       final expectedStart = i * step;
-      final expectedEnd = expectedStart + length < total ? expectedStart + length : total;
-      if (item is! Map || item['index'] is! int || item['startMs'] is! int ||
-          item['endMs'] is! int || item['index'] != i || item['startMs'] != expectedStart ||
-          item['endMs'] != expectedEnd || expectedStart >= total ||
-          (i < rawChunks.length - 1 && expectedEnd == total)) return null;
+      final expectedEnd = expectedStart + length < total
+          ? expectedStart + length
+          : total;
+      if (item is! Map ||
+          item['index'] is! int ||
+          item['startMs'] is! int ||
+          item['endMs'] is! int ||
+          item['index'] != i ||
+          item['startMs'] != expectedStart ||
+          item['endMs'] != expectedEnd ||
+          expectedStart >= total ||
+          (i < rawChunks.length - 1 && expectedEnd == total))
+        return null;
       final counts = _rawLineCount(item['evidence']);
       if (counts == null || totalLines + counts > maxTotalLines) return null;
       final evidence = IndependentAsrEvidence.tryParse(item['evidence']);
-      if (evidence == null || evidence.sourceAudioSha256 == null ||
-          !_independentEngines(evidence.primary.engine, evidence.secondary.engine) ||
+      if (evidence == null ||
+          evidence.sourceAudioSha256 == null ||
+          !_independentEngines(
+            evidence.primary.engine,
+            evidence.secondary.engine,
+          ) ||
           !_validTranscript(evidence.primary, expectedEnd - expectedStart) ||
-          !_validTranscript(evidence.secondary, expectedEnd - expectedStart)) return null;
+          !_validTranscript(evidence.secondary, expectedEnd - expectedStart))
+        return null;
       primaryEngine ??= evidence.primary.engine;
       secondaryEngine ??= evidence.secondary.engine;
       primaryLanguage ??= evidence.primary.language;
@@ -95,14 +114,17 @@ class ChunkedIndependentAsrEvidence {
       if (primaryEngine != evidence.primary.engine ||
           secondaryEngine != evidence.secondary.engine ||
           primaryLanguage != evidence.primary.language ||
-          secondaryLanguage != evidence.secondary.language) return null;
+          secondaryLanguage != evidence.secondary.language)
+        return null;
       totalLines += counts;
-      chunks.add(IndependentAsrChunk._(
-        index: i,
-        start: Duration(milliseconds: expectedStart),
-        end: Duration(milliseconds: expectedEnd),
-        evidence: evidence,
-      ));
+      chunks.add(
+        IndependentAsrChunk._(
+          index: i,
+          start: Duration(milliseconds: expectedStart),
+          end: Duration(milliseconds: expectedEnd),
+          evidence: evidence,
+        ),
+      );
     }
     if (chunks.last.end.inMilliseconds != total) return null;
     return ChunkedIndependentAsrEvidence._(
@@ -116,14 +138,20 @@ class ChunkedIndependentAsrEvidence {
 
   // Inspect sizes before constructing transcripts from untrusted project JSON.
   static int? _rawLineCount(Object? raw) {
-    if (raw is! Map || raw['primary'] is! Map || raw['secondary'] is! Map) return null;
+    if (raw is! Map || raw['primary'] is! Map || raw['secondary'] is! Map)
+      return null;
     var total = 0;
     for (final value in [raw['primary'], raw['secondary']]) {
       final lines = (value as Map)['lines'];
-      if (lines is! List || lines.isEmpty || lines.length > maxLinesPerTranscript) return null;
+      if (lines is! List ||
+          lines.isEmpty ||
+          lines.length > maxLinesPerTranscript)
+        return null;
       for (final line in lines) {
-        if (line is! Map || line['text'] is! String ||
-            (line['text'] as String).runes.length > maxTextRunesPerLine) return null;
+        if (line is! Map ||
+            line['text'] is! String ||
+            (line['text'] as String).runes.length > maxTextRunesPerLine)
+          return null;
       }
       total += lines.length;
     }
@@ -131,20 +159,28 @@ class ChunkedIndependentAsrEvidence {
   }
 
   static bool _independentEngines(String primary, String secondary) {
-    if (!_enginePattern.hasMatch(primary) || !_enginePattern.hasMatch(secondary)) return false;
+    if (!_enginePattern.hasMatch(primary) ||
+        !_enginePattern.hasMatch(secondary))
+      return false;
     bool qwen(String engine) => engine.startsWith('qwen3-asr-');
     bool whisper(String engine) => engine.startsWith('whisper.cpp-');
-    return (qwen(primary) && whisper(secondary)) || (whisper(primary) && qwen(secondary));
+    return (qwen(primary) && whisper(secondary)) ||
+        (whisper(primary) && qwen(secondary));
   }
 
-  static bool _validTranscript(IndependentAsrTranscript transcript, int durationMs) {
+  static bool _validTranscript(
+    IndependentAsrTranscript transcript,
+    int durationMs,
+  ) {
     if ((transcript.globalOffset ?? Duration.zero) != Duration.zero ||
-        transcript.lines.length > maxLinesPerTranscript) return false;
+        transcript.lines.length > maxLinesPerTranscript)
+      return false;
     var previous = -1;
     for (final line in transcript.lines) {
       final start = line.startTime.inMilliseconds;
       final end = line.endTime.inMilliseconds;
-      if (line.text.trim().isEmpty || start < previous || end > durationMs) return false;
+      if (line.text.trim().isEmpty || start < previous || end > durationMs)
+        return false;
       previous = start;
     }
     return true;
@@ -180,7 +216,10 @@ class IndependentAsrChunk {
       language: transcript.language,
       lines: List.unmodifiable([
         for (final line in transcript.lines)
-          line.copyWith(startTime: line.startTime + start, endTime: line.endTime + start),
+          line.copyWith(
+            startTime: line.startTime + start,
+            endTime: line.endTime + start,
+          ),
       ]),
     );
   }

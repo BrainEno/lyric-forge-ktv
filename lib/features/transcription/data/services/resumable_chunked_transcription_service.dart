@@ -144,7 +144,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       final configFingerprint = checkpointConfigFingerprint(request.config);
       // Stat-based checkpoint compatibility is insufficient for provenance.
       // Hash only highest-quality chunk runs; failure disables evidence, not ASR.
-      final sourceHash = request.config.mode == TranscriptionMode.highestQuality &&
+      final sourceHash =
+          request.config.mode == TranscriptionMode.highestQuality &&
               plan.length <= ChunkedIndependentAsrEvidence.maxChunks
           ? await _tryHashAudio(request.inputAudioPath)
           : null;
@@ -189,7 +190,8 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       }
 
       // Never retrofit provenance onto legacy checkpoints or a changed source.
-      final canCaptureEvidence = sourceHash != null &&
+      final canCaptureEvidence =
+          sourceHash != null &&
           manifest['independentChunkEvidenceVersion'] == 1 &&
           manifest['independentSourceSha256'] == sourceHash &&
           manifest['durationMs'] == duration.inMilliseconds;
@@ -292,13 +294,15 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           );
         }
 
-        final rawEvidence = result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
+        final rawEvidence =
+            result.lyrics.metadata[IndependentAsrEvidence.metadataKey];
         final parsedEvidence = IndependentAsrEvidence.tryParse(rawEvidence);
         final chunkHashAfter = chunkHashBefore == null
             ? null
             : await _tryHashAudio(wav.path);
         _throwIfCancelled();
-        final verifiedChunk = chunkHashBefore != null &&
+        final verifiedChunk =
+            chunkHashBefore != null &&
             chunkHashBefore == chunkHashAfter &&
             parsedEvidence?.sourceAudioSha256 == chunkHashBefore;
         final shifted = _shiftDocument(result.lyrics, chunk.start, index);
@@ -363,11 +367,13 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             json['index'] == index &&
             json['startMs'] == plan[index].start.inMilliseconds &&
             json['endMs'] == plan[index].end.inMilliseconds &&
-            proof is Map && proof['version'] == 1 &&
+            proof is Map &&
+            proof['version'] == 1 &&
             proof['sourceAudioSha256'] == sourceHash &&
             proof['chunkAudioSha256'] is String &&
             proof['evidence'] is Map &&
-            (proof['evidence'] as Map)['sourceAudioSha256'] == proof['chunkAudioSha256']) {
+            (proof['evidence'] as Map)['sourceAudioSha256'] ==
+                proof['chunkAudioSha256']) {
           evidenceChunks.add({
             'index': index,
             'startMs': plan[index].start.inMilliseconds,
@@ -395,10 +401,12 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
           };
           final evidence = ChunkedIndependentAsrEvidence.tryParse(raw);
           if (evidence != null) {
-            merged = merged.copyWith(metadata: {
-              ...merged.metadata,
-              ChunkedIndependentAsrEvidence.metadataKey: evidence.toJson(),
-            });
+            merged = merged.copyWith(
+              metadata: {
+                ...merged.metadata,
+                ChunkedIndependentAsrEvidence.metadataKey: evidence.toJson(),
+              },
+            );
           }
         }
       }

@@ -5,8 +5,10 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 import 'package:lyric_forge_ktv/features/transcription/domain/models/chunked_independent_asr_evidence.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/independent_asr_evidence.dart';
 
-const sourceHash = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-const chunkHash = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const sourceHash =
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const chunkHash =
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
 LyricLine line(String text, int start, int end) => LyricLine(
   text: text,
@@ -28,11 +30,18 @@ Map<String, dynamic> pair({
   sourceAudioSha256: hash,
   primary: IndependentAsrTranscript(
     engine: primaryEngine,
-    document: LyricDocument(language: primaryLanguage, lines: primary ?? [line('primary', 0, 1000)], globalOffset: offset),
+    document: LyricDocument(
+      language: primaryLanguage,
+      lines: primary ?? [line('primary', 0, 1000)],
+      globalOffset: offset,
+    ),
   ),
   secondary: IndependentAsrTranscript(
     engine: secondaryEngine,
-    document: LyricDocument(language: secondaryLanguage, lines: secondary ?? [line('secondary', 500, 1500)]),
+    document: LyricDocument(
+      language: secondaryLanguage,
+      lines: secondary ?? [line('secondary', 500, 1500)],
+    ),
   ),
 ).toJson();
 
@@ -43,9 +52,9 @@ Map<String, dynamic> fixture() => {
   'durationMs': 4000,
   'chunkDurationMs': 3000,
   'overlapMs': 1000,
-  'chunks': [
-    {'index': 0, 'startMs': 0, 'endMs': 3000, 'evidence': pair()},
-    {'index': 1, 'startMs': 2000, 'endMs': 4000, 'evidence': pair()},
+  'chunks': <dynamic>[
+    <String, dynamic>{'index': 0, 'startMs': 0, 'endMs': 3000, 'evidence': pair()},
+    <String, dynamic>{'index': 1, 'startMs': 2000, 'endMs': 4000, 'evidence': pair()},
   ],
 };
 
@@ -53,8 +62,10 @@ Map<String, dynamic> clone(Map<String, dynamic> value) =>
     Map<String, dynamic>.from(jsonDecode(jsonEncode(value)) as Map);
 
 List<dynamic> chunks(Map<String, dynamic> raw) => raw['chunks'] as List;
-Map<String, dynamic> chunk(Map<String, dynamic> raw, int i) => chunks(raw)[i] as Map<String, dynamic>;
-Map<String, dynamic> evidence(Map<String, dynamic> raw, int i) => chunk(raw, i)['evidence'] as Map<String, dynamic>;
+Map<String, dynamic> chunk(Map<String, dynamic> raw, int i) =>
+    chunks(raw)[i] as Map<String, dynamic>;
+Map<String, dynamic> evidence(Map<String, dynamic> raw, int i) =>
+    chunk(raw, i)['evidence'] as Map<String, dynamic>;
 
 void main() {
   group('complete chunk snapshot schema', () {
@@ -71,29 +82,48 @@ void main() {
       expect(parsed.chunks.last.end, const Duration(seconds: 4));
       expect(parsed.toJson(), raw);
       expect(() => parsed.chunks.clear(), throwsUnsupportedError);
-      expect(() => parsed.chunks.first.evidence.primary.lines.clear(), throwsUnsupportedError);
+      expect(
+        () => parsed.chunks.first.evidence.primary.lines.clear(),
+        throwsUnsupportedError,
+      );
     });
 
-    test('shifts each original transcript independently without deduplication', () {
-      final raw = fixture();
-      final parsed = ChunkedIndependentAsrEvidence.tryParse(raw)!;
-      final second = parsed.chunks.last;
-      final original = second.evidence.secondary.lines.single;
-      final shifted = second.globalTranscript(primary: false).lines.single;
-      expect(original.startTime, const Duration(milliseconds: 500));
-      expect(original.endTime, const Duration(milliseconds: 1500));
-      expect(shifted.startTime, const Duration(milliseconds: 2500));
-      expect(shifted.endTime, const Duration(milliseconds: 3500));
-      expect(shifted.text, original.text);
-      expect(second.globalTranscript(primary: true).lines.single.startTime, const Duration(seconds: 2));
-      expect(parsed.chunks.first.globalTranscript(primary: false).lines.single.startTime, const Duration(milliseconds: 500));
-      expect(parsed.toJson(), raw);
-    });
+    test(
+      'shifts each original transcript independently without deduplication',
+      () {
+        final raw = fixture();
+        final parsed = ChunkedIndependentAsrEvidence.tryParse(raw)!;
+        final second = parsed.chunks.last;
+        final original = second.evidence.secondary.lines.single;
+        final shifted = second.globalTranscript(primary: false).lines.single;
+        expect(original.startTime, const Duration(milliseconds: 500));
+        expect(original.endTime, const Duration(milliseconds: 1500));
+        expect(shifted.startTime, const Duration(milliseconds: 2500));
+        expect(shifted.endTime, const Duration(milliseconds: 3500));
+        expect(shifted.text, original.text);
+        expect(
+          second.globalTranscript(primary: true).lines.single.startTime,
+          const Duration(seconds: 2),
+        );
+        expect(
+          parsed.chunks.first
+              .globalTranscript(primary: false)
+              .lines
+              .single
+              .startTime,
+          const Duration(milliseconds: 500),
+        );
+        expect(parsed.toJson(), raw);
+      },
+    );
 
     test('permits either independent engine order consistently', () {
       final raw = fixture();
       for (final item in chunks(raw)) {
-        (item as Map)['evidence'] = pair(primaryEngine: 'whisper.cpp-large-v3', secondaryEngine: 'qwen3-asr-1.7b');
+        (item as Map)['evidence'] = pair(
+          primaryEngine: 'whisper.cpp-large-v3',
+          secondaryEngine: 'qwen3-asr-1.7b',
+        );
       }
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNotNull);
     });
@@ -122,31 +152,42 @@ void main() {
       for (var i = 0; i < mutations.length; i++) {
         final raw = fixture();
         mutations[i](raw);
-        expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull, reason: 'header mutation $i');
+        expect(
+          ChunkedIndependentAsrEvidence.tryParse(raw),
+          isNull,
+          reason: 'header mutation $i',
+        );
       }
     });
 
-    test('rejects missing, reordered, duplicated, extra, or malformed chunks', () {
-      final variants = [
-        (Map<String, dynamic> r) => chunks(r).removeLast(),
-        (Map<String, dynamic> r) => chunks(r).removeAt(0),
-        (Map<String, dynamic> r) => chunks(r).insert(0, chunks(r).last),
-        (Map<String, dynamic> r) => chunks(r).add(clone(chunk(r, 1))),
-        (Map<String, dynamic> r) => chunks(r)[0] = null,
-        (Map<String, dynamic> r) => chunk(r, 1)['index'] = 0,
-        (Map<String, dynamic> r) => chunk(r, 0)['index'] = '0',
-        (Map<String, dynamic> r) => chunk(r, 1)['startMs'] = 2001,
-        (Map<String, dynamic> r) => chunk(r, 1)['startMs'] = 3000,
-        (Map<String, dynamic> r) => chunk(r, 0)['endMs'] = 2999,
-        (Map<String, dynamic> r) => chunk(r, 1)['endMs'] = 3999,
-        (Map<String, dynamic> r) => chunk(r, 1)['endMs'] = 4001,
-      ];
-      for (var i = 0; i < variants.length; i++) {
-        final raw = fixture();
-        variants[i](raw);
-        expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull, reason: 'plan mutation $i');
-      }
-    });
+    test(
+      'rejects missing, reordered, duplicated, extra, or malformed chunks',
+      () {
+        final variants = [
+          (Map<String, dynamic> r) => chunks(r).removeLast(),
+          (Map<String, dynamic> r) => chunks(r).removeAt(0),
+          (Map<String, dynamic> r) => chunks(r).insert(0, chunks(r).last),
+          (Map<String, dynamic> r) => chunks(r).add(clone(chunk(r, 1))),
+          (Map<String, dynamic> r) => chunks(r)[0] = null,
+          (Map<String, dynamic> r) => chunk(r, 1)['index'] = 0,
+          (Map<String, dynamic> r) => chunk(r, 0)['index'] = '0',
+          (Map<String, dynamic> r) => chunk(r, 1)['startMs'] = 2001,
+          (Map<String, dynamic> r) => chunk(r, 1)['startMs'] = 3000,
+          (Map<String, dynamic> r) => chunk(r, 0)['endMs'] = 2999,
+          (Map<String, dynamic> r) => chunk(r, 1)['endMs'] = 3999,
+          (Map<String, dynamic> r) => chunk(r, 1)['endMs'] = 4001,
+        ];
+        for (var i = 0; i < variants.length; i++) {
+          final raw = fixture();
+          variants[i](raw);
+          expect(
+            ChunkedIndependentAsrEvidence.tryParse(raw),
+            isNull,
+            reason: 'plan mutation $i',
+          );
+        }
+      },
+    );
 
     test('accepts touching chunks when configured overlap is zero', () {
       final raw = fixture();
@@ -161,8 +202,14 @@ void main() {
       chunk(raw, 0)['evidence'] = pair(primary: [line('repeat', 2000, 3000)]);
       chunk(raw, 1)['evidence'] = pair(primary: [line('repeat', 0, 1000)]);
       final parsed = ChunkedIndependentAsrEvidence.tryParse(raw)!;
-      final first = parsed.chunks.first.globalTranscript(primary: true).lines.single;
-      final second = parsed.chunks.last.globalTranscript(primary: true).lines.single;
+      final first = parsed.chunks.first
+          .globalTranscript(primary: true)
+          .lines
+          .single;
+      final second = parsed.chunks.last
+          .globalTranscript(primary: true)
+          .lines
+          .single;
       expect(first.startTime, second.startTime);
       expect(first.endTime, second.endTime);
       expect(parsed.chunks, hasLength(2));
@@ -171,26 +218,44 @@ void main() {
     test('rejects absent chunk audio hashes and malformed evidence', () {
       final variants = [
         (Map<String, dynamic> r) => evidence(r, 0).remove('sourceAudioSha256'),
-        (Map<String, dynamic> r) => evidence(r, 1)['sourceAudioSha256'] = 'invalid',
+        (Map<String, dynamic> r) =>
+            evidence(r, 1)['sourceAudioSha256'] = 'invalid',
         (Map<String, dynamic> r) => chunk(r, 0)['evidence'] = null,
-        (Map<String, dynamic> r) => evidence(r, 0)['scope'] = 'completeChunkPlan',
+        (Map<String, dynamic> r) =>
+            evidence(r, 0)['scope'] = 'completeChunkPlan',
         (Map<String, dynamic> r) => evidence(r, 1)['schemaVersion'] = 99,
         (Map<String, dynamic> r) => evidence(r, 0)['capturedAtUtc'] = 'invalid',
       ];
       for (var i = 0; i < variants.length; i++) {
         final raw = fixture();
         variants[i](raw);
-        expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull, reason: 'evidence mutation $i');
+        expect(
+          ChunkedIndependentAsrEvidence.tryParse(raw),
+          isNull,
+          reason: 'evidence mutation $i',
+        );
       }
     });
 
     test('rejects same, unknown, malformed or inconsistent engines', () {
       final cases = [
-        pair(primaryEngine: 'qwen3-asr-1.7b', secondaryEngine: 'qwen3-asr-1.7b'),
+        pair(
+          primaryEngine: 'qwen3-asr-1.7b',
+          secondaryEngine: 'qwen3-asr-1.7b',
+        ),
         pair(primaryEngine: 'unknown', secondaryEngine: 'whisper.cpp-large-v3'),
-        pair(primaryEngine: 'qwen3-asr-/path', secondaryEngine: 'whisper.cpp-large-v3'),
-        pair(primaryEngine: 'qwen3-asr-1.7b', secondaryEngine: 'whisper.cpp-tiny'),
-        pair(primaryEngine: 'whisper.cpp-large-v3', secondaryEngine: 'qwen3-asr-1.7b'),
+        pair(
+          primaryEngine: 'qwen3-asr-/path',
+          secondaryEngine: 'whisper.cpp-large-v3',
+        ),
+        pair(
+          primaryEngine: 'qwen3-asr-1.7b',
+          secondaryEngine: 'whisper.cpp-tiny',
+        ),
+        pair(
+          primaryEngine: 'whisper.cpp-large-v3',
+          secondaryEngine: 'qwen3-asr-1.7b',
+        ),
       ];
       for (final replacement in cases) {
         final raw = fixture();
@@ -236,16 +301,25 @@ void main() {
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNotNull);
     });
 
-    test('rejects excessive per-transcript lines before emitting any evidence', () {
-      final raw = fixture();
-      final tooMany = List.generate(ChunkedIndependentAsrEvidence.maxLinesPerTranscript + 1, (i) => line('x', 0, 1));
-      chunk(raw, 1)['evidence'] = pair(primary: tooMany);
-      expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
-    });
+    test(
+      'rejects excessive per-transcript lines before emitting any evidence',
+      () {
+        final raw = fixture();
+        final tooMany = List.generate(
+          ChunkedIndependentAsrEvidence.maxLinesPerTranscript + 1,
+          (i) => line('x', 0, 1),
+        );
+        chunk(raw, 1)['evidence'] = pair(primary: tooMany);
+        expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
+      },
+    );
 
     test('rejects excessive chunk counts before walking content', () {
       final raw = fixture();
-      raw['chunks'] = List.filled(ChunkedIndependentAsrEvidence.maxChunks + 1, null);
+      raw['chunks'] = List.filled(
+        ChunkedIndependentAsrEvidence.maxChunks + 1,
+        null,
+      );
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
     });
 
@@ -262,16 +336,35 @@ void main() {
       final raw = fixture();
       raw['durationMs'] = 6000;
       chunk(raw, 1)['endMs'] = 5000;
-      chunks(raw).add({'index': 2, 'startMs': 4000, 'endMs': 6000, 'evidence': pair()});
+      chunks(
+        raw,
+      ).add({'index': 2, 'startMs': 4000, 'endMs': 6000, 'evidence': pair()});
       final parsed = ChunkedIndependentAsrEvidence.tryParse(raw)!;
-      expect(parsed.chunks.map((item) => item.start.inMilliseconds), [0, 2000, 4000]);
-      expect(parsed.chunks.map((item) => item.end.inMilliseconds), [3000, 5000, 6000]);
-      expect(parsed.chunks.last.globalTranscript(primary: true).lines.single.startTime, const Duration(seconds: 4));
+      expect(parsed.chunks.map((item) => item.start.inMilliseconds), [
+        0,
+        2000,
+        4000,
+      ]);
+      expect(parsed.chunks.map((item) => item.end.inMilliseconds), [
+        3000,
+        5000,
+        6000,
+      ]);
+      expect(
+        parsed.chunks.last
+            .globalTranscript(primary: true)
+            .lines
+            .single
+            .startTime,
+        const Duration(seconds: 4),
+      );
     });
 
     test('extra chunk after the final boundary is rejected', () {
       final raw = fixture();
-      chunks(raw).add({'index': 2, 'startMs': 4000, 'endMs': 4000, 'evidence': pair()});
+      chunks(
+        raw,
+      ).add({'index': 2, 'startMs': 4000, 'endMs': 4000, 'evidence': pair()});
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
     });
 
@@ -288,14 +381,19 @@ void main() {
       for (final name in ['index', 'startMs', 'endMs']) {
         final raw = fixture();
         chunk(raw, 0)[name] = (chunk(raw, 0)[name] as int).toDouble();
-        expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull, reason: name);
+        expect(
+          ChunkedIndependentAsrEvidence.tryParse(raw),
+          isNull,
+          reason: name,
+        );
       }
       final raw = fixture()..['schemaVersion'] = 1.0;
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
     });
 
     test('unreasonably long source duration is rejected before math', () {
-      final raw = fixture()..['durationMs'] = ChunkedIndependentAsrEvidence.maxDurationMs + 1;
+      final raw = fixture()
+        ..['durationMs'] = ChunkedIndependentAsrEvidence.maxDurationMs + 1;
       expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
     });
 
@@ -334,13 +432,18 @@ void main() {
     test('global conversion preserves confidence, IDs and chorus labels', () {
       final raw = fixture();
       final special = LyricLine(
-        id: 'stable', text: 'word', startTime: Duration.zero,
-        endTime: const Duration(seconds: 1), isChorus: true,
-        confidence: 42, confidenceSource: LyricConfidenceSource.heuristic,
+        id: 'stable',
+        text: 'word',
+        startTime: Duration.zero,
+        endTime: const Duration(seconds: 1),
+        isChorus: true,
+        confidence: 42,
+        confidenceSource: LyricConfidenceSource.heuristic,
       );
       chunk(raw, 1)['evidence'] = pair(primary: [special]);
-      final shifted = ChunkedIndependentAsrEvidence.tryParse(raw)!
-          .chunks.last.globalTranscript(primary: true).lines.single;
+      final shifted = ChunkedIndependentAsrEvidence.tryParse(
+        raw,
+      )!.chunks.last.globalTranscript(primary: true).lines.single;
       expect(shifted.id, 'stable');
       expect(shifted.isChorus, isTrue);
       expect(shifted.confidence, 42);
@@ -349,30 +452,44 @@ void main() {
       expect(shifted.endTime, const Duration(seconds: 3));
     });
 
-    test('all small complete plans have a strict exact boundary representation', () {
-      for (final overlap in [0, 250, 500]) {
-        for (final duration in [2001, 2500, 4000, 5500]) {
-          const length = 2000;
-          final step = length - overlap;
-          final items = <Map<String, dynamic>>[];
-          for (var start = 0; start < duration; start += step) {
-            final end = start + length < duration ? start + length : duration;
-            items.add({'index': items.length, 'startMs': start, 'endMs': end,
-              'evidence': pair(primary: [line('a', 0, 1)], secondary: [line('b', 0, 1)])});
-            if (end == duration) break;
+    test(
+      'all small complete plans have a strict exact boundary representation',
+      () {
+        for (final overlap in [0, 250, 500]) {
+          for (final duration in [2001, 2500, 4000, 5500]) {
+            const length = 2000;
+            final step = length - overlap;
+            final items = <Map<String, dynamic>>[];
+            for (var start = 0; start < duration; start += step) {
+              final end = start + length < duration ? start + length : duration;
+              items.add({
+                'index': items.length,
+                'startMs': start,
+                'endMs': end,
+                'evidence': pair(
+                  primary: [line('a', 0, 1)],
+                  secondary: [line('b', 0, 1)],
+                ),
+              });
+              if (end == duration) break;
+            }
+            final raw = fixture()
+              ..['durationMs'] = duration
+              ..['chunkDurationMs'] = length
+              ..['overlapMs'] = overlap
+              ..['chunks'] = items;
+            final parsed = ChunkedIndependentAsrEvidence.tryParse(raw);
+            expect(
+              parsed,
+              isNotNull,
+              reason: 'duration=$duration overlap=$overlap',
+            );
+            expect(parsed!.chunks.last.end.inMilliseconds, duration);
+            chunk(raw, items.length - 1)['endMs'] = duration - 1;
+            expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
           }
-          final raw = fixture()
-            ..['durationMs'] = duration
-            ..['chunkDurationMs'] = length
-            ..['overlapMs'] = overlap
-            ..['chunks'] = items;
-          final parsed = ChunkedIndependentAsrEvidence.tryParse(raw);
-          expect(parsed, isNotNull, reason: 'duration=$duration overlap=$overlap');
-          expect(parsed!.chunks.last.end.inMilliseconds, duration);
-          chunk(raw, items.length - 1)['endMs'] = duration - 1;
-          expect(ChunkedIndependentAsrEvidence.tryParse(raw), isNull);
         }
-      }
-    });
+      },
+    );
   });
 }
