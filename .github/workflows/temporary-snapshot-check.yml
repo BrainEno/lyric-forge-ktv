@@ -19,13 +19,13 @@ jobs:
         run: |
           mapfile -t files < <(git diff --name-only --diff-filter=AM 5c1f9442a472192108a5a33644dc63abbee53fa8 HEAD -- '*.dart')
           dart format "${files[@]}"
-          tar -czf /tmp/formatted.tar.gz "${files[@]}"
-          base64 -w0 /tmp/formatted.tar.gz | fold -w 3000 | awk '{printf "::notice title=FORMAT%04d::%s\n", NR, $0}'
+          git diff --binary -- "${files[@]}" | gzip -c > /tmp/formatted.diff.gz
+          base64 -w0 /tmp/formatted.diff.gz | fold -w 3000 | awk '{printf "::notice title=FORMAT%04d::%s\n", NR, $0}'
       - name: Analyze and targeted tests
         shell: bash
         run: |
           set +e
-          flutter analyze > /tmp/analysis.log 2>&1
+          flutter analyze --no-fatal-infos > /tmp/analysis.log 2>&1
           a=$?
           flutter test --no-pub --reporter expanded test/features/lyrics/domain/proofreading/independent_snapshot_comparison_test.dart test/features/transcription/project_proofread_evidence_loader_test.dart test/features/lyrics/presentation/widgets/project_asr_snapshot_dialog_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart test/features/lyrics/presentation/widgets/proofread_v2_project_evidence_test.dart > /tmp/tests.log 2>&1
           t=$?

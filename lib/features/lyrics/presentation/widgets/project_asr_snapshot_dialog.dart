@@ -8,7 +8,7 @@ import '../../domain/proofreading/independent_snapshot_comparison.dart';
 class ProjectAsrSnapshotDialog extends StatelessWidget {
   final ProjectProofreadEvidenceResult evidence;
 
-  const ProjectAsrSnapshotDialog({super.key, required this.evidence})
+  ProjectAsrSnapshotDialog({super.key, required this.evidence})
     : assert(evidence.status == ProjectProofreadEvidenceStatus.auditOnly);
 
   @override
