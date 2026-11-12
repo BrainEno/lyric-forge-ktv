@@ -10,33 +10,112 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 
 void main() {
   final planner = const ReferenceForcedAlignmentPlanner();
-  final input = planner.prepare(const ReferenceLyricInput(lines: [ReferenceLyricLine(text: 'reference')], timed: false, format: 'txt')).prepared!;
-  final evidence = planner.plan(reference: input, spans: const [ForcedAlignedSpan(text: 'reference', start: Duration(seconds: 1), end: Duration(seconds: 2))], audioDuration: const Duration(seconds: 5)).proposals.single;
-  const original = LyricLine(id: 'a', text: 'original', startTime: Duration.zero, endTime: Duration(milliseconds: 500));
-  const proposed = LyricLine(id: 'a', text: 'reference', startTime: Duration.zero, endTime: Duration(milliseconds: 500));
+  final input = planner
+      .prepare(
+        const ReferenceLyricInput(
+          lines: [ReferenceLyricLine(text: 'reference')],
+          timed: false,
+          format: 'txt',
+        ),
+      )
+      .prepared!;
+  final evidence = planner
+      .plan(
+        reference: input,
+        spans: const [
+          ForcedAlignedSpan(
+            text: 'reference',
+            start: Duration(seconds: 1),
+            end: Duration(seconds: 2),
+          ),
+        ],
+        audioDuration: const Duration(seconds: 5),
+      )
+      .proposals
+      .single;
+  const original = LyricLine(
+    id: 'a',
+    text: 'original',
+    startTime: Duration.zero,
+    endTime: Duration(milliseconds: 500),
+  );
+  const proposed = LyricLine(
+    id: 'a',
+    text: 'reference',
+    startTime: Duration.zero,
+    endTime: Duration(milliseconds: 500),
+  );
   LyricProofreadV2Selection? selected;
 
-  Future<void> open(WidgetTester tester, {bool allow = true, LyricProofreadReviewVerdict verdict = LyricProofreadReviewVerdict.amber, LyricLine? source = original, Duration offset = Duration.zero, Size size = const Size(800, 600), double scale = 1}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    bool allow = true,
+    LyricProofreadReviewVerdict verdict = LyricProofreadReviewVerdict.amber,
+    LyricLine? source = original,
+    Duration offset = Duration.zero,
+    Size size = const Size(800, 600),
+    double scale = 1,
+  }) async {
     selected = null;
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(MaterialApp(
-      builder: (context, child) => MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)), child: child!),
-      home: Scaffold(body: Builder(builder: (context) => TextButton(onPressed: () async {
-        selected = await showLyricProofreadV2ReviewDialog(context, summary: 'summary', explanation: 'explanation', allowReferenceTimingSelection: allow, originalGlobalOffset: offset, items: [LyricProofreadV2ReviewItem(proposalIndex: 0, sourceIndex: source == null ? null : 0, originalLine: source, proposedLine: proposed, verdict: verdict, referenceTimingEvidence: evidence)], droppedItems: const [], onPreviewDraftLine: null);
-      }, child: const Text('open')))),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                selected = await showLyricProofreadV2ReviewDialog(
+                  context,
+                  summary: 'summary',
+                  explanation: 'explanation',
+                  allowReferenceTimingSelection: allow,
+                  originalGlobalOffset: offset,
+                  items: [
+                    LyricProofreadV2ReviewItem(
+                      proposalIndex: 0,
+                      sourceIndex: source == null ? null : 0,
+                      originalLine: source,
+                      proposedLine: proposed,
+                      verdict: verdict,
+                      referenceTimingEvidence: evidence,
+                    ),
+                  ],
+                  droppedItems: const [],
+                  onPreviewDraftLine: null,
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
 
   Finder timing() => find.byKey(const ValueKey('accept_reference_timing_0'));
   Future<void> showTiming(WidgetTester tester) async {
-    await tester.scrollUntilVisible(timing(), 100, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)));
+    await tester.scrollUntilVisible(
+      timing(),
+      100,
+      scrollable: find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.pumpAndSettle();
   }
+
   Future<void> acceptText(WidgetTester tester) async {
     final textChoice = find.widgetWithText(CheckboxListTile, '采纳这条琥珀色建议');
     await Scrollable.ensureVisible(tester.element(textChoice), alignment: 0.5);
@@ -61,7 +140,9 @@ void main() {
     expect(selected!.acceptedReferenceTimingIndices, {0});
   });
 
-  testWidgets('deselecting text clears now-incompatible timing choice', (tester) async {
+  testWidgets('deselecting text clears now-incompatible timing choice', (
+    tester,
+  ) async {
     await open(tester);
     await acceptText(tester);
     await showTiming(tester);
@@ -82,8 +163,14 @@ void main() {
     expect(tester.widget<CheckboxListTile>(timing()).onChanged, isNotNull);
   });
 
-  testWidgets('protected rows and unverified audio are never selectable', (tester) async {
-    await open(tester, verdict: LyricProofreadReviewVerdict.locked, source: proposed);
+  testWidgets('protected rows and unverified audio are never selectable', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      verdict: LyricProofreadReviewVerdict.locked,
+      source: proposed,
+    );
     await showTiming(tester);
     expect(tester.widget<CheckboxListTile>(timing()).onChanged, isNull);
     expect(find.textContaining('受保护行不可更改时间'), findsOneWidget);
@@ -95,13 +182,17 @@ void main() {
     expect(find.textContaining('音源尚未通过校验'), findsOneWidget);
   });
 
-  testWidgets('offset cannot turn alignment into negative stored time', (tester) async {
+  testWidgets('offset cannot turn alignment into negative stored time', (
+    tester,
+  ) async {
     await open(tester, source: proposed, offset: const Duration(seconds: 2));
     await showTiming(tester);
     expect(tester.widget<CheckboxListTile>(timing()).onChanged, isNull);
   });
 
-  testWidgets('green-only action never includes the selected alignment', (tester) async {
+  testWidgets('green-only action never includes the selected alignment', (
+    tester,
+  ) async {
     await open(tester, verdict: LyricProofreadReviewVerdict.green);
     await showTiming(tester);
     await tester.tap(timing());
@@ -114,15 +205,18 @@ void main() {
 
   for (final size in [const Size(320, 568), const Size(800, 480)]) {
     for (final scale in [1.0, 2.0]) {
-      testWidgets('timing checkbox has accessible semantics at $size scale $scale', (tester) async {
-        final semantics = tester.ensureSemantics();
-        await open(tester, source: proposed, size: size, scale: scale);
-        await showTiming(tester);
-        expect(find.bySemanticsLabel(RegExp('采纳此行参考对齐时间')), findsWidgets);
-        expect(tester.widget<CheckboxListTile>(timing()).value, isFalse);
-        expect(tester.takeException(), isNull);
-        semantics.dispose();
-      });
+      testWidgets(
+        'timing checkbox has accessible semantics at $size scale $scale',
+        (tester) async {
+          final semantics = tester.ensureSemantics();
+          await open(tester, source: proposed, size: size, scale: scale);
+          await showTiming(tester);
+          expect(find.bySemanticsLabel(RegExp('采纳此行参考对齐时间')), findsWidgets);
+          expect(tester.widget<CheckboxListTile>(timing()).value, isFalse);
+          expect(tester.takeException(), isNull);
+          semantics.dispose();
+        },
+      );
     }
   }
 }

@@ -549,9 +549,11 @@ class _LyricProofreadV2ReviewDialogState
               ? () => _finish(includeAmber: true)
               : null,
           icon: const Icon(Icons.check_rounded),
-          label: Text(_acceptedReferenceTimings.isEmpty
-              ? '应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）'
-              : '应用所选（琥珀色 $_selectedAmberChangeCount · 对齐时间 ${_acceptedReferenceTimings.length}）'),
+          label: Text(
+            _acceptedReferenceTimings.isEmpty
+                ? '应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）'
+                : '应用所选（琥珀色 $_selectedAmberChangeCount · 对齐时间 ${_acceptedReferenceTimings.length}）',
+          ),
         ),
       ],
     );
@@ -644,9 +646,12 @@ class _LyricProofreadV2ReviewDialogState
 
   bool _canSelectReferenceTiming(LyricProofreadV2ReviewItem item) {
     final evidence = item.referenceTimingEvidence;
-    if (!widget.allowReferenceTimingSelection || evidence == null ||
-        item.verdict == LyricProofreadReviewVerdict.locked) return false;
-    final accepted = item.verdict == LyricProofreadReviewVerdict.green ||
+    if (!widget.allowReferenceTimingSelection ||
+        evidence == null ||
+        item.verdict == LyricProofreadReviewVerdict.locked)
+      return false;
+    final accepted =
+        item.verdict == LyricProofreadReviewVerdict.green ||
         _acceptedAmber.contains(item.proposalIndex);
     if (item.sourceIndex == null && !accepted) return false;
     final text = accepted ? item.proposedLine.text : item.originalLine?.text;
@@ -778,24 +783,36 @@ class _LyricProofreadV2ReviewDialogState
                     ),
                     const Text('时间来自参考文本对齐，可能不准确；须逐行勾选才会采纳。'),
                     CheckboxListTile(
-                      key: ValueKey('accept_reference_timing_${item.proposalIndex}'),
+                      key: ValueKey(
+                        'accept_reference_timing_${item.proposalIndex}',
+                      ),
                       contentPadding: EdgeInsets.zero,
-                      value: _acceptedReferenceTimings.contains(item.proposalIndex),
-                      onChanged: _canSelectReferenceTiming(item) ? (checked) => setState(() {
-                        if (checked == true) {
-                          _acceptedReferenceTimings.add(item.proposalIndex);
-                        } else {
-                          _acceptedReferenceTimings.remove(item.proposalIndex);
-                        }
-                      }) : null,
+                      value: _acceptedReferenceTimings.contains(
+                        item.proposalIndex,
+                      ),
+                      onChanged: _canSelectReferenceTiming(item)
+                          ? (checked) => setState(() {
+                              if (checked == true) {
+                                _acceptedReferenceTimings.add(
+                                  item.proposalIndex,
+                                );
+                              } else {
+                                _acceptedReferenceTimings.remove(
+                                  item.proposalIndex,
+                                );
+                              }
+                            })
+                          : null,
                       title: const Text('采纳此行参考对齐时间'),
-                      subtitle: Text(!widget.allowReferenceTimingSelection
-                          ? '音源尚未通过校验，暂不可采纳。'
-                          : item.verdict == LyricProofreadReviewVerdict.locked
-                          ? '受保护行不可更改时间。'
-                          : !_canSelectReferenceTiming(item)
-                          ? '需先采纳匹配的参考文字或新增行，并确保偏移后时间非负。'
-                          : '仅在应用所选时写入；绿色批量应用不会采纳此时间。'),
+                      subtitle: Text(
+                        !widget.allowReferenceTimingSelection
+                            ? '音源尚未通过校验，暂不可采纳。'
+                            : item.verdict == LyricProofreadReviewVerdict.locked
+                            ? '受保护行不可更改时间。'
+                            : !_canSelectReferenceTiming(item)
+                            ? '需先采纳匹配的参考文字或新增行，并确保偏移后时间非负。'
+                            : '仅在应用所选时写入；绿色批量应用不会采纳此时间。',
+                      ),
                       controlAffinity: ListTileControlAffinity.leading,
                     ),
                   ],

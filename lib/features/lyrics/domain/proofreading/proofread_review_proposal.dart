@@ -151,7 +151,9 @@ class LyricProofreadV2Selection {
     required Set<int> acceptedProposalIndices,
     required Set<int> restoredDraftIndices,
     Set<int> acceptedReferenceTimingIndices = const {},
-  }) : acceptedReferenceTimingIndices = Set.unmodifiable(acceptedReferenceTimingIndices),
+  }) : acceptedReferenceTimingIndices = Set.unmodifiable(
+         acceptedReferenceTimingIndices,
+       ),
        acceptedProposalIndices = Set.unmodifiable(acceptedProposalIndices),
        restoredDraftIndices = Set.unmodifiable(restoredDraftIndices);
 }

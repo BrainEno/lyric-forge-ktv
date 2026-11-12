@@ -7,7 +7,8 @@ import 'asr_evidence_audio_verifier.dart';
 
 /// Checks the same vocal-or-original selection used by V2's alignment runner.
 /// Hashing and revision rechecks are observations, not locks or CAS writes.
-class ProjectReferenceAlignmentAudioGuard implements ReferenceAlignmentAudioGuard {
+class ProjectReferenceAlignmentAudioGuard
+    implements ReferenceAlignmentAudioGuard {
   final ProjectRepository projects;
   final Future<String> Function(String) hashAudio;
 
@@ -23,39 +24,68 @@ class ProjectReferenceAlignmentAudioGuard implements ReferenceAlignmentAudioGuar
     required String audioPath,
   }) async {
     final initial = await _checkProject(projectId, projectRevision, audioPath);
-    if (initial != ReferenceAlignmentAudioStatus.matches) return ReferenceAlignmentAudioCheck(status: initial);
+    if (initial != ReferenceAlignmentAudioStatus.matches)
+      return ReferenceAlignmentAudioCheck(status: initial);
     String hash;
     try {
       hash = await hashAudio(audioPath);
     } on AsrAudioChangedDuringHashException {
-      return const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.audioChanged);
+      return const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.audioChanged,
+      );
     } on FileSystemException {
-      return const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.audioUnavailable);
+      return const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.audioUnavailable,
+      );
     }
     final after = await _checkProject(projectId, projectRevision, audioPath);
-    if (after != ReferenceAlignmentAudioStatus.matches) return ReferenceAlignmentAudioCheck(status: after);
+    if (after != ReferenceAlignmentAudioStatus.matches)
+      return ReferenceAlignmentAudioCheck(status: after);
     return ReferenceAlignmentAudioCheck(
       status: ReferenceAlignmentAudioStatus.matches,
-      snapshot: ReferenceAlignmentAudioSnapshot(projectId: projectId, projectRevision: projectRevision, audioPath: audioPath, audioSha256: hash),
+      snapshot: ReferenceAlignmentAudioSnapshot(
+        projectId: projectId,
+        projectRevision: projectRevision,
+        audioPath: audioPath,
+        audioSha256: hash,
+      ),
     );
   }
 
   @override
-  Future<ReferenceAlignmentAudioCheck> verify(ReferenceAlignmentAudioSnapshot snapshot) async {
-    final result = await capture(projectId: snapshot.projectId, projectRevision: snapshot.projectRevision, audioPath: snapshot.audioPath);
+  Future<ReferenceAlignmentAudioCheck> verify(
+    ReferenceAlignmentAudioSnapshot snapshot,
+  ) async {
+    final result = await capture(
+      projectId: snapshot.projectId,
+      projectRevision: snapshot.projectRevision,
+      audioPath: snapshot.audioPath,
+    );
     if (result.status != ReferenceAlignmentAudioStatus.matches) return result;
     if (result.snapshot!.audioSha256 != snapshot.audioSha256) {
-      return const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.audioChanged);
+      return const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.audioChanged,
+      );
     }
-    return ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot);
+    return ReferenceAlignmentAudioCheck(
+      status: ReferenceAlignmentAudioStatus.matches,
+      snapshot: snapshot,
+    );
   }
 
-  Future<ReferenceAlignmentAudioStatus> _checkProject(String id, int revision, String audioPath) async {
+  Future<ReferenceAlignmentAudioStatus> _checkProject(
+    String id,
+    int revision,
+    String audioPath,
+  ) async {
     final project = await projects.getProjectById(id);
-    if (project == null || project.revision != revision) return ReferenceAlignmentAudioStatus.projectChanged;
+    if (project == null || project.revision != revision)
+      return ReferenceAlignmentAudioStatus.projectChanged;
     final selected = _alignmentPath(project);
-    if (selected == null || selected.trim().isEmpty) return ReferenceAlignmentAudioStatus.audioUnavailable;
-    if (selected != audioPath) return ReferenceAlignmentAudioStatus.audioSelectionChanged;
+    if (selected == null || selected.trim().isEmpty)
+      return ReferenceAlignmentAudioStatus.audioUnavailable;
+    if (selected != audioPath)
+      return ReferenceAlignmentAudioStatus.audioSelectionChanged;
     return ReferenceAlignmentAudioStatus.matches;
   }
 

@@ -37,5 +37,7 @@ abstract class ReferenceAlignmentAudioGuard {
     required String audioPath,
   });
 
-  Future<ReferenceAlignmentAudioCheck> verify(ReferenceAlignmentAudioSnapshot snapshot);
+  Future<ReferenceAlignmentAudioCheck> verify(
+    ReferenceAlignmentAudioSnapshot snapshot,
+  );
 }

@@ -56,16 +56,25 @@ class ProofreadV2DocumentComposer {
           proposalIndex: item.proposalIndex,
         ));
       } else if (shouldAccept) {
-        candidates.add((line: item.proposedLine, order: order++, proposalIndex: item.proposalIndex));
+        candidates.add((
+          line: item.proposedLine,
+          order: order++,
+          proposalIndex: item.proposalIndex,
+        ));
       }
     }
 
-    final restoredCandidates = <({LyricLine line, int order, int? proposalIndex})>[];
+    final restoredCandidates =
+        <({LyricLine line, int order, int? proposalIndex})>[];
     for (var index = 0; index < before.lines.length; index++) {
       if (consumedDraftIndices.contains(index)) continue;
       final shouldRestore = selection.restoredDraftIndices.contains(index);
       if (shouldRestore || !droppedIndices.contains(index)) {
-        restoredCandidates.add((line: before.lines[index], order: order++, proposalIndex: null));
+        restoredCandidates.add((
+          line: before.lines[index],
+          order: order++,
+          proposalIndex: null,
+        ));
       }
     }
     restoredCandidates.sort((left, right) {
@@ -120,18 +129,25 @@ class ProofreadV2DocumentComposer {
     // A reset would move retained draft rows, including protected/restored
     // rows. Refuse the whole operation rather than silently changing playback.
     if (effectiveStrategy == LyricSourceStrategy.referenceFirst &&
-        timingChanged && (before.globalOffset ?? Duration.zero) != Duration.zero) {
+        timingChanged &&
+        (before.globalOffset ?? Duration.zero) != Duration.zero) {
       final preservedSources = candidates.any((candidate) {
         if (candidate.proposalIndex == null) return true;
-        final item = items.firstWhere((item) => item.proposalIndex == candidate.proposalIndex);
+        final item = items.firstWhere(
+          (item) => item.proposalIndex == candidate.proposalIndex,
+        );
         final source = item.sourceIndex;
         if (source == null) return false;
-        if (item.verdict == LyricProofreadReviewVerdict.locked || !accepted.contains(item.proposalIndex)) return true;
+        if (item.verdict == LyricProofreadReviewVerdict.locked ||
+            !accepted.contains(item.proposalIndex))
+          return true;
         return candidate.line.startTime == before.lines[source].startTime &&
             candidate.line.endTime == before.lines[source].endTime;
       });
       if (preservedSources) {
-        throw const ReferenceTimingApplyException(ReferenceTimingApplyFailure.offsetChanged);
+        throw const ReferenceTimingApplyException(
+          ReferenceTimingApplyFailure.offsetChanged,
+        );
       }
     }
     final offset =

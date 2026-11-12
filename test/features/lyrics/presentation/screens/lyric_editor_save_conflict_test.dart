@@ -132,34 +132,56 @@ void main() {
   });
 
   group('explicit reference timing application', () {
-    Future<List<ForcedAlignedSpan>> align({required String audioPath, required String text, required String language, required Duration audioDuration}) async => const [
-      ForcedAlignedSpan(text: 'Human lyric', start: Duration(milliseconds: 500), end: Duration(milliseconds: 1200)),
+    Future<List<ForcedAlignedSpan>> align({
+      required String audioPath,
+      required String text,
+      required String language,
+      required Duration audioDuration,
+    }) async => const [
+      ForcedAlignedSpan(
+        text: 'Human lyric',
+        start: Duration(milliseconds: 500),
+        end: Duration(milliseconds: 1200),
+      ),
     ];
 
-    testWidgets('applies selected timing in memory and batch undo restores it', (tester) async {
-      final guard = _ReferenceTimingGuard();
-      final editor = await _openEditor(tester, align, timingGuard: guard);
-      await _openReferenceEvidenceReview(tester, 'Human lyric');
-      final checkbox = find.byKey(const ValueKey('accept_reference_timing_0'));
-      await tester.ensureVisible(checkbox);
-      expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
-      await tester.tap(checkbox);
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('应用所选（琥珀色'));
-      await tester.pumpAndSettle();
-      expect(editor.document!.lines.single.startTime, const Duration(milliseconds: 500));
-      final id = editor.document!.lines.single.id!;
-      expect((editor.document!.metadata['timingProvenance'] as Map)[id], 'forcedAlignmentReference');
-      expect(editor.hasChanges, isTrue);
-      expect(guard.verifyCalls, 3);
-      await tester.tap(find.text('撤销').last);
-      await tester.pumpAndSettle();
-      expect(editor.document!.lines.single.startTime, Duration.zero);
-      expect(editor.hasChanges, isFalse);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'applies selected timing in memory and batch undo restores it',
+      (tester) async {
+        final guard = _ReferenceTimingGuard();
+        final editor = await _openEditor(tester, align, timingGuard: guard);
+        await _openReferenceEvidenceReview(tester, 'Human lyric');
+        final checkbox = find.byKey(
+          const ValueKey('accept_reference_timing_0'),
+        );
+        await tester.ensureVisible(checkbox);
+        expect(tester.widget<CheckboxListTile>(checkbox).value, isFalse);
+        await tester.tap(checkbox);
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('应用所选（琥珀色'));
+        await tester.pumpAndSettle();
+        expect(
+          editor.document!.lines.single.startTime,
+          const Duration(milliseconds: 500),
+        );
+        final id = editor.document!.lines.single.id!;
+        expect(
+          (editor.document!.metadata['timingProvenance'] as Map)[id],
+          'forcedAlignmentReference',
+        );
+        expect(editor.hasChanges, isTrue);
+        expect(guard.verifyCalls, 3);
+        await tester.tap(find.text('撤销').last);
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.startTime, Duration.zero);
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('changed audio after review refuses the entire selection', (tester) async {
+    testWidgets('changed audio after review refuses the entire selection', (
+      tester,
+    ) async {
       final guard = _ReferenceTimingGuard()..failVerifyAt = 2;
       final editor = await _openEditor(tester, align, timingGuard: guard);
       await _openReferenceEvidenceReview(tester, 'Human lyric');
@@ -174,31 +196,42 @@ void main() {
       expect(editor.hasChanges, isFalse);
     });
 
-    testWidgets('failed capture presents evidence but disables timing selection', (tester) async {
-      final guard = _ReferenceTimingGuard()..captureStatus = ReferenceAlignmentAudioStatus.audioUnavailable;
-      final editor = await _openEditor(tester, align, timingGuard: guard);
-      await _openReferenceEvidenceReview(tester, 'Human lyric');
-      final checkbox = find.byKey(const ValueKey('accept_reference_timing_0'));
-      await tester.ensureVisible(checkbox);
-      expect(tester.widget<CheckboxListTile>(checkbox).onChanged, isNull);
-      expect(find.textContaining('无法读取对齐音频'), findsOneWidget);
-      expect(editor.hasChanges, isFalse);
-    });
+    testWidgets(
+      'failed capture presents evidence but disables timing selection',
+      (tester) async {
+        final guard = _ReferenceTimingGuard()
+          ..captureStatus = ReferenceAlignmentAudioStatus.audioUnavailable;
+        final editor = await _openEditor(tester, align, timingGuard: guard);
+        await _openReferenceEvidenceReview(tester, 'Human lyric');
+        final checkbox = find.byKey(
+          const ValueKey('accept_reference_timing_0'),
+        );
+        await tester.ensureVisible(checkbox);
+        expect(tester.widget<CheckboxListTile>(checkbox).onChanged, isNull);
+        expect(find.textContaining('无法读取对齐音频'), findsOneWidget);
+        expect(editor.hasChanges, isFalse);
+      },
+    );
 
-    testWidgets('changed audio immediately before commit refuses selected timing', (tester) async {
-      final guard = _ReferenceTimingGuard()..failVerifyAt = 3;
-      final editor = await _openEditor(tester, align, timingGuard: guard);
-      await _openReferenceEvidenceReview(tester, 'Human lyric');
-      final checkbox = find.byKey(const ValueKey('accept_reference_timing_0'));
-      await tester.ensureVisible(checkbox);
-      await tester.tap(checkbox);
-      await tester.pumpAndSettle();
-      await tester.tap(find.textContaining('应用所选（琥珀色'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('对齐音频内容已变化'), findsOneWidget);
-      expect(editor.document!.lines.single.startTime, Duration.zero);
-      expect(editor.hasChanges, isFalse);
-    });
+    testWidgets(
+      'changed audio immediately before commit refuses selected timing',
+      (tester) async {
+        final guard = _ReferenceTimingGuard()..failVerifyAt = 3;
+        final editor = await _openEditor(tester, align, timingGuard: guard);
+        await _openReferenceEvidenceReview(tester, 'Human lyric');
+        final checkbox = find.byKey(
+          const ValueKey('accept_reference_timing_0'),
+        );
+        await tester.ensureVisible(checkbox);
+        await tester.tap(checkbox);
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('应用所选（琥珀色'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('对齐音频内容已变化'), findsOneWidget);
+        expect(editor.document!.lines.single.startTime, Duration.zero);
+        expect(editor.hasChanges, isFalse);
+      },
+    );
   });
 
   group('reference forced-alignment evidence', () {
@@ -1519,17 +1552,40 @@ class _FakeLyricFileImport implements LyricFileImportService {
 class _ReferenceTimingGuard implements ReferenceAlignmentAudioGuard {
   int verifyCalls = 0;
   int? failVerifyAt;
-  ReferenceAlignmentAudioStatus captureStatus = ReferenceAlignmentAudioStatus.matches;
+  ReferenceAlignmentAudioStatus captureStatus =
+      ReferenceAlignmentAudioStatus.matches;
 
   @override
-  Future<ReferenceAlignmentAudioCheck> capture({required String projectId, required int projectRevision, required String audioPath}) async {
-    return ReferenceAlignmentAudioCheck(status: captureStatus, snapshot: captureStatus == ReferenceAlignmentAudioStatus.matches ? ReferenceAlignmentAudioSnapshot(projectId: projectId, projectRevision: projectRevision, audioPath: audioPath, audioSha256: 'test') : null);
+  Future<ReferenceAlignmentAudioCheck> capture({
+    required String projectId,
+    required int projectRevision,
+    required String audioPath,
+  }) async {
+    return ReferenceAlignmentAudioCheck(
+      status: captureStatus,
+      snapshot: captureStatus == ReferenceAlignmentAudioStatus.matches
+          ? ReferenceAlignmentAudioSnapshot(
+              projectId: projectId,
+              projectRevision: projectRevision,
+              audioPath: audioPath,
+              audioSha256: 'test',
+            )
+          : null,
+    );
   }
 
   @override
-  Future<ReferenceAlignmentAudioCheck> verify(ReferenceAlignmentAudioSnapshot snapshot) async {
+  Future<ReferenceAlignmentAudioCheck> verify(
+    ReferenceAlignmentAudioSnapshot snapshot,
+  ) async {
     verifyCalls++;
-    if (verifyCalls == failVerifyAt) return const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.audioChanged);
-    return ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot);
+    if (verifyCalls == failVerifyAt)
+      return const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.audioChanged,
+      );
+    return ReferenceAlignmentAudioCheck(
+      status: ReferenceAlignmentAudioStatus.matches,
+      snapshot: snapshot,
+    );
   }
 }

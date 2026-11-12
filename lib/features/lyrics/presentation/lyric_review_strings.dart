@@ -114,7 +114,9 @@ abstract final class LyricReviewStrings {
     return '参考文本 ForcedAligner 未生成时间证据：$detail${location.isEmpty ? '' : '（$location）'} 已保留普通参考校对提案。';
   }
 
-  static String referenceAlignmentAudioStatus(ReferenceAlignmentAudioStatus status) => switch (status) {
+  static String referenceAlignmentAudioStatus(
+    ReferenceAlignmentAudioStatus status,
+  ) => switch (status) {
     ReferenceAlignmentAudioStatus.matches => '音源已通过时点校验；这不是文件锁，也不保证对齐准确。',
     ReferenceAlignmentAudioStatus.projectChanged => '工程在校对期间发生变化，请刷新后重试。',
     ReferenceAlignmentAudioStatus.audioSelectionChanged => '工程对齐音源已变更，请重新生成。',
@@ -122,15 +124,19 @@ abstract final class LyricReviewStrings {
     ReferenceAlignmentAudioStatus.audioUnavailable => '无法读取对齐音频，请检查音源后重试。',
   };
 
-  static String referenceTimingApplyFailure(ReferenceTimingApplyFailure reason) => switch (reason) {
+  static String referenceTimingApplyFailure(
+    ReferenceTimingApplyFailure reason,
+  ) => switch (reason) {
     ReferenceTimingApplyFailure.wrongStrategy => '当前策略不支持采纳参考对齐时间。',
-    ReferenceTimingApplyFailure.unknownSelection || ReferenceTimingApplyFailure.duplicateProposal ||
+    ReferenceTimingApplyFailure.unknownSelection ||
+    ReferenceTimingApplyFailure.duplicateProposal ||
     ReferenceTimingApplyFailure.ambiguousLineIdentity => '复核行无法安全对应，请重新生成提案。',
     ReferenceTimingApplyFailure.missingEvidence => '所选行缺少对齐证据，请重新生成提案。',
     ReferenceTimingApplyFailure.protectedLine => '受保护行不能采纳对齐时间。',
     ReferenceTimingApplyFailure.unacceptedInsertion => '请先采纳新增参考行，再采纳其时间。',
     ReferenceTimingApplyFailure.textMismatch => '实际保留的歌词与对齐文本不同，请先采纳对应参考文字。',
-    ReferenceTimingApplyFailure.offsetChanged => '普通提案会重置整体偏移并影响其他行，无法安全应用；请先调整整体偏移。',
+    ReferenceTimingApplyFailure.offsetChanged =>
+      '普通提案会重置整体偏移并影响其他行，无法安全应用；请先调整整体偏移。',
     ReferenceTimingApplyFailure.negativeStoredTime => '整体偏移使该行的存储时间为负；请先调整偏移。',
     ReferenceTimingApplyFailure.invalidInterval => '对齐时间范围无效，请重新生成。',
   };

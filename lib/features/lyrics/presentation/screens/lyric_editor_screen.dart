@@ -654,7 +654,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final audioGuard = widget.dependencies.referenceAlignmentAudioGuard;
       ReferenceAlignmentAudioCheck? audioCheck;
       final asset = project.audioAsset;
-      if (reference != null && options.useForcedAlignment && asset != null && audioGuard != null) {
+      if (reference != null &&
+          options.useForcedAlignment &&
+          asset != null &&
+          audioGuard != null) {
         audioCheck = await audioGuard.capture(
           projectId: project.id,
           projectRevision: projectRevision,
@@ -678,12 +681,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final assembly = run.assembly;
       final decision = run.decision;
       final summary = run.summary;
-      if (assembly.referenceAlignmentPlan?.isReady == true && audioCheck?.snapshot != null && audioGuard != null) {
+      if (assembly.referenceAlignmentPlan?.isReady == true &&
+          audioCheck?.snapshot != null &&
+          audioGuard != null) {
         audioCheck = await audioGuard.verify(audioCheck!.snapshot!);
         if (!_proofreadIsCurrent(revision)) return;
       }
-      final timingSnapshot = audioCheck?.status == ReferenceAlignmentAudioStatus.matches
-          ? audioCheck?.snapshot : null;
+      final timingSnapshot =
+          audioCheck?.status == ReferenceAlignmentAudioStatus.matches
+          ? audioCheck?.snapshot
+          : null;
 
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
@@ -697,7 +704,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             if (plan.isReady)
               audioCheck == null
                   ? '无法校验音源；参考对齐时间仅可查看，不可采纳。'
-                  : LyricReviewStrings.referenceAlignmentAudioStatus(audioCheck.status),
+                  : LyricReviewStrings.referenceAlignmentAudioStatus(
+                      audioCheck.status,
+                    ),
           ],
         ].join(' '),
         alignmentDiagnostics: assembly.alignmentDiagnostics,
@@ -726,14 +735,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         final check = await audioGuard.verify(timingSnapshot);
         if (!_proofreadIsCurrent(revision)) return false;
         if (check.status != ReferenceAlignmentAudioStatus.matches) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(LyricReviewStrings.referenceAlignmentAudioStatus(check.status)),
-            duration: const Duration(seconds: 6),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                LyricReviewStrings.referenceAlignmentAudioStatus(check.status),
+              ),
+              duration: const Duration(seconds: 6),
+            ),
+          );
           return false;
         }
         return true;
       }
+
       if (!await verifyTimingSnapshot()) return;
 
       const composer = ProofreadV2DocumentComposer();

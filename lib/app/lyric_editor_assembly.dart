@@ -25,7 +25,9 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
     lyricFileExport: services.lyricFileExportService,
     lyricFileImport: services.lyricFileImportService,
     forcedAlignmentRunner: buildForcedAlignmentRunner(services),
-    referenceAlignmentAudioGuard: ProjectReferenceAlignmentAudioGuard(projects: services.projectRepository),
+    referenceAlignmentAudioGuard: ProjectReferenceAlignmentAudioGuard(
+      projects: services.projectRepository,
+    ),
     projectProofreadEvidenceLoader: VerifiedProjectProofreadEvidenceLoader(
       projects: services.projectRepository,
     ).load,
