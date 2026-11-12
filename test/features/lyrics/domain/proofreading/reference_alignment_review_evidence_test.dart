@@ -214,6 +214,28 @@ void main() {
     },
   );
 
+  test('accepting a changed reference row applies only the ordinary proposal', () async {
+    final refs = reference(['hello worlds', 'sing tonight']);
+    spy.spans = [span('hello worlds', 500, 1300), span('sing tonight', 3500, 4500)];
+    final baseline = await run(refs: refs, alignment: false);
+    final withEvidence = await run(refs: refs);
+    expect(spy.text, 'hello worlds\nsing tonight');
+    final changed = withEvidence.assembly.items.firstWhere((item) => item.sourceIndex == 0);
+    expect(changed.hasChange, isTrue);
+    expect(changed.referenceTimingEvidence!.start, const Duration(milliseconds: 500));
+    final selection = LyricProofreadV2Selection(acceptedProposalIndices: {changed.proposalIndex}, restoredDraftIndices: {});
+    LyricDocument compose(ProofreadV2RunResult result) => const ProofreadV2DocumentComposer().compose(
+      before: draft, proposalDocument: result.assembly.proposalDocument, items: result.assembly.items,
+      droppedItems: result.assembly.droppedItems, selection: selection,
+      effectiveStrategy: result.decision.effectiveStrategy,
+    );
+    final actual = compose(withEvidence);
+    expect(actual.toJson(), compose(baseline).toJson());
+    expect(actual.lines.first.text, 'hello worlds');
+    expect(actual.lines.first.startTime, Duration.zero);
+    expect(actual.globalOffset, draft.globalOffset);
+  });
+
   test(
     'protected lines keep their text and timing while reference evidence stays labeled separately',
     () async {
@@ -224,6 +246,7 @@ void main() {
         ],
       );
       final result = await run(source: source, protected: {0});
+      expect(spy.text, 'hello world\nsing tonight');
       final row = result.assembly.items.firstWhere(
         (row) => row.sourceIndex == 0,
       );

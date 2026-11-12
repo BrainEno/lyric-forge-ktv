@@ -463,7 +463,10 @@ void main() {
         audioAsset: audio,
         useForcedAlignment: true,
       );
-      expect(run.decision.effectiveStrategy, LyricSourceStrategy.referenceFirst);
+      expect(
+        run.decision.effectiveStrategy,
+        LyricSourceStrategy.referenceFirst,
+      );
       expect(spy.calls, 1);
       expect(spy.text, 'hello world\nsing tonight');
       expect(run.assembly.referenceAlignmentPlan, isNotNull);
