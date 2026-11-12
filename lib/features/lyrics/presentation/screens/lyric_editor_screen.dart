@@ -534,7 +534,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final revision = _editor.documentRevision;
     setState(() => _proofreadV2InProgress = true);
     try {
-      await _runProofreadV2(project, document, revision, _projectRevision ?? project.revision);
+      await _runProofreadV2(
+        project,
+        document,
+        revision,
+        _projectRevision ?? project.revision,
+      );
     } finally {
       if (mounted) setState(() => _proofreadV2InProgress = false);
     }
@@ -557,7 +562,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   ) async {
     final options = await showProofreadV2RunOptionsDialog(
       context,
-      allowProjectEvidence: widget.dependencies.projectProofreadEvidenceLoader != null,
+      allowProjectEvidence:
+          widget.dependencies.projectProofreadEvidenceLoader != null,
     );
     if (options == null || !_proofreadIsCurrent(revision)) return;
 
@@ -625,11 +631,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           draft: document,
         );
         if (!_proofreadIsCurrent(revision)) return;
-        if (projectEvidence.status != ProjectProofreadEvidenceStatus.available) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(LyricReviewStrings.projectEvidenceUnavailable(projectEvidence.status)),
-            duration: const Duration(seconds: 6),
-          ));
+        if (projectEvidence.status !=
+            ProjectProofreadEvidenceStatus.available) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                LyricReviewStrings.projectEvidenceUnavailable(
+                  projectEvidence.status,
+                ),
+              ),
+              duration: const Duration(seconds: 6),
+            ),
+          );
           return;
         }
         secondaryAsr = projectEvidence.secondary;

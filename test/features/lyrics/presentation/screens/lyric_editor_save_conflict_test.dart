@@ -130,33 +130,76 @@ void main() {
   });
 
   group('project evidence routing', () {
-    testWidgets('verified evidence reaches review without modifying the draft', (tester) async {
-      var calls = 0;
-      final editor = await _openEditor(tester, _emptyAlignment, evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) async {
-        calls++;
-        expect(draft.lines.single.text, 'Human lyric');
-        return ProjectProofreadEvidenceResult.available(secondary: _document('different lyric'), secondaryEngine: 'whisper.cpp-large-v3', capturedAtUtc: DateTime.utc(2026));
-      });
-      await _selectProjectEvidence(tester);
-      expect(calls, 1);
-      expect(find.text('智能校对提案复核'), findsOneWidget);
-      expect(find.textContaining('工程独立第二稿：whisper.cpp-large-v3'), findsOneWidget);
-      expect(editor.document!.lines.single.text, 'Human lyric');
-      expect(editor.hasChanges, isFalse);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'verified evidence reaches review without modifying the draft',
+      (tester) async {
+        var calls = 0;
+        final editor = await _openEditor(
+          tester,
+          _emptyAlignment,
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) async {
+                calls++;
+                expect(draft.lines.single.text, 'Human lyric');
+                return ProjectProofreadEvidenceResult.available(
+                  secondary: _document('different lyric'),
+                  secondaryEngine: 'whisper.cpp-large-v3',
+                  capturedAtUtc: DateTime.utc(2026),
+                );
+              },
+        );
+        await _selectProjectEvidence(tester);
+        expect(calls, 1);
+        expect(find.text('智能校对提案复核'), findsOneWidget);
+        expect(
+          find.textContaining('工程独立第二稿：whisper.cpp-large-v3'),
+          findsOneWidget,
+        );
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('failed verification is explained and never opens review', (tester) async {
-      final editor = await _openEditor(tester, _emptyAlignment, evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) async => const ProjectProofreadEvidenceResult.unavailable(ProjectProofreadEvidenceStatus.audioChanged));
+    testWidgets('failed verification is explained and never opens review', (
+      tester,
+    ) async {
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) async => const ProjectProofreadEvidenceResult.unavailable(
+              ProjectProofreadEvidenceStatus.audioChanged,
+            ),
+      );
       await _selectProjectEvidence(tester);
       expect(find.textContaining('识别音频与快照不一致'), findsOneWidget);
       expect(find.text('智能校对提案复核'), findsNothing);
       expect(editor.hasChanges, isFalse);
     });
 
-    testWidgets('edit during verification discards the stale result', (tester) async {
+    testWidgets('edit during verification discards the stale result', (
+      tester,
+    ) async {
       final pending = Completer<ProjectProofreadEvidenceResult>();
-      final editor = await _openEditor(tester, _emptyAlignment, evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) => pending.future);
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
+      );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('智能校对 V2'));
@@ -166,8 +209,17 @@ void main() {
       await tester.tap(toggle);
       await tester.tap(find.text('继续'));
       await tester.pump();
-      editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'New edit'));
-      pending.complete(ProjectProofreadEvidenceResult.available(secondary: _document('other'), secondaryEngine: 'whisper.cpp-large-v3', capturedAtUtc: DateTime.utc(2026)));
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(text: 'New edit'),
+      );
+      pending.complete(
+        ProjectProofreadEvidenceResult.available(
+          secondary: _document('other'),
+          secondaryEngine: 'whisper.cpp-large-v3',
+          capturedAtUtc: DateTime.utc(2026),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(editor.document!.lines.single.text, 'New edit');
       expect(find.textContaining('原提案已丢弃'), findsOneWidget);

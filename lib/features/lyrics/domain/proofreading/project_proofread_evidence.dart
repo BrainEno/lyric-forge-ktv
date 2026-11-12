@@ -36,8 +36,9 @@ class ProjectProofreadEvidenceResult {
 
 /// The caller owns editor revision checks and explicitly chooses whether to use
 /// the result. Implementations must not mutate or persist the draft.
-typedef ProjectProofreadEvidenceLoader = Future<ProjectProofreadEvidenceResult> Function({
-  required String projectId,
-  required int expectedProjectRevision,
-  required LyricDocument draft,
-});
+typedef ProjectProofreadEvidenceLoader =
+    Future<ProjectProofreadEvidenceResult> Function({
+      required String projectId,
+      required int expectedProjectRevision,
+      required LyricDocument draft,
+    });

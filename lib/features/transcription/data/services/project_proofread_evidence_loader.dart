@@ -13,12 +13,20 @@ import 'project_transcription_input.dart';
 class VerifiedProjectProofreadEvidenceLoader {
   final ProjectRepository projects;
   final Future<String> Function(ProjectManifest) resolveInput;
-  final Future<AsrEvidenceAudioStatus> Function({required Object? rawEvidence, required String? currentAudioPath}) verifyAudio;
+  final Future<AsrEvidenceAudioStatus> Function({
+    required Object? rawEvidence,
+    required String? currentAudioPath,
+  })
+  verifyAudio;
 
   VerifiedProjectProofreadEvidenceLoader({
     required this.projects,
     Future<String> Function(ProjectManifest)? resolveInput,
-    Future<AsrEvidenceAudioStatus> Function({required Object? rawEvidence, required String? currentAudioPath})? verifyAudio,
+    Future<AsrEvidenceAudioStatus> Function({
+      required Object? rawEvidence,
+      required String? currentAudioPath,
+    })?
+    verifyAudio,
   }) : resolveInput = resolveInput ?? resolveProjectTranscriptionInput,
        verifyAudio = verifyAudio ?? const AsrEvidenceAudioVerifier().verify;
 
@@ -27,16 +35,22 @@ class VerifiedProjectProofreadEvidenceLoader {
     required int expectedProjectRevision,
     required LyricDocument draft,
   }) async {
-    ProjectProofreadEvidenceResult unavailable(ProjectProofreadEvidenceStatus status) => ProjectProofreadEvidenceResult.unavailable(status);
+    ProjectProofreadEvidenceResult unavailable(
+      ProjectProofreadEvidenceStatus status,
+    ) => ProjectProofreadEvidenceResult.unavailable(status);
     final project = await projects.getProjectById(projectId);
     if (project == null || project.revision != expectedProjectRevision) {
       return unavailable(ProjectProofreadEvidenceStatus.projectChanged);
     }
-    final raw = project.lyricDocument?.metadata[IndependentAsrEvidence.metadataKey];
-    if (raw == null) return unavailable(ProjectProofreadEvidenceStatus.missingEvidence);
+    final raw =
+        project.lyricDocument?.metadata[IndependentAsrEvidence.metadataKey];
+    if (raw == null)
+      return unavailable(ProjectProofreadEvidenceStatus.missingEvidence);
     final evidence = IndependentAsrEvidence.tryParse(raw);
-    if (evidence == null || !_independentEngines(evidence) ||
-        !_validTranscript(evidence.primary) || !_validTranscript(evidence.secondary)) {
+    if (evidence == null ||
+        !_independentEngines(evidence) ||
+        !_validTranscript(evidence.primary) ||
+        !_validTranscript(evidence.secondary)) {
       return unavailable(ProjectProofreadEvidenceStatus.invalidEvidence);
     }
     if ((evidence.primary.globalOffset ?? Duration.zero) != Duration.zero ||
@@ -57,20 +71,30 @@ class VerifiedProjectProofreadEvidenceLoader {
       if (error.kind != TranscriptionFailureKind.input) rethrow;
       return unavailable(ProjectProofreadEvidenceStatus.audioUnavailable);
     }
-    final audioStatus = await verifyAudio(rawEvidence: raw, currentAudioPath: input);
+    final audioStatus = await verifyAudio(
+      rawEvidence: raw,
+      currentAudioPath: input,
+    );
     if (audioStatus != AsrEvidenceAudioStatus.audioMatches) {
       return unavailable(switch (audioStatus) {
-        AsrEvidenceAudioStatus.missingEvidence => ProjectProofreadEvidenceStatus.missingEvidence,
-        AsrEvidenceAudioStatus.invalidEvidence => ProjectProofreadEvidenceStatus.invalidEvidence,
-        AsrEvidenceAudioStatus.unverified => ProjectProofreadEvidenceStatus.unverifiedAudio,
-        AsrEvidenceAudioStatus.audioUnavailable => ProjectProofreadEvidenceStatus.audioUnavailable,
-        AsrEvidenceAudioStatus.audioChanged => ProjectProofreadEvidenceStatus.audioChanged,
+        AsrEvidenceAudioStatus.missingEvidence =>
+          ProjectProofreadEvidenceStatus.missingEvidence,
+        AsrEvidenceAudioStatus.invalidEvidence =>
+          ProjectProofreadEvidenceStatus.invalidEvidence,
+        AsrEvidenceAudioStatus.unverified =>
+          ProjectProofreadEvidenceStatus.unverifiedAudio,
+        AsrEvidenceAudioStatus.audioUnavailable =>
+          ProjectProofreadEvidenceStatus.audioUnavailable,
+        AsrEvidenceAudioStatus.audioChanged =>
+          ProjectProofreadEvidenceStatus.audioChanged,
         AsrEvidenceAudioStatus.audioMatches => throw StateError('unreachable'),
       });
     }
     try {
       if (await resolveInput(project) != input) {
-        return unavailable(ProjectProofreadEvidenceStatus.audioSelectionChanged);
+        return unavailable(
+          ProjectProofreadEvidenceStatus.audioSelectionChanged,
+        );
       }
     } on TranscriptionException catch (error) {
       if (error.kind != TranscriptionFailureKind.input) rethrow;
@@ -89,10 +113,12 @@ class VerifiedProjectProofreadEvidenceLoader {
 
   static bool _independentEngines(IndependentAsrEvidence evidence) {
     bool safe(String engine) => RegExp(r'^[a-z0-9._-]{1,80}$').hasMatch(engine);
-    if (!safe(evidence.primary.engine) || !safe(evidence.secondary.engine)) return false;
+    if (!safe(evidence.primary.engine) || !safe(evidence.secondary.engine))
+      return false;
     bool qwen(String engine) => engine.startsWith('qwen3-asr-');
     bool whisper(String engine) => engine.startsWith('whisper.cpp-');
-    return (qwen(evidence.primary.engine) && whisper(evidence.secondary.engine)) ||
+    return (qwen(evidence.primary.engine) &&
+            whisper(evidence.secondary.engine)) ||
         (whisper(evidence.primary.engine) && qwen(evidence.secondary.engine));
   }
 
@@ -100,20 +126,29 @@ class VerifiedProjectProofreadEvidenceLoader {
     Duration? previousStart;
     for (final line in transcript.lines) {
       if (line.text.trim().isEmpty ||
-          (previousStart != null && line.startTime < previousStart)) return false;
+          (previousStart != null && line.startTime < previousStart))
+        return false;
       previousStart = line.startTime;
     }
     return true;
   }
 
-  static bool _matchesPrimary(LyricDocument draft, IndependentAsrTranscript primary) {
-    if (draft.language != primary.language || draft.lines.length != primary.lines.length) return false;
+  static bool _matchesPrimary(
+    LyricDocument draft,
+    IndependentAsrTranscript primary,
+  ) {
+    if (draft.language != primary.language ||
+        draft.lines.length != primary.lines.length)
+      return false;
     for (var i = 0; i < draft.lines.length; i++) {
       final current = draft.lines[i];
       final original = primary.lines[i];
-      if (current.text != original.text || current.startTime != original.startTime ||
-          current.endTime != original.endTime || current.confidence != original.confidence ||
-          current.confidenceSource != original.confidenceSource) return false;
+      if (current.text != original.text ||
+          current.startTime != original.startTime ||
+          current.endTime != original.endTime ||
+          current.confidence != original.confidence ||
+          current.confidenceSource != original.confidenceSource)
+        return false;
     }
     return true;
   }

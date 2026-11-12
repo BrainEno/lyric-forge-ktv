@@ -32,7 +32,9 @@ Future<ProofreadV2RunOptions?> showProofreadV2RunOptionsDialog(
 }) {
   return showDialog<ProofreadV2RunOptions>(
     context: context,
-    builder: (_) => _ProofreadV2RunOptionsDialog(allowProjectEvidence: allowProjectEvidence),
+    builder: (_) => _ProofreadV2RunOptionsDialog(
+      allowProjectEvidence: allowProjectEvidence,
+    ),
   );
 }
 
@@ -146,7 +148,8 @@ class _ProofreadV2RunOptionsDialogState
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
               const Text('下一步需要粘贴或导入参考歌词。'),
-              if (_useForcedAlignment || _useProjectEvidence ||
+              if (_useForcedAlignment ||
+                  _useProjectEvidence ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 const Text(
@@ -188,9 +191,12 @@ class _ProofreadV2RunOptionsDialogState
                     key: const ValueKey('project_asr_evidence_toggle'),
                     contentPadding: EdgeInsets.zero,
                     value: _useProjectEvidence,
-                    onChanged: (value) => setState(() => _useProjectEvidence = value ?? false),
+                    onChanged: (value) =>
+                        setState(() => _useProjectEvidence = value ?? false),
                     title: const Text('使用工程中的独立第二份转写稿'),
-                    subtitle: const Text('仅限与当前草稿一致、音频已校验的完整双引擎快照；选中后暂不使用粘贴稿。校验音频可能需要时间。'),
+                    subtitle: const Text(
+                      '仅限与当前草稿一致、音频已校验的完整双引擎快照；选中后暂不使用粘贴稿。校验音频可能需要时间。',
+                    ),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                 ),
@@ -226,10 +232,13 @@ class _ProofreadV2RunOptionsDialogState
               useReference:
                   _strategy == LyricSourceStrategy.referenceFirst ||
                   (_strategy == LyricSourceStrategy.auto && _useReference),
-              useProjectEvidence: widget.allowProjectEvidence &&
-                  _strategy != LyricSourceStrategy.referenceFirst && _useProjectEvidence,
+              useProjectEvidence:
+                  widget.allowProjectEvidence &&
+                  _strategy != LyricSourceStrategy.referenceFirst &&
+                  _useProjectEvidence,
               secondaryTranscriptText:
-                  !_useProjectEvidence && _strategy != LyricSourceStrategy.referenceFirst &&
+                  !_useProjectEvidence &&
+                      _strategy != LyricSourceStrategy.referenceFirst &&
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
