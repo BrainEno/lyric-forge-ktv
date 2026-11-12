@@ -710,6 +710,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         );
       }
 
+      Future<void> stopOwnedReferenceAudition() async {
+        final owned = ownedReferenceAudition;
+        if (owned == null || !identical(_audition.active, owned)) return;
+        ownedReferenceAudition = null;
+        final current = playbackSnapshot();
+        if (timingSnapshot != null &&
+            current.projectId == timingSnapshot.projectId &&
+            !current.isRemote &&
+            !current.isLoading &&
+            current.audioPath == timingSnapshot.audioPath) {
+          await _audition.pauseIfSounding();
+        }
+        if (identical(_audition.active, owned)) _audition.clear();
+      }
+
       late final ReferenceTimingAuditionCoordinator? previewCoordinator;
       previewCoordinator = audioGuard == null || timingSnapshot == null
           ? null
@@ -761,6 +776,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                     result.action == LineAuditionAction.resumed ||
                     result.action == LineAuditionAction.paused) {
                   ownedReferenceAudition = _audition.active;
+                  if (!valid()) {
+                    await stopOwnedReferenceAudition();
+                    return const ReferenceTimingPreviewResult(
+                      ReferenceTimingPreviewStatus.playbackFailed,
+                      error: '试听期间音源或歌词已变化。',
+                    );
+                  }
                 }
                 return switch (result.action) {
                   LineAuditionAction.started =>
@@ -782,20 +804,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   ),
                 };
               },
-              stopOwnedPlayback: () async {
-                final owned = ownedReferenceAudition;
-                if (owned == null || !identical(_audition.active, owned))
-                  return;
-                ownedReferenceAudition = null;
-                final current = playbackSnapshot();
-                if (current.projectId == timingSnapshot.projectId &&
-                    !current.isRemote &&
-                    !current.isLoading &&
-                    current.audioPath == timingSnapshot.audioPath) {
-                  await _audition.pauseIfSounding();
-                }
-                if (identical(_audition.active, owned)) _audition.clear();
-              },
+              stopOwnedPlayback: stopOwnedReferenceAudition,
             );
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
