@@ -2,6 +2,7 @@ import '../../player/domain/services/audio_player_service.dart';
 import '../../player/domain/services/playback_session_service.dart';
 import '../../project/domain/repositories/project_repository.dart';
 import '../domain/proofreading/forced_alignment_proofread_service.dart';
+import '../domain/proofreading/project_proofread_evidence.dart';
 import '../domain/services/lyric_file_export_service.dart';
 import '../domain/services/lyric_file_import_service.dart';
 
@@ -30,6 +31,9 @@ class LyricEditorDependencies {
   /// storage and runtime inspection), instead of in the editor widget.
   final ForcedAlignmentRunner forcedAlignmentRunner;
 
+  /// Optional verified project evidence, absent on hosts without the adapter.
+  final ProjectProofreadEvidenceLoader? projectProofreadEvidenceLoader;
+
   const LyricEditorDependencies({
     required this.projectRepository,
     required this.playbackSession,
@@ -37,5 +41,6 @@ class LyricEditorDependencies {
     required this.lyricFileExport,
     required this.lyricFileImport,
     required this.forcedAlignmentRunner,
+    this.projectProofreadEvidenceLoader,
   });
 }

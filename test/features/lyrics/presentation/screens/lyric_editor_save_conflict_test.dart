@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/project_proofread_evidence.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_input.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/reference_alignment_restore_service.dart';
@@ -125,6 +126,104 @@ void main() {
       expect(editor.hasChanges, isFalse);
       expect(calls, 0);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('project evidence routing', () {
+    testWidgets(
+      'verified evidence reaches review without modifying the draft',
+      (tester) async {
+        var calls = 0;
+        final editor = await _openEditor(
+          tester,
+          _emptyAlignment,
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) async {
+                calls++;
+                expect(draft.lines.single.text, 'Human lyric');
+                return ProjectProofreadEvidenceResult.available(
+                  secondary: _document('different lyric'),
+                  secondaryEngine: 'whisper.cpp-large-v3',
+                  capturedAtUtc: DateTime.utc(2026),
+                );
+              },
+        );
+        await _selectProjectEvidence(tester);
+        expect(calls, 1);
+        expect(find.text('智能校对提案复核'), findsOneWidget);
+        expect(
+          find.textContaining('工程独立第二稿：whisper.cpp-large-v3'),
+          findsOneWidget,
+        );
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('failed verification is explained and never opens review', (
+      tester,
+    ) async {
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) async => const ProjectProofreadEvidenceResult.unavailable(
+              ProjectProofreadEvidenceStatus.audioChanged,
+            ),
+      );
+      await _selectProjectEvidence(tester);
+      expect(find.textContaining('识别音频与快照不一致'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
+      expect(editor.hasChanges, isFalse);
+    });
+
+    testWidgets('edit during verification discards the stale result', (
+      tester,
+    ) async {
+      final pending = Completer<ProjectProofreadEvidenceResult>();
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
+      );
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.tap(find.text('继续'));
+      await tester.pump();
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(text: 'New edit'),
+      );
+      pending.complete(
+        ProjectProofreadEvidenceResult.available(
+          secondary: _document('other'),
+          secondaryEngine: 'whisper.cpp-large-v3',
+          capturedAtUtc: DateTime.utc(2026),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.single.text, 'New edit');
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
     });
   });
 
@@ -1029,6 +1128,18 @@ void main() {
   );
 }
 
+Future<void> _selectProjectEvidence(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('智能校对 V2'));
+  await tester.pumpAndSettle();
+  final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.tap(find.text('继续'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _openReferenceFlow(WidgetTester tester, String action) async {
   await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
   await tester.pumpAndSettle();
@@ -1052,6 +1163,7 @@ Future<LyricEditorDocumentController> _openEditor(
   ForcedAlignmentRunner runner, {
   LyricDocument? initialDocument,
   String? vocalPath,
+  ProjectProofreadEvidenceLoader? evidenceLoader,
 }) async {
   final repository = MemoryProjectRepository();
   var project = await repository.createProject(name: 'Song');
@@ -1081,6 +1193,7 @@ Future<LyricEditorDocumentController> _openEditor(
           lyricFileExport: _FakeLyricFileExport(),
           lyricFileImport: LocalLyricFileImportService(),
           forcedAlignmentRunner: runner,
+          projectProofreadEvidenceLoader: evidenceLoader,
         ),
       ),
     ),

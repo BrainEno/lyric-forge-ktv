@@ -20,6 +20,7 @@ import '../../domain/proofreading/apply_reference_alignment_use_case.dart';
 import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
+import '../../domain/proofreading/project_proofread_evidence.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/run_reference_proofread_use_case.dart';
@@ -533,7 +534,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final revision = _editor.documentRevision;
     setState(() => _proofreadV2InProgress = true);
     try {
-      await _runProofreadV2(project, document, revision);
+      await _runProofreadV2(
+        project,
+        document,
+        revision,
+        _projectRevision ?? project.revision,
+      );
     } finally {
       if (mounted) setState(() => _proofreadV2InProgress = false);
     }
@@ -552,8 +558,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     ProjectManifest project,
     LyricDocument document,
     int revision,
+    int projectRevision,
   ) async {
-    final options = await showProofreadV2RunOptionsDialog(context);
+    final options = await showProofreadV2RunOptionsDialog(
+      context,
+      allowProjectEvidence:
+          widget.dependencies.projectProofreadEvidenceLoader != null,
+    );
     if (options == null || !_proofreadIsCurrent(revision)) return;
 
     LyricDocument? secondaryAsr;
@@ -610,6 +621,32 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     try {
+      ProjectProofreadEvidenceResult? projectEvidence;
+      if (options.useProjectEvidence) {
+        final loader = widget.dependencies.projectProofreadEvidenceLoader;
+        if (loader == null) return;
+        projectEvidence = await loader(
+          projectId: project.id,
+          expectedProjectRevision: projectRevision,
+          draft: document,
+        );
+        if (!_proofreadIsCurrent(revision)) return;
+        if (projectEvidence.status !=
+            ProjectProofreadEvidenceStatus.available) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                LyricReviewStrings.projectEvidenceUnavailable(
+                  projectEvidence.status,
+                ),
+              ),
+              duration: const Duration(seconds: 6),
+            ),
+          );
+          return;
+        }
+        secondaryAsr = projectEvidence.secondary;
+      }
       final run =
           await RunProofreadV2UseCase(
             runner: widget.dependencies.forcedAlignmentRunner,
@@ -630,9 +667,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
         summary: LyricReviewStrings.proofreadV2Summary(summary),
-        explanation: LyricReviewStrings.proofreadV2Explanations(
-          assembly.explanations,
-        ),
+        explanation: [
+          if (projectEvidence != null)
+            '工程独立第二稿：${projectEvidence.secondaryEngine} · ${projectEvidence.capturedAtUtc!.toIso8601String()}；音频已核对，模型内容未校验。',
+          LyricReviewStrings.proofreadV2Explanations(assembly.explanations),
+        ].join(' '),
         alignmentDiagnostics: assembly.alignmentDiagnostics,
         items: assembly.items,
         droppedItems: assembly.droppedItems,
