@@ -23,6 +23,7 @@ import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/project_proofread_evidence.dart';
 import '../../domain/proofreading/reference_alignment_audio_guard.dart';
 import '../../domain/proofreading/reference_alignment_timing_applier.dart';
+import '../../domain/proofreading/reference_timing_audition_planner.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/run_reference_proofread_use_case.dart';
@@ -43,6 +44,7 @@ import '../widgets/reference_proofread_timing_review_dialog.dart';
 import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
+import '../controllers/reference_timing_audition_coordinator.dart';
 import '../controllers/lyric_editor_document_controller.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
@@ -692,6 +694,72 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           ? audioCheck?.snapshot
           : null;
 
+      LineAuditionRequest? ownedReferenceAudition;
+      ReferenceTimingPlaybackSnapshot playbackSnapshot() {
+        final item = _playbackSession.currentState.currentItem;
+        final state = _audioService.currentState;
+        final source = state.currentSource;
+        return ReferenceTimingPlaybackSnapshot(
+          projectId: item?.projectId,
+          audioPath: source == null ? null : item?.audioAsset.getPathForSource(source),
+          isRemote: item?.isRemoteStream ?? false,
+          isLoading: state.isLoading,
+          duration: state.duration,
+        );
+      }
+      late final ReferenceTimingAuditionCoordinator? previewCoordinator;
+      previewCoordinator = audioGuard == null || timingSnapshot == null ? null : ReferenceTimingAuditionCoordinator(
+        guard: audioGuard,
+        snapshot: timingSnapshot,
+        audioDuration: project.audioAsset?.duration,
+        playbackSnapshot: playbackSnapshot,
+        isEditorCurrent: () => mounted && _editor.documentRevision == revision,
+        play: (proposalIndex, sourceIndex, window) async {
+          bool valid() {
+            if (!mounted || previewCoordinator!.isClosed || _editor.documentRevision != revision) return false;
+            final current = playbackSnapshot();
+            return current.projectId == timingSnapshot.projectId &&
+                !current.isLoading && !current.isRemote &&
+                current.audioPath == timingSnapshot.audioPath &&
+                (current.duration == null || window.endAt! <= current.duration!);
+          }
+          if (sourceIndex != null && (sourceIndex < 0 || sourceIndex >= document.lines.length)) {
+            return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.playbackFailed, error: '原始歌词行已不可用。');
+          }
+          final request = LineAuditionRequest(
+            projectId: project.id,
+            lineIndex: sourceIndex ?? -proposalIndex - 1,
+            lineId: sourceIndex == null ? null : document.lines[sourceIndex].id,
+            window: window,
+          );
+          final result = await _audition.toggle(
+            request: request,
+            prepare: () async => throw StateError('Playback source changed during audition'),
+            isStillValid: valid,
+          );
+          if (result.action == LineAuditionAction.started || result.action == LineAuditionAction.resumed || result.action == LineAuditionAction.paused) {
+            ownedReferenceAudition = _audition.active;
+          }
+          return switch (result.action) {
+            LineAuditionAction.started => const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.started),
+            LineAuditionAction.resumed => const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.resumed),
+            LineAuditionAction.paused => const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.paused),
+            LineAuditionAction.invalid || LineAuditionAction.failed => ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.playbackFailed, error: result.error),
+          };
+        },
+        stopOwnedPlayback: () async {
+          final owned = ownedReferenceAudition;
+          if (owned == null || !identical(_audition.active, owned)) return;
+          ownedReferenceAudition = null;
+          final current = playbackSnapshot();
+          if (current.projectId == timingSnapshot.projectId &&
+              !current.isRemote && !current.isLoading &&
+              current.audioPath == timingSnapshot.audioPath) {
+            await _audition.pauseIfSounding();
+          }
+          if (identical(_audition.active, owned)) _audition.clear();
+        },
+      );
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
         summary: LyricReviewStrings.proofreadV2Summary(summary),
@@ -711,6 +779,15 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ].join(' '),
         alignmentDiagnostics: assembly.alignmentDiagnostics,
         allowReferenceTimingSelection: timingSnapshot != null,
+        onPreviewReferenceTiming: previewCoordinator == null ? null : (proposalIndex, sourceIndex, evidence) async {
+          final result = await previewCoordinator!.preview(proposalIndex: proposalIndex, sourceIndex: sourceIndex, evidence: evidence);
+          return switch (result.status) {
+            ReferenceTimingPreviewStatus.started => const ProofreadTimedLinePreviewResult.success(),
+            ReferenceTimingPreviewStatus.resumed => const ProofreadTimedLinePreviewResult.success(message: '已继续试听参考对齐时间。'),
+            ReferenceTimingPreviewStatus.paused => const ProofreadTimedLinePreviewResult.success(message: '已暂停试听。'),
+            _ => ProofreadTimedLinePreviewResult.failure(LyricReviewStrings.referenceTimingPreviewFailure(result)),
+          };
+        },
         items: assembly.items,
         droppedItems: assembly.droppedItems,
         onPreviewDraftLine: project.audioAsset == null
@@ -727,6 +804,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             ? null
             : (index, token) => _previewProofreadToken(project, index, token),
       );
+      await previewCoordinator?.close();
       if (selection == null || !_proofreadIsCurrent(revision)) return;
 
       Future<bool> verifyTimingSnapshot() async {

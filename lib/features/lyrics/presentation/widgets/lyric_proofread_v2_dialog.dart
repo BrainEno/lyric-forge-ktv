@@ -7,6 +7,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_review_proposal.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
+import '../../domain/proofreading/reference_forced_alignment_planner.dart';
 import '../../domain/services/character_diff_service.dart';
 import '../lyric_review_strings.dart';
 
@@ -268,6 +269,12 @@ typedef ProofreadTimedLinePreview =
       Duration globalOffset,
     );
 
+typedef ReferenceTimingPreview = Future<ProofreadTimedLinePreviewResult> Function(
+  int proposalIndex,
+  int? sourceIndex,
+  ReferenceForcedTimingProposal evidence,
+);
+
 Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   BuildContext context, {
   required String summary,
@@ -282,6 +289,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   onPreviewAlignmentToken,
   ProofreadAlignmentDiagnostics? alignmentDiagnostics,
   bool allowReferenceTimingSelection = false,
+  ReferenceTimingPreview? onPreviewReferenceTiming,
 }) {
   return showDialog<LyricProofreadV2Selection>(
     context: context,
@@ -297,6 +305,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
       onPreviewAlignmentToken: onPreviewAlignmentToken,
       alignmentDiagnostics: alignmentDiagnostics,
       allowReferenceTimingSelection: allowReferenceTimingSelection,
+      onPreviewReferenceTiming: onPreviewReferenceTiming,
     ),
   );
 }
@@ -314,6 +323,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   onPreviewAlignmentToken;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
   final bool allowReferenceTimingSelection;
+  final ReferenceTimingPreview? onPreviewReferenceTiming;
 
   const _LyricProofreadV2ReviewDialog({
     required this.summary,
@@ -327,6 +337,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
     required this.onPreviewAlignmentToken,
     this.alignmentDiagnostics,
     required this.allowReferenceTimingSelection,
+    required this.onPreviewReferenceTiming,
   });
 
   @override
@@ -339,6 +350,7 @@ class _LyricProofreadV2ReviewDialogState
   final Set<int> _acceptedAmber = {};
   final Set<int> _restoredDraftIndices = {};
   final Set<int> _acceptedReferenceTimings = {};
+  bool _referencePreviewPending = false;
   final Map<int, String> _auditionFeedbackByProposal = {};
   final Map<(String, String), List<CharacterDiffSegment>> _textDiffs = {};
 
@@ -392,6 +404,31 @@ class _LyricProofreadV2ReviewDialogState
     setState(() {
       _auditionFeedbackByProposal[proposalIndex] = result.succeeded
           ? result.message ?? '正在试听$label时间范围；再次点击可暂停。'
+          : '试听失败：${result.message ?? '未知原因'}';
+    });
+  }
+
+  Future<void> _previewReferenceTiming(
+    LyricProofreadV2ReviewItem item,
+    ReferenceForcedTimingProposal evidence,
+  ) async {
+    final preview = widget.onPreviewReferenceTiming;
+    if (preview == null || _referencePreviewPending) return;
+    setState(() {
+      _referencePreviewPending = true;
+      _auditionFeedbackByProposal.remove(item.proposalIndex);
+    });
+    ProofreadTimedLinePreviewResult result;
+    try {
+      result = await preview(item.proposalIndex, item.sourceIndex, evidence);
+    } catch (error) {
+      result = ProofreadTimedLinePreviewResult.failure(error.toString());
+    }
+    if (!mounted) return;
+    setState(() {
+      _referencePreviewPending = false;
+      _auditionFeedbackByProposal[item.proposalIndex] = result.succeeded
+          ? result.message ?? '正在试听参考对齐时间；再次点击可暂停。'
           : '试听失败：${result.message ?? '未知原因'}';
     });
   }
@@ -782,6 +819,16 @@ class _LyricProofreadV2ReviewDialogState
                       '对齐时间（绝对音频时间）：${_formatTime(evidence.start)} – ${_formatTime(evidence.end)}',
                     ),
                     const Text('时间来自参考文本对齐，可能不准确；须逐行勾选才会采纳。'),
+                    TextButton.icon(
+                      key: ValueKey('preview_reference_timing_${item.proposalIndex}'),
+                      onPressed: widget.onPreviewReferenceTiming == null || _referencePreviewPending
+                          ? null
+                          : () => _previewReferenceTiming(item, evidence),
+                      icon: const Icon(Icons.headphones_rounded),
+                      label: Text(_referencePreviewPending ? '正在检查音源…' : '试听参考对齐时间'),
+                    ),
+                    if (widget.onPreviewReferenceTiming == null)
+                      const Text('音源未通过校验，暂不能试听参考对齐时间。'),
                     CheckboxListTile(
                       key: ValueKey(
                         'accept_reference_timing_${item.proposalIndex}',
