@@ -771,6 +771,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                     'Playback source changed during audition',
                   ),
                   isStillValid: valid,
+                  isPlaybackStillValid: () {
+                    final current = playbackSnapshot();
+                    return current.projectId == timingSnapshot.projectId &&
+                        !current.isRemote && !current.isLoading &&
+                        current.audioPath == timingSnapshot.audioPath;
+                  },
                 );
                 if (result.action == LineAuditionAction.started ||
                     result.action == LineAuditionAction.resumed ||

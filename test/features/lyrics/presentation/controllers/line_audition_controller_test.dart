@@ -241,6 +241,27 @@ void main() {
     });
   });
 
+  group('audition source changes', () {
+    test('a changed source clears the bound window without pausing new playback', () async {
+      var sameSource = true;
+      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => sameSource);
+      sameSource = false;
+      audio.emitPosition(const Duration(seconds: 14));
+      await pumpEventQueue();
+      expect(controller.isActive, isFalse);
+      expect(audio.isPlaying, isTrue);
+      expect(audio.pauseCalls, 0);
+    });
+
+    test('unchanged source still pauses at its bound', () async {
+      await controller.start(request: request, prepare: noPrepare, isPlaybackStillValid: () => true);
+      audio.emitPosition(const Duration(seconds: 14));
+      await pumpEventQueue();
+      expect(audio.isPlaying, isFalse);
+      expect(audio.pauseCalls, 1);
+    });
+  });
+
   group('播放到窗口结尾', () {
     test('不循环时在结尾暂停', () async {
       await controller.start(request: request, prepare: noPrepare);
