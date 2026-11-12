@@ -143,7 +143,9 @@ abstract final class LyricReviewStrings {
     ReferenceTimingApplyFailure.invalidInterval => '对齐时间范围无效，请重新生成。',
   };
 
-  static String referenceTimingPreviewFailure(ReferenceTimingPreviewResult result) {
+  static String referenceTimingPreviewFailure(
+    ReferenceTimingPreviewResult result,
+  ) {
     switch (result.status) {
       case ReferenceTimingPreviewStatus.busy:
         return '正在检查另一段试听，请稍候。';
@@ -152,16 +154,23 @@ abstract final class LyricReviewStrings {
       case ReferenceTimingPreviewStatus.staleEditor:
         return '歌词已变化，请重新生成对齐证据。';
       case ReferenceTimingPreviewStatus.audioCheckFailed:
-        return result.audioStatus == null ? '音源校验失败。' : referenceAlignmentAudioStatus(result.audioStatus!);
+        return result.audioStatus == null
+            ? '音源校验失败。'
+            : referenceAlignmentAudioStatus(result.audioStatus!);
       case ReferenceTimingPreviewStatus.invalidPlayback:
         return switch (result.playbackFailure) {
-          ReferenceTimingAuditionFailure.wrongProject => '播放器未加载当前工程；请关闭复核并先加载工程音频。',
-          ReferenceTimingAuditionFailure.remoteSource => '当前是远程音源，请切换到对齐使用的本地音源。',
+          ReferenceTimingAuditionFailure.wrongProject =>
+            '播放器未加载当前工程；请关闭复核并先加载工程音频。',
+          ReferenceTimingAuditionFailure.remoteSource =>
+            '当前是远程音源，请切换到对齐使用的本地音源。',
           ReferenceTimingAuditionFailure.sourceLoading => '播放器正在加载音源，请稍候重试。',
-          ReferenceTimingAuditionFailure.sourceUnavailable => '无法确认播放器当前音源，请先加载对齐使用的音频。',
-          ReferenceTimingAuditionFailure.wrongAudio => '播放器音源与对齐音源不同；请关闭复核并切换至对应音源。',
+          ReferenceTimingAuditionFailure.sourceUnavailable =>
+            '无法确认播放器当前音源，请先加载对齐使用的音频。',
+          ReferenceTimingAuditionFailure.wrongAudio =>
+            '播放器音源与对齐音源不同；请关闭复核并切换至对应音源。',
           ReferenceTimingAuditionFailure.invalidEvidence => '参考对齐时间无效。',
-          ReferenceTimingAuditionFailure.beyondAudioDuration => '参考对齐时间超出当前音频时长。',
+          ReferenceTimingAuditionFailure.beyondAudioDuration =>
+            '参考对齐时间超出当前音频时长。',
           null => '无法验证当前播放音源。',
         };
       case ReferenceTimingPreviewStatus.playbackFailed:

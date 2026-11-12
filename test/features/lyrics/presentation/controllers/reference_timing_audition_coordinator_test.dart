@@ -15,20 +15,57 @@ class Guard implements ReferenceAlignmentAudioGuard {
   ReferenceAlignmentAudioStatus status = ReferenceAlignmentAudioStatus.matches;
   Completer<ReferenceAlignmentAudioCheck>? gate;
   @override
-  Future<ReferenceAlignmentAudioCheck> capture({required String projectId, required int projectRevision, required String audioPath}) async => throw UnimplementedError();
+  Future<ReferenceAlignmentAudioCheck> capture({
+    required String projectId,
+    required int projectRevision,
+    required String audioPath,
+  }) async => throw UnimplementedError();
   @override
-  Future<ReferenceAlignmentAudioCheck> verify(ReferenceAlignmentAudioSnapshot snapshot) async {
+  Future<ReferenceAlignmentAudioCheck> verify(
+    ReferenceAlignmentAudioSnapshot snapshot,
+  ) async {
     calls++;
     if (gate != null) return gate!.future;
-    return ReferenceAlignmentAudioCheck(status: status, snapshot: status == ReferenceAlignmentAudioStatus.matches ? snapshot : null);
+    return ReferenceAlignmentAudioCheck(
+      status: status,
+      snapshot: status == ReferenceAlignmentAudioStatus.matches
+          ? snapshot
+          : null,
+    );
   }
 }
 
 void main() {
-  const snapshot = ReferenceAlignmentAudioSnapshot(projectId: 'p', projectRevision: 3, audioPath: '/v.wav', audioSha256: 'hash');
+  const snapshot = ReferenceAlignmentAudioSnapshot(
+    projectId: 'p',
+    projectRevision: 3,
+    audioPath: '/v.wav',
+    audioSha256: 'hash',
+  );
   const planner = ReferenceForcedAlignmentPlanner();
-  final prepared = planner.prepare(const ReferenceLyricInput(lines: [ReferenceLyricLine(text: 'line')], timed: false, format: 'txt')).prepared!;
-  final timing = planner.plan(reference: prepared, spans: const [ForcedAlignedSpan(text: 'line', start: Duration(seconds: 1), end: Duration(seconds: 2))], audioDuration: const Duration(seconds: 4)).proposals.single;
+  final prepared = planner
+      .prepare(
+        const ReferenceLyricInput(
+          lines: [ReferenceLyricLine(text: 'line')],
+          timed: false,
+          format: 'txt',
+        ),
+      )
+      .prepared!;
+  final timing = planner
+      .plan(
+        reference: prepared,
+        spans: const [
+          ForcedAlignedSpan(
+            text: 'line',
+            start: Duration(seconds: 1),
+            end: Duration(seconds: 2),
+          ),
+        ],
+        audioDuration: const Duration(seconds: 4),
+      )
+      .proposals
+      .single;
   late Guard guard;
   late ReferenceTimingAuditionCoordinator coordinator;
   late ReferenceTimingPlaybackSnapshot playback;
@@ -49,7 +86,11 @@ void main() {
     lastProposal = null;
     lastWindow = null;
     playGate = null;
-    playback = const ReferenceTimingPlaybackSnapshot(projectId: 'p', audioPath: '/v.wav', duration: Duration(seconds: 4));
+    playback = const ReferenceTimingPlaybackSnapshot(
+      projectId: 'p',
+      audioPath: '/v.wav',
+      duration: Duration(seconds: 4),
+    );
     coordinator = ReferenceTimingAuditionCoordinator(
       guard: guard,
       snapshot: snapshot,
@@ -61,13 +102,25 @@ void main() {
         lastProposal = proposal;
         lastSource = source;
         lastWindow = window;
-        return playGate?.future ?? const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.started);
+        return playGate?.future ??
+            const ReferenceTimingPreviewResult(
+              ReferenceTimingPreviewStatus.started,
+            );
       },
-      stopOwnedPlayback: () async { stops++; },
+      stopOwnedPlayback: () async {
+        stops++;
+      },
     );
   });
 
-  Future<ReferenceTimingPreviewResult> preview({int proposal = 4, int? source = 2}) => coordinator.preview(proposalIndex: proposal, sourceIndex: source, evidence: timing);
+  Future<ReferenceTimingPreviewResult> preview({
+    int proposal = 4,
+    int? source = 2,
+  }) => coordinator.preview(
+    proposalIndex: proposal,
+    sourceIndex: source,
+    evidence: timing,
+  );
 
   test('verifies every request and passes a bounded absolute window', () async {
     final first = await preview();
@@ -84,12 +137,17 @@ void main() {
   });
 
   test('inserted rows can preview without an original line index', () async {
-    expect((await preview(proposal: 9, source: null)).status, ReferenceTimingPreviewStatus.started);
+    expect(
+      (await preview(proposal: 9, source: null)).status,
+      ReferenceTimingPreviewStatus.started,
+    );
     expect(lastProposal, 9);
     expect(lastSource, isNull);
   });
 
-  for (final status in ReferenceAlignmentAudioStatus.values.where((s) => s != ReferenceAlignmentAudioStatus.matches)) {
+  for (final status in ReferenceAlignmentAudioStatus.values.where(
+    (s) => s != ReferenceAlignmentAudioStatus.matches,
+  )) {
     test('audio status $status refuses playback', () async {
       guard.status = status;
       final result = await preview();
@@ -111,7 +169,12 @@ void main() {
     guard.gate = Completer<ReferenceAlignmentAudioCheck>();
     final pending = preview();
     current = false;
-    guard.gate!.complete(const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot));
+    guard.gate!.complete(
+      const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.matches,
+        snapshot: snapshot,
+      ),
+    );
     expect((await pending).status, ReferenceTimingPreviewStatus.staleEditor);
     expect(plays, 0);
   });
@@ -120,7 +183,12 @@ void main() {
     guard.gate = Completer<ReferenceAlignmentAudioCheck>();
     final pending = preview();
     await coordinator.close();
-    guard.gate!.complete(const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot));
+    guard.gate!.complete(
+      const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.matches,
+        snapshot: snapshot,
+      ),
+    );
     expect((await pending).status, ReferenceTimingPreviewStatus.closed);
     expect(plays, 0);
     expect(stops, 0);
@@ -131,9 +199,17 @@ void main() {
     guard.gate = Completer<ReferenceAlignmentAudioCheck>();
     final pending = preview();
     expect(coordinator.isBusy, isTrue);
-    expect((await preview(proposal: 8)).status, ReferenceTimingPreviewStatus.busy);
+    expect(
+      (await preview(proposal: 8)).status,
+      ReferenceTimingPreviewStatus.busy,
+    );
     expect(guard.calls, 1);
-    guard.gate!.complete(const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot));
+    guard.gate!.complete(
+      const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.matches,
+        snapshot: snapshot,
+      ),
+    );
     expect((await pending).status, ReferenceTimingPreviewStatus.started);
     expect(lastProposal, 4);
     expect(coordinator.isBusy, isFalse);
@@ -142,8 +218,16 @@ void main() {
   test('source change during hash is checked after hashing', () async {
     guard.gate = Completer<ReferenceAlignmentAudioCheck>();
     final pending = preview();
-    playback = const ReferenceTimingPlaybackSnapshot(projectId: 'p', audioPath: '/other.wav');
-    guard.gate!.complete(const ReferenceAlignmentAudioCheck(status: ReferenceAlignmentAudioStatus.matches, snapshot: snapshot));
+    playback = const ReferenceTimingPlaybackSnapshot(
+      projectId: 'p',
+      audioPath: '/other.wav',
+    );
+    guard.gate!.complete(
+      const ReferenceAlignmentAudioCheck(
+        status: ReferenceAlignmentAudioStatus.matches,
+        snapshot: snapshot,
+      ),
+    );
     final result = await pending;
     expect(result.status, ReferenceTimingPreviewStatus.invalidPlayback);
     expect(result.playbackFailure, ReferenceTimingAuditionFailure.wrongAudio);
@@ -164,26 +248,40 @@ void main() {
     expect(plays, 1);
     await coordinator.close();
     expect(stops, 0);
-    playGate!.complete(const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.started));
+    playGate!.complete(
+      const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.started),
+    );
     expect((await pending).status, ReferenceTimingPreviewStatus.closed);
     expect(stops, 1);
   });
 
-  test('editing during player start cleans up before returning stale', () async {
-    playGate = Completer<ReferenceTimingPreviewResult>();
-    final pending = preview();
-    await Future<void>.delayed(Duration.zero);
-    current = false;
-    playGate!.complete(const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.started));
-    expect((await pending).status, ReferenceTimingPreviewStatus.staleEditor);
-    expect(stops, 1);
-  });
+  test(
+    'editing during player start cleans up before returning stale',
+    () async {
+      playGate = Completer<ReferenceTimingPreviewResult>();
+      final pending = preview();
+      await Future<void>.delayed(Duration.zero);
+      current = false;
+      playGate!.complete(
+        const ReferenceTimingPreviewResult(
+          ReferenceTimingPreviewStatus.started,
+        ),
+      );
+      expect((await pending).status, ReferenceTimingPreviewStatus.staleEditor);
+      expect(stops, 1);
+    },
+  );
 
   test('failed playback is not treated as owned sound', () async {
     playGate = Completer<ReferenceTimingPreviewResult>();
     final pending = preview();
     await Future<void>.delayed(Duration.zero);
-    playGate!.complete(const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.playbackFailed, error: 'failure'));
+    playGate!.complete(
+      const ReferenceTimingPreviewResult(
+        ReferenceTimingPreviewStatus.playbackFailed,
+        error: 'failure',
+      ),
+    );
     expect((await pending).error, 'failure');
     await coordinator.close();
     expect(stops, 0);

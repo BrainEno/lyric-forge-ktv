@@ -44,7 +44,8 @@ class ReferenceTimingAuditionCoordinator {
     int proposalIndex,
     int? sourceIndex,
     LyricAuditionWindow window,
-  ) play;
+  )
+  play;
   final Future<void> Function() stopOwnedPlayback;
   final Duration? audioDuration;
   final ReferenceTimingAuditionPlanner planner;
@@ -72,16 +73,34 @@ class ReferenceTimingAuditionCoordinator {
     required int? sourceIndex,
     required ReferenceForcedTimingProposal evidence,
   }) async {
-    if (_closed) return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.closed);
-    if (_busy) return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.busy);
-    if (!isEditorCurrent()) return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.staleEditor);
+    if (_closed)
+      return const ReferenceTimingPreviewResult(
+        ReferenceTimingPreviewStatus.closed,
+      );
+    if (_busy)
+      return const ReferenceTimingPreviewResult(
+        ReferenceTimingPreviewStatus.busy,
+      );
+    if (!isEditorCurrent())
+      return const ReferenceTimingPreviewResult(
+        ReferenceTimingPreviewStatus.staleEditor,
+      );
     _busy = true;
     try {
       final checked = await guard.verify(snapshot);
-      if (_closed) return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.closed);
-      if (!isEditorCurrent()) return const ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.staleEditor);
+      if (_closed)
+        return const ReferenceTimingPreviewResult(
+          ReferenceTimingPreviewStatus.closed,
+        );
+      if (!isEditorCurrent())
+        return const ReferenceTimingPreviewResult(
+          ReferenceTimingPreviewStatus.staleEditor,
+        );
       if (checked.status != ReferenceAlignmentAudioStatus.matches) {
-        return ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.audioCheckFailed, audioStatus: checked.status);
+        return ReferenceTimingPreviewResult(
+          ReferenceTimingPreviewStatus.audioCheckFailed,
+          audioStatus: checked.status,
+        );
       }
       final plan = planner.plan(
         evidence: evidence,
@@ -91,7 +110,10 @@ class ReferenceTimingAuditionCoordinator {
         verifiedAudioDuration: audioDuration,
       );
       if (!plan.canAudition) {
-        return ReferenceTimingPreviewResult(ReferenceTimingPreviewStatus.invalidPlayback, playbackFailure: plan.failure);
+        return ReferenceTimingPreviewResult(
+          ReferenceTimingPreviewStatus.invalidPlayback,
+          playbackFailure: plan.failure,
+        );
       }
       final result = await play(proposalIndex, sourceIndex, plan.window!);
       if (result.status == ReferenceTimingPreviewStatus.started ||
@@ -102,7 +124,11 @@ class ReferenceTimingAuditionCoordinator {
       if (_closed || !isEditorCurrent()) {
         if (_ownsPlayback) await stopOwnedPlayback();
         _ownsPlayback = false;
-        return ReferenceTimingPreviewResult(_closed ? ReferenceTimingPreviewStatus.closed : ReferenceTimingPreviewStatus.staleEditor);
+        return ReferenceTimingPreviewResult(
+          _closed
+              ? ReferenceTimingPreviewStatus.closed
+              : ReferenceTimingPreviewStatus.staleEditor,
+        );
       }
       return result;
     } finally {

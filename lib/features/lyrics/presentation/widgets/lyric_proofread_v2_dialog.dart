@@ -269,11 +269,12 @@ typedef ProofreadTimedLinePreview =
       Duration globalOffset,
     );
 
-typedef ReferenceTimingPreview = Future<ProofreadTimedLinePreviewResult> Function(
-  int proposalIndex,
-  int? sourceIndex,
-  ReferenceForcedTimingProposal evidence,
-);
+typedef ReferenceTimingPreview =
+    Future<ProofreadTimedLinePreviewResult> Function(
+      int proposalIndex,
+      int? sourceIndex,
+      ReferenceForcedTimingProposal evidence,
+    );
 
 Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   BuildContext context, {
@@ -820,12 +821,18 @@ class _LyricProofreadV2ReviewDialogState
                     ),
                     const Text('时间来自参考文本对齐，可能不准确；须逐行勾选才会采纳。'),
                     TextButton.icon(
-                      key: ValueKey('preview_reference_timing_${item.proposalIndex}'),
-                      onPressed: widget.onPreviewReferenceTiming == null || _referencePreviewPending
+                      key: ValueKey(
+                        'preview_reference_timing_${item.proposalIndex}',
+                      ),
+                      onPressed:
+                          widget.onPreviewReferenceTiming == null ||
+                              _referencePreviewPending
                           ? null
                           : () => _previewReferenceTiming(item, evidence),
                       icon: const Icon(Icons.headphones_rounded),
-                      label: Text(_referencePreviewPending ? '正在检查音源…' : '试听参考对齐时间'),
+                      label: Text(
+                        _referencePreviewPending ? '正在检查音源…' : '试听参考对齐时间',
+                      ),
                     ),
                     if (widget.onPreviewReferenceTiming == null)
                       const Text('音源未通过校验，暂不能试听参考对齐时间。'),

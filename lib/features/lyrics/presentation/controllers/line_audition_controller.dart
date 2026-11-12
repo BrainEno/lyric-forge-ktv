@@ -220,7 +220,11 @@ class LineAuditionController extends ChangeNotifier {
         return const LineAuditionResult.resumed();
       }
     }
-    return start(request: request, prepare: prepare, isStillValid: isStillValid);
+    return start(
+      request: request,
+      prepare: prepare,
+      isStillValid: isStillValid,
+    );
   }
 
   /// Starts the window from its lead-in position.
