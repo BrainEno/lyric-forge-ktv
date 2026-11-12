@@ -35,3 +35,32 @@ jobs:
           for i in range(0,len(s),4000): print(f'::notice title=TESTLOG{i//4000}::{s[i:i+4000]}')
           PY
           exit $((a || b))
+      - name: Generate work log
+        run: |
+          dart tool/work_log.dart new --timestamp '2026-11-07 22:46' --slug 'audition-reference-alignment-timing' --title 'Audition verified reference alignment timing'
+          python3 - <<'PY'
+          p='docs/log/entries/2026-11-07-2246-audition-reference-alignment-timing.md'
+          s=open(p).read()
+          replacements={
+            'TODO — describe the task purpose.': 'Enable bounded, explicit listening of reference ForcedAligner times on the verified current audio source before adoption.',
+            'TODO — list changed files.': 'Reference audition planner and coordinator, line audition controller, review dialog and editor, domain/controller/widget/editor tests, handoff and work log index.',
+            'dart format ... => TODO': 'dart format changed Dart files in Actions 43170164156 => formatted; patch applied locally.',
+            'flutter analyze ... => TODO': 'flutter analyze --no-pub --no-fatal-infos lib test tool in Actions 43170164156 => no errors or warnings; info diagnostics remain.',
+            'flutter test ... => TODO': 'Focused planner, controller, widget, editor and architecture tests in Actions 43170164156 => 145 passed.',
+            'TODO — record risks and unverified behavior.': 'Audio and player checks are point-in-time, not locks; pending seeks cannot be cancelled. Real recordings and native accessibility remain unverified; #319 stays open.',
+            'TODO: replace with the actual English imperative subject': 'Document reference timing audition',
+          }
+          for old,new in replacements.items():
+            if old not in s: raise RuntimeError(old)
+            s=s.replace(old,new)
+          open(p,'w').write(s)
+          PY
+          dart tool/work_log.dart write
+          dart tool/work_log.dart check
+          git add -N docs/log/entries/2026-11-07-2246-audition-reference-alignment-timing.md
+          git diff -- docs > /tmp/docs.patch
+          python3 - <<'PY'
+          import gzip,base64
+          s=base64.b64encode(gzip.compress(open('/tmp/docs.patch','rb').read())).decode()
+          for i in range(0,len(s),4000): print(f'::notice title=DOCS{i//4000}::{s[i:i+4000]}')
+          PY
