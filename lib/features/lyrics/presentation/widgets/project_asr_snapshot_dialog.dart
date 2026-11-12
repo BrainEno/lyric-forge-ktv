@@ -30,11 +30,21 @@ class ProjectAsrSnapshotDialog extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text('采集时间（UTC）：${evidence.capturedAtUtc!.toIso8601String()}'),
-              const TabBar(isScrollable: true, tabs: [Tab(text: '原稿比较'), Tab(text: '主引擎原稿'), Tab(text: '第二引擎原稿')]),
+              const TabBar(
+                isScrollable: true,
+                tabs: [
+                  Tab(text: '原稿比较'),
+                  Tab(text: '主引擎原稿'),
+                  Tab(text: '第二引擎原稿'),
+                ],
+              ),
               Expanded(
                 child: TabBarView(
                   children: [
-                    _SnapshotComparisonView(primary: primary, secondary: secondary),
+                    _SnapshotComparisonView(
+                      primary: primary,
+                      secondary: secondary,
+                    ),
                     _SnapshotTranscript(
                       engine: evidence.primaryEngine!,
                       document: primary,
@@ -105,7 +115,10 @@ class _SnapshotComparisonView extends StatelessWidget {
   final LyricDocument primary;
   final LyricDocument secondary;
 
-  const _SnapshotComparisonView({required this.primary, required this.secondary});
+  const _SnapshotComparisonView({
+    required this.primary,
+    required this.secondary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -141,7 +154,9 @@ class _SnapshotComparisonView extends StatelessWidget {
               if (row.primary != null)
                 Text('主稿第 ${row.primaryIndex! + 1} 行：${row.primary!.text}'),
               if (row.secondary != null)
-                Text('第二稿第 ${row.secondaryIndex! + 1} 行：${row.secondary!.text}'),
+                Text(
+                  '第二稿第 ${row.secondaryIndex! + 1} 行：${row.secondary!.text}',
+                ),
             ],
           ),
         );

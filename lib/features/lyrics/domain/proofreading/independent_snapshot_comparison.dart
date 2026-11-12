@@ -31,8 +31,10 @@ class SnapshotComparison {
   final bool limitExceeded;
   final List<SnapshotComparisonRow> rows;
 
-  SnapshotComparison._({required this.limitExceeded, required List<SnapshotComparisonRow> rows})
-    : rows = List.unmodifiable(rows);
+  SnapshotComparison._({
+    required this.limitExceeded,
+    required List<SnapshotComparisonRow> rows,
+  }) : rows = List.unmodifiable(rows);
 }
 
 /// Strict one-to-one interval matching for read-only inspection.
@@ -71,29 +73,36 @@ class IndependentSnapshotComparison {
       final line = primary.lines[pi];
       final matches = byPrimary[pi];
       if (matches.isEmpty) {
-        rows.add(SnapshotComparisonRow(
-          kind: SnapshotComparisonKind.primaryOnly,
-          primaryIndex: pi,
-          primary: line,
-        ));
-      } else if (matches.length != 1 || bySecondary[matches.single].length != 1) {
-        rows.add(SnapshotComparisonRow(
-          kind: SnapshotComparisonKind.ambiguousOverlap,
-          primaryIndex: pi,
-          primary: line,
-        ));
+        rows.add(
+          SnapshotComparisonRow(
+            kind: SnapshotComparisonKind.primaryOnly,
+            primaryIndex: pi,
+            primary: line,
+          ),
+        );
+      } else if (matches.length != 1 ||
+          bySecondary[matches.single].length != 1) {
+        rows.add(
+          SnapshotComparisonRow(
+            kind: SnapshotComparisonKind.ambiguousOverlap,
+            primaryIndex: pi,
+            primary: line,
+          ),
+        );
       } else {
         final si = matches.single;
         final other = secondary.lines[si];
-        rows.add(SnapshotComparisonRow(
-          kind: line.text == other.text
-              ? SnapshotComparisonKind.exactText
-              : SnapshotComparisonKind.differentText,
-          primaryIndex: pi,
-          secondaryIndex: si,
-          primary: line,
-          secondary: other,
-        ));
+        rows.add(
+          SnapshotComparisonRow(
+            kind: line.text == other.text
+                ? SnapshotComparisonKind.exactText
+                : SnapshotComparisonKind.differentText,
+            primaryIndex: pi,
+            secondaryIndex: si,
+            primary: line,
+            secondary: other,
+          ),
+        );
       }
     }
     for (var si = 0; si < secondary.lines.length; si++) {
@@ -101,13 +110,15 @@ class IndependentSnapshotComparison {
       if (matches.isEmpty ||
           matches.length != 1 ||
           byPrimary[matches.single].length != 1) {
-        rows.add(SnapshotComparisonRow(
-          kind: matches.isEmpty
-              ? SnapshotComparisonKind.secondaryOnly
-              : SnapshotComparisonKind.ambiguousOverlap,
-          secondaryIndex: si,
-          secondary: secondary.lines[si],
-        ));
+        rows.add(
+          SnapshotComparisonRow(
+            kind: matches.isEmpty
+                ? SnapshotComparisonKind.secondaryOnly
+                : SnapshotComparisonKind.ambiguousOverlap,
+            secondaryIndex: si,
+            secondary: secondary.lines[si],
+          ),
+        );
       }
     }
     return SnapshotComparison._(limitExceeded: false, rows: rows);
@@ -115,12 +126,14 @@ class IndependentSnapshotComparison {
 
   bool _withinBudget(LyricDocument document) {
     if (document.lines.length > maxLinesPerTranscript ||
-        (document.globalOffset ?? Duration.zero) != Duration.zero) return false;
+        (document.globalOffset ?? Duration.zero) != Duration.zero)
+      return false;
     for (final line in document.lines) {
       if (line.startTime.isNegative ||
           line.endTime <= line.startTime ||
           line.text.trim().isEmpty ||
-          line.text.runes.length > maxTextRunesPerLine) return false;
+          line.text.runes.length > maxTextRunesPerLine)
+        return false;
     }
     return true;
   }

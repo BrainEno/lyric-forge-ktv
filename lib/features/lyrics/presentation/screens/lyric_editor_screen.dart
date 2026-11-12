@@ -636,10 +636,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           draft: document,
         );
         if (!_proofreadIsCurrent(revision)) return;
-        if (projectEvidence.status == ProjectProofreadEvidenceStatus.auditOnly) {
+        if (projectEvidence.status ==
+            ProjectProofreadEvidenceStatus.auditOnly) {
           await showDialog<void>(
             context: context,
-            builder: (_) => ProjectAsrSnapshotDialog(evidence: projectEvidence!),
+            builder: (_) =>
+                ProjectAsrSnapshotDialog(evidence: projectEvidence!),
           );
           return;
         }

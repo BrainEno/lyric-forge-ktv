@@ -8,11 +8,8 @@ LyricLine line(String text, int start, int end) => LyricLine(
   endTime: Duration(milliseconds: end),
 );
 
-LyricDocument doc(List<LyricLine> lines, {Duration? offset}) => LyricDocument(
-  language: 'en',
-  lines: lines,
-  globalOffset: offset,
-);
+LyricDocument doc(List<LyricLine> lines, {Duration? offset}) =>
+    LyricDocument(language: 'en', lines: lines, globalOffset: offset);
 
 void main() {
   const service = IndependentSnapshotComparison();
@@ -31,23 +28,29 @@ void main() {
     expect(row.secondary, same(secondary.lines.single));
   });
 
-  test('whitespace, punctuation, case and Unicode differences are not normalized', () {
-    for (final pair in [
-      ['hello', 'Hello'],
-      ['hello', 'hello '],
-      ['hello!', 'hello'],
-      ['é', 'e\u0301'],
-      ['今夜', '今晚'],
-      ['A 🎵', 'A 🎶'],
-    ]) {
-      final result = service.compare(
-        primary: doc([line(pair.first, 0, 100)]),
-        secondary: doc([line(pair.last, 0, 100)]),
-      );
-      expect(result.rows.single.kind, SnapshotComparisonKind.differentText,
-          reason: '$pair must remain distinct');
-    }
-  });
+  test(
+    'whitespace, punctuation, case and Unicode differences are not normalized',
+    () {
+      for (final pair in [
+        ['hello', 'Hello'],
+        ['hello', 'hello '],
+        ['hello!', 'hello'],
+        ['é', 'e\u0301'],
+        ['今夜', '今晚'],
+        ['A 🎵', 'A 🎶'],
+      ]) {
+        final result = service.compare(
+          primary: doc([line(pair.first, 0, 100)]),
+          secondary: doc([line(pair.last, 0, 100)]),
+        );
+        expect(
+          result.rows.single.kind,
+          SnapshotComparisonKind.differentText,
+          reason: '$pair must remain distinct',
+        );
+      }
+    },
+  );
 
   test('half-open intervals touching at endpoints do not overlap', () {
     final result = service.compare(
@@ -78,7 +81,12 @@ void main() {
       secondary: doc([line('hello', 0, 1000), line('world', 1000, 2000)]),
     );
     expect(result.rows, hasLength(3));
-    expect(result.rows.every((r) => r.kind == SnapshotComparisonKind.ambiguousOverlap), isTrue);
+    expect(
+      result.rows.every(
+        (r) => r.kind == SnapshotComparisonKind.ambiguousOverlap,
+      ),
+      isTrue,
+    );
     expect(result.rows.map((r) => r.primaryIndex), [0, null, null]);
     expect(result.rows.map((r) => r.secondaryIndex), [null, 0, 1]);
   });
@@ -89,7 +97,12 @@ void main() {
       secondary: doc([line('a', 0, 2000)]),
     );
     expect(result.rows, hasLength(3));
-    expect(result.rows.every((r) => r.kind == SnapshotComparisonKind.ambiguousOverlap), isTrue);
+    expect(
+      result.rows.every(
+        (r) => r.kind == SnapshotComparisonKind.ambiguousOverlap,
+      ),
+      isTrue,
+    );
     expect(result.rows.last.secondaryIndex, 0);
     expect(result.rows.last.primary, isNull);
   });
@@ -100,7 +113,12 @@ void main() {
       secondary: doc([line('same', 0, 1000), line('same', 500, 1500)]),
     );
     expect(result.rows, hasLength(4));
-    expect(result.rows.every((r) => r.kind == SnapshotComparisonKind.ambiguousOverlap), isTrue);
+    expect(
+      result.rows.every(
+        (r) => r.kind == SnapshotComparisonKind.ambiguousOverlap,
+      ),
+      isTrue,
+    );
   });
 
   test('mixed relationships preserve both original index spaces', () {
@@ -128,18 +146,42 @@ void main() {
       SnapshotComparisonKind.ambiguousOverlap,
       SnapshotComparisonKind.ambiguousOverlap,
     ]);
-    expect(result.rows.map((r) => r.primaryIndex), [0, 1, 2, 3, null, null, null]);
-    expect(result.rows.map((r) => r.secondaryIndex), [0, 1, null, null, 2, 3, 4]);
+    expect(result.rows.map((r) => r.primaryIndex), [
+      0,
+      1,
+      2,
+      3,
+      null,
+      null,
+      null,
+    ]);
+    expect(result.rows.map((r) => r.secondaryIndex), [
+      0,
+      1,
+      null,
+      null,
+      2,
+      3,
+      4,
+    ]);
   });
 
   test('empty transcripts yield only the other side or no rows', () {
     expect(service.compare(primary: doc([]), secondary: doc([])).rows, isEmpty);
     expect(
-      service.compare(primary: doc([]), secondary: doc([line('b', 0, 1)])).rows.single.kind,
+      service
+          .compare(primary: doc([]), secondary: doc([line('b', 0, 1)]))
+          .rows
+          .single
+          .kind,
       SnapshotComparisonKind.secondaryOnly,
     );
     expect(
-      service.compare(primary: doc([line('a', 0, 1)]), secondary: doc([])).rows.single.kind,
+      service
+          .compare(primary: doc([line('a', 0, 1)]), secondary: doc([]))
+          .rows
+          .single
+          .kind,
       SnapshotComparisonKind.primaryOnly,
     );
   });
@@ -150,12 +192,19 @@ void main() {
       secondary: doc([line('repeat', 0, 10), line('repeat', 0, 10)]),
     );
     expect(result.rows, hasLength(3));
-    expect(result.rows.every((r) => r.kind == SnapshotComparisonKind.ambiguousOverlap), isTrue);
+    expect(
+      result.rows.every(
+        (r) => r.kind == SnapshotComparisonKind.ambiguousOverlap,
+      ),
+      isTrue,
+    );
   });
 
   test('nonzero offset on either side is not silently ignored', () {
     final original = doc([line('a', 0, 10)]);
-    final shifted = doc([line('a', 0, 10)], offset: const Duration(milliseconds: -1));
+    final shifted = doc([
+      line('a', 0, 10),
+    ], offset: const Duration(milliseconds: -1));
     for (final pair in [(original, shifted), (shifted, original)]) {
       final result = service.compare(primary: pair.$1, secondary: pair.$2);
       expect(result.limitExceeded, isTrue);
@@ -171,7 +220,10 @@ void main() {
       line('a', 11, 10),
       line('  ', 0, 10),
     ]) {
-      for (final pair in [(valid, doc([bad])), (doc([bad]), valid)]) {
+      for (final pair in [
+        (valid, doc([bad])),
+        (doc([bad]), valid),
+      ]) {
         final result = service.compare(primary: pair.$1, secondary: pair.$2);
         expect(result.limitExceeded, isTrue);
         expect(result.rows, isEmpty);
@@ -190,8 +242,13 @@ void main() {
       expect(result.limitExceeded, isTrue);
       expect(result.rows, isEmpty);
     }
-    final atLimit = doc(many.take(IndependentSnapshotComparison.maxLinesPerTranscript).toList());
-    expect(service.compare(primary: atLimit, secondary: valid).limitExceeded, isFalse);
+    final atLimit = doc(
+      many.take(IndependentSnapshotComparison.maxLinesPerTranscript).toList(),
+    );
+    expect(
+      service.compare(primary: atLimit, secondary: valid).limitExceeded,
+      isFalse,
+    );
   });
 
   test('text budget counts Unicode runes rather than UTF-16 units', () {
@@ -199,9 +256,18 @@ void main() {
     final within = doc([line('🎵' * limit, 0, 1)]);
     final over = doc([line('🎵' * (limit + 1), 0, 1)]);
     final valid = doc([line('x', 0, 1)]);
-    expect(service.compare(primary: within, secondary: valid).limitExceeded, isFalse);
-    expect(service.compare(primary: over, secondary: valid).limitExceeded, isTrue);
-    expect(service.compare(primary: valid, secondary: over).limitExceeded, isTrue);
+    expect(
+      service.compare(primary: within, secondary: valid).limitExceeded,
+      isFalse,
+    );
+    expect(
+      service.compare(primary: over, secondary: valid).limitExceeded,
+      isTrue,
+    );
+    expect(
+      service.compare(primary: valid, secondary: over).limitExceeded,
+      isTrue,
+    );
   });
 
   test('the result rows are immutable and input documents are not changed', () {

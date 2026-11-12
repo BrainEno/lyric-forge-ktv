@@ -556,22 +556,33 @@ void main() {
   });
 
   group('project evidence routing', () {
-    testWidgets('changed draft opens originals only and cannot apply them', (tester) async {
+    testWidgets('changed draft opens originals only and cannot apply them', (
+      tester,
+    ) async {
       var alignmentCalls = 0;
       final editor = await _openEditor(
         tester,
-        ({required audioPath, required text, required language, required audioDuration}) async {
+        ({
+          required audioPath,
+          required text,
+          required language,
+          required audioDuration,
+        }) async {
           alignmentCalls++;
           return [];
         },
-        evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) async =>
-          ProjectProofreadEvidenceResult.auditOnly(
-            primary: _document('original primary'),
-            primaryEngine: 'qwen3-asr-1.7b',
-            secondary: _document('original secondary'),
-            secondaryEngine: 'whisper.cpp-large-v3',
-            capturedAtUtc: DateTime.utc(2026),
-          ),
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) async => ProjectProofreadEvidenceResult.auditOnly(
+              primary: _document('original primary'),
+              primaryEngine: 'qwen3-asr-1.7b',
+              secondary: _document('original secondary'),
+              secondaryEngine: 'whisper.cpp-large-v3',
+              capturedAtUtc: DateTime.utc(2026),
+            ),
       );
       await _selectProjectEvidence(tester);
       expect(find.text('原始双引擎快照（只读）'), findsOneWidget);
@@ -588,10 +599,19 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('changed editor while audit verifies never opens originals', (tester) async {
+    testWidgets('changed editor while audit verifies never opens originals', (
+      tester,
+    ) async {
       final pending = Completer<ProjectProofreadEvidenceResult>();
-      final editor = await _openEditor(tester, _emptyAlignment,
-        evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) => pending.future,
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
@@ -602,14 +622,19 @@ void main() {
       await tester.tap(toggle);
       await tester.tap(find.text('继续'));
       await tester.pump();
-      editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'Edited in flight'));
-      pending.complete(ProjectProofreadEvidenceResult.auditOnly(
-        primary: _document('original primary'),
-        primaryEngine: 'qwen3-asr-1.7b',
-        secondary: _document('original secondary'),
-        secondaryEngine: 'whisper.cpp-large-v3',
-        capturedAtUtc: DateTime.utc(2026),
-      ));
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(text: 'Edited in flight'),
+      );
+      pending.complete(
+        ProjectProofreadEvidenceResult.auditOnly(
+          primary: _document('original primary'),
+          primaryEngine: 'qwen3-asr-1.7b',
+          secondary: _document('original secondary'),
+          secondaryEngine: 'whisper.cpp-large-v3',
+          capturedAtUtc: DateTime.utc(2026),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('原始双引擎快照（只读）'), findsNothing);
       expect(find.textContaining('原提案已丢弃'), findsOneWidget);
