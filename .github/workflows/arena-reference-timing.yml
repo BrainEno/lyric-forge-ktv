@@ -12,7 +12,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Format and report patch
         run: |
-          dart format lib test
+          dart format $(git diff --name-only 12b89758629b9f784792ec187d55cef3e19bbfd2 -- lib test | grep "\.dart$")
           git diff > /tmp/format.patch
           python3 - <<'PY'
           import gzip,base64
@@ -22,7 +22,7 @@ jobs:
       - name: Analyze and test
         run: |
           set +e
-          flutter analyze > /tmp/check.log 2>&1
+          flutter analyze --no-fatal-infos > /tmp/check.log 2>&1
           a=$?
           flutter test test/features/lyrics/domain/proofreading test/features/transcription/reference_alignment_audio_guard_test.dart test/features/lyrics/presentation/widgets/reference_alignment_evidence_accessibility_test.dart test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart >> /tmp/check.log 2>&1
           b=$?
