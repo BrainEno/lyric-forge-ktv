@@ -126,14 +126,16 @@ class IndependentSnapshotComparison {
 
   bool _withinBudget(LyricDocument document) {
     if (document.lines.length > maxLinesPerTranscript ||
-        (document.globalOffset ?? Duration.zero) != Duration.zero)
+        (document.globalOffset ?? Duration.zero) != Duration.zero) {
       return false;
+    }
     for (final line in document.lines) {
       if (line.startTime.isNegative ||
           line.endTime <= line.startTime ||
           line.text.trim().isEmpty ||
-          line.text.runes.length > maxTextRunesPerLine)
+          line.text.runes.length > maxTextRunesPerLine) {
         return false;
+      }
     }
     return true;
   }
