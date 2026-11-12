@@ -294,15 +294,20 @@ void main() {
           ['café', 'cafe'],
           ['hello', 'yellow'],
         ]) {
+          // A valid prefix with a missing suffix runs out of spans; a changed
+          // character is an immediate mismatch. Neither yields partial rows.
+          final isPrefix = pair[0].startsWith(pair[1]);
           expectFailure(
             planner.plan(
               reference: prepared([pair[0]]),
               spans: [span(pair[1], 0, 100)],
               audioDuration: duration,
             ),
-            ReferenceForcedAlignmentStatus.textMismatch,
+            isPrefix
+                ? ReferenceForcedAlignmentStatus.incompleteAlignment
+                : ReferenceForcedAlignmentStatus.textMismatch,
             line: 0,
-            spanAt: 0,
+            spanAt: isPrefix ? 1 : 0,
           );
         }
       },
