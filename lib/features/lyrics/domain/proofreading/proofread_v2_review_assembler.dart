@@ -49,7 +49,9 @@ class ProofreadV2ReviewAssembler {
     ReferenceForcedAlignmentPlan? referenceAlignmentPlan,
   }) {
     final referenceTimes = {
-      for (final proposal in referenceAlignmentPlan?.proposals ?? const <ReferenceForcedTimingProposal>[])
+      for (final proposal
+          in referenceAlignmentPlan?.proposals ??
+              const <ReferenceForcedTimingProposal>[])
         proposal.referenceIndex: proposal,
     };
     return ProofreadV2ReviewAssembly(

@@ -80,16 +80,19 @@ class RunProofreadV2UseCase {
       ReferenceForcedAlignmentPlan? referenceAlignmentPlan;
       if (useForcedAlignment) {
         final duration = audioAsset?.duration;
-        if (audioAsset == null || duration == null || duration <= Duration.zero) {
+        if (audioAsset == null ||
+            duration == null ||
+            duration <= Duration.zero) {
           throw const ProofreadV2MissingAudioException();
         }
         final language = ForcedAlignmentLanguage.resolve(draft.language);
-        referenceAlignmentPlan = await ReferenceForcedAlignmentService(runner: runner).build(
-          reference: reference,
-          audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
-          language: language,
-          audioDuration: duration,
-        );
+        referenceAlignmentPlan =
+            await ReferenceForcedAlignmentService(runner: runner).build(
+              reference: reference,
+              audioPath: audioAsset.vocalPath ?? audioAsset.originalPath,
+              language: language,
+              audioDuration: duration,
+            );
       }
       assembly = assembler.referenceFirst(
         draft: draft,

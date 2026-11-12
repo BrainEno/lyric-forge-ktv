@@ -43,13 +43,22 @@ void main() {
   }
 
   for (final scale in [1.0, 2.0]) {
-    testWidgets('reference mode exposes alignment option at scale $scale', (tester) async {
+    testWidgets('reference mode exposes alignment option at scale $scale', (
+      tester,
+    ) async {
       ProofreadV2RunOptions? result;
-      await configure(tester, const Size(320, 568), scale, (value) => result = value);
+      await configure(
+        tester,
+        const Size(320, 568),
+        scale,
+        (value) => result = value,
+      );
       await tester.ensureVisible(find.text('参考歌词优先'));
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
-      final toggle = find.byKey(const ValueKey('forced_alignment_review_toggle'));
+      final toggle = find.byKey(
+        const ValueKey('forced_alignment_review_toggle'),
+      );
       await tester.ensureVisible(toggle);
       await tester.tap(toggle);
       await tester.pumpAndSettle();
@@ -101,10 +110,7 @@ void main() {
       await tester.ensureVisible(find.text('参考歌词优先'));
       await tester.tap(find.text('参考歌词优先'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('之前配置的 ASR 第二意见'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('之前配置的 ASR 第二意见'), findsOneWidget);
       expect(
         find.byKey(const ValueKey('secondary_asr_transcript_input')),
         findsNothing,

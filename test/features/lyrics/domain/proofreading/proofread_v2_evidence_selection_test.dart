@@ -259,18 +259,21 @@ void main() {
       }
     }
 
-    test('reference-first requires audio when alignment is requested', () async {
-      await expectLater(
-        useCase.build(
-          draft: transcript('hello world'),
-          strategy: LyricSourceStrategy.referenceFirst,
-          reference: reference('hello world'),
-          useForcedAlignment: true,
-        ),
-        throwsA(isA<ProofreadV2MissingAudioException>()),
-      );
-      expect(calls, 0);
-    });
+    test(
+      'reference-first requires audio when alignment is requested',
+      () async {
+        await expectLater(
+          useCase.build(
+            draft: transcript('hello world'),
+            strategy: LyricSourceStrategy.referenceFirst,
+            reference: reference('hello world'),
+            useForcedAlignment: true,
+          ),
+          throwsA(isA<ProofreadV2MissingAudioException>()),
+        );
+        expect(calls, 0);
+      },
+    );
 
     test(
       'explicit ASR with a supplied reference states it is not applied',

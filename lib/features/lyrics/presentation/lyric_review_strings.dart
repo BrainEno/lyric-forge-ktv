@@ -90,12 +90,14 @@ abstract final class LyricReviewStrings {
   /// Reference timing is separate from the editable proposal and is never applied.
   static String referenceAlignmentSummary(ReferenceForcedAlignmentPlan plan) {
     final detail = switch (plan.status) {
-      ReferenceForcedAlignmentStatus.ready => '已生成 ${plan.proposals.length} 行参考文本对齐证据。时间仅供复核，不会随建议写入歌词；对齐结果不保证准确。',
+      ReferenceForcedAlignmentStatus.ready =>
+        '已生成 ${plan.proposals.length} 行参考文本对齐证据。时间仅供复核，不会随建议写入歌词；对齐结果不保证准确。',
       ReferenceForcedAlignmentStatus.noUsableLyrics => '参考歌词没有可用于对齐的行。',
       ReferenceForcedAlignmentStatus.invalidReference => '参考歌词格式不适合对齐。',
       ReferenceForcedAlignmentStatus.referenceLimitExceeded => '参考歌词超过对齐安全限制。',
       ReferenceForcedAlignmentStatus.invalidAudio => '音频、语言或时长不可用于对齐。',
-      ReferenceForcedAlignmentStatus.alignmentUnavailable => 'ForcedAligner 不可用或运行失败。',
+      ReferenceForcedAlignmentStatus.alignmentUnavailable =>
+        'ForcedAligner 不可用或运行失败。',
       ReferenceForcedAlignmentStatus.spanLimitExceeded => '对齐响应超过安全限制。',
       ReferenceForcedAlignmentStatus.invalidSpan => '对齐响应包含无效、重叠或超出音频范围的片段。',
       ReferenceForcedAlignmentStatus.textMismatch => '对齐片段与参考歌词不匹配或跨行。',

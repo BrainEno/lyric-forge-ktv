@@ -151,9 +151,7 @@ class _ProofreadV2RunOptionsDialogState
               if (_useProjectEvidence ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text(
-                  '之前配置的 ASR 第二意见在参考歌词优先模式下不会使用；切回其他策略可继续编辑。',
-                ),
+                const Text('之前配置的 ASR 第二意见在参考歌词优先模式下不会使用；切回其他策略可继续编辑。'),
               ],
             ],
             const SizedBox(height: 8),
@@ -162,9 +160,12 @@ class _ProofreadV2RunOptionsDialogState
                 key: const ValueKey('forced_alignment_review_toggle'),
                 contentPadding: EdgeInsets.zero,
                 value: _useForcedAlignment,
-                onChanged: (value) => setState(() => _useForcedAlignment = value ?? false),
+                onChanged: (value) =>
+                    setState(() => _useForcedAlignment = value ?? false),
                 title: const Text('使用 ForcedAligner 词级时间证据'),
-                subtitle: const Text('需要本机 Qwen ForcedAligner；ASR 优先对齐草稿，参考优先对齐参考文本。时间仅供复核，不会写入歌词。'),
+                subtitle: const Text(
+                  '需要本机 Qwen ForcedAligner；ASR 优先对齐草稿，参考优先对齐参考文本。时间仅供复核，不会写入歌词。',
+                ),
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ),
@@ -744,10 +745,16 @@ class _LyricProofreadV2ReviewDialogState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('参考文本对齐证据 · ${evidence.source}',
-                        key: ValueKey('reference_alignment_source_${item.proposalIndex}')),
+                    Text(
+                      '参考文本对齐证据 · ${evidence.source}',
+                      key: ValueKey(
+                        'reference_alignment_source_${item.proposalIndex}',
+                      ),
+                    ),
                     Text('对齐文本：${evidence.referenceText}'),
-                    Text('对齐时间（绝对音频时间）：${_formatTime(evidence.start)} – ${_formatTime(evidence.end)}'),
+                    Text(
+                      '对齐时间（绝对音频时间）：${_formatTime(evidence.start)} – ${_formatTime(evidence.end)}',
+                    ),
                     const Text('仅供人工复核；此时间不会随应用建议写入歌词。'),
                   ],
                 ),
