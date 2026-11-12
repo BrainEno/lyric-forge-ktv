@@ -12,7 +12,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Format and report patch
         run: |
-          dart format $(git diff --name-only 12b89758629b9f784792ec187d55cef3e19bbfd2 -- lib test | grep "\.dart$")
+          dart format $(git diff --name-only 12b89758629b9f784792ec187d55cef3e19bbfd2 -- lib test | grep "[.]dart$")
           git diff > /tmp/format.patch
           python3 - <<'PY'
           import gzip,base64
