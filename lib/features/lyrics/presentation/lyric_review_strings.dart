@@ -1,6 +1,7 @@
 import '../domain/proofreading/forced_alignment_language.dart';
 import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
+import '../domain/proofreading/project_proofread_evidence.dart';
 import '../domain/proofreading/proofread_strategy_selector.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
@@ -63,6 +64,19 @@ abstract final class LyricReviewStrings {
       LyricProofreadV2AlignmentHint.wordTimingMissing => '缺少词级对齐证据',
     };
   }
+
+  static String projectEvidenceUnavailable(ProjectProofreadEvidenceStatus status) => switch (status) {
+    ProjectProofreadEvidenceStatus.available => '工程证据可用。',
+    ProjectProofreadEvidenceStatus.projectChanged => '工程已在其他位置更新，请刷新后重试。',
+    ProjectProofreadEvidenceStatus.missingEvidence => '工程没有完整的独立双引擎快照；可改为粘贴第二份转写稿。',
+    ProjectProofreadEvidenceStatus.invalidEvidence => '工程中的独立转写快照无效或不支持；可改为粘贴第二份转写稿。',
+    ProjectProofreadEvidenceStatus.unverifiedAudio => '快照缺少音频校验信息，不能自动复用；可改为粘贴第二份转写稿。',
+    ProjectProofreadEvidenceStatus.audioUnavailable => '识别音频不可读取，无法验证工程快照。',
+    ProjectProofreadEvidenceStatus.audioChanged => '识别音频与快照不一致，不能复用工程证据。',
+    ProjectProofreadEvidenceStatus.audioSelectionChanged => '校验期间工程识别音源发生变化，请重试。',
+    ProjectProofreadEvidenceStatus.draftChanged => '当前歌词与独立主引擎原稿不完全一致，不能把第二稿作为独立共识；可改用手动复核。',
+    ProjectProofreadEvidenceStatus.unsupportedOffsets => '歌词或转写快照带有偏移，暂不能安全比较工程证据。',
+  };
 
   static const forcedAlignmentBusy = '识别资源正忙，请等待其他任务结束后重试。';
 

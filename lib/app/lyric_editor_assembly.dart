@@ -1,5 +1,6 @@
 import '../features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../features/lyrics/presentation/lyric_editor_dependencies.dart';
+import '../features/transcription/data/services/project_proofread_evidence_loader.dart';
 import '../features/transcription/domain/services/asr_resource_coordinator.dart';
 import '../features/transcription/domain/services/asr_runtime_manager.dart';
 import 'app_services.dart';
@@ -23,6 +24,9 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
     lyricFileExport: services.lyricFileExportService,
     lyricFileImport: services.lyricFileImportService,
     forcedAlignmentRunner: buildForcedAlignmentRunner(services),
+    projectProofreadEvidenceLoader: VerifiedProjectProofreadEvidenceLoader(
+      projects: services.projectRepository,
+    ).load,
   );
 }
 

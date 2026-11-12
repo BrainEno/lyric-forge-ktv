@@ -15,26 +15,30 @@ class ProofreadV2RunOptions {
   final bool useReference;
   final String? secondaryTranscriptText;
   final bool useForcedAlignment;
+  final bool useProjectEvidence;
 
   const ProofreadV2RunOptions({
     required this.strategy,
     required this.useReference,
     this.secondaryTranscriptText,
     this.useForcedAlignment = false,
+    this.useProjectEvidence = false,
   });
 }
 
 Future<ProofreadV2RunOptions?> showProofreadV2RunOptionsDialog(
-  BuildContext context,
-) {
+  BuildContext context, {
+  bool allowProjectEvidence = false,
+}) {
   return showDialog<ProofreadV2RunOptions>(
     context: context,
-    builder: (_) => const _ProofreadV2RunOptionsDialog(),
+    builder: (_) => _ProofreadV2RunOptionsDialog(allowProjectEvidence: allowProjectEvidence),
   );
 }
 
 class _ProofreadV2RunOptionsDialog extends StatefulWidget {
-  const _ProofreadV2RunOptionsDialog();
+  final bool allowProjectEvidence;
+  const _ProofreadV2RunOptionsDialog({required this.allowProjectEvidence});
 
   @override
   State<_ProofreadV2RunOptionsDialog> createState() =>
@@ -46,6 +50,7 @@ class _ProofreadV2RunOptionsDialogState
   LyricSourceStrategy _strategy = LyricSourceStrategy.auto;
   bool _useReference = false;
   bool _useForcedAlignment = false;
+  bool _useProjectEvidence = false;
   final TextEditingController _secondaryTranscriptController =
       TextEditingController();
 
@@ -141,7 +146,7 @@ class _ProofreadV2RunOptionsDialogState
             ] else if (_strategy == LyricSourceStrategy.referenceFirst) ...[
               const SizedBox(height: 8),
               const Text('下一步需要粘贴或导入参考歌词。'),
-              if (_useForcedAlignment ||
+              if (_useForcedAlignment || _useProjectEvidence ||
                   _secondaryTranscriptController.text.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 const Text(
@@ -177,8 +182,22 @@ class _ProofreadV2RunOptionsDialogState
                 ),
               ),
               const SizedBox(height: 8),
+              if (widget.allowProjectEvidence) ...[
+                _revealOnFocus(
+                  CheckboxListTile(
+                    key: const ValueKey('project_asr_evidence_toggle'),
+                    contentPadding: EdgeInsets.zero,
+                    value: _useProjectEvidence,
+                    onChanged: (value) => setState(() => _useProjectEvidence = value ?? false),
+                    title: const Text('使用工程中的独立第二份转写稿'),
+                    subtitle: const Text('仅限与当前草稿一致、音频已校验的完整双引擎快照；选中后暂不使用粘贴稿。校验音频可能需要时间。'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
+              ],
               _revealOnFocus(
                 TextField(
+                  enabled: !_useProjectEvidence,
                   key: const ValueKey('secondary_asr_transcript_input'),
                   controller: _secondaryTranscriptController,
                   minLines: 3,
@@ -207,8 +226,10 @@ class _ProofreadV2RunOptionsDialogState
               useReference:
                   _strategy == LyricSourceStrategy.referenceFirst ||
                   (_strategy == LyricSourceStrategy.auto && _useReference),
+              useProjectEvidence: widget.allowProjectEvidence &&
+                  _strategy != LyricSourceStrategy.referenceFirst && _useProjectEvidence,
               secondaryTranscriptText:
-                  _strategy != LyricSourceStrategy.referenceFirst &&
+                  !_useProjectEvidence && _strategy != LyricSourceStrategy.referenceFirst &&
                       _secondaryTranscriptController.text.trim().isNotEmpty
                   ? _secondaryTranscriptController.text.trim()
                   : null,
