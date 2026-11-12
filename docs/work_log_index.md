@@ -20,6 +20,8 @@
 
 ## Recent work areas
 
+- **Reference ForcedAligner planning (#319):** domain-only planner returns complete, exact, ordered line timing candidates with original reference indices; no UI, application or persistence yet. Integrate with protected-line handling and explicit review before use.
+
 - **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Snapshot reuse requires the draft to match the primary transcript; reference-first alignment and broader fused/chunked reuse remain open.
 
 - **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
