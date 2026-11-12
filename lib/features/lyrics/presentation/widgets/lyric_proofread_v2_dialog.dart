@@ -352,6 +352,8 @@ class _LyricProofreadV2ReviewDialogState
   final Set<int> _restoredDraftIndices = {};
   final Set<int> _acceptedReferenceTimings = {};
   bool _referencePreviewPending = false;
+  bool _timedPreviewPending = false;
+  bool get _previewPending => _referencePreviewPending || _timedPreviewPending;
   final Map<int, String> _auditionFeedbackByProposal = {};
   final Map<(String, String), List<CharacterDiffSegment>> _textDiffs = {};
 
@@ -398,11 +400,20 @@ class _LyricProofreadV2ReviewDialogState
     required String label,
   }) async {
     final preview = widget.onPreviewTimedLine;
-    if (preview == null) return;
-    setState(() => _auditionFeedbackByProposal.remove(proposalIndex));
-    final result = await preview(sourceIndex, line, globalOffset);
+    if (preview == null || _previewPending) return;
+    setState(() {
+      _timedPreviewPending = true;
+      _auditionFeedbackByProposal.remove(proposalIndex);
+    });
+    ProofreadTimedLinePreviewResult result;
+    try {
+      result = await preview(sourceIndex, line, globalOffset);
+    } catch (error) {
+      result = ProofreadTimedLinePreviewResult.failure(error.toString());
+    }
     if (!mounted) return;
     setState(() {
+      _timedPreviewPending = false;
       _auditionFeedbackByProposal[proposalIndex] = result.succeeded
           ? result.message ?? '正在试听$label时间范围；再次点击可暂停。'
           : '试听失败：${result.message ?? '未知原因'}';
@@ -414,7 +425,7 @@ class _LyricProofreadV2ReviewDialogState
     ReferenceForcedTimingProposal evidence,
   ) async {
     final preview = widget.onPreviewReferenceTiming;
-    if (preview == null || _referencePreviewPending) return;
+    if (preview == null || _previewPending) return;
     setState(() {
       _referencePreviewPending = true;
       _auditionFeedbackByProposal.remove(item.proposalIndex);
@@ -534,7 +545,7 @@ class _LyricProofreadV2ReviewDialogState
                       : IconButton(
                           key: ValueKey('preview_dropped_${item.sourceIndex}'),
                           tooltip: '试听原始行',
-                          onPressed: widget.onPreviewTimedLine == null
+                          onPressed: _previewPending ? null : widget.onPreviewTimedLine == null
                               ? () =>
                                     widget.onPreviewDraftLine!(item.sourceIndex)
                               : () => _previewTimedLine(
@@ -752,7 +763,7 @@ class _LyricProofreadV2ReviewDialogState
                     key: ValueKey('preview_original_${item.proposalIndex}'),
                     tooltip: '试听原始行',
                     visualDensity: VisualDensity.compact,
-                    onPressed: widget.onPreviewTimedLine == null
+                    onPressed: _previewPending ? null : widget.onPreviewTimedLine == null
                         ? () => widget.onPreviewDraftLine!(item.sourceIndex!)
                         : () => _previewTimedLine(
                             proposalIndex: item.proposalIndex,
@@ -769,7 +780,7 @@ class _LyricProofreadV2ReviewDialogState
                     key: ValueKey('preview_proposed_${item.proposalIndex}'),
                     tooltip: '试听建议时间',
                     visualDensity: VisualDensity.compact,
-                    onPressed: () => _previewTimedLine(
+                    onPressed: _previewPending ? null : () => _previewTimedLine(
                       proposalIndex: item.proposalIndex,
                       sourceIndex: item.sourceIndex!,
                       line: item.proposedLine,
@@ -826,7 +837,7 @@ class _LyricProofreadV2ReviewDialogState
                       ),
                       onPressed:
                           widget.onPreviewReferenceTiming == null ||
-                              _referencePreviewPending
+                              _previewPending
                           ? null
                           : () => _previewReferenceTiming(item, evidence),
                       icon: const Icon(Icons.headphones_rounded),
@@ -911,6 +922,7 @@ class _LyricProofreadV2ReviewDialogState
                             : '置信度 ${token.confidence}%';
                         final canPreview =
                             item.sourceIndex != null &&
+                            !_previewPending &&
                             widget.onPreviewAlignmentToken != null;
                         return ListTile(
                           key: ValueKey(

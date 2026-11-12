@@ -52,6 +52,7 @@ void main() {
   Future<void> open(
     WidgetTester tester, {
     ReferenceTimingPreview? preview,
+    ProofreadTimedLinePreview? timedPreview,
     LyricProofreadReviewVerdict verdict = LyricProofreadReviewVerdict.amber,
     LyricLine? source = original,
     Size size = const Size(1000, 700),
@@ -79,6 +80,7 @@ void main() {
                   summary: 'summary',
                   explanation: 'evidence',
                   onPreviewDraftLine: null,
+                  onPreviewTimedLine: timedPreview,
                   allowReferenceTimingSelection: true,
                   onPreviewReferenceTiming: preview,
                   originalGlobalOffset: const Duration(seconds: 1),
@@ -264,6 +266,28 @@ void main() {
       expect(find.text('已暂停试听。'), findsOneWidget);
     },
   );
+
+  testWidgets('reference and ordinary previews cannot race while either is pending', (tester) async {
+    final referenceGate = Completer<ProofreadTimedLinePreviewResult>();
+    final originalGate = Completer<ProofreadTimedLinePreviewResult>();
+    await open(tester, preview: (_, __, ___) => referenceGate.future, timedPreview: (_, __, ___) => originalGate.future);
+    await showButton(tester);
+    await tester.tap(button());
+    await tester.pump();
+    expect(tester.widget<IconButton>(find.byKey(const ValueKey('preview_original_7'))).onPressed, isNull);
+    expect(tester.widget<IconButton>(find.byKey(const ValueKey('preview_proposed_7'))).onPressed, isNull);
+    referenceGate.complete(const ProofreadTimedLinePreviewResult.success());
+    await tester.pumpAndSettle();
+    final originalButton = find.byKey(const ValueKey('preview_original_7'));
+    await Scrollable.ensureVisible(tester.element(originalButton), alignment: 0.5);
+    await tester.pumpAndSettle();
+    await tester.tap(originalButton);
+    await tester.pump();
+    expect(tester.widget<TextButton>(button()).onPressed, isNull);
+    originalGate.complete(const ProofreadTimedLinePreviewResult.success());
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextButton>(button()).onPressed, isNotNull);
+  });
 
   testWidgets(
     'late preview completion after dialog closes does not set disposed state',
