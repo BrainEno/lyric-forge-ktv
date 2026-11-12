@@ -1,6 +1,7 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'proofread_result.dart';
 import 'proofread_strategy_selector.dart';
+import 'reference_forced_alignment_planner.dart';
 
 /// How a single review row should be treated when the user confirms.
 ///
@@ -97,6 +98,9 @@ class LyricProofreadV2ReviewItem {
   final Set<LyricProofreadV2AlignmentHint> alignmentHints;
   final List<TimedLyricToken> alignmentTokens;
 
+  /// Separate, absolute-time reference evidence; never part of proposedLine.
+  final ReferenceForcedTimingProposal? referenceTimingEvidence;
+
   LyricProofreadV2ReviewItem({
     required this.proposalIndex,
     required this.sourceIndex,
@@ -107,6 +111,7 @@ class LyricProofreadV2ReviewItem {
     Set<ProofreadReason> proofreadReasons = const {},
     Set<LyricProofreadV2AlignmentHint> alignmentHints = const {},
     this.alignmentTokens = const [],
+    this.referenceTimingEvidence,
   }) : referenceReasons = Set.unmodifiable(referenceReasons),
        proofreadReasons = Set.unmodifiable(proofreadReasons),
        alignmentHints = Set.unmodifiable(alignmentHints);
