@@ -8,7 +8,10 @@ import '../../domain/proofreading/independent_snapshot_comparison.dart';
 class ProjectAsrSnapshotDialog extends StatelessWidget {
   final ProjectProofreadEvidenceResult evidence;
 
-  ProjectAsrSnapshotDialog({super.key, required this.evidence})
+  /// Zero-based invocation index, when examining a chunk rather than a song.
+  final int? chunkIndex;
+
+  ProjectAsrSnapshotDialog({super.key, required this.evidence, this.chunkIndex})
     : assert(evidence.status == ProjectProofreadEvidenceStatus.auditOnly);
 
   @override
@@ -18,16 +21,16 @@ class ProjectAsrSnapshotDialog extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: AlertDialog(
-        title: const Text('原始双引擎快照（只读）'),
+        title: Text(chunkIndex == null ? '原始双引擎快照（只读）' : '分片 ${chunkIndex! + 1} 原始快照（只读）'),
         content: SizedBox(
           width: 640,
           height: 440,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '当前歌词与原始主引擎稿不同，可能经过融合或编辑。以下是识别时的两份原稿，不代表当前歌词与第二引擎独立一致，也不保证准确。音频校验仅为时点检查。',
-              ),
+              Text(chunkIndex == null
+                ? '当前歌词与原始主引擎稿不同，可能经过融合或编辑。以下是识别时的两份原稿，不代表当前歌词与第二引擎独立一致，也不保证准确。音频校验仅为时点检查。'
+                : '仅比较本分片两份原稿，时间为完整音源的绝对时间；重叠片段可能重复，不代表当前歌词独立一致，也不保证准确。音频校验仅为时点检查。'),
               const SizedBox(height: 8),
               Text('采集时间（UTC）：${evidence.capturedAtUtc!.toIso8601String()}'),
               const TabBar(

@@ -193,7 +193,7 @@ class _ProofreadV2RunOptionsDialogState
                         setState(() => _useProjectEvidence = value ?? false),
                     title: const Text('使用工程中的独立第二份转写稿'),
                     subtitle: const Text(
-                      '音频校验后，草稿一致时用于复核；不一致时仅显示原始双引擎快照，不参与当前草稿判断。选中后暂不使用粘贴稿。',
+                      '音频校验后，完整原稿与草稿一致时用于复核；融合或分片原稿仅可只读查看，不参与当前草稿判断。选中后暂不使用粘贴稿。',
                     ),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
