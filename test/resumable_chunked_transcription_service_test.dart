@@ -1607,75 +1607,98 @@ void main() {
       },
     );
 
-    test('duration changing between probes prevents evidence publication', () async {
-      var probes = 0;
-      final supervisor = AsrProcessSupervisor(
-        startProcess: (_, args) async {
-          final process = _FakeProcess();
-          if (args.contains('-ss')) {
-            await File(args.last).writeAsBytes(List<int>.filled(128, 0));
-            Timer(const Duration(milliseconds: 1), () => process.finish(0));
-          } else {
-            probes++;
-            final label = probes == 1 ? '00:00:04.000' : '00:00:05.000';
-            Timer(const Duration(milliseconds: 1), () {
-              process.emitStderr('Duration: $label, start: 0.000000, bitrate: 1 kb/s');
-              process.finish(0);
-            });
-          }
-          return process;
-        },
-        streamDrainGrace: const Duration(milliseconds: 10),
-      );
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final wrapper = ResumableChunkedTranscriptionService(
-        delegate: delegate,
-        chunkDuration: const Duration(seconds: 3),
-        overlap: const Duration(seconds: 1),
-        maxAttempts: 1,
-        processSupervisor: supervisor,
-      );
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(probes, 2);
-      expect(delegate.calls, 2);
-      expect(result.lyrics.lines, isNotEmpty);
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-    });
+    test(
+      'duration changing between probes prevents evidence publication',
+      () async {
+        var probes = 0;
+        final supervisor = AsrProcessSupervisor(
+          startProcess: (_, args) async {
+            final process = _FakeProcess();
+            if (args.contains('-ss')) {
+              await File(args.last).writeAsBytes(List<int>.filled(128, 0));
+              Timer(const Duration(milliseconds: 1), () => process.finish(0));
+            } else {
+              probes++;
+              final label = probes == 1 ? '00:00:04.000' : '00:00:05.000';
+              Timer(const Duration(milliseconds: 1), () {
+                process.emitStderr(
+                  'Duration: $label, start: 0.000000, bitrate: 1 kb/s',
+                );
+                process.finish(0);
+              });
+            }
+            return process;
+          },
+          streamDrainGrace: const Duration(milliseconds: 10),
+        );
+        final delegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
+        final wrapper = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          maxAttempts: 1,
+          processSupervisor: supervisor,
+        );
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(probes, 2);
+        expect(delegate.calls, 2);
+        expect(result.lyrics.lines, isNotEmpty);
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+      },
+    );
 
-    test('failed provenance duration check does not break transcription', () async {
-      var probes = 0;
-      final supervisor = AsrProcessSupervisor(
-        startProcess: (_, args) async {
-          final process = _FakeProcess();
-          if (args.contains('-ss')) {
-            await File(args.last).writeAsBytes(List<int>.filled(128, 0));
-            Timer(const Duration(milliseconds: 1), () => process.finish(0));
-          } else {
-            probes++;
-            Timer(const Duration(milliseconds: 1), () {
-              if (probes == 1) process.emitStderr('Duration: 00:00:04.000, start: 0.000000');
-              process.finish(probes == 1 ? 0 : 1);
-            });
-          }
-          return process;
-        },
-        streamDrainGrace: const Duration(milliseconds: 10),
-      );
-      final delegate = _AsyncService((request, _) => _chunkEvidenceResult(request));
-      final wrapper = ResumableChunkedTranscriptionService(
-        delegate: delegate,
-        chunkDuration: const Duration(seconds: 3),
-        overlap: const Duration(seconds: 1),
-        maxAttempts: 1,
-        processSupervisor: supervisor,
-      );
-      addTearDown(wrapper.dispose);
-      final result = await wrapper.transcribe(request());
-      expect(probes, 2);
-      expect(delegate.calls, 2);
-      expect(result.lyrics.metadata.containsKey(ChunkedIndependentAsrEvidence.metadataKey), isFalse);
-    });
+    test(
+      'failed provenance duration check does not break transcription',
+      () async {
+        var probes = 0;
+        final supervisor = AsrProcessSupervisor(
+          startProcess: (_, args) async {
+            final process = _FakeProcess();
+            if (args.contains('-ss')) {
+              await File(args.last).writeAsBytes(List<int>.filled(128, 0));
+              Timer(const Duration(milliseconds: 1), () => process.finish(0));
+            } else {
+              probes++;
+              Timer(const Duration(milliseconds: 1), () {
+                if (probes == 1)
+                  process.emitStderr('Duration: 00:00:04.000, start: 0.000000');
+                process.finish(probes == 1 ? 0 : 1);
+              });
+            }
+            return process;
+          },
+          streamDrainGrace: const Duration(milliseconds: 10),
+        );
+        final delegate = _AsyncService(
+          (request, _) => _chunkEvidenceResult(request),
+        );
+        final wrapper = ResumableChunkedTranscriptionService(
+          delegate: delegate,
+          chunkDuration: const Duration(seconds: 3),
+          overlap: const Duration(seconds: 1),
+          maxAttempts: 1,
+          processSupervisor: supervisor,
+        );
+        addTearDown(wrapper.dispose);
+        final result = await wrapper.transcribe(request());
+        expect(probes, 2);
+        expect(delegate.calls, 2);
+        expect(
+          result.lyrics.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test(
       'missing second opinion in any chunk omits the whole collection',
