@@ -234,6 +234,96 @@ void main() {
     );
   });
 
+  group('reference timing audition integration', () {
+    Future<List<ForcedAlignedSpan>> align({required String audioPath, required String text, required String language, required Duration audioDuration}) async => const [
+      ForcedAlignedSpan(text: 'Human lyric', start: Duration(milliseconds: 500), end: Duration(milliseconds: 1200)),
+    ];
+    final button = find.byKey(const ValueKey('preview_reference_timing_0'));
+
+    testWidgets('plays absolute range on verified vocal and stops when dialog closes', (tester) async {
+      final guard = _ReferenceTimingGuard();
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
+      final session = _PreviewPlaybackSession();
+      final document = _document('Human lyric').copyWith(globalOffset: const Duration(milliseconds: 300));
+      final editor = await _openEditor(tester, align, initialDocument: document, vocalPath: '/vocal.wav', timingGuard: guard, previewAudio: audio, previewSession: session);
+      await _openReferenceEvidenceReview(tester, 'Human lyric');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(session.seeks, [const Duration(milliseconds: 250)]);
+      expect(audio.playCalls, 1);
+      expect(guard.verifyCalls, 2);
+      expect(editor.document!.lines.single.startTime, Duration.zero);
+      expect(editor.hasChanges, isFalse);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(audio.pauseCalls, 1);
+      expect(editor.hasChanges, isFalse);
+    });
+
+    testWidgets('same project playing a different stem is refused without queue changes', (tester) async {
+      final guard = _ReferenceTimingGuard();
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.original);
+      final session = _PreviewPlaybackSession();
+      final editor = await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: guard, previewAudio: audio, previewSession: session);
+      await _openReferenceEvidenceReview(tester, 'Human lyric');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('播放器音源与对齐音源不同'), findsOneWidget);
+      expect(session.seeks, isEmpty);
+      expect(audio.playCalls, 0);
+      expect(session.playItemCalls, 0);
+      expect(editor.hasChanges, isFalse);
+    });
+
+    testWidgets('changed audio hash after review blocks audition without seeking', (tester) async {
+      final guard = _ReferenceTimingGuard()..failVerifyAt = 2;
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
+      final session = _PreviewPlaybackSession();
+      await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: guard, previewAudio: audio, previewSession: session);
+      await _openReferenceEvidenceReview(tester, 'Human lyric');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('对齐音频内容已变化'), findsOneWidget);
+      expect(session.seeks, isEmpty);
+      expect(audio.playCalls, 0);
+    });
+
+    testWidgets('closing during seek prevents late playback', (tester) async {
+      final guard = _ReferenceTimingGuard();
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
+      final session = _PreviewPlaybackSession()..seekGate = Completer<void>();
+      await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: guard, previewAudio: audio, previewSession: session);
+      await _openReferenceEvidenceReview(tester, 'Human lyric');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+      expect(session.seeks, [const Duration(milliseconds: 250)]);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      session.seekGate!.complete();
+      await tester.pumpAndSettle();
+      expect(audio.playCalls, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('changing stem after starting does not pause another source on close', (tester) async {
+      final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
+      final session = _PreviewPlaybackSession();
+      await _openEditor(tester, align, vocalPath: '/vocal.wav', timingGuard: _ReferenceTimingGuard(), previewAudio: audio, previewSession: session);
+      await _openReferenceEvidenceReview(tester, 'Human lyric');
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pumpAndSettle();
+      audio.state = audio.state.copyWith(currentSource: AudioSourceType.original);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(audio.pauseCalls, 0);
+    });
+  });
+
   group('reference forced-alignment evidence', () {
     testWidgets(
       'reference evidence reaches review without changing the editor',
@@ -1407,6 +1497,8 @@ Future<LyricEditorDocumentController> _openEditor(
   String? vocalPath,
   ProjectProofreadEvidenceLoader? evidenceLoader,
   ReferenceAlignmentAudioGuard? timingGuard,
+  AudioPlayerService? previewAudio,
+  _PreviewPlaybackSession? previewSession,
 }) async {
   final repository = MemoryProjectRepository();
   var project = await repository.createProject(name: 'Song');
@@ -1421,6 +1513,7 @@ Future<LyricEditorDocumentController> _openEditor(
       ),
     ),
   );
+  previewSession?.setProject(project);
   tester.view.physicalSize = const Size(1600, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -1431,8 +1524,8 @@ Future<LyricEditorDocumentController> _openEditor(
         projectId: project.id,
         dependencies: LyricEditorDependencies(
           projectRepository: repository,
-          playbackSession: _FakePlaybackSession(),
-          audioPlayer: _FakeAudioPlayer(),
+          playbackSession: previewSession ?? _FakePlaybackSession(),
+          audioPlayer: previewAudio ?? _FakeAudioPlayer(),
           lyricFileExport: _FakeLyricFileExport(),
           lyricFileImport: LocalLyricFileImportService(),
           forcedAlignmentRunner: runner,
@@ -1588,4 +1681,33 @@ class _ReferenceTimingGuard implements ReferenceAlignmentAudioGuard {
       snapshot: snapshot,
     );
   }
+}
+
+class _PreviewAudioPlayer extends _FakeAudioPlayer {
+  PlaybackState state;
+  int playCalls = 0;
+  int pauseCalls = 0;
+  _PreviewAudioPlayer({required AudioSourceType source}) : state = const PlaybackState.idle().copyWith(currentSource: source, duration: const Duration(seconds: 3));
+  @override
+  PlaybackState get currentState => state;
+  @override
+  Future<void> play() async { playCalls++; state = state.copyWith(isPlaying: true); }
+  @override
+  Future<void> pause() async { pauseCalls++; state = state.copyWith(isPlaying: false); }
+}
+
+class _PreviewPlaybackSession extends _FakePlaybackSession {
+  PlaybackSessionState state = const PlaybackSessionState();
+  final List<Duration> seeks = [];
+  Completer<void>? seekGate;
+  int playItemCalls = 0;
+  void setProject(ProjectManifest project) {
+    state = PlaybackSessionState(queue: [PlaybackItem(id: project.id, title: project.name, projectId: project.id, audioAsset: project.audioAsset!)], currentIndex: 0);
+  }
+  @override
+  PlaybackSessionState get currentState => state;
+  @override
+  Future<void> seek(Duration position) async { seeks.add(position); if (seekGate != null) await seekGate!.future; }
+  @override
+  Future<void> playItem(PlaybackItem item, {Duration? resumeFrom}) async { playItemCalls++; }
 }
