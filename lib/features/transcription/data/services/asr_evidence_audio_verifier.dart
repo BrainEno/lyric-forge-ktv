@@ -57,7 +57,8 @@ class AsrEvidenceAudioVerifier {
     final chunked = single == null
         ? ChunkedIndependentAsrEvidence.tryParse(rawEvidence)
         : null;
-    if (single == null && chunked == null) return AsrEvidenceAudioStatus.invalidEvidence;
+    if (single == null && chunked == null)
+      return AsrEvidenceAudioStatus.invalidEvidence;
     final expected = single?.sourceAudioSha256 ?? chunked?.sourceAudioSha256;
     if (expected == null) return AsrEvidenceAudioStatus.unverified;
     if (currentAudioPath == null || currentAudioPath.trim().isEmpty) {

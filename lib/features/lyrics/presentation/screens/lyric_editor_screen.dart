@@ -641,7 +641,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             ProjectProofreadEvidenceStatus.chunkAuditOnly) {
           await showDialog<void>(
             context: context,
-            builder: (_) => ProjectChunkAsrSnapshotDialog(chunks: projectEvidence!.chunks),
+            builder: (_) =>
+                ProjectChunkAsrSnapshotDialog(chunks: projectEvidence!.chunks),
           );
           return;
         }

@@ -55,22 +55,30 @@ class VerifiedProjectProofreadEvidenceLoader {
       return unavailable(ProjectProofreadEvidenceStatus.invalidEvidence);
     }
     final raw = singleRaw ?? chunkRaw;
-    final evidence = singleRaw == null ? null : IndependentAsrEvidence.tryParse(singleRaw);
-    final chunked = chunkRaw == null ? null : ChunkedIndependentAsrEvidence.tryParse(chunkRaw);
-    if ((singleRaw != null && (evidence == null ||
-        !_independentEngines(evidence) ||
-        !_validTranscript(evidence.primary) ||
-        !_validTranscript(evidence.secondary))) ||
+    final evidence = singleRaw == null
+        ? null
+        : IndependentAsrEvidence.tryParse(singleRaw);
+    final chunked = chunkRaw == null
+        ? null
+        : ChunkedIndependentAsrEvidence.tryParse(chunkRaw);
+    if ((singleRaw != null &&
+            (evidence == null ||
+                !_independentEngines(evidence) ||
+                !_validTranscript(evidence.primary) ||
+                !_validTranscript(evidence.secondary))) ||
         (chunkRaw != null && chunked == null)) {
       return unavailable(ProjectProofreadEvidenceStatus.invalidEvidence);
     }
     if ((draft.globalOffset ?? Duration.zero) != Duration.zero ||
         (evidence != null &&
-          ((evidence.primary.globalOffset ?? Duration.zero) != Duration.zero ||
-           (evidence.secondary.globalOffset ?? Duration.zero) != Duration.zero))) {
+            ((evidence.primary.globalOffset ?? Duration.zero) !=
+                    Duration.zero ||
+                (evidence.secondary.globalOffset ?? Duration.zero) !=
+                    Duration.zero))) {
       return unavailable(ProjectProofreadEvidenceStatus.unsupportedOffsets);
     }
-    final matchesPrimary = evidence != null && _matchesPrimary(draft, evidence.primary);
+    final matchesPrimary =
+        evidence != null && _matchesPrimary(draft, evidence.primary);
     if (evidence != null && evidence.sourceAudioSha256 == null) {
       return unavailable(ProjectProofreadEvidenceStatus.unverifiedAudio);
     }

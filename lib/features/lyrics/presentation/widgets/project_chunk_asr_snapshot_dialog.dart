@@ -35,7 +35,9 @@ class ProjectChunkAsrSnapshotDialog extends StatelessWidget {
                   return ListTile(
                     key: ValueKey('chunk_snapshot_$index'),
                     title: Text('分片 ${chunk.index + 1}'),
-                    subtitle: Text('${_time(chunk.start)} – ${_time(chunk.end)}'),
+                    subtitle: Text(
+                      '${_time(chunk.start)} – ${_time(chunk.end)}',
+                    ),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => showDialog<void>(
                       context: context,
