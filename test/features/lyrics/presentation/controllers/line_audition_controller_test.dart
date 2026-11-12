@@ -210,15 +210,30 @@ void main() {
       },
     );
 
-    test('different controls with identical windows start independently', () async {
-      await controller.start(request: request, prepare: noPrepare);
-      const reference = LineAuditionRequest(projectId: 'p1', lineIndex: 0, lineId: 'line-a', previewKey: 'reference:0', window: window);
-      final result = await controller.toggle(request: reference, prepare: noPrepare);
-      expect(result.action, LineAuditionAction.started);
-      expect(session.seeks, [const Duration(seconds: 10), const Duration(seconds: 10)]);
-      expect(controller.active!.previewKey, 'reference:0');
-      expect(audio.pauseCalls, 0);
-    });
+    test(
+      'different controls with identical windows start independently',
+      () async {
+        await controller.start(request: request, prepare: noPrepare);
+        const reference = LineAuditionRequest(
+          projectId: 'p1',
+          lineIndex: 0,
+          lineId: 'line-a',
+          previewKey: 'reference:0',
+          window: window,
+        );
+        final result = await controller.toggle(
+          request: reference,
+          prepare: noPrepare,
+        );
+        expect(result.action, LineAuditionAction.started);
+        expect(session.seeks, [
+          const Duration(seconds: 10),
+          const Duration(seconds: 10),
+        ]);
+        expect(controller.active!.previewKey, 'reference:0');
+        expect(audio.pauseCalls, 0);
+      },
+    );
 
     test('a stale request cannot interrupt an active audition', () async {
       await controller.start(request: request, prepare: noPrepare);
