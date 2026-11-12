@@ -3,6 +3,8 @@ import '../domain/proofreading/proofread_result.dart';
 import '../domain/proofreading/proofread_review_proposal.dart';
 import '../domain/proofreading/project_proofread_evidence.dart';
 import '../domain/proofreading/reference_forced_alignment_planner.dart';
+import '../domain/proofreading/reference_alignment_audio_guard.dart';
+import '../domain/proofreading/reference_alignment_timing_applier.dart';
 import '../domain/proofreading/proofread_strategy_selector.dart';
 import '../domain/services/lyric_review_priority_service.dart';
 
@@ -91,7 +93,7 @@ abstract final class LyricReviewStrings {
   static String referenceAlignmentSummary(ReferenceForcedAlignmentPlan plan) {
     final detail = switch (plan.status) {
       ReferenceForcedAlignmentStatus.ready =>
-        '已生成 ${plan.proposals.length} 行参考文本对齐证据。时间仅供复核，不会随建议写入歌词；对齐结果不保证准确。',
+        '已生成 ${plan.proposals.length} 行参考文本对齐证据。仅显式勾选的行可采纳；对齐结果不保证准确。',
       ReferenceForcedAlignmentStatus.noUsableLyrics => '参考歌词没有可用于对齐的行。',
       ReferenceForcedAlignmentStatus.invalidReference => '参考歌词格式不适合对齐。',
       ReferenceForcedAlignmentStatus.referenceLimitExceeded => '参考歌词超过对齐安全限制。',
@@ -111,6 +113,27 @@ abstract final class LyricReviewStrings {
     ].join('，');
     return '参考文本 ForcedAligner 未生成时间证据：$detail${location.isEmpty ? '' : '（$location）'} 已保留普通参考校对提案。';
   }
+
+  static String referenceAlignmentAudioStatus(ReferenceAlignmentAudioStatus status) => switch (status) {
+    ReferenceAlignmentAudioStatus.matches => '音源已通过时点校验；这不是文件锁，也不保证对齐准确。',
+    ReferenceAlignmentAudioStatus.projectChanged => '工程在校对期间发生变化，请刷新后重试。',
+    ReferenceAlignmentAudioStatus.audioSelectionChanged => '工程对齐音源已变更，请重新生成。',
+    ReferenceAlignmentAudioStatus.audioChanged => '对齐音频内容已变化，请重新生成。',
+    ReferenceAlignmentAudioStatus.audioUnavailable => '无法读取对齐音频，请检查音源后重试。',
+  };
+
+  static String referenceTimingApplyFailure(ReferenceTimingApplyFailure reason) => switch (reason) {
+    ReferenceTimingApplyFailure.wrongStrategy => '当前策略不支持采纳参考对齐时间。',
+    ReferenceTimingApplyFailure.unknownSelection || ReferenceTimingApplyFailure.duplicateProposal ||
+    ReferenceTimingApplyFailure.ambiguousLineIdentity => '复核行无法安全对应，请重新生成提案。',
+    ReferenceTimingApplyFailure.missingEvidence => '所选行缺少对齐证据，请重新生成提案。',
+    ReferenceTimingApplyFailure.protectedLine => '受保护行不能采纳对齐时间。',
+    ReferenceTimingApplyFailure.unacceptedInsertion => '请先采纳新增参考行，再采纳其时间。',
+    ReferenceTimingApplyFailure.textMismatch => '实际保留的歌词与对齐文本不同，请先采纳对应参考文字。',
+    ReferenceTimingApplyFailure.offsetChanged => '普通提案会重置整体偏移，不能与对齐时间同时采纳；请先单独处理普通提案或偏移。',
+    ReferenceTimingApplyFailure.negativeStoredTime => '整体偏移使该行的存储时间为负；请先调整偏移。',
+    ReferenceTimingApplyFailure.invalidInterval => '对齐时间范围无效，请重新生成。',
+  };
 
   static const forcedAlignmentBusy = '识别资源正忙，请等待其他任务结束后重试。';
 

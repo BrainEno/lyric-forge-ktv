@@ -21,6 +21,8 @@ import '../../domain/proofreading/forced_alignment_language.dart';
 import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/project_proofread_evidence.dart';
+import '../../domain/proofreading/reference_alignment_audio_guard.dart';
+import '../../domain/proofreading/reference_alignment_timing_applier.dart';
 import '../../domain/proofreading/proofread_v2_document_composer.dart';
 import '../../domain/proofreading/run_proofread_v2_use_case.dart';
 import '../../domain/proofreading/run_reference_proofread_use_case.dart';
@@ -647,6 +649,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         }
         secondaryAsr = projectEvidence.secondary;
       }
+      // Capture before invoking the aligner, then recheck after the long run
+      // and again before applying any explicitly selected reference times.
+      final audioGuard = widget.dependencies.referenceAlignmentAudioGuard;
+      ReferenceAlignmentAudioCheck? audioCheck;
+      final asset = project.audioAsset;
+      if (reference != null && options.useForcedAlignment && asset != null && audioGuard != null) {
+        audioCheck = await audioGuard.capture(
+          projectId: project.id,
+          projectRevision: projectRevision,
+          audioPath: asset.vocalPath ?? asset.originalPath,
+        );
+        if (!_proofreadIsCurrent(revision)) return;
+      }
       final run =
           await RunProofreadV2UseCase(
             runner: widget.dependencies.forcedAlignmentRunner,
@@ -663,6 +678,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       final assembly = run.assembly;
       final decision = run.decision;
       final summary = run.summary;
+      if (assembly.referenceAlignmentPlan?.isReady == true && audioCheck?.snapshot != null && audioGuard != null) {
+        audioCheck = await audioGuard.verify(audioCheck!.snapshot!);
+        if (!_proofreadIsCurrent(revision)) return;
+      }
+      final timingSnapshot = audioCheck?.status == ReferenceAlignmentAudioStatus.matches
+          ? audioCheck?.snapshot : null;
 
       final selection = await showLyricProofreadV2ReviewDialog(
         context,
@@ -671,10 +692,16 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           if (projectEvidence != null)
             '工程独立第二稿：${projectEvidence.secondaryEngine} · ${projectEvidence.capturedAtUtc!.toIso8601String()}；音频已核对，模型内容未校验。',
           LyricReviewStrings.proofreadV2Explanations(assembly.explanations),
-          if (assembly.referenceAlignmentPlan case final plan?)
+          if (assembly.referenceAlignmentPlan case final plan?) ...[
             LyricReviewStrings.referenceAlignmentSummary(plan),
+            if (plan.isReady)
+              audioCheck == null
+                  ? '无法校验音源；参考对齐时间仅可查看，不可采纳。'
+                  : LyricReviewStrings.referenceAlignmentAudioStatus(audioCheck.status),
+          ],
         ].join(' '),
         alignmentDiagnostics: assembly.alignmentDiagnostics,
+        allowReferenceTimingSelection: timingSnapshot != null,
         items: assembly.items,
         droppedItems: assembly.droppedItems,
         onPreviewDraftLine: project.audioAsset == null
@@ -692,6 +719,22 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             : (index, token) => _previewProofreadToken(project, index, token),
       );
       if (selection == null || !_proofreadIsCurrent(revision)) return;
+
+      Future<bool> verifyTimingSnapshot() async {
+        if (selection.acceptedReferenceTimingIndices.isEmpty) return true;
+        if (audioGuard == null || timingSnapshot == null) return false;
+        final check = await audioGuard.verify(timingSnapshot);
+        if (!_proofreadIsCurrent(revision)) return false;
+        if (check.status != ReferenceAlignmentAudioStatus.matches) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(LyricReviewStrings.referenceAlignmentAudioStatus(check.status)),
+            duration: const Duration(seconds: 6),
+          ));
+          return false;
+        }
+        return true;
+      }
+      if (!await verifyTimingSnapshot()) return;
 
       const composer = ProofreadV2DocumentComposer();
       final after = composer.compose(
@@ -723,10 +766,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         if (keep != true || !_proofreadIsCurrent(revision)) return;
       }
       if (!_proofreadIsCurrent(revision)) return;
+      if (!await verifyTimingSnapshot()) return;
+      if (!_proofreadIsCurrent(revision)) return;
       _commitProofreadV2Document(after);
     } catch (error) {
       if (!_proofreadIsCurrent(revision)) return;
-      final detail = error is ForcedAlignmentLanguageResolutionException
+      final detail = error is ReferenceTimingApplyException
+          ? LyricReviewStrings.referenceTimingApplyFailure(error.reason)
+          : error is ForcedAlignmentLanguageResolutionException
           ? LyricReviewStrings.forcedAlignmentLanguageError(error)
           : error is ProofreadV2MissingAudioException
           ? 'Bad state: ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。'

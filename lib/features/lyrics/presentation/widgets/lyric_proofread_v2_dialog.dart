@@ -281,6 +281,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
   void Function(int sourceIndex, TimedLyricToken token)?
   onPreviewAlignmentToken,
   ProofreadAlignmentDiagnostics? alignmentDiagnostics,
+  bool allowReferenceTimingSelection = false,
 }) {
   return showDialog<LyricProofreadV2Selection>(
     context: context,
@@ -295,6 +296,7 @@ Future<LyricProofreadV2Selection?> showLyricProofreadV2ReviewDialog(
       proposedGlobalOffset: proposedGlobalOffset,
       onPreviewAlignmentToken: onPreviewAlignmentToken,
       alignmentDiagnostics: alignmentDiagnostics,
+      allowReferenceTimingSelection: allowReferenceTimingSelection,
     ),
   );
 }
@@ -311,6 +313,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
   final void Function(int sourceIndex, TimedLyricToken token)?
   onPreviewAlignmentToken;
   final ProofreadAlignmentDiagnostics? alignmentDiagnostics;
+  final bool allowReferenceTimingSelection;
 
   const _LyricProofreadV2ReviewDialog({
     required this.summary,
@@ -323,6 +326,7 @@ class _LyricProofreadV2ReviewDialog extends StatefulWidget {
     required this.proposedGlobalOffset,
     required this.onPreviewAlignmentToken,
     this.alignmentDiagnostics,
+    required this.allowReferenceTimingSelection,
   });
 
   @override
@@ -334,6 +338,7 @@ class _LyricProofreadV2ReviewDialogState
     extends State<_LyricProofreadV2ReviewDialog> {
   final Set<int> _acceptedAmber = {};
   final Set<int> _restoredDraftIndices = {};
+  final Set<int> _acceptedReferenceTimings = {};
   final Map<int, String> _auditionFeedbackByProposal = {};
   final Map<(String, String), List<CharacterDiffSegment>> _textDiffs = {};
 
@@ -369,7 +374,8 @@ class _LyricProofreadV2ReviewDialogState
   bool get _canApplySelected =>
       _greenChangeCount > 0 ||
       _selectedAmberChangeCount > 0 ||
-      _restoredDraftIndices.isNotEmpty;
+      _restoredDraftIndices.isNotEmpty ||
+      _acceptedReferenceTimings.isNotEmpty;
 
   Future<void> _previewTimedLine({
     required int proposalIndex,
@@ -419,6 +425,7 @@ class _LyricProofreadV2ReviewDialogState
       LyricProofreadV2Selection(
         acceptedProposalIndices: accepted,
         restoredDraftIndices: _restoredDraftIndices,
+        acceptedReferenceTimingIndices: _acceptedReferenceTimings,
       ),
     );
   }
@@ -542,7 +549,9 @@ class _LyricProofreadV2ReviewDialogState
               ? () => _finish(includeAmber: true)
               : null,
           icon: const Icon(Icons.check_rounded),
-          label: Text('应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）'),
+          label: Text(_acceptedReferenceTimings.isEmpty
+              ? '应用所选（绿色 + 琥珀色 $_selectedAmberChangeCount）'
+              : '应用所选（琥珀色 $_selectedAmberChangeCount · 对齐时间 ${_acceptedReferenceTimings.length}）'),
         ),
       ],
     );
@@ -631,6 +640,18 @@ class _LyricProofreadV2ReviewDialogState
       ),
       style: proposed ? const TextStyle(fontWeight: FontWeight.w600) : null,
     );
+  }
+
+  bool _canSelectReferenceTiming(LyricProofreadV2ReviewItem item) {
+    final evidence = item.referenceTimingEvidence;
+    if (!widget.allowReferenceTimingSelection || evidence == null ||
+        item.verdict == LyricProofreadReviewVerdict.locked) return false;
+    final accepted = item.verdict == LyricProofreadReviewVerdict.green ||
+        _acceptedAmber.contains(item.proposalIndex);
+    if (item.sourceIndex == null && !accepted) return false;
+    final text = accepted ? item.proposedLine.text : item.originalLine?.text;
+    return text == evidence.referenceText &&
+        evidence.start >= widget.originalGlobalOffset;
   }
 
   Widget _buildProposalCard(LyricProofreadV2ReviewItem item) {
@@ -755,7 +776,28 @@ class _LyricProofreadV2ReviewDialogState
                     Text(
                       '对齐时间（绝对音频时间）：${_formatTime(evidence.start)} – ${_formatTime(evidence.end)}',
                     ),
-                    const Text('仅供人工复核；此时间不会随应用建议写入歌词。'),
+                    const Text('时间来自参考文本对齐，可能不准确；须逐行勾选才会采纳。'),
+                    CheckboxListTile(
+                      key: ValueKey('accept_reference_timing_${item.proposalIndex}'),
+                      contentPadding: EdgeInsets.zero,
+                      value: _acceptedReferenceTimings.contains(item.proposalIndex),
+                      onChanged: _canSelectReferenceTiming(item) ? (checked) => setState(() {
+                        if (checked == true) {
+                          _acceptedReferenceTimings.add(item.proposalIndex);
+                        } else {
+                          _acceptedReferenceTimings.remove(item.proposalIndex);
+                        }
+                      }) : null,
+                      title: const Text('采纳此行参考对齐时间'),
+                      subtitle: Text(!widget.allowReferenceTimingSelection
+                          ? '音源尚未通过校验，暂不可采纳。'
+                          : item.verdict == LyricProofreadReviewVerdict.locked
+                          ? '受保护行不可更改时间。'
+                          : !_canSelectReferenceTiming(item)
+                          ? '需先采纳匹配的参考文字或新增行，并确保偏移后时间非负。'
+                          : '仅在应用所选时写入；绿色批量应用不会采纳此时间。'),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
                   ],
                 ),
               ),
@@ -840,6 +882,9 @@ class _LyricProofreadV2ReviewDialogState
                           _acceptedAmber.add(item.proposalIndex);
                         } else {
                           _acceptedAmber.remove(item.proposalIndex);
+                        }
+                        if (!_canSelectReferenceTiming(item)) {
+                          _acceptedReferenceTimings.remove(item.proposalIndex);
                         }
                       })
                     : null,
