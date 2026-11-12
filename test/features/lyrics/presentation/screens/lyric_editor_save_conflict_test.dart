@@ -556,6 +556,66 @@ void main() {
   });
 
   group('project evidence routing', () {
+    testWidgets('changed draft opens originals only and cannot apply them', (tester) async {
+      var alignmentCalls = 0;
+      final editor = await _openEditor(
+        tester,
+        ({required audioPath, required text, required language, required audioDuration}) async {
+          alignmentCalls++;
+          return [];
+        },
+        evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) async =>
+          ProjectProofreadEvidenceResult.auditOnly(
+            primary: _document('original primary'),
+            primaryEngine: 'qwen3-asr-1.7b',
+            secondary: _document('original secondary'),
+            secondaryEngine: 'whisper.cpp-large-v3',
+            capturedAtUtc: DateTime.utc(2026),
+          ),
+      );
+      await _selectProjectEvidence(tester);
+      expect(find.text('原始双引擎快照（只读）'), findsOneWidget);
+      expect(find.text('智能校对提案复核'), findsNothing);
+      expect(find.text('主稿第 1 行：original primary'), findsOneWidget);
+      expect(find.text('第二稿第 1 行：original secondary'), findsOneWidget);
+      expect(editor.document!.lines.single.text, 'Human lyric');
+      expect(editor.hasChanges, isFalse);
+      expect(alignmentCalls, 0);
+      await tester.tap(find.text('关闭'));
+      await tester.pumpAndSettle();
+      expect(editor.document!.lines.single.text, 'Human lyric');
+      expect(editor.hasChanges, isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('changed editor while audit verifies never opens originals', (tester) async {
+      final pending = Completer<ProjectProofreadEvidenceResult>();
+      final editor = await _openEditor(tester, _emptyAlignment,
+        evidenceLoader: ({required projectId, required expectedProjectRevision, required draft}) => pending.future,
+      );
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.tap(find.text('继续'));
+      await tester.pump();
+      editor.updateLine(0, editor.document!.lines.single.copyWith(text: 'Edited in flight'));
+      pending.complete(ProjectProofreadEvidenceResult.auditOnly(
+        primary: _document('original primary'),
+        primaryEngine: 'qwen3-asr-1.7b',
+        secondary: _document('original secondary'),
+        secondaryEngine: 'whisper.cpp-large-v3',
+        capturedAtUtc: DateTime.utc(2026),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('原始双引擎快照（只读）'), findsNothing);
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(editor.document!.lines.single.text, 'Edited in flight');
+    });
+
     testWidgets(
       'verified evidence reaches review without modifying the draft',
       (tester) async {

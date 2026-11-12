@@ -52,6 +52,7 @@ import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_inspector_pane.dart';
 import '../widgets/lyric_list_pane.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
+import '../widgets/project_asr_snapshot_dialog.dart';
 import '../widgets/lyric_edit_shortcuts.dart';
 import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_proofread_menu_button.dart';
@@ -635,6 +636,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           draft: document,
         );
         if (!_proofreadIsCurrent(revision)) return;
+        if (projectEvidence.status == ProjectProofreadEvidenceStatus.auditOnly) {
+          await showDialog<void>(
+            context: context,
+            builder: (_) => ProjectAsrSnapshotDialog(evidence: projectEvidence!),
+          );
+          return;
+        }
         if (projectEvidence.status !=
             ProjectProofreadEvidenceStatus.available) {
           ScaffoldMessenger.of(context).showSnackBar(
