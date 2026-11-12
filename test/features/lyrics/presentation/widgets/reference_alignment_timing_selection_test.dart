@@ -34,12 +34,13 @@ void main() {
 
   Finder timing() => find.byKey(const ValueKey('accept_reference_timing_0'));
   Future<void> showTiming(WidgetTester tester) async {
-    await tester.ensureVisible(timing());
+    await tester.scrollUntilVisible(timing(), 100, scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)));
     await tester.pumpAndSettle();
   }
   Future<void> acceptText(WidgetTester tester) async {
     final textChoice = find.widgetWithText(CheckboxListTile, '采纳这条琥珀色建议');
-    await tester.ensureVisible(textChoice);
+    await Scrollable.ensureVisible(tester.element(textChoice), alignment: 0.5);
+    await tester.pumpAndSettle();
     await tester.tap(textChoice);
     await tester.pumpAndSettle();
   }
