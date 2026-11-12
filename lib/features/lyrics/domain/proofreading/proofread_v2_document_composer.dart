@@ -117,6 +117,23 @@ class ProofreadV2DocumentComposer {
           item.originalLine!.startTime != item.proposedLine.startTime ||
           item.originalLine!.endTime != item.proposedLine.endTime,
     );
+    // A reset would move retained draft rows, including protected/restored
+    // rows. Refuse the whole operation rather than silently changing playback.
+    if (effectiveStrategy == LyricSourceStrategy.referenceFirst &&
+        timingChanged && (before.globalOffset ?? Duration.zero) != Duration.zero) {
+      final preservedSources = candidates.any((candidate) {
+        if (candidate.proposalIndex == null) return true;
+        final item = items.firstWhere((item) => item.proposalIndex == candidate.proposalIndex);
+        final source = item.sourceIndex;
+        if (source == null) return false;
+        if (item.verdict == LyricProofreadReviewVerdict.locked || !accepted.contains(item.proposalIndex)) return true;
+        return candidate.line.startTime == before.lines[source].startTime &&
+            candidate.line.endTime == before.lines[source].endTime;
+      });
+      if (preservedSources) {
+        throw const ReferenceTimingApplyException(ReferenceTimingApplyFailure.offsetChanged);
+      }
+    }
     final offset =
         effectiveStrategy == LyricSourceStrategy.referenceFirst && timingChanged
         ? Duration.zero

@@ -130,7 +130,7 @@ abstract final class LyricReviewStrings {
     ReferenceTimingApplyFailure.protectedLine => '受保护行不能采纳对齐时间。',
     ReferenceTimingApplyFailure.unacceptedInsertion => '请先采纳新增参考行，再采纳其时间。',
     ReferenceTimingApplyFailure.textMismatch => '实际保留的歌词与对齐文本不同，请先采纳对应参考文字。',
-    ReferenceTimingApplyFailure.offsetChanged => '普通提案会重置整体偏移，不能与对齐时间同时采纳；请先单独处理普通提案或偏移。',
+    ReferenceTimingApplyFailure.offsetChanged => '普通提案会重置整体偏移并影响其他行，无法安全应用；请先调整整体偏移。',
     ReferenceTimingApplyFailure.negativeStoredTime => '整体偏移使该行的存储时间为负；请先调整偏移。',
     ReferenceTimingApplyFailure.invalidInterval => '对齐时间范围无效，请重新生成。',
   };

@@ -153,6 +153,14 @@ void main() {
       fails(ReferenceTimingApplyFailure.offsetChanged, () => compose(before: offset, items: [changed], selection: choice(accept: {0}, timings: {0})));
     });
 
+    test('ordinary partial reference timing cannot move unselected rows via offset reset', () {
+      final before = LyricDocument(language: 'en', globalOffset: const Duration(milliseconds: 500), lines: [line('a', 1000, 2000, id: 'a'), line('b', 3000, 4000, id: 'b')]);
+      final items = [row(index: 0, source: 0, original: before.lines[0], proposed: line('a', 1500, 2500, id: 'a')), row(index: 1, source: 1, original: before.lines[1], proposed: before.lines[1])];
+      fails(ReferenceTimingApplyFailure.offsetChanged, () => compose(before: before, items: items, selection: choice(accept: {0})));
+      fails(ReferenceTimingApplyFailure.offsetChanged, () => compose(before: before, items: items, selection: choice(accept: {0, 1})));
+      expect(before.lines[1].startTime + before.globalOffset!, const Duration(milliseconds: 3500));
+    });
+
     test('missing or duplicated composed mapping is rejected', () {
       fails(ReferenceTimingApplyFailure.ambiguousLineIdentity, () => applier.apply(before: source, composed: source, items: [valid], selection: choice(timings: {0}), effectiveStrategy: LyricSourceStrategy.referenceFirst, outputIndexByProposal: {}));
       final second = row(index: 1, source: 0, original: source.lines.first, proposed: source.lines.first, timing: evidence('hello', 4000, 5000));
