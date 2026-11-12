@@ -22,7 +22,7 @@
 
 - **Reference ForcedAligner review (#319):** V2 supports separately selected reference alignment times and bounded absolute-time audition on the verified active local audio source; audio/project checks are point-in-time, and real-audio accuracy and native accessibility remain open.
 
-- **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Draft comparison requires the draft to match the primary transcript. Otherwise, verified single-input originals are available as read-only, bounded comparison only. Complete source-verified chunk snapshots are captured separately without merging overlaps; editor reuse remains open.
+- **Automatic V2 evidence (#319):** auto strategy accepts pasted or explicitly selected, audio-verified independent project ASR evidence and ForcedAligner. Draft comparison requires the draft to match the primary transcript. Otherwise, verified single-input originals are available as read-only, bounded comparison only. Complete source-verified chunk snapshots are available for explicitly selected, per-chunk read-only audit after rechecking the selected source and project revision; they never enter current-draft consensus.
 
 - **Reference alignment extraction (#323):** a domain use case prepares review and materializes confirmed changes with backup and provenance; timeline confirmation and revision guards remain UI responsibilities. Editor size and complete UX audit remain.
 

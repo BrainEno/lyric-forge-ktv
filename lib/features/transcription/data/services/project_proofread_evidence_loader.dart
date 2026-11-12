@@ -3,6 +3,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/independent_asr_evidence.dart';
+import '../../domain/models/chunked_independent_asr_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'project_transcription_input.dart';
@@ -42,24 +43,43 @@ class VerifiedProjectProofreadEvidenceLoader {
     if (project == null || project.revision != expectedProjectRevision) {
       return unavailable(ProjectProofreadEvidenceStatus.projectChanged);
     }
-    final raw =
-        project.lyricDocument?.metadata[IndependentAsrEvidence.metadataKey];
-    if (raw == null)
+    final metadata = project.lyricDocument?.metadata;
+    final singleRaw = metadata?[IndependentAsrEvidence.metadataKey];
+    final chunkRaw = metadata?[ChunkedIndependentAsrEvidence.metadataKey];
+    if (singleRaw == null && chunkRaw == null) {
       return unavailable(ProjectProofreadEvidenceStatus.missingEvidence);
-    final evidence = IndependentAsrEvidence.tryParse(raw);
-    if (evidence == null ||
-        !_independentEngines(evidence) ||
-        !_validTranscript(evidence.primary) ||
-        !_validTranscript(evidence.secondary)) {
+    }
+    // Two simultaneous formats have ambiguous provenance: do not guess which
+    // one describes the current project.
+    if (singleRaw != null && chunkRaw != null) {
       return unavailable(ProjectProofreadEvidenceStatus.invalidEvidence);
     }
-    if ((evidence.primary.globalOffset ?? Duration.zero) != Duration.zero ||
-        (evidence.secondary.globalOffset ?? Duration.zero) != Duration.zero ||
-        (draft.globalOffset ?? Duration.zero) != Duration.zero) {
+    final raw = singleRaw ?? chunkRaw;
+    final evidence = singleRaw == null
+        ? null
+        : IndependentAsrEvidence.tryParse(singleRaw);
+    final chunked = chunkRaw == null
+        ? null
+        : ChunkedIndependentAsrEvidence.tryParse(chunkRaw);
+    if ((singleRaw != null &&
+            (evidence == null ||
+                !_independentEngines(evidence) ||
+                !_validTranscript(evidence.primary) ||
+                !_validTranscript(evidence.secondary))) ||
+        (chunkRaw != null && chunked == null)) {
+      return unavailable(ProjectProofreadEvidenceStatus.invalidEvidence);
+    }
+    if ((draft.globalOffset ?? Duration.zero) != Duration.zero ||
+        (evidence != null &&
+            ((evidence.primary.globalOffset ?? Duration.zero) !=
+                    Duration.zero ||
+                (evidence.secondary.globalOffset ?? Duration.zero) !=
+                    Duration.zero))) {
       return unavailable(ProjectProofreadEvidenceStatus.unsupportedOffsets);
     }
-    final matchesPrimary = _matchesPrimary(draft, evidence.primary);
-    if (evidence.sourceAudioSha256 == null) {
+    final matchesPrimary =
+        evidence != null && _matchesPrimary(draft, evidence.primary);
+    if (evidence != null && evidence.sourceAudioSha256 == null) {
       return unavailable(ProjectProofreadEvidenceStatus.unverifiedAudio);
     }
     String input;
@@ -102,19 +122,36 @@ class VerifiedProjectProofreadEvidenceLoader {
     if (latest == null || latest.revision != expectedProjectRevision) {
       return unavailable(ProjectProofreadEvidenceStatus.projectChanged);
     }
+    if (chunked != null) {
+      return ProjectProofreadEvidenceResult.chunkAudit([
+        for (final chunk in chunked.chunks)
+          ProjectProofreadChunk(
+            index: chunk.index,
+            start: chunk.start,
+            end: chunk.end,
+            primary: chunk.globalTranscript(primary: true),
+            primaryEngine: chunk.evidence.primary.engine,
+            secondary: chunk.globalTranscript(primary: false),
+            secondaryEngine: chunk.evidence.secondary.engine,
+            capturedAtUtc: chunk.evidence.capturedAtUtc,
+          ),
+      ]);
+    }
+    // A valid single-input snapshot is guaranteed above when no chunk exists.
+    final single = evidence!;
     if (!matchesPrimary) {
       return ProjectProofreadEvidenceResult.auditOnly(
-        primary: evidence.primary.toDocument(),
-        primaryEngine: evidence.primary.engine,
-        secondary: evidence.secondary.toDocument(),
-        secondaryEngine: evidence.secondary.engine,
-        capturedAtUtc: evidence.capturedAtUtc,
+        primary: single.primary.toDocument(),
+        primaryEngine: single.primary.engine,
+        secondary: single.secondary.toDocument(),
+        secondaryEngine: single.secondary.engine,
+        capturedAtUtc: single.capturedAtUtc,
       );
     }
     return ProjectProofreadEvidenceResult.available(
-      secondary: evidence.secondary.toDocument(),
-      secondaryEngine: evidence.secondary.engine,
-      capturedAtUtc: evidence.capturedAtUtc,
+      secondary: single.secondary.toDocument(),
+      secondaryEngine: single.secondary.engine,
+      capturedAtUtc: single.capturedAtUtc,
     );
   }
 

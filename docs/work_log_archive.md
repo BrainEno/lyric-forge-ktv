@@ -109,6 +109,7 @@
 - [2026-11-07 23:10] Protect split ASR confidence evidence ([entry](log/entries/2026-11-07-2310-protect-split-asr-confidence.md))
 - [2026-11-07 23:05] Make proofreading options accessible ([entry](log/entries/2026-11-07-2305-accessible-proofread-options.md))
 - [2026-11-07 23:00] Guard incomparable ASR review evidence ([entry](log/entries/2026-11-07-2300-guard-incomparable-asr-review.md))
+- [2026-11-07 22:49] Review verified ASR chunk snapshots ([entry](log/entries/2026-11-07-2249-review-verified-asr-chunks.md))
 - [2026-11-07 22:48] Capture independent ASR chunk evidence ([entry](log/entries/2026-11-07-2248-capture-independent-chunk-evidence.md))
 - [2026-11-07 22:47] Inspect verified original ASR snapshots ([entry](log/entries/2026-11-07-2247-inspect-original-asr-snapshots.md))
 - [2026-11-07 22:46] Audition verified reference alignment timing ([entry](log/entries/2026-11-07-2246-audition-reference-alignment-timing.md))

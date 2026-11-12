@@ -556,6 +556,164 @@ void main() {
   });
 
   group('project evidence routing', () {
+    testWidgets(
+      'chunk evidence is read-only and never starts current-draft review',
+      (tester) async {
+        var alignmentCalls = 0;
+        final editor = await _openEditor(
+          tester,
+          ({
+            required audioPath,
+            required text,
+            required language,
+            required audioDuration,
+          }) async {
+            alignmentCalls++;
+            return [];
+          },
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) async => ProjectProofreadEvidenceResult.chunkAudit([
+                ProjectProofreadChunk(
+                  index: 0,
+                  start: Duration.zero,
+                  end: const Duration(seconds: 2),
+                  primary: _document('chunk primary'),
+                  primaryEngine: 'qwen3-asr-1.7b',
+                  secondary: _document('chunk secondary'),
+                  secondaryEngine: 'whisper.cpp-large-v3',
+                  capturedAtUtc: DateTime.utc(2026),
+                ),
+              ]),
+        );
+        editor.updateLine(
+          0,
+          editor.document!.lines.single.copyWith(text: 'Protected user edit'),
+        );
+        await tester.pump();
+        await _selectProjectEvidence(tester);
+        expect(find.text('分片原始双引擎快照（只读）'), findsOneWidget);
+        expect(find.text('智能校对提案复核'), findsNothing);
+        expect(editor.document!.lines.single.text, 'Protected user edit');
+        expect(editor.hasChanges, isTrue);
+        expect(alignmentCalls, 0);
+        await tester.tap(find.text('分片 1'));
+        await tester.pumpAndSettle();
+        expect(find.text('主稿第 1 行：chunk primary'), findsOneWidget);
+        expect(find.text('第二稿第 1 行：chunk secondary'), findsOneWidget);
+        expect(find.text('智能校对提案复核'), findsNothing);
+        await tester.tap(find.text('关闭').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('关闭'));
+        await tester.pumpAndSettle();
+        expect(editor.document!.lines.single.text, 'Protected user edit');
+        expect(editor.hasChanges, isTrue);
+        expect(editor.canUndo, isTrue);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('edit during chunk verification discards all originals', (
+      tester,
+    ) async {
+      final pending = Completer<ProjectProofreadEvidenceResult>();
+      final editor = await _openEditor(
+        tester,
+        _emptyAlignment,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
+      );
+      await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('智能校对 V2'));
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.tap(find.text('继续'));
+      await tester.pump();
+      editor.updateLine(
+        0,
+        editor.document!.lines.single.copyWith(text: 'Edited in flight'),
+      );
+      pending.complete(
+        ProjectProofreadEvidenceResult.chunkAudit([
+          ProjectProofreadChunk(
+            index: 0,
+            start: Duration.zero,
+            end: const Duration(seconds: 2),
+            primary: _document('original primary'),
+            primaryEngine: 'qwen3-asr-1.7b',
+            secondary: _document('original secondary'),
+            secondaryEngine: 'whisper.cpp-large-v3',
+            capturedAtUtc: DateTime.utc(2026),
+          ),
+        ]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('分片原始双引擎快照（只读）'), findsNothing);
+      expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+      expect(editor.document!.lines.single.text, 'Edited in flight');
+    });
+
+    testWidgets(
+      'edit then undo during verification still rejects stale chunk audit',
+      (tester) async {
+        final pending = Completer<ProjectProofreadEvidenceResult>();
+        final editor = await _openEditor(
+          tester,
+          _emptyAlignment,
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) => pending.future,
+        );
+        await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('智能校对 V2'));
+        await tester.pumpAndSettle();
+        final toggle = find.byKey(
+          const ValueKey('project_asr_evidence_toggle'),
+        );
+        await tester.ensureVisible(toggle);
+        await tester.tap(toggle);
+        await tester.tap(find.text('继续'));
+        await tester.pump();
+        editor.updateLine(
+          0,
+          editor.document!.lines.single.copyWith(text: 'temporary edit'),
+        );
+        editor.undo();
+        pending.complete(
+          ProjectProofreadEvidenceResult.chunkAudit([
+            ProjectProofreadChunk(
+              index: 0,
+              start: Duration.zero,
+              end: const Duration(seconds: 2),
+              primary: _document('original primary'),
+              primaryEngine: 'qwen3-asr-1.7b',
+              secondary: _document('original secondary'),
+              secondaryEngine: 'whisper.cpp-large-v3',
+              capturedAtUtc: DateTime.utc(2026),
+            ),
+          ]),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('分片原始双引擎快照（只读）'), findsNothing);
+        expect(find.textContaining('原提案已丢弃'), findsOneWidget);
+        expect(editor.document!.lines.single.text, 'Human lyric');
+      },
+    );
+
     testWidgets('changed draft opens originals only and cannot apply them', (
       tester,
     ) async {
