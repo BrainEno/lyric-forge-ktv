@@ -1,0 +1,22 @@
+name: Arena chunk integration validation
+on:
+  push:
+    branches: [arena/67430e4a-lyric-forge-ktv]
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and report patch
+        run: |
+          dart format test/features/transcription/chunk_project_workflow_integration_test.dart
+          git diff --binary | gzip -c | base64 -w0 | fold -w 3000 | awk '{print "::notice title=FORMAT" NR "::" $0}'
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos test/features/transcription/chunk_project_workflow_integration_test.dart
+      - name: Test integration
+        run: flutter test test/features/transcription/chunk_project_workflow_integration_test.dart
