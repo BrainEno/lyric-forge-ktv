@@ -314,7 +314,7 @@ void main() {
       await _requestProjectEvidenceInEditor(tester);
       await _waitForFinder(
         tester,
-        find.textContaining('工程已在其他位置更新'),
+        find.text('工程已在其他位置更新，请刷新后重试。'),
         description: 'stale revision snackbar',
       );
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
@@ -505,8 +505,8 @@ Future<LyricEditorDocumentController> _mountEditor(
     ),
   );
 
-  final toolbarAction = find.byIcon(Icons.spellcheck_rounded).first;
-  await _waitForFinder(tester, toolbarAction, description: 'loaded lyric editor');
+  final toolbarActions = find.byIcon(Icons.spellcheck_rounded);
+  await _waitForFinder(tester, toolbarActions, description: 'loaded lyric editor');
   final lyricField = find.byWidgetPredicate(
     (w) => w is TextField && w.decoration?.labelText == '歌词文本',
   );
@@ -515,7 +515,7 @@ Future<LyricEditorDocumentController> _mountEditor(
     await tester.pumpAndSettle();
   }
   return Provider.of<LyricEditorDocumentController>(
-    tester.element(toolbarAction),
+    tester.element(toolbarActions.first),
     listen: false,
   );
 }
@@ -852,6 +852,9 @@ class _Resolver implements TranscriptionProfileResolver {
 }
 
 class _Runtime implements AsrRuntimeManager {
+  @override
+  bool get isInstalling => false;
+
   @override
   Future<TranscriptionConfig> repair(TranscriptionConfig config) async =>
       config;
