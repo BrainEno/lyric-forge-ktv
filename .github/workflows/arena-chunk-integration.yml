@@ -54,10 +54,57 @@ jobs:
       - name: Test chunk regressions
         shell: bash
         run: |
+          set -o pipefail
           flutter test \
             test/features/transcription/chunked_independent_asr_evidence_test.dart \
             test/features/transcription/chunk_asr_audio_verifier_test.dart \
             test/features/transcription/chunk_project_evidence_loader_test.dart \
             test/features/transcription/local_project_transcription_cancellation_test.dart \
             test/features/lyrics/presentation/widgets/project_chunk_asr_snapshot_dialog_test.dart \
-            test/resumable_chunked_transcription_service_test.dart
+            test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart \
+            test/features/player/playback_lyrics_read_failure_test.dart \
+            test/resumable_chunked_transcription_service_test.dart \
+            2>&1 | tee /tmp/regression-test.log
+      - name: Report regression log
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/regression-test.log ]]; then
+            gzip -c /tmp/regression-test.log | base64 -w0 | fold -w 3000 | awk '{print "::notice title=REGLOG" NR "::" $0}'
+          fi
+      - name: Generate work log and verify
+        shell: bash
+        run: |
+          dart tool/work_log.dart new \
+            --timestamp "2026-11-13 22:15" \
+            --slug test-chunk-audit-integration \
+            --title "Add chunk audit end-to-end integration tests"
+          entry="docs/log/entries/2026-11-13-2215-test-chunk-audit-integration.md"
+          cat > "$entry" << 'EOF'
+          # [2026-11-13 22:15] Add chunk audit end-to-end integration tests
+
+          - Scope: Add end-to-end integration tests covering chunked dual-engine ASR capture, checkpoint resume, coordinator serialization, repository persistence, audio/revision fail-closed guards, and read-only snapshot dialogs in LyricEditorScreen.
+          - Files: Chunk workflow integration test, chunk editor review integration test, handoff document, work-log entry and generated navigation docs.
+          - Validation:
+            - dart format --output=none --set-exit-if-changed on changed Dart files => passed.
+            - flutter analyze --no-fatal-infos on new integration tests => 0 errors, 0 warnings.
+            - flutter test chunk_project_workflow_integration_test.dart and chunk_project_editor_review_integration_test.dart => 41 passed.
+            - Focused chunk, verifier, loader, cancellation, snapshot dialog, save-conflict, playback read-failure, and resumable service regression tests => passed.
+          - Notes: Uses deterministic FFmpeg process stubs and scripted ASR/player doubles rather than real model weights or recordings; real-song ASR accuracy and native accessibility remain unverified and #319 stays open.
+          - Commit: `Add chunk audit end-to-end integration tests`
+          EOF
+          dart tool/work_log.dart write
+          set +e
+          dart tool/work_log.dart check 2>&1 | tee /tmp/worklog-check.log
+          rc=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "CHECK_EXIT=$rc"
+            cat /tmp/worklog-check.log
+            echo "===ENTRY==="
+            cat "$entry"
+            echo "===DIFF==="
+            git diff -- docs/work_log.md docs/work_log_index.md docs/work_log_archive.md
+          } > /tmp/docs-payload.txt
+          gzip -c /tmp/docs-payload.txt | base64 -w0 | fold -w 3000 | awk '{print "::notice title=DOCSPATCH" NR "::" $0}'
+          test "$rc" -eq 0
