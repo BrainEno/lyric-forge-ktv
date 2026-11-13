@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          flutter test --reporter expanded \
+          flutter test --timeout 15s --reporter expanded \
             test/features/transcription/chunk_project_workflow_integration_test.dart \
             test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart \
             2>&1 | tee /tmp/new-test.log

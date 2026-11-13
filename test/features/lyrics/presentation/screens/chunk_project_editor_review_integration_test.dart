@@ -528,6 +528,7 @@ Future<void> _requestProjectEvidenceInEditor(WidgetTester tester) async {
   final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
   await tester.ensureVisible(toggle);
   await tester.tap(toggle);
+  await tester.pumpAndSettle();
   await tester.tap(find.text('继续'));
   await tester.pump();
 }
@@ -722,9 +723,9 @@ class _DiskChunkFixture {
     return fixture;
   }
 
-  Future<void> dispose() async {
-    if (await root.exists()) {
-      await root.delete(recursive: true);
+  void dispose() {
+    if (root.existsSync()) {
+      root.deleteSync(recursive: true);
     }
   }
 }
