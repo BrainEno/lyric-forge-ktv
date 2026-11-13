@@ -11,6 +11,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_expor
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_editor_dependencies.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/screens/lyric_editor_screen.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_inspector_pane.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/project_asr_snapshot_dialog.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/project_chunk_asr_snapshot_dialog.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
@@ -181,7 +182,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('shared chorus').first);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('删除这一行'));
+      await tester.scrollUntilVisible(
+        find.text('删除这一行'),
+        150,
+        scrollable: find.descendant(
+          of: find.byType(LineInspector),
+          matching: find.byType(Scrollable),
+        ),
+      );
       await tester.tap(find.text('删除这一行'));
       await tester.pumpAndSettle();
       expect(editorA.hasChanges, isTrue);
@@ -239,20 +247,25 @@ void main() {
   testWidgets(
     'replaced source bytes or attached vocal stem fail closed in editor',
     (tester) async {
+      debugPrint('[T3] 1 capture');
       final fixture = await _DiskChunkFixture.capture(tester);
       addTearDown(fixture.dispose);
 
       final repo = FileProjectRepository(rootDirectory: fixture.root);
+      debugPrint('[T3] 2 mount1');
       await _mountEditor(
         tester,
         repository: repo,
         projectId: fixture.projectId,
       );
 
+      debugPrint('[T3] 3 rewrite source');
       await tester.runAsync(
         () => fixture.source.writeAsBytes(List<int>.filled(128, 9)),
       );
+      debugPrint('[T3] 4 request1');
       await _requestProjectEvidenceInEditor(tester);
+      debugPrint('[T3] 5 wait1');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
@@ -260,6 +273,7 @@ void main() {
       );
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
 
+      debugPrint('[T3] 6 restore+stem');
       // Restore source bytes, attach a different preferred vocal stem, reload.
       await tester.runAsync(() async {
         await fixture.source.writeAsBytes(List<int>.filled(128, 7));
@@ -272,16 +286,20 @@ void main() {
           ),
         );
       });
+      debugPrint('[T3] 7 unmount');
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
 
       final repoAfterStem = FileProjectRepository(rootDirectory: fixture.root);
+      debugPrint('[T3] 8 mount2');
       await _mountEditor(
         tester,
         repository: repoAfterStem,
         projectId: fixture.projectId,
       );
+      debugPrint('[T3] 9 request2');
       await _requestProjectEvidenceInEditor(tester);
+      debugPrint('[T3] 10 wait2');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
