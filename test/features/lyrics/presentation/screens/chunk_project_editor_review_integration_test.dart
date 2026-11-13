@@ -249,25 +249,25 @@ void main() {
   testWidgets(
     'replaced source bytes or attached vocal stem fail closed in editor',
     (tester) async {
-      debugPrint('[T3] 1 capture');
+      stdout.writeln('[T3] 1 capture');
       final fixture = await _DiskChunkFixture.capture(tester);
       addTearDown(fixture.dispose);
 
       final repo = FileProjectRepository(rootDirectory: fixture.root);
-      debugPrint('[T3] 2 mount1');
+      stdout.writeln('[T3] 2 mount1');
       await _mountEditor(
         tester,
         repository: repo,
         projectId: fixture.projectId,
       );
 
-      debugPrint('[T3] 3 rewrite source');
+      stdout.writeln('[T3] 3 rewrite source');
       await tester.runAsync(
         () => fixture.source.writeAsBytes(List<int>.filled(128, 9)),
       );
-      debugPrint('[T3] 4 request1');
+      stdout.writeln('[T3] 4 request1');
       await _requestProjectEvidenceInEditor(tester);
-      debugPrint('[T3] 5 wait1');
+      stdout.writeln('[T3] 5 wait1');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
@@ -275,43 +275,44 @@ void main() {
       );
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
 
-      debugPrint('[T3] 6 restore+stem');
+      stdout.writeln('[T3] 6 restore+stem');
       // Restore source bytes, attach a different preferred vocal stem, reload.
       await tester.runAsync(() async {
-        debugPrint('[T3] 6a write source');
+        stdout.writeln('[T3] 6a write source');
         await fixture.source.writeAsBytes(List<int>.filled(128, 7));
-        debugPrint('[T3] 6b write stem');
+        stdout.writeln('[T3] 6b write stem');
         final stem = File('${fixture.root.path}/vocal.wav');
         await stem.writeAsBytes(List<int>.filled(128, 4));
-        debugPrint('[T3] 6c getProject');
+        stdout.writeln('[T3] 6c getProject');
         final current = (await repo.getProjectById(fixture.projectId))!;
-        debugPrint('[T3] 6d updateProject');
+        stdout.writeln('[T3] 6d updateProject');
         await repo.updateProject(
           current.copyWith(
             audioAsset: current.audioAsset!.copyWith(vocalPath: stem.path),
           ),
         );
-        debugPrint('[T3] 6e done');
+        stdout.writeln('[T3] 6e done');
       });
-      debugPrint('[T3] 7 unmount');
+      stdout.writeln('[T3] 7 unmount');
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
 
       final repoAfterStem = FileProjectRepository(rootDirectory: fixture.root);
-      debugPrint('[T3] 8 mount2');
+      stdout.writeln('[T3] 8 mount2');
       await _mountEditor(
         tester,
         repository: repoAfterStem,
         projectId: fixture.projectId,
       );
-      debugPrint('[T3] 9 request2');
+      stdout.writeln('[T3] 9 request2');
       await _requestProjectEvidenceInEditor(tester);
-      debugPrint('[T3] 10 wait2');
+      stdout.writeln('[T3] 10 wait2');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
         description: 'stem changed snackbar',
       );
+      stdout.writeln('[T3] 11 done');
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
       expect(tester.takeException(), isNull);
     },
