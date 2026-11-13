@@ -14,9 +14,50 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - name: Format and report patch
         run: |
-          dart format test/features/transcription/chunk_project_workflow_integration_test.dart
+          dart format \
+            test/features/transcription/chunk_project_workflow_integration_test.dart \
+            test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart
           git diff --binary | gzip -c | base64 -w0 | fold -w 3000 | awk '{print "::notice title=FORMAT" NR "::" $0}'
       - name: Analyze
-        run: flutter analyze --no-fatal-infos test/features/transcription/chunk_project_workflow_integration_test.dart
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos \
+            test/features/transcription/chunk_project_workflow_integration_test.dart \
+            test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart \
+            2>&1 | tee /tmp/analyze.log
+        continue-on-error: false
+      - name: Report analyze failure
+        if: failure()
+        shell: bash
+        run: |
+          if [[ -f /tmp/analyze.log ]]; then
+            grep -nE "error •|warning •" /tmp/analyze.log | head -20 | while IFS= read -r line; do
+              echo "::error::${line:0:900}"
+            done
+            gzip -c /tmp/analyze.log | base64 -w0 | fold -w 3000 | awk '{print "::notice title=ANALYZE" NR "::" $0}'
+          fi
       - name: Test integration
-        run: flutter test test/features/transcription/chunk_project_workflow_integration_test.dart
+        shell: bash
+        run: |
+          set -o pipefail
+          flutter test --reporter expanded \
+            test/features/transcription/chunk_project_workflow_integration_test.dart \
+            test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart \
+            test/features/transcription/chunked_independent_asr_evidence_test.dart \
+            test/features/transcription/chunk_asr_audio_verifier_test.dart \
+            test/features/transcription/chunk_project_evidence_loader_test.dart \
+            test/features/transcription/local_project_transcription_cancellation_test.dart \
+            test/features/lyrics/presentation/widgets/project_chunk_asr_snapshot_dialog_test.dart \
+            test/resumable_chunked_transcription_service_test.dart \
+            2>&1 | tee /tmp/test.log
+      - name: Report test log
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/test.log ]]; then
+            grep -nE "\[E\]|Some tests failed|Exception:|Expected:|Actual:" /tmp/test.log | head -20 | while IFS= read -r line; do
+              echo "::error::${line:0:900}"
+            done
+            tail -n 120 /tmp/test.log | gzip -c | base64 -w0 | fold -w 3000 | awk '{print "::notice title=TESTLOG" NR "::" $0}'
+          fi
