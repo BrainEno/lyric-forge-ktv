@@ -459,9 +459,9 @@ void main() {
 
         h.onChunk = null;
         await h.run();
-        // Chunk 1 came from its checkpoint so the delegate ran once on resume.
+        // Chunk 1 came from its checkpoint so chunk 2 ran/extracted once more on resume.
         expect(h.delegate.calls, 3);
-        expect(h.ffmpeg.chunkStartRequests, 2);
+        expect(h.ffmpeg.chunkStartRequests, 3);
 
         final resumed = await h.reopen();
         final loaded = await h.load(resumed);

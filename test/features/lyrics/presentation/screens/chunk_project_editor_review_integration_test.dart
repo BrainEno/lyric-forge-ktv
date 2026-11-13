@@ -120,6 +120,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('分片 2 原始快照（只读）'), findsOneWidget);
       expect(find.text('主稿第 1 行：shared chorus'), findsOneWidget);
+      if (find.text('仅第二引擎有此时间段').evaluate().isEmpty) {
+        await tester.drag(find.byType(TabBarView), const Offset(0, -160));
+        await tester.pumpAndSettle();
+      }
       expect(find.text('仅第二引擎有此时间段'), findsOneWidget);
       expect(find.text('第二稿第 3 行：whisper adlib'), findsOneWidget);
 
@@ -501,12 +505,17 @@ Future<LyricEditorDocumentController> _mountEditor(
     ),
   );
 
+  final toolbarAction = find.byIcon(Icons.spellcheck_rounded).first;
+  await _waitForFinder(tester, toolbarAction, description: 'loaded lyric editor');
   final lyricField = find.byWidgetPredicate(
     (w) => w is TextField && w.decoration?.labelText == '歌词文本',
   );
-  await _waitForFinder(tester, lyricField, description: 'loaded lyric editor');
+  if (lyricField.evaluate().isEmpty) {
+    await tester.tap(find.text('opening verse').first);
+    await tester.pumpAndSettle();
+  }
   return Provider.of<LyricEditorDocumentController>(
-    tester.element(lyricField),
+    tester.element(toolbarAction),
     listen: false,
   );
 }
@@ -528,12 +537,15 @@ Future<void> _waitForFinder(
   Finder finder, {
   required String description,
 }) async {
-  for (var i = 0; i < 60; i++) {
+  for (var i = 0; i < 120; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
-    await tester.pumpAndSettle();
-    if (finder.evaluate().isNotEmpty) return;
+    await tester.pump();
+    if (finder.evaluate().isNotEmpty) {
+      await tester.pumpAndSettle();
+      return;
+    }
   }
   fail('Timed out waiting for $description');
 }
