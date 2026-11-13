@@ -540,7 +540,11 @@ Future<LyricEditorDocumentController> _mountEditor(
   );
 
   final toolbarActions = find.byIcon(Icons.spellcheck_rounded);
-  await _waitForFinder(tester, toolbarActions, description: 'loaded lyric editor');
+  await _waitForFinder(
+    tester,
+    toolbarActions,
+    description: 'loaded lyric editor',
+  );
   final lyricField = find.byWidgetPredicate(
     (w) => w is TextField && w.decoration?.labelText == '歌词文本',
   );
