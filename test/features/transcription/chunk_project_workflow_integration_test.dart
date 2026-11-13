@@ -76,7 +76,8 @@ void main() {
         'lyricforge-timeline-v1',
       );
       final evidence = ChunkedIndependentAsrEvidence.tryParse(
-        saved.lyricDocument!.metadata[ChunkedIndependentAsrEvidence.metadataKey],
+        saved.lyricDocument!.metadata[ChunkedIndependentAsrEvidence
+            .metadataKey],
       );
       expect(evidence, isNotNull);
       expect(
@@ -132,10 +133,12 @@ void main() {
 
         final reopened = await hq.reopen();
         final draft = reopened.lyricDocument!;
-        expect(
-          draft.lines.map((line) => line.text).toList(),
-          ['opening verse', 'shared chorus', 'ending refrain', 'whisper adlib'],
-        );
+        expect(draft.lines.map((line) => line.text).toList(), [
+          'opening verse',
+          'shared chorus',
+          'ending refrain',
+          'whisper adlib',
+        ]);
         expect(draft.lines[1].confidence, 95);
         expect(
           draft.lines.last.confidenceSource,
@@ -155,18 +158,18 @@ void main() {
         expect(result.chunks, hasLength(2));
 
         // Chunk overlaps must stay un-merged across chunks in global time.
-        expect(
-          result.chunks[0].primary.lines.map((l) => l.text).toList(),
-          ['opening verse', 'shared chorus'],
-        );
-        expect(
-          result.chunks[0].secondary.lines.map((l) => l.text).toList(),
-          ['opening words', 'shared chorus alt'],
-        );
-        expect(
-          result.chunks[1].primary.lines.map((l) => l.text).toList(),
-          ['shared chorus', 'ending refrain'],
-        );
+        expect(result.chunks[0].primary.lines.map((l) => l.text).toList(), [
+          'opening verse',
+          'shared chorus',
+        ]);
+        expect(result.chunks[0].secondary.lines.map((l) => l.text).toList(), [
+          'opening words',
+          'shared chorus alt',
+        ]);
+        expect(result.chunks[1].primary.lines.map((l) => l.text).toList(), [
+          'shared chorus',
+          'ending refrain',
+        ]);
         expect(
           result.chunks[1].primary.lines[0].startTime,
           const Duration(milliseconds: 2100),
@@ -175,10 +178,11 @@ void main() {
           result.chunks[1].primary.lines[0].endTime,
           const Duration(milliseconds: 2900),
         );
-        expect(
-          result.chunks[1].secondary.lines.map((l) => l.text).toList(),
-          ['shared chorus alt', 'ending words', 'whisper adlib'],
-        );
+        expect(result.chunks[1].secondary.lines.map((l) => l.text).toList(), [
+          'shared chorus alt',
+          'ending words',
+          'whisper adlib',
+        ]);
         expect(
           result.chunks[1].secondary.lines.last.startTime,
           const Duration(milliseconds: 3750),
@@ -203,14 +207,14 @@ void main() {
         expect(result.chunks, hasLength(2));
         expect(result.chunks[0].primaryEngine, 'whisper.cpp-large-v3');
         expect(result.chunks[0].secondaryEngine, 'qwen3-asr-1.7b');
-        expect(
-          result.chunks[0].primary.lines.map((l) => l.text).toList(),
-          ['opening words', 'shared chorus alt'],
-        );
-        expect(
-          result.chunks[1].secondary.lines.map((l) => l.text).toList(),
-          ['shared chorus', 'ending refrain'],
-        );
+        expect(result.chunks[0].primary.lines.map((l) => l.text).toList(), [
+          'opening words',
+          'shared chorus alt',
+        ]);
+        expect(result.chunks[1].secondary.lines.map((l) => l.text).toList(), [
+          'shared chorus',
+          'ending refrain',
+        ]);
       },
     );
 
@@ -237,36 +241,39 @@ void main() {
       },
     );
 
-    test('whisper-only capture strips forged chunk metadata before save', () async {
-      final whisper = await _Harness.create(
-        config: const TranscriptionConfig(
-          mode: TranscriptionMode.whisperOnly,
-          whisperExecutable: 'whisper',
-          modelPath: 'ggml-large-v3.bin',
-        ),
-      );
-      addTearDown(whisper.dispose);
-      await whisper.run();
+    test(
+      'whisper-only capture strips forged chunk metadata before save',
+      () async {
+        final whisper = await _Harness.create(
+          config: const TranscriptionConfig(
+            mode: TranscriptionMode.whisperOnly,
+            whisperExecutable: 'whisper',
+            modelPath: 'ggml-large-v3.bin',
+          ),
+        );
+        addTearDown(whisper.dispose);
+        await whisper.run();
 
-      final reopened = await whisper.reopen();
-      expect(reopened.lyricDocument!.lines, isNotEmpty);
-      expect(
-        reopened.lyricDocument!.metadata.containsKey(
-          ChunkedIndependentAsrEvidence.metadataKey,
-        ),
-        isFalse,
-      );
-      expect(
-        reopened.lyricDocument!.metadata.containsKey(
-          IndependentAsrEvidence.metadataKey,
-        ),
-        isFalse,
-      );
-      expect(
-        (await whisper.load(reopened)).status,
-        ProjectProofreadEvidenceStatus.missingEvidence,
-      );
-    });
+        final reopened = await whisper.reopen();
+        expect(reopened.lyricDocument!.lines, isNotEmpty);
+        expect(
+          reopened.lyricDocument!.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          reopened.lyricDocument!.metadata.containsKey(
+            IndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          (await whisper.load(reopened)).status,
+          ProjectProofreadEvidenceStatus.missingEvidence,
+        );
+      },
+    );
 
     test('repeated reopen and inspection never save the project', () async {
       await h.run();
@@ -284,8 +291,9 @@ void main() {
     test('editing the draft retains originals as audit only', () async {
       await h.run();
       final old = await h.current();
-      final originalEvidence =
-          old.lyricDocument!.metadata[ChunkedIndependentAsrEvidence.metadataKey];
+      final originalEvidence = old
+          .lyricDocument!
+          .metadata[ChunkedIndependentAsrEvidence.metadataKey];
       final updated = await h.repo.updateProject(
         old.copyWith(
           lyricDocument: old.lyricDocument!.copyWith(
@@ -299,7 +307,8 @@ void main() {
       expect(reopened.revision, updated.revision);
       expect(reopened.lyricDocument!.lines.single.text, 'manual edit');
       expect(
-        reopened.lyricDocument!.metadata[ChunkedIndependentAsrEvidence.metadataKey],
+        reopened.lyricDocument!.metadata[ChunkedIndependentAsrEvidence
+            .metadataKey],
         originalEvidence,
       );
       final before = jsonEncode(reopened.toJson());
@@ -353,7 +362,10 @@ void main() {
         expect(reopened.lyricDocument!.toJson(), _manual.toJson());
         expect(reopened.currentStage, ProcessingStage.lyricsEdited);
         expect(reopened.metadata['concurrent'], 'preserved');
-        expect(reopened.metadata.containsKey('activeTranscriptionRunId'), isFalse);
+        expect(
+          reopened.metadata.containsKey('activeTranscriptionRunId'),
+          isFalse,
+        );
         expect(
           (await h.load(reopened)).status,
           ProjectProofreadEvidenceStatus.missingEvidence,
@@ -391,7 +403,10 @@ void main() {
         final reopened = await h.reopen();
         expect(reopened.lyricDocument!.toJson(), _original.toJson());
         expect(reopened.status, ProjectStatus.editing);
-        expect(reopened.metadata.containsKey('activeTranscriptionRunId'), isFalse);
+        expect(
+          reopened.metadata.containsKey('activeTranscriptionRunId'),
+          isFalse,
+        );
         expect(
           Directory('${h.root.path}/transcription/backups').listSync(),
           hasLength(1),
@@ -566,7 +581,7 @@ void main() {
         };
         final rerun = IndependentProjectRerunWorkflow(
           projects: h.repo,
-          settings: _Settings(null),
+          settings: _Settings(_config),
           profiles: _Resolver(_config),
           runtime: _Runtime(),
           resources: h.resources,
@@ -642,7 +657,10 @@ void main() {
           projectId: h.id,
           engine: IndependentRerunEngine.whisper,
         );
-        expect(savedCandidate.pair.candidate.lines.single.text, 'rerun whisper');
+        expect(
+          savedCandidate.pair.candidate.lines.single.text,
+          'rerun whisper',
+        );
 
         // Rerun bumps revision without losing ChunkedIndependentAsrEvidence.
         expect(
@@ -662,22 +680,25 @@ void main() {
   });
 
   group('audio provenance and corrupt data boundaries', () {
-    test('an incomplete independent pair saves a draft but no audit set', () async {
-      h.includeEvidence = (call) => call == 1;
-      await h.run();
-      final reopened = await h.reopen();
-      expect(reopened.lyricDocument!.lines, isNotEmpty);
-      expect(
-        reopened.lyricDocument!.metadata.containsKey(
-          ChunkedIndependentAsrEvidence.metadataKey,
-        ),
-        isFalse,
-      );
-      expect(
-        (await h.load(reopened)).status,
-        ProjectProofreadEvidenceStatus.missingEvidence,
-      );
-    });
+    test(
+      'an incomplete independent pair saves a draft but no audit set',
+      () async {
+        h.includeEvidence = (call) => call == 1;
+        await h.run();
+        final reopened = await h.reopen();
+        expect(reopened.lyricDocument!.lines, isNotEmpty);
+        expect(
+          reopened.lyricDocument!.metadata.containsKey(
+            ChunkedIndependentAsrEvidence.metadataKey,
+          ),
+          isFalse,
+        );
+        expect(
+          (await h.load(reopened)).status,
+          ProjectProofreadEvidenceStatus.missingEvidence,
+        );
+      },
+    );
 
     test(
       'out-of-bounds chunk timestamps or unknown engine cannot publish audit',
@@ -767,7 +788,9 @@ void main() {
         final stem = File('${h.root.path}/vocal.wav');
         await stem.writeAsBytes(List<int>.filled(128, 3));
         await h.repo.updateProject(
-          old.copyWith(audioAsset: old.audioAsset!.copyWith(vocalPath: stem.path)),
+          old.copyWith(
+            audioAsset: old.audioAsset!.copyWith(vocalPath: stem.path),
+          ),
         );
         final saved = await h.reopen();
         final result = await h.load(saved);
@@ -782,13 +805,14 @@ void main() {
       final current = await h.current();
       await h.repo.updateProject(current.copyWith(name: 'new project name'));
       final freshRepo = FileProjectRepository(rootDirectory: h.root);
-      final result = await VerifiedProjectProofreadEvidenceLoader(
-        projects: freshRepo,
-      ).load(
-        projectId: h.id,
-        expectedProjectRevision: old.revision,
-        draft: old.lyricDocument!,
-      );
+      final result =
+          await VerifiedProjectProofreadEvidenceLoader(
+            projects: freshRepo,
+          ).load(
+            projectId: h.id,
+            expectedProjectRevision: old.revision,
+            draft: old.lyricDocument!,
+          );
       expect(result.status, ProjectProofreadEvidenceStatus.projectChanged);
       expect(result.chunks, isEmpty);
     });
@@ -889,7 +913,8 @@ void main() {
         final raw =
             jsonDecode(
                   jsonEncode(
-                    document.metadata[ChunkedIndependentAsrEvidence.metadataKey],
+                    document.metadata[ChunkedIndependentAsrEvidence
+                        .metadataKey],
                   ),
                 )
                 as Map<String, dynamic>;
@@ -970,9 +995,7 @@ class _Harness {
   bool Function(int)? includeEvidence;
   File get store => File('${root.path}/projects.json');
 
-  static Future<_Harness> create({
-    TranscriptionConfig config = _config,
-  }) async {
+  static Future<_Harness> create({TranscriptionConfig config = _config}) async {
     final root = await Directory.systemTemp.createTemp('full-chunk-project-');
     final source = File('${root.path}/source.wav');
     await source.writeAsBytes(List<int>.filled(128, 7));
@@ -1026,7 +1049,7 @@ class _Harness {
     final qwen = _AsyncService((request, _) async {
       qwenCalls++;
       if (failQwenOnCall == qwenCalls) {
-        throw const TranscriptionException.unknown('qwen runtime failure');
+        throw const TranscriptionException('qwen runtime failure');
       }
       final lines = qwenCalls == 1
           ? const [
@@ -1147,13 +1170,14 @@ class _Harness {
   Future<ProjectProofreadEvidenceResult> load(
     ProjectManifest project, {
     LyricDocument? draft,
-  }) => VerifiedProjectProofreadEvidenceLoader(
-    projects: FileProjectRepository(rootDirectory: root),
-  ).load(
-    projectId: id,
-    expectedProjectRevision: project.revision,
-    draft: draft ?? project.lyricDocument!,
-  );
+  }) =>
+      VerifiedProjectProofreadEvidenceLoader(
+        projects: FileProjectRepository(rootDirectory: root),
+      ).load(
+        projectId: id,
+        expectedProjectRevision: project.revision,
+        draft: draft ?? project.lyricDocument!,
+      );
   Future<void> dispose() async {
     await chunks.dispose();
     if (await root.exists()) {

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/data/services/local_lyric_file_import_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/project_proofread_evidence.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_file_export_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/lyric_editor_dependencies.dart';
@@ -83,10 +84,12 @@ void main() {
       );
 
       // Editable draft deduplicated overlap while keeping all 4 merged lines.
-      expect(
-        editor.document!.lines.map((l) => l.text).toList(),
-        ['opening verse', 'shared chorus', 'ending refrain', 'whisper adlib'],
-      );
+      expect(editor.document!.lines.map((l) => l.text).toList(), [
+        'opening verse',
+        'shared chorus',
+        'ending refrain',
+        'whisper adlib',
+      ]);
       expect(editor.hasChanges, isFalse);
 
       await _requestProjectEvidenceInEditor(tester);
@@ -196,10 +199,11 @@ void main() {
         repository: repoB,
         projectId: fixture.projectId,
       );
-      expect(
-        editorB.document!.lines.map((l) => l.text).toList(),
-        ['user edited verse', 'ending refrain', 'whisper adlib'],
-      );
+      expect(editorB.document!.lines.map((l) => l.text).toList(), [
+        'user edited verse',
+        'ending refrain',
+        'whisper adlib',
+      ]);
 
       await _requestProjectEvidenceInEditor(tester);
       await _waitForFinder(
@@ -218,10 +222,11 @@ void main() {
       await tester.tap(find.text('关闭'));
       await tester.pumpAndSettle();
 
-      expect(
-        editorB.document!.lines.map((l) => l.text).toList(),
-        ['user edited verse', 'ending refrain', 'whisper adlib'],
-      );
+      expect(editorB.document!.lines.map((l) => l.text).toList(), [
+        'user edited verse',
+        'ending refrain',
+        'whisper adlib',
+      ]);
       expect(editorB.hasChanges, isFalse);
       expect(tester.takeException(), isNull);
     },
@@ -432,7 +437,10 @@ void main() {
   testWidgets(
     'degraded chunk run exposes no chunk dialog and keeps editable draft',
     (tester) async {
-      final fixture = await _DiskChunkFixture.capture(tester, failQwenOnCall: 2);
+      final fixture = await _DiskChunkFixture.capture(
+        tester,
+        failQwenOnCall: 2,
+      );
       addTearDown(fixture.dispose);
 
       final repo = FileProjectRepository(rootDirectory: fixture.root);
@@ -571,7 +579,7 @@ class _DiskChunkFixture {
       final qwen = _ScriptedAsr((request) async {
         qwenCalls++;
         if (failQwenOnCall == qwenCalls) {
-          throw const TranscriptionException.unknown('qwen runtime failed');
+          throw const TranscriptionException('qwen runtime failed');
         }
         final lines = qwenCalls == 1
             ? const [
@@ -720,7 +728,9 @@ class _FfmpegStub {
       final process = _FakeProcess();
       if (arguments.contains('-vn')) {
         _counter++;
-        await File(arguments.last).writeAsBytes(List<int>.filled(128, _counter));
+        await File(
+          arguments.last,
+        ).writeAsBytes(List<int>.filled(128, _counter));
         Timer(const Duration(milliseconds: 1), () => process.finish(0));
       } else {
         Timer(const Duration(milliseconds: 1), () {
