@@ -348,6 +348,10 @@ void main() {
         description: 'stale revision snackbar',
       );
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
+      ScaffoldMessenger.of(
+        tester.element(find.byType(Scaffold).first),
+      ).clearSnackBars();
+      await tester.pumpAndSettle();
 
       // Attempt save to trigger conflict dialog, then reload latest revision.
       final lyricField = find.byWidgetPredicate(
