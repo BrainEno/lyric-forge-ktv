@@ -181,7 +181,10 @@ void main() {
       tester.widget<TextField>(lyricField).onChanged?.call('user edited verse');
       await tester.pumpAndSettle();
       await tester.tap(find.text('shared chorus').first);
+      // LyricReviewRow registers onDoubleTap, so let the gesture arena settle.
+      await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
+      expect(editorA.selectedLineIndex, 1);
       await tester.scrollUntilVisible(
         find.text('删除这一行'),
         150,
@@ -249,25 +252,20 @@ void main() {
   testWidgets(
     'replaced source bytes or attached vocal stem fail closed in editor',
     (tester) async {
-      stdout.writeln('[T3] 1 capture');
       final fixture = await _DiskChunkFixture.capture(tester);
       addTearDown(fixture.dispose);
 
       final repo = FileProjectRepository(rootDirectory: fixture.root);
-      stdout.writeln('[T3] 2 mount1');
       await _mountEditor(
         tester,
         repository: repo,
         projectId: fixture.projectId,
       );
 
-      stdout.writeln('[T3] 3 rewrite source');
       await tester.runAsync(
         () => fixture.source.writeAsBytes(List<int>.filled(128, 9)),
       );
-      stdout.writeln('[T3] 4 request1');
       await _requestProjectEvidenceInEditor(tester);
-      stdout.writeln('[T3] 5 wait1');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
@@ -275,44 +273,34 @@ void main() {
       );
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
 
-      stdout.writeln('[T3] 6 restore+stem');
       // Restore source bytes, attach a different preferred vocal stem, reload.
       await tester.runAsync(() async {
-        stdout.writeln('[T3] 6a write source');
         await fixture.source.writeAsBytes(List<int>.filled(128, 7));
-        stdout.writeln('[T3] 6b write stem');
         final stem = File('${fixture.root.path}/vocal.wav');
         await stem.writeAsBytes(List<int>.filled(128, 4));
-        stdout.writeln('[T3] 6c getProject');
-        final current = (await repo.getProjectById(fixture.projectId))!;
-        stdout.writeln('[T3] 6d updateProject');
-        await repo.updateProject(
+        final diskRepo = FileProjectRepository(rootDirectory: fixture.root);
+        final current = (await diskRepo.getProjectById(fixture.projectId))!;
+        await diskRepo.updateProject(
           current.copyWith(
             audioAsset: current.audioAsset!.copyWith(vocalPath: stem.path),
           ),
         );
-        stdout.writeln('[T3] 6e done');
       });
-      stdout.writeln('[T3] 7 unmount');
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
 
       final repoAfterStem = FileProjectRepository(rootDirectory: fixture.root);
-      stdout.writeln('[T3] 8 mount2');
       await _mountEditor(
         tester,
         repository: repoAfterStem,
         projectId: fixture.projectId,
       );
-      stdout.writeln('[T3] 9 request2');
       await _requestProjectEvidenceInEditor(tester);
-      stdout.writeln('[T3] 10 wait2');
       await _waitForFinder(
         tester,
         find.textContaining('识别音频与快照不一致'),
         description: 'stem changed snackbar',
       );
-      stdout.writeln('[T3] 11 done');
       expect(find.byType(ProjectChunkAsrSnapshotDialog), findsNothing);
       expect(tester.takeException(), isNull);
     },
@@ -332,10 +320,26 @@ void main() {
       );
 
       // Another operation bumps revision on the shared repository.
-      await tester.runAsync(() async {
-        final current = (await repo.getProjectById(fixture.projectId))!;
-        await repo.updateProject(current.copyWith(name: 'renamed elsewhere'));
-      });
+      var backgroundSaved = false;
+      Object? backgroundError;
+      unawaited(() async {
+        try {
+          final current = (await repo.getProjectById(fixture.projectId))!;
+          await repo.updateProject(current.copyWith(name: 'renamed elsewhere'));
+        } catch (error) {
+          backgroundError = error;
+        } finally {
+          backgroundSaved = true;
+        }
+      }());
+      for (var i = 0; i < 120 && !backgroundSaved; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(backgroundSaved, isTrue);
+      expect(backgroundError, isNull);
 
       await _requestProjectEvidenceInEditor(tester);
       await _waitForFinder(
@@ -538,6 +542,7 @@ Future<LyricEditorDocumentController> _mountEditor(
   );
   if (lyricField.evaluate().isEmpty) {
     await tester.tap(find.text('opening verse').first);
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
   }
   return Provider.of<LyricEditorDocumentController>(
