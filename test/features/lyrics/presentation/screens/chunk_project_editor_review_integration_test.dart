@@ -185,10 +185,12 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('删除这一行'),
         150,
-        scrollable: find.descendant(
-          of: find.byType(LineInspector),
-          matching: find.byType(Scrollable),
-        ),
+        scrollable: find
+            .descendant(
+              of: find.byType(LineInspector),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       await tester.tap(find.text('删除这一行'));
       await tester.pumpAndSettle();
@@ -276,15 +278,20 @@ void main() {
       debugPrint('[T3] 6 restore+stem');
       // Restore source bytes, attach a different preferred vocal stem, reload.
       await tester.runAsync(() async {
+        debugPrint('[T3] 6a write source');
         await fixture.source.writeAsBytes(List<int>.filled(128, 7));
+        debugPrint('[T3] 6b write stem');
         final stem = File('${fixture.root.path}/vocal.wav');
         await stem.writeAsBytes(List<int>.filled(128, 4));
+        debugPrint('[T3] 6c getProject');
         final current = (await repo.getProjectById(fixture.projectId))!;
+        debugPrint('[T3] 6d updateProject');
         await repo.updateProject(
           current.copyWith(
             audioAsset: current.audioAsset!.copyWith(vocalPath: stem.path),
           ),
         );
+        debugPrint('[T3] 6e done');
       });
       debugPrint('[T3] 7 unmount');
       await tester.pumpWidget(const SizedBox.shrink());
