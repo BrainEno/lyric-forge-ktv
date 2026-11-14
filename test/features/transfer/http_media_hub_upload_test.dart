@@ -628,15 +628,27 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
             mediaHubTlsFingerprint(certificate.der) ==
             session.tlsFingerprint!.toLowerCase(),
       );
-    } on SocketException catch (error) {
-      final errorCode = error.osError?.errorCode;
-      final errorMessage = error.message.toLowerCase();
+    } on Object catch (error) {
+      final osError = error is SocketException
+          ? error.osError
+          : error is TlsException
+          ? error.osError
+          : null;
+      final errorCode = osError?.errorCode;
+      final errorMessage = error.toString().toLowerCase();
+      final isSocketOrTlsError =
+          error is SocketException || error is TlsException;
       final isTransientHandshakeReset =
-          errorCode == 32 ||
-          errorCode == 104 ||
-          errorCode == 10054 ||
-          errorMessage.contains('broken pipe') ||
-          errorMessage.contains('connection reset by peer');
+          isSocketOrTlsError &&
+          (errorCode == 32 ||
+              errorCode == 104 ||
+              errorCode == 10054 ||
+              errorMessage.contains('broken pipe') ||
+              errorMessage.contains('connection reset by peer'));
+      print(
+        'Pinned TLS setup error (${error.runtimeType}, errno=$errorCode): '
+        '$error',
+      );
       if (!isTransientHandshakeReset ||
           attempt >= maxTransientHandshakeRetries) {
         rethrow;
@@ -646,10 +658,6 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
       // listener is available. A TCP/TLS connection reset before any HTTP bytes
       // are sent may be retried within a small bound; certificate and persistent
       // listener failures still fail the test.
-      print(
-        'Retrying pinned TLS setup after a transient reset '
-        '(${attempt + 1}/$maxTransientHandshakeRetries): ${error.message}',
-      );
       await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
     }
   }
