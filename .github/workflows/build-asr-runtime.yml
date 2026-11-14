@@ -214,7 +214,23 @@ jobs:
           }
           cargo test --release -p qwen3_asr_cli --bin qwen3-asr --features cuda session_auth 2>&1 | Tee-Object -FilePath ../session-auth-unit.log
           Assert-SessionAuthTest unit $LASTEXITCODE
-          cargo test --release -p qwen3_asr_cli --features cuda --test session_auth_integration 2>&1 | Tee-Object -FilePath ../session-auth-integration.log
+          # Hosted Windows runners have no NVIDIA driver, so the CUDA build of
+          # qwen3-asr.exe cannot be launched here. Record why, then run the
+          # process-level tests against a CPU build of the same patched source
+          # in a separate target dir so the CUDA bundle binary is untouched.
+          try {
+            & ./target/release/qwen3-asr.exe --help *> $null
+            $launchCode = $LASTEXITCODE
+          } catch {
+            $launchCode = "launch error: $($_.Exception.Message)"
+          }
+          try {
+            $imports = (dumpbin /nologo /dependents target/release/qwen3-asr.exe | Select-String -Pattern '\.dll' | ForEach-Object { $_.Line.Trim() }) -join ', '
+          } catch {
+            $imports = 'unavailable'
+          }
+          Write-Host "::notice title=CUDA qwen3-asr.exe on GPU-less runner::--help exit code $launchCode; imports: $imports"
+          cargo test --release -p qwen3_asr_cli --test session_auth_integration --target-dir ../qwen-session-auth-cpu-target 2>&1 | Tee-Object -FilePath ../session-auth-integration.log
           Assert-SessionAuthTest integration $LASTEXITCODE
 
       - name: Fetch pinned whisper.cpp source

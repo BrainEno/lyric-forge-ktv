@@ -157,9 +157,17 @@ void main() {
     expect(
       workflow,
       contains(
-        'cargo test --release -p qwen3_asr_cli --features cuda '
-        '--test session_auth_integration',
+        'cargo test --release -p qwen3_asr_cli --bin qwen3-asr '
+        '--features cuda session_auth',
       ),
+    );
+    expect(
+      workflow,
+      contains(
+        'cargo test --release -p qwen3_asr_cli --test session_auth_integration '
+        '--target-dir ../qwen-session-auth-cpu-target',
+      ),
+      reason: 'Windows must run the process-level session-auth tests',
     );
     expect(
       workflow,
