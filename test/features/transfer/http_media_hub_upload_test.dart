@@ -617,7 +617,7 @@ void main() {
 }
 
 Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
-  const maxBrokenPipeRetries = 3;
+  const maxTransientHandshakeRetries = 3;
   for (var attempt = 0; ; attempt++) {
     try {
       return await SecureSocket.connect(
@@ -629,15 +629,27 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
             session.tlsFingerprint!.toLowerCase(),
       );
     } on SocketException catch (error) {
-      final isBrokenPipe =
-          error.osError?.errorCode == 32 ||
-          error.message.toLowerCase().contains('broken pipe');
-      if (!isBrokenPipe || attempt >= maxBrokenPipeRetries) rethrow;
+      final errorCode = error.osError?.errorCode;
+      final errorMessage = error.message.toLowerCase();
+      final isTransientHandshakeReset =
+          errorCode == 32 ||
+          errorCode == 104 ||
+          errorCode == 10054 ||
+          errorMessage.contains('broken pipe') ||
+          errorMessage.contains('connection reset by peer');
+      if (!isTransientHandshakeReset ||
+          attempt >= maxTransientHandshakeRetries) {
+        rethrow;
+      }
 
-      // Connect through the advertised endpoint rather than assuming the
-      // optional loopback listener is available. Retry only transient EPIPE and
-      // keep the total retry window bounded; persistent listener or certificate
-      // failures still fail the test.
+      // Use the advertised endpoint instead of assuming the optional loopback
+      // listener is available. A TCP/TLS connection reset before any HTTP bytes
+      // are sent may be retried within a small bound; certificate and persistent
+      // listener failures still fail the test.
+      print(
+        'Retrying pinned TLS setup after a transient reset '
+        '(${attempt + 1}/$maxTransientHandshakeRetries): ${error.message}',
+      );
       await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
     }
   }
