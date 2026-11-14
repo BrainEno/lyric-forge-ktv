@@ -192,7 +192,9 @@ class LyricEditorProofreadingCoordinator {
     );
     if (input == null || !host.proofreadIsCurrent(revision)) return;
 
-    final evidence = await showTimingEvidenceImportDialog(host.proofreadContext);
+    final evidence = await showTimingEvidenceImportDialog(
+      host.proofreadContext,
+    );
     if (!host.proofreadIsCurrent(revision)) return;
     final plan = const RunReferenceProofreadUseCase().build(
       draft: document,
@@ -245,8 +247,7 @@ class LyricEditorProofreadingCoordinator {
   }) async {
     final options = await showProofreadV2RunOptionsDialog(
       host.proofreadContext,
-      allowProjectEvidence:
-          dependencies.projectProofreadEvidenceLoader != null,
+      allowProjectEvidence: dependencies.projectProofreadEvidenceLoader != null,
     );
     if (options == null || !host.proofreadIsCurrent(revision)) return;
 
@@ -409,7 +410,8 @@ class LyricEditorProofreadingCoordinator {
 
       Future<void> stopOwnedReferenceAudition() async {
         final owned = ownedReferenceAudition;
-        if (owned == null || !identical(host.proofreadAudition.active, owned)) return;
+        if (owned == null || !identical(host.proofreadAudition.active, owned))
+          return;
         ownedReferenceAudition = null;
         final current = playbackSnapshot();
         if (timingSnapshot != null &&
@@ -419,7 +421,8 @@ class LyricEditorProofreadingCoordinator {
             current.audioPath == timingSnapshot.audioPath) {
           await host.proofreadAudition.pauseIfSounding();
         }
-        if (identical(host.proofreadAudition.active, owned)) host.proofreadAudition.clear();
+        if (identical(host.proofreadAudition.active, owned))
+          host.proofreadAudition.clear();
       }
 
       late final ReferenceTimingAuditionCoordinator? previewCoordinator;
@@ -431,7 +434,8 @@ class LyricEditorProofreadingCoordinator {
               audioDuration: project.audioAsset?.duration,
               playbackSnapshot: playbackSnapshot,
               isEditorCurrent: () =>
-                  host.proofreadIsMounted && host.proofreadDocumentRevision == revision,
+                  host.proofreadIsMounted &&
+                  host.proofreadDocumentRevision == revision,
               play: (proposalIndex, sourceIndex, window) async {
                 bool valid() {
                   if (!host.proofreadIsMounted ||
@@ -561,14 +565,19 @@ class LyricEditorProofreadingCoordinator {
             : (index) => host.previewProofreadLine(project, index),
         onPreviewTimedLine: project.audioAsset == null
             ? null
-            : (index, line, globalOffset) =>
-                  host.previewProofreadTimedLine(project, index, line, globalOffset),
+            : (index, line, globalOffset) => host.previewProofreadTimedLine(
+                project,
+                index,
+                line,
+                globalOffset,
+              ),
         originalGlobalOffset: document.globalOffset ?? Duration.zero,
         proposedGlobalOffset:
             assembly.proposalDocument.globalOffset ?? Duration.zero,
         onPreviewAlignmentToken: project.audioAsset == null
             ? null
-            : (index, token) => host.previewProofreadToken(project, index, token),
+            : (index, token) =>
+                  host.previewProofreadToken(project, index, token),
       );
       await previewCoordinator?.close();
       if (selection == null || !host.proofreadIsCurrent(revision)) return;
@@ -699,5 +708,4 @@ class LyricEditorProofreadingCoordinator {
       null => null,
     };
   }
-
 }

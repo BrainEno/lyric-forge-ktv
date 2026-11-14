@@ -44,32 +44,70 @@ jobs:
           git diff --check
 
       - name: Analyze app and tests
-        run: flutter analyze --no-pub --no-fatal-infos lib test tool
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos lib test tool > /tmp/flutter-analyze.log 2>&1
+          result=$?
+          cat /tmp/flutter-analyze.log
+          if (( result != 0 )); then
+            python3 - <<'PY'
+          from pathlib import Path
+
+          def escape(value):
+              return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+          for line in Path('/tmp/flutter-analyze.log').read_text().splitlines():
+              if line.strip():
+                  print(f'::error title=Flutter analyzer::{escape(line)}')
+          PY
+            cat /tmp/flutter-analyze.log >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$result"
 
       - name: Run proofreading and editor regression tests
-        run: >-
-          flutter test --no-pub --reporter expanded
-          test/features/lyrics/presentation/screens/lyric_editor_orchestration_contract_test.dart
-          test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart
-          test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart
-          test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart
-          test/features/lyrics/domain/proofreading/run_reference_proofread_use_case_test.dart
-          test/features/lyrics/domain/proofreading/apply_reference_alignment_use_case_test.dart
-          test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart
-          test/features/lyrics/presentation/widgets/reference_alignment_review_test.dart
-          test/features/lyrics/presentation/widgets/reference_alignment_timing_selection_test.dart
+        shell: bash
+        run: |
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/features/lyrics/presentation/screens/lyric_editor_orchestration_contract_test.dart \
+            test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart \
+            test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart \
+            test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart \
+            test/features/lyrics/domain/proofreading/run_reference_proofread_use_case_test.dart \
+            test/features/lyrics/domain/proofreading/apply_reference_alignment_use_case_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog_test.dart \
+            test/features/lyrics/presentation/widgets/reference_alignment_review_test.dart \
+            test/features/lyrics/presentation/widgets/reference_alignment_timing_selection_test.dart \
+            > /tmp/flutter-tests.log 2>&1
+          result=$?
+          cat /tmp/flutter-tests.log
+          if (( result != 0 )); then
+            python3 - <<'PY'
+          from pathlib import Path
+
+          def escape(value):
+              return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
+          for line in Path('/tmp/flutter-tests.log').read_text().splitlines()[-100:]:
+              if line.strip():
+                  print(f'::error title=Flutter test failure::{escape(line)}')
+          PY
+            cat /tmp/flutter-tests.log >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$result"
 
       - name: Generate and verify work-log navigation
         shell: bash
         run: |
           dart tool/work_log.dart new \
-            --timestamp "2026-11-07 04:14" \
+            --timestamp "2026-11-07 23:51" \
             --slug extract-lyric-editor-proofreading-flows \
             --title "Extract lyric editor proofreading flows"
           python3 - <<'PY'
           from pathlib import Path
 
-          entry = Path('docs/log/entries/2026-11-07-0414-extract-lyric-editor-proofreading-flows.md')
+          entry = Path('docs/log/entries/2026-11-07-2351-extract-lyric-editor-proofreading-flows.md')
           text = entry.read_text()
           text = text.replace(
               '- Scope: TODO — describe the task purpose.',
@@ -85,7 +123,7 @@ jobs:
           )
           text = text.replace(
               '  - flutter analyze ... => TODO',
-              '  - flutter analyze --no-pub --no-fatal-infos lib test tool => passed with no new analyzer issues.',
+              '  - flutter analyze --no-pub --no-fatal-infos lib test tool => passed; info-level diagnostics are permitted by the repository gate.',
           )
           text = text.replace(
               '  - flutter test ... => TODO',
@@ -136,7 +174,7 @@ jobs:
               else:
                   print('::notice title=FORMATPATCH_NONE::No formatter changes were produced.')
 
-          entry_path = Path('docs/log/entries/2026-11-07-0414-extract-lyric-editor-proofreading-flows.md')
+          entry_path = Path('docs/log/entries/2026-11-07-2351-extract-lyric-editor-proofreading-flows.md')
           if entry_path.exists():
               docs_patch = subprocess.run(
                   ['git', 'diff', '--', 'docs/work_log.md', 'docs/work_log_index.md', 'docs/work_log_archive.md'],

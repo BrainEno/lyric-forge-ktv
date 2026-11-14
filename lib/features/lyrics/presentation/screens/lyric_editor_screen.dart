@@ -403,8 +403,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   int? get proofreadSelectedLineIndex => _selectedLineIndex;
 
   @override
-  Set<int> get proofreadManuallyEditedLineIndices =>
-      _manuallyEditedLineIndices;
+  Set<int> get proofreadManuallyEditedLineIndices => _manuallyEditedLineIndices;
 
   @override
   AudioPlayerService get proofreadAudioService => _audioService;
