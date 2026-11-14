@@ -1,0 +1,61 @@
+name: Temporary Dart format report
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  format-report:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Format changed Dart files and save the formatter diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          mapfile -t dart_files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- '*.dart')
+          printf 'Formatter diagnostic covers %s files.\n' "${#dart_files[@]}"
+          printf '%s\n' "${dart_files[@]}"
+          if (( ${#dart_files[@]} == 0 )); then
+            : > format.patch
+            exit 0
+          fi
+          dart format "${dart_files[@]}"
+          git diff -- "${dart_files[@]}" > format.patch
+
+      - name: Publish temporary formatter diff to the pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const patch = fs.readFileSync('format.patch', 'utf8');
+            if (!patch.trim()) return;
+            const body = [
+              '<!-- temporary-dart-format-report -->',
+              'Temporary output from the pinned Dart formatter. This comment will be removed after applying the formatting.',
+              '```diff',
+              patch.slice(0, 58000),
+              '```',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
