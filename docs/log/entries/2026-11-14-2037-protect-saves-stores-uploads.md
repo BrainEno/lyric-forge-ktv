@@ -11,5 +11,5 @@
     - Focused tests: 215 passed.
     - `http_media_hub_upload_test.dart` passed 3 times in a row.
     - Full `flutter test`: 2016 passed, 1 skipped (Windows-only).
-- - Notes: #442 picks Simplified Chinese as the single supported UI language for proofreading, with Chinese as the fallback. Real locale switching would need `flutter_localizations` and a lockfile change, so it is not done here. Model and product identifiers (ForcedAligner, ASR, LRC) stay as written. The repair drops unreadable rows only after explicit confirmation and keeps a byte-verified copy.
+- Notes: #442 picks Simplified Chinese as the single supported UI language for proofreading, with Chinese as the fallback. Real locale switching would need `flutter_localizations` and a lockfile change, so it is not done here. Model and product identifiers (ForcedAligner, ASR, LRC) stay as written. The repair drops unreadable rows only after explicit confirmation and keeps a byte-verified copy.
 - Commit: `Protect lyric saves, local stores, and rejected uploads`
