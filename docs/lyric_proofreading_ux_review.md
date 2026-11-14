@@ -203,3 +203,11 @@
 - **时间轴校验**：`LyricTimelineValidator` 检查重叠/倒退/越界等问题。
 
 最后更新：2026-10-31 校对模块 UX 复盘（本轮编码与文档同 PR）
+
+---
+
+## 9. 校对编排拆分（2026-11-07）
+
+- `LyricEditorScreen` 保留编辑器状态、播放试听与保存入口；三条校对流程的弹窗顺序、策略调用、版本检查及错误反馈移至 `presentation/controllers/lyric_editor_proofreading_coordinator.dart`，并通过 `LyricEditorProofreadFlowHost` 与可变编辑状态交互。
+- 编辑器加载、错误和内容布局移至 `presentation/widgets/lyric_editor_content.dart`。当前 screen 低于 1200 行，三个 `_open*` 入口各低于 40 行；`lyric_editor_orchestration_contract_test.dart` 防止后续回归。
+- `RunProofreadV2UseCase` 等领域用例仍负责构造和应用提案规则；其独立测试保持在 `run_proofread_v2_use_case_test.dart`。界面提案仍需用户选择，确认前不写入磁盘。

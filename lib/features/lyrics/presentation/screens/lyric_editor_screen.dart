@@ -3,10 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/layout/app_responsive.dart';
-import '../../../../core/navigation/routes.dart';
-import '../../../../core/theme/color_tokens.dart';
-import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
@@ -15,49 +11,23 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/lyric_review_queue.dart';
-import '../../domain/models/reference_lyric_input.dart';
-import '../../domain/proofreading/apply_reference_alignment_use_case.dart';
-import '../../domain/proofreading/forced_alignment_language.dart';
-import '../../domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../domain/proofreading/proofread_result.dart';
-import '../../domain/proofreading/project_proofread_evidence.dart';
-import '../../domain/proofreading/reference_alignment_audio_guard.dart';
-import '../../domain/proofreading/reference_alignment_timing_applier.dart';
-import '../../domain/proofreading/reference_timing_audition_planner.dart';
-import '../../domain/proofreading/proofread_v2_document_composer.dart';
-import '../../domain/proofreading/run_proofread_v2_use_case.dart';
-import '../../domain/proofreading/run_reference_proofread_use_case.dart';
-import '../../domain/proofreading/reference_proofread_change_set.dart';
 import '../../domain/services/lyric_audition_window_service.dart';
 import '../../domain/services/lyric_file_export_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
-import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
-import '../../domain/services/lyric_timeline_validator.dart';
 import '../../domain/services/reference_alignment_restore_service.dart';
 import '../../domain/services/reference_lyric_text_parser.dart';
 import '../widgets/reference_alignment_backup_dialog.dart';
-import '../widgets/reference_alignment_dialog.dart';
-import '../widgets/reference_alignment_review.dart';
-import '../widgets/reference_proofread_review_dialog.dart';
-import '../widgets/reference_proofread_timing_review_dialog.dart';
-import '../widgets/timing_evidence_import_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
-import '../controllers/reference_timing_audition_coordinator.dart';
 import '../controllers/lyric_editor_document_controller.dart';
+import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
-import '../widgets/lyric_editor_atoms.dart';
-import '../widgets/lyric_inspector_pane.dart';
+import '../widgets/lyric_editor_content.dart';
 import '../widgets/lyric_list_pane.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
-import '../widgets/project_asr_snapshot_dialog.dart';
-import '../widgets/project_chunk_asr_snapshot_dialog.dart';
-import '../widgets/lyric_edit_shortcuts.dart';
-import '../widgets/lyric_editor_toolbar.dart';
-import '../widgets/lyric_proofread_menu_button.dart';
-import '../widgets/unsaved_lyric_edits_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
 
 class LyricEditorScreen extends StatefulWidget {
@@ -80,13 +50,15 @@ class LyricEditorScreen extends StatefulWidget {
   State<LyricEditorScreen> createState() => _LyricEditorScreenState();
 }
 
-class _LyricEditorScreenState extends State<LyricEditorScreen> {
+class _LyricEditorScreenState extends State<LyricEditorScreen>
+    implements LyricEditorProofreadFlowHost {
   late final ProjectRepository _repository;
   late final PlaybackSessionService _playbackSession;
   late final AudioPlayerService _audioService;
   late final LyricFileExportService _exportService;
   late final LyricManualEditMarkerService _lineMarkers;
   late final ReferenceLyricTextParser _referenceParser;
+  late final LyricEditorProofreadingCoordinator _proofreading;
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
 
@@ -221,6 +193,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _lineMarkers = const LyricManualEditMarkerService();
     _editor = LyricEditorDocumentController(markerService: _lineMarkers);
     _referenceParser = ReferenceLyricTextParser(dependencies.lyricFileImport);
+    _proofreading = LyricEditorProofreadingCoordinator(
+      dependencies: dependencies,
+      referenceParser: _referenceParser,
+      host: this,
+    );
     _loadProject();
   }
 
@@ -377,158 +354,20 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   Future<void> _openReferenceAlignment(ProjectManifest project) async {
     final document = _editingDocument;
     if (document == null || document.lines.isEmpty) return;
-    final revision = _editor.documentRevision;
-
-    final input = await showReferenceAlignmentDialog(
-      context,
-      parser: _referenceParser,
-      initialTitle: project.name,
-      initialArtist: project.artist,
-    );
-    if (input == null || !_proofreadIsCurrent(revision)) return;
-
-    final plan = const ApplyReferenceAlignmentUseCase().prepare(
-      draft: document,
-      input: input,
-      protectedLineIndices: _manuallyEditedLineIndices,
-      audioDuration: project.audioAsset?.duration,
-    );
-    if (plan.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
-      return;
-    }
-
-    final decision = await showReferenceAlignmentReview(
-      context,
+    await _proofreading.openReferenceAlignment(
+      project: project,
       document: document,
-      alignment: plan.alignment,
-      input: input,
-      manuallyEditedLineIndices: plan.protectedLineIndices,
-      timingUnavailableReason: _referenceTimingUnavailableReason(
-        plan.timingUnavailableReason,
-      ),
-      minimumSimilarity: plan.minimumSimilarity,
-    );
-    if (decision == null || !_proofreadIsCurrent(revision)) return;
-    if (!decision.hasChanges) return;
-
-    final proposal = plan.apply(
-      applyReferenceTiming: decision.applyReferenceTiming,
-      acceptedReferenceIndices: decision.acceptedReferenceIndices,
-      acceptedMissingReferenceIndices: decision.acceptedMissingReferenceIndices,
-      overriddenAsrLineIndices: decision.overriddenAsrLineIndices,
-    );
-    final result = proposal.result;
-    if (!result.hasChanges) return;
-
-    // 时间轴校验门：允许先看预览，但严重的新冲突必须由用户明确决定保留。
-    final comparison = result.timelineComparison;
-    if (comparison != null && comparison.hasIntroducedSeriousIssues) {
-      final keep = await _confirmIntroducedTimelineIssues(
-        comparison,
-        autoRepairCount: result.timelineRepairs.length,
-      );
-      if (keep != true || !_proofreadIsCurrent(revision)) return;
-    }
-
-    final appliedDocument = proposal.materialize(appliedAt: DateTime.now());
-
-    final selection = result.corrections.isNotEmpty
-        ? result.corrections.first.asrLineIndex
-        : result.insertions.isNotEmpty
-        ? result.insertions.first.asrLineIndex
-        : _selectedLineIndex;
-    final shouldPauseAudition = _audition.isSounding;
-    setState(() {
-      _editor.replaceDocument(
-        appliedDocument,
-        label: '应用参考歌词对齐',
-        selectedLineIndex: selection,
-        keepBatchSnapshot: true,
-      );
-      _audition.clear();
-      _filter = LyricReviewFilter.all;
-    });
-    if (shouldPauseAudition) unawaited(_audioService.pause());
-
-    final parts = <String>[
-      if (result.corrections.isNotEmpty) '纠正 ${result.corrections.length} 行',
-      if (result.insertions.isNotEmpty) '补全 ${result.insertions.length} 行',
-      if (result.timingUpdatedCount > 0) '更新 ${result.timingUpdatedCount} 行时间',
-      if (result.timelineRepairs.isNotEmpty)
-        '自动修复时间轴 ${result.timelineRepairs.length} 处',
-      if (result.skippedManuallyEditedIndices.isNotEmpty)
-        '跳过 ${result.skippedManuallyEditedIndices.length} 行手动编辑',
-      if (decision.overriddenAsrLineIndices.isNotEmpty)
-        '覆盖 ${decision.overriddenAsrLineIndices.length} 行手动编辑',
-    ];
-    final timelineWarning = comparison?.hasIntroducedSeriousIssues == true
-        ? '；时间轴有新增冲突，已按你的确认保留'
-        : '';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${parts.isEmpty ? '参考歌词已对齐' : parts.join('，')}$timelineWarning。'
-          '请检查后保存。',
-        ),
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
-      ),
+      revision: _editor.documentRevision,
     );
   }
 
   Future<void> _openReferenceProofread(ProjectManifest project) async {
     final document = _editingDocument;
     if (document == null || document.lines.isEmpty) return;
-    final revision = _editor.documentRevision;
-
-    final input = await showReferenceAlignmentDialog(
-      context,
-      parser: _referenceParser,
-      initialTitle: project.name,
-      initialArtist: project.artist,
-    );
-    if (input == null || !_proofreadIsCurrent(revision)) return;
-
-    final evidence = await showTimingEvidenceImportDialog(context);
-    if (!_proofreadIsCurrent(revision)) return;
-    final plan = const RunReferenceProofreadUseCase().build(
-      draft: document,
-      reference: input,
-      timingEvidence: evidence,
-      protectedDraftIndices: _manuallyEditedLineIndices,
-      audioDuration: project.audioAsset?.duration,
-    );
-    if (plan.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
-      return;
-    }
-    final selected = plan.hasTimingEvidence
-        ? await showReferenceProofreadTimingReviewDialog(
-            context,
-            document: document,
-            items: plan.timedItems,
-          )
-        : await showReferenceProofreadReviewDialog(
-            context,
-            document: document,
-            suggestions: plan.suggestions,
-          );
-    if (selected == null ||
-        selected.isEmpty ||
-        !_proofreadIsCurrent(revision)) {
-      return;
-    }
-    final applied = plan.apply(selected);
-    _commitReferenceProofreadChange(
-      applied,
-      message: plan.hasTimingEvidence
-          ? '已应用 ${applied.changedDraftIndices.length} 行文字与校时建议；请试听检查并保存。'
-          : '已应用 ${applied.changedDraftIndices.length} 行文字纠错；现有时间戳保持不变，请试听检查并保存。',
+    await _proofreading.openReferenceProofread(
+      project: project,
+      document: document,
+      revision: _editor.documentRevision,
     );
   }
 
@@ -540,18 +379,44 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     final revision = _editor.documentRevision;
     setState(() => _proofreadV2InProgress = true);
     try {
-      await _runProofreadV2(
-        project,
-        document,
-        revision,
-        _projectRevision ?? project.revision,
+      await _proofreading.runProofreadV2(
+        project: project,
+        document: document,
+        revision: revision,
+        projectRevision: _projectRevision ?? project.revision,
       );
     } finally {
       if (mounted) setState(() => _proofreadV2InProgress = false);
     }
   }
 
-  bool _proofreadIsCurrent(int revision) {
+  @override
+  BuildContext get proofreadContext => context;
+
+  @override
+  bool get proofreadIsMounted => mounted;
+
+  @override
+  int get proofreadDocumentRevision => _editor.documentRevision;
+
+  @override
+  int? get proofreadSelectedLineIndex => _selectedLineIndex;
+
+  @override
+  Set<int> get proofreadManuallyEditedLineIndices =>
+      _manuallyEditedLineIndices;
+
+  @override
+  AudioPlayerService get proofreadAudioService => _audioService;
+
+  @override
+  PlaybackSessionService get proofreadPlaybackSession => _playbackSession;
+
+  @override
+  LineAuditionController get proofreadAudition => _audition;
+
+  @override
+  bool proofreadIsCurrent(int revision) {
     if (!mounted) return false;
     if (_editor.documentRevision == revision) return true;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -560,451 +425,42 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     return false;
   }
 
-  Future<void> _runProofreadV2(
+  @override
+  Future<void> previewProofreadLine(ProjectManifest project, int index) =>
+      _previewLine(project, index);
+
+  @override
+  Future<ProofreadTimedLinePreviewResult> previewProofreadTimedLine(
     ProjectManifest project,
-    LyricDocument document,
-    int revision,
-    int projectRevision,
-  ) async {
-    final options = await showProofreadV2RunOptionsDialog(
-      context,
-      allowProjectEvidence:
-          widget.dependencies.projectProofreadEvidenceLoader != null,
-    );
-    if (options == null || !_proofreadIsCurrent(revision)) return;
+    int index,
+    LyricLine line,
+    Duration globalOffset,
+  ) => _previewTimedLine(project, index, line, globalOffset);
 
-    LyricDocument? secondaryAsr;
-    final secondaryText = options.secondaryTranscriptText;
-    if (secondaryText != null) {
-      late final ReferenceLyricInput parsed;
-      try {
-        parsed = _referenceParser.parsePasted(secondaryText);
-      } catch (error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
-        return;
-      }
-      if (!parsed.timed ||
-          parsed.lines.any(
-            (line) => line.startTime == null || line.endTime == null,
-          )) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('第二份 ASR 转写稿必须为每行都带时间戳的 LRC、SRT 或 WebVTT。'),
-          ),
-        );
-        return;
-      }
-      secondaryAsr = LyricDocument(
-        language: document.language,
-        lines: [
-          for (final line in parsed.lines)
-            LyricLine(
-              text: line.text,
-              startTime: line.startTime!,
-              endTime: line.endTime!,
-              // Imported transcripts have no calibrated confidence metadata, so
-              // the line is unscored rather than "60% sure".
-              confidence: unscoredConfidencePlaceholder,
-              confidenceSource: LyricConfidenceSource.unscored,
-            ),
-        ],
-        globalOffset: Duration.zero,
-        metadata: const {'proofreadEvidenceSource': 'secondaryAsrPaste'},
-      );
-    }
+  @override
+  Future<void> previewProofreadToken(
+    ProjectManifest project,
+    int index,
+    TimedLyricToken token,
+  ) => _previewProofreadToken(project, index, token);
 
-    ReferenceLyricInput? reference;
-    if (options.useReference) {
-      reference = await showReferenceAlignmentDialog(
-        context,
-        parser: _referenceParser,
-        initialTitle: project.name,
-        initialArtist: project.artist,
-      );
-      if (reference == null || !_proofreadIsCurrent(revision)) return;
-    }
-
-    try {
-      ProjectProofreadEvidenceResult? projectEvidence;
-      if (options.useProjectEvidence) {
-        final loader = widget.dependencies.projectProofreadEvidenceLoader;
-        if (loader == null) return;
-        projectEvidence = await loader(
-          projectId: project.id,
-          expectedProjectRevision: projectRevision,
-          draft: document,
-        );
-        if (!_proofreadIsCurrent(revision)) return;
-        if (projectEvidence.status ==
-            ProjectProofreadEvidenceStatus.chunkAuditOnly) {
-          await showDialog<void>(
-            context: context,
-            builder: (_) =>
-                ProjectChunkAsrSnapshotDialog(chunks: projectEvidence!.chunks),
-          );
-          return;
-        }
-        if (projectEvidence.status ==
-            ProjectProofreadEvidenceStatus.auditOnly) {
-          await showDialog<void>(
-            context: context,
-            builder: (_) =>
-                ProjectAsrSnapshotDialog(evidence: projectEvidence!),
-          );
-          return;
-        }
-        if (projectEvidence.status !=
-            ProjectProofreadEvidenceStatus.available) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                LyricReviewStrings.projectEvidenceUnavailable(
-                  projectEvidence.status,
-                ),
-              ),
-              duration: const Duration(seconds: 6),
-            ),
-          );
-          return;
-        }
-        secondaryAsr = projectEvidence.secondary;
-      }
-      // Capture before invoking the aligner, then recheck after the long run
-      // and again before applying any explicitly selected reference times.
-      final audioGuard = widget.dependencies.referenceAlignmentAudioGuard;
-      ReferenceAlignmentAudioCheck? audioCheck;
-      final asset = project.audioAsset;
-      if (reference != null &&
-          options.useForcedAlignment &&
-          asset != null &&
-          audioGuard != null) {
-        audioCheck = await audioGuard.capture(
-          projectId: project.id,
-          projectRevision: projectRevision,
-          audioPath: asset.vocalPath ?? asset.originalPath,
-        );
-        if (!_proofreadIsCurrent(revision)) return;
-      }
-      final run =
-          await RunProofreadV2UseCase(
-            runner: widget.dependencies.forcedAlignmentRunner,
-          ).build(
-            draft: document,
-            strategy: options.strategy,
-            audioAsset: project.audioAsset,
-            reference: reference,
-            secondary: secondaryAsr,
-            useForcedAlignment: options.useForcedAlignment,
-            manuallyEditedIndices: _manuallyEditedLineIndices,
-          );
-      if (!_proofreadIsCurrent(revision)) return;
-      final assembly = run.assembly;
-      final decision = run.decision;
-      final summary = run.summary;
-      if (assembly.referenceAlignmentPlan?.isReady == true &&
-          audioCheck?.snapshot != null &&
-          audioGuard != null) {
-        audioCheck = await audioGuard.verify(audioCheck!.snapshot!);
-        if (!_proofreadIsCurrent(revision)) return;
-      }
-      final timingSnapshot =
-          audioCheck?.status == ReferenceAlignmentAudioStatus.matches
-          ? audioCheck?.snapshot
-          : null;
-
-      LineAuditionRequest? ownedReferenceAudition;
-      ReferenceTimingPlaybackSnapshot playbackSnapshot() {
-        final item = _playbackSession.currentState.currentItem;
-        final state = _audioService.currentState;
-        final source = state.currentSource;
-        return ReferenceTimingPlaybackSnapshot(
-          projectId: item?.projectId,
-          audioPath: source == null
-              ? null
-              : item?.audioAsset.getPathForSource(source),
-          isRemote: item?.isRemoteStream ?? false,
-          isLoading: state.isLoading,
-          duration: state.duration,
-        );
-      }
-
-      Future<void> stopOwnedReferenceAudition() async {
-        final owned = ownedReferenceAudition;
-        if (owned == null || !identical(_audition.active, owned)) return;
-        ownedReferenceAudition = null;
-        final current = playbackSnapshot();
-        if (timingSnapshot != null &&
-            current.projectId == timingSnapshot.projectId &&
-            !current.isRemote &&
-            !current.isLoading &&
-            current.audioPath == timingSnapshot.audioPath) {
-          await _audition.pauseIfSounding();
-        }
-        if (identical(_audition.active, owned)) _audition.clear();
-      }
-
-      late final ReferenceTimingAuditionCoordinator? previewCoordinator;
-      previewCoordinator = audioGuard == null || timingSnapshot == null
-          ? null
-          : ReferenceTimingAuditionCoordinator(
-              guard: audioGuard,
-              snapshot: timingSnapshot,
-              audioDuration: project.audioAsset?.duration,
-              playbackSnapshot: playbackSnapshot,
-              isEditorCurrent: () =>
-                  mounted && _editor.documentRevision == revision,
-              play: (proposalIndex, sourceIndex, window) async {
-                bool valid() {
-                  if (!mounted ||
-                      previewCoordinator!.isClosed ||
-                      _editor.documentRevision != revision)
-                    return false;
-                  final current = playbackSnapshot();
-                  return current.projectId == timingSnapshot.projectId &&
-                      !current.isLoading &&
-                      !current.isRemote &&
-                      current.audioPath == timingSnapshot.audioPath &&
-                      (current.duration == null ||
-                          window.endAt! <= current.duration!);
-                }
-
-                if (sourceIndex != null &&
-                    (sourceIndex < 0 || sourceIndex >= document.lines.length)) {
-                  return const ReferenceTimingPreviewResult(
-                    ReferenceTimingPreviewStatus.playbackFailed,
-                    error: '原始歌词行已不可用。',
-                  );
-                }
-                final request = LineAuditionRequest(
-                  projectId: project.id,
-                  lineIndex: sourceIndex ?? -proposalIndex - 1,
-                  previewKey: 'reference:$proposalIndex',
-                  lineId: sourceIndex == null
-                      ? null
-                      : document.lines[sourceIndex].id,
-                  window: window,
-                );
-                final result = await _audition.toggle(
-                  request: request,
-                  prepare: () async => throw StateError(
-                    'Playback source changed during audition',
-                  ),
-                  isStillValid: valid,
-                  isPlaybackStillValid: () {
-                    final current = playbackSnapshot();
-                    return current.projectId == timingSnapshot.projectId &&
-                        !current.isRemote &&
-                        !current.isLoading &&
-                        current.audioPath == timingSnapshot.audioPath;
-                  },
-                );
-                if (result.action == LineAuditionAction.started ||
-                    result.action == LineAuditionAction.resumed ||
-                    result.action == LineAuditionAction.paused) {
-                  ownedReferenceAudition = _audition.active;
-                  if (!valid()) {
-                    await stopOwnedReferenceAudition();
-                    return const ReferenceTimingPreviewResult(
-                      ReferenceTimingPreviewStatus.playbackFailed,
-                      error: '试听期间音源或歌词已变化。',
-                    );
-                  }
-                }
-                return switch (result.action) {
-                  LineAuditionAction.started =>
-                    const ReferenceTimingPreviewResult(
-                      ReferenceTimingPreviewStatus.started,
-                    ),
-                  LineAuditionAction.resumed =>
-                    const ReferenceTimingPreviewResult(
-                      ReferenceTimingPreviewStatus.resumed,
-                    ),
-                  LineAuditionAction.paused =>
-                    const ReferenceTimingPreviewResult(
-                      ReferenceTimingPreviewStatus.paused,
-                    ),
-                  LineAuditionAction.invalid ||
-                  LineAuditionAction.failed => ReferenceTimingPreviewResult(
-                    ReferenceTimingPreviewStatus.playbackFailed,
-                    error: result.error,
-                  ),
-                };
-              },
-              stopOwnedPlayback: stopOwnedReferenceAudition,
-            );
-      final selection = await showLyricProofreadV2ReviewDialog(
-        context,
-        summary: LyricReviewStrings.proofreadV2Summary(summary),
-        explanation: [
-          if (projectEvidence != null)
-            '工程独立第二稿：${projectEvidence.secondaryEngine} · ${projectEvidence.capturedAtUtc!.toIso8601String()}；音频已核对，模型内容未校验。',
-          LyricReviewStrings.proofreadV2Explanations(assembly.explanations),
-          if (assembly.referenceAlignmentPlan case final plan?) ...[
-            LyricReviewStrings.referenceAlignmentSummary(plan),
-            if (plan.isReady)
-              audioCheck == null
-                  ? '无法校验音源；参考对齐时间仅可查看，不可采纳。'
-                  : LyricReviewStrings.referenceAlignmentAudioStatus(
-                      audioCheck.status,
-                    ),
-          ],
-        ].join(' '),
-        alignmentDiagnostics: assembly.alignmentDiagnostics,
-        allowReferenceTimingSelection: timingSnapshot != null,
-        onPreviewReferenceTiming: previewCoordinator == null
-            ? null
-            : (proposalIndex, sourceIndex, evidence) async {
-                final result = await previewCoordinator!.preview(
-                  proposalIndex: proposalIndex,
-                  sourceIndex: sourceIndex,
-                  evidence: evidence,
-                );
-                return switch (result.status) {
-                  ReferenceTimingPreviewStatus.started =>
-                    const ProofreadTimedLinePreviewResult.success(),
-                  ReferenceTimingPreviewStatus.resumed =>
-                    const ProofreadTimedLinePreviewResult.success(
-                      message: '已继续试听参考对齐时间。',
-                    ),
-                  ReferenceTimingPreviewStatus.paused =>
-                    const ProofreadTimedLinePreviewResult.success(
-                      message: '已暂停试听。',
-                    ),
-                  _ => ProofreadTimedLinePreviewResult.failure(
-                    LyricReviewStrings.referenceTimingPreviewFailure(result),
-                  ),
-                };
-              },
-        items: assembly.items,
-        droppedItems: assembly.droppedItems,
-        onPreviewDraftLine: project.audioAsset == null
-            ? null
-            : (index) => _previewLine(project, index),
-        onPreviewTimedLine: project.audioAsset == null
-            ? null
-            : (index, line, globalOffset) =>
-                  _previewTimedLine(project, index, line, globalOffset),
-        originalGlobalOffset: document.globalOffset ?? Duration.zero,
-        proposedGlobalOffset:
-            assembly.proposalDocument.globalOffset ?? Duration.zero,
-        onPreviewAlignmentToken: project.audioAsset == null
-            ? null
-            : (index, token) => _previewProofreadToken(project, index, token),
-      );
-      await previewCoordinator?.close();
-      if (selection == null || !_proofreadIsCurrent(revision)) return;
-
-      Future<bool> verifyTimingSnapshot() async {
-        if (selection.acceptedReferenceTimingIndices.isEmpty) return true;
-        if (audioGuard == null || timingSnapshot == null) return false;
-        final check = await audioGuard.verify(timingSnapshot);
-        if (!_proofreadIsCurrent(revision)) return false;
-        if (check.status != ReferenceAlignmentAudioStatus.matches) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                LyricReviewStrings.referenceAlignmentAudioStatus(check.status),
-              ),
-              duration: const Duration(seconds: 6),
-            ),
-          );
-          return false;
-        }
-        return true;
-      }
-
-      if (!await verifyTimingSnapshot()) return;
-
-      const composer = ProofreadV2DocumentComposer();
-      final after = composer.compose(
-        before: document,
-        proposalDocument: assembly.proposalDocument,
-        items: assembly.items,
-        droppedItems: assembly.droppedItems,
-        selection: selection,
-        effectiveStrategy: decision.effectiveStrategy,
-      );
-      if (!composer.isDifferent(document, after)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('所选提案没有产生可应用的歌词或时间变化。')));
-        return;
-      }
-
-      final comparison = const LyricTimelineValidator().compare(
-        before: document.lines,
-        after: after.lines,
-        audioDuration: project.audioAsset?.duration,
-        beforeGlobalOffset: document.globalOffset ?? Duration.zero,
-        globalOffset: after.globalOffset ?? Duration.zero,
-      );
-      if (comparison.hasIntroducedSeriousIssues) {
-        final keep = await _confirmIntroducedTimelineIssues(
-          comparison,
-          autoRepairCount: 0,
-        );
-        if (keep != true || !_proofreadIsCurrent(revision)) return;
-      }
-      if (!_proofreadIsCurrent(revision)) return;
-      if (!await verifyTimingSnapshot()) return;
-      if (!_proofreadIsCurrent(revision)) return;
-      _commitProofreadV2Document(after);
-    } catch (error) {
-      if (!_proofreadIsCurrent(revision)) return;
-      final detail = error is ReferenceTimingApplyException
-          ? LyricReviewStrings.referenceTimingApplyFailure(error.reason)
-          : error is ForcedAlignmentLanguageResolutionException
-          ? LyricReviewStrings.forcedAlignmentLanguageError(error)
-          : error is ProofreadV2MissingAudioException
-          ? 'Bad state: ForcedAligner 需要工程音频及有效音频时长；请先检查音频资源。'
-          : error is ForcedAlignmentResourceBusyException
-          ? LyricReviewStrings.forcedAlignmentBusy
-          : '$error';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$detail')));
-    }
-  }
-
-  void _commitProofreadV2Document(LyricDocument after) {
-    final shouldPauseAudition = _audition.isSounding;
-    setState(() {
-      _editor.replaceDocument(
-        after,
-        label: '应用校对提案',
-        selectedLineIndex: after.lines.isEmpty ? null : 0,
-        keepBatchSnapshot: true,
-        isReferenceProofread: true,
-      );
-      _audition.clear();
-      _filter = LyricReviewFilter.all;
-    });
-    if (shouldPauseAudition) unawaited(_audioService.pause());
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已应用智能校对提案（${after.lines.length} 行），未写入磁盘。'),
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
-      ),
-    );
-  }
-
-  void _commitReferenceProofreadChange(
-    ReferenceProofreadAppliedChange applied, {
+  @override
+  void applyProofreadDocument({
+    required LyricDocument document,
+    required String label,
+    required int? selectedLineIndex,
+    required bool isReferenceProofread,
     required String message,
   }) {
+    if (!mounted) return;
     final shouldPauseAudition = _audition.isSounding;
     setState(() {
       _editor.replaceDocument(
-        applied.after,
-        label: '应用逐行纠错',
-        selectedLineIndex: applied.changedDraftIndices.isEmpty
-            ? _selectedLineIndex
-            : applied.changedDraftIndices.first,
+        document,
+        label: label,
+        selectedLineIndex: selectedLineIndex,
         keepBatchSnapshot: true,
-        isReferenceProofread: true,
+        isReferenceProofread: isReferenceProofread,
       );
       _audition.clear();
       _filter = LyricReviewFilter.all;
@@ -1015,41 +471,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         content: Text(message),
         duration: const Duration(seconds: 6),
         action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
-      ),
-    );
-  }
-
-  Future<bool?> _confirmIntroducedTimelineIssues(
-    LyricTimelineValidationComparison comparison, {
-    required int autoRepairCount,
-  }) {
-    final issues = comparison.introduced
-        .where((issue) => !issue.canAutoFix)
-        .take(6)
-        .map((issue) => '• ${issue.message}')
-        .join('\n');
-    return showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.bgElevated,
-        title: const Text('这次对齐引入了时间轴冲突'),
-        content: SingleChildScrollView(
-          child: Text(
-            '${autoRepairCount == 0 ? '本次没有自动修改其他行。' : '系统已先尝试安全修复结束时间重叠：$autoRepairCount 处。'}\n\n'
-            '以下问题无法可靠推断：\n\n$issues\n\n'
-            '可以撤销本次对齐，或保留结果并逐行校准。',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('撤销本次对齐'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('保留并检查'),
-          ),
-        ],
       ),
     );
   }
@@ -1522,11 +943,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       future: _projectFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _LoadingState();
+          return const LyricEditorLoadingState();
         }
 
         if (snapshot.hasError || snapshot.data == null) {
-          return _ErrorState(onRetry: () => setState(_loadProject));
+          return LyricEditorErrorState(onRetry: () => setState(_loadProject));
         }
 
         final project = snapshot.data!;
@@ -1577,7 +998,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                               ?.projectId ==
                           project.id;
 
-                      return _LyricEditorContent(
+                      return LyricEditorContent(
                         project: project,
                         document: document,
                         playback: playback,
@@ -1686,599 +1107,5 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     _audition.dispose();
     _editor.dispose();
     super.dispose();
-  }
-}
-
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgBase,
-      appBar: AppBar(title: const Text('歌词校对')),
-      body: const Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bgBase,
-      appBar: AppBar(title: const Text('歌词校对')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: AppColors.error),
-            const SizedBox(height: AppSpacing.md),
-            const Text('加载歌词工程失败'),
-            const SizedBox(height: AppSpacing.md),
-            FilledButton(onPressed: onRetry, child: const Text('重试')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LyricEditorContent extends StatelessWidget {
-  final ProjectManifest project;
-  final LyricDocument document;
-  final PlaybackState playback;
-  final bool playbackBelongsToProject;
-  final bool hasChanges;
-  final Map<int, LyricReviewPriority> reviewPriorityByIndex;
-  final LyricReviewQueue reviewQueue;
-  final int? activeAuditionLineIndex;
-  final bool auditionPlaying;
-  final bool loopCurrentLineAudition;
-  final ValueChanged<bool> onLoopCurrentLineAuditionChanged;
-  final bool followPlayback;
-  final int? selectedLineIndex;
-  final LyricReviewFilter filter;
-  final ValueChanged<LyricReviewFilter> onFilterChanged;
-  final ValueChanged<bool> onFollowPlaybackChanged;
-  final ValueChanged<int> onSelectLine;
-  final void Function(int, bool) onReviewDecision;
-  final VoidCallback onSave;
-  final VoidCallback onUndo;
-  final VoidCallback onRedo;
-  final bool canUndo;
-  final bool canRedo;
-  final String? undoLabel;
-  final String? redoLabel;
-  final VoidCallback onExport;
-  final VoidCallback? onReferenceAlignment;
-  final VoidCallback? onReferenceProofread;
-  final VoidCallback? onProofreadV2;
-  final VoidCallback? onUndoReferenceAlignment;
-  final VoidCallback? onViewAlignmentComparison;
-  final VoidCallback? onRestoreAlignment;
-  final VoidCallback onAddLine;
-  final VoidCallback onInsertAtPlayback;
-  final ValueChanged<Duration> onSeekPlayback;
-  final int focusRequestId;
-  final int? focusLineIndex;
-  final void Function(int, LyricLine) onUpdateLine;
-  final ValueChanged<int> onDeleteLine;
-  final ValueChanged<Duration> onUpdateOffset;
-  final ValueChanged<int> onPreviewLine;
-  final ValueChanged<int> onSetStartFromPlayback;
-  final ValueChanged<int> onSetEndFromPlayback;
-  final VoidCallback onTogglePlayback;
-  final Set<int> manuallyEditedLineIndices;
-
-  const _LyricEditorContent({
-    required this.project,
-    required this.document,
-    required this.playback,
-    required this.playbackBelongsToProject,
-    required this.hasChanges,
-    required this.reviewPriorityByIndex,
-    required this.reviewQueue,
-    required this.activeAuditionLineIndex,
-    required this.auditionPlaying,
-    required this.loopCurrentLineAudition,
-    required this.onLoopCurrentLineAuditionChanged,
-    required this.followPlayback,
-    required this.selectedLineIndex,
-    required this.filter,
-    required this.onFilterChanged,
-    required this.onFollowPlaybackChanged,
-    required this.onSelectLine,
-    required this.onReviewDecision,
-    required this.onSave,
-    required this.onUndo,
-    required this.onRedo,
-    required this.canUndo,
-    required this.canRedo,
-    required this.undoLabel,
-    required this.redoLabel,
-    required this.onExport,
-    required this.onReferenceAlignment,
-    required this.onReferenceProofread,
-    required this.onProofreadV2,
-    required this.onUndoReferenceAlignment,
-    required this.onViewAlignmentComparison,
-    required this.onRestoreAlignment,
-    required this.onAddLine,
-    required this.onInsertAtPlayback,
-    required this.onSeekPlayback,
-    required this.focusRequestId,
-    required this.focusLineIndex,
-    required this.onUpdateLine,
-    required this.onDeleteLine,
-    required this.onUpdateOffset,
-    required this.onPreviewLine,
-    required this.onSetStartFromPlayback,
-    required this.onSetEndFromPlayback,
-    required this.onTogglePlayback,
-    this.manuallyEditedLineIndices = const {},
-  });
-
-  Map<String, dynamic>? _fallbackCandidateFor(int index) {
-    final raw = document.metadata['fallbackCandidates'];
-    if (raw is! List) return null;
-    for (final item in raw) {
-      if (item is! Map) continue;
-      final candidate = Map<String, dynamic>.from(item);
-      if (candidate['lineIndex'] == index) return candidate;
-    }
-    return null;
-  }
-
-  bool _isLineReviewed(int index) =>
-      const LyricReviewDecisionService().isReviewed(document, index);
-
-  int? _currentPlaybackLineIndex() {
-    if (!playbackBelongsToProject || document.lines.isEmpty) return null;
-    final offset = document.globalOffset ?? Duration.zero;
-    for (var index = document.lines.length - 1; index >= 0; index--) {
-      final shifted = document.lines[index].startTime + offset;
-      final effective = shifted.isNegative ? Duration.zero : shifted;
-      if (playback.position >= effective) return index;
-    }
-    return 0;
-  }
-
-  List<int> _visibleIndices() {
-    final indices = <int>[];
-    for (var index = 0; index < document.lines.length; index++) {
-      final include = switch (filter) {
-        LyricReviewFilter.all => true,
-        LyricReviewFilter.needsReview => reviewQueue.needsReview(index),
-        LyricReviewFilter.lowConfidence => reviewQueue.isLowConfidence(index),
-      };
-      if (include) indices.add(index);
-    }
-    if (filter != LyricReviewFilter.all) {
-      indices.sort((left, right) {
-        final byPriority = (reviewPriorityByIndex[right]?.score ?? 0).compareTo(
-          reviewPriorityByIndex[left]?.score ?? 0,
-        );
-        return byPriority != 0 ? byPriority : left.compareTo(right);
-      });
-    }
-    return indices;
-  }
-
-  Future<void> _showInspectorSheet(
-    BuildContext context,
-    int index, {
-    bool autofocusText = false,
-  }) async {
-    if (index < 0 || index >= document.lines.length) return;
-    onSelectLine(index);
-    final spec = AppResponsive.of(context);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.bgElevated,
-      builder: (sheetContext) {
-        final sheetSpec = AppResponsive.of(sheetContext);
-        final heightFactor = sheetSpec.isShort ? 0.96 : 0.88;
-        final isReviewed = _isLineReviewed(index);
-        final canRecordDecision =
-            isReviewed || reviewPriorityByIndex.containsKey(index);
-        return FractionallySizedBox(
-          heightFactor: heightFactor,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: spec.isCompact ? double.infinity : 720,
-              ),
-              child: LineInspector(
-                key: ValueKey('sheet_inspector_$index'),
-                index: index,
-                line: document.lines[index],
-                fallbackCandidate: _fallbackCandidateFor(index),
-                isReviewed: isReviewed,
-                onReviewDecision: canRecordDecision
-                    ? (reviewed) {
-                        onReviewDecision(index, reviewed);
-                        Navigator.of(sheetContext).pop();
-                      }
-                    : null,
-                isCurrentPlaybackLine:
-                    playbackBelongsToProject &&
-                    _currentPlaybackLineIndex() == index,
-                isPlaying: playbackBelongsToProject && playback.isPlaying,
-                autofocusText: autofocusText,
-                onUpdate: (updated) => onUpdateLine(index, updated),
-                onDelete: () {
-                  onDeleteLine(index);
-                  Navigator.of(sheetContext).pop();
-                },
-                onPreview: () => onPreviewLine(index),
-                onUsePlaybackAsStart: playbackBelongsToProject
-                    ? () => onSetStartFromPlayback(index)
-                    : null,
-                onUsePlaybackAsEnd: playbackBelongsToProject
-                    ? () => onSetEndFromPlayback(index)
-                    : null,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final currentPlaybackLine = _currentPlaybackLineIndex();
-    final visibleIndices = _visibleIndices();
-    final selectedIndex =
-        selectedLineIndex != null &&
-            selectedLineIndex! >= 0 &&
-            selectedLineIndex! < document.lines.length
-        ? selectedLineIndex
-        : null;
-
-    return PopScope(
-      canPop: !hasChanges,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (!hasChanges) return;
-        final decision = await confirmUnsavedLyricEdits(context);
-        if (!context.mounted) return;
-        switch (decision) {
-          // "保存并返回" used to pop with `false` and call onSave(), which saved
-          // the document but left the user on the editor, so the button did the
-          // opposite of what it said. Saving now always ends with leaving.
-          case UnsavedLyricEditsDecision.save:
-            onSave();
-            Navigator.of(context).pop();
-          case UnsavedLyricEditsDecision.discard:
-            Navigator.of(context).pop();
-          case UnsavedLyricEditsDecision.stay:
-            break;
-        }
-      },
-      child: LyricEditShortcuts(
-        onUndo: onUndo,
-        onRedo: onRedo,
-        onSave: onSave,
-        child: Scaffold(
-          backgroundColor: AppColors.bgBase,
-          appBar: AppBar(
-            backgroundColor: AppColors.bgBase,
-            titleSpacing: AppSpacing.sm,
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('歌词校对'),
-                Text(
-                  project.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              if (spec.isCompactOrMedium || spec.isShort)
-                LyricProofreadMenuButton(
-                  compact: true,
-                  onProofreadV2: onProofreadV2,
-                  onReferenceAlignment: onReferenceAlignment,
-                  onReferenceProofread: onReferenceProofread,
-                  onViewComparison: onViewAlignmentComparison,
-                  onUndoAlignment: onUndoReferenceAlignment,
-                  onRestoreBackup: onRestoreAlignment,
-                ),
-              LyricEditorOverflowMenu(
-                onUndo: canUndo ? onUndo : null,
-                onRedo: canRedo ? onRedo : null,
-                undoLabel: canUndo ? undoLabel : null,
-                redoLabel: canRedo ? redoLabel : null,
-                canExport: document.lines.isNotEmpty,
-                onExport: onExport,
-                onInsertAtPlayback: playbackBelongsToProject
-                    ? onInsertAtPlayback
-                    : null,
-                onOpenPlayer: project.canPlay
-                    ? () => Navigator.pushNamed(
-                        context,
-                        Routes.playerPath(project.id),
-                      )
-                    : null,
-              ),
-              if (hasChanges)
-                Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.sm),
-                  child: spec.isCompact
-                      ? IconButton.filledTonal(
-                          tooltip: '保存修改',
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded),
-                        )
-                      : FilledButton.icon(
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          label: const Text('保存修改'),
-                        ),
-                ),
-            ],
-          ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                LyricEditorToolbar(
-                  document: document,
-                  playback: playback,
-                  playbackBelongsToProject: playbackBelongsToProject,
-                  review: reviewQueue,
-                  filter: filter,
-                  loopCurrentLineAudition: loopCurrentLineAudition,
-                  onLoopCurrentLineAuditionChanged:
-                      onLoopCurrentLineAuditionChanged,
-                  followPlayback: followPlayback,
-                  onFilterChanged: onFilterChanged,
-                  onFollowPlaybackChanged: onFollowPlaybackChanged,
-                  onUpdateOffset: onUpdateOffset,
-                  onTogglePlayback: onTogglePlayback,
-                  onSeekPlayback: onSeekPlayback,
-                  onReferenceAlignment: onReferenceAlignment,
-                  onReferenceProofread: onReferenceProofread,
-                  onProofreadV2: onProofreadV2,
-                  onUndoReferenceAlignment: onUndoReferenceAlignment,
-                  onViewAlignmentComparison: onViewAlignmentComparison,
-                  onRestoreAlignment: onRestoreAlignment,
-                ),
-                Expanded(
-                  child: document.lines.isEmpty
-                      ? _EmptyLyricsState(onAddLine: onAddLine)
-                      : LayoutBuilder(
-                          builder: (context, constraints) {
-                            final layout = AppResponsive.fromConstraints(
-                              constraints,
-                            );
-                            final twoPane = layout.supportsTwoPane;
-                            final list = LyricListPane(
-                              document: document,
-                              visibleIndices: visibleIndices,
-                              selectedIndex: selectedIndex,
-                              currentPlaybackLine: currentPlaybackLine,
-                              followPlayback: followPlayback,
-                              focusRequestId: focusRequestId,
-                              focusLineIndex: focusLineIndex,
-                              fallbackCandidateFor: _fallbackCandidateFor,
-                              reviewPriorityByIndex: reviewPriorityByIndex,
-                              filter: filter,
-                              activeAuditionLineIndex: activeAuditionLineIndex,
-                              auditionPlaying: auditionPlaying,
-                              onPreviewLine: project.audioAsset == null
-                                  ? null
-                                  : onPreviewLine,
-                              onInsertedLineFocus: twoPane
-                                  ? onSelectLine
-                                  : (index) => _showInspectorSheet(
-                                      context,
-                                      index,
-                                      autofocusText: true,
-                                    ),
-                              onSelectLine: twoPane
-                                  ? onSelectLine
-                                  : (index) =>
-                                        _showInspectorSheet(context, index),
-                              onUpdateLine: onUpdateLine,
-                              onDeleteLine: onDeleteLine,
-                              onSetStartFromPlayback: project.audioAsset == null
-                                  ? null
-                                  : onSetStartFromPlayback,
-                              onSetEndFromPlayback: project.audioAsset == null
-                                  ? null
-                                  : onSetEndFromPlayback,
-                              manuallyEditedLineIndices:
-                                  manuallyEditedLineIndices,
-                            );
-
-                            if (!twoPane) return list;
-
-                            return Row(
-                              children: [
-                                Expanded(child: list),
-                                const VerticalDivider(width: 1),
-                                SizedBox(
-                                  width: layout.sidePanelWidth,
-                                  child: InspectorPane(
-                                    document: document,
-                                    selectedIndex: selectedIndex,
-                                    fallbackCandidate: selectedIndex == null
-                                        ? null
-                                        : _fallbackCandidateFor(selectedIndex),
-                                    isReviewed:
-                                        selectedIndex != null &&
-                                        _isLineReviewed(selectedIndex),
-                                    onReviewDecision:
-                                        selectedIndex != null &&
-                                            (_isLineReviewed(selectedIndex) ||
-                                                reviewPriorityByIndex
-                                                    .containsKey(selectedIndex))
-                                        ? (reviewed) {
-                                            onReviewDecision(
-                                              selectedIndex,
-                                              reviewed,
-                                            );
-                                          }
-                                        : null,
-                                    playback: playback,
-                                    playbackBelongsToProject:
-                                        playbackBelongsToProject,
-                                    currentPlaybackLine: currentPlaybackLine,
-                                    onUpdateLine: onUpdateLine,
-                                    onDeleteLine: onDeleteLine,
-                                    onPreviewLine: onPreviewLine,
-                                    onSetStartFromPlayback:
-                                        onSetStartFromPlayback,
-                                    onSetEndFromPlayback: onSetEndFromPlayback,
-                                    autofocusText:
-                                        selectedIndex != null &&
-                                        selectedIndex == focusLineIndex,
-                                    focusRequestId: focusRequestId,
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                ),
-                _BottomBar(
-                  totalLines: document.lines.length,
-                  visibleLines: visibleIndices.length,
-                  hasChanges: hasChanges,
-                  onAddLine: onAddLine,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomBar extends StatelessWidget {
-  final int totalLines;
-  final int visibleLines;
-  final bool hasChanges;
-  final VoidCallback onAddLine;
-  const _BottomBar({
-    required this.totalLines,
-    required this.visibleLines,
-    required this.hasChanges,
-    required this.onAddLine,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    final horizontalPadding = spec.pageGutter.clamp(12, 24).toDouble();
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: horizontalPadding,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.bgElevated,
-        border: Border(top: BorderSide(color: AppColors.borderSubtle)),
-      ),
-      child: Row(
-        children: [
-          Flexible(
-            child: Text(
-              visibleLines == totalLines
-                  ? '$totalLines 行歌词'
-                  : '显示 $visibleLines / $totalLines 行',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
-            ),
-          ),
-          if (hasChanges && !spec.isCompact) ...[
-            const SizedBox(width: AppSpacing.sm),
-            const LyricTinyBadge(label: '有未保存修改', warning: true),
-          ],
-          const Spacer(),
-          if (spec.isCompact)
-            IconButton.filledTonal(
-              tooltip: '添加歌词行',
-              onPressed: onAddLine,
-              icon: const Icon(Icons.add_rounded),
-            )
-          else
-            FilledButton.tonalIcon(
-              onPressed: onAddLine,
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('添加歌词行'),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyLyricsState extends StatelessWidget {
-  final VoidCallback onAddLine;
-
-  const _EmptyLyricsState({required this.onAddLine});
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = AppResponsive.of(context);
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 420),
-        padding: EdgeInsets.all(spec.isCompact ? AppSpacing.lg : AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.lyrics_outlined,
-              size: 56,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              '这个工程还没有歌词',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '可以先返回工程页运行自动识别，也可以从这里手动建立第一行歌词。',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton.icon(
-              onPressed: onAddLine,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('添加第一行'),
-              style: FilledButton.styleFrom(
-                minimumSize: Size.fromHeight(spec.minimumInteractiveExtent),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
