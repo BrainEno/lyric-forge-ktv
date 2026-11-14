@@ -1,0 +1,64 @@
+name: Temporary Flutter test report
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  focused-tests:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request merge commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run the two failing test targets and capture full output
+        shell: bash
+        run: |
+          : > test-report.txt
+          for target in \
+            test/features/lyrics/presentation/widgets/proofread_v2_project_evidence_test.dart \
+            test/architecture_layer_imports_contract_test.dart; do
+            echo "===== $target =====" >> test-report.txt
+            set +e
+            flutter test --no-pub --reporter expanded "$target" >> test-report.txt 2>&1
+            result=$?
+            set -e
+            echo "EXIT=$result" >> test-report.txt
+          done
+
+      - name: Publish temporary test diagnostics to the pull request
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.existsSync('test-report.txt')
+              ? fs.readFileSync('test-report.txt', 'utf8')
+              : 'Test report was not produced.';
+            const body = [
+              '<!-- temporary-flutter-test-report -->',
+              'Temporary focused test output; this comment will be removed after diagnosis.',
+              '```text',
+              report.slice(0, 58000),
+              '```',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
