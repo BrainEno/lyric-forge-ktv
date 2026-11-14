@@ -9,6 +9,7 @@ import 'package:lyric_forge_ktv/features/player/data/repositories/file_play_hist
 import 'package:lyric_forge_ktv/features/player/data/services/file_local_media_relink_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/local_media_metadata.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/play_history.dart';
+import 'package:lyric_forge_ktv/features/player/domain/repositories/local_store_integrity.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 
 void main() {
@@ -226,6 +227,74 @@ void main() {
       }
     });
   }
+
+  test(
+    'relink refuses a partly readable collection store before any write',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'relink-incomplete-collections-',
+      );
+      addTearDown(() => root.delete(recursive: true));
+      final oldFile = File('${root.path}${Platform.pathSeparator}old.mp3');
+      final newFile = File('${root.path}${Platform.pathSeparator}new.mp3');
+      await oldFile.writeAsBytes([1]);
+      await newFile.writeAsBytes([2]);
+      final library = FileLocalMediaLibraryRepository(rootDirectory: root);
+      final history = FilePlayHistoryRepository(rootDirectory: root);
+      await library.addPaths([oldFile.path]);
+      final seeded = FileLocalMediaCollectionRepository(rootDirectory: root);
+      await seeded.setFavorite(oldFile.path, true);
+      final playlist = await seeded.createPlaylist('收藏');
+      await seeded.addToPlaylist(playlist.id, [oldFile.path]);
+
+      // Append a playlist row this version cannot read (#439). Relinking must
+      // not move the favorite because the follow-up write would drop the row.
+      final collectionsFile = File(
+        '${root.path}${Platform.pathSeparator}library_collections.json',
+      );
+      final payload =
+          jsonDecode(await collectionsFile.readAsString())
+              as Map<String, dynamic>;
+      (payload['playlists'] as List).add({'id': 42, 'name': 'future'});
+      await collectionsFile.writeAsString(jsonEncode(payload));
+
+      await oldFile.delete();
+      await library.refreshAvailability();
+      final collections = FileLocalMediaCollectionRepository(
+        rootDirectory: root,
+      );
+      final service = FileLocalMediaRelinkService(
+        libraryRepository: library,
+        collectionRepository: collections,
+        metadataRepository: FileLocalMediaMetadataRepository(
+          rootDirectory: root,
+        ),
+        historyRepository: history,
+        supportedExtensions: const ['mp3'],
+      );
+      final libraryFile = File(
+        '${root.path}${Platform.pathSeparator}media_library.json',
+      );
+      final libraryBefore = await libraryFile.readAsString();
+      final collectionsBefore = await collectionsFile.readAsString();
+
+      await expectLater(
+        service.relink(oldPath: oldFile.path, newPath: newFile.path),
+        throwsA(
+          isA<LocalStoreIncompleteException>().having(
+            (e) => e.issue.kind,
+            'kind',
+            LocalStoreKind.collections,
+          ),
+        ),
+      );
+
+      expect(await libraryFile.readAsString(), libraryBefore);
+      expect(await collectionsFile.readAsString(), collectionsBefore);
+      expect(await library.getByPath(newFile.path), isNull);
+      expect(await collections.isFavorite(oldFile.path), isTrue);
+    },
+  );
 
   test(
     'relink with no old metadata preserves existing destination metadata',

@@ -182,6 +182,15 @@ class LyricEditorDocumentController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Marks the editor saved only when no mutation happened since
+  /// [savedDocumentRevision] was read for the write. Returns whether the editor
+  /// is now clean; a later edit stays unsaved so leaving can still warn.
+  bool markSavedIfUnchanged(int savedDocumentRevision) {
+    if (savedDocumentRevision != _documentRevision) return false;
+    markSaved();
+    return true;
+  }
+
   /// The document as it should be written to disk, with this session's manual
   /// edit marks persisted into its metadata.
   LyricDocument documentForSave() {

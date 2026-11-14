@@ -6,6 +6,7 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
+import 'local_store_integrity_banner.dart';
 
 class LocalFavoriteButton extends StatefulWidget {
   final String sourcePath;
@@ -81,6 +82,14 @@ class _LocalFavoriteButtonState extends State<LocalFavoriteButton> {
     try {
       final value = await _collections.toggleFavorite(widget.sourcePath);
       if (mounted) setState(() => _favorite = value);
+    } catch (error) {
+      // A write-protected or failing store must explain itself instead of
+      // surfacing as an unhandled async error behind a heart that never moves.
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text('收藏未保存：${describeLocalLibraryError(error)}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

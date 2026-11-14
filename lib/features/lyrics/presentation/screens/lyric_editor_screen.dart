@@ -62,6 +62,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   late final LyricEditorProofreadingCoordinator _proofreading;
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
+  Future<bool>? _saveInFlight;
 
   /// Owns the document, its dirty flag, the selected row, the manual-edit marks
   /// and the undo history; this screen only decides what to show.
@@ -230,9 +231,34 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     });
   }
 
-  Future<void> _saveChanges(ProjectManifest project) async {
-    if (_editingDocument == null) return;
+  /// Saves the current draft. Completes with `true` only when the document the
+  /// user is looking at has been persisted and nothing newer is pending, so a
+  /// caller such as "保存并返回" may leave the editor. Concurrent requests (a
+  /// second click, Ctrl+S during the back dialog) share the in-flight save.
+  Future<bool> _saveChanges(ProjectManifest project) {
+    final inFlight = _saveInFlight;
+    if (inFlight != null) return inFlight;
+    final save = _performSave(project);
+    _saveInFlight = save;
+    setState(() {});
+    unawaited(_clearSaveWhenDone(save));
+    return save;
+  }
 
+  Future<void> _clearSaveWhenDone(Future<bool> save) async {
+    try {
+      await save;
+    } catch (_) {
+      // The caller of _saveChanges observes and reports the failure.
+    } finally {
+      if (identical(_saveInFlight, save)) _saveInFlight = null;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<bool> _performSave(ProjectManifest project) async {
+    if (_editingDocument == null) return false;
+    final editorRevision = _editor.documentRevision;
     final updated = project.copyWith(
       lyricDocument: _editor.documentForSave(),
       status: ProjectStatus.editing,
@@ -243,54 +269,85 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         updated,
         expectedRevision: _projectRevision ?? project.revision,
       );
-      _finishProjectSave(saved);
+      return _finishProjectSave(saved, editorRevision: editorRevision);
     } on ProjectUpdateConflictException catch (conflict) {
-      await _resolveProjectSaveConflict(conflict);
+      return _resolveSaveConflictSafely(conflict);
+    } catch (error) {
+      _showSaveFailure(error);
+      return false;
     }
   }
 
-  void _finishProjectSave(ProjectManifest saved) {
-    if (!mounted) return;
-    _projectRevision = saved.revision;
-    _projectFuture = Future<ProjectManifest?>.value(saved);
-    _editor.markSaved();
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('歌词已保存'), duration: Duration(seconds: 2)),
-    );
+  Future<bool> _resolveSaveConflictSafely(
+    ProjectUpdateConflictException conflict,
+  ) async {
+    try {
+      return await _resolveProjectSaveConflict(conflict);
+    } catch (error) {
+      _showSaveFailure(error);
+      return false;
+    }
   }
 
-  Future<void> _resolveProjectSaveConflict(
+  void _showSaveFailure(Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('保存失败：$error。当前编辑仍保留，未保存。')));
+  }
+
+  /// Records a completed write. Returns whether the editor is now clean: an
+  /// edit made while the write was pending is newer than what reached disk and
+  /// must stay marked unsaved.
+  bool _finishProjectSave(
+    ProjectManifest saved, {
+    required int editorRevision,
+  }) {
+    if (!mounted) return false;
+    _projectRevision = saved.revision;
+    _projectFuture = Future<ProjectManifest?>.value(saved);
+    final clean = _editor.markSavedIfUnchanged(editorRevision);
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(clean ? '歌词已保存' : '已保存，但保存期间的新修改尚未保存。'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    return clean;
+  }
+
+  Future<bool> _resolveProjectSaveConflict(
     ProjectUpdateConflictException conflict,
   ) async {
     final latest =
         conflict.currentProject ??
         await _repository.getProjectById(widget.projectId);
-    if (!mounted) return;
+    if (!mounted) return false;
     if (latest == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
-      return;
+      return false;
     }
 
     final choice = await showProjectSaveConflictDialog(
       context,
       latestRevision: latest.revision,
     );
-    if (!mounted) return;
+    if (!mounted) return false;
 
     switch (choice) {
       case ProjectSaveConflictChoice.keepEditing:
-        return;
+        return false;
       case ProjectSaveConflictChoice.reloadLatest:
         final reloaded = await _repository.getProjectById(widget.projectId);
-        if (!mounted) return;
+        if (!mounted) return false;
         if (reloaded == null) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('工程已不存在；当前编辑仍保留，未保存。')));
-          return;
+          return false;
         }
         _projectRevision = reloaded.revision;
         _projectFuture = Future<ProjectManifest?>.value(reloaded);
@@ -302,11 +359,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('已载入最新版工程。')));
-        return;
+        // The user chose to see the latest version, not to leave with it.
+        return false;
       case ProjectSaveConflictChoice.overwriteLatest:
-        final localDocument = _editor.documentForSave();
+        final editorRevision = _editor.documentRevision;
         final replacement = latest.copyWith(
-          lyricDocument: localDocument,
+          lyricDocument: _editor.documentForSave(),
           status: ProjectStatus.editing,
           currentStage: ProcessingStage.lyricsEdited,
         );
@@ -315,11 +373,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
             replacement,
             expectedRevision: latest.revision,
           );
-          _finishProjectSave(saved);
+          return _finishProjectSave(saved, editorRevision: editorRevision);
         } on ProjectUpdateConflictException catch (newConflict) {
-          await _resolveProjectSaveConflict(newConflict);
+          return _resolveProjectSaveConflict(newConflict);
         }
-        return;
     }
   }
 
@@ -1029,6 +1086,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                               reviewed: reviewed,
                             ),
                         onSave: () => _saveChanges(project),
+                        isSaving: _saveInFlight != null,
                         onUndo: _undo,
                         onRedo: _redo,
                         canUndo: editorState.canUndo,

@@ -4,12 +4,24 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/retryable_load.dart';
 import '../../domain/models/embedded_audio_metadata.dart';
 import '../../domain/models/local_media_library_entry.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
+import '../../domain/repositories/local_store_integrity.dart';
 import '../../domain/services/embedded_audio_metadata_reader.dart';
+import 'local_store_preservation.dart';
 
-class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
+/// Persists the local music library in `media_library.json`.
+///
+/// Loading is all-or-nothing at the file level: an unreadable file throws and
+/// the next call retries (#440). Individual unreadable rows keep the readable
+/// rows visible but put the store into a write-protected state so the
+/// in-memory subset can never replace the original file (#439); refreshes then
+/// report the current snapshot without scanning, and mutations throw
+/// [LocalStoreIncompleteException] until [repairKeepingReadableRecords] runs.
+class FileLocalMediaLibraryRepository
+    implements LocalMediaLibraryRepository, LocalStoreIntegrity {
   static const int _schemaVersion = 3;
 
   static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
@@ -35,12 +47,20 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   final EmbeddedAudioMetadataReader? metadataReader;
   final List<LocalMediaLibraryEntry> _entries = <LocalMediaLibraryEntry>[];
   final List<String> _roots = <String>[];
-  Future<void>? _loadFuture;
+  late final RetryableLoad _loader = RetryableLoad(_load);
   Future<void> _writeChain = Future<void>.value();
+  LocalStoreLoadIssue? _loadIssue;
 
   FileLocalMediaLibraryRepository({this.rootDirectory, this.metadataReader});
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  Future<void> _ensureLoaded() => _loader.ensureLoaded();
+
+  /// Loads, then refuses to continue a mutation of a partly read store.
+  Future<void> _ensureWritable() async {
+    await _ensureLoaded();
+    final issue = _loadIssue;
+    if (issue != null) throw LocalStoreIncompleteException(issue);
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -88,42 +108,121 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
         'The local media library is invalid and no recoverable copy is available. ${file.path}',
       );
     }
-    if (!await file.exists()) return;
-
-    try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return;
-
-      final rawRoots = decoded['roots'];
-      if (rawRoots is List) {
-        final seen = <String>{};
-        for (final raw in rawRoots) {
-          if (raw is! String || raw.trim().isEmpty) continue;
-          final root = Directory(raw).absolute.path;
-          if (seen.add(_directoryKey(root))) _roots.add(root);
-        }
-      }
-
-      final rawEntries = decoded['entries'];
-      if (rawEntries is List) {
-        final seen = <String>{};
-        for (final raw in rawEntries) {
-          if (raw is! Map) continue;
-          try {
-            final entry = LocalMediaLibraryEntry.fromJson(
-              Map<String, dynamic>.from(raw),
-            );
-            if (seen.add(_pathKey(entry.sourcePath))) _entries.add(entry);
-          } catch (_) {
-            // Skip one malformed row instead of losing the complete library.
-          }
-        }
-      }
-      _sort();
-    } catch (_) {
-      _entries.clear();
-      _roots.clear();
+    if (!await file.exists()) {
+      _commitLoad(const [], const [], null);
+      return;
     }
+
+    // The file was validated a moment ago; a failure now means it changed or
+    // became unreadable in between. Report it instead of presenting an empty
+    // library that a later write would persist.
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(await file.readAsString());
+    } catch (error) {
+      throw FormatException(
+        'The local media library could not be read completely: $error',
+        file.path,
+      );
+    }
+    if (!_isValidStoreJson(decoded)) {
+      throw FormatException(
+        'The local media library changed or became invalid while loading.',
+        file.path,
+      );
+    }
+    final payload = decoded as Map;
+
+    final roots = <String>[];
+    final entries = <LocalMediaLibraryEntry>[];
+    var unreadable = 0;
+    String? firstProblem;
+    void skip(String problem) {
+      unreadable += 1;
+      firstProblem ??= problem;
+    }
+
+    final rawRoots = payload['roots'];
+    if (rawRoots is List) {
+      final seen = <String>{};
+      for (var index = 0; index < rawRoots.length; index++) {
+        final raw = rawRoots[index];
+        if (raw is! String) {
+          skip('Library root ${index + 1} is not a path.');
+          continue;
+        }
+        if (raw.trim().isEmpty) continue;
+        final root = Directory(raw).absolute.path;
+        if (seen.add(_directoryKey(root))) roots.add(root);
+      }
+    }
+
+    final rawEntries = payload['entries'] as List;
+    final seen = <String>{};
+    for (var index = 0; index < rawEntries.length; index++) {
+      final raw = rawEntries[index];
+      try {
+        if (raw is! Map) throw const FormatException('Not an object');
+        final entry = LocalMediaLibraryEntry.fromJson(
+          Map<String, dynamic>.from(raw),
+        );
+        if (seen.add(_pathKey(entry.sourcePath))) entries.add(entry);
+      } catch (error) {
+        skip('Library record ${index + 1} could not be read: $error');
+      }
+    }
+
+    _commitLoad(
+      roots,
+      entries,
+      unreadable == 0
+          ? null
+          : LocalStoreLoadIssue(
+              kind: LocalStoreKind.mediaLibrary,
+              storePath: file.path,
+              unreadableRecords: unreadable,
+              readableRecords: entries.length + roots.length,
+              detail: firstProblem!,
+            ),
+    );
+  }
+
+  void _commitLoad(
+    List<String> roots,
+    List<LocalMediaLibraryEntry> entries,
+    LocalStoreLoadIssue? issue,
+  ) {
+    _roots
+      ..clear()
+      ..addAll(roots);
+    _entries
+      ..clear()
+      ..addAll(entries);
+    _loadIssue = issue;
+    _sort();
+  }
+
+  @override
+  Future<LocalStoreLoadIssue?> loadIssue() async {
+    await _ensureLoaded();
+    return _loadIssue;
+  }
+
+  @override
+  Future<LocalStoreRepairResult> repairKeepingReadableRecords() async {
+    await _ensureLoaded();
+    final issue = _loadIssue;
+    if (issue == null) {
+      throw StateError('The local media library has no load issue to repair.');
+    }
+    final preserved = await preserveIncompleteStoreCopy(File(issue.storePath));
+    await _persistUnchecked();
+    _loadIssue = null;
+    return LocalStoreRepairResult(
+      preservedCopyPath: preserved,
+      keptRecords: issue.readableRecords,
+      droppedRecords: issue.unreadableRecords,
+    );
   }
 
   void _sort() {
@@ -135,6 +234,14 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   }
 
   Future<void> _persist() {
+    final issue = _loadIssue;
+    if (issue != null) {
+      return Future<void>.error(LocalStoreIncompleteException(issue));
+    }
+    return _persistUnchecked();
+  }
+
+  Future<void> _persistUnchecked() {
     final payload = const JsonEncoder.withIndent('  ').convert({
       'version': _schemaVersion,
       'roots': _roots,
@@ -154,6 +261,11 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     _writeChain = operation;
     return operation;
   }
+
+  /// Refreshes would rescan and persist; while the store is write-protected
+  /// they only report what was read so the library stays browsable.
+  List<LocalMediaLibraryEntry> _readOnlySnapshot() =>
+      List<LocalMediaLibraryEntry>.unmodifiable(_entries);
 
   @override
   Future<List<LocalMediaLibraryEntry>> getAll() async {
@@ -179,7 +291,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   @override
   Future<List<LocalMediaLibraryEntry>> addPaths(Iterable<String> paths) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     if (await _addPathsLoaded(paths)) {
       _sort();
       await _persist();
@@ -300,7 +412,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   @override
   Future<void> addRoot(String rootPath) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     if (rootPath.trim().isEmpty) return;
     final root = Directory(rootPath).absolute.path;
     final key = _directoryKey(root);
@@ -313,6 +425,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
   @override
   Future<List<LocalMediaLibraryEntry>> refreshAvailability() async {
     await _ensureLoaded();
+    if (_loadIssue != null) return _readOnlySnapshot();
     await _discoverFromRoots(_defaultAudioExtensions);
     return _refreshKnownAvailability();
   }
@@ -322,6 +435,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     Iterable<String> supportedExtensions,
   ) async {
     await _ensureLoaded();
+    if (_loadIssue != null) return _readOnlySnapshot();
     final extensions = supportedExtensions
         .map((value) => value.toLowerCase())
         .toSet();
@@ -383,6 +497,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     bool force = false,
   }) async {
     await _ensureLoaded();
+    if (_loadIssue != null) return _readOnlySnapshot();
     var changed = false;
     for (var i = 0; i < _entries.length; i++) {
       final entry = _entries[i];
@@ -399,7 +514,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   @override
   Future<void> remove(String sourcePath) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final key = _pathKey(sourcePath);
     final before = _entries.length;
     _entries.removeWhere((entry) => _pathKey(entry.sourcePath) == key);
@@ -408,7 +523,7 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   @override
   Future<void> removeMissing() async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final before = _entries.length;
     _entries.removeWhere((entry) => entry.isMissing);
     if (_entries.length != before) await _persist();
