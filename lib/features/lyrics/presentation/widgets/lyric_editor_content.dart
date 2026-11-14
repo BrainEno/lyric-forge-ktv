@@ -530,15 +530,14 @@ class LyricEditorContent extends StatelessWidget {
   }
 }
 
+/// A static marker rather than a spinner: a save can wait on the conflict
+/// dialog, and an endless animation there would keep frames scheduled.
 class _SavingIndicator extends StatelessWidget {
   const _SavingIndicator();
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.square(
-      dimension: 18,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    );
+    return const Icon(Icons.hourglass_top_rounded, size: 18);
   }
 }
 

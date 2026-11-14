@@ -95,12 +95,13 @@ jobs:
             echo '### work log'; echo '```'; tail -30 build/worklog.log; echo '```'
             echo '### analyze'; echo '```'; grep -E "error •|warning •|info •|exit|issues found|No issues" build/analyze.log | head -80; echo '```'
             echo '### focused tests'; echo '```'
-            grep -B2 -A30 "\[E\]$" build/test.log | head -500
+            grep -v -E '^[0-9]{2}:[0-9]{2} \+' build/test.log | grep -v -E '^(<asynchronous suspension>|#[0-9]+ +(WidgetController|testWidgets|TestWidgetsFlutterBinding|TestAsyncUtils|Declarer|StackZoneSpecification|_rootRun|_CustomZone))' | head -400
             tail -4 build/test.log
             echo '```'
             echo '### upload test x3'; echo '```'; cat build/upload.log; echo '```'
             echo '### full suite'; echo '```'
             grep -E "\[E\]$" build/full.log | head -60
+            grep -v -E '^[0-9]{2}:[0-9]{2} \+' build/full.log | grep -v -E '^(<asynchronous suspension>|#[0-9]+ )' | head -150
             tail -4 build/full.log
             echo '```'
           } > build/report.md

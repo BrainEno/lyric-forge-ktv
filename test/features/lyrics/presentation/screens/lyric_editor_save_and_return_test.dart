@@ -171,6 +171,7 @@ void main() {
     final harness = await _Harness.open(tester);
     harness.repository.gate = Completer<void>();
     final editor = harness.editLine(tester, 'first version');
+    await tester.pump();
 
     await tester.tap(find.byKey(const ValueKey('lyric_editor_save_action')));
     await tester.pump();
@@ -200,6 +201,7 @@ void main() {
   testWidgets('a plain save keeps the editor open and clean', (tester) async {
     final harness = await _Harness.open(tester);
     final editor = harness.editLine(tester, 'saved in place');
+    await tester.pump();
 
     await tester.tap(find.byKey(const ValueKey('lyric_editor_save_action')));
     await tester.pumpAndSettle();
@@ -297,6 +299,8 @@ class _Harness {
   }
 
   Future<void> requestBack(WidgetTester tester, {bool settle = true}) async {
+    // Rebuild first so the PopScope sees edits made through the controller.
+    await tester.pump();
     final navigator = tester.state<NavigatorState>(
       find.byType(Navigator).first,
     );
