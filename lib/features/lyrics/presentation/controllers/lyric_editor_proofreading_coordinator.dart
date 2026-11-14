@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/color_tokens.dart';
+import '../../../../core/theme/color_tokens.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
@@ -92,13 +92,18 @@ class LyricEditorProofreadingCoordinator {
   }) async {
     if (document.lines.isEmpty) return;
 
+    final context = host.proofreadContext;
     final input = await showReferenceAlignmentDialog(
-      host.proofreadContext,
+      context,
       parser: referenceParser,
       initialTitle: project.name,
       initialArtist: project.artist,
     );
-    if (input == null || !host.proofreadIsCurrent(revision)) return;
+    if (input == null ||
+        !context.mounted ||
+        !host.proofreadIsCurrent(revision)) {
+      return;
+    }
 
     final plan = const ApplyReferenceAlignmentUseCase().prepare(
       draft: document,
@@ -108,13 +113,13 @@ class LyricEditorProofreadingCoordinator {
     );
     if (plan.isEmpty) {
       ScaffoldMessenger.of(
-        host.proofreadContext,
+        context,
       ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
       return;
     }
 
     final decision = await showReferenceAlignmentReview(
-      host.proofreadContext,
+      context,
       document: document,
       alignment: plan.alignment,
       input: input,
@@ -124,7 +129,11 @@ class LyricEditorProofreadingCoordinator {
       ),
       minimumSimilarity: plan.minimumSimilarity,
     );
-    if (decision == null || !host.proofreadIsCurrent(revision)) return;
+    if (decision == null ||
+        !context.mounted ||
+        !host.proofreadIsCurrent(revision)) {
+      return;
+    }
     if (!decision.hasChanges) return;
 
     final proposal = plan.apply(
@@ -184,18 +193,21 @@ class LyricEditorProofreadingCoordinator {
   }) async {
     if (document.lines.isEmpty) return;
 
+    final context = host.proofreadContext;
     final input = await showReferenceAlignmentDialog(
-      host.proofreadContext,
+      context,
       parser: referenceParser,
       initialTitle: project.name,
       initialArtist: project.artist,
     );
-    if (input == null || !host.proofreadIsCurrent(revision)) return;
+    if (input == null ||
+        !context.mounted ||
+        !host.proofreadIsCurrent(revision)) {
+      return;
+    }
 
-    final evidence = await showTimingEvidenceImportDialog(
-      host.proofreadContext,
-    );
-    if (!host.proofreadIsCurrent(revision)) return;
+    final evidence = await showTimingEvidenceImportDialog(context);
+    if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
     final plan = const RunReferenceProofreadUseCase().build(
       draft: document,
       reference: input,
@@ -205,23 +217,24 @@ class LyricEditorProofreadingCoordinator {
     );
     if (plan.isEmpty) {
       ScaffoldMessenger.of(
-        host.proofreadContext,
+        context,
       ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
       return;
     }
     final selected = plan.hasTimingEvidence
         ? await showReferenceProofreadTimingReviewDialog(
-            host.proofreadContext,
+            context,
             document: document,
             items: plan.timedItems,
           )
         : await showReferenceProofreadReviewDialog(
-            host.proofreadContext,
+            context,
             document: document,
             suggestions: plan.suggestions,
           );
     if (selected == null ||
         selected.isEmpty ||
+        !context.mounted ||
         !host.proofreadIsCurrent(revision)) {
       return;
     }
