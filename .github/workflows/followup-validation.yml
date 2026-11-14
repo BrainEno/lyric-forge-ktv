@@ -89,6 +89,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set +e +o pipefail
           {
             echo "formatted: ${FORMATTED:-no}"
             [ -f /tmp/format-stat.txt ] && { echo '```'; cat /tmp/format-stat.txt; echo '```'; }
