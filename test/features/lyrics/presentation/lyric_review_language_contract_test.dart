@@ -50,10 +50,9 @@ void main() {
 
   group('englishOnlySentences heuristic', () {
     test('flags plain English sentences', () {
-      expect(
-        englishOnlySentences("  'Forced alignment is unavailable.',"),
-        ['Forced alignment is unavailable.'],
-      );
+      expect(englishOnlySentences("  'Forced alignment is unavailable.',"), [
+        'Forced alignment is unavailable.',
+      ]);
     });
 
     test('accepts Chinese sentences that mention model identifiers', () {

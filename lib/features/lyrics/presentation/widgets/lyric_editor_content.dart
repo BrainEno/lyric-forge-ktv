@@ -78,6 +78,7 @@ class LyricEditorContent extends StatelessWidget {
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
   final void Function(int, bool) onReviewDecision;
+
   /// Completes with `true` only when the current draft reached disk and the
   /// editor is clean; the save-and-leave path waits for it before popping.
   final Future<bool> Function() onSave;

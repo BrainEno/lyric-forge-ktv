@@ -291,9 +291,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
 
   void _showSaveFailure(Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('保存失败：$error。当前编辑仍保留，未保存。')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('保存失败：$error。当前编辑仍保留，未保存。')));
   }
 
   /// Records a completed write. Returns whether the editor is now clean: an

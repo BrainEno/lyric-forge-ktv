@@ -564,9 +564,7 @@ void main() {
       addTearDown(socket.destroy);
       final reader = _RawResponseReader(socket);
       List<String>? entriesWhenAnswered;
-      socket.write(
-        _rawChunkedHeaders(session, 'streaming.mp3') + '1\r\nx\r\n',
-      );
+      socket.write(_rawChunkedHeaders(session, 'streaming.mp3') + '1\r\nx\r\n');
       await socket.flush();
 
       // Write far more often than the original 30 ms cadence so request bytes

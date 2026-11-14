@@ -281,8 +281,7 @@ class _Harness {
 
   LyricEditorDocumentController editor(WidgetTester tester) {
     final field = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField && widget.decoration?.labelText == '歌词文本',
+      (widget) => widget is TextField && widget.decoration?.labelText == '歌词文本',
     );
     return Provider.of<LyricEditorDocumentController>(
       tester.element(field.first),

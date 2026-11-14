@@ -149,9 +149,7 @@ class _LocalLibraryExplorerScreenState
       });
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = '音乐库加载失败：${describeLocalLibraryError(error)}',
-        );
+        setState(() => _error = '音乐库加载失败：${describeLocalLibraryError(error)}');
       }
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
