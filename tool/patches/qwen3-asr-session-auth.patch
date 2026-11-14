@@ -165,10 +165,10 @@ index fca557b..603d53a 100644
              &load_opts,
 diff --git a/qwen3_asr_cli/src/session_auth.rs b/qwen3_asr_cli/src/session_auth.rs
 new file mode 100644
-index 0000000..cf781b3
+index 0000000..44ad334
 --- /dev/null
 +++ b/qwen3_asr_cli/src/session_auth.rs
-@@ -0,0 +1,658 @@
+@@ -0,0 +1,663 @@
 +//! LyricForge per-launch session authentication for `qwen3-asr serve`.
 +//!
 +//! This module is added by LyricForge's `tool/patches/qwen3-asr-session-auth.patch`.
@@ -201,7 +201,7 @@ index 0000000..cf781b3
 +use axum::Json;
 +use axum::body::{Body, to_bytes};
 +use axum::extract::{Request, State};
-+use axum::http::header::CONTENT_TYPE;
++use axum::http::header::{CONNECTION, CONTENT_TYPE};
 +use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 +use axum::middleware::Next;
 +use axum::response::{IntoResponse, Response};
@@ -484,8 +484,13 @@ index 0000000..cf781b3
 +
 +fn reject(status: StatusCode, reason: &'static str) -> Response {
 +    tracing::warn!(reason, "rejected unauthenticated LyricForge runtime request");
++    // The request body may be unread at this point, so the connection cannot
++    // be reused safely. Say so explicitly instead of letting a client pool a
++    // socket the server is about to drop; unauthenticated peers also do not
++    // get to keep a connection open.
 +    (
 +        status,
++        [(CONNECTION, "close")],
 +        Json(serde_json::json!({
 +            "error": {
 +                "message": "unauthorized",
@@ -829,10 +834,10 @@ index 0000000..cf781b3
 +}
 diff --git a/qwen3_asr_cli/tests/session_auth_integration.rs b/qwen3_asr_cli/tests/session_auth_integration.rs
 new file mode 100644
-index 0000000..81dff9d
+index 0000000..52dc868
 --- /dev/null
 +++ b/qwen3_asr_cli/tests/session_auth_integration.rs
-@@ -0,0 +1,537 @@
+@@ -0,0 +1,547 @@
 +//! LyricForge session-auth integration tests (`--lyricforge-session-stdin`).
 +//!
 +//! These run the real `qwen3-asr serve --mock` binary, so they exercise clap
@@ -951,6 +956,7 @@ index 0000000..81dff9d
 +    status: u16,
 +    proof: Option<String>,
 +    cors_origin: Option<String>,
++    connection: Option<String>,
 +    body: Vec<u8>,
 +}
 +
@@ -970,6 +976,7 @@ index 0000000..81dff9d
 +    let cors_origin = response
 +        .header("access-control-allow-origin")
 +        .map(str::to_string);
++    let connection = response.header("connection").map(str::to_ascii_lowercase);
 +    let mut body = Vec::new();
 +    response
 +        .into_reader()
@@ -979,6 +986,7 @@ index 0000000..81dff9d
 +        status,
 +        proof,
 +        cors_origin,
++        connection,
 +        body,
 +    })
 +}
@@ -990,7 +998,11 @@ index 0000000..81dff9d
 +    headers: &[(&str, String)],
 +    body: &[u8],
 +) -> Result<Reply> {
-+    let mut request = ureq::request(method, &format!("{base_url}{path}"))
++    // One fresh connection per request: the runtime closes every connection
++    // it rejects, and ureq never retries a POST on a stale pooled socket.
++    let agent = ureq::AgentBuilder::new().max_idle_connections(0).build();
++    let mut request = agent
++        .request(method, &format!("{base_url}{path}"))
 +        .timeout(Duration::from_secs(10));
 +    for (name, value) in headers {
 +        request = request.set(name, value);
@@ -1049,6 +1061,9 @@ index 0000000..81dff9d
 +    }
 +    if reply.proof.is_some() {
 +        bail!("{context}: rejected responses must not carry a session proof");
++    }
++    if reply.connection.as_deref() != Some("close") {
++        bail!("{context}: rejected connections must be closed, not kept alive");
 +    }
 +    let message = reply.json()["error"]["message"].as_str().map(str::to_string);
 +    if message.as_deref() != Some("unauthorized") {
