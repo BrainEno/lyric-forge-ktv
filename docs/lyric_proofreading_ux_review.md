@@ -85,7 +85,7 @@
 | # | 现象 | 影响 | 严重度 |
 |---|------|------|--------|
 | C1 | 未保存离开无拦截，用户易丢改动 | 数据丢失 | **高** |
-| C2 | 撤销只保留一次参考对齐快照，普通逐行编辑无撤销栈 | 误改难以挽回 | 高 |
+| C2 | 现提供多步撤销/重做，覆盖普通逐行编辑与校对应用；历史仅保存在内存中，关闭或重开编辑器后不能恢复 | 会话内可撤回误改，跨会话无恢复 | 中 |
 | C3 | 保存按钮仅在 `hasChanges=true` 时出现，位置在 AppBar，最远距离 | 拇指区不可达（移动端） | 中 |
 | C4 | 无 Ctrl+S / Cmd+S 快捷保存 | 桌面用户肌肉记忆失效 | 中 |
 
@@ -203,3 +203,11 @@
 - **时间轴校验**：`LyricTimelineValidator` 检查重叠/倒退/越界等问题。
 
 最后更新：2026-10-31 校对模块 UX 复盘（本轮编码与文档同 PR）
+
+---
+
+## 9. 校对编排拆分（2026-11-07）
+
+- `LyricEditorScreen` 保留编辑器状态、播放试听与保存入口；三条校对流程的弹窗顺序、策略调用、版本检查及错误反馈移至 `presentation/controllers/lyric_editor_proofreading_coordinator.dart`，并通过 `LyricEditorProofreadFlowHost` 与可变编辑状态交互。
+- 编辑器加载、错误和内容布局移至 `presentation/widgets/lyric_editor_content.dart`。当前 screen 低于 1200 行，三个 `_open*` 入口各低于 40 行；`lyric_editor_orchestration_contract_test.dart` 防止后续回归。
+- `RunProofreadV2UseCase` 等领域用例仍负责构造和应用提案规则；其独立测试保持在 `run_proofread_v2_use_case_test.dart`。界面提案仍需用户选择，确认前不写入磁盘。
