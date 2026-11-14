@@ -354,10 +354,9 @@ void main() {
       for (final entry in cases.entries) {
         loader = VerifiedProjectProofreadEvidenceLoader(
           projects: repo,
-          verifyAudio: ({
-            required rawEvidence,
-            required currentAudioPath,
-          }) async => entry.key,
+          verifyAudio:
+              ({required rawEvidence, required currentAudioPath}) async =>
+                  entry.key,
         );
         final result = await load();
         expect(result.status, entry.value);

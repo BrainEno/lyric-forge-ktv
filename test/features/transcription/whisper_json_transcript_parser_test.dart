@@ -142,9 +142,9 @@ void main() {
 
     test('bounds JSON size, segment count and text length', () {
       expect(
-        () =>
-            const WhisperJsonTranscriptParser(maxJsonCharacters: 4)
-                .parse(jsonEncode(response([segment()]))),
+        () => const WhisperJsonTranscriptParser(
+          maxJsonCharacters: 4,
+        ).parse(jsonEncode(response([segment()]))),
         throwsA(isA<TranscriptionException>()),
       );
       expect(

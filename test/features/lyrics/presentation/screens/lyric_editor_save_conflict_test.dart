@@ -255,8 +255,9 @@ void main() {
         final guard = _ReferenceTimingGuard();
         final audio = _PreviewAudioPlayer(source: AudioSourceType.vocals);
         final session = _PreviewPlaybackSession();
-        final document = _document('Human lyric')
-            .copyWith(globalOffset: const Duration(milliseconds: 300));
+        final document = _document(
+          'Human lyric',
+        ).copyWith(globalOffset: const Duration(milliseconds: 300));
         final editor = await _openEditor(
           tester,
           align,
@@ -622,11 +623,12 @@ void main() {
       final editor = await _openEditor(
         tester,
         _emptyAlignment,
-        evidenceLoader: ({
-          required projectId,
-          required expectedProjectRevision,
-          required draft,
-        }) => pending.future,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
@@ -668,11 +670,12 @@ void main() {
         final editor = await _openEditor(
           tester,
           _emptyAlignment,
-          evidenceLoader: ({
-            required projectId,
-            required expectedProjectRevision,
-            required draft,
-          }) => pending.future,
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) => pending.future,
         );
         await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
         await tester.pumpAndSettle();
@@ -761,11 +764,12 @@ void main() {
       final editor = await _openEditor(
         tester,
         _emptyAlignment,
-        evidenceLoader: ({
-          required projectId,
-          required expectedProjectRevision,
-          required draft,
-        }) => pending.future,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
@@ -919,11 +923,12 @@ void main() {
       final editor = await _openEditor(
         tester,
         _emptyAlignment,
-        evidenceLoader: ({
-          required projectId,
-          required expectedProjectRevision,
-          required draft,
-        }) => pending.future,
+        evidenceLoader:
+            ({
+              required projectId,
+              required expectedProjectRevision,
+              required draft,
+            }) => pending.future,
       );
       await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
       await tester.pumpAndSettle();
@@ -1006,15 +1011,16 @@ void main() {
         ),
       );
       await tester.pump();
-      Navigator.of(tester.element(find.byType(ReferenceAlignmentReviewSheet)))
-          .pop(
-            const ReferenceAlignmentReviewDecision(
-              acceptedReferenceIndices: {},
-              acceptedMissingReferenceIndices: {},
-              overriddenAsrLineIndices: {},
-              applyReferenceTiming: true,
-            ),
-          );
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: true,
+        ),
+      );
       await tester.pumpAndSettle();
       expect(
         editor.document!.lines.single.text,
@@ -1057,8 +1063,9 @@ void main() {
           await tester.pumpAndSettle();
           final timingTitle = find.text('导入独立 ASR 时间证据');
           if (withEvidence) {
-            Navigator.of(tester.element(timingTitle))
-                .pop(_document('Hello world'));
+            Navigator.of(
+              tester.element(timingTitle),
+            ).pop(_document('Hello world'));
           } else {
             await tester.tap(find.text('跳过校时'));
           }
@@ -1137,20 +1144,21 @@ void main() {
         (tester) async {
           final editor = await _openEditor(tester, _emptyAlignment);
           await _openReferenceFlow(tester, '参考歌词纠正');
-          Navigator.of(tester.element(find.byType(ReferenceAlignmentDialog)))
-              .pop(
-                const ReferenceLyricInput(
-                  lines: [
-                    ReferenceLyricLine(
-                      text: 'Human lyric',
-                      startTime: Duration(seconds: 4),
-                      endTime: Duration(seconds: 5),
-                    ),
-                  ],
-                  timed: true,
-                  format: 'lrc',
+          Navigator.of(
+            tester.element(find.byType(ReferenceAlignmentDialog)),
+          ).pop(
+            const ReferenceLyricInput(
+              lines: [
+                ReferenceLyricLine(
+                  text: 'Human lyric',
+                  startTime: Duration(seconds: 4),
+                  endTime: Duration(seconds: 5),
                 ),
-              );
+              ],
+              timed: true,
+              format: 'lrc',
+            ),
+          );
           await tester.pumpAndSettle();
           expect(find.byType(ReferenceAlignmentReviewSheet), findsOneWidget);
           Navigator.of(
@@ -1222,15 +1230,16 @@ void main() {
         editor.document!.metadata.containsKey(kReferenceAlignmentBackupKey),
         isFalse,
       );
-      Navigator.of(tester.element(find.byType(ReferenceAlignmentReviewSheet)))
-          .pop(
-            const ReferenceAlignmentReviewDecision(
-              acceptedReferenceIndices: {0},
-              acceptedMissingReferenceIndices: {},
-              overriddenAsrLineIndices: {},
-              applyReferenceTiming: false,
-            ),
-          );
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {0},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: false,
+        ),
+      );
       await tester.pumpAndSettle();
       expect(editor.document!.lines.single.text, 'Hello world');
       expect(editor.document!.lines.single.startTime, Duration.zero);
@@ -1276,15 +1285,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      Navigator.of(tester.element(find.byType(ReferenceAlignmentReviewSheet)))
-          .pop(
-            const ReferenceAlignmentReviewDecision(
-              acceptedReferenceIndices: {},
-              acceptedMissingReferenceIndices: {},
-              overriddenAsrLineIndices: {},
-              applyReferenceTiming: true,
-            ),
-          );
+      Navigator.of(
+        tester.element(find.byType(ReferenceAlignmentReviewSheet)),
+      ).pop(
+        const ReferenceAlignmentReviewDecision(
+          acceptedReferenceIndices: {},
+          acceptedMissingReferenceIndices: {},
+          overriddenAsrLineIndices: {},
+          applyReferenceTiming: true,
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('这次对齐引入了时间轴冲突'), findsOneWidget);
       await tester.tap(find.text('撤销本次对齐'));
@@ -1745,11 +1755,9 @@ void main() {
     expect(find.textContaining('识别资源正忙，请等待其他任务结束后重试'), findsOneWidget);
     expect(find.text('智能校对提案复核'), findsNothing);
     expect(
-      (await repository.getProjectById(project.id))!
-          .lyricDocument!
-          .lines
-          .single
-          .text,
+      (await repository.getProjectById(
+        project.id,
+      ))!.lyricDocument!.lines.single.text,
       'Human lyric',
     );
     expect(tester.takeException(), isNull);

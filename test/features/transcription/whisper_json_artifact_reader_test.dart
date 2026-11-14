@@ -89,9 +89,9 @@ void main() {
       final tooLarge = File('${root.path}/large.json');
       await tooLarge.writeAsString(response());
       expect(
-        (await const WhisperJsonArtifactReader(maxArtifactBytes: 2)
-                .read(tooLarge.path))
-            .status,
+        (await const WhisperJsonArtifactReader(
+          maxArtifactBytes: 2,
+        ).read(tooLarge.path)).status,
         WhisperJsonArtifactStatus.tooLarge,
       );
 
