@@ -168,6 +168,7 @@ void main() {
     final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
     expect(tester.widget<CheckboxListTile>(toggle).value, isFalse);
     expect(find.text('查看工程原始双引擎快照（只读）'), findsOneWidget);
+    await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     await tester.tap(find.text('继续'));
