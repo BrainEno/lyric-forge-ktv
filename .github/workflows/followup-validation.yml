@@ -1,0 +1,89 @@
+name: Temporary Proofread V2 follow-up validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  followup-validation:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request merge commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run official work-log write and check
+        shell: bash
+        run: |
+          : > followup-report.txt
+          set +e
+          dart tool/work_log.dart write >> followup-report.txt 2>&1
+          write_status=$?
+          dart tool/work_log.dart check >> followup-report.txt 2>&1
+          check_status=$?
+          set -e
+          echo "WORK_LOG_WRITE_EXIT=$write_status" >> followup-report.txt
+          echo "WORK_LOG_CHECK_EXIT=$check_status" >> followup-report.txt
+          git --no-pager diff -- docs/work_log.md docs/work_log_archive.md docs/work_log_index.md >> followup-report.txt
+          if (( write_status != 0 || check_status != 0 )); then
+            exit 1
+          fi
+
+      - name: Run focused evidence and timeout tests
+        shell: bash
+        run: |
+          for target in \
+            test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart \
+            test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart; do
+            echo "===== $target =====" >> followup-report.txt
+            set +e
+            flutter test --no-pub --reporter expanded "$target" >> followup-report.txt 2>&1
+            result=$?
+            set -e
+            echo "EXIT=$result" >> followup-report.txt
+          done
+          echo "===== test/features/transfer/http_media_hub_upload_test.dart (total upload deadline) =====" >> followup-report.txt
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/features/transfer/http_media_hub_upload_test.dart \
+            --plain-name 'total upload deadline applies while chunks continue arriving' \
+            >> followup-report.txt 2>&1
+          result=$?
+          set -e
+          echo "EXIT=$result" >> followup-report.txt
+
+      - name: Publish temporary follow-up validation output
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.existsSync('followup-report.txt')
+              ? fs.readFileSync('followup-report.txt', 'utf8')
+              : 'Follow-up report was not produced.';
+            const body = [
+              '<!-- temporary-followup-validation -->',
+              'Temporary pinned-SDK validation output; this comment will be removed after checking.',
+              '```text',
+              report.slice(0, 58000),
+              '```',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

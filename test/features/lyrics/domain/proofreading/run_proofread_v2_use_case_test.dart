@@ -6,6 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_in
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/reference_lyric_line.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_language.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_review_proposal.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart';
@@ -135,6 +136,60 @@ void main() {
       );
       expect(run.assembly.items, hasLength(2));
       expect(spy.calls, 0);
+    });
+
+    test('matching secondary transcript yields V2 consensus rows', () async {
+      final primary = LyricDocument(
+        language: 'en',
+        lines: const [
+          LyricLine(
+            id: 'primary',
+            text: 'hello world',
+            startTime: Duration.zero,
+            endTime: Duration(seconds: 2),
+            confidence: 90,
+          ),
+        ],
+      );
+      final secondary = LyricDocument(
+        language: 'en',
+        lines: const [
+          LyricLine(
+            id: 'secondary',
+            text: 'hello world',
+            startTime: Duration.zero,
+            endTime: Duration(seconds: 2),
+            confidence: 90,
+          ),
+        ],
+      );
+
+      final run = await useCase.build(
+        draft: primary,
+        secondary: secondary,
+        strategy: LyricSourceStrategy.auto,
+      );
+
+      expect(run.decision.effectiveStrategy, LyricSourceStrategy.asrFirst);
+      expect(run.assembly.items, hasLength(1));
+      expect(
+        run.assembly.items.single.proofreadReasons,
+        contains(ProofreadReason.asrAgreement),
+      );
+      expect(
+        run.assembly.items.single.verdict,
+        LyricProofreadReviewVerdict.green,
+      );
+      expect(
+        codes(run),
+        contains(LyricProofreadV2ExplanationCode.secondaryTranscriptEvidence),
+      );
+      expect(
+        codes(run),
+        isNot(
+          contains(LyricProofreadV2ExplanationCode.missingSecondaryTranscript),
+        ),
+      );
     });
 
     test(

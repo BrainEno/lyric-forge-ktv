@@ -1,0 +1,11 @@
+# [2026-11-07 00:02] Verify Proofread V2 saved evidence routing
+
+- Scope: Continue #319 after the initial implementation: apply the pinned formatter's exact output, fix the evidence-option widget test's off-screen tap, and strengthen unit coverage for consensus routing and missing-secondary diagnostics. Refresh the acceptance audit without closing #319.
+- Files: formatter-only changes in the Proofread V2 coordinator and tests; `proofread_v2_project_evidence_test.dart`, `asr_first_pipeline_test.dart`, and `run_proofread_v2_use_case_test.dart`; `docs/handoff.md`; this entry and generated work-log navigation.
+- Validation:
+  - `git diff --check` and `bash scripts/check_app_identifiers.sh` => passed.
+  - Flutter Quality Gate `43564036045` at `454e97d`: SDK setup, work-log preflight, package resolution, changed-Dart format check, vendored backend test, and analyzer all passed. Full suite reached 1,972 passed / 1 skipped / 1 failed; the reported failure was `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`. Re-run is required before calling the gate green.
+  - The prior V2 widget failure was diagnosed as tapping an off-screen checkbox; `ensureVisible` was added, and that test did not appear among failures in the later full-suite run. `test/architecture_layer_imports_contract_test.dart` passed when run as a focused target in diagnostic run `43563940450`.
+  - The newly strengthened consensus assertions and the work-log `write/check` commands are scheduled for the pinned-SDK follow-up workflow; they are not claimed as passing yet. No local Flutter/Dart SDK or real-song evaluation is available in this workspace.
+- Notes: A saved, matching single-input pair is metadata-previewed, then fully revalidated and passed as secondary evidence to the UI-independent V2 use case; direct pipeline tests cover consensus and absence of `secondaryAsrUnavailable`. Reference ForcedAligner per-line source, ignored-option explanations, and independent orchestration tests are present. #319 remains OPEN until the final quality gate is green and all acceptance evidence is reviewed; no accuracy improvement is claimed.
+- Commit: `Verify V2 evidence consensus routing`
