@@ -158,6 +158,14 @@ final class QwenRuntimeSessionSecret {
   String toString() => 'QwenRuntimeSessionSecret(<redacted>)';
 }
 
+String _hex(List<int> bytes) {
+  final buffer = StringBuffer();
+  for (final byte in bytes) {
+    buffer.write(byte.toRadixString(16).padLeft(2, '0'));
+  }
+  return buffer.toString();
+}
+
 /// How an identity probe against `/healthz` ended.
 enum QwenRuntimeIdentity {
   /// The response carried a valid proof for this session's secret.

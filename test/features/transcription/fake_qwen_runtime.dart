@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
@@ -102,7 +101,7 @@ class FakeRuntimeProcess implements Process {
   final StreamController<List<int>> _stdout = StreamController<List<int>>();
   final StreamController<List<int>> _stderr = StreamController<List<int>>();
   final Completer<int> _exit = Completer<int>();
-  final BytesBuilder _stdinBytes = BytesBuilder(copy: true);
+  final List<int> _stdinBytes = <int>[];
   final Completer<void> booted = Completer<void>();
   final List<FakeRuntimeRequest> requests = <FakeRuntimeRequest>[];
   final List<ProcessSignal> killSignals = <ProcessSignal>[];
@@ -115,7 +114,7 @@ class FakeRuntimeProcess implements Process {
   bool _shuttingDown = false;
 
   /// Everything LyricForge wrote to the runtime's stdin.
-  String get stdinText => utf8.decode(_stdinBytes.toBytes());
+  String get stdinText => utf8.decode(_stdinBytes);
 
   /// The secret line received over stdin, if any.
   String? get secretLine =>
@@ -154,7 +153,7 @@ class FakeRuntimeProcess implements Process {
   Future<void> crash([int code = 139]) => _shutdown(code);
 
   void _onStdin(List<int> data) {
-    _stdinBytes.add(data);
+    _stdinBytes.addAll(data);
     if (_secretReceived || !stdinText.contains('\n')) return;
     _secretReceived = true;
     unawaited(_boot(stdinText.split('\n').first));
@@ -431,13 +430,10 @@ class _NullConsumer implements StreamConsumer<List<int>> {
   Future<void> close() async {}
 }
 
-Future<List<int>> _readAll(Stream<List<int>> stream) async {
-  final builder = await stream.fold<BytesBuilder>(
-    BytesBuilder(copy: false),
-    (builder, chunk) => builder..add(chunk),
-  );
-  return builder.takeBytes();
-}
+Future<List<int>> _readAll(Stream<List<int>> stream) => stream.fold<List<int>>(
+  <int>[],
+  (bytes, chunk) => bytes..addAll(chunk),
+);
 
 List<int> _decodeHex(String hex) => [
   for (var index = 0; index + 1 < hex.length; index += 2)

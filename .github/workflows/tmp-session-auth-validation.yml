@@ -12,10 +12,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: tmp-session-auth-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   dart:
     runs-on: ubuntu-latest
@@ -46,24 +42,56 @@ jobs:
           fi
           exit 0
 
-      - name: Quality gate
+      - name: Work log write
+        shell: bash
+        run: |
+          set +e
+          dart tool/work_log.dart write
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Regenerate work log summaries"
+            git pull --rebase -q origin ${GITHUB_REF_NAME}
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "::notice::work_log write produced changes (committed)"
+          fi
+          exit 0
+
+      - name: Analyze and test
         shell: bash
         run: |
           set +e +o pipefail
           mkdir -p build
+          emit() {
+            # One annotation per chunk of lines, to stay under the per-step cap.
+            level=$1; title=$2; file=$3
+            [[ -s "$file" ]] || return 0
+            split -l 25 "$file" "$file.part."
+            for part in "$file".part.*; do
+              msg=$(sed -e 's/%/%25/g' "$part" | cut -c1-400 | awk '{printf "%s%%0A", $0}')
+              echo "::$level title=$title::$msg"
+            done
+          }
+          dart tool/work_log.dart check > build/worklog.log 2>&1; wl=$?
+          echo "::notice::work_log check exit=$wl"
+          emit notice worklog build/worklog.log
           flutter pub get --enforce-lockfile > build/pub.log 2>&1
-          bash scripts/quality_gate.sh --skip-pub-get > build/gate.log 2>&1
-          status=$?
-          {
-            grep -nE "error •|warning •|info •" build/gate.log | head -40
-            grep -n "\[E\]" build/gate.log | head -40
-            grep -n -A12 "The following .* was thrown" build/gate.log | head -120
-            grep -n -B2 -A20 "^  Expected:" build/gate.log | head -160
-          } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
-          grep -oE "[0-9]+:[0-9]+ \+[0-9]+( ~[0-9]+)?( -[0-9]+)?: .*" build/gate.log | tail -1 | while IFS= read -r line; do echo "::notice::final test line: ${line:0:500}"; done
-          tail -3 build/gate.log | while IFS= read -r line; do echo "::notice::gate tail: ${line:0:500}"; done
-          echo "::notice::quality gate exit status ${status}"
-          exit $status
+          flutter analyze --no-pub --no-fatal-infos lib test tool > build/analyze.log 2>&1; an=$?
+          echo "::notice::flutter analyze exit=$an; $(tail -1 build/analyze.log)"
+          grep -E "error •|warning •" build/analyze.log > build/analyze-errors.txt
+          emit error analyze build/analyze-errors.txt
+          git diff --name-only 458b14c76851e9f463428dfe7e43bfff49bfcb34 HEAD -- '*.dart' > build/changed.txt
+          grep -F -f build/changed.txt build/analyze.log | grep "info •" > build/analyze-infos-changed.txt
+          emit warning analyze-infos-in-changed-files build/analyze-infos-changed.txt
+          flutter test --no-pub --reporter expanded > build/test.log 2>&1; ts=$?
+          echo "::notice::flutter test exit=$ts; $(grep -oE '[0-9]+:[0-9]+ \+[0-9]+( ~[0-9]+)?( -[0-9]+)?: [^\r]*' build/test.log | tail -1)"
+          grep -E "\[E\]$" build/test.log | sed -E 's/^[0-9:]+ [^:]*: //' | sort -u > build/failed.txt
+          emit error failed-tests build/failed.txt
+          grep -n -E -A14 "^══╡ EXCEPTION|The following .* was thrown|^  Expected:|^Expected:" build/test.log | head -400 > build/failure-details.txt
+          emit error failure-details build/failure-details.txt
+          flutter test --no-pub --reporter expanded test/features/transcription/qwen_runtime_session_test.dart test/features/transcription/qwen_runtime_service_lifecycle_test.dart test/features/transcription/forced_alignment_http_client_test.dart test/features/transcription/qwen3_asr_native_transcription_service_test.dart test/qwen_runtime_security_contract_test.dart test/asr_runtime_release_workflow_contract_test.dart test/runtime_integrity_install_contract_test.dart > build/focused.log 2>&1; fs=$?
+          echo "::notice::focused security/Qwen/ForcedAligner tests exit=$fs; $(grep -oE '[0-9]+:[0-9]+ \+[0-9]+( ~[0-9]+)?( -[0-9]+)?: [^\r]*' build/focused.log | tail -1)"
+          if [[ $an -ne 0 || $ts -ne 0 || $wl -ne 0 ]]; then exit 1; fi
 
   rust:
     runs-on: ubuntu-latest

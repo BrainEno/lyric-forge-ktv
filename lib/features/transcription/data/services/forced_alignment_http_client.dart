@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 
@@ -121,13 +120,10 @@ class ForcedAlignmentHttpClient {
       final response = await request.close().timeout(
         _remainingTimeout(stopwatch),
       );
-      final bytes = await response
-          .fold<BytesBuilder>(
-            BytesBuilder(copy: false),
-            (builder, chunk) => builder..add(chunk),
-          )
+      // The exact received bytes are what the runtime's response proof covers.
+      final responseBytes = await response
+          .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk))
           .timeout(_remainingTimeout(stopwatch));
-      final responseBytes = bytes.takeBytes();
       if (authorization != null &&
           !authorization.acceptsResponse(
             statusCode: response.statusCode,
