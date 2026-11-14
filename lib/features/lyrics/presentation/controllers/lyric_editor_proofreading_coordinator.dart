@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../player/domain/services/audio_player_service.dart';
 import '../../../player/domain/services/playback_session_service.dart';
+import '../../../project/domain/models/audio_asset.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/reference_lyric_input.dart';
@@ -432,8 +433,9 @@ class LyricEditorProofreadingCoordinator {
 
       Future<void> stopOwnedReferenceAudition() async {
         final owned = ownedReferenceAudition;
-        if (owned == null || !identical(host.proofreadAudition.active, owned))
+        if (owned == null || !identical(host.proofreadAudition.active, owned)) {
           return;
+        }
         ownedReferenceAudition = null;
         final current = playbackSnapshot();
         if (timingSnapshot != null &&
@@ -443,8 +445,9 @@ class LyricEditorProofreadingCoordinator {
             current.audioPath == timingSnapshot.audioPath) {
           await host.proofreadAudition.pauseIfSounding();
         }
-        if (identical(host.proofreadAudition.active, owned))
+        if (identical(host.proofreadAudition.active, owned)) {
           host.proofreadAudition.clear();
+        }
       }
 
       late final ReferenceTimingAuditionCoordinator? previewCoordinator;
@@ -462,8 +465,9 @@ class LyricEditorProofreadingCoordinator {
                 bool valid() {
                   if (!host.proofreadIsMounted ||
                       previewCoordinator!.isClosed ||
-                      host.proofreadDocumentRevision != revision)
+                      host.proofreadDocumentRevision != revision) {
                     return false;
+                  }
                   final current = playbackSnapshot();
                   return current.projectId == timingSnapshot.projectId &&
                       !current.isLoading &&
@@ -612,7 +616,9 @@ class LyricEditorProofreadingCoordinator {
         if (selection.acceptedReferenceTimingIndices.isEmpty) return true;
         if (audioGuard == null || timingSnapshot == null) return false;
         final check = await audioGuard.verify(timingSnapshot);
-        if (!context.mounted || !host.proofreadIsCurrent(revision)) return false;
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) {
+          return false;
+        }
         if (check.status != ReferenceAlignmentAudioStatus.matches) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -628,6 +634,7 @@ class LyricEditorProofreadingCoordinator {
       }
 
       if (!await verifyTimingSnapshot()) return;
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
 
       const composer = ProofreadV2DocumentComposer();
       final after = composer.compose(
