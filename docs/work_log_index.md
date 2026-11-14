@@ -1,6 +1,6 @@
 # Work Log Index
 
-> Navigation snapshot through 2026-11-13. Verify Git/current code before treating follow-up notes as unresolved.
+> Navigation snapshot through 2026-11-14. Verify Git/current code before treating follow-up notes as unresolved.
 
 ## Read order
 
@@ -19,6 +19,8 @@
 - `docs/handoff.md` — single-slot interruption handoff; overwrite before ending a session.
 
 ## Recent work areas
+
+- **Local data integrity (#438, #439, #440):** lyric editor “保存并返回” now holds the route until the repository commits, while write errors and declined conflicts retain the dirty draft. Library and collection stores parse into temporary snapshots and fail closed on malformed/duplicate rows, so a later mutation cannot overwrite a subset; all three local media stores drop a failed lazy-load Future and can retry after storage repair. Real Flutter/widget test execution and device validation remain pending on the PR quality gate.
 
 - **Reference ForcedAligner review (#319):** V2 supports separately selected reference alignment times and bounded absolute-time audition on the verified active local audio source; audio/project checks are point-in-time, and real-audio accuracy and native accessibility remain open.
 

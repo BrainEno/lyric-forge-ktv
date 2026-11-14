@@ -40,7 +40,24 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
 
   FileLocalMediaLibraryRepository({this.rootDirectory, this.metadataReader});
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  /// Shares an in-flight restore, but never pins a transient storage error to
+  /// this repository instance. A later UI refresh can retry after the user
+  /// repairs permissions, a removable drive, or the JSON document.
+  Future<void> _ensureLoaded() {
+    final existing = _loadFuture;
+    if (existing != null) return existing;
+
+    late final Future<void> load;
+    load = _load().then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_loadFuture, load)) _loadFuture = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+    _loadFuture = load;
+    return load;
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -76,6 +93,13 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
     return path.substring(dot + 1).toLowerCase();
   }
 
+  /// Restores into local variables before publishing a snapshot.
+  ///
+  /// A valid top-level JSON object is not enough to safely rewrite this store:
+  /// silently dropping one corrupt row would turn the next import, rescan, or
+  /// removal into destructive data loss. Treat every malformed or duplicate
+  /// record as a failed restore, leave the canonical file untouched, and let
+  /// [_ensureLoaded] retry when the user repairs it.
   Future<void> _load() async {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
@@ -85,45 +109,92 @@ class FileLocalMediaLibraryRepository implements LocalMediaLibraryRepository {
           validate: _isValidStoreJson,
         )) {
       throw FormatException(
-        'The local media library is invalid and no recoverable copy is available. ${file.path}',
+        'The local media library is invalid and no recoverable copy is available.',
+        file.path,
       );
     }
     if (!await file.exists()) return;
 
-    try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return;
-
-      final rawRoots = decoded['roots'];
-      if (rawRoots is List) {
-        final seen = <String>{};
-        for (final raw in rawRoots) {
-          if (raw is! String || raw.trim().isEmpty) continue;
-          final root = Directory(raw).absolute.path;
-          if (seen.add(_directoryKey(root))) _roots.add(root);
-        }
-      }
-
-      final rawEntries = decoded['entries'];
-      if (rawEntries is List) {
-        final seen = <String>{};
-        for (final raw in rawEntries) {
-          if (raw is! Map) continue;
-          try {
-            final entry = LocalMediaLibraryEntry.fromJson(
-              Map<String, dynamic>.from(raw),
-            );
-            if (seen.add(_pathKey(entry.sourcePath))) _entries.add(entry);
-          } catch (_) {
-            // Skip one malformed row instead of losing the complete library.
-          }
-        }
-      }
-      _sort();
-    } catch (_) {
-      _entries.clear();
-      _roots.clear();
+    final decoded = jsonDecode(await file.readAsString());
+    if (!_isValidStoreJson(decoded)) {
+      throw FormatException(
+        'The local media library changed or became invalid while loading.',
+        file.path,
+      );
     }
+    final payload = decoded as Map;
+    final restoredRoots = <String>[];
+    final restoredEntries = <LocalMediaLibraryEntry>[];
+
+    final rawRoots = payload['roots'];
+    if (rawRoots != null && rawRoots is! List) {
+      throw FormatException(
+        'The local media library roots are invalid.',
+        file.path,
+      );
+    }
+    if (rawRoots is List) {
+      final seenRoots = <String>{};
+      for (var index = 0; index < rawRoots.length; index++) {
+        final raw = rawRoots[index];
+        if (raw is! String || raw.trim().isEmpty) {
+          throw FormatException(
+            'Local media library root ${index + 1} is invalid.',
+            file.path,
+          );
+        }
+        final root = Directory(raw).absolute.path;
+        if (!seenRoots.add(_directoryKey(root))) {
+          throw FormatException(
+            'Local media library root ${index + 1} duplicates an earlier root.',
+            file.path,
+          );
+        }
+        restoredRoots.add(root);
+      }
+    }
+
+    final rawEntries = payload['entries'];
+    if (rawEntries is! List) {
+      throw FormatException(
+        'The local media library entries are invalid.',
+        file.path,
+      );
+    }
+    final seenEntries = <String>{};
+    for (var index = 0; index < rawEntries.length; index++) {
+      final raw = rawEntries[index];
+      if (raw is! Map) {
+        throw FormatException(
+          'Local media library record ${index + 1} is not an object.',
+          file.path,
+        );
+      }
+      late final LocalMediaLibraryEntry entry;
+      try {
+        entry = LocalMediaLibraryEntry.fromJson(Map<String, dynamic>.from(raw));
+      } catch (error) {
+        throw FormatException(
+          'Local media library record ${index + 1} could not be read: $error',
+          file.path,
+        );
+      }
+      if (!seenEntries.add(_pathKey(entry.sourcePath))) {
+        throw FormatException(
+          'Local media library record ${index + 1} duplicates an earlier path.',
+          file.path,
+        );
+      }
+      restoredEntries.add(entry);
+    }
+
+    _entries
+      ..clear()
+      ..addAll(restoredEntries);
+    _roots
+      ..clear()
+      ..addAll(restoredRoots);
+    _sort();
   }
 
   void _sort() {

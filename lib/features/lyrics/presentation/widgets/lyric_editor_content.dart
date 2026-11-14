@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -57,6 +59,12 @@ class LyricEditorErrorState extends StatelessWidget {
   }
 }
 
+/// Persists the current editor document and reports whether it was committed.
+///
+/// A `false` result means the draft is still in the editor: for example, the
+/// disk write failed or the user kept editing after a revision conflict.
+typedef LyricEditorSaveCallback = Future<bool> Function();
+
 class LyricEditorContent extends StatelessWidget {
   final ProjectManifest project;
   final LyricDocument document;
@@ -76,7 +84,8 @@ class LyricEditorContent extends StatelessWidget {
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
   final void Function(int, bool) onReviewDecision;
-  final VoidCallback onSave;
+  final LyricEditorSaveCallback onSave;
+  final bool isSaving;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final bool canUndo;
@@ -125,6 +134,7 @@ class LyricEditorContent extends StatelessWidget {
     required this.onSelectLine,
     required this.onReviewDecision,
     required this.onSave,
+    required this.isSaving,
     required this.onUndo,
     required this.onRedo,
     required this.canUndo,
@@ -282,11 +292,19 @@ class LyricEditorContent extends StatelessWidget {
         final decision = await confirmUnsavedLyricEdits(context);
         if (!context.mounted) return;
         switch (decision) {
-          // "保存并返回" used to pop with `false` and call onSave(), which saved
-          // the document but left the user on the editor, so the button did the
-          // opposite of what it said. Saving now always ends with leaving.
           case UnsavedLyricEditsDecision.save:
-            onSave();
+            if (isSaving) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('歌词正在保存，请等待完成。')));
+              return;
+            }
+            // Do not release this route until persistence, including any
+            // conflict-resolution dialog, has produced a real success result.
+            // A false result leaves the dirty document mounted for correction
+            // or retry instead of silently losing it behind a popped route.
+            final saved = await onSave();
+            if (!context.mounted || !saved) return;
             Navigator.of(context).pop();
           case UnsavedLyricEditsDecision.discard:
             Navigator.of(context).pop();
@@ -297,7 +315,11 @@ class LyricEditorContent extends StatelessWidget {
       child: LyricEditShortcuts(
         onUndo: onUndo,
         onRedo: onRedo,
-        onSave: onSave,
+        onSave: isSaving
+            ? null
+            : () {
+                unawaited(onSave());
+              },
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -350,14 +372,26 @@ class LyricEditorContent extends StatelessWidget {
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: spec.isCompact
                       ? IconButton.filledTonal(
-                          tooltip: '保存修改',
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded),
+                          tooltip: isSaving ? '正在保存歌词' : '保存修改',
+                          onPressed: isSaving
+                              ? null
+                              : () {
+                                  unawaited(onSave());
+                                },
+                          icon: isSaving
+                              ? const Icon(Icons.save_as_rounded, size: 18)
+                              : const Icon(Icons.save_rounded),
                         )
                       : FilledButton.icon(
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          label: const Text('保存修改'),
+                          onPressed: isSaving
+                              ? null
+                              : () {
+                                  unawaited(onSave());
+                                },
+                          icon: isSaving
+                              ? const Icon(Icons.save_as_rounded, size: 18)
+                              : const Icon(Icons.save_rounded, size: 18),
+                          label: Text(isSaving ? '正在保存' : '保存修改'),
                         ),
                 ),
             ],
