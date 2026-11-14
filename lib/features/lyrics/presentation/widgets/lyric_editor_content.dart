@@ -10,7 +10,6 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
-import '../lyric_review_strings.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
