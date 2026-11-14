@@ -13,7 +13,7 @@
 
 - 分支：`arena/12673259-lyric-forge-ktv`，基于 main `458b14c76851e9f463428dfe7e43bfff49bfcb34`。
 - PR 标题：`[model-eval] Harden Qwen runtime security boundary`。PR 状态和 head 以 GitHub 为准。
-- 临时验证 workflow `.github/workflows/tmp-session-auth-validation.yml` 只用于本分支验证，开 PR 前必须删除，不得进入 main。
+- 临时验证 workflow `.github/workflows/tmp-session-auth-validation.yml` 只在本分支上用过，开 PR 前已删除；它不在 PR 的 diff 里。
 
 ## 已改文件
 
@@ -63,7 +63,14 @@
 ## 检查结果
 
 - 沙箱里没有 Dart 和 Rust 工具链，也读不到 job 日志，所以用分支上的临时 workflow 做格式化、work log、analyze、测试，并在 Linux 上测试 Rust 补丁，结果以 annotation 形式读取。
-- 具体命令、通过/失败数量，以及 Windows/macOS runtime 构建结果都写在 PR 描述里。
+- Run `43605196763`（head `da18d0b`）：
+  - `dart format`：11 个改动的 Dart 文件都已符合格式。
+  - `dart tool/work_log.dart check`：0 个错误。
+  - `flutter analyze --no-pub --no-fatal-infos lib test tool`：exit 0，没有 error/warning，改动文件里也没有 info。
+  - `flutter test` 全量：2058 通过，1 跳过，0 失败；聚焦的安全/Qwen/ForcedAligner 测试：58 通过。
+  - Linux 上的 Rust 补丁测试（CPU）：单元 6、`session_auth_integration` 7、`serve_integration` 回归 19，全部通过。
+- 之前两次运行发现并已修复：缺少 `_hex` 辅助函数；测试里的 `TranscriptionConfig` 缺少必填参数；取消测试的断言在取消之后才挂上。
+- Windows CUDA 和 macOS Intel 的补丁测试与打包结果，以 PR 上的 `Build managed ASR runtime` 为准。
 
 ## 下一步
 

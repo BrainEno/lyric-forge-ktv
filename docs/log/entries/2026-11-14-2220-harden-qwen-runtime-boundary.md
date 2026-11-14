@@ -4,6 +4,15 @@
 - Files: New `qwen_runtime_session.dart`; the Qwen native transcription service, forced-alignment HTTP client and managed runtime manager; `tool/patches/qwen3-asr-session-auth.patch` (Rust module, serve wiring, unit and integration tests, lockfile); `build-asr-runtime.yml` (apply and test the patch on Windows CUDA and macOS Intel, `asr-runtime-v3`, revision `+session-auth-v1`); new fake-runtime, session, lifecycle and security-contract tests; extended forced-alignment client tests; updated release contract tests; README trust-boundary section; ASR runtime docs; handoff.
 - Validation:
   - The sandbox has no Dart or Rust toolchain, and job logs are unreachable. A temporary branch workflow ran `dart format`, the work-log tool, analyze, the tests, and the Rust patch tests on Linux. It was removed before the PR.
-  - Results are recorded in the PR body and the handoff.
+  - Run 43604304492: `dart format` reformatted 9 files, which were committed. `flutter analyze` failed on a missing `_hex` helper.
+  - Run 43604702235: a session test passed an incomplete `TranscriptionConfig`, and the cancel-during-inference test attached its expectation after cancel (uncaught async error). Both are fixed.
+  - Run 43605196763 (head da18d0b):
+    - `dart format` reported all 11 changed Dart files already formatted.
+    - `dart tool/work_log.dart check` passed with 0 errors (only commit-subject warnings).
+    - `flutter analyze --no-pub --no-fatal-infos lib test tool` exited 0 with no errors or warnings, and no infos in changed files.
+    - Full `flutter test`: 2058 passed, 1 skipped, 0 failed.
+    - Focused session/lifecycle/ForcedAligner/Qwen/contract tests: 58 passed.
+    - Rust on Linux (patched runtime, CPU, no GPU): `--bin qwen3-asr session_auth` 6 passed; `--test session_auth_integration` 7 passed; `--test serve_integration` 19 passed.
+  - The Windows CUDA and macOS Intel runtime jobs run in the PR's `Build managed ASR runtime` workflow. There was no real-GPU or end-to-end model test.
 - Notes: Same-user memory inspection, debugger attachment, process injection and binary replacement remain out of scope. They are documented in the README threat model. Runtimes without the flag fail closed as outdated; there is no unauthenticated fallback. Inference behavior, models and alignment semantics are unchanged.
 - Commit: `Harden the local Qwen runtime security boundary`
