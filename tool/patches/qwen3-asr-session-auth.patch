@@ -1,0 +1,1372 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index b0c401b..9fb03d7 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3147,6 +3147,7 @@ dependencies = [
+  "qwen3_asr",
+  "serde",
+  "serde_json",
++ "sha2",
+  "tokio",
+  "tower-http",
+  "tracing",
+diff --git a/qwen3_asr_cli/Cargo.toml b/qwen3_asr_cli/Cargo.toml
+index 13ae9a7..ed82d13 100644
+--- a/qwen3_asr_cli/Cargo.toml
++++ b/qwen3_asr_cli/Cargo.toml
+@@ -21,6 +21,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "net", "sync"] }
+ tower-http = { version = "0.6", features = ["cors"] }
+ futures-util = "0.3"
+ base64 = "0.22"
++sha2 = "0.10"
+ 
+ qwen3_asr = { path = "../qwen3_asr", features = ["audio-loading", "forced-aligner", "timing"] }
+ candle-core = { version = "0.9" }
+diff --git a/qwen3_asr_cli/src/args.rs b/qwen3_asr_cli/src/args.rs
+index 98985ba..0c834a9 100644
+--- a/qwen3_asr_cli/src/args.rs
++++ b/qwen3_asr_cli/src/args.rs
+@@ -379,6 +379,13 @@ pub enum Command {
+         /// when `stream=true`.
+         #[arg(long)]
+         openai_stream_text_window_tokens: Option<usize>,
++
++        /// LyricForge session mode: read a 64-hex-character session secret from the
++        /// first stdin line, bind the loopback listener itself (use `--port 0`),
++        /// announce the bound port on stdout, require HMAC-signed requests on every
++        /// route, sign every response, and exit when stdin closes.
++        #[arg(long, default_value_t = false)]
++        lyricforge_session_stdin: bool,
+     },
+     /// Compute Japanese nagisa-reference quality metrics.
+     ///
+diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
+index 516f006..f350dd6 100644
+--- a/qwen3_asr_cli/src/cmd_serve.rs
++++ b/qwen3_asr_cli/src/cmd_serve.rs
+@@ -47,6 +47,7 @@ pub struct ServeCmd {
+     pub max_session_audio_chars: usize,
+     pub openai_stream_audio_window_sec: Option<f32>,
+     pub openai_stream_text_window_tokens: Option<usize>,
++    pub lyricforge_session_stdin: bool,
+ }
+ 
+ #[derive(Debug)]
+@@ -3441,6 +3442,18 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         anyhow::bail!("openai_stream_text_window_tokens must be > 0");
+     }
+ 
++    // LyricForge session mode reads its secret before the (slow) model load so a
++    // missing or malformed secret fails fast, and the stdin watcher also stops
++    // an orphaned runtime that is still loading weights.
++    let session_auth = if cmd.lyricforge_session_stdin {
++        let bind_addr = crate::session_auth::session_bind_address(&cmd.host, cmd.port)?;
++        let auth = crate::session_auth::SessionAuth::read_from_stdin()?;
++        crate::session_auth::exit_when_stdin_closes()?;
++        Some((auth, bind_addr))
++    } else {
++        None
++    };
++
+     let mode = if cmd.mock {
+         WorkerMode::Mock(MockWorkerState {
+             sessions: HashMap::new(),
+@@ -3500,7 +3513,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+         .allow_headers([CONTENT_TYPE]);
+ 
+-    let app = Router::new()
++    let mut app = Router::new()
+         .route("/", get(root))
+         .route("/healthz", get(healthz))
+         .route("/v1/models", get(openai_models).options(options_ok))
+@@ -3527,15 +3540,26 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         .route("/api/start", post(compat_api_start).options(options_ok))
+         .route("/api/chunk", post(compat_api_chunk).options(options_ok))
+         .route("/api/finish", post(compat_api_finish).options(options_ok))
+-        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+-        .layer(cors)
+-        .with_state(state.clone());
++        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES));
++    if let Some((auth, _)) = session_auth.as_ref() {
++        // Authenticated LyricForge sessions have no browser clients: drop the
++        // permissive CORS layer and authenticate every route, including
++        // `/healthz` and OPTIONS preflights, before any handler runs.
++        app = app.layer(axum::middleware::from_fn_with_state(
++            Arc::clone(auth),
++            crate::session_auth::require_session_auth,
++        ));
++    } else {
++        app = app.layer(cors);
++    }
++    let app = app.with_state(state.clone());
+ 
+     let addr = format!("{}:{}", cmd.host, cmd.port);
+     tracing::info!(
+         addr = %addr,
+         model = %cmd.model,
+         mock = cmd.mock,
++        lyricforge_session = session_auth.is_some(),
+         micro_batch_max_size = worker_cfg.micro_batch_max_size,
+         micro_batch_wait_ms = cmd.micro_batch_wait_ms,
+         max_sessions = worker_cfg.max_sessions,
+@@ -3552,9 +3576,21 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         .context("failed to build tokio runtime for serve")?;
+ 
+     rt.block_on(async move {
+-        let listener = tokio::net::TcpListener::bind(addr.as_str())
+-            .await
+-            .map_err(|e| anyhow::anyhow!("failed to bind HTTP server at {addr}: {e}"))?;
++        let listener = if let Some((auth, bind_addr)) = session_auth.as_ref() {
++            // The runtime owns the socket from bind to exit; the parent learns
++            // the port only from this process's private stdout pipe.
++            let listener = crate::session_auth::bind_exclusive_listener(*bind_addr)?;
++            let local_addr = listener
++                .local_addr()
++                .context("failed to read the bound HTTP address")?;
++            crate::session_auth::announce_ready(auth, local_addr.port())?;
++            tracing::info!(addr = %local_addr, "LyricForge authenticated session listening");
++            listener
++        } else {
++            tokio::net::TcpListener::bind(addr.as_str())
++                .await
++                .map_err(|e| anyhow::anyhow!("failed to bind HTTP server at {addr}: {e}"))?
++        };
+         axum::serve(listener, app)
+             .await
+             .map_err(|e| anyhow::anyhow!("serve loop failed: {e}"))
+diff --git a/qwen3_asr_cli/src/main.rs b/qwen3_asr_cli/src/main.rs
+index fca557b..603d53a 100644
+--- a/qwen3_asr_cli/src/main.rs
++++ b/qwen3_asr_cli/src/main.rs
+@@ -8,6 +8,7 @@ mod cmd_serve;
+ mod cmd_stream;
+ mod cmd_transcribe;
+ mod model_defaults;
++mod session_auth;
+ 
+ use anyhow::Result;
+ use clap::Parser;
+@@ -144,6 +145,7 @@ fn main() -> Result<()> {
+             max_session_audio_chars,
+             openai_stream_audio_window_sec,
+             openai_stream_text_window_tokens,
++            lyricforge_session_stdin,
+         } => cmd_serve::run(
+             cmd_serve::ServeCmd {
+                 model,
+@@ -158,6 +160,7 @@ fn main() -> Result<()> {
+                 max_session_audio_chars,
+                 openai_stream_audio_window_sec,
+                 openai_stream_text_window_tokens,
++                lyricforge_session_stdin,
+             },
+             &device,
+             &load_opts,
+diff --git a/qwen3_asr_cli/src/session_auth.rs b/qwen3_asr_cli/src/session_auth.rs
+new file mode 100644
+index 0000000..cf781b3
+--- /dev/null
++++ b/qwen3_asr_cli/src/session_auth.rs
+@@ -0,0 +1,658 @@
++//! LyricForge per-launch session authentication for `qwen3-asr serve`.
++//!
++//! This module is added by LyricForge's `tool/patches/qwen3-asr-session-auth.patch`.
++//! Upstream `serve` has no authentication and answers every local client, so
++//! any process (or any browser page, through the permissive CORS layer) could
++//! make the runtime read arbitrary file paths. With
++//! `--lyricforge-session-stdin` the server instead:
++//!
++//! * reads a 32-byte session secret (64 lowercase hex characters) from the first
++//!   stdin line, so the secret never appears on the command line or in logs;
++//! * binds the listener itself (normally on port 0) with exclusive address use,
++//!   then reports the actual port on stdout, removing the release-then-rebind
++//!   race of a parent-side port reservation;
++//! * requires an HMAC-SHA256 request signature on every route (including
++//!   `/healthz` and CORS preflights) and rejects replayed nonces;
++//! * signs every response with the same secret, so the client can prove it is
++//!   talking to the process it launched and not to a port squatter;
++//! * exits when stdin closes, so the runtime does not outlive its parent.
++//!
++//! The canonical strings are mirrored by
++//! `lib/features/transcription/data/services/qwen_runtime_session.dart`.
++
++use std::collections::HashMap;
++use std::io::{BufRead, Read, Write};
++use std::net::{IpAddr, SocketAddr};
++use std::sync::{Arc, Mutex};
++use std::time::{SystemTime, UNIX_EPOCH};
++
++use anyhow::{Context, Result, bail};
++use axum::Json;
++use axum::body::{Body, to_bytes};
++use axum::extract::{Request, State};
++use axum::http::header::CONTENT_TYPE;
++use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
++use axum::middleware::Next;
++use axum::response::{IntoResponse, Response};
++use sha2::{Digest, Sha256};
++
++pub const READY_PREFIX: &str = "LYRICFORGE_RUNTIME_READY ";
++pub const PROTOCOL_VERSION: u32 = 1;
++pub const TIMESTAMP_HEADER: &str = "x-lyricforge-timestamp";
++pub const NONCE_HEADER: &str = "x-lyricforge-nonce";
++pub const SIGNATURE_HEADER: &str = "x-lyricforge-signature";
++pub const PROOF_HEADER: &str = "x-lyricforge-proof";
++
++const SECRET_HEX_LEN: usize = 64;
++const NONCE_HEX_LEN: usize = 32;
++const SIGNATURE_HEX_LEN: usize = 64;
++const MAX_TIMESTAMP_DIGITS: usize = 16;
++const MAX_CLOCK_SKEW_MS: u64 = 120_000;
++const MAX_TRACKED_NONCES: usize = 65_536;
++/// Same limit as upstream `DefaultBodyLimit::max(MAX_BODY_BYTES)`.
++const MAX_AUTHENTICATED_BODY_BYTES: usize = 8 * 1024 * 1024;
++const STREAMING_BODY_DIGEST: &str = "unsigned-stream";
++
++/// Per-launch shared secret plus replay cache.
++pub struct SessionAuth {
++    key: [u8; 32],
++    seen_nonces: Mutex<HashMap<String, u64>>,
++}
++
++impl std::fmt::Debug for SessionAuth {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        f.write_str("SessionAuth { key: <redacted> }")
++    }
++}
++
++#[derive(Debug, Clone, PartialEq, Eq)]
++struct AuthHeaders {
++    timestamp: String,
++    timestamp_ms: u64,
++    nonce: String,
++    signature: String,
++}
++
++impl SessionAuth {
++    /// Parses the secret line written by LyricForge. Errors never echo it.
++    pub fn from_secret_hex(secret: &str) -> Result<Self> {
++        let secret = secret.trim_end_matches(['\r', '\n']);
++        if secret.len() != SECRET_HEX_LEN || !is_lower_hex(secret, SECRET_HEX_LEN) {
++            bail!("session secret must be exactly {SECRET_HEX_LEN} lowercase hex characters");
++        }
++        let bytes = decode_lower_hex(secret)
++            .ok_or_else(|| anyhow::anyhow!("session secret must be lowercase hex"))?;
++        let mut key = [0u8; 32];
++        key.copy_from_slice(&bytes);
++        if key.iter().all(|byte| *byte == 0) {
++            bail!("session secret must not be all zeroes");
++        }
++        Ok(Self {
++            key,
++            seen_nonces: Mutex::new(HashMap::new()),
++        })
++    }
++
++    /// Reads exactly one secret line from stdin.
++    pub fn read_from_stdin() -> Result<Arc<Self>> {
++        let mut line = String::new();
++        let read = std::io::stdin()
++            .lock()
++            .read_line(&mut line)
++            .context("failed to read the LyricForge session secret from stdin")?;
++        if read == 0 {
++            bail!("stdin closed before the LyricForge session secret was provided");
++        }
++        let parsed = Self::from_secret_hex(&line);
++        let mut scrub = line.into_bytes();
++        scrub.fill(0);
++        drop(scrub);
++        Ok(Arc::new(parsed?))
++    }
++
++    pub fn sign(&self, message: &str) -> String {
++        to_lower_hex(&hmac_sha256(&self.key, message.as_bytes()))
++    }
++
++    /// Line written to stdout once the listener is bound.
++    pub fn ready_line(&self, port: u16) -> String {
++        format!(
++            "{READY_PREFIX}{{\"protocol\":{PROTOCOL_VERSION},\"port\":{port},\"proof\":\"{}\"}}",
++            self.sign(&ready_message(port))
++        )
++    }
++
++    pub fn response_proof(&self, nonce: &str, status: u16, body: Option<&[u8]>) -> String {
++        let digest = body.map_or_else(|| STREAMING_BODY_DIGEST.to_string(), sha256_hex);
++        self.sign(&response_message(nonce, status, &digest))
++    }
++
++    fn verify_request(
++        &self,
++        headers: &AuthHeaders,
++        method: &str,
++        path_and_query: &str,
++        body: &[u8],
++        now_ms: u64,
++    ) -> Result<(), &'static str> {
++        if now_ms.abs_diff(headers.timestamp_ms) > MAX_CLOCK_SKEW_MS {
++            return Err("timestamp outside the accepted window");
++        }
++        let expected = self.sign(&request_message(
++            method,
++            path_and_query,
++            &headers.timestamp,
++            &headers.nonce,
++            &sha256_hex(body),
++        ));
++        if !constant_time_eq(expected.as_bytes(), headers.signature.as_bytes()) {
++            return Err("signature mismatch");
++        }
++
++        let mut seen = self
++            .seen_nonces
++            .lock()
++            .map_err(|_| "nonce cache unavailable")?;
++        seen.retain(|_, seen_at| now_ms.saturating_sub(*seen_at) <= 2 * MAX_CLOCK_SKEW_MS);
++        if seen.contains_key(headers.nonce.as_str()) {
++            return Err("replayed nonce");
++        }
++        if seen.len() >= MAX_TRACKED_NONCES {
++            return Err("nonce cache full");
++        }
++        seen.insert(headers.nonce.clone(), now_ms);
++        Ok(())
++    }
++}
++
++pub fn ready_message(port: u16) -> String {
++    format!("v1-ready\n{port}")
++}
++
++pub fn request_message(
++    method: &str,
++    path_and_query: &str,
++    timestamp: &str,
++    nonce: &str,
++    body_sha256_hex: &str,
++) -> String {
++    format!("v1-request\n{method}\n{path_and_query}\n{timestamp}\n{nonce}\n{body_sha256_hex}")
++}
++
++pub fn response_message(nonce: &str, status: u16, body_digest: &str) -> String {
++    format!("v1-response\n{nonce}\n{status}\n{body_digest}")
++}
++
++/// Session mode refuses anything other than a literal loopback IP.
++pub fn session_bind_address(host: &str, port: u16) -> Result<SocketAddr> {
++    let ip: IpAddr = host.parse().map_err(|_| {
++        anyhow::anyhow!(
++            "--host must be a literal loopback IP when --lyricforge-session-stdin is set, got {host:?}"
++        )
++    })?;
++    if !ip.is_loopback() {
++        bail!("--lyricforge-session-stdin only binds loopback addresses; refusing {ip}");
++    }
++    Ok(SocketAddr::new(ip, port))
++}
++
++/// Binds the listener inside the runtime. On Windows the socket is marked
++/// `SO_EXCLUSIVEADDRUSE` first: without it another process of the same user can
++/// bind the same address with `SO_REUSEADDR` and steal connections. Unix
++/// listeners are exclusive unless both sockets opt into `SO_REUSEPORT`, which
++/// this socket never does.
++pub fn bind_exclusive_listener(addr: SocketAddr) -> Result<tokio::net::TcpListener> {
++    let socket = if addr.is_ipv4() {
++        tokio::net::TcpSocket::new_v4()
++    } else {
++        tokio::net::TcpSocket::new_v6()
++    }
++    .context("failed to create the HTTP listener socket")?;
++    #[cfg(windows)]
++    windows_exclusive::enable(&socket)?;
++    socket
++        .bind(addr)
++        .with_context(|| format!("failed to bind HTTP server at {addr}"))?;
++    socket
++        .listen(1024)
++        .context("failed to listen on the HTTP server socket")
++}
++
++/// Writes the ready line (port + proof, never the secret) to stdout.
++pub fn announce_ready(auth: &SessionAuth, port: u16) -> Result<()> {
++    let mut stdout = std::io::stdout().lock();
++    writeln!(stdout, "{}", auth.ready_line(port)).context("failed to announce runtime port")?;
++    stdout.flush().context("failed to flush runtime port announcement")
++}
++
++/// Exits the process once the parent closes stdin (or dies).
++pub fn exit_when_stdin_closes() -> Result<()> {
++    std::thread::Builder::new()
++        .name("lyricforge-session-stdin".to_string())
++        .spawn(|| {
++            let stdin = std::io::stdin();
++            let mut handle = stdin.lock();
++            let mut sink = [0u8; 256];
++            loop {
++                match handle.read(&mut sink) {
++                    Ok(0) => break,
++                    Ok(_) => {}
++                    Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
++                    Err(_) => break,
++                }
++            }
++            tracing::info!("LyricForge session control pipe closed; shutting down runtime");
++            std::process::exit(0);
++        })
++        .context("failed to start the LyricForge stdin watcher")?;
++    Ok(())
++}
++
++/// Axum middleware enforcing the session signature on every route.
++pub async fn require_session_auth(
++    State(auth): State<Arc<SessionAuth>>,
++    request: Request,
++    next: Next,
++) -> Response {
++    let (parts, body) = request.into_parts();
++    let headers = match parse_auth_headers(&parts.headers) {
++        Ok(headers) => headers,
++        Err(reason) => return reject(StatusCode::UNAUTHORIZED, reason),
++    };
++    let Ok(body) = to_bytes(body, MAX_AUTHENTICATED_BODY_BYTES).await else {
++        return reject(StatusCode::PAYLOAD_TOO_LARGE, "request body too large");
++    };
++    let method = parts.method.as_str().to_string();
++    let path_and_query = parts
++        .uri
++        .path_and_query()
++        .map_or_else(|| parts.uri.path().to_string(), |value| value.as_str().to_string());
++    if let Err(reason) =
++        auth.verify_request(&headers, &method, &path_and_query, &body, unix_millis())
++    {
++        return reject(StatusCode::UNAUTHORIZED, reason);
++    }
++
++    let response = next.run(Request::from_parts(parts, Body::from(body))).await;
++    sign_response(&auth, &headers.nonce, response).await
++}
++
++async fn sign_response(auth: &SessionAuth, nonce: &str, response: Response) -> Response {
++    let status = response.status().as_u16();
++    let streaming = response.status() == StatusCode::SWITCHING_PROTOCOLS
++        || response
++            .headers()
++            .get(CONTENT_TYPE)
++            .and_then(|value| value.to_str().ok())
++            .is_some_and(|value| value.starts_with("text/event-stream"));
++    if streaming {
++        let mut response = response;
++        insert_proof(
++            response.headers_mut(),
++            &auth.response_proof(nonce, status, None),
++        );
++        return response;
++    }
++
++    let (mut parts, body) = response.into_parts();
++    let Ok(bytes) = to_bytes(body, usize::MAX).await else {
++        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
++    };
++    insert_proof(
++        &mut parts.headers,
++        &auth.response_proof(nonce, status, Some(&bytes)),
++    );
++    Response::from_parts(parts, Body::from(bytes))
++}
++
++fn insert_proof(headers: &mut HeaderMap, proof: &str) {
++    if let Ok(value) = HeaderValue::from_str(proof) {
++        headers.insert(HeaderName::from_static(PROOF_HEADER), value);
++    }
++}
++
++fn reject(status: StatusCode, reason: &'static str) -> Response {
++    tracing::warn!(reason, "rejected unauthenticated LyricForge runtime request");
++    (
++        status,
++        Json(serde_json::json!({
++            "error": {
++                "message": "unauthorized",
++                "type": "authentication_error"
++            }
++        })),
++    )
++        .into_response()
++}
++
++fn parse_auth_headers(headers: &HeaderMap) -> Result<AuthHeaders, &'static str> {
++    let timestamp = header_str(headers, TIMESTAMP_HEADER).ok_or("missing timestamp")?;
++    let nonce = header_str(headers, NONCE_HEADER).ok_or("missing nonce")?;
++    let signature = header_str(headers, SIGNATURE_HEADER).ok_or("missing signature")?;
++    if timestamp.is_empty()
++        || timestamp.len() > MAX_TIMESTAMP_DIGITS
++        || !timestamp.bytes().all(|byte| byte.is_ascii_digit())
++    {
++        return Err("malformed timestamp");
++    }
++    let timestamp_ms = timestamp
++        .parse::<u64>()
++        .map_err(|_| "malformed timestamp")?;
++    if !is_lower_hex(nonce, NONCE_HEX_LEN) {
++        return Err("malformed nonce");
++    }
++    if !is_lower_hex(signature, SIGNATURE_HEX_LEN) {
++        return Err("malformed signature");
++    }
++    Ok(AuthHeaders {
++        timestamp: timestamp.to_string(),
++        timestamp_ms,
++        nonce: nonce.to_string(),
++        signature: signature.to_string(),
++    })
++}
++
++fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
++    let mut values = headers.get_all(name).iter();
++    let first = values.next()?;
++    if values.next().is_some() {
++        return None;
++    }
++    first.to_str().ok()
++}
++
++fn unix_millis() -> u64 {
++    SystemTime::now()
++        .duration_since(UNIX_EPOCH)
++        .map_or(0, |elapsed| elapsed.as_millis() as u64)
++}
++
++pub fn sha256_hex(bytes: &[u8]) -> String {
++    let digest = Sha256::digest(bytes);
++    to_lower_hex(&digest)
++}
++
++pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
++    const BLOCK_SIZE: usize = 64;
++    let mut key_block = [0u8; BLOCK_SIZE];
++    if key.len() > BLOCK_SIZE {
++        let digest = Sha256::digest(key);
++        key_block[..digest.len()].copy_from_slice(&digest);
++    } else {
++        key_block[..key.len()].copy_from_slice(key);
++    }
++    let mut inner_pad = [0x36u8; BLOCK_SIZE];
++    let mut outer_pad = [0x5cu8; BLOCK_SIZE];
++    for index in 0..BLOCK_SIZE {
++        inner_pad[index] ^= key_block[index];
++        outer_pad[index] ^= key_block[index];
++    }
++    let mut inner = Sha256::new();
++    inner.update(inner_pad);
++    inner.update(message);
++    let inner_digest = inner.finalize();
++    let mut outer = Sha256::new();
++    outer.update(outer_pad);
++    outer.update(inner_digest);
++    let digest = outer.finalize();
++    let mut out = [0u8; 32];
++    out.copy_from_slice(&digest);
++    out
++}
++
++fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
++    if left.len() != right.len() {
++        return false;
++    }
++    left.iter()
++        .zip(right.iter())
++        .fold(0u8, |difference, (a, b)| difference | (a ^ b))
++        == 0
++}
++
++fn is_lower_hex(value: &str, expected_len: usize) -> bool {
++    value.len() == expected_len
++        && value
++            .bytes()
++            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
++}
++
++fn decode_lower_hex(value: &str) -> Option<Vec<u8>> {
++    fn nibble(byte: u8) -> Option<u8> {
++        match byte {
++            b'0'..=b'9' => Some(byte - b'0'),
++            b'a'..=b'f' => Some(byte - b'a' + 10),
++            _ => None,
++        }
++    }
++    let bytes = value.as_bytes();
++    if bytes.len() % 2 != 0 {
++        return None;
++    }
++    bytes
++        .chunks_exact(2)
++        .map(|pair| Some((nibble(pair[0])? << 4) | nibble(pair[1])?))
++        .collect()
++}
++
++fn to_lower_hex(bytes: &[u8]) -> String {
++    const DIGITS: &[u8; 16] = b"0123456789abcdef";
++    let mut out = String::with_capacity(bytes.len() * 2);
++    for byte in bytes {
++        out.push(DIGITS[usize::from(byte >> 4)] as char);
++        out.push(DIGITS[usize::from(byte & 0x0f)] as char);
++    }
++    out
++}
++
++#[cfg(windows)]
++mod windows_exclusive {
++    use std::os::windows::io::AsRawSocket;
++
++    use anyhow::{Result, bail};
++
++    const SOL_SOCKET: i32 = 0xffff;
++    /// winsock2.h: `#define SO_EXCLUSIVEADDRUSE ((int)(~SO_REUSEADDR))`, SO_REUSEADDR = 4.
++    const SO_EXCLUSIVEADDRUSE: i32 = !0x0004;
++
++    #[link(name = "ws2_32")]
++    #[allow(non_snake_case)]
++    unsafe extern "system" {
++        fn setsockopt(s: usize, level: i32, optname: i32, optval: *const u8, optlen: i32) -> i32;
++        fn WSAGetLastError() -> i32;
++    }
++
++    pub fn enable(socket: &tokio::net::TcpSocket) -> Result<()> {
++        let enabled: i32 = 1;
++        // SAFETY: the raw socket is owned by `socket` for the duration of the
++        // call and `optval` points at a live i32 of the length passed.
++        let status = unsafe {
++            setsockopt(
++                socket.as_raw_socket() as usize,
++                SOL_SOCKET,
++                SO_EXCLUSIVEADDRUSE,
++                std::ptr::from_ref(&enabled).cast::<u8>(),
++                std::mem::size_of::<i32>() as i32,
++            )
++        };
++        if status != 0 {
++            // SAFETY: plain thread-local error query with no arguments.
++            let code = unsafe { WSAGetLastError() };
++            bail!("failed to enable SO_EXCLUSIVEADDRUSE on the HTTP listener (WSA error {code})");
++        }
++        Ok(())
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use axum::http::{HeaderMap, HeaderValue};
++
++    use super::{
++        AuthHeaders, MAX_CLOCK_SKEW_MS, SessionAuth, hmac_sha256, parse_auth_headers,
++        request_message, session_bind_address, sha256_hex, to_lower_hex,
++    };
++
++    const SECRET: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
++    const NONCE: &str = "00112233445566778899aabbccddeeff";
++
++    #[test]
++    fn hmac_matches_rfc4231_case_2() {
++        let mac = hmac_sha256(b"Jefe", b"what do ya want for nothing?");
++        assert_eq!(
++            to_lower_hex(&mac),
++            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
++        );
++    }
++
++    #[test]
++    fn signatures_match_the_shared_lyricforge_vector() {
++        // Mirrored in test/features/transcription/qwen_runtime_session_test.dart.
++        let auth = SessionAuth::from_secret_hex(SECRET).unwrap();
++        let body = br#"{"audio":"/tmp/a.wav"}"#;
++        let message = request_message(
++            "POST",
++            "/v1/transcribe",
++            "1700000000000",
++            NONCE,
++            &sha256_hex(body),
++        );
++        assert_eq!(
++            auth.sign(&message),
++            "9834b56ce5c8677230804790699dc42482fca1ca36159f5b83aa3f88c9c5bca2"
++        );
++        assert_eq!(
++            auth.sign("v1-ready\n43210"),
++            "03b6c26cfcd564c51d9b567e0672666e7b168cfe5db5c99569b72df02ad1ef51"
++        );
++        assert_eq!(
++            auth.response_proof(NONCE, 200, Some(br#"{"ok":true}"#)),
++            "6ee419e9ac5397eec9a2e86f55446f9906317bde57d51c83e65b1c0b11d050ec"
++        );
++    }
++
++    #[test]
++    fn secret_parsing_fails_closed_without_echoing_the_secret() {
++        let upper = SECRET.to_uppercase();
++        let too_long = format!("{SECRET}00");
++        let cases: [&str; 5] = [
++            "",
++            "abc",
++            upper.as_str(),
++            too_long.as_str(),
++            "0000000000000000000000000000000000000000000000000000000000000000",
++        ];
++        for bad in cases {
++            let error = SessionAuth::from_secret_hex(bad).unwrap_err().to_string();
++            if !bad.is_empty() {
++                assert!(!error.contains(bad), "error leaked secret material: {error}");
++            }
++        }
++        assert!(SessionAuth::from_secret_hex(&format!("{SECRET}\r\n")).is_ok());
++        assert_eq!(
++            format!("{:?}", SessionAuth::from_secret_hex(SECRET).unwrap()),
++            "SessionAuth { key: <redacted> }"
++        );
++    }
++
++    #[test]
++    fn request_verification_rejects_tampering_staleness_and_replay() {
++        let auth = SessionAuth::from_secret_hex(SECRET).unwrap();
++        let now = 1_700_000_000_000u64;
++        let body = b"{}";
++        let sign = |method: &str, path: &str, ts: u64, nonce: &str, body: &[u8]| AuthHeaders {
++            timestamp: ts.to_string(),
++            timestamp_ms: ts,
++            nonce: nonce.to_string(),
++            signature: auth.sign(&request_message(
++                method,
++                path,
++                &ts.to_string(),
++                nonce,
++                &sha256_hex(body),
++            )),
++        };
++
++        let valid = sign("POST", "/v1/align", now, NONCE, body);
++        assert!(auth.verify_request(&valid, "POST", "/v1/align", body, now).is_ok());
++        assert_eq!(
++            auth.verify_request(&valid, "POST", "/v1/align", body, now),
++            Err("replayed nonce")
++        );
++
++        let other_nonce = "ffeeddccbbaa99887766554433221100";
++        let tampered = sign("POST", "/v1/align", now, other_nonce, body);
++        assert_eq!(
++            auth.verify_request(&tampered, "POST", "/v1/transcribe", body, now),
++            Err("signature mismatch")
++        );
++        assert_eq!(
++            auth.verify_request(&tampered, "POST", "/v1/align", b"{\"x\":1}", now),
++            Err("signature mismatch")
++        );
++
++        let stale = sign(
++            "GET",
++            "/healthz",
++            now - MAX_CLOCK_SKEW_MS - 1,
++            "0123456789abcdef0123456789abcdef",
++            b"",
++        );
++        assert_eq!(
++            auth.verify_request(&stale, "GET", "/healthz", b"", now),
++            Err("timestamp outside the accepted window")
++        );
++
++        let other_session = SessionAuth::from_secret_hex(
++            "1f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100",
++        )
++        .unwrap();
++        let foreign = AuthHeaders {
++            signature: other_session.sign(&request_message(
++                "GET",
++                "/healthz",
++                &now.to_string(),
++                "abcdefabcdefabcdefabcdefabcdefab",
++                &sha256_hex(b""),
++            )),
++            timestamp: now.to_string(),
++            timestamp_ms: now,
++            nonce: "abcdefabcdefabcdefabcdefabcdefab".to_string(),
++        };
++        assert_eq!(
++            auth.verify_request(&foreign, "GET", "/healthz", b"", now),
++            Err("signature mismatch")
++        );
++    }
++
++    #[test]
++    fn header_parsing_rejects_missing_duplicate_and_malformed_values() {
++        let mut headers = HeaderMap::new();
++        assert_eq!(parse_auth_headers(&headers), Err("missing timestamp"));
++        headers.insert("x-lyricforge-timestamp", HeaderValue::from_static("1700000000000"));
++        headers.insert("x-lyricforge-nonce", HeaderValue::from_static(NONCE));
++        headers.insert(
++            "x-lyricforge-signature",
++            HeaderValue::from_static("not-a-signature"),
++        );
++        assert_eq!(parse_auth_headers(&headers), Err("malformed signature"));
++        headers.insert(
++            "x-lyricforge-signature",
++            HeaderValue::from_static(
++                "9834b56ce5c8677230804790699dc42482fca1ca36159f5b83aa3f88c9c5bca2",
++            ),
++        );
++        assert!(parse_auth_headers(&headers).is_ok());
++        headers.append("x-lyricforge-nonce", HeaderValue::from_static(NONCE));
++        assert_eq!(parse_auth_headers(&headers), Err("missing nonce"));
++    }
++
++    #[test]
++    fn session_mode_only_binds_literal_loopback_addresses() {
++        assert!(session_bind_address("127.0.0.1", 0).is_ok());
++        assert!(session_bind_address("::1", 0).is_ok());
++        assert!(session_bind_address("0.0.0.0", 0).is_err());
++        assert!(session_bind_address("192.168.1.10", 0).is_err());
++        assert!(session_bind_address("localhost", 0).is_err());
++    }
++}
+diff --git a/qwen3_asr_cli/tests/session_auth_integration.rs b/qwen3_asr_cli/tests/session_auth_integration.rs
+new file mode 100644
+index 0000000..81dff9d
+--- /dev/null
++++ b/qwen3_asr_cli/tests/session_auth_integration.rs
+@@ -0,0 +1,537 @@
++//! LyricForge session-auth integration tests (`--lyricforge-session-stdin`).
++//!
++//! These run the real `qwen3-asr serve --mock` binary, so they exercise clap
++//! wiring, stdin secret delivery, the runtime-owned port-0 bind, the stdout
++//! ready announcement, the axum middleware and the stdin-EOF shutdown without
++//! downloading models or touching a GPU.
++
++use std::io::{BufRead, BufReader, Read, Write};
++use std::process::{Child, ChildStdin, Command, Stdio};
++use std::sync::mpsc;
++use std::thread;
++use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
++
++use anyhow::{Context, Result, bail};
++use serde_json::Value;
++use sha2::{Digest, Sha256};
++
++const READY_PREFIX: &str = "LYRICFORGE_RUNTIME_READY ";
++const SECRET_A: &str = "4c7952696346f2a76525e5f2b8c13a7d0e6f3f1a9b2c4d5e6f708192a3b4c5d6";
++const SECRET_B: &str = "a1b2c3d4e5f60718293a4b5c6d7e8f90112233445566778899aabbccddeeff00";
++
++struct SessionServer {
++    child: Child,
++    stdin: Option<ChildStdin>,
++    port: u16,
++    key: Vec<u8>,
++}
++
++impl Drop for SessionServer {
++    fn drop(&mut self) {
++        drop(self.stdin.take());
++        let _ = self.child.kill();
++        let _ = self.child.wait();
++    }
++}
++
++impl SessionServer {
++    fn base_url(&self) -> String {
++        format!("http://127.0.0.1:{}", self.port)
++    }
++}
++
++fn session_command(extra_args: &[&str]) -> Command {
++    let mut cmd = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"));
++    cmd.args([
++        "--device",
++        "cpu",
++        "--dtype",
++        "f32",
++        "serve",
++        "--model",
++        "mock-model",
++        "--mock",
++        "--lyricforge-session-stdin",
++    ])
++    .args(extra_args)
++    .stdin(Stdio::piped())
++    .stdout(Stdio::piped())
++    .stderr(Stdio::null());
++    cmd
++}
++
++fn spawn_session_server(secret_hex: &str) -> Result<SessionServer> {
++    let mut child = session_command(&["--host", "127.0.0.1", "--port", "0"])
++        .spawn()
++        .context("failed to spawn session-mode mock server")?;
++    let mut stdin = child.stdin.take().context("missing child stdin")?;
++    writeln!(stdin, "{secret_hex}")?;
++    stdin.flush()?;
++    let stdout = child.stdout.take().context("missing child stdout")?;
++    let (tx, rx) = mpsc::channel::<String>();
++    // Keep draining stdout for the whole child lifetime so it never blocks.
++    thread::spawn(move || {
++        for line in BufReader::new(stdout).lines() {
++            let Ok(line) = line else { break };
++            if let Some(rest) = line.strip_prefix(READY_PREFIX) {
++                let _ = tx.send(rest.to_string());
++            }
++        }
++    });
++    let key = decode_hex(secret_hex);
++    let mut server = SessionServer {
++        child,
++        stdin: Some(stdin),
++        port: 0,
++        key,
++    };
++    let ready = rx
++        .recv_timeout(Duration::from_secs(60))
++        .context("session server did not announce its port")?;
++    let ready: Value = serde_json::from_str(&ready).context("ready line is not JSON")?;
++    if ready.get("protocol").and_then(Value::as_u64) != Some(1) {
++        bail!("unexpected ready protocol: {ready}");
++    }
++    let port = ready
++        .get("port")
++        .and_then(Value::as_u64)
++        .and_then(|port| u16::try_from(port).ok())
++        .filter(|port| *port != 0)
++        .context("ready line has no usable port")?;
++    let proof = ready
++        .get("proof")
++        .and_then(Value::as_str)
++        .context("ready line has no proof")?;
++    if proof != hmac_hex(&server.key, &format!("v1-ready\n{port}")) {
++        bail!("ready proof does not match the session secret");
++    }
++    if ready.to_string().contains(secret_hex) {
++        bail!("ready line leaked the session secret");
++    }
++    server.port = port;
++    Ok(server)
++}
++
++struct Reply {
++    status: u16,
++    proof: Option<String>,
++    cors_origin: Option<String>,
++    body: Vec<u8>,
++}
++
++impl Reply {
++    fn json(&self) -> Value {
++        serde_json::from_slice(&self.body).unwrap_or(Value::Null)
++    }
++
++    fn text(&self) -> String {
++        String::from_utf8_lossy(&self.body).into_owned()
++    }
++}
++
++fn into_reply(response: ureq::Response) -> Result<Reply> {
++    let status = response.status();
++    let proof = response.header("x-lyricforge-proof").map(str::to_string);
++    let cors_origin = response
++        .header("access-control-allow-origin")
++        .map(str::to_string);
++    let mut body = Vec::new();
++    response
++        .into_reader()
++        .read_to_end(&mut body)
++        .context("failed to read response body")?;
++    Ok(Reply {
++        status,
++        proof,
++        cors_origin,
++        body,
++    })
++}
++
++fn send(
++    base_url: &str,
++    method: &str,
++    path: &str,
++    headers: &[(&str, String)],
++    body: &[u8],
++) -> Result<Reply> {
++    let mut request = ureq::request(method, &format!("{base_url}{path}"))
++        .timeout(Duration::from_secs(10));
++    for (name, value) in headers {
++        request = request.set(name, value);
++    }
++    if !body.is_empty() {
++        request = request.set("content-type", "application/json");
++    }
++    match request.send_bytes(body) {
++        Ok(response) | Err(ureq::Error::Status(_, response)) => into_reply(response),
++        Err(error) => bail!("request error for {method} {path}: {error}"),
++    }
++}
++
++struct Signed {
++    nonce: String,
++    headers: Vec<(&'static str, String)>,
++}
++
++fn sign(key: &[u8], method: &str, path: &str, body: &[u8]) -> Signed {
++    sign_at(key, method, path, body, unix_millis(), &fresh_nonce())
++}
++
++fn sign_at(key: &[u8], method: &str, path: &str, body: &[u8], ts: u64, nonce: &str) -> Signed {
++    let message = format!(
++        "v1-request\n{method}\n{path}\n{ts}\n{nonce}\n{}",
++        sha256_hex(body)
++    );
++    Signed {
++        nonce: nonce.to_string(),
++        headers: vec![
++            ("x-lyricforge-timestamp", ts.to_string()),
++            ("x-lyricforge-nonce", nonce.to_string()),
++            ("x-lyricforge-signature", hmac_hex(key, &message)),
++        ],
++    }
++}
++
++fn expected_proof(key: &[u8], nonce: &str, reply: &Reply) -> String {
++    hmac_hex(
++        key,
++        &format!(
++            "v1-response\n{nonce}\n{}\n{}",
++            reply.status,
++            sha256_hex(&reply.body)
++        ),
++    )
++}
++
++fn assert_unauthorized(reply: &Reply, context: &str) -> Result<()> {
++    if reply.status != 401 {
++        bail!(
++            "{context}: expected 401, got {}: {}",
++            reply.status,
++            reply.text()
++        );
++    }
++    if reply.proof.is_some() {
++        bail!("{context}: rejected responses must not carry a session proof");
++    }
++    let message = reply.json()["error"]["message"].as_str().map(str::to_string);
++    if message.as_deref() != Some("unauthorized") {
++        bail!("{context}: unexpected rejection body {}", reply.text());
++    }
++    Ok(())
++}
++
++fn transcribe_body() -> Vec<u8> {
++    serde_json::json!({"audio": "hello", "context": "ctx", "language": "English"})
++        .to_string()
++        .into_bytes()
++}
++
++#[test]
++fn session_server_rejects_every_unauthenticated_route() -> Result<()> {
++    let server = spawn_session_server(SECRET_A)?;
++    let base = server.base_url();
++    let body = transcribe_body();
++
++    assert_unauthorized(&send(&base, "GET", "/healthz", &[], b"")?, "healthz")?;
++    assert_unauthorized(&send(&base, "GET", "/", &[], b"")?, "root")?;
++    assert_unauthorized(&send(&base, "GET", "/v1/models", &[], b"")?, "models")?;
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/transcribe", &[], &body)?,
++        "transcribe",
++    )?;
++    assert_unauthorized(
++        &send(
++            &base,
++            "POST",
++            "/v1/align",
++            &[],
++            br#"{"audio":"/etc/hosts","text":"x","language":"English"}"#,
++        )?,
++        "align",
++    )?;
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/stream", &[], br#"{"audio":"x"}"#)?,
++        "stream",
++    )?;
++    let preflight = send(
++        &base,
++        "OPTIONS",
++        "/v1/transcribe",
++        &[
++            ("origin", "http://evil.example".to_string()),
++            ("access-control-request-method", "POST".to_string()),
++        ],
++        b"",
++    )?;
++    assert_unauthorized(&preflight, "CORS preflight")?;
++    if preflight.cors_origin.is_some() {
++        bail!("session mode must not emit CORS allow-origin headers");
++    }
++
++    // A header-only "credential" that is not a valid HMAC is rejected.
++    let forged = vec![
++        ("x-lyricforge-timestamp", unix_millis().to_string()),
++        ("x-lyricforge-nonce", fresh_nonce()),
++        ("x-lyricforge-signature", "0".repeat(64)),
++    ];
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/transcribe", &forged, &body)?,
++        "forged signature",
++    )?;
++    Ok(())
++}
++
++#[test]
++fn session_server_accepts_signed_requests_and_signs_responses() -> Result<()> {
++    let server = spawn_session_server(SECRET_A)?;
++    let base = server.base_url();
++
++    let health = sign(&server.key, "GET", "/healthz", b"");
++    let reply = send(&base, "GET", "/healthz", &health.headers, b"")?;
++    if reply.status != 200 || reply.json()["ok"] != Value::Bool(true) {
++        bail!("signed healthz failed: {} {}", reply.status, reply.text());
++    }
++    if reply.proof.as_deref() != Some(expected_proof(&server.key, &health.nonce, &reply).as_str())
++    {
++        bail!("healthz response proof does not match the session secret");
++    }
++
++    let body = transcribe_body();
++    let signed = sign(&server.key, "POST", "/v1/transcribe", &body);
++    let reply = send(&base, "POST", "/v1/transcribe", &signed.headers, &body)?;
++    if reply.status != 200 {
++        bail!("signed transcribe failed: {} {}", reply.status, reply.text());
++    }
++    if !reply.text().contains("mock-transcribe") {
++        bail!("unexpected transcribe body: {}", reply.text());
++    }
++    if reply.proof.as_deref() != Some(expected_proof(&server.key, &signed.nonce, &reply).as_str())
++    {
++        bail!("transcribe response proof does not match the session secret");
++    }
++
++    // Alignment reaches the real handler once authenticated; mock mode then
++    // answers with its documented contract error instead of 401.
++    let align = br#"{"audio":"song.wav","text":"hello","language":"English"}"#;
++    let signed = sign(&server.key, "POST", "/v1/align", align);
++    let reply = send(&base, "POST", "/v1/align", &signed.headers, align)?;
++    if reply.status != 400 || !reply.text().contains("unavailable in mock mode") {
++        bail!(
++            "signed align did not reach the handler: {} {}",
++            reply.status,
++            reply.text()
++        );
++    }
++    if reply.proof.as_deref() != Some(expected_proof(&server.key, &signed.nonce, &reply).as_str())
++    {
++        bail!("align response proof does not match the session secret");
++    }
++    Ok(())
++}
++
++#[test]
++fn session_server_rejects_replay_tampering_and_stale_signatures() -> Result<()> {
++    let server = spawn_session_server(SECRET_A)?;
++    let base = server.base_url();
++    let body = transcribe_body();
++
++    let signed = sign(&server.key, "POST", "/v1/transcribe", &body);
++    let first = send(&base, "POST", "/v1/transcribe", &signed.headers, &body)?;
++    if first.status != 200 {
++        bail!("first signed request failed: {}", first.text());
++    }
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/transcribe", &signed.headers, &body)?,
++        "replayed nonce",
++    )?;
++
++    let signed = sign(&server.key, "POST", "/v1/transcribe", &body);
++    let mut tampered = body.clone();
++    tampered.extend_from_slice(b" ");
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/transcribe", &signed.headers, &tampered)?,
++        "tampered body",
++    )?;
++
++    let signed = sign(&server.key, "POST", "/v1/transcribe", &body);
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/align", &signed.headers, &body)?,
++        "signature replayed on another route",
++    )?;
++
++    let stale = sign_at(
++        &server.key,
++        "GET",
++        "/healthz",
++        b"",
++        unix_millis() - 10 * 60 * 1000,
++        &fresh_nonce(),
++    );
++    assert_unauthorized(
++        &send(&base, "GET", "/healthz", &stale.headers, b"")?,
++        "stale timestamp",
++    )?;
++    Ok(())
++}
++
++#[test]
++fn previous_session_secret_cannot_access_a_restarted_runtime() -> Result<()> {
++    let old = spawn_session_server(SECRET_A)?;
++    let old_key = old.key.clone();
++    drop(old);
++
++    let new = spawn_session_server(SECRET_B)?;
++    let base = new.base_url();
++    let body = transcribe_body();
++    let stale_session = sign(&old_key, "POST", "/v1/transcribe", &body);
++    assert_unauthorized(
++        &send(&base, "POST", "/v1/transcribe", &stale_session.headers, &body)?,
++        "old session secret",
++    )?;
++    let fresh = sign(&new.key, "POST", "/v1/transcribe", &body);
++    let reply = send(&base, "POST", "/v1/transcribe", &fresh.headers, &body)?;
++    if reply.status != 200 {
++        bail!("new session secret was rejected: {}", reply.text());
++    }
++    Ok(())
++}
++
++#[test]
++fn session_listener_cannot_be_rebound_by_another_socket() -> Result<()> {
++    let server = spawn_session_server(SECRET_A)?;
++    let addr: std::net::SocketAddr = format!("127.0.0.1:{}", server.port).parse()?;
++
++    let rt = tokio::runtime::Builder::new_current_thread()
++        .enable_all()
++        .build()?;
++    let hijack: std::io::Result<()> = rt.block_on(async {
++        let socket = tokio::net::TcpSocket::new_v4()?;
++        // SO_REUSEADDR is exactly what a same-user hijacker would use on
++        // Windows; the runtime's SO_EXCLUSIVEADDRUSE must defeat it.
++        socket.set_reuseaddr(true)?;
++        #[cfg(all(unix, not(target_os = "solaris"), not(target_os = "illumos")))]
++        socket.set_reuseport(true)?;
++        socket.bind(addr)?;
++        let _listener = socket.listen(16)?;
++        Ok(())
++    });
++    if hijack.is_ok() {
++        bail!("another socket was able to bind and listen on the runtime's port {addr}");
++    }
++
++    let health = sign(&server.key, "GET", "/healthz", b"");
++    let reply = send(&server.base_url(), "GET", "/healthz", &health.headers, b"")?;
++    if reply.status != 200 {
++        bail!("runtime stopped answering after the hijack attempt");
++    }
++    Ok(())
++}
++
++#[test]
++fn session_mode_fails_closed_on_bad_secret_or_non_loopback_host() -> Result<()> {
++    for (secret, host) in [
++        ("not-hex", "127.0.0.1"),
++        ("", "127.0.0.1"),
++        (SECRET_A, "0.0.0.0"),
++        (SECRET_A, "localhost"),
++    ] {
++        let mut child = session_command(&["--host", host, "--port", "0"]).spawn()?;
++        let mut stdin = child.stdin.take().context("missing stdin")?;
++        let _ = writeln!(stdin, "{secret}");
++        let _ = stdin.flush();
++        let status = wait_with_timeout(&mut child, Duration::from_secs(30))?;
++        let mut stdout = String::new();
++        if let Some(mut out) = child.stdout.take() {
++            let _ = out.read_to_string(&mut stdout);
++        }
++        drop(stdin);
++        if status.success() {
++            bail!("session mode accepted secret={secret:?} host={host}");
++        }
++        if stdout.contains(READY_PREFIX) {
++            bail!("session mode announced a port for secret={secret:?} host={host}");
++        }
++    }
++    Ok(())
++}
++
++#[test]
++fn session_server_exits_when_parent_closes_stdin() -> Result<()> {
++    let mut server = spawn_session_server(SECRET_A)?;
++    drop(server.stdin.take());
++    let status = wait_with_timeout(&mut server.child, Duration::from_secs(30))?;
++    if !status.success() {
++        bail!("runtime exited with {status} after stdin closed");
++    }
++    Ok(())
++}
++
++fn wait_with_timeout(child: &mut Child, timeout: Duration) -> Result<std::process::ExitStatus> {
++    let started = Instant::now();
++    loop {
++        if let Some(status) = child.try_wait()? {
++            return Ok(status);
++        }
++        if started.elapsed() > timeout {
++            let _ = child.kill();
++            let _ = child.wait();
++            bail!("child did not exit within {timeout:?}");
++        }
++        thread::sleep(Duration::from_millis(50));
++    }
++}
++
++fn unix_millis() -> u64 {
++    SystemTime::now()
++        .duration_since(UNIX_EPOCH)
++        .map_or(0, |elapsed| elapsed.as_millis() as u64)
++}
++
++fn fresh_nonce() -> String {
++    use std::sync::atomic::{AtomicU64, Ordering};
++    static COUNTER: AtomicU64 = AtomicU64::new(0);
++    let seed = format!(
++        "{}-{}-{}",
++        std::process::id(),
++        unix_millis(),
++        COUNTER.fetch_add(1, Ordering::Relaxed)
++    );
++    sha256_hex(seed.as_bytes())[..32].to_string()
++}
++
++fn sha256_hex(bytes: &[u8]) -> String {
++    to_hex(&Sha256::digest(bytes))
++}
++
++fn hmac_hex(key: &[u8], message: &str) -> String {
++    const BLOCK_SIZE: usize = 64;
++    let mut key_block = [0u8; BLOCK_SIZE];
++    key_block[..key.len()].copy_from_slice(key);
++    let mut inner_pad = [0x36u8; BLOCK_SIZE];
++    let mut outer_pad = [0x5cu8; BLOCK_SIZE];
++    for index in 0..BLOCK_SIZE {
++        inner_pad[index] ^= key_block[index];
++        outer_pad[index] ^= key_block[index];
++    }
++    let mut inner = Sha256::new();
++    inner.update(inner_pad);
++    inner.update(message.as_bytes());
++    let inner_digest = inner.finalize();
++    let mut outer = Sha256::new();
++    outer.update(outer_pad);
++    outer.update(inner_digest);
++    to_hex(&outer.finalize())
++}
++
++fn to_hex(bytes: &[u8]) -> String {
++    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
++}
++
++fn decode_hex(value: &str) -> Vec<u8> {
++    (0..value.len())
++        .step_by(2)
++        .map(|index| u8::from_str_radix(&value[index..index + 2], 16).unwrap_or(0))
++        .collect()
++}

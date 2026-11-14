@@ -8,14 +8,14 @@ void main() {
       '.github/workflows/build-asr-runtime.yml',
     ).readAsString();
 
-    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
+    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
     expect(
       workflow,
-      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"'),
     );
     expect(
       workflow,
-      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"'),
     );
     expect(
       workflow,

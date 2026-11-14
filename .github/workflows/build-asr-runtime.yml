@@ -31,7 +31,7 @@ env:
   QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
   WHISPER_REPO: https://github.com/ggml-org/whisper.cpp.git
   WHISPER_REV: 927cfce34f31707e17f2bff35c349632fb9e2c3a
-  RUNTIME_TAG: asr-runtime-v2
+  RUNTIME_TAG: asr-runtime-v3
 
 jobs:
   flutter-validation:
@@ -153,6 +153,22 @@ jobs:
             throw "Patched Qwen alignment handler was not found."
           }
 
+      - name: Apply LyricForge session authentication
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-session-auth.patch"
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Session-auth patch no longer applies to the pinned source." }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply session-auth patch." }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/session_auth.rs" -Pattern "SO_EXCLUSIVEADDRUSE" -Quiet)) {
+            throw "Patched session-auth module was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "require_session_auth" -Quiet)) {
+            throw "Session-auth middleware is not wired into serve."
+          }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -179,6 +195,15 @@ jobs:
           path: qwen-build.log
           if-no-files-found: warn
           retention-days: 3
+
+      - name: Test LyricForge session authentication on Windows
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          cargo test --release -p qwen3_asr_cli --bin qwen3-asr --features cuda session_auth
+          if ($LASTEXITCODE -ne 0) { throw "Session-auth unit tests failed." }
+          cargo test --release -p qwen3_asr_cli --features cuda --test session_auth_integration
+          if ($LASTEXITCODE -ne 0) { throw "Session-auth integration tests failed." }
 
       - name: Fetch pinned whisper.cpp source
         shell: pwsh
@@ -233,7 +258,7 @@ jobs:
 
           @{
             schemaVersion = 1
-            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"
+            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -296,11 +321,20 @@ jobs:
           grep -q '"/v1/align"' qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
           grep -q "aligner" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
 
+      - name: Apply LyricForge session authentication
+        run: |
+          git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-auth.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-auth.patch"
+          grep -q "SO_EXCLUSIVEADDRUSE" qwen-runtime-src/qwen3_asr_cli/src/session_auth.rs
+          grep -q "require_session_auth" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+
       - name: Test eager attention matmul layout regression
         run: |
           cd qwen-runtime-src
           cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
           cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_align_rejects_missing_contract_fields
+          cargo test --release -p qwen3_asr_cli --bin qwen3-asr --features accelerate session_auth
+          cargo test --release -p qwen3_asr_cli --test session_auth_integration --features accelerate
 
       - name: Build Qwen Intel runtime
         run: |
@@ -335,7 +369,7 @@ jobs:
           cat > runtime/runtime-manifest.json <<EOF
           {
             "schemaVersion": 1,
-            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1",
+            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1",
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",

@@ -169,7 +169,7 @@ revision.
 Runtime release tag:
 
 ```text
-asr-runtime-v2
+asr-runtime-v3
 ```
 
 Assets:
@@ -198,6 +198,19 @@ revision marker are detected as outdated; one-click repair downloads the patched
 runtime, stages and verifies it before replacing the current bundle, preserves
 the downloaded model weights, and invalidates the old Qwen model-readiness
 marker so native startup and health checks run again.
+
+`asr-runtime-v3` additionally applies
+`tool/patches/qwen3-asr-session-auth.patch` (revision suffix
+`+session-auth-v1`). It adds the `--lyricforge-session-stdin` serve mode. In
+this mode the runtime reads a per-launch secret from stdin, binds
+`127.0.0.1:0` itself (with `SO_EXCLUSIVEADDRUSE` on Windows), announces the
+bound port with an HMAC proof on stdout, requires HMAC-signed requests on every
+route, signs every response, and exits when stdin closes. Both platform jobs
+run the patch's Rust unit tests and the `session_auth_integration` tests
+against `serve --mock` before packaging. LyricForge refuses to start a runtime
+that does not understand the flag, so `asr-runtime-v2` bundles are reported as
+outdated and must be repaired. See "Local ASR runtime trust boundary" in the
+README for the threat model.
 
 ### Qwen models
 
@@ -310,7 +323,7 @@ Intel macOS:
 - whisper-cli
 
 Pull requests build and smoke-check artifacts. Pushes to main additionally
-create or update the rolling `asr-runtime-v2` prerelease.
+create or update the rolling `asr-runtime-v3` prerelease.
 
 This keeps Rust/Cargo/CUDA build tooling out of the end-user setup flow.
 

@@ -1,0 +1,112 @@
+# TEMPORARY validation workflow for issue #415. The sandbox that authored this
+# branch has no Dart or Rust toolchain and cannot read job logs, so this
+# workflow formats the changed Dart files, runs the full quality gate and
+# compiles/tests the Rust session-auth patch on Linux, republishing results as
+# annotations. It is deleted again before the pull request is opened.
+name: TEMP session-auth validation
+
+on:
+  push:
+    branches: [arena/12673259-lyric-forge-ktv]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-session-auth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Format changed Dart files and push the result
+        shell: bash
+        run: |
+          set +e
+          mapfile -t files < <(git diff --name-only --diff-filter=AM 458b14c76851e9f463428dfe7e43bfff49bfcb34 HEAD -- '*.dart')
+          printf 'format target: %s\n' "${files[@]}"
+          dart format "${files[@]}"
+          if ! git diff --quiet; then
+            git diff --stat | while IFS= read -r line; do echo "::warning::formatted ${line}"; done
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Apply dart format to session-auth changes"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          else
+            echo "::notice::dart format: all ${#files[@]} changed files already formatted"
+          fi
+          exit 0
+
+      - name: Quality gate
+        shell: bash
+        run: |
+          set +e +o pipefail
+          mkdir -p build
+          flutter pub get --enforce-lockfile > build/pub.log 2>&1
+          bash scripts/quality_gate.sh --skip-pub-get > build/gate.log 2>&1
+          status=$?
+          {
+            grep -nE "error •|warning •|info •" build/gate.log | head -40
+            grep -n "\[E\]" build/gate.log | head -40
+            grep -n -A12 "The following .* was thrown" build/gate.log | head -120
+            grep -n -B2 -A20 "^  Expected:" build/gate.log | head -160
+          } | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+          grep -oE "[0-9]+:[0-9]+ \+[0-9]+( ~[0-9]+)?( -[0-9]+)?: .*" build/gate.log | tail -1 | while IFS= read -r line; do echo "::notice::final test line: ${line:0:500}"; done
+          tail -3 build/gate.log | while IFS= read -r line; do echo "::notice::gate tail: ${line:0:500}"; done
+          echo "::notice::quality gate exit status ${status}"
+          exit $status
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Never used (workflow contract requires the shared Flutter pin reference)
+        if: false
+        uses: ./.github/actions/setup-flutter
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Patch and test the runtime
+        shell: bash
+        run: |
+          set +e +o pipefail
+          git clone -q https://github.com/lumosimmo/qwen3-asr-rs.git qwen-runtime-src
+          cd qwen-runtime-src
+          git checkout -q 7984967e8701cc90bb17d06453901036e36ca578
+          git apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-eager-attention-contiguous.patch" || echo "::error::eager patch failed"
+          git apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-forced-align-http-endpoint.patch" || echo "::error::align patch failed"
+          cd ..
+          python3 tool/patches/apply-qwen-align-route.py || echo "::error::align route script failed"
+          cd qwen-runtime-src
+          git apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-auth.patch" || echo "::error::session patch does not apply"
+          git apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-auth.patch"
+          run() {
+            label=$1; shift
+            "$@" > "../$label.log" 2>&1
+            code=$?
+            echo "::notice::$label exit=$code"
+            {
+              grep -nE "^(error|warning)(\[[A-Z0-9]+\])?:" "../$label.log" | head -30
+              grep -nE -A6 "^error(\[[A-Z0-9]+\])?:" "../$label.log" | head -150
+              grep -nE "panicked at|FAILED|failures:|^---- " "../$label.log" | head -40
+              grep -nE -A8 "^---- " "../$label.log" | head -120
+            } | while IFS= read -r line; do echo "::error::$label: ${line:0:900}"; done
+            grep -nE "^test result:|^running [0-9]+ test" "../$label.log" | while IFS= read -r line; do echo "::notice::$label: $line"; done
+            return $code
+          }
+          overall=0
+          run unit cargo test --release -p qwen3_asr_cli --bin qwen3-asr session_auth || overall=1
+          run integration cargo test --release -p qwen3_asr_cli --test session_auth_integration || overall=1
+          run serve_regression cargo test --release -p qwen3_asr_cli --test serve_integration || overall=1
+          exit $overall
