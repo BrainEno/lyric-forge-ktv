@@ -12,8 +12,11 @@
 ## Git 现场
 
 - 分支：`arena/12673259-lyric-forge-ktv`，基于 main `458b14c76851e9f463428dfe7e43bfff49bfcb34`。
-- PR 标题：`[model-eval] Harden Qwen runtime security boundary`。PR 状态和 head 以 GitHub 为准。
-- 临时验证 workflow `.github/workflows/tmp-session-auth-validation.yml` 只在本分支上用过，开 PR 前已删除；它不在 PR 的 diff 里。
+- PR #445，标题 `[model-eval] Harden Qwen runtime security boundary`。PR 状态和最新 head 以 GitHub 为准。
+- 分支上用过三个临时 workflow，都已删除，不在 PR diff 里：
+  - `tmp-session-auth-validation.yml`：Dart 和 Linux Rust 验证。
+  - `tmp-format-fix.yml`：在 pub get 之后执行 dart format。
+  - `tmp-windows-session-auth.yml`：Windows 上的 CPU 版 Rust 测试。
 
 ## 已改文件
 
@@ -30,6 +33,8 @@
   - 测试：单元测试（RFC 4231、与 Dart 共用的向量、篡改/过期/重放、header 解析、loopback 限制）和 7 个 `serve --mock` 集成测试（未认证全部 401、签名可用、旧密钥失效、端口无法被重新绑定、密钥错误时 fail closed、stdin EOF 退出）。
 - **workflow** `build-asr-runtime.yml`：
   - Windows CUDA 与 macOS Intel 都会应用补丁并运行 Rust 测试。
+  - Windows：CUDA 单元测试，加上用 CPU 构建跑的集成测试（独立 target dir），并记录 CUDA 二进制在无 GPU runner 上的启动结果。
+  - macOS：session-auth 测试是独立步骤。两个平台失败时都会把日志写进 step summary 和 annotation。
   - `RUNTIME_TAG: asr-runtime-v3`，manifest revision 加上 `+session-auth-v1`。
 - **Dart**
   - 新增 `qwen_runtime_session.dart`：
@@ -62,20 +67,30 @@
 
 ## 检查结果
 
-- 沙箱里没有 Dart 和 Rust 工具链，也读不到 job 日志，所以用分支上的临时 workflow 做格式化、work log、analyze、测试，并在 Linux 上测试 Rust 补丁，结果以 annotation 形式读取。
+- 沙箱里没有 Dart 和 Rust 工具链，也下载不到 job 日志。下面的结果都来自 GitHub Actions：用 annotation 和 step summary 读取。
 - Run `43605196763`（head `da18d0b`）：
-  - `dart format`：11 个改动的 Dart 文件都已符合格式。
-  - `dart tool/work_log.dart check`：0 个错误。
-  - `flutter analyze --no-pub --no-fatal-infos lib test tool`：exit 0，没有 error/warning，改动文件里也没有 info。
-  - `flutter test` 全量：2058 通过，1 跳过，0 失败；聚焦的安全/Qwen/ForcedAligner 测试：58 通过。
-  - Linux 上的 Rust 补丁测试（CPU）：单元 6、`session_auth_integration` 7、`serve_integration` 回归 19，全部通过。
-- 之前两次运行发现并已修复：缺少 `_hex` 辅助函数；测试里的 `TranscriptionConfig` 缺少必填参数；取消测试的断言在取消之后才挂上。
-- Windows CUDA 和 macOS Intel 的补丁测试与打包结果，以 PR 上的 `Build managed ASR runtime` 为准。
+  - Flutter 全量测试：2058 通过，1 跳过，0 失败。
+  - 聚焦的安全/Qwen/ForcedAligner 测试：58 通过。
+  - analyze：exit 0，没有 error/warning。
+  - work_log check：0 个错误。
+  - Linux 上的 Rust 补丁测试：单元 6、`session_auth_integration` 7、`serve_integration` 19，全部通过。
+- PR #445 的第一次检查失败在格式检查。原因是临时 workflow 在 `flutter pub get` 之前执行了 `dart format`，用的是最新语言版本的风格，而不是包声明的 `^3.11.4`。已在 pub get 之后重新格式化（`978dbfe`）。
+- Windows CUDA 上的 session-auth 测试：
+  - 单元测试 6 个全部通过。
+  - 集成测试 7 个里失败 6 个。原因是 CUDA 版 `qwen3-asr.exe` 在没有 GPU 的 runner 上根本启动不了：exit `-1073741515`（STATUS_DLL_NOT_FOUND），依赖 `nvcuda.dll`。
+  - 用临时 Windows CPU workflow（run `43609022661`）验证：单元 6 + 集成 7，串行和并行都通过，包括 `SO_EXCLUSIVEADDRUSE` 端口抢占测试。
+  - 正式 workflow 现在照常跑 CUDA 单元测试；集成测试改用同一份补丁源码的 CPU 构建，放在独立的 `--target-dir`，不会覆盖打包用的 CUDA 二进制。
+- macOS Intel 有一次运行（`43611658036`）失败，exit 101，拿不到输出；前两次和之后的运行都通过。已做的处理：
+  - session-auth 测试拆成独立步骤，失败时输出日志。
+  - runtime 拒绝请求时带上 `Connection: close`。
+  - 集成测试改用不复用连接的 HTTP agent，并断言拒绝响应带有该 header。
+- PR head `a813d47` 的所有检查都通过：Flutter Quality Gate、Build managed ASR runtime（Windows x64 CUDA、macOS Intel）、ASR runtime release contract、Runtime integrity、ASR install experience、Managed storage location。这个 head 的逐条测试数量从沙箱里读不到。
+- 没有做真实 GPU 或端到端模型测试；Windows 只在 GitHub hosted runner 上测过。
 
 ## 下一步
 
-- 等 PR 上的 `Build managed ASR runtime` 在 Windows CUDA 和 macOS Intel 上完成补丁测试与打包。合并到 main 后才会发布 `asr-runtime-v3`。在 v3 发布之前，已安装 v2 的用户会被判定为“runtime 过旧”，需要等发布后再修复（fail closed）。
-- 在真实的 Windows + RTX 5080 环境里，跑一次完整的“识别 → 对齐 → 空闲关闭”流程（CI 没有 GPU）。
+- 合并到 main 后才会发布 `asr-runtime-v3`。在 v3 发布之前，已安装 v2 的用户会被判定为 runtime 过旧（fail closed），需要在发布后修复安装。
+- 在真实的 Windows + RTX 5080 环境里，跑一次完整的“识别 → 对齐 → 空闲关闭”流程。
 
 ## 已知风险
 
@@ -83,4 +98,4 @@
 - loopback HTTP 没有加密；但要窃听同样需要同一机器上的本地权限。
 - `SO_EXCLUSIVEADDRUSE` 和 Windows 端口抢占测试只在 CI 的 Windows runner 上验证过（CPU，`serve --mock`），没有在真机 GPU 上验证。
 
-最后更新：2026-11-14 22:30（Asia/Taipei）
+最后更新：2026-11-15 00:25（Asia/Taipei）
