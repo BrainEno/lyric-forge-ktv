@@ -430,10 +430,8 @@ class _NullConsumer implements StreamConsumer<List<int>> {
   Future<void> close() async {}
 }
 
-Future<List<int>> _readAll(Stream<List<int>> stream) => stream.fold<List<int>>(
-  <int>[],
-  (bytes, chunk) => bytes..addAll(chunk),
-);
+Future<List<int>> _readAll(Stream<List<int>> stream) =>
+    stream.fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk));
 
 List<int> _decodeHex(String hex) => [
   for (var index = 0; index + 1 < hex.length; index += 2)
