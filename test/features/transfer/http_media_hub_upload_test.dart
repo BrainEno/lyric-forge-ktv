@@ -508,7 +508,6 @@ void main() {
         totalTimeout: const Duration(seconds: 5),
       );
       final session = await service.startSharing(const []);
-      print('Total-deadline test endpoint: ${session.host}:${session.port}');
       final socket = await _openPinnedSocket(session);
       addTearDown(socket.destroy);
       // Watch the response instead of only its completion: the server closes
@@ -617,7 +616,7 @@ void main() {
 }
 
 Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
-  const maxTransientHandshakeRetries = 3;
+  const maxBrokenPipeRetries = 3;
   for (var attempt = 0; ; attempt++) {
     try {
       return await SecureSocket.connect(
@@ -628,36 +627,16 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
             mediaHubTlsFingerprint(certificate.der) ==
             session.tlsFingerprint!.toLowerCase(),
       );
-    } on Object catch (error) {
-      final osError = error is SocketException
-          ? error.osError
-          : error is TlsException
-          ? error.osError
-          : null;
-      final errorCode = osError?.errorCode;
-      final errorMessage = error.toString().toLowerCase();
-      final isSocketOrTlsError =
-          error is SocketException || error is TlsException;
-      final isTransientHandshakeReset =
-          isSocketOrTlsError &&
-          (errorCode == 32 ||
-              errorCode == 104 ||
-              errorCode == 10054 ||
-              errorMessage.contains('broken pipe') ||
-              errorMessage.contains('connection reset by peer'));
-      print(
-        'Pinned TLS setup error (${error.runtimeType}, errno=$errorCode): '
-        '$error',
-      );
-      if (!isTransientHandshakeReset ||
-          attempt >= maxTransientHandshakeRetries) {
-        rethrow;
-      }
+    } on SocketException catch (error) {
+      final isBrokenPipe =
+          error.osError?.errorCode == 32 ||
+          error.message.toLowerCase().contains('broken pipe');
+      if (!isBrokenPipe || attempt >= maxBrokenPipeRetries) rethrow;
 
-      // Use the advertised endpoint instead of assuming the optional loopback
-      // listener is available. A TCP/TLS connection reset before any HTTP bytes
-      // are sent may be retried within a small bound; certificate and persistent
-      // listener failures still fail the test.
+      // Connect through the advertised endpoint rather than assuming the
+      // optional loopback listener is available. Retry only transient EPIPE and
+      // keep the total retry window bounded; persistent listener or certificate
+      // failures still fail the test.
       await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
     }
   }

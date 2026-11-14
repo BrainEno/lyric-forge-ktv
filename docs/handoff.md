@@ -6,9 +6,9 @@
 
 ## Git 现场
 
-当前分支 `arena/6929f1a1-lyric-forge-ktv`（PR 已打开），基于 `48f5a75e19bdb8311f0ec7e52ceea9cc581b7985`。PR #437 仍 OPEN：https://github.com/BrainEno/lyric-forge-ktv/pull/437；#319 最近刷新仍 OPEN。主要实现提交为 `b92967d Add verified project evidence preselection`，其后有格式修复、测试修复和 handoff/work-log 跟进。当前 follow-up 包含 formatter CI 精确输出、V2 证据选项滚动测试修正，以及 consensus/no-missing-secondary 断言；以远端 PR head 与 `git status -sb` 为准。
+当前分支 `arena/6929f1a1-lyric-forge-ktv`，基于 `48f5a75e19bdb8311f0ec7e52ceea9cc581b7985`。PR #437 仍 OPEN：https://github.com/BrainEno/lyric-forge-ktv/pull/437；GitHub API 显示 #319 是 OPEN issue（不是 PR），按要求保持 OPEN。最近一次完整 Flutter Quality Gate 在 `4b4f6ba1ce63b4e6a03ad4827504a73c7cef63fd` 通过；本轮最终文档/清理 head 仍需再跑完整 gate。主要实现提交为 `b92967d Add verified project evidence preselection`，之后有格式、测试和验收证据跟进。
 
-曾为定位 formatter 和测试问题临时加过 GitHub Actions 诊断工作流；这些文件已从分支树移除，诊断 PR 评论也已删除。不要恢复它们。
+本轮临时加入的 `.github/workflows/followup-validation.yml` 与所有临时 PR 评论均已删除；不要将诊断 workflow 恢复到最终分支。
 
 ## 已改文件与验收核对
 
@@ -26,17 +26,16 @@
 ## 检查结果
 
 - `git diff --check`、`bash scripts/check_app_identifiers.sh`：通过。
-- 最新已完成 Flutter Quality Gate `43564036045`（head `454e97d`）：SDK setup、work-log contract preflight、依赖解析、changed-Dart format check、vendored audio backend tests 均通过；repository quality gate 跑到全量测试阶段。测试摘要 `+1972 ~1 -1`，唯一明确失败项为无关的 `test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving`。因此这个 run **不是绿灯**，需要在 follow-up head 重跑。
-- 同次 run 中，本次修复过的离屏 checkbox 测试没有再报错。`test/architecture_layer_imports_contract_test.dart` 在诊断 run `43563940450` 的定向测试中通过；完整套件的失败摘要仍带有该组 `tearDownAll` 行，需以最终完整质量门结果为准。
-- 分析器在 gate 中先于测试运行；工作日志 preflight、格式检查和 vendored backend 均已通过。完整质量门尚未通过。
-- 本地没有 Dart/Flutter/FVM；尚未在本机运行新加的 follow-up 断言。官方 `dart tool/work_log.dart write/check` 需要通过 pinned Flutter CI 补跑，不能据手工编辑宣称已运行。
-- 没有真实歌曲音频评测；不宣称识别准确率提升。
+- Pinned Flutter Quality Gate `43566633477`（head `4b4f6ba1ce63b4e6a03ad4827504a73c7cef63fd`）：所有步骤通过，包括 work-log preflight、changed-Dart format、vendored audio backend 和完整 repository quality gate；本轮最终文档/清理 head 仍须再跑完整 gate。
+- Pinned follow-up run `43566633532`（同 head）：`dart tool/work_log.dart write` 与 `check` 均 exit 0；lint 0 errors、1 个已有 commit-subject warning。`asr_first_pipeline_test.dart` 的 23 项和 `run_proofread_v2_use_case_test.dart` 的 22 项通过；完整 `http_media_hub_upload_test.dart` 的 15 项通过。该诊断 workflow 的单独 `--plain-name` 测试在 `SecureSocket.connect` 阶段收到 `Connection reset by peer`，发生在发送 HTTP 请求之前，因此该 follow-up run 本身失败。
+- 同一 deadline 用例在完整上传测试文件和完整 repository quality gate 中均通过。测试 helper 已改为连接 `session.host` 广告端点，不再假设可选 loopback listener 一定可用；但单独筛选时的 TLS reset 原因尚未确认，不称为 flaky，也不宣称其根因已修复。
+- 完整 quality gate 中新增的 V2 编排与 pipeline 覆盖通过；修复过的离屏 checkbox 测试没有再报错。work-log writer/check 在 pinned SDK 上实际运行，不能把它描述为未运行。
+- 本地没有 Dart/Flutter/FVM。没有真实歌曲音频评测；不宣称真实 Highest Quality 工程端到端行为或识别准确率提升。
 
 ## 下一步
 
-1. 用 pinned Flutter SDK 跑本 follow-up 的新 consensus/pipeline 测试及 Media Hub deadline 用例，执行 `dart tool/work_log.dart write` 与 `dart tool/work_log.dart check`；检查并应用 harness 生成的 `work_log.md` / archive / index 差异，移除诊断工作流和临时评论。
-2. 推送更新后等待最终 head 的完整 Flutter Quality Gate；如 HTTP deadline 用例再次失败，先根据定向重跑确认是否为既有时序脆弱测试，再决定是否需要小范围修复，避免将无关实现变更混入本切片。
-3. 最终刷新 PR #437 和 Issue #319 状态，逐条确认四项验收；当前 #319 保持 OPEN。本任务未得到明确要求前不合并 PR。
+1. 对清理后的 `handoff.md`/work-log entry 与 `session.host` 测试端点改动执行 diff、identifier 检查；推送后等待最终 PR head 的完整 Flutter Quality Gate 与 work-log preflight。若 deadline 用例失败，保留 TLS reset 与 HTTP upload timeout 的区别，不未经新证据认定为 flaky。
+2. 最终刷新 PR #437 和 #319；逐条记录四项验收的代码/测试状态与真实音频验证缺口。按要求保持 #319 OPEN，不合并 PR #437。
 
 ## 已知风险
 
