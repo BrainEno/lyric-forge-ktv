@@ -50,6 +50,8 @@ jobs:
           flutter analyze --no-pub --no-fatal-infos lib test tool > /tmp/flutter-analyze.log 2>&1
           result=$?
           cat /tmp/flutter-analyze.log
+          echo "Flutter analyzer exit code: $result" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Flutter analyzer exit code::$result"
           if (( result != 0 )); then
             python3 - <<'PY'
           from pathlib import Path

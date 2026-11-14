@@ -258,11 +258,16 @@ class LyricEditorProofreadingCoordinator {
     required int revision,
     required int projectRevision,
   }) async {
+    final context = host.proofreadContext;
     final options = await showProofreadV2RunOptionsDialog(
-      host.proofreadContext,
+      context,
       allowProjectEvidence: dependencies.projectProofreadEvidenceLoader != null,
     );
-    if (options == null || !host.proofreadIsCurrent(revision)) return;
+    if (options == null ||
+        !context.mounted ||
+        !host.proofreadIsCurrent(revision)) {
+      return;
+    }
 
     LyricDocument? secondaryAsr;
     final secondaryText = options.secondaryTranscriptText;
@@ -272,7 +277,7 @@ class LyricEditorProofreadingCoordinator {
         parsed = referenceParser.parsePasted(secondaryText);
       } catch (error) {
         ScaffoldMessenger.of(
-          host.proofreadContext,
+          context,
         ).showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
         return;
       }
@@ -280,7 +285,7 @@ class LyricEditorProofreadingCoordinator {
           parsed.lines.any(
             (line) => line.startTime == null || line.endTime == null,
           )) {
-        ScaffoldMessenger.of(host.proofreadContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('第二份 ASR 转写稿必须为每行都带时间戳的 LRC、SRT 或 WebVTT。'),
           ),
@@ -309,12 +314,16 @@ class LyricEditorProofreadingCoordinator {
     ReferenceLyricInput? reference;
     if (options.useReference) {
       reference = await showReferenceAlignmentDialog(
-        host.proofreadContext,
+        context,
         parser: referenceParser,
         initialTitle: project.name,
         initialArtist: project.artist,
       );
-      if (reference == null || !host.proofreadIsCurrent(revision)) return;
+      if (reference == null ||
+          !context.mounted ||
+          !host.proofreadIsCurrent(revision)) {
+        return;
+      }
     }
 
     try {
@@ -327,11 +336,11 @@ class LyricEditorProofreadingCoordinator {
           expectedProjectRevision: projectRevision,
           draft: document,
         );
-        if (!host.proofreadIsCurrent(revision)) return;
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
         if (projectEvidence.status ==
             ProjectProofreadEvidenceStatus.chunkAuditOnly) {
           await showDialog<void>(
-            context: host.proofreadContext,
+            context: context,
             builder: (_) =>
                 ProjectChunkAsrSnapshotDialog(chunks: projectEvidence!.chunks),
           );
@@ -340,7 +349,7 @@ class LyricEditorProofreadingCoordinator {
         if (projectEvidence.status ==
             ProjectProofreadEvidenceStatus.auditOnly) {
           await showDialog<void>(
-            context: host.proofreadContext,
+            context: context,
             builder: (_) =>
                 ProjectAsrSnapshotDialog(evidence: projectEvidence!),
           );
@@ -348,7 +357,7 @@ class LyricEditorProofreadingCoordinator {
         }
         if (projectEvidence.status !=
             ProjectProofreadEvidenceStatus.available) {
-          ScaffoldMessenger.of(host.proofreadContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 LyricReviewStrings.projectEvidenceUnavailable(
@@ -376,7 +385,7 @@ class LyricEditorProofreadingCoordinator {
           projectRevision: projectRevision,
           audioPath: asset.vocalPath ?? asset.originalPath,
         );
-        if (!host.proofreadIsCurrent(revision)) return;
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       }
       final run =
           await RunProofreadV2UseCase(
@@ -390,7 +399,7 @@ class LyricEditorProofreadingCoordinator {
             useForcedAlignment: options.useForcedAlignment,
             manuallyEditedIndices: host.proofreadManuallyEditedLineIndices,
           );
-      if (!host.proofreadIsCurrent(revision)) return;
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       final assembly = run.assembly;
       final decision = run.decision;
       final summary = run.summary;
@@ -398,7 +407,7 @@ class LyricEditorProofreadingCoordinator {
           audioCheck?.snapshot != null &&
           audioGuard != null) {
         audioCheck = await audioGuard.verify(audioCheck!.snapshot!);
-        if (!host.proofreadIsCurrent(revision)) return;
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       }
       final timingSnapshot =
           audioCheck?.status == ReferenceAlignmentAudioStatus.matches
@@ -529,7 +538,7 @@ class LyricEditorProofreadingCoordinator {
               stopOwnedPlayback: stopOwnedReferenceAudition,
             );
       final selection = await showLyricProofreadV2ReviewDialog(
-        host.proofreadContext,
+        context,
         summary: LyricReviewStrings.proofreadV2Summary(summary),
         explanation: [
           if (projectEvidence != null)
@@ -593,15 +602,19 @@ class LyricEditorProofreadingCoordinator {
                   host.previewProofreadToken(project, index, token),
       );
       await previewCoordinator?.close();
-      if (selection == null || !host.proofreadIsCurrent(revision)) return;
+      if (selection == null ||
+          !context.mounted ||
+          !host.proofreadIsCurrent(revision)) {
+        return;
+      }
 
       Future<bool> verifyTimingSnapshot() async {
         if (selection.acceptedReferenceTimingIndices.isEmpty) return true;
         if (audioGuard == null || timingSnapshot == null) return false;
         final check = await audioGuard.verify(timingSnapshot);
-        if (!host.proofreadIsCurrent(revision)) return false;
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) return false;
         if (check.status != ReferenceAlignmentAudioStatus.matches) {
-          ScaffoldMessenger.of(host.proofreadContext).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 LyricReviewStrings.referenceAlignmentAudioStatus(check.status),
@@ -627,7 +640,7 @@ class LyricEditorProofreadingCoordinator {
       );
       if (!composer.isDifferent(document, after)) {
         ScaffoldMessenger.of(
-          host.proofreadContext,
+          context,
         ).showSnackBar(const SnackBar(content: Text('所选提案没有产生可应用的歌词或时间变化。')));
         return;
       }
@@ -644,11 +657,15 @@ class LyricEditorProofreadingCoordinator {
           comparison,
           autoRepairCount: 0,
         );
-        if (keep != true || !host.proofreadIsCurrent(revision)) return;
+        if (keep != true ||
+            !context.mounted ||
+            !host.proofreadIsCurrent(revision)) {
+          return;
+        }
       }
-      if (!host.proofreadIsCurrent(revision)) return;
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       if (!await verifyTimingSnapshot()) return;
-      if (!host.proofreadIsCurrent(revision)) return;
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       host.applyProofreadDocument(
         document: after,
         label: '应用校对提案',
@@ -657,7 +674,7 @@ class LyricEditorProofreadingCoordinator {
         message: '已应用智能校对提案（${after.lines.length} 行），未写入磁盘。',
       );
     } catch (error) {
-      if (!host.proofreadIsCurrent(revision)) return;
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
       final detail = error is ReferenceTimingApplyException
           ? LyricReviewStrings.referenceTimingApplyFailure(error.reason)
           : error is ForcedAlignmentLanguageResolutionException
@@ -668,7 +685,7 @@ class LyricEditorProofreadingCoordinator {
           ? LyricReviewStrings.forcedAlignmentBusy
           : '$error';
       ScaffoldMessenger.of(
-        host.proofreadContext,
+        context,
       ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$detail')));
     }
   }
