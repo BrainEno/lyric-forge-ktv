@@ -200,10 +200,22 @@ jobs:
         shell: pwsh
         run: |
           Set-Location qwen-runtime-src
-          cargo test --release -p qwen3_asr_cli --bin qwen3-asr --features cuda session_auth
-          if ($LASTEXITCODE -ne 0) { throw "Session-auth unit tests failed." }
-          cargo test --release -p qwen3_asr_cli --features cuda --test session_auth_integration
-          if ($LASTEXITCODE -ne 0) { throw "Session-auth integration tests failed." }
+          $ErrorActionPreference = 'Continue'
+          function Assert-SessionAuthTest([string]$Name, [int]$Code) {
+            if ($Code -eq 0) { return }
+            $log = "../session-auth-$Name.log"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Session-auth $Name test failure (exit $Code)"
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```text'
+            Get-Content $log -Tail 120 | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value '```'
+            $tail = (Get-Content $log -Tail 60 | ForEach-Object { ($_ -replace '%', '%25') -replace "`r", '' }) -join '%0A'
+            Write-Host "::error title=Session-auth $Name tests (exit $Code)::$tail"
+            throw "Session-auth $Name tests failed."
+          }
+          cargo test --release -p qwen3_asr_cli --bin qwen3-asr --features cuda session_auth 2>&1 | Tee-Object -FilePath ../session-auth-unit.log
+          Assert-SessionAuthTest unit $LASTEXITCODE
+          cargo test --release -p qwen3_asr_cli --features cuda --test session_auth_integration 2>&1 | Tee-Object -FilePath ../session-auth-integration.log
+          Assert-SessionAuthTest integration $LASTEXITCODE
 
       - name: Fetch pinned whisper.cpp source
         shell: pwsh
