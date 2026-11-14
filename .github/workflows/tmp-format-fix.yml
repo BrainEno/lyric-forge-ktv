@@ -1,0 +1,39 @@
+# TEMPORARY (issue #415): apply `dart format` with the package language
+# version (after pub get, exactly like flutter-quality.yml). The authoring
+# sandbox has no Dart SDK. Deleted again in the next commit.
+name: TEMP format fix
+
+on:
+  push:
+    branches: [arena/12673259-lyric-forge-ktv]
+    paths: [.github/workflows/tmp-format-fix.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+      - name: Resolve Flutter packages
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed Dart files and push
+        shell: bash
+        run: |
+          mapfile -t files < <(git diff --name-only --diff-filter=AM 458b14c76851e9f463428dfe7e43bfff49bfcb34 HEAD -- '*.dart')
+          dart format "${files[@]}"
+          git diff --stat | while IFS= read -r line; do echo "::warning::formatted ${line}"; done
+          if ! git diff --quiet -- '*.dart'; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Apply dart format with the package language version" -- "${files[@]}"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+          dart format --output=none --set-exit-if-changed "${files[@]}"
+          echo "::notice::format check clean for ${#files[@]} files"
