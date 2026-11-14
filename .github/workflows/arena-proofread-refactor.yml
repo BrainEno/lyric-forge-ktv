@@ -102,14 +102,16 @@ jobs:
       - name: Generate and verify work-log navigation
         shell: bash
         run: |
-          dart tool/work_log.dart new \
-            --timestamp "2026-11-07 23:51" \
-            --slug extract-lyric-editor-proofreading-flows \
-            --title "Extract lyric editor proofreading flows"
-          python3 - <<'PY'
+          entry_path=docs/log/entries/2026-11-08-0001-extract-lyric-editor-proofreading-flows.md
+          if [[ ! -f "$entry_path" ]]; then
+            dart tool/work_log.dart new \
+              --timestamp "2026-11-08 00:01" \
+              --slug extract-lyric-editor-proofreading-flows \
+              --title "Extract lyric editor proofreading flows"
+            python3 - <<'PY'
           from pathlib import Path
 
-          entry = Path('docs/log/entries/2026-11-07-2351-extract-lyric-editor-proofreading-flows.md')
+          entry = Path('docs/log/entries/2026-11-08-0001-extract-lyric-editor-proofreading-flows.md')
           text = entry.read_text()
           text = text.replace(
               '- Scope: TODO — describe the task purpose.',
@@ -143,6 +145,7 @@ jobs:
               raise SystemExit(f'Unfilled work-log TODO in {entry}')
           entry.write_text(text)
           PY
+          fi
           dart tool/work_log.dart write
           dart tool/work_log.dart check
 
@@ -176,7 +179,7 @@ jobs:
               else:
                   print('::notice title=FORMATPATCH_NONE::No formatter changes were produced.')
 
-          entry_path = Path('docs/log/entries/2026-11-07-2351-extract-lyric-editor-proofreading-flows.md')
+          entry_path = Path('docs/log/entries/2026-11-08-0001-extract-lyric-editor-proofreading-flows.md')
           if entry_path.exists():
               docs_patch = subprocess.run(
                   ['git', 'diff', '--', 'docs/work_log.md', 'docs/work_log_index.md', 'docs/work_log_archive.md'],

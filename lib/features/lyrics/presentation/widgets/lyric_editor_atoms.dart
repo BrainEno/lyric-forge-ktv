@@ -15,6 +15,7 @@ class LyricTinyBadge extends StatelessWidget {
   final bool warning;
 
   const LyricTinyBadge({
+    super.key,
     required this.label,
     this.accent = false,
     this.warning = false,
@@ -49,6 +50,7 @@ class LyricNudgeButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const LyricNudgeButton({
+    super.key,
     required this.label,
     required this.minHeight,
     required this.onPressed,

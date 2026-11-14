@@ -19,7 +19,7 @@ import 'lyric_proofread_menu_button.dart';
 import 'unsaved_lyric_edits_dialog.dart';
 
 class LyricEditorLoadingState extends StatelessWidget {
-  const LyricEditorLoadingState();
+  const LyricEditorLoadingState({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class LyricEditorLoadingState extends StatelessWidget {
 class LyricEditorErrorState extends StatelessWidget {
   final VoidCallback onRetry;
 
-  const LyricEditorErrorState({required this.onRetry});
+  const LyricEditorErrorState({super.key, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +105,7 @@ class LyricEditorContent extends StatelessWidget {
   final Set<int> manuallyEditedLineIndices;
 
   const LyricEditorContent({
+    super.key,
     required this.project,
     required this.document,
     required this.playback,
