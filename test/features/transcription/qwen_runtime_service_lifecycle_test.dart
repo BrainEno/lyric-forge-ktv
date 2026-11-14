@@ -160,9 +160,9 @@ void main() {
         final process = runtime.launches.single;
         final alignRequest = process.requestsTo('/v1/align').single;
         expect(alignRequest.authorized, isTrue);
-        final alignedAudio = RegExp(r'"audio":"([^"]+)"')
-            .firstMatch(alignRequest.body)!
-            .group(1)!;
+        final alignedAudio = RegExp(
+          r'"audio":"([^"]+)"',
+        ).firstMatch(alignRequest.body)!.group(1)!;
         expect(
           await File(alignedAudio.replaceAll(r'\\', r'\')).exists(),
           isFalse,
@@ -262,8 +262,9 @@ void main() {
       expect(service.hasRuntimeSession, isFalse);
       expect(service.isRunning, isFalse);
       expect(
-        await File('${tempDirectory.path}/output/qwen3_asr_result.json')
-            .exists(),
+        await File(
+          '${tempDirectory.path}/output/qwen3_asr_result.json',
+        ).exists(),
         isFalse,
       );
     });
@@ -333,8 +334,9 @@ void main() {
         expect(runtime.launches.single.exited, isTrue);
         expect(service.hasRuntimeSession, isFalse);
         expect(
-          await File('${tempDirectory.path}/output/qwen3_asr_result.json')
-              .exists(),
+          await File(
+            '${tempDirectory.path}/output/qwen3_asr_result.json',
+          ).exists(),
           isFalse,
           reason: 'an unproven body must never be persisted',
         );
@@ -443,8 +445,9 @@ void main() {
         startupError?.details ?? '',
         ...progress.map((event) => event.message),
         for (final launch in runtime.launches) launch.arguments.join(' '),
-        await File('${tempDirectory.path}/output/qwen3_asr_result.json')
-            .readAsString(),
+        await File(
+          '${tempDirectory.path}/output/qwen3_asr_result.json',
+        ).readAsString(),
       ];
       for (final secret in secrets) {
         for (final text in visible) {

@@ -145,8 +145,9 @@ void main() {
   });
 
   test('release builds apply and test the session-auth patch', () async {
-    final workflow = await File('.github/workflows/build-asr-runtime.yml')
-        .readAsString();
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
 
     expect(
       'tool/patches/qwen3-asr-session-auth.patch'.allMatches(workflow).length,

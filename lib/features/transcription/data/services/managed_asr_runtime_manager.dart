@@ -925,8 +925,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       );
       final rangeMatch = contentRange == null
           ? null
-          : RegExp(r'^bytes (\d+)-(\d+)/(\d+|\*)$')
-                .firstMatch(contentRange.toLowerCase());
+          : RegExp(
+              r'^bytes (\d+)-(\d+)/(\d+|\*)$',
+            ).firstMatch(contentRange.toLowerCase());
       if (response.statusCode == HttpStatus.partialContent &&
           (rangeMatch == null ||
               int.tryParse(rangeMatch.group(1)!) != existing ||

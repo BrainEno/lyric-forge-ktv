@@ -3,79 +3,77 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test(
-    'managed ASR release publishes any successful platform bundle',
-    () async {
-      final workflow = await File('.github/workflows/build-asr-runtime.yml')
-          .readAsString();
+  test('managed ASR release publishes any successful platform bundle', () async {
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
 
-      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
-      expect(
-        workflow,
+    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
+    expect(
+      workflow,
+      contains(
+        'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
+      ),
+    );
+    expect(
+      workflow,
+      contains(
+        '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
+      ),
+    );
+    expect(
+      workflow,
+      contains("needs: [flutter-validation, windows-cuda, macos-intel]"),
+      reason:
+          'publish must observe validation plus both platform build results',
+    );
+    expect(
+      workflow,
+      contains('always() &&'),
+      reason: 'publish must still be evaluated when one platform build fails',
+    );
+    expect(
+      workflow,
+      contains("needs.flutter-validation.result == 'success'"),
+      reason:
+          'a broken Flutter validation must still block release publication',
+    );
+    expect(workflow, contains("needs.windows-cuda.result == 'success'"));
+    expect(workflow, contains("needs.macos-intel.result == 'success'"));
+    expect(
+      workflow,
+      contains("if: needs.windows-cuda.result == 'success'"),
+      reason: 'Windows artifact download must be conditional on its own build',
+    );
+    expect(
+      workflow,
+      contains("if: needs.macos-intel.result == 'success'"),
+      reason: 'macOS artifact download must be conditional on its own build',
+    );
+    expect(
+      workflow,
+      contains('gh release upload "\$RUNTIME_TAG" dist/*.zip --clobber'),
+      reason: 'release upload must accept whichever platform artifacts exist',
+    );
+    expect(
+      workflow,
+      isNot(
         contains(
-          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
+          'gh release upload "\$RUNTIME_TAG" '
+          'dist/lyricforge-asr-runtime-windows-x64-cuda.zip '
+          'dist/lyricforge-asr-runtime-macos-x64.zip --clobber',
         ),
-      );
-      expect(
-        workflow,
-        contains(
-          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
-        ),
-      );
-      expect(
-        workflow,
-        contains("needs: [flutter-validation, windows-cuda, macos-intel]"),
-        reason:
-            'publish must observe validation plus both platform build results',
-      );
-      expect(
-        workflow,
-        contains('always() &&'),
-        reason: 'publish must still be evaluated when one platform build fails',
-      );
-      expect(
-        workflow,
-        contains("needs.flutter-validation.result == 'success'"),
-        reason:
-            'a broken Flutter validation must still block release publication',
-      );
-      expect(workflow, contains("needs.windows-cuda.result == 'success'"));
-      expect(workflow, contains("needs.macos-intel.result == 'success'"));
-      expect(
-        workflow,
-        contains("if: needs.windows-cuda.result == 'success'"),
-        reason:
-            'Windows artifact download must be conditional on its own build',
-      );
-      expect(
-        workflow,
-        contains("if: needs.macos-intel.result == 'success'"),
-        reason: 'macOS artifact download must be conditional on its own build',
-      );
-      expect(
-        workflow,
-        contains('gh release upload "\$RUNTIME_TAG" dist/*.zip --clobber'),
-        reason: 'release upload must accept whichever platform artifacts exist',
-      );
-      expect(
-        workflow,
-        isNot(
-          contains(
-            'gh release upload "\$RUNTIME_TAG" '
-            'dist/lyricforge-asr-runtime-windows-x64-cuda.zip '
-            'dist/lyricforge-asr-runtime-macos-x64.zip --clobber',
-          ),
-        ),
-        reason: 'publication must not require both platform files to exist',
-      );
-    },
-  );
+      ),
+      reason: 'publication must not require both platform files to exist',
+    );
+  });
 
   test(
     'managed Qwen builds apply the eager-attention contiguous-layout patch',
     () async {
-      final workflow = await File('.github/workflows/build-asr-runtime.yml')
-          .readAsString();
+      final workflow = await File(
+        '.github/workflows/build-asr-runtime.yml',
+      ).readAsString();
       final patch = await File(
         'tool/patches/qwen3-asr-eager-attention-contiguous.patch',
       ).readAsString();
@@ -111,13 +109,15 @@ void main() {
   );
 
   test('managed Qwen builds expose explicit forced alignment', () async {
-    final workflow = await File('.github/workflows/build-asr-runtime.yml')
-        .readAsString();
+    final workflow = await File(
+      '.github/workflows/build-asr-runtime.yml',
+    ).readAsString();
     final patch = await File(
       'tool/patches/qwen3-asr-forced-align-http-endpoint.patch',
     ).readAsString();
-    final routeScript = await File('tool/patches/apply-qwen-align-route.py')
-        .readAsString();
+    final routeScript = await File(
+      'tool/patches/apply-qwen-align-route.py',
+    ).readAsString();
 
     expect(
       workflow,
@@ -137,7 +137,8 @@ void main() {
     expect(
       routeScript,
       contains('.route("/v1/align", post(align).options(options_ok))'),
-      reason: 'route insertion must use an exact source anchor, not a brittle diff line number',
+      reason:
+          'route insertion must use an exact source anchor, not a brittle diff line number',
     );
     expect(routeScript, contains('text.count(anchor) != 1'));
     expect(patch, contains('"text must not be empty"'));
@@ -147,8 +148,9 @@ void main() {
   test(
     'Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback',
     () async {
-      final workflow = await File('.github/workflows/build-asr-runtime.yml')
-          .readAsString();
+      final workflow = await File(
+        '.github/workflows/build-asr-runtime.yml',
+      ).readAsString();
 
       expect(
         workflow,

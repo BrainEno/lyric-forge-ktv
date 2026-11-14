@@ -455,11 +455,12 @@ class QwenRuntimeLaunchException implements Exception {
   String toString() => 'QwenRuntimeLaunchException(${failure.name}): $details';
 }
 
-typedef QwenRuntimeProcessStarter = Future<Process> Function(
-  String executable,
-  List<String> arguments, {
-  String? workingDirectory,
-});
+typedef QwenRuntimeProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments, {
+      String? workingDirectory,
+    });
 
 /// Starts Qwen `serve` processes in authenticated session mode.
 class QwenRuntimeLauncher {
