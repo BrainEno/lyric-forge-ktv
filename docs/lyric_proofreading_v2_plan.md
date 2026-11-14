@@ -120,7 +120,7 @@
 - [x] **T2b — 唯一锚点与重复段消歧。** 实现已随 PR #139 进入 main；`reference_token_aligner_test.dart` 覆盖唯一锚点、重复窗口、有界候选、锚点顺序及 DP 预算回退。
 - [x] **T3 — 策略选择。** 实现 `referenceFirst/asrFirst/auto` 的纯领域编排，严格遵守 coverage 0.25 的自动选择规则和 fallback notes。
 - [x] **T4 — referenceFirst 流水线。** 实现已随 PR #140 进入 main；参考清洗、对齐、时间分配、按参考行重建及低证据复核由 `reference_first_pipeline_test.dart` 覆盖。
-- [ ] **T5 — asrFirst 流水线。** 共识分析、幻觉候选、重复片段、参考纠错建议及安全重定时提案（PR #141、#143–#146）已合并；ForcedAligner 已可对当前草稿生成复核证据。重新分行及参考歌词与 ForcedAligner 的组合仍未完成（见 #319）；重定时提案不会自动应用。
+- [ ] **T5 — asrFirst 流水线。** 共识分析、幻觉候选、重复片段、参考纠错建议及安全重定时提案（PR #141、#143–#146）已合并。工程快照可在匹配当前草稿且源音频摘要存在时默认预选，并在使用前重新验证；Whisper raw JSON 只在与受验证的内嵌第二稿逐行一致时采用。ForcedAligner 可对 ASR 草稿或参考文本生成独立复核证据，参考优先走现有 timing review。重新分行、真实歌曲基准和完整 #319 验收仍未完成；任何提案都不会自动应用，也不代表准确率提升。
 - [x] **T6 — 证据与结果合同。** `proofread_result.dart` 已实现 `TimedLyricToken`、`ProofreadTimeInterval`、verdict/reasons/risk、dropped/adlibs 与 `ProofreadResult`；domain 返回枚举/原因码，中文文案在 presentation 层。
 - [x] **T7 — 两条流水线不变量测试。** 为 T7a、T7b 写测试并调用同一 `expectInvariants`，覆盖 I1–I7、保护行、输入不变性、重复行、音频边界与缺失时长情形。
 - [x] **T8 — UI 接入。** 策略开关、摘要、仅琥珀色复核、绿色一键应用与 grey 行恢复；只使用已有备份/撤销流程，不从 presentation 直接访问数据库、Process 或新增磁盘写入路径。

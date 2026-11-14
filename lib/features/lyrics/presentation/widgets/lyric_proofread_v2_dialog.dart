@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/proofreading/project_proofread_evidence.dart';
 import '../../domain/proofreading/proofread_result.dart';
 import '../../domain/proofreading/proofread_review_proposal.dart';
 import '../../domain/proofreading/proofread_strategy_selector.dart';
@@ -30,18 +31,25 @@ class ProofreadV2RunOptions {
 Future<ProofreadV2RunOptions?> showProofreadV2RunOptionsDialog(
   BuildContext context, {
   bool allowProjectEvidence = false,
+  ProjectProofreadEvidenceHint? projectEvidenceHint,
 }) {
   return showDialog<ProofreadV2RunOptions>(
     context: context,
     builder: (_) => _ProofreadV2RunOptionsDialog(
       allowProjectEvidence: allowProjectEvidence,
+      projectEvidenceHint: projectEvidenceHint,
     ),
   );
 }
 
 class _ProofreadV2RunOptionsDialog extends StatefulWidget {
   final bool allowProjectEvidence;
-  const _ProofreadV2RunOptionsDialog({required this.allowProjectEvidence});
+  final ProjectProofreadEvidenceHint? projectEvidenceHint;
+
+  const _ProofreadV2RunOptionsDialog({
+    required this.allowProjectEvidence,
+    required this.projectEvidenceHint,
+  });
 
   @override
   State<_ProofreadV2RunOptionsDialog> createState() =>
@@ -56,6 +64,72 @@ class _ProofreadV2RunOptionsDialogState
   bool _useProjectEvidence = false;
   final TextEditingController _secondaryTranscriptController =
       TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _useProjectEvidence =
+        widget.allowProjectEvidence &&
+        (widget.projectEvidenceHint?.shouldSelectByDefault ?? false);
+  }
+
+  bool get _showProjectEvidenceOption =>
+      widget.allowProjectEvidence &&
+      (widget.projectEvidenceHint?.shouldOffer ?? true);
+
+  String get _projectEvidenceTitle =>
+      switch (widget.projectEvidenceHint?.status) {
+        ProjectProofreadEvidenceHintStatus.currentDraftCandidate =>
+          '使用工程中已保存的独立第二份转写稿',
+        ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair =>
+          '查看工程原始双引擎快照（只读）',
+        ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly =>
+          '查看工程分片双引擎快照（只读）',
+        _ => '使用工程中的独立第二份转写稿',
+      };
+
+  String get _projectEvidenceSubtitle {
+    final hint = widget.projectEvidenceHint;
+    if (hint == null) {
+      return '音频校验后，完整原稿与草稿一致时用于复核；融合或分片原稿仅可只读查看，不参与当前草稿判断。选中后暂不使用粘贴稿。';
+    }
+    return switch (hint.status) {
+      ProjectProofreadEvidenceHintStatus.currentDraftCandidate =>
+        '检测到 ${hint.secondaryEngine ?? '独立第二引擎'}'
+            '${hint.capturedAtUtc == null ? '' : ' · ${hint.capturedAtUtc!.toIso8601String()}'}；继续后仍会核对音频与工程版本，模型内容未校验。选中后暂不使用粘贴稿。',
+      ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair =>
+        '当前草稿与保存的主引擎原稿不同；两份原稿仅供只读检查，不参与对当前草稿的共识判断。',
+      ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly =>
+        '包含 ${hint.chunkCount} 个分片的原始双引擎快照；只读查看，重叠片段不会去重或映射到当前歌词行。',
+      _ => '',
+    };
+  }
+
+  String? get _projectEvidenceNotice =>
+      switch (widget.projectEvidenceHint?.status) {
+        ProjectProofreadEvidenceHintStatus.unverifiedAudio =>
+          '工程中有独立 ASR 快照，但缺少可验证的音频摘要；本次不会把它用于校对。可手动粘贴第二稿。',
+        ProjectProofreadEvidenceHintStatus.unsupportedOffsets =>
+          '工程或草稿具有当前流程不支持的全局时间偏移；工程 ASR 快照不会参与本次校对。',
+        ProjectProofreadEvidenceHintStatus.invalid =>
+          '工程 ASR 快照格式无效或来源有歧义；本次不会使用该快照。',
+        ProjectProofreadEvidenceHintStatus.projectChanged =>
+          '预览期间工程版本已变化；请刷新工程后再尝试使用已保存的 ASR 快照。',
+        _ => null,
+      };
+
+  Widget _projectEvidenceSelector() => _revealOnFocus(
+    CheckboxListTile(
+      key: const ValueKey('project_asr_evidence_toggle'),
+      contentPadding: EdgeInsets.zero,
+      value: _useProjectEvidence,
+      onChanged: (value) =>
+          setState(() => _useProjectEvidence = value ?? false),
+      title: Text(_projectEvidenceTitle),
+      subtitle: Text(_projectEvidenceSubtitle),
+      controlAffinity: ListTileControlAffinity.leading,
+    ),
+  );
 
   @override
   void dispose() {
@@ -183,20 +257,12 @@ class _ProofreadV2RunOptionsDialogState
                 '只有明确的时间戳证据才参与双 ASR 比对；不会自动覆盖原歌词。',
               ),
               const SizedBox(height: 8),
-              if (widget.allowProjectEvidence) ...[
-                _revealOnFocus(
-                  CheckboxListTile(
-                    key: const ValueKey('project_asr_evidence_toggle'),
-                    contentPadding: EdgeInsets.zero,
-                    value: _useProjectEvidence,
-                    onChanged: (value) =>
-                        setState(() => _useProjectEvidence = value ?? false),
-                    title: const Text('使用工程中的独立第二份转写稿'),
-                    subtitle: const Text(
-                      '音频校验后，完整原稿与草稿一致时用于复核；融合或分片原稿仅可只读查看，不参与当前草稿判断。选中后暂不使用粘贴稿。',
-                    ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
+              if (_showProjectEvidenceOption) ...[
+                _projectEvidenceSelector(),
+              ] else if (_projectEvidenceNotice case final notice?) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(notice),
                 ),
               ],
               _revealOnFocus(

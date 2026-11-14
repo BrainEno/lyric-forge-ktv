@@ -184,8 +184,10 @@ void main() {
     expect(snapshotLyricDocument(secondary), secondarySnapshot);
     expect(result.lines[0].verdict, ProofreadVerdict.locked);
     expect(result.lines[0].reasons, contains(ProofreadReason.protectedLine));
+    expect(result.lines[0].reasons, contains(ProofreadReason.asrAgreement));
     expect(result.lines[1].verdict, ProofreadVerdict.green);
     expect(result.lines[1].reasons, contains(ProofreadReason.asrAgreement));
+    expect(result.notes, isNot(contains('secondaryAsrUnavailable')));
     expect(result.proposedDocument.lines, primary.lines);
   });
 

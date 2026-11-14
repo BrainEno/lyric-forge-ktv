@@ -18,6 +18,9 @@ import 'app_services.dart';
 /// and gets either spans or an error it can show. The `qwenRuntime` +
 /// `qwenAligner` readiness question stays exactly where it can be answered.
 LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
+  final evidenceLoader = VerifiedProjectProofreadEvidenceLoader(
+    projects: services.projectRepository,
+  );
   return LyricEditorDependencies(
     projectRepository: services.projectRepository,
     playbackSession: services.playbackSessionService,
@@ -28,9 +31,8 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
     referenceAlignmentAudioGuard: ProjectReferenceAlignmentAudioGuard(
       projects: services.projectRepository,
     ),
-    projectProofreadEvidenceLoader: VerifiedProjectProofreadEvidenceLoader(
-      projects: services.projectRepository,
-    ).load,
+    projectProofreadEvidenceLoader: evidenceLoader.load,
+    projectProofreadEvidencePreviewer: evidenceLoader.preview,
   );
 }
 

@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
-import '../../../project/domain/models/lyric_document.dart';
-import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
+import 'whisper_json_transcript_parser.dart';
 
 class WhisperCppTranscriptionService implements TranscriptionService {
   WhisperCppTranscriptionService({AsrProcessSupervisor? processSupervisor})
@@ -259,91 +257,16 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     required String rawJsonPath,
     required String normalizedAudioPath,
   }) async {
-    final decoded = jsonDecode(await File(rawJsonPath).readAsString());
-    if (decoded is! Map<String, dynamic>) {
-      throw const TranscriptionException.environment('Whisper JSON 格式无效');
-    }
-
-    final result = decoded['result'];
-    final detectedLanguage = result is Map
-        ? (result['language'] as String? ?? 'unknown')
-        : 'unknown';
-
-    final rawSegments = decoded['transcription'];
-    if (rawSegments is! List) {
-      throw const TranscriptionException.environment(
-        'Whisper JSON 缺少 transcription',
-      );
-    }
-
-    final lines = <LyricLine>[];
-    var lowConfidenceCount = 0;
-    var skippedSegmentCount = 0;
-
-    for (final raw in rawSegments) {
-      if (raw is! Map) {
-        skippedSegmentCount++;
-        continue;
-      }
-      final segment = Map<String, dynamic>.from(raw);
-      final text = (segment['text'] as String? ?? '').trim();
-      if (text.isEmpty) {
-        skippedSegmentCount++;
-        continue;
-      }
-
-      final offsets = segment['offsets'];
-      if (offsets is! Map) {
-        skippedSegmentCount++;
-        continue;
-      }
-      final from = offsets['from'];
-      final to = offsets['to'];
-      if (from is! num || to is! num || to.toInt() <= from.toInt()) {
-        skippedSegmentCount++;
-        continue;
-      }
-
-      final score = scoreWhisperSegment(segment);
-      if (score.source != LyricConfidenceSource.unscored && score.value < 65) {
-        lowConfidenceCount++;
-      }
-
-      lines.add(
-        LyricLine(
-          text: text,
-          startTime: Duration(milliseconds: from.toInt()),
-          endTime: Duration(milliseconds: to.toInt()),
-          confidence: score.value,
-          confidenceSource: score.source,
-        ),
-      );
-    }
-
-    if (lines.isEmpty) {
-      throw const TranscriptionException.input('Whisper 没有识别到可用歌词片段');
-    }
-
-    final document = LyricDocument(
-      language: detectedLanguage,
-      lines: lines,
-      metadata: {
-        'generatedBy': 'whisper.cpp',
-        'draft': true,
-        'segmentCount': lines.length,
-        'lowConfidenceThreshold': 65,
-        'lowConfidenceLineCount': lowConfidenceCount,
-        'confidenceSource': 'per-line: model|unscored',
-        'skippedSegmentCount': skippedSegmentCount,
-        'rawJsonPath': rawJsonPath,
-      },
+    final source = await File(rawJsonPath).readAsString();
+    final parsed = const WhisperJsonTranscriptParser().parse(
+      source,
+      rawJsonPath: rawJsonPath,
     );
-
     return TranscriptionResult(
-      lyrics: document,
+      lyrics: parsed.document,
       normalizedAudioPath: normalizedAudioPath,
       rawJsonPath: rawJsonPath,
-      detectedLanguage: detectedLanguage,
+      detectedLanguage: parsed.detectedLanguage,
     );
   }
 

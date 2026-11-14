@@ -105,3 +105,58 @@ typedef ProjectProofreadEvidenceLoader =
       required int expectedProjectRevision,
       required LyricDocument draft,
     });
+
+/// A cheap, non-authoritative summary used to configure the V2 options dialog.
+///
+/// The preview never authorizes comparison. Selecting a candidate still runs
+/// the full project-revision, selected-audio hash, and draft checks in the
+/// evidence loader. In particular, [currentDraftCandidate] means only that a
+/// structurally valid saved primary snapshot matches this draft at preview time.
+enum ProjectProofreadEvidenceHintStatus {
+  currentDraftCandidate,
+  readOnlyOriginalPair,
+  chunkSnapshotsOnly,
+  notFound,
+  invalid,
+  unverifiedAudio,
+  unsupportedOffsets,
+  projectChanged,
+}
+
+class ProjectProofreadEvidenceHint {
+  final ProjectProofreadEvidenceHintStatus status;
+  final String? primaryEngine;
+  final String? secondaryEngine;
+  final DateTime? capturedAtUtc;
+  final int chunkCount;
+
+  const ProjectProofreadEvidenceHint({
+    required this.status,
+    this.primaryEngine,
+    this.secondaryEngine,
+    this.capturedAtUtc,
+    this.chunkCount = 0,
+  });
+
+  /// Whether the dialog should expose an action for this stored snapshot.
+  bool get shouldOffer => switch (status) {
+    ProjectProofreadEvidenceHintStatus.currentDraftCandidate ||
+    ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair ||
+    ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly => true,
+    _ => false,
+  };
+
+  /// Only a matching, complete single-input pair may be preselected.
+  /// Audio bytes are re-verified after the user confirms the dialog.
+  bool get shouldSelectByDefault =>
+      status == ProjectProofreadEvidenceHintStatus.currentDraftCandidate;
+}
+
+/// Reads a cheap metadata hint; it must not expose transcript rows or skip the
+/// full verification performed by [ProjectProofreadEvidenceLoader].
+typedef ProjectProofreadEvidencePreviewer =
+    Future<ProjectProofreadEvidenceHint> Function({
+      required String projectId,
+      required int expectedProjectRevision,
+      required LyricDocument draft,
+    });
