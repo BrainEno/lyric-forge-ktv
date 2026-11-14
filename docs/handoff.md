@@ -6,7 +6,7 @@
 
 ## Git 现场
 
-当前分支 `arena/6929f1a1-lyric-forge-ktv`，基于 `48f5a75e19bdb8311f0ec7e52ceea9cc581b7985`。PR #437 仍 OPEN：https://github.com/BrainEno/lyric-forge-ktv/pull/437；GitHub API 显示 #319 是 OPEN issue（不是 PR），按要求保持 OPEN。最近一次完整 Flutter Quality Gate `43567672221` 在清理 head `14c7e840f25faf325455ba327569ac707b69de2f` 通过；对任何后续提交都应以 PR 当前 head 的 check rollup 为准。主要实现提交为 `b92967d Add verified project evidence preselection`，之后有格式、测试和验收证据跟进。
+当前分支 `arena/6929f1a1-lyric-forge-ktv`，基于 `48f5a75e19bdb8311f0ec7e52ceea9cc581b7985`。PR #437 仍 OPEN：https://github.com/BrainEno/lyric-forge-ktv/pull/437；GitHub API 显示 #319 是 OPEN issue（不是 PR），按要求保持 OPEN。移除临时诊断 workflow 后的清理 head `14c7e840f25faf325455ba327569ac707b69de2f` 已由完整 Flutter Quality Gate `43567672221` 验证通过；当前或后续 head 的状态以 PR check rollup 为准。主要实现提交为 `b92967d Add verified project evidence preselection`，之后有格式、测试和验收证据跟进。
 
 本轮临时加入的 `.github/workflows/followup-validation.yml` 与所有临时 PR 评论均已删除；不要将诊断 workflow 恢复到最终分支。
 
