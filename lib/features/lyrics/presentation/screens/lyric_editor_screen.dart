@@ -504,20 +504,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     );
   }
 
-  String? _referenceTimingUnavailableReason(
-    ReferenceTimingUnavailableReason? reason,
-  ) {
-    return switch (reason) {
-      ReferenceTimingUnavailableReason.partiallyTimed =>
-        '参考歌词只有部分行带时间戳，无法整体替换时间轴；本次只纠正文字并补全漏行。',
-      ReferenceTimingUnavailableReason.structuralMismatch =>
-        '参考歌词与当前草稿不是一一对应（存在漏行、多余行或空行），本次只纠正文字、补全漏行并保留原时间轴。',
-      ReferenceTimingUnavailableReason.protectedLines =>
-        '本次有手动编辑过的行，先只纠正文字以避免打乱时间轴；需要替换时间轴时请先保存并重新打开工程。',
-      null => null,
-    };
-  }
-
   /// 恢复对齐前的单槽备份：二次确认后替换编辑中的文档，不自动保存。
   Future<void> _restoreAlignmentBackup() async {
     final document = _editingDocument;
