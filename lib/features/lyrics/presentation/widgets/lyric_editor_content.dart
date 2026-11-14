@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/layout/app_responsive.dart';
@@ -76,7 +78,12 @@ class LyricEditorContent extends StatelessWidget {
   final ValueChanged<bool> onFollowPlaybackChanged;
   final ValueChanged<int> onSelectLine;
   final void Function(int, bool) onReviewDecision;
-  final VoidCallback onSave;
+  /// Completes with `true` only when the current draft reached disk and the
+  /// editor is clean; the save-and-leave path waits for it before popping.
+  final Future<bool> Function() onSave;
+
+  /// A save is in flight: save actions are disabled and leaving waits.
+  final bool isSaving;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final bool canUndo;
@@ -125,6 +132,7 @@ class LyricEditorContent extends StatelessWidget {
     required this.onSelectLine,
     required this.onReviewDecision,
     required this.onSave,
+    this.isSaving = false,
     required this.onUndo,
     required this.onRedo,
     required this.canUndo,
@@ -262,6 +270,18 @@ class LyricEditorContent extends StatelessWidget {
     );
   }
 
+  void _requestSave() {
+    unawaited(onSave());
+  }
+
+  /// Pops this editor once. A second completion (for example a shared save
+  /// finishing for two back requests) must not pop the route below it.
+  static void _popIfStillCurrent(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
@@ -275,21 +295,24 @@ class LyricEditorContent extends StatelessWidget {
         : null;
 
     return PopScope(
-      canPop: !hasChanges,
+      canPop: !hasChanges && !isSaving,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        // A pending write decides whether leaving is safe; asking again while
+        // it runs could pop twice or race the conflict dialog.
+        if (isSaving) return;
         if (!hasChanges) return;
         final decision = await confirmUnsavedLyricEdits(context);
         if (!context.mounted) return;
         switch (decision) {
-          // "保存并返回" used to pop with `false` and call onSave(), which saved
-          // the document but left the user on the editor, so the button did the
-          // opposite of what it said. Saving now always ends with leaving.
+          // "保存并返回" leaves only after the write succeeded. A failure,
+          // conflict, or newer edit keeps the editor and its draft open.
           case UnsavedLyricEditsDecision.save:
-            onSave();
-            Navigator.of(context).pop();
+            final saved = await onSave();
+            if (!saved || !context.mounted) return;
+            _popIfStillCurrent(context);
           case UnsavedLyricEditsDecision.discard:
-            Navigator.of(context).pop();
+            _popIfStillCurrent(context);
           case UnsavedLyricEditsDecision.stay:
             break;
         }
@@ -297,7 +320,7 @@ class LyricEditorContent extends StatelessWidget {
       child: LyricEditShortcuts(
         onUndo: onUndo,
         onRedo: onRedo,
-        onSave: onSave,
+        onSave: isSaving ? null : _requestSave,
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -345,19 +368,25 @@ class LyricEditorContent extends StatelessWidget {
                       )
                     : null,
               ),
-              if (hasChanges)
+              if (hasChanges || isSaving)
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: spec.isCompact
                       ? IconButton.filledTonal(
-                          tooltip: '保存修改',
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded),
+                          key: const ValueKey('lyric_editor_save_action'),
+                          tooltip: isSaving ? '正在保存…' : '保存修改',
+                          onPressed: isSaving ? null : _requestSave,
+                          icon: isSaving
+                              ? const _SavingIndicator()
+                              : const Icon(Icons.save_rounded),
                         )
                       : FilledButton.icon(
-                          onPressed: onSave,
-                          icon: const Icon(Icons.save_rounded, size: 18),
-                          label: const Text('保存修改'),
+                          key: const ValueKey('lyric_editor_save_action'),
+                          onPressed: isSaving ? null : _requestSave,
+                          icon: isSaving
+                              ? const _SavingIndicator()
+                              : const Icon(Icons.save_rounded, size: 18),
+                          label: Text(isSaving ? '正在保存…' : '保存修改'),
                         ),
                 ),
             ],
@@ -496,6 +525,18 @@ class LyricEditorContent extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SavingIndicator extends StatelessWidget {
+  const _SavingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.square(
+      dimension: 18,
+      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
 }

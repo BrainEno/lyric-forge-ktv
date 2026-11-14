@@ -1,0 +1,108 @@
+# TEMPORARY diagnostic workflow for this branch only (same practice as the
+# PR #437 follow-up). The sandbox editing this branch has no Flutter SDK, so
+# this job formats changed Dart files, regenerates work-log navigation, and
+# posts analyzer/test excerpts as a commit comment. Delete before merging.
+name: Follow-up validation (temporary)
+
+on:
+  push:
+    branches: [arena/eacfa9ab-lyric-forge-ktv]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: followup-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format changed Dart files and regenerate work log
+        shell: bash
+        run: |
+          git fetch origin main
+          mapfile -t files < <(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          if (( ${#files[@]} > 0 )); then dart format "${files[@]}"; fi
+          dart tool/work_log.dart write || true
+          if ! git diff --quiet; then
+            git diff --stat > /tmp/format-stat.txt
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Apply dart format and regenerate work log"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "FORMATTED=yes" >> "$GITHUB_ENV"
+          fi
+
+      - name: Validate
+        shell: bash
+        run: |
+          mkdir -p build
+          set +e
+          dart tool/work_log.dart check > build/worklog.log 2>&1
+          echo "worklog exit $?" >> build/worklog.log
+          flutter analyze --no-pub --no-fatal-infos > build/analyze.log 2>&1
+          echo "analyze exit $?" >> build/analyze.log
+          flutter test --no-pub --reporter expanded \
+            test/features/lyrics/presentation/screens/lyric_editor_save_and_return_test.dart \
+            test/features/lyrics/presentation/controllers/lyric_editor_document_controller_test.dart \
+            test/features/lyrics/presentation/lyric_review_language_contract_test.dart \
+            test/features/lyrics/presentation/lyric_review_strings_test.dart \
+            test/features/lyrics/presentation/screens/lyric_editor_orchestration_contract_test.dart \
+            test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart \
+            test/features/player/data/local_store_integrity_test.dart \
+            test/features/player/presentation/local_store_integrity_banner_test.dart \
+            test/core/persistence/retryable_load_test.dart \
+            test/file_local_media_library_repository_test.dart \
+            test/file_local_media_collection_repository_test.dart \
+            test/file_local_media_metadata_repository_test.dart \
+            test/features/player/file_local_media_relink_service_test.dart \
+            test/architecture_layer_imports_contract_test.dart \
+            test/ci_workflow_contract_test.dart \
+            test/work_log_tool_test.dart \
+            > build/test.log 2>&1
+          echo "test exit $?" >> build/test.log
+          for run in 1 2 3; do
+            flutter test --no-pub --reporter expanded test/features/transfer/http_media_hub_upload_test.dart > build/upload-$run.log 2>&1
+            echo "upload run $run exit $?" >> build/upload.log
+            grep -B2 -A20 "\[E\]$" build/upload-$run.log | head -60 >> build/upload.log
+          done
+          flutter test --no-pub --reporter expanded > build/full.log 2>&1
+          echo "full exit $?" >> build/full.log
+          exit 0
+
+      - name: Post report
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "formatted: ${FORMATTED:-no}"
+            [ -f /tmp/format-stat.txt ] && { echo '```'; cat /tmp/format-stat.txt; echo '```'; }
+            echo '### work log'; echo '```'; tail -30 build/worklog.log; echo '```'
+            echo '### analyze'; echo '```'; grep -E "error •|warning •|info •|exit|issues found|No issues" build/analyze.log | head -80; echo '```'
+            echo '### focused tests'; echo '```'
+            grep -B2 -A30 "\[E\]$" build/test.log | head -500
+            tail -4 build/test.log
+            echo '```'
+            echo '### upload test x3'; echo '```'; cat build/upload.log; echo '```'
+            echo '### full suite'; echo '```'
+            grep -E "\[E\]$" build/full.log | head -60
+            tail -4 build/full.log
+            echo '```'
+          } > build/report.md
+          head -c 60000 build/report.md > build/report-trimmed.md
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -F body=@build/report-trimmed.md > /dev/null

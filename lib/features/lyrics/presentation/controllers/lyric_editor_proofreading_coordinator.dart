@@ -514,7 +514,7 @@ class LyricEditorProofreadingCoordinator {
                 final result = await host.proofreadAudition.toggle(
                   request: request,
                   prepare: () async => throw StateError(
-                    'Playback source changed during audition',
+                    '试听期间播放源已改变',
                   ),
                   isStillValid: valid,
                   isPlaybackStillValid: () {

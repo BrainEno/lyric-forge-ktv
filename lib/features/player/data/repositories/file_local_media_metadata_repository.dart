@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/retryable_load.dart';
 import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 
@@ -22,13 +23,14 @@ class FileLocalMediaMetadataRepository
   final Directory? rootDirectory;
 
   final Map<String, LocalMediaMetadata> _entries = {};
-  Future<void>? _loadFuture;
+  late final RetryableLoad _loader = RetryableLoad(_load);
   Future<void> _writeChain = Future<void>.value();
   FormatException? _incompleteLoad;
 
   FileLocalMediaMetadataRepository({this.rootDirectory});
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  /// A failed load is not cached: the next call retries (#440).
+  Future<void> _ensureLoaded() => _loader.ensureLoaded();
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -67,6 +69,9 @@ class FileLocalMediaMetadataRepository
   String _key(String sourcePath) => _normalizedPath(sourcePath);
 
   Future<void> _load() async {
+    // A retry after a failed attempt starts from a clean slate.
+    _entries.clear();
+    _incompleteLoad = null;
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
     if (await file.exists() &&

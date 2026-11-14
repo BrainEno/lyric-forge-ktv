@@ -5,11 +5,20 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../../core/persistence/atomic_json_file.dart';
+import '../../../../core/persistence/retryable_load.dart';
 import '../../domain/models/local_playlist.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
+import '../../domain/repositories/local_store_integrity.dart';
+import 'local_store_preservation.dart';
 
+/// Persists favorites and playlists in `library_collections.json`.
+///
+/// Shares the library store's load contract: an unreadable file throws and is
+/// retried on the next call (#440); unreadable favorites or playlists keep the
+/// readable ones visible but block every write until the user repairs the
+/// store, so a toggle can never drop the rows that failed to load (#439).
 class FileLocalMediaCollectionRepository
-    implements LocalMediaCollectionRepository {
+    implements LocalMediaCollectionRepository, LocalStoreIntegrity {
   static const int _schemaVersion = 1;
 
   static final AtomicJsonValidator _isValidStoreJson = AtomicJsonFile.versioned(
@@ -29,16 +38,24 @@ class FileLocalMediaCollectionRepository
   final List<LocalPlaylist> _playlists = <LocalPlaylist>[];
   final StreamController<int> _changeController =
       StreamController<int>.broadcast();
-  Future<void>? _loadFuture;
+  late final RetryableLoad _loader = RetryableLoad(_load);
   Future<void> _writeChain = Future<void>.value();
   int _revision = 0;
+  LocalStoreLoadIssue? _loadIssue;
 
   FileLocalMediaCollectionRepository({this.rootDirectory});
 
   @override
   Stream<int> get changes => _changeController.stream;
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  Future<void> _ensureLoaded() => _loader.ensureLoaded();
+
+  /// Loads, then refuses to continue a mutation of a partly read store.
+  Future<void> _ensureWritable() async {
+    await _ensureLoaded();
+    final issue = _loadIssue;
+    if (issue != null) throw LocalStoreIncompleteException(issue);
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -79,62 +96,142 @@ class FileLocalMediaCollectionRepository
         'The local media collections are invalid and no recoverable copy is available. ${file.path}',
       );
     }
-    if (!await file.exists()) return;
-
-    try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return;
-
-      final rawFavorites = decoded['favorites'];
-      if (rawFavorites is List) {
-        final seen = <String>{};
-        for (final raw in rawFavorites) {
-          if (raw is! String || raw.trim().isEmpty) continue;
-          final canonical = _canonicalPath(raw);
-          if (seen.add(_pathKey(canonical))) {
-            _favoritePaths.add(canonical);
-          }
-        }
-      }
-
-      final rawPlaylists = decoded['playlists'];
-      if (rawPlaylists is List) {
-        final seenIds = <String>{};
-        for (final raw in rawPlaylists) {
-          if (raw is! Map) continue;
-          try {
-            final parsed = LocalPlaylist.fromJson(
-              Map<String, dynamic>.from(raw),
-            );
-            if (parsed.id.trim().isEmpty || parsed.name.trim().isEmpty) {
-              continue;
-            }
-            if (!seenIds.add(parsed.id)) continue;
-
-            final seenPaths = <String>{};
-            final canonicalPaths = <String>[];
-            for (final path in parsed.sourcePaths) {
-              if (path.trim().isEmpty) continue;
-              final canonical = _canonicalPath(path);
-              if (seenPaths.add(_pathKey(canonical))) {
-                canonicalPaths.add(canonical);
-              }
-            }
-            _playlists.add(
-              parsed.copyWith(
-                sourcePaths: List<String>.unmodifiable(canonicalPaths),
-              ),
-            );
-          } catch (_) {
-            // Keep the rest of the collection file usable when one row is bad.
-          }
-        }
-      }
-      _sortPlaylists();
-    } catch (_) {
-      _favoritePaths.clear();
-      _playlists.clear();
+    if (!await file.exists()) {
+      _commitLoad(const [], const [], null);
+      return;
     }
+
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(await file.readAsString());
+    } catch (error) {
+      throw FormatException(
+        'The local media collections could not be read completely: $error',
+        file.path,
+      );
+    }
+    if (!_isValidStoreJson(decoded)) {
+      throw FormatException(
+        'The local media collections changed or became invalid while loading.',
+        file.path,
+      );
+    }
+    final payload = decoded as Map;
+
+    final favorites = <String>[];
+    final playlists = <LocalPlaylist>[];
+    var unreadable = 0;
+    String? firstProblem;
+    void skip(String problem) {
+      unreadable += 1;
+      firstProblem ??= problem;
+    }
+
+    final rawFavorites = payload['favorites'];
+    if (rawFavorites is List) {
+      final seen = <String>{};
+      for (var index = 0; index < rawFavorites.length; index++) {
+        final raw = rawFavorites[index];
+        if (raw is! String) {
+          skip('Favorite ${index + 1} is not a path.');
+          continue;
+        }
+        if (raw.trim().isEmpty) continue;
+        final canonical = _canonicalPath(raw);
+        if (seen.add(_pathKey(canonical))) favorites.add(canonical);
+      }
+    }
+
+    final rawPlaylists = payload['playlists'];
+    if (rawPlaylists is List) {
+      final seenIds = <String>{};
+      for (var index = 0; index < rawPlaylists.length; index++) {
+        final raw = rawPlaylists[index];
+        try {
+          if (raw is! Map) throw const FormatException('Not an object');
+          final parsed = LocalPlaylist.fromJson(Map<String, dynamic>.from(raw));
+          if (parsed.id.trim().isEmpty || parsed.name.trim().isEmpty) {
+            throw const FormatException('Missing playlist id or name');
+          }
+          // A second playlist with the same id is distinct user data; dropping
+          // it on the next write would lose its songs.
+          if (!seenIds.add(parsed.id)) {
+            throw FormatException('Duplicate playlist id ${parsed.id}');
+          }
+
+          final seenPaths = <String>{};
+          final canonicalPaths = <String>[];
+          for (final path in parsed.sourcePaths) {
+            if (path.trim().isEmpty) continue;
+            final canonical = _canonicalPath(path);
+            if (seenPaths.add(_pathKey(canonical))) {
+              canonicalPaths.add(canonical);
+            }
+          }
+          playlists.add(
+            parsed.copyWith(
+              sourcePaths: List<String>.unmodifiable(canonicalPaths),
+            ),
+          );
+        } catch (error) {
+          skip('Playlist ${index + 1} could not be read: $error');
+        }
+      }
+    }
+
+    _commitLoad(
+      favorites,
+      playlists,
+      unreadable == 0
+          ? null
+          : LocalStoreLoadIssue(
+              kind: LocalStoreKind.collections,
+              storePath: file.path,
+              unreadableRecords: unreadable,
+              readableRecords: favorites.length + playlists.length,
+              detail: firstProblem!,
+            ),
+    );
+  }
+
+  void _commitLoad(
+    List<String> favorites,
+    List<LocalPlaylist> playlists,
+    LocalStoreLoadIssue? issue,
+  ) {
+    _favoritePaths
+      ..clear()
+      ..addAll(favorites);
+    _playlists
+      ..clear()
+      ..addAll(playlists);
+    _loadIssue = issue;
+    _sortPlaylists();
+  }
+
+  @override
+  Future<LocalStoreLoadIssue?> loadIssue() async {
+    await _ensureLoaded();
+    return _loadIssue;
+  }
+
+  @override
+  Future<LocalStoreRepairResult> repairKeepingReadableRecords() async {
+    await _ensureLoaded();
+    final issue = _loadIssue;
+    if (issue == null) {
+      throw StateError('The local media collections have no load issue.');
+    }
+    final preserved = await preserveIncompleteStoreCopy(File(issue.storePath));
+    await _persistUnchecked();
+    _loadIssue = null;
+    _revision += 1;
+    _changeController.add(_revision);
+    return LocalStoreRepairResult(
+      preservedCopyPath: preserved,
+      keptRecords: issue.readableRecords,
+      droppedRecords: issue.unreadableRecords,
+    );
   }
 
   void _sortPlaylists() {
@@ -146,6 +243,14 @@ class FileLocalMediaCollectionRepository
   }
 
   Future<void> _persist() {
+    final issue = _loadIssue;
+    if (issue != null) {
+      return Future<void>.error(LocalStoreIncompleteException(issue));
+    }
+    return _persistUnchecked();
+  }
+
+  Future<void> _persistUnchecked() {
     final payload = const JsonEncoder.withIndent('  ').convert({
       'version': _schemaVersion,
       'favorites': _favoritePaths,
@@ -197,7 +302,7 @@ class FileLocalMediaCollectionRepository
 
   @override
   Future<bool> setFavorite(String sourcePath, bool favorite) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     if (sourcePath.trim().isEmpty) return false;
 
     final canonical = _canonicalPath(sourcePath);
@@ -234,7 +339,7 @@ class FileLocalMediaCollectionRepository
     String name, {
     String? description,
   }) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
       throw ArgumentError.value(name, 'name', 'Playlist name cannot be empty');
@@ -267,7 +372,7 @@ class FileLocalMediaCollectionRepository
 
   @override
   Future<LocalPlaylist> renamePlaylist(String playlistId, String name) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
       throw ArgumentError.value(name, 'name', 'Playlist name cannot be empty');
@@ -285,7 +390,7 @@ class FileLocalMediaCollectionRepository
 
   @override
   Future<void> deletePlaylist(String playlistId) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final before = _playlists.length;
     _playlists.removeWhere((item) => item.id == playlistId);
     if (_playlists.length != before) await _persistAndNotify();
@@ -296,7 +401,7 @@ class FileLocalMediaCollectionRepository
     String playlistId,
     Iterable<String> sourcePaths,
   ) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final index = _playlistIndex(playlistId);
     final current = _playlists[index];
     final paths = List<String>.from(current.sourcePaths);
@@ -328,7 +433,7 @@ class FileLocalMediaCollectionRepository
     String playlistId,
     String sourcePath,
   ) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final index = _playlistIndex(playlistId);
     final current = _playlists[index];
     final key = _pathKey(sourcePath);
@@ -353,7 +458,7 @@ class FileLocalMediaCollectionRepository
     int oldIndex,
     int newIndex,
   ) async {
-    await _ensureLoaded();
+    await _ensureWritable();
     final playlistIndex = _playlistIndex(playlistId);
     final current = _playlists[playlistIndex];
     final paths = List<String>.from(current.sourcePaths);

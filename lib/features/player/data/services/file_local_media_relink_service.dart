@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/repositories/local_store_integrity.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../repositories/file_play_history_repository.dart';
 
@@ -32,6 +33,14 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
     final dot = path.lastIndexOf('.');
     if (dot < 0 || dot == path.length - 1) return false;
     return supportedExtensions.contains(path.substring(dot + 1).toLowerCase());
+  }
+
+  Future<void> _ensureStoresWritable() async {
+    for (final store in <Object>[libraryRepository, collectionRepository]) {
+      if (store is! LocalStoreIntegrity) continue;
+      final issue = await store.loadIssue();
+      if (issue != null) throw LocalStoreIncompleteException(issue);
+    }
   }
 
   @override
@@ -93,6 +102,11 @@ class FileLocalMediaRelinkService implements LocalMediaRelinkService {
     if (oldMetadata != null && newMetadata != null) {
       throw StateError('目标音频已有歌曲资料，无法安全覆盖；请先处理资料冲突');
     }
+
+    // A partly readable library or collection store refuses writes. Check both
+    // now so relinking fails before the first store changes instead of
+    // stopping halfway with the replacement added but favorites not moved.
+    await _ensureStoresWritable();
 
     // Add the replacement first. The old row and its metadata stay intact until
     // every related store has received the replacement path. A failed migration

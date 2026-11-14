@@ -551,6 +551,101 @@ void main() {
     },
   );
 
+  test(
+    'a rejection reaches a client that keeps streaming, after cleanup (#441)',
+    () async {
+      service = createService(
+        maxIncomingAudioBytes: 1024 * 1024,
+        idleTimeout: const Duration(seconds: 30),
+        totalTimeout: const Duration(seconds: 2),
+      );
+      final session = await service.startSharing(const []);
+      final socket = await _openPinnedSocket(session);
+      addTearDown(socket.destroy);
+      final reader = _RawResponseReader(socket);
+      List<String>? entriesWhenAnswered;
+      socket.write(
+        _rawChunkedHeaders(session, 'streaming.mp3') + '1\r\nx\r\n',
+      );
+      await socket.flush();
+
+      // Write far more often than the original 30 ms cadence so request bytes
+      // are almost always in flight while the hub answers.
+      for (var index = 0; index < 2000; index++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        if (reader.hasStarted) {
+          entriesWhenAnswered = await incomingDirectory
+              .list()
+              .map((entity) => entity.path)
+              .toList();
+          break;
+        }
+        try {
+          socket.write('4\r\nabcd\r\n');
+          await socket.flush();
+        } on SocketException {
+          break;
+        } on TlsException {
+          break;
+        } on StateError {
+          break;
+        }
+      }
+
+      final response = await reader.response.timeout(
+        const Duration(seconds: 15),
+      );
+      expect(response, startsWith('HTTP/1.1 408'));
+      // The complete JSON body arrived, not just the status line.
+      final body = response.substring(response.indexOf('\r\n\r\n') + 4);
+      expect(jsonDecode(body), {'error': 'upload_total_timeout'});
+      // Partial file and reservation marker were gone before the answer.
+      expect(entriesWhenAnswered, isEmpty);
+    },
+  );
+
+  test(
+    'upload slot is free as soon as a successful upload is answered',
+    () async {
+      final session = await service.startSharing(const []);
+      final client = _pinnedHttpClient(session.tlsFingerprint!);
+      addTearDown(() => client.close(force: true));
+      for (final name in ['first-slot.mp3', 'second-slot.mp3']) {
+        final request = await client.postUrl(
+          Uri(
+            scheme: 'https',
+            host: InternetAddress.loopbackIPv4.address,
+            port: session.port,
+            path: '/v1/incoming/audio',
+            queryParameters: {'filename': name},
+          ),
+        );
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${session.token}',
+        );
+        request.contentLength = 3;
+        request.add(const [1, 2, 3]);
+        final response = await request.close();
+        await response.drain<void>();
+        // A slot released only after the response would make the immediate
+        // follow-up upload fail with 429 upload_limit_reached.
+        expect(response.statusCode, HttpStatus.created, reason: name);
+      }
+      expect(imported, hasLength(2));
+    },
+  );
+
+  test('rejects a negative rejection drain grace', () {
+    expect(
+      () => HttpMediaHubService(
+        incomingDirectory: incomingDirectory,
+        incomingRejectionDrainGrace: const Duration(milliseconds: -1),
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('rejects a second simultaneous upload for the same session', () async {
     final probeStarted = Completer<void>();
     service = createService(
