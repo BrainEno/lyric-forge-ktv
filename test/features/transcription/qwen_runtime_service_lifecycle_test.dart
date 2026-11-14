@@ -208,8 +208,13 @@ void main() {
           runtime.launches.first.secretLine == null) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
+      // Listen before cancelling: the aborted task fails immediately.
+      final outcome = expectLater(
+        running,
+        failure(TranscriptionFailureKind.cancelled),
+      );
       await service.cancel();
-      await expectLater(running, failure(TranscriptionFailureKind.cancelled));
+      await outcome;
       await settle();
 
       expect(runtime.launches.first.exited, isTrue);
@@ -244,8 +249,13 @@ void main() {
       }().timeout(const Duration(seconds: 5));
       // The request is recorded only once the full body arrived; the fake
       // is now sleeping inside inference.
+      // Listen before cancelling: the aborted task fails immediately.
+      final outcome = expectLater(
+        running,
+        failure(TranscriptionFailureKind.cancelled),
+      );
       await service.cancel();
-      await expectLater(running, failure(TranscriptionFailureKind.cancelled));
+      await outcome;
       await settle();
 
       expect(process.exited, isTrue);

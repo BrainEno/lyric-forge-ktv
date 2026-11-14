@@ -151,7 +151,10 @@ void main() {
     }) => launcher.start(
       executable: '/opt/runtime/qwen3-asr',
       serveArguments: QwenRuntimeSessionProtocol.serveArguments(
-        const TranscriptionConfig(),
+        const TranscriptionConfig(
+          whisperExecutable: 'unused-whisper',
+          modelPath: 'unused-whisper-model',
+        ),
       ),
       startupTimeout: startupTimeout,
       isCancelled: isCancelled,
