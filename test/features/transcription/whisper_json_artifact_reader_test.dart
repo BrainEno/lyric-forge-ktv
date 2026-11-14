@@ -48,13 +48,12 @@ void main() {
       (await reader.read('bad\u0000path')).status,
       WhisperJsonArtifactStatus.invalidPath,
     );
-    expect(
-      (await reader.read(
-        List.filled(WhisperJsonArtifactReader.maxPathCharacters + 1, 'x').join(),
-      ))
-          .status,
-      WhisperJsonArtifactStatus.invalidPath,
-    );
+    final overlongPath = List.filled(
+      WhisperJsonArtifactReader.maxPathCharacters + 1,
+      'x',
+    ).join();
+    final overlongResult = await reader.read(overlongPath);
+    expect(overlongResult.status, WhisperJsonArtifactStatus.invalidPath);
     expect(
       (await reader.read('${root.path}/missing.json')).status,
       WhisperJsonArtifactStatus.missing,
@@ -75,58 +74,67 @@ void main() {
     expect(result.parsed!.document.metadata['rawJsonPath'], file.path);
   });
 
-  test('rejects directories, empty files, oversized and invalid-UTF8 files', () async {
-    expect(
-      (await reader.read(root.path)).status,
-      WhisperJsonArtifactStatus.notRegularFile,
-    );
+  test(
+    'rejects directories, empty files, oversized and invalid-UTF8 files',
+    () async {
+      expect(
+        (await reader.read(root.path)).status,
+        WhisperJsonArtifactStatus.notRegularFile,
+      );
 
-    final empty = File('${root.path}/empty.json');
-    await empty.create();
-    expect((await reader.read(empty.path)).status, WhisperJsonArtifactStatus.empty);
+      final empty = File('${root.path}/empty.json');
+      await empty.create();
+      expect(
+        (await reader.read(empty.path)).status,
+        WhisperJsonArtifactStatus.empty,
+      );
 
-    final tooLarge = File('${root.path}/large.json');
-    await tooLarge.writeAsString(response());
-    expect(
-      (await const WhisperJsonArtifactReader(maxArtifactBytes: 2).read(
-        tooLarge.path,
-      )).status,
-      WhisperJsonArtifactStatus.tooLarge,
-    );
+      final tooLarge = File('${root.path}/large.json');
+      await tooLarge.writeAsString(response());
+      expect(
+        (await const WhisperJsonArtifactReader(maxArtifactBytes: 2).read(
+          tooLarge.path,
+        )).status,
+        WhisperJsonArtifactStatus.tooLarge,
+      );
 
-    final invalidUtf8 = File('${root.path}/invalid-utf8.json');
-    await invalidUtf8.writeAsBytes([0xff, 0xfe, 0xfd]);
-    expect(
-      (await reader.read(invalidUtf8.path)).status,
-      WhisperJsonArtifactStatus.invalidEncoding,
-    );
-  });
+      final invalidUtf8 = File('${root.path}/invalid-utf8.json');
+      await invalidUtf8.writeAsBytes([0xff, 0xfe, 0xfd]);
+      expect(
+        (await reader.read(invalidUtf8.path)).status,
+        WhisperJsonArtifactStatus.invalidEncoding,
+      );
+    },
+  );
 
-  test('distinguishes invalid JSON from JSON without usable lyric rows', () async {
-    final invalid = File('${root.path}/invalid.json');
-    await invalid.writeAsString('{not json');
-    expect(
-      (await reader.read(invalid.path)).status,
-      WhisperJsonArtifactStatus.invalidJson,
-    );
+  test(
+    'distinguishes invalid JSON from JSON without usable lyric rows',
+    () async {
+      final invalid = File('${root.path}/invalid.json');
+      await invalid.writeAsString('{not json');
+      expect(
+        (await reader.read(invalid.path)).status,
+        WhisperJsonArtifactStatus.invalidJson,
+      );
 
-    final noRows = File('${root.path}/no-rows.json');
-    await noRows.writeAsString(
-      jsonEncode({
-        'result': {'language': 'en'},
-        'transcription': [
-          {
-            'text': '   ',
-            'offsets': {'from': 0, 'to': 1000},
-          },
-        ],
-      }),
-    );
-    expect(
-      (await reader.read(noRows.path)).status,
-      WhisperJsonArtifactStatus.noUsableSegments,
-    );
-  });
+      final noRows = File('${root.path}/no-rows.json');
+      await noRows.writeAsString(
+        jsonEncode({
+          'result': {'language': 'en'},
+          'transcription': [
+            {
+              'text': '   ',
+              'offsets': {'from': 0, 'to': 1000},
+            },
+          ],
+        }),
+      );
+      expect(
+        (await reader.read(noRows.path)).status,
+        WhisperJsonArtifactStatus.noUsableSegments,
+      );
+    },
+  );
 
   test('does not follow a symbolic link to an arbitrary file', () async {
     final target = File('${root.path}/target.json');

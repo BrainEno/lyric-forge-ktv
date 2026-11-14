@@ -19,11 +19,13 @@ Map<String, Object?> segment({
   if (tokens != null) 'tokens': tokens,
 };
 
-Map<String, Object?> response(List<Object?> segments, {Object? language = 'en'}) =>
-    {
-      'result': {'language': language},
-      'transcription': segments,
-    };
+Map<String, Object?> response(
+  List<Object?> segments, {
+  Object? language = 'en',
+}) => {
+  'result': {'language': language},
+  'transcription': segments,
+};
 
 void main() {
   const parser = WhisperJsonTranscriptParser();
@@ -42,8 +44,14 @@ void main() {
       expect(parsed.document.language, 'en');
       expect(parsed.document.metadata['rawJsonPath'], '/tmp/whisper.json');
       expect(parsed.document.lines.single.text, 'hello world');
-      expect(parsed.document.lines.single.startTime, const Duration(milliseconds: 1200));
-      expect(parsed.document.lines.single.endTime, const Duration(milliseconds: 2800));
+      expect(
+        parsed.document.lines.single.startTime,
+        const Duration(milliseconds: 1200),
+      );
+      expect(
+        parsed.document.lines.single.endTime,
+        const Duration(milliseconds: 2800),
+      );
       expect(parsed.document.lines.single.confidence, 70);
       expect(
         parsed.document.lines.single.confidenceSource,
@@ -76,7 +84,10 @@ void main() {
         ),
       );
 
-      expect(parsed.document.lines.first.confidence, unscoredConfidencePlaceholder);
+      expect(
+        parsed.document.lines.first.confidence,
+        unscoredConfidencePlaceholder,
+      );
       expect(
         parsed.document.lines.first.confidenceSource,
         LyricConfidenceSource.unscored,
@@ -86,7 +97,10 @@ void main() {
         parsed.document.lines[1].confidenceSource,
         LyricConfidenceSource.model,
       );
-      expect(parsed.document.lines.last.text, 'text survives malformed score data');
+      expect(
+        parsed.document.lines.last.text,
+        'text survives malformed score data',
+      );
       expect(
         parsed.document.lines.last.confidenceSource,
         LyricConfidenceSource.unscored,
@@ -104,7 +118,9 @@ void main() {
             segment(text: 99),
             segment(from: -1),
             segment(from: 500, to: 500),
-            segment(from: WhisperJsonTranscriptParser.maxTimelineMilliseconds + 1),
+            segment(
+              from: WhisperJsonTranscriptParser.maxTimelineMilliseconds + 1,
+            ),
             segment(),
           ]),
         ),
@@ -153,20 +169,23 @@ void main() {
   });
 
   group('invalid response envelopes', () {
-    test('rejects malformed JSON and non-object roots as environment errors', () {
-      for (final source in ['{broken', '[]', 'null', '"text"']) {
-        expect(
-          () => parser.parse(source),
-          throwsA(
-            isA<TranscriptionException>().having(
-              (error) => error.kind,
-              'kind',
-              TranscriptionFailureKind.environment,
+    test(
+      'rejects malformed JSON and non-object roots as environment errors',
+      () {
+        for (final source in ['{broken', '[]', 'null', '"text"']) {
+          expect(
+            () => parser.parse(source),
+            throwsA(
+              isA<TranscriptionException>().having(
+                (error) => error.kind,
+                'kind',
+                TranscriptionFailureKind.environment,
+              ),
             ),
-          ),
-        );
-      }
-    });
+          );
+        }
+      },
+    );
 
     test('requires transcription list and at least one usable line', () {
       expect(

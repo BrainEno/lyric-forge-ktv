@@ -527,58 +527,63 @@ void main() {
       expect(hint.capturedAtUtc, DateTime.utc(2026, 11, 7));
     });
 
-    test('edited draft offers originals only and never preselects them', () async {
-      final edited = primary.copyWith(
-        lines: [
-          primary.lines.first.copyWith(text: 'edited line'),
-          primary.lines.last,
-        ],
-      );
-      final hint = await loader.preview(
-        projectId: id,
-        expectedProjectRevision: revision,
-        draft: edited,
-      );
-      expect(
-        hint.status,
-        ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
-      );
-      expect(hint.shouldOffer, isTrue);
-      expect(hint.shouldSelectByDefault, isFalse);
-    });
+    test(
+      'edited draft offers originals only and never preselects them',
+      () async {
+        final edited = primary.copyWith(
+          lines: [
+            primary.lines.first.copyWith(text: 'edited line'),
+            primary.lines.last,
+          ],
+        );
+        final hint = await loader.preview(
+          projectId: id,
+          expectedProjectRevision: revision,
+          draft: edited,
+        );
+        expect(
+          hint.status,
+          ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
+        );
+        expect(hint.shouldOffer, isTrue);
+        expect(hint.shouldSelectByDefault, isFalse);
+      },
+    );
 
-    test('unverified, missing and malformed evidence are never preselected',
-        () async {
-      await save(evidence());
-      final unverified = await loader.preview(
-        projectId: id,
-        expectedProjectRevision: revision,
-        draft: primary,
-      );
-      expect(
-        unverified.status,
-        ProjectProofreadEvidenceHintStatus.unverifiedAudio,
-      );
-      expect(unverified.shouldOffer, isFalse);
+    test(
+      'unverified, missing and malformed evidence are never preselected',
+      () async {
+        await save(evidence());
+        final unverified = await loader.preview(
+          projectId: id,
+          expectedProjectRevision: revision,
+          draft: primary,
+        );
+        expect(
+          unverified.status,
+          ProjectProofreadEvidenceHintStatus.unverifiedAudio,
+        );
+        expect(unverified.shouldOffer, isFalse);
 
-      await save(null);
-      final missing = await loader.preview(
-        projectId: id,
-        expectedProjectRevision: revision,
-        draft: primary,
-      );
-      expect(missing.status, ProjectProofreadEvidenceHintStatus.notFound);
-      expect(missing.shouldOffer, isFalse);
+        await save(null);
+        final missing = await loader.preview(
+          projectId: id,
+          expectedProjectRevision: revision,
+          draft: primary,
+        );
+        expect(missing.status, ProjectProofreadEvidenceHintStatus.notFound);
+        expect(missing.shouldOffer, isFalse);
 
-      await save({'schemaVersion': 99});
-      final malformed = await loader.preview(
-        projectId: id,
-        expectedProjectRevision: revision,
-        draft: primary,
-      );
-      expect(malformed.status, ProjectProofreadEvidenceHintStatus.invalid);
-      expect(malformed.shouldSelectByDefault, isFalse);
-    });
+        await save({'schemaVersion': 99});
+        final malformed = await loader.preview(
+          projectId: id,
+          expectedProjectRevision: revision,
+          draft: primary,
+        );
+        expect(malformed.status, ProjectProofreadEvidenceHintStatus.invalid);
+        expect(malformed.shouldSelectByDefault, isFalse);
+      },
+    );
 
     test('revision mismatch does not read stale project hints', () async {
       final hint = await loader.preview(
@@ -590,21 +595,24 @@ void main() {
       expect(hint.shouldOffer, isFalse);
     });
 
-    test('nonzero draft offset cannot select absolute-time snapshots', () async {
-      final shifted = primary.copyWith(
-        globalOffset: const Duration(milliseconds: 1),
-      );
-      final hint = await loader.preview(
-        projectId: id,
-        expectedProjectRevision: revision,
-        draft: shifted,
-      );
-      expect(
-        hint.status,
-        ProjectProofreadEvidenceHintStatus.unsupportedOffsets,
-      );
-      expect(hint.shouldSelectByDefault, isFalse);
-    });
+    test(
+      'nonzero draft offset cannot select absolute-time snapshots',
+      () async {
+        final shifted = primary.copyWith(
+          globalOffset: const Duration(milliseconds: 1),
+        );
+        final hint = await loader.preview(
+          projectId: id,
+          expectedProjectRevision: revision,
+          draft: shifted,
+        );
+        expect(
+          hint.status,
+          ProjectProofreadEvidenceHintStatus.unsupportedOffsets,
+        );
+        expect(hint.shouldSelectByDefault, isFalse);
+      },
+    );
   });
 
   group('Whisper raw JSON artifact cross-check', () {
@@ -627,105 +635,128 @@ void main() {
       return file;
     }
 
-    test('reads the Whisper path only when it matches the verified snapshot',
-        () async {
-      final artifactFile = await writeWhisperArtifact();
-      await save(
-        evidence(sourceHash: hash),
-        extraMetadata: {'whisperRawJsonPath': artifactFile.path},
-      );
-      var reads = 0;
-      loader = VerifiedProjectProofreadEvidenceLoader(
-        projects: repo,
-        readWhisperArtifact: (path) async {
-          reads++;
-          return const WhisperJsonArtifactReader().read(path);
-        },
-      );
-
-      final result = await load();
-
-      expect(reads, 1);
-      expect(result.status, ProjectProofreadEvidenceStatus.available);
-      expect(result.secondary!.lines.single.text, 'another line');
-      expect(result.secondary!.metadata['rawJsonPath'], artifactFile.path);
-    });
-
-    test('ignores a stale or replaced Whisper artifact and keeps the snapshot',
-        () async {
-      final artifactFile = await writeWhisperArtifact(text: 'stale lyric');
-      await save(
-        evidence(sourceHash: hash),
-        extraMetadata: {'whisperRawJsonPath': artifactFile.path},
-      );
-
-      final result = await load();
-
-      expect(result.status, ProjectProofreadEvidenceStatus.available);
-      expect(result.secondary!.lines.single.text, 'another line');
-      expect(result.secondary!.metadata, isEmpty);
-    });
-
-    test('requires every parsed line field to match the verified snapshot', () async {
-      final artifactFile = await writeWhisperArtifact();
-      final variants = [
-        secondary.copyWith(
-          lines: [secondary.lines.single.copyWith(startTime: const Duration(milliseconds: 1))],
-        ),
-        secondary.copyWith(
-          lines: [secondary.lines.single.copyWith(confidence: 99)],
-        ),
-        secondary.copyWith(
-          lines: [
-            secondary.lines.single.copyWith(
-              confidenceSource: LyricConfidenceSource.heuristic,
-            ),
-          ],
-        ),
-        secondary.copyWith(
-          lines: [secondary.lines.single.copyWith(isChorus: true)],
-        ),
-        secondary.copyWith(
-          lines: [secondary.lines.single.copyWith(id: 'stored-line')],
-        ),
-      ];
-
-      for (final snapshot in variants) {
+    test(
+      'reads the Whisper path only when it matches the verified snapshot',
+      () async {
+        final artifactFile = await writeWhisperArtifact();
         await save(
-          evidence(sourceHash: hash, secondaryDoc: snapshot),
+          evidence(sourceHash: hash),
+          extraMetadata: {'whisperRawJsonPath': artifactFile.path},
+        );
+        var reads = 0;
+        loader = VerifiedProjectProofreadEvidenceLoader(
+          projects: repo,
+          readWhisperArtifact: (path) async {
+            reads++;
+            return const WhisperJsonArtifactReader().read(path);
+          },
+        );
+
+        final result = await load();
+
+        expect(reads, 1);
+        expect(result.status, ProjectProofreadEvidenceStatus.available);
+        expect(result.secondary!.lines.single.text, 'another line');
+        expect(result.secondary!.metadata['rawJsonPath'], artifactFile.path);
+      },
+    );
+
+    test(
+      'ignores a stale or replaced Whisper artifact and keeps the snapshot',
+      () async {
+        final artifactFile = await writeWhisperArtifact(text: 'stale lyric');
+        await save(
+          evidence(sourceHash: hash),
           extraMetadata: {'whisperRawJsonPath': artifactFile.path},
         );
 
         final result = await load();
 
         expect(result.status, ProjectProofreadEvidenceStatus.available);
-        expect(result.secondary!.lines.single.toJson(),
-            snapshot.lines.single.toJson());
+        expect(result.secondary!.lines.single.text, 'another line');
         expect(result.secondary!.metadata, isEmpty);
-      }
-    });
+      },
+    );
 
-    test('missing or failed raw reads fall back to the inline snapshot', () async {
-      await save(evidence(sourceHash: hash));
-      final missingPathResult = await load();
-      expect(missingPathResult.status, ProjectProofreadEvidenceStatus.available);
-      expect(missingPathResult.secondary!.toJson(), secondary.toJson());
+    test(
+      'requires every parsed line field to match the verified snapshot',
+      () async {
+        final artifactFile = await writeWhisperArtifact();
+        final variants = [
+          secondary.copyWith(
+            lines: [
+              secondary.lines.single.copyWith(
+                startTime: const Duration(milliseconds: 1),
+              ),
+            ],
+          ),
+          secondary.copyWith(
+            lines: [secondary.lines.single.copyWith(confidence: 99)],
+          ),
+          secondary.copyWith(
+            lines: [
+              secondary.lines.single.copyWith(
+                confidenceSource: LyricConfidenceSource.heuristic,
+              ),
+            ],
+          ),
+          secondary.copyWith(
+            lines: [secondary.lines.single.copyWith(isChorus: true)],
+          ),
+          secondary.copyWith(
+            lines: [secondary.lines.single.copyWith(id: 'stored-line')],
+          ),
+        ];
 
-      final artifactFile = await writeWhisperArtifact();
-      await save(
-        evidence(sourceHash: hash),
-        extraMetadata: {'whisperRawJsonPath': artifactFile.path},
-      );
-      loader = VerifiedProjectProofreadEvidenceLoader(
-        projects: repo,
-        readWhisperArtifact: (_) async =>
-            throw const FileSystemException('simulated read failure'),
-      );
+        for (final snapshot in variants) {
+          await save(
+            evidence(sourceHash: hash, secondaryDoc: snapshot),
+            extraMetadata: {'whisperRawJsonPath': artifactFile.path},
+          );
 
-      final failedReadResult = await load();
-      expect(failedReadResult.status, ProjectProofreadEvidenceStatus.available);
-      expect(failedReadResult.secondary!.toJson(), secondary.toJson());
-    });
+          final result = await load();
+
+          expect(result.status, ProjectProofreadEvidenceStatus.available);
+          expect(
+            result.secondary!.lines.single.toJson(),
+            snapshot.lines.single.toJson(),
+          );
+          expect(result.secondary!.metadata, isEmpty);
+        }
+      },
+    );
+
+    test(
+      'missing or failed raw reads fall back to the inline snapshot',
+      () async {
+        await save(evidence(sourceHash: hash));
+        final missingPathResult = await load();
+        expect(
+          missingPathResult.status,
+          ProjectProofreadEvidenceStatus.available,
+        );
+        expect(missingPathResult.secondary!.toJson(), secondary.toJson());
+
+        final artifactFile = await writeWhisperArtifact();
+        await save(
+          evidence(sourceHash: hash),
+          extraMetadata: {'whisperRawJsonPath': artifactFile.path},
+        );
+        loader = VerifiedProjectProofreadEvidenceLoader(
+          projects: repo,
+          readWhisperArtifact: (_) async {
+            throw const FileSystemException('simulated read failure');
+          },
+        );
+
+        final failedReadResult = await load();
+        expect(
+          failedReadResult.status,
+          ProjectProofreadEvidenceStatus.available,
+        );
+        expect(failedReadResult.secondary!.toJson(), secondary.toJson());
+      },
+    );
 
     test('does not interpret the Whisper path as a Qwen transcript', () async {
       final artifactFile = await writeWhisperArtifact();

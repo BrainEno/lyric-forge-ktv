@@ -37,8 +37,7 @@ class LyricEditorDependencies {
 
   /// Cheap metadata-only hint for the V2 options dialog. It never supplies
   /// transcripts or replaces the full verification above.
-  final ProjectProofreadEvidencePreviewer?
-  projectProofreadEvidencePreviewer;
+  final ProjectProofreadEvidencePreviewer? projectProofreadEvidencePreviewer;
   final ReferenceAlignmentAudioGuard? referenceAlignmentAudioGuard;
 
   const LyricEditorDependencies({
