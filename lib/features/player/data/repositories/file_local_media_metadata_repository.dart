@@ -28,7 +28,26 @@ class FileLocalMediaMetadataRepository
 
   FileLocalMediaMetadataRepository({this.rootDirectory});
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  /// A partial display snapshot is intentionally not authoritative. Re-read it
+  /// on the next access so an external repair becomes visible without forcing
+  /// the user to restart the application. A genuinely failed attempt is also
+  /// cleared, while concurrent callers still share its single Future.
+  Future<void> _ensureLoaded() {
+    final existing = _loadFuture;
+    if (existing != null && _incompleteLoad == null) return existing;
+    if (existing != null && _incompleteLoad != null) _loadFuture = null;
+
+    late final Future<void> load;
+    load = _load().then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_loadFuture, load)) _loadFuture = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+    _loadFuture = load;
+    return load;
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -66,6 +85,13 @@ class FileLocalMediaMetadataRepository
 
   String _key(String sourcePath) => _normalizedPath(sourcePath);
 
+  /// Builds a fresh display snapshot before publishing it.
+  ///
+  /// Metadata keeps its historical best-effort read contract for artwork and
+  /// labels, but marks any incomplete source as non-authoritative. Building in
+  /// local variables is essential because incomplete snapshots are retried by
+  /// [_ensureLoaded]; appending into the old map would duplicate stale rows or
+  /// make a repaired document look partially corrupt forever.
   Future<void> _load() async {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
@@ -75,58 +101,69 @@ class FileLocalMediaMetadataRepository
           validate: _isValidStoreJson,
         )) {
       throw FormatException(
-        'The local media metadata is invalid and no recoverable copy is available. ${file.path}',
+        'The local media metadata is invalid and no recoverable copy is available.',
+        file.path,
       );
     }
-    if (!await file.exists()) return;
+    if (!await file.exists()) {
+      _entries.clear();
+      _incompleteLoad = null;
+      return;
+    }
 
+    final restoredEntries = <String, LocalMediaMetadata>{};
+    FormatException? incomplete;
     try {
       final decoded = jsonDecode(await file.readAsString(encoding: utf8));
       if (!_isValidStoreJson(decoded)) {
-        _incompleteLoad = FormatException(
+        incomplete = FormatException(
           'Local media metadata changed or became invalid while loading. '
           'Association reads and writes are disabled to preserve the original file.',
           file.path,
         );
-        return;
-      }
-
-      final items = (decoded as Map)['items'] as List;
-      for (var index = 0; index < items.length; index++) {
-        final raw = items[index];
-        try {
-          if (raw is! Map ||
-              (raw['metadata'] != null && raw['metadata'] is! Map)) {
-            throw const FormatException('Invalid metadata record');
-          }
-          final entry = LocalMediaMetadata.fromJson(
-            Map<String, dynamic>.from(raw),
-          );
-          final key = _key(entry.sourcePath);
-          if (_entries.containsKey(key)) {
-            _incompleteLoad ??= FormatException(
-              'Local media metadata record ${index + 1} has a duplicate path. '
+      } else {
+        final items = (decoded as Map)['items'] as List;
+        for (var index = 0; index < items.length; index++) {
+          final raw = items[index];
+          try {
+            if (raw is! Map ||
+                (raw['metadata'] != null && raw['metadata'] is! Map)) {
+              throw const FormatException('Invalid metadata record');
+            }
+            final entry = LocalMediaMetadata.fromJson(
+              Map<String, dynamic>.from(raw),
+            );
+            final key = _key(entry.sourcePath);
+            if (restoredEntries.containsKey(key)) {
+              incomplete ??= FormatException(
+                'Local media metadata record ${index + 1} has a duplicate path. '
+                'Association reads and writes are disabled to preserve the original file.',
+                file.path,
+              );
+            }
+            restoredEntries[key] = entry;
+          } catch (_) {
+            // Keep valid entries readable but never persist a partial snapshot.
+            incomplete ??= FormatException(
+              'Local media metadata record ${index + 1} could not be read. '
               'Association reads and writes are disabled to preserve the original file.',
               file.path,
             );
           }
-          _entries[key] = entry;
-        } catch (_) {
-          // Keep valid entries readable but never persist a partial snapshot.
-          _incompleteLoad ??= FormatException(
-            'Local media metadata record ${index + 1} could not be read. '
-            'Association reads and writes are disabled to preserve the original file.',
-            file.path,
-          );
         }
       }
     } catch (_) {
-      _incompleteLoad = FormatException(
+      incomplete = FormatException(
         'Local media metadata could not be read completely. '
         'Association reads and writes are disabled to preserve the original file.',
         file.path,
       );
     }
+
+    _entries
+      ..clear()
+      ..addAll(restoredEntries);
+    _incompleteLoad = incomplete;
   }
 
   void _ensureComplete() {

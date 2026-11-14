@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-09 12:19] Show dashboard history read failures ([entry](log/entries/2026-11-09-1219-dashboard-history-errors.md))
 - [2026-11-09 11:54] Clarify project separation status ([entry](log/entries/2026-11-09-1154-clarify-project-separation-status.md))
 - [2026-11-09 01:51] Protect metadata during audio relink ([entry](log/entries/2026-11-09-0151-protect-relink-metadata.md))
 - [2026-11-08 00:47] Handle background lyric link failures ([entry](log/entries/2026-11-08-0047-handle-background-lyric-link-failures.md))

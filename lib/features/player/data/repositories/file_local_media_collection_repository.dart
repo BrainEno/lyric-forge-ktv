@@ -38,7 +38,23 @@ class FileLocalMediaCollectionRepository
   @override
   Stream<int> get changes => _changeController.stream;
 
-  Future<void> _ensureLoaded() => _loadFuture ??= _load();
+  /// Shares one restore attempt while it is running, then forgets a failed
+  /// attempt so the same repository can recover after storage is repaired.
+  Future<void> _ensureLoaded() {
+    final existing = _loadFuture;
+    if (existing != null) return existing;
+
+    late final Future<void> load;
+    load = _load().then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_loadFuture, load)) _loadFuture = null;
+        Error.throwWithStackTrace(error, stackTrace);
+      },
+    );
+    _loadFuture = load;
+    return load;
+  }
 
   Future<Directory> _dataDirectory() async {
     if (rootDirectory != null) {
@@ -67,6 +83,12 @@ class FileLocalMediaCollectionRepository
     return Platform.isWindows ? canonical.toLowerCase() : canonical;
   }
 
+  /// Parses every favorite and playlist before replacing the in-memory view.
+  ///
+  /// Favorites and playlist membership encode user intent. Skipping malformed
+  /// rows would make a later toggle, rename, or add operation overwrite the
+  /// only complete copy with an invented subset, so a bad row is a load error
+  /// rather than a best-effort migration.
   Future<void> _load() async {
     final file = await _storeFile();
     await AtomicJsonFile.recoverIfNeeded(file, validate: _isValidStoreJson);
@@ -76,65 +98,125 @@ class FileLocalMediaCollectionRepository
           validate: _isValidStoreJson,
         )) {
       throw FormatException(
-        'The local media collections are invalid and no recoverable copy is available. ${file.path}',
+        'The local media collections are invalid and no recoverable copy is available.',
+        file.path,
       );
     }
     if (!await file.exists()) return;
 
-    try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map) return;
-
-      final rawFavorites = decoded['favorites'];
-      if (rawFavorites is List) {
-        final seen = <String>{};
-        for (final raw in rawFavorites) {
-          if (raw is! String || raw.trim().isEmpty) continue;
-          final canonical = _canonicalPath(raw);
-          if (seen.add(_pathKey(canonical))) {
-            _favoritePaths.add(canonical);
-          }
-        }
-      }
-
-      final rawPlaylists = decoded['playlists'];
-      if (rawPlaylists is List) {
-        final seenIds = <String>{};
-        for (final raw in rawPlaylists) {
-          if (raw is! Map) continue;
-          try {
-            final parsed = LocalPlaylist.fromJson(
-              Map<String, dynamic>.from(raw),
-            );
-            if (parsed.id.trim().isEmpty || parsed.name.trim().isEmpty) {
-              continue;
-            }
-            if (!seenIds.add(parsed.id)) continue;
-
-            final seenPaths = <String>{};
-            final canonicalPaths = <String>[];
-            for (final path in parsed.sourcePaths) {
-              if (path.trim().isEmpty) continue;
-              final canonical = _canonicalPath(path);
-              if (seenPaths.add(_pathKey(canonical))) {
-                canonicalPaths.add(canonical);
-              }
-            }
-            _playlists.add(
-              parsed.copyWith(
-                sourcePaths: List<String>.unmodifiable(canonicalPaths),
-              ),
-            );
-          } catch (_) {
-            // Keep the rest of the collection file usable when one row is bad.
-          }
-        }
-      }
-      _sortPlaylists();
-    } catch (_) {
-      _favoritePaths.clear();
-      _playlists.clear();
+    final decoded = jsonDecode(await file.readAsString());
+    if (!_isValidStoreJson(decoded)) {
+      throw FormatException(
+        'The local media collections changed or became invalid while loading.',
+        file.path,
+      );
     }
+    final payload = decoded as Map;
+    final restoredFavorites = <String>[];
+    final restoredPlaylists = <LocalPlaylist>[];
+
+    final rawFavorites = payload['favorites'];
+    if (rawFavorites != null && rawFavorites is! List) {
+      throw FormatException(
+        'Local media collection favorites are invalid.',
+        file.path,
+      );
+    }
+    if (rawFavorites is List) {
+      final seenFavorites = <String>{};
+      for (var index = 0; index < rawFavorites.length; index++) {
+        final raw = rawFavorites[index];
+        if (raw is! String || raw.trim().isEmpty) {
+          throw FormatException('Favorite ${index + 1} is invalid.', file.path);
+        }
+        final canonical = _canonicalPath(raw);
+        if (!seenFavorites.add(_pathKey(canonical))) {
+          throw FormatException(
+            'Favorite ${index + 1} duplicates an earlier path.',
+            file.path,
+          );
+        }
+        restoredFavorites.add(canonical);
+      }
+    }
+
+    final rawPlaylists = payload['playlists'];
+    if (rawPlaylists != null && rawPlaylists is! List) {
+      throw FormatException(
+        'Local media collection playlists are invalid.',
+        file.path,
+      );
+    }
+    if (rawPlaylists is List) {
+      final seenIds = <String>{};
+      for (var index = 0; index < rawPlaylists.length; index++) {
+        final raw = rawPlaylists[index];
+        if (raw is! Map) {
+          throw FormatException(
+            'Playlist ${index + 1} is not an object.',
+            file.path,
+          );
+        }
+        late final LocalPlaylist parsed;
+        try {
+          parsed = LocalPlaylist.fromJson(Map<String, dynamic>.from(raw));
+        } catch (error) {
+          throw FormatException(
+            'Playlist ${index + 1} could not be read: $error',
+            file.path,
+          );
+        }
+        if (parsed.id.trim().isEmpty || parsed.name.trim().isEmpty) {
+          throw FormatException(
+            'Playlist ${index + 1} has no ID or name.',
+            file.path,
+          );
+        }
+        if (!seenIds.add(parsed.id)) {
+          throw FormatException(
+            'Playlist ${index + 1} duplicates an earlier ID.',
+            file.path,
+          );
+        }
+
+        final seenPaths = <String>{};
+        final canonicalPaths = <String>[];
+        for (
+          var pathIndex = 0;
+          pathIndex < parsed.sourcePaths.length;
+          pathIndex++
+        ) {
+          final path = parsed.sourcePaths[pathIndex];
+          if (path.trim().isEmpty) {
+            throw FormatException(
+              'Playlist ${index + 1} path ${pathIndex + 1} is invalid.',
+              file.path,
+            );
+          }
+          final canonical = _canonicalPath(path);
+          if (!seenPaths.add(_pathKey(canonical))) {
+            throw FormatException(
+              'Playlist ${index + 1} path ${pathIndex + 1} duplicates an earlier path.',
+              file.path,
+            );
+          }
+          canonicalPaths.add(canonical);
+        }
+        restoredPlaylists.add(
+          parsed.copyWith(
+            sourcePaths: List<String>.unmodifiable(canonicalPaths),
+          ),
+        );
+      }
+    }
+
+    _favoritePaths
+      ..clear()
+      ..addAll(restoredFavorites);
+    _playlists
+      ..clear()
+      ..addAll(restoredPlaylists);
+    _sortPlaylists();
   }
 
   void _sortPlaylists() {
