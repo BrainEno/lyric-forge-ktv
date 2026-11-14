@@ -45,6 +45,7 @@ jobs:
       - name: Run focused evidence and timeout tests
         shell: bash
         run: |
+          test_status=0
           for target in \
             test/features/lyrics/domain/proofreading/asr_first_pipeline_test.dart \
             test/features/lyrics/domain/proofreading/run_proofread_v2_use_case_test.dart; do
@@ -54,6 +55,7 @@ jobs:
             result=$?
             set -e
             echo "EXIT=$result" >> followup-report.txt
+            if (( result != 0 )); then test_status=1; fi
           done
           echo "===== test/features/transfer/http_media_hub_upload_test.dart (total upload deadline) =====" >> followup-report.txt
           set +e
@@ -64,6 +66,8 @@ jobs:
           result=$?
           set -e
           echo "EXIT=$result" >> followup-report.txt
+          if (( result != 0 )); then test_status=1; fi
+          exit "$test_status"
 
       - name: Publish temporary follow-up validation output
         if: always()

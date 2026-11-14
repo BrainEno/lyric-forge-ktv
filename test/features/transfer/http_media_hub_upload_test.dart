@@ -620,7 +620,7 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
   for (var attempt = 0; ; attempt++) {
     try {
       return await SecureSocket.connect(
-        InternetAddress.loopbackIPv4.address,
+        session.host,
         session.port,
         context: SecurityContext(withTrustedRoots: false),
         onBadCertificate: (certificate) =>
@@ -633,10 +633,10 @@ Future<SecureSocket> _openPinnedSocket(MediaHubSession session) async {
           error.message.toLowerCase().contains('broken pipe');
       if (!isBrokenPipe || attempt >= maxBrokenPipeRetries) rethrow;
 
-      // Under a loaded test runner, a loopback TLS connection can be reset
-      // during the handshake. Retry only this transient EPIPE and keep the total
-      // retry window bounded; persistent listener or certificate failures still
-      // fail the test.
+      // Connect through the advertised endpoint rather than assuming the
+      // optional loopback listener is available. Retry only transient EPIPE and
+      // keep the total retry window bounded; persistent listener or certificate
+      // failures still fail the test.
       await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
     }
   }
