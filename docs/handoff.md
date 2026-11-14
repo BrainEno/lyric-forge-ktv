@@ -2,28 +2,35 @@
 
 ## 目标
 
-为 #319 分片独立双引擎快照捕获、落盘重开、资源协调、编辑器只读弹窗与失败关闭边界补充端到端集成测试；不声称真实歌曲识别准确率提升，#319 仍保持开放。
+本轮推进 #323 候选重构：把歌词编辑器正文与三条校对交互编排从 `LyricEditorScreen` 拆出，同时保持编辑器状态所有权、领域提案规则和用户确认后才应用的行为不变。#319 仍开放；没有真实歌曲评测，不得宣称识别准确率提升。
 
 ## Git 现场
 
-活动分支 `arena/67430e4a-lyric-forge-ktv`，基线 `main`（`711d7bdae07021ee49cf0df1b44756921fc9fc22`）。以 `git status --short`、`git diff --stat`、`git log --oneline -5` 和 PR 状态确认；临时验证 workflow 已在提交正式 PR 前移除。
+活动分支 `arena/687794f2-lyric-forge-ktv`，基线 `main@40230fce01536af07c40789c9e0c21be7a755e0d`。PR #436（`https://github.com/BrainEno/lyric-forge-ktv/pull/436`）面向 `main`，尚未合并。合并前必须等待正式 Flutter Quality Gate 全绿。
 
 ## 已改文件
 
-- `test/features/transcription/chunk_project_workflow_integration_test.dart`：覆盖分片双引擎捕获、断点续传、资源协调锁、`FileProjectRepository` 持久重开、音源 SHA 与损坏分片元数据边界的 34 项集成测试。
-- `test/features/lyrics/presentation/screens/chunk_project_editor_review_integration_test.dart`：覆盖 `LyricEditorScreen`、`ProjectChunkAsrSnapshotDialog` 与 `ProjectAsrSnapshotDialog` 的只读审计、行编辑保存重开、篡改/替换音轨、版本冲突重载、异步哈希竞态与降级草稿边界的 7 项端到端测试。
-- `docs/log/entries/2026-11-13-2215-test-chunk-audit-integration.md`、`docs/work_log.md`、`docs/work_log_index.md`、`docs/work_log_archive.md`、`docs/handoff.md`：记录本轮集成测试与交接状态。
+- `lib/features/lyrics/presentation/screens/lyric_editor_screen.dart`：保留编辑器状态与组装，现为 1097 行；三条校对入口保持薄委托。
+- `lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart`：承接参考对齐、参考逐行校对和 V2 校对的弹窗流程、版本保护及应用交互；提案规则仍由领域 use case 管理。
+- `lib/features/lyrics/presentation/widgets/lyric_editor_content.dart`：承接编辑器加载、错误和主体布局。
+- `test/features/lyrics/presentation/screens/lyric_editor_orchestration_contract_test.dart`：约束 screen 行数、入口长度、host/content 接线和 V2 use-case 测试覆盖。
+- `test/architecture/app_assembly_contract_test.dart`：更新 DI 契约断言，改为检查校对 coordinator 接收 forced-alignment runner。
+- `docs/lyric_proofreading_ux_review.md`：统一撤销栈现状说明，并记录本轮拆分。
+- `docs/log/entries/2026-11-08-0001-extract-lyric-editor-proofreading-flows.md` 与生成的工作日志导航：记录实现及验证结果。
 
 ## 检查结果
 
-本地沙盒无 Flutter/Dart SDK。GitHub Actions 临时集成与工作流检查验证 `dart format` 无差异、`flutter analyze --no-fatal-infos` 无 error/warning、41 项新增端到端集成测试全部通过，既有分片、校验、取消、弹窗、保存冲突与播放器读取回归测试套件全部通过，`dart tool/work_log.dart check` 通过；正式 PR 全量质量门禁（`flutter-quality.yml`）待提交 PR 后确认。
+- `git diff --check` 通过。
+- 固定 Flutter SDK 的验证运行 `43557588539` 已通过：变更 Dart 格式、`flutter analyze --no-pub --no-fatal-infos lib test tool`、所选 V2/参考校对/编辑器/集成/弹窗/编排契约回归测试，以及 `dart tool/work_log.dart write` 和 `check`。
+- 正式 PR 全量质量门禁必须在最终 head 上重新确认全绿；先前 head 的 pending、取消或失败结果均不能当作通过。
+- 本地环境没有 Dart/Flutter SDK；验证以固定 SDK 的 Actions 结果为准。
 
 ## 下一步
 
-确认 PR 上 `flutter-quality.yml` 全量质量门禁通过并合入主干；继续推进 #319 在真实歌曲录音、原生桌面窗口及实体屏幕阅读器上的验收。
+确认 PR #436 最新 head 的 `Flutter Quality Gate` 全绿；通过后按约定合并，并继续下一轮至少 800 行的工作。继续明确区分 #323 的结构重构与 #319 的真实歌曲识别质量验收。
 
 ## 已知风险
 
-测试使用确定性的 FFmpeg 进程桩、音频播放桩与脚本化 ASR 服务替身验证编排、持久化与 UI 只读门禁，不测试真实模型权重、真实 FFmpeg 转码性能或真实录音识别准确率；音源 SHA 与工程 revision 校验均为时点检查，#319 仍未关闭。
+拆分回归由测试与 CI 覆盖，尚未在实体设备、真实歌曲音频或屏幕阅读器上完成体验验收。没有真实音频质量评测，因此不报告识别准确率提升；#319 仍保持开放。
 
-最后更新：2026-11-13（Asia/Taipei）
+最后更新：2026-11-08（UTC）

@@ -177,7 +177,13 @@ void main() {
             'not fall back to the singleton.',
       );
       expect(editor, contains('required this.dependencies'));
-      expect(editor, contains('widget.dependencies.forcedAlignmentRunner'));
+      final proofreadingCoordinator = File(
+        'lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart',
+      ).readAsStringSync();
+      expect(
+        proofreadingCoordinator,
+        contains('runner: dependencies.forcedAlignmentRunner'),
+      );
 
       final inbox = File(
         'lib/features/lyrics/presentation/screens/review_inbox_screen.dart',

@@ -88,6 +88,7 @@
 - [2026-11-09 01:51] Protect metadata during audio relink ([entry](log/entries/2026-11-09-0151-protect-relink-metadata.md))
 - [2026-11-08 00:47] Handle background lyric link failures ([entry](log/entries/2026-11-08-0047-handle-background-lyric-link-failures.md))
 - [2026-11-08 00:28] Protect lyric associations from partial metadata ([entry](log/entries/2026-11-08-0028-protect-lyric-associations-from-partial-metadata.md))
+- [2026-11-08 00:01] Extract lyric editor proofreading flows ([entry](log/entries/2026-11-08-0001-extract-lyric-editor-proofreading-flows.md))
 - [2026-11-07 23:59] Assess saved ASR candidate freshness ([entry](log/entries/2026-11-07-2359-assess-asr-candidates.md))
 - [2026-11-07 23:58] Orchestrate independent model reruns ([entry](log/entries/2026-11-07-2358-orchestrate-independent-rerun.md))
 - [2026-11-07 23:57] Fix chunk transcription terminal events ([entry](log/entries/2026-11-07-2357-chunk-transcription-terminal-events.md))
