@@ -31,80 +31,73 @@ void main() {
       expect(extractionIndex, greaterThan(checksumIndex));
     },
   );
-  test(
-    'managed Qwen runtime upgrades outdated bundles and validates patch revision',
-    () async {
-      final source = await File(
-        'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
-      ).readAsString();
-      final workflow = await File(
-        '.github/workflows/build-asr-runtime.yml',
-      ).readAsString();
+  test('managed Qwen runtime upgrades outdated bundles and validates patch revision', () async {
+    final source = await File(
+      'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
+    ).readAsString();
+    final workflow = await File('.github/workflows/build-asr-runtime.yml')
+        .readAsString();
 
-      expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v3'"));
-      expect(source, contains("['state', 'runtime-build-revision.txt']"));
-      expect(source, contains('needsManagedRuntimeRefresh'));
-      expect(source, contains('_managedRuntimeBuildIsCurrent(root)'));
-      expect(source, contains('requiresManagedModelHealth'));
-      expect(source, contains('qwenModelReady'));
-      expect(source, contains('alignerReady'));
-      expect(source, contains("decoded['runtimePatchRevision']"));
-      expect(
-        source,
-        contains("'runtimePatchRevision': _managedRuntimeBuildRevision"),
-      );
-      expect(source, contains('await staging.rename(bundle.path)'));
-      expect(source, contains('await backup.rename(bundle.path)'));
-      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
-      expect(
-        workflow,
-        contains(
-          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
-        ),
-      );
-      expect(
-        workflow,
-        contains(
-          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
-        ),
-      );
-    },
-  );
+    expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v3'"));
+    expect(source, contains("['state', 'runtime-build-revision.txt']"));
+    expect(source, contains('needsManagedRuntimeRefresh'));
+    expect(source, contains('_managedRuntimeBuildIsCurrent(root)'));
+    expect(source, contains('requiresManagedModelHealth'));
+    expect(source, contains('qwenModelReady'));
+    expect(source, contains('alignerReady'));
+    expect(source, contains("decoded['runtimePatchRevision']"));
+    expect(
+      source,
+      contains("'runtimePatchRevision': _managedRuntimeBuildRevision"),
+    );
+    expect(source, contains('await staging.rename(bundle.path)'));
+    expect(source, contains('await backup.rename(bundle.path)'));
+    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
+    expect(
+      workflow,
+      contains(
+        'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
+      ),
+    );
+    expect(
+      workflow,
+      contains(
+        '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
+      ),
+    );
+  });
 
-  test(
-    'managed FFmpeg assets are pinned and verified before staging or activation',
-    () async {
-      final source = await File(
-        'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
-      ).readAsString();
+  test('managed FFmpeg assets are pinned and verified before staging or activation', () async {
+    final source = await File(
+      'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
+    ).readAsString();
 
-      expect(source, contains('FfmpegRuntimeRelease.forTarget'));
-      expect(source, contains('_verifySha256(archive.path, release.sha256)'));
-      expect(source, contains('await archive.delete();'));
-      expect(source, contains("['ffmpeg-staging']"));
-      expect(source, contains("['ffmpeg-backup']"));
+    expect(source, contains('FfmpegRuntimeRelease.forTarget'));
+    expect(source, contains('_verifySha256(archive.path, release.sha256)'));
+    expect(source, contains('await archive.delete();'));
+    expect(source, contains("['ffmpeg-staging']"));
+    expect(source, contains("['ffmpeg-backup']"));
 
-      final installerStart = source.indexOf('Future<String> _installFfmpeg(');
-      final installerEnd = source.indexOf(
-        'Future<String> _runtimeArchitecture()',
-        installerStart,
-      );
-      expect(installerStart, greaterThanOrEqualTo(0));
-      expect(installerEnd, greaterThan(installerStart));
+    final installerStart = source.indexOf('Future<String> _installFfmpeg(');
+    final installerEnd = source.indexOf(
+      'Future<String> _runtimeArchitecture()',
+      installerStart,
+    );
+    expect(installerStart, greaterThanOrEqualTo(0));
+    expect(installerEnd, greaterThan(installerStart));
 
-      final installer = source.substring(installerStart, installerEnd);
-      final verifyIndex = installer.indexOf(
-        '_verifySha256(archive.path, release.sha256)',
-      );
-      final extractionIndex = installer.indexOf(
-        'await _extractZip(archive.path, staging.path)',
-      );
-      final activationIndex = installer.indexOf(
-        'await staging.rename(ffmpegRoot.path)',
-      );
-      expect(verifyIndex, greaterThanOrEqualTo(0));
-      expect(extractionIndex, greaterThan(verifyIndex));
-      expect(activationIndex, greaterThan(extractionIndex));
-    },
-  );
+    final installer = source.substring(installerStart, installerEnd);
+    final verifyIndex = installer.indexOf(
+      '_verifySha256(archive.path, release.sha256)',
+    );
+    final extractionIndex = installer.indexOf(
+      'await _extractZip(archive.path, staging.path)',
+    );
+    final activationIndex = installer.indexOf(
+      'await staging.rename(ffmpegRoot.path)',
+    );
+    expect(verifyIndex, greaterThanOrEqualTo(0));
+    expect(extractionIndex, greaterThan(verifyIndex));
+    expect(activationIndex, greaterThan(extractionIndex));
+  });
 }

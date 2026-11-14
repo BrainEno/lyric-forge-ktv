@@ -55,8 +55,7 @@ abstract final class QwenRuntimeSessionProtocol {
     required String timestamp,
     required String nonce,
     required String bodySha256,
-  }) =>
-      'v1-request\n$method\n$pathAndQuery\n$timestamp\n$nonce\n$bodySha256';
+  }) => 'v1-request\n$method\n$pathAndQuery\n$timestamp\n$nonce\n$bodySha256';
 
   static String responseMessage({
     required String nonce,
@@ -448,12 +447,11 @@ class QwenRuntimeLaunchException implements Exception {
   String toString() => 'QwenRuntimeLaunchException(${failure.name}): $details';
 }
 
-typedef QwenRuntimeProcessStarter =
-    Future<Process> Function(
-      String executable,
-      List<String> arguments, {
-      String? workingDirectory,
-    });
+typedef QwenRuntimeProcessStarter = Future<Process> Function(
+  String executable,
+  List<String> arguments, {
+  String? workingDirectory,
+});
 
 /// Starts Qwen `serve` processes in authenticated session mode.
 class QwenRuntimeLauncher {
@@ -630,8 +628,7 @@ class QwenRuntimeLauncher {
         clock: _clock,
       );
 
-      final client = _httpClientFactory()
-        ..connectionTimeout = identityTimeout;
+      final client = _httpClientFactory()..connectionTimeout = identityTimeout;
       try {
         for (var attempt = 0; attempt < identityAttempts; attempt++) {
           if (cancelled()) {

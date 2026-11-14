@@ -221,7 +221,11 @@ class FakeRuntimeProcess implements Process {
       if (!authorized || nonce == null) {
         response.statusCode = HttpStatus.unauthorized;
         response.headers.contentType = ContentType.json;
-        response.write(jsonEncode({'error': {'message': 'unauthorized'}}));
+        response.write(
+          jsonEncode({
+            'error': {'message': 'unauthorized'},
+          }),
+        );
         await response.close();
         return;
       }
@@ -272,9 +276,7 @@ class FakeRuntimeProcess implements Process {
         case FakeProofMode.valid:
           response.headers.set(
             'x-lyricforge-proof',
-            _sign(
-              'v1-response\n$nonce\n$status\n${sha256.convert(bytes)}',
-            ),
+            _sign('v1-response\n$nonce\n$status\n${sha256.convert(bytes)}'),
           );
         case FakeProofMode.wrong:
           response.headers.set('x-lyricforge-proof', 'f' * 64);

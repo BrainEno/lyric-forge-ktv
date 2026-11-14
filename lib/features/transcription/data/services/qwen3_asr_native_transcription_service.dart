@@ -513,9 +513,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   Future<void> _requireVerifiedSession(QwenRuntimeSession session) async {
     if (!identical(_session, session) || !session.isAlive) {
       await _stopServer();
-      throw const TranscriptionException.environment(
-        'Qwen3-ASR 服务已停止，请重新开始任务',
-      );
+      throw const TranscriptionException.environment('Qwen3-ASR 服务已停止，请重新开始任务');
     }
     final identity = await session.checkIdentity(_httpClient);
     _throwIfCancelled();
@@ -619,9 +617,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       authorization = session.authorize('POST', endpoint, payload);
     } on QwenRuntimeSessionClosedException {
       await _stopServer();
-      throw const TranscriptionException.environment(
-        'Qwen3-ASR 服务已停止，请重新开始任务',
-      );
+      throw const TranscriptionException.environment('Qwen3-ASR 服务已停止，请重新开始任务');
     }
 
     late final HttpClientRequest request;

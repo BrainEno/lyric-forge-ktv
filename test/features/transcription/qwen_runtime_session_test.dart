@@ -55,9 +55,8 @@ void main() {
         expect(response, _vectorResponseProof);
 
         // Both implementations must be pinned to the same canonical strings.
-        final patch = await File(
-          'tool/patches/qwen3-asr-session-auth.patch',
-        ).readAsString();
+        final patch = await File('tool/patches/qwen3-asr-session-auth.patch')
+            .readAsString();
         expect(patch, contains(_vectorRequestSignature));
         expect(patch, contains(_vectorReadyProof));
         expect(patch, contains(_vectorResponseProof));
@@ -106,9 +105,8 @@ void main() {
         ]);
       }
       expect(
-        QwenRuntimePlatformPolicy.forOperatingSystem(
-          'windows',
-        ).exclusiveBindMechanism,
+        QwenRuntimePlatformPolicy.forOperatingSystem('windows')
+            .exclusiveBindMechanism,
         contains('SO_EXCLUSIVEADDRUSE'),
       );
     });
@@ -351,10 +349,7 @@ void main() {
         final second = await start(testLauncher);
 
         expect(fake.launches, hasLength(2));
-        expect(
-          fake.launches[0].secretLine,
-          isNot(fake.launches[1].secretLine),
-        );
+        expect(fake.launches[0].secretLine, isNot(fake.launches[1].secretLine));
         expect(second.generation, greaterThan(first.generation));
         expect(
           () => first.authorize('GET', second.endpoint('/healthz'), const []),

@@ -90,9 +90,9 @@ void main() {
       final session = sources[sessionFile]!;
       expect(session, contains('Random.secure()'));
       expect(
-      session,
-      contains("String toString() => 'QwenRuntimeSessionSecret"),
-    );
+        session,
+        contains("String toString() => 'QwenRuntimeSessionSecret"),
+      );
       expect(session, isNot(contains('print(')));
     },
   );
@@ -138,14 +138,15 @@ void main() {
     );
     expect(
       patch,
-      contains('fn previous_session_secret_cannot_access_a_restarted_runtime()'),
+      contains(
+        'fn previous_session_secret_cannot_access_a_restarted_runtime()',
+      ),
     );
   });
 
   test('release builds apply and test the session-auth patch', () async {
-    final workflow = await File(
-      '.github/workflows/build-asr-runtime.yml',
-    ).readAsString();
+    final workflow = await File('.github/workflows/build-asr-runtime.yml')
+        .readAsString();
 
     expect(
       'tool/patches/qwen3-asr-session-auth.patch'.allMatches(workflow).length,
