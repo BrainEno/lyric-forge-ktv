@@ -77,17 +77,16 @@ class _ProofreadV2RunOptionsDialogState
       widget.allowProjectEvidence &&
       (widget.projectEvidenceHint?.shouldOffer ?? true);
 
-  String get _projectEvidenceTitle => switch (
-    widget.projectEvidenceHint?.status
-  ) {
-    ProjectProofreadEvidenceHintStatus.currentDraftCandidate =>
-      '使用工程中已保存的独立第二份转写稿',
-    ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair =>
-      '查看工程原始双引擎快照（只读）',
-    ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly =>
-      '查看工程分片双引擎快照（只读）',
-    _ => '使用工程中的独立第二份转写稿',
-  };
+  String get _projectEvidenceTitle =>
+      switch (widget.projectEvidenceHint?.status) {
+        ProjectProofreadEvidenceHintStatus.currentDraftCandidate =>
+          '使用工程中已保存的独立第二份转写稿',
+        ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair =>
+          '查看工程原始双引擎快照（只读）',
+        ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly =>
+          '查看工程分片双引擎快照（只读）',
+        _ => '使用工程中的独立第二份转写稿',
+      };
 
   String get _projectEvidenceSubtitle {
     final hint = widget.projectEvidenceHint;
@@ -106,19 +105,18 @@ class _ProofreadV2RunOptionsDialogState
     };
   }
 
-  String? get _projectEvidenceNotice => switch (
-    widget.projectEvidenceHint?.status
-  ) {
-    ProjectProofreadEvidenceHintStatus.unverifiedAudio =>
-      '工程中有独立 ASR 快照，但缺少可验证的音频摘要；本次不会把它用于校对。可手动粘贴第二稿。',
-    ProjectProofreadEvidenceHintStatus.unsupportedOffsets =>
-      '工程或草稿具有当前流程不支持的全局时间偏移；工程 ASR 快照不会参与本次校对。',
-    ProjectProofreadEvidenceHintStatus.invalid =>
-      '工程 ASR 快照格式无效或来源有歧义；本次不会使用该快照。',
-    ProjectProofreadEvidenceHintStatus.projectChanged =>
-      '预览期间工程版本已变化；请刷新工程后再尝试使用已保存的 ASR 快照。',
-    _ => null,
-  };
+  String? get _projectEvidenceNotice =>
+      switch (widget.projectEvidenceHint?.status) {
+        ProjectProofreadEvidenceHintStatus.unverifiedAudio =>
+          '工程中有独立 ASR 快照，但缺少可验证的音频摘要；本次不会把它用于校对。可手动粘贴第二稿。',
+        ProjectProofreadEvidenceHintStatus.unsupportedOffsets =>
+          '工程或草稿具有当前流程不支持的全局时间偏移；工程 ASR 快照不会参与本次校对。',
+        ProjectProofreadEvidenceHintStatus.invalid =>
+          '工程 ASR 快照格式无效或来源有歧义；本次不会使用该快照。',
+        ProjectProofreadEvidenceHintStatus.projectChanged =>
+          '预览期间工程版本已变化；请刷新工程后再尝试使用已保存的 ASR 快照。',
+        _ => null,
+      };
 
   Widget _projectEvidenceSelector() => _revealOnFocus(
     CheckboxListTile(

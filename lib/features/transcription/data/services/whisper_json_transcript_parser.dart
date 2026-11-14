@@ -48,14 +48,9 @@ class WhisperJsonTranscriptParser {
     this.maxTextRunesPerLine = defaultMaxTextRunesPerLine,
   });
 
-  WhisperJsonTranscriptParseResult parse(
-    String source, {
-    String? rawJsonPath,
-  }) {
+  WhisperJsonTranscriptParseResult parse(String source, {String? rawJsonPath}) {
     if (source.length > maxJsonCharacters) {
-      throw const TranscriptionException.environment(
-        'Whisper JSON 超出可读取大小限制',
-      );
+      throw const TranscriptionException.environment('Whisper JSON 超出可读取大小限制');
     }
 
     late final Object? decoded;
@@ -85,7 +80,8 @@ class WhisperJsonTranscriptParser {
 
     final rawResult = decoded['result'];
     final rawLanguage = rawResult is Map ? rawResult['language'] : null;
-    final detectedLanguage = rawLanguage is String &&
+    final detectedLanguage =
+        rawLanguage is String &&
             rawLanguage.trim().isNotEmpty &&
             rawLanguage.length <= 64
         ? rawLanguage.trim()
@@ -152,9 +148,7 @@ class WhisperJsonTranscriptParser {
     }
 
     if (lines.isEmpty) {
-      throw const TranscriptionException.input(
-        'Whisper 没有识别到可用歌词片段',
-      );
+      throw const TranscriptionException.input('Whisper 没有识别到可用歌词片段');
     }
 
     final metadata = <String, dynamic>{
@@ -188,9 +182,7 @@ class WhisperJsonTranscriptParser {
     if (tokens is List &&
         tokens.any(
           (token) =>
-              token is Map &&
-              token['text'] != null &&
-              token['text'] is! String,
+              token is Map && token['text'] != null && token['text'] is! String,
         )) {
       // Keep valid line text, but don't turn malformed score metadata into a
       // parser crash or a fabricated low-confidence result.

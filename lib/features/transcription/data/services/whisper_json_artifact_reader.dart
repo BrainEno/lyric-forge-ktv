@@ -30,9 +30,7 @@ class WhisperJsonArtifactReadResult {
   final WhisperJsonTranscriptParseResult? parsed;
 
   const WhisperJsonArtifactReadResult(this.status, {this.parsed})
-    : assert(
-        (status == WhisperJsonArtifactStatus.loaded) == (parsed != null),
-      );
+    : assert((status == WhisperJsonArtifactStatus.loaded) == (parsed != null));
 
   bool get isLoaded => status == WhisperJsonArtifactStatus.loaded;
 }

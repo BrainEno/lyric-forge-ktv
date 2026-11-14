@@ -135,9 +135,7 @@ void main() {
         onResult: (value) => result = value,
       );
 
-      final toggle = find.byKey(
-        const ValueKey('project_asr_evidence_toggle'),
-      );
+      final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
       expect(tester.widget<CheckboxListTile>(toggle).value, isTrue);
       expect(find.textContaining('whisper.cpp-large-v3'), findsOneWidget);
       expect(find.textContaining('模型内容未校验'), findsOneWidget);
@@ -153,48 +151,49 @@ void main() {
     },
   );
 
-  testWidgets(
-    'edited-draft and unverified snapshots are not auto-selected',
-    (tester) async {
-      ProofreadV2RunOptions? result;
-      await open(
-        tester,
-        enabled: true,
-        hint: const ProjectProofreadEvidenceHint(
-          status: ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
-          primaryEngine: 'qwen3-asr-1.7b',
-          secondaryEngine: 'whisper.cpp-large-v3',
-        ),
-        onResult: (value) => result = value,
-      );
-      final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
-      expect(tester.widget<CheckboxListTile>(toggle).value, isFalse);
-      expect(find.text('查看工程原始双引擎快照（只读）'), findsOneWidget);
-      await tester.tap(toggle);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('继续'));
-      await tester.pumpAndSettle();
-      expect(result!.useProjectEvidence, isTrue);
+  testWidgets('edited-draft and unverified snapshots are not auto-selected', (
+    tester,
+  ) async {
+    ProofreadV2RunOptions? result;
+    await open(
+      tester,
+      enabled: true,
+      hint: const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
+        primaryEngine: 'qwen3-asr-1.7b',
+        secondaryEngine: 'whisper.cpp-large-v3',
+      ),
+      onResult: (value) => result = value,
+    );
+    final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+    expect(tester.widget<CheckboxListTile>(toggle).value, isFalse);
+    expect(find.text('查看工程原始双引擎快照（只读）'), findsOneWidget);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(result!.useProjectEvidence, isTrue);
 
-      await open(
-        tester,
-        enabled: true,
-        hint: const ProjectProofreadEvidenceHint(
-          status: ProjectProofreadEvidenceHintStatus.unverifiedAudio,
-        ),
-        onResult: (_) {},
-      );
-      expect(
-        find.byKey(const ValueKey('project_asr_evidence_toggle')),
-        findsNothing,
-      );
-      expect(find.textContaining('缺少可验证的音频摘要'), findsOneWidget);
-      expect(
-        tester.widget<TextField>(
-          find.byKey(const ValueKey('secondary_asr_transcript_input')),
-        ).enabled,
-        isTrue,
-      );
-    },
-  );
+    await open(
+      tester,
+      enabled: true,
+      hint: const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.unverifiedAudio,
+      ),
+      onResult: (_) {},
+    );
+    expect(
+      find.byKey(const ValueKey('project_asr_evidence_toggle')),
+      findsNothing,
+    );
+    expect(find.textContaining('缺少可验证的音频摘要'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const ValueKey('secondary_asr_transcript_input')),
+          )
+          .enabled,
+      isTrue,
+    );
+  });
 }

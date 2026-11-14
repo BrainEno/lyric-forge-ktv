@@ -113,9 +113,8 @@ class LyricEditorProofreadingCoordinator {
       audioDuration: project.audioAsset?.duration,
     );
     if (plan.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('参考歌词中没有可用于对齐的文本行')));
       return;
     }
 
@@ -217,9 +216,8 @@ class LyricEditorProofreadingCoordinator {
       audioDuration: project.audioAsset?.duration,
     );
     if (plan.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('没有发现可供复核的文字差异')));
       return;
     }
     final selected = plan.hasTimingEvidence
@@ -272,9 +270,7 @@ class LyricEditorProofreadingCoordinator {
       } catch (error) {
         if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('无法预览工程中的 ASR 证据；仍可手动提供第二份转写稿：$error'),
-          ),
+          SnackBar(content: Text('无法预览工程中的 ASR 证据；仍可手动提供第二份转写稿：$error')),
         );
       }
       if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
@@ -297,9 +293,8 @@ class LyricEditorProofreadingCoordinator {
       try {
         parsed = referenceParser.parsePasted(secondaryText);
       } catch (error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('无法解析第二份 ASR 转写稿：$error')));
         return;
       }
       if (!parsed.timed ||
@@ -711,9 +706,8 @@ class LyricEditorProofreadingCoordinator {
           : error is ForcedAlignmentResourceBusyException
           ? LyricReviewStrings.forcedAlignmentBusy
           : '$error';
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$detail')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('无法生成或应用校对提案：$detail')));
     }
   }
 

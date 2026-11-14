@@ -142,9 +142,9 @@ void main() {
 
     test('bounds JSON size, segment count and text length', () {
       expect(
-        () => const WhisperJsonTranscriptParser(maxJsonCharacters: 4).parse(
-          jsonEncode(response([segment()])),
-        ),
+        () =>
+            const WhisperJsonTranscriptParser(maxJsonCharacters: 4)
+                .parse(jsonEncode(response([segment()]))),
         throwsA(isA<TranscriptionException>()),
       );
       expect(
@@ -153,16 +153,15 @@ void main() {
         ),
         throwsA(isA<TranscriptionException>()),
       );
-      final textLimited = const WhisperJsonTranscriptParser(
-        maxTextRunesPerLine: 4,
-      ).parse(
-        jsonEncode(
-          response([
-            segment(text: 'line too long'),
-            segment(text: 'ok', from: 3000, to: 4000),
-          ]),
-        ),
-      );
+      final textLimited =
+          const WhisperJsonTranscriptParser(maxTextRunesPerLine: 4).parse(
+            jsonEncode(
+              response([
+                segment(text: 'line too long'),
+                segment(text: 'ok', from: 3000, to: 4000),
+              ]),
+            ),
+          );
       expect(textLimited.skippedSegmentCount, 1);
       expect(textLimited.document.lines.single.text, 'ok');
     });
@@ -189,7 +188,11 @@ void main() {
 
     test('requires transcription list and at least one usable line', () {
       expect(
-        () => parser.parse(jsonEncode({'result': {'language': 'en'}})),
+        () => parser.parse(
+          jsonEncode({
+            'result': {'language': 'en'},
+          }),
+        ),
         throwsA(isA<TranscriptionException>()),
       );
       expect(

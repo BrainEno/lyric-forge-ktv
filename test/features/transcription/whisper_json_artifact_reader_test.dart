@@ -32,10 +32,7 @@ void main() {
   });
 
   test('missing and malformed metadata paths fail closed', () async {
-    expect(
-      (await reader.read(null)).status,
-      WhisperJsonArtifactStatus.noPath,
-    );
+    expect((await reader.read(null)).status, WhisperJsonArtifactStatus.noPath);
     expect(
       (await reader.read(42)).status,
       WhisperJsonArtifactStatus.invalidPath,
@@ -92,9 +89,9 @@ void main() {
       final tooLarge = File('${root.path}/large.json');
       await tooLarge.writeAsString(response());
       expect(
-        (await const WhisperJsonArtifactReader(maxArtifactBytes: 2).read(
-          tooLarge.path,
-        )).status,
+        (await const WhisperJsonArtifactReader(maxArtifactBytes: 2)
+                .read(tooLarge.path))
+            .status,
         WhisperJsonArtifactStatus.tooLarge,
       );
 
