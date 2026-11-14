@@ -67,6 +67,15 @@ jobs:
           set -e
           echo "EXIT=$result" >> followup-report.txt
           if (( result != 0 )); then test_status=1; fi
+          echo "===== full test/features/transfer/http_media_hub_upload_test.dart =====" >> followup-report.txt
+          set +e
+          flutter test --no-pub --reporter expanded \
+            test/features/transfer/http_media_hub_upload_test.dart \
+            >> followup-report.txt 2>&1
+          result=$?
+          set -e
+          echo "EXIT=$result" >> followup-report.txt
+          if (( result != 0 )); then test_status=1; fi
           exit "$test_status"
 
       - name: Publish temporary follow-up validation output

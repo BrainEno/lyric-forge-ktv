@@ -508,6 +508,7 @@ void main() {
         totalTimeout: const Duration(seconds: 5),
       );
       final session = await service.startSharing(const []);
+      print('Total-deadline test endpoint: ${session.host}:${session.port}');
       final socket = await _openPinnedSocket(session);
       addTearDown(socket.destroy);
       // Watch the response instead of only its completion: the server closes
