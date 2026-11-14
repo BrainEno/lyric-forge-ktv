@@ -22,19 +22,22 @@ jobs:
       - name: Set up Flutter
         uses: ./.github/actions/setup-flutter
 
+      - name: Resolve Flutter packages like the quality gate
+        run: flutter pub get --enforce-lockfile && git diff --exit-code -- pubspec.lock analysis_options.yaml
+
       - name: Run exact quality-gate format diagnostic
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.sha }}
         shell: bash
         run: |
           {
             echo "BASE_SHA=$BASE_SHA"
-            echo "HEAD_SHA=$HEAD_SHA"
             echo "GITHUB_SHA=$GITHUB_SHA"
             echo "CHECKOUT=$(git rev-parse HEAD)"
+            echo "DART=$(command -v dart)"
+            dart --version
             echo "CHANGED DART FILES (exact format-gate filter):"
-          } > formatter-report.txt
+          } > formatter-report.txt 2>&1
           mapfile -t dart_files < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')
           printf '%s\n' "${dart_files[@]}" >> formatter-report.txt
           if (( ${#dart_files[@]} == 0 )); then
