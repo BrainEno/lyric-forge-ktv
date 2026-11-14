@@ -26,6 +26,7 @@ import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_content.dart';
+import '../widgets/lyric_editor_toolbar.dart';
 import '../widgets/lyric_list_pane.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
