@@ -34,6 +34,11 @@ class LyricEditorDependencies {
 
   /// Optional verified project evidence, absent on hosts without the adapter.
   final ProjectProofreadEvidenceLoader? projectProofreadEvidenceLoader;
+
+  /// Cheap metadata-only hint for the V2 options dialog. It never supplies
+  /// transcripts or replaces the full verification above.
+  final ProjectProofreadEvidencePreviewer?
+  projectProofreadEvidencePreviewer;
   final ReferenceAlignmentAudioGuard? referenceAlignmentAudioGuard;
 
   const LyricEditorDependencies({
@@ -44,6 +49,7 @@ class LyricEditorDependencies {
     required this.lyricFileImport,
     required this.forcedAlignmentRunner,
     this.projectProofreadEvidenceLoader,
+    this.projectProofreadEvidencePreviewer,
     this.referenceAlignmentAudioGuard,
   });
 }

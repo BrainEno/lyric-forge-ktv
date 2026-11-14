@@ -7,6 +7,7 @@ import '../../domain/models/chunked_independent_asr_evidence.dart';
 import '../../domain/models/transcription_models.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'project_transcription_input.dart';
+import 'whisper_json_artifact_reader.dart';
 
 /// Reuses a verified single-input pair only when the primary remains the draft.
 /// Otherwise, the original pair is exposed solely for read-only inspection;
@@ -19,6 +20,8 @@ class VerifiedProjectProofreadEvidenceLoader {
     required String? currentAudioPath,
   })
   verifyAudio;
+  final Future<WhisperJsonArtifactReadResult> Function(Object? rawPath)
+  readWhisperArtifact;
 
   VerifiedProjectProofreadEvidenceLoader({
     required this.projects,
@@ -28,8 +31,90 @@ class VerifiedProjectProofreadEvidenceLoader {
       required String? currentAudioPath,
     })?
     verifyAudio,
+    Future<WhisperJsonArtifactReadResult> Function(Object? rawPath)?
+    readWhisperArtifact,
   }) : resolveInput = resolveInput ?? resolveProjectTranscriptionInput,
-       verifyAudio = verifyAudio ?? const AsrEvidenceAudioVerifier().verify;
+       verifyAudio = verifyAudio ?? const AsrEvidenceAudioVerifier().verify,
+       readWhisperArtifact =
+           readWhisperArtifact ?? const WhisperJsonArtifactReader().read;
+
+  /// Returns only enough metadata to preselect or explain the project option.
+  ///
+  /// This quick check does not hash audio and never supplies transcript rows.
+  /// [load] repeats the project/draft checks and verifies the selected audio
+  /// before returning any transcript for comparison or audit.
+  Future<ProjectProofreadEvidenceHint> preview({
+    required String projectId,
+    required int expectedProjectRevision,
+    required LyricDocument draft,
+  }) async {
+    final project = await projects.getProjectById(projectId);
+    if (project == null || project.revision != expectedProjectRevision) {
+      return const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.projectChanged,
+      );
+    }
+    final metadata = project.lyricDocument?.metadata;
+    final singleRaw = metadata?[IndependentAsrEvidence.metadataKey];
+    final chunkRaw = metadata?[ChunkedIndependentAsrEvidence.metadataKey];
+    if (singleRaw == null && chunkRaw == null) {
+      return const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.notFound,
+      );
+    }
+    if (singleRaw != null && chunkRaw != null) {
+      return const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.invalid,
+      );
+    }
+    if ((draft.globalOffset ?? Duration.zero) != Duration.zero) {
+      return const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.unsupportedOffsets,
+      );
+    }
+
+    if (singleRaw != null) {
+      final evidence = IndependentAsrEvidence.tryParse(singleRaw);
+      if (evidence == null ||
+          !_independentEngines(evidence) ||
+          !_validTranscript(evidence.primary) ||
+          !_validTranscript(evidence.secondary)) {
+        return const ProjectProofreadEvidenceHint(
+          status: ProjectProofreadEvidenceHintStatus.invalid,
+        );
+      }
+      if ((evidence.primary.globalOffset ?? Duration.zero) != Duration.zero ||
+          (evidence.secondary.globalOffset ?? Duration.zero) != Duration.zero) {
+        return const ProjectProofreadEvidenceHint(
+          status: ProjectProofreadEvidenceHintStatus.unsupportedOffsets,
+        );
+      }
+      if (evidence.sourceAudioSha256 == null) {
+        return const ProjectProofreadEvidenceHint(
+          status: ProjectProofreadEvidenceHintStatus.unverifiedAudio,
+        );
+      }
+      return ProjectProofreadEvidenceHint(
+        status: _matchesPrimary(draft, evidence.primary)
+            ? ProjectProofreadEvidenceHintStatus.currentDraftCandidate
+            : ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
+        primaryEngine: evidence.primary.engine,
+        secondaryEngine: evidence.secondary.engine,
+        capturedAtUtc: evidence.capturedAtUtc,
+      );
+    }
+
+    final chunked = ChunkedIndependentAsrEvidence.tryParse(chunkRaw);
+    if (chunked == null) {
+      return const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.invalid,
+      );
+    }
+    return ProjectProofreadEvidenceHint(
+      status: ProjectProofreadEvidenceHintStatus.chunkSnapshotsOnly,
+      chunkCount: chunked.chunks.length,
+    );
+  }
 
   Future<ProjectProofreadEvidenceResult> load({
     required String projectId,
@@ -148,11 +233,66 @@ class VerifiedProjectProofreadEvidenceLoader {
         capturedAtUtc: single.capturedAtUtc,
       );
     }
+    final secondary = await _loadWhisperArtifactOrSnapshot(
+      rawPath: metadata?['whisperRawJsonPath'],
+      evidence: single,
+    );
     return ProjectProofreadEvidenceResult.available(
-      secondary: single.secondary.toDocument(),
+      secondary: secondary,
       secondaryEngine: single.secondary.engine,
       capturedAtUtc: single.capturedAtUtc,
     );
+  }
+
+  Future<LyricDocument> _loadWhisperArtifactOrSnapshot({
+    required Object? rawPath,
+    required IndependentAsrEvidence evidence,
+  }) async {
+    final snapshot = evidence.secondary;
+    if (!snapshot.engine.startsWith('whisper.cpp-')) {
+      return snapshot.toDocument();
+    }
+    late final WhisperJsonArtifactReadResult artifact;
+    try {
+      artifact = await readWhisperArtifact(rawPath);
+    } catch (_) {
+      return snapshot.toDocument();
+    }
+    final parsed = artifact.parsed;
+    if (!artifact.isLoaded ||
+        parsed == null ||
+        !_matchesWhisperTranscript(parsed.document, snapshot)) {
+      // The inline snapshot is already bounded, audio-verified and tied to the
+      // current primary draft. A missing/stale raw file cannot invalidate it.
+      return snapshot.toDocument();
+    }
+    return parsed.document;
+  }
+
+  static bool _matchesWhisperTranscript(
+    LyricDocument parsed,
+    IndependentAsrTranscript snapshot,
+  ) {
+    if (parsed.language != snapshot.language ||
+        (parsed.globalOffset ?? Duration.zero) !=
+            (snapshot.globalOffset ?? Duration.zero) ||
+        parsed.lines.length != snapshot.lines.length) {
+      return false;
+    }
+    for (var index = 0; index < parsed.lines.length; index++) {
+      final actual = parsed.lines[index];
+      final saved = snapshot.lines[index];
+      if (actual.id != saved.id ||
+          actual.text != saved.text ||
+          actual.startTime != saved.startTime ||
+          actual.endTime != saved.endTime ||
+          actual.isChorus != saved.isChorus ||
+          actual.confidence != saved.confidence ||
+          actual.confidenceSource != saved.confidenceSource) {
+        return false;
+      }
+    }
+    return true;
   }
 
   static bool _independentEngines(IndependentAsrEvidence evidence) {

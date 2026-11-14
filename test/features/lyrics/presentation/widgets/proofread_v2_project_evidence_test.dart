@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/project_proofread_evidence.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_strategy_selector.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart';
 
@@ -8,6 +9,7 @@ void main() {
     WidgetTester tester, {
     required bool enabled,
     required ValueChanged<ProofreadV2RunOptions?> onResult,
+    ProjectProofreadEvidenceHint? hint,
     double scale = 1,
   }) async {
     tester.view.physicalSize = const Size(320, 568);
@@ -28,6 +30,7 @@ void main() {
                   await showProofreadV2RunOptionsDialog(
                     context,
                     allowProjectEvidence: enabled,
+                    projectEvidenceHint: hint,
                   ),
                 ),
                 child: const Text('open'),
@@ -115,4 +118,76 @@ void main() {
       expect(result!.secondaryTranscriptText, isNull);
     },
   );
+
+  testWidgets('matching project snapshot is preselected with verification copy', (
+    tester,
+  ) async {
+    ProofreadV2RunOptions? result;
+    await open(
+      tester,
+      enabled: true,
+      hint: ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.currentDraftCandidate,
+        primaryEngine: 'qwen3-asr-1.7b',
+        secondaryEngine: 'whisper.cpp-large-v3',
+        capturedAtUtc: DateTime.utc(2026, 11, 7),
+      ),
+      onResult: (value) => result = value,
+    );
+
+    final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+    expect(tester.widget<CheckboxListTile>(toggle).value, isTrue);
+    expect(find.textContaining('whisper.cpp-large-v3'), findsOneWidget);
+    expect(find.textContaining('模型内容未校验'), findsOneWidget);
+    final field = find.byKey(
+      const ValueKey('secondary_asr_transcript_input'),
+    );
+    expect(tester.widget<TextField>(field).enabled, isFalse);
+
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(result!.useProjectEvidence, isTrue);
+    expect(result!.secondaryTranscriptText, isNull);
+  });
+
+  testWidgets('edited-draft and unverified snapshots are not auto-selected', (
+    tester,
+  ) async {
+    ProofreadV2RunOptions? result;
+    await open(
+      tester,
+      enabled: true,
+      hint: const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.readOnlyOriginalPair,
+        primaryEngine: 'qwen3-asr-1.7b',
+        secondaryEngine: 'whisper.cpp-large-v3',
+      ),
+      onResult: (value) => result = value,
+    );
+    final toggle = find.byKey(const ValueKey('project_asr_evidence_toggle'));
+    expect(tester.widget<CheckboxListTile>(toggle).value, isFalse);
+    expect(find.text('查看工程原始双引擎快照（只读）'), findsOneWidget);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('继续'));
+    await tester.pumpAndSettle();
+    expect(result!.useProjectEvidence, isTrue);
+
+    await open(
+      tester,
+      enabled: true,
+      hint: const ProjectProofreadEvidenceHint(
+        status: ProjectProofreadEvidenceHintStatus.unverifiedAudio,
+      ),
+      onResult: (_) {},
+    );
+    expect(find.byKey(const ValueKey('project_asr_evidence_toggle')), findsNothing);
+    expect(find.textContaining('缺少可验证的音频摘要'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(
+        find.byKey(const ValueKey('secondary_asr_transcript_input')),
+      ).enabled,
+      isTrue,
+    );
+  });
 }

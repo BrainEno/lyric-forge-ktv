@@ -834,6 +834,67 @@ void main() {
       },
     );
 
+    testWidgets(
+      'matching saved evidence is preselected and fully revalidated on continue',
+      (tester) async {
+        var previewCalls = 0;
+        var loadCalls = 0;
+        final editor = await _openEditor(
+          tester,
+          _emptyAlignment,
+          evidencePreviewer:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) async {
+                previewCalls++;
+                expect(draft.lines.single.text, 'Human lyric');
+                return const ProjectProofreadEvidenceHint(
+                  status:
+                      ProjectProofreadEvidenceHintStatus.currentDraftCandidate,
+                  primaryEngine: 'qwen3-asr-1.7b',
+                  secondaryEngine: 'whisper.cpp-large-v3',
+                );
+              },
+          evidenceLoader:
+              ({
+                required projectId,
+                required expectedProjectRevision,
+                required draft,
+              }) async {
+                loadCalls++;
+                expect(draft.lines.single.text, 'Human lyric');
+                return ProjectProofreadEvidenceResult.available(
+                  secondary: _document('different lyric'),
+                  secondaryEngine: 'whisper.cpp-large-v3',
+                  capturedAtUtc: DateTime.utc(2026),
+                );
+              },
+        );
+        await tester.tap(find.byIcon(Icons.spellcheck_rounded).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('智能校对 V2'));
+        await tester.pumpAndSettle();
+
+        expect(previewCalls, 1);
+        final toggle = find.byKey(
+          const ValueKey('project_asr_evidence_toggle'),
+        );
+        expect(tester.widget<CheckboxListTile>(toggle).value, isTrue);
+        await tester.tap(find.text('继续'));
+        await tester.pumpAndSettle();
+
+        expect(loadCalls, 1);
+        expect(find.text('智能校对提案复核'), findsOneWidget);
+        expect(find.textContaining('第二份带时间戳的转写稿'), findsOneWidget);
+        expect(find.textContaining('未提供第二份 ASR 转写稿'), findsNothing);
+        expect(editor.document!.lines.single.text, 'Human lyric');
+        expect(editor.hasChanges, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('failed verification is explained and never opens review', (
       tester,
     ) async {
@@ -1854,6 +1915,7 @@ Future<LyricEditorDocumentController> _openEditor(
   LyricDocument? initialDocument,
   String? vocalPath,
   ProjectProofreadEvidenceLoader? evidenceLoader,
+  ProjectProofreadEvidencePreviewer? evidencePreviewer,
   ReferenceAlignmentAudioGuard? timingGuard,
   AudioPlayerService? previewAudio,
   _PreviewPlaybackSession? previewSession,
@@ -1888,6 +1950,7 @@ Future<LyricEditorDocumentController> _openEditor(
           lyricFileImport: LocalLyricFileImportService(),
           forcedAlignmentRunner: runner,
           projectProofreadEvidenceLoader: evidenceLoader,
+          projectProofreadEvidencePreviewer: evidencePreviewer,
           referenceAlignmentAudioGuard: timingGuard,
         ),
       ),

@@ -11,7 +11,7 @@
 - [2026-11-09 13:31] Retry failed play history loads `fix: retry failed play history loads` ([entry](log/entries/2026-11-09-1331-retry-play-history-load.md))
 - [2026-11-09 12:19] Show dashboard history read failures `fix: show dashboard history read failures` ([entry](log/entries/2026-11-09-1219-dashboard-history-errors.md))
 
-<!-- 289 entries total: 8 active, 281 archived. -->
+<!-- 290 entries total: 8 active, 282 archived. -->
 
 - Full entries: `docs/log/entries/`
 - Older entries: [archive](work_log_archive.md) | stable decisions: [decisions](decisions.md)

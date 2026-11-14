@@ -184,6 +184,13 @@ void main() {
         proofreadingCoordinator,
         contains('runner: dependencies.forcedAlignmentRunner'),
       );
+      final lyricEditorAssembly = File(
+        'lib/app/lyric_editor_assembly.dart',
+      ).readAsStringSync();
+      expect(
+        lyricEditorAssembly,
+        contains('projectProofreadEvidencePreviewer: evidenceLoader.preview'),
+      );
 
       final inbox = File(
         'lib/features/lyrics/presentation/screens/review_inbox_screen.dart',

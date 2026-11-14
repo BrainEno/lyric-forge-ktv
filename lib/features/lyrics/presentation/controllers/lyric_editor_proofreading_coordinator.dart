@@ -260,9 +260,29 @@ class LyricEditorProofreadingCoordinator {
     required int projectRevision,
   }) async {
     final context = host.proofreadContext;
+    ProjectProofreadEvidenceHint? projectEvidenceHint;
+    final previewer = dependencies.projectProofreadEvidencePreviewer;
+    if (previewer != null) {
+      try {
+        projectEvidenceHint = await previewer(
+          projectId: project.id,
+          expectedProjectRevision: projectRevision,
+          draft: document,
+        );
+      } catch (error) {
+        if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('无法预览工程中的 ASR 证据；仍可手动提供第二份转写稿：$error'),
+          ),
+        );
+      }
+      if (!context.mounted || !host.proofreadIsCurrent(revision)) return;
+    }
     final options = await showProofreadV2RunOptionsDialog(
       context,
       allowProjectEvidence: dependencies.projectProofreadEvidenceLoader != null,
+      projectEvidenceHint: projectEvidenceHint,
     );
     if (options == null ||
         !context.mounted ||
