@@ -42,6 +42,39 @@ void main() {
     );
   }
 
+  group('markSavedIfUnchanged (#438)', () {
+    test('marks clean when nothing changed since the save started', () {
+      final c = build(loaded: document([line('a', id: 'a')])).controller;
+      c.updateLine(0, line('edited', id: 'a'));
+      final revision = c.documentRevision;
+
+      expect(c.markSavedIfUnchanged(revision), isTrue);
+      expect(c.hasChanges, isFalse);
+      expect(c.documentRevision, revision);
+    });
+
+    test('keeps a newer edit unsaved after an older write finishes', () {
+      final c = build(loaded: document([line('a', id: 'a')])).controller;
+      c.updateLine(0, line('written', id: 'a'));
+      final writtenRevision = c.documentRevision;
+      c.updateLine(0, line('typed during save', id: 'a'));
+
+      expect(c.markSavedIfUnchanged(writtenRevision), isFalse);
+      expect(c.hasChanges, isTrue);
+      expect(c.document!.lines.single.text, 'typed during save');
+    });
+
+    test('an undo during the save also counts as a newer change', () {
+      final c = build(loaded: document([line('a', id: 'a')])).controller;
+      c.updateLine(0, line('written', id: 'a'));
+      final writtenRevision = c.documentRevision;
+      c.undo();
+
+      expect(c.markSavedIfUnchanged(writtenRevision), isFalse);
+      expect(c.document!.lines.single.text, 'a');
+    });
+  });
+
   test(
     'document revision tracks mutations, not selection or save bookkeeping',
     () {

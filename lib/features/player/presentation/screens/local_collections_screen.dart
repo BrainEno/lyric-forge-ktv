@@ -15,6 +15,7 @@ import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
+import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_collection_actions.dart';
 
 enum LocalCollectionView { favorites, playlists }
@@ -115,7 +116,9 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
       });
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '收藏与播放列表加载失败：$error');
+        setState(
+          () => _error = '收藏与播放列表加载失败：${describeLocalLibraryError(error)}',
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -131,7 +134,7 @@ class _LocalCollectionsScreenState extends State<LocalCollectionsScreen> {
     try {
       await work();
     } catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = describeLocalLibraryError(error));
     } finally {
       if (mounted) setState(() => _working = false);
     }

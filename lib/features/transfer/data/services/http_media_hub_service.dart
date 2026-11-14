@@ -25,6 +25,16 @@ class HttpMediaHubService implements MediaHubService {
     minutes: 45,
   );
   static const int defaultMinimumFreeSpaceBytes = 256 * 1024 * 1024;
+
+  /// How long a rejected upload's remaining body is read and discarded after
+  /// the error response was sent. Closing a TLS connection while request bytes
+  /// are still unread makes the kernel reset it, and a reset can destroy a
+  /// response the client had not yet read; draining briefly lets the client
+  /// see why its upload was refused (#441).
+  static const Duration defaultIncomingRejectionDrainGrace = Duration(
+    seconds: 1,
+  );
+  static const int _maximumRejectedBodyDrainBytes = 16 * 1024 * 1024;
   static const int _incomingUploadDiskSpaceCheckIntervalBytes =
       64 * 1024 * 1024;
   static const int _maximumConcurrentIncomingUploads = 2;
@@ -38,6 +48,7 @@ class HttpMediaHubService implements MediaHubService {
   final int maxIncomingAudioBytes;
   final Duration incomingUploadIdleTimeout;
   final Duration incomingUploadTotalTimeout;
+  final Duration incomingRejectionDrainGrace;
   final int minimumFreeSpaceBytes;
   final IncomingDiskSpaceProbe _diskSpaceProbe;
   final StreamController<MediaHubState> _stateController =
@@ -55,6 +66,7 @@ class HttpMediaHubService implements MediaHubService {
     this.maxIncomingAudioBytes = defaultMaxIncomingAudioBytes,
     this.incomingUploadIdleTimeout = defaultIncomingUploadIdleTimeout,
     this.incomingUploadTotalTimeout = defaultIncomingUploadTotalTimeout,
+    this.incomingRejectionDrainGrace = defaultIncomingRejectionDrainGrace,
     this.minimumFreeSpaceBytes = defaultMinimumFreeSpaceBytes,
     IncomingDiskSpaceProbe? diskSpaceProbe,
   }) : _uuid = uuid ?? const Uuid(),
@@ -70,6 +82,13 @@ class HttpMediaHubService implements MediaHubService {
     if (incomingUploadIdleTimeout <= Duration.zero ||
         incomingUploadTotalTimeout <= Duration.zero) {
       throw ArgumentError('Upload timeouts must be greater than zero.');
+    }
+    if (incomingRejectionDrainGrace < Duration.zero) {
+      throw ArgumentError.value(
+        incomingRejectionDrainGrace,
+        'incomingRejectionDrainGrace',
+        'Must not be negative.',
+      );
     }
     if (minimumFreeSpaceBytes < 0) {
       throw ArgumentError.value(
@@ -502,8 +521,53 @@ class HttpMediaHubService implements MediaHubService {
     _IncomingUploadReservation? incomingReservation;
     IOSink? uploadSink;
     StreamIterator<List<int>>? uploadIterator;
+    Future<bool>? pendingMoveNext;
     Timer? idleTimer;
     Timer? totalTimer;
+    var resourcesReleased = false;
+
+    void cancelUploadTimers() {
+      idleTimer?.cancel();
+      idleTimer = null;
+      totalTimer?.cancel();
+      totalTimer = null;
+    }
+
+    // Everything the upload holds on disk and in the session is released
+    // before the client is told the outcome, so a client (or test) that reacts
+    // to the response never observes a stale partial file, reservation marker,
+    // or busy upload slot.
+    Future<void> releaseUploadResources() async {
+      if (resourcesReleased) return;
+      resourcesReleased = true;
+      cancelUploadTimers();
+      await _discardPartialUpload(uploadSink, partialFile);
+      uploadSink = null;
+      partialFile = null;
+      final reservation = incomingReservation;
+      incomingReservation = null;
+      if (reservation != null) {
+        await _releaseIncomingDestinationReservation(reservation);
+      }
+      _releaseIncomingUpload(session.token);
+    }
+
+    Future<void> rejectInFlight(
+      int statusCode,
+      String errorCode, {
+      Map<String, dynamic> details = const {},
+    }) async {
+      await releaseUploadResources();
+      await _rejectIncomingUpload(
+        request,
+        statusCode,
+        errorCode,
+        details: details,
+        body: uploadIterator,
+        pendingMoveNext: pendingMoveNext,
+      );
+    }
+
     try {
       final directory = await _resolveIncomingDirectory();
       await directory.create(recursive: true);
@@ -559,10 +623,13 @@ class HttpMediaHubService implements MediaHubService {
       );
 
       while (true) {
+        final move = iterator.moveNext();
+        // Kept until the move resolves: a timeout can win the race below, and
+        // the rejection drain must continue this pending read rather than
+        // start a second one on the same iterator.
+        pendingMoveNext = move;
         final event = await Future.any<Object>([
-          iterator.moveNext().then(
-            (hasNext) => _IncomingUploadChunkSignal(hasNext),
-          ),
+          move.then((hasNext) => _IncomingUploadChunkSignal(hasNext)),
           timeoutSignal.future.then(
             (reason) => _IncomingUploadTimeoutSignal(reason),
           ),
@@ -570,6 +637,7 @@ class HttpMediaHubService implements MediaHubService {
         if (event is _IncomingUploadTimeoutSignal) {
           throwUploadTimeout(event.reason);
         }
+        pendingMoveNext = null;
         if (timeoutSignal.isCompleted) {
           throwUploadTimeout(await timeoutSignal.future);
         }
@@ -602,18 +670,14 @@ class HttpMediaHubService implements MediaHubService {
         sink.add(chunk);
         received += chunk.length;
       }
-      idleTimer?.cancel();
-      idleTimer = null;
-      totalTimer.cancel();
-      totalTimer = null;
+      cancelUploadTimers();
 
       await sink.flush();
       await sink.close();
       uploadSink = null;
 
       if (expectedLength != null && received != expectedLength) {
-        if (await partial.exists()) await partial.delete();
-        partialFile = null;
+        await releaseUploadResources();
         await _writeJson(request.response, HttpStatus.badRequest, {
           'error': 'length_mismatch',
           'expected': expectedLength,
@@ -630,6 +694,7 @@ class HttpMediaHubService implements MediaHubService {
           await callback(destination.path);
         } catch (error) {
           if (await destination.exists()) await destination.delete();
+          await releaseUploadResources();
           await _writeJson(request.response, HttpStatus.internalServerError, {
             'error': 'library_import_failed',
             'message': error.toString(),
@@ -638,6 +703,7 @@ class HttpMediaHubService implements MediaHubService {
         }
       }
 
+      await releaseUploadResources();
       await _writeJson(request.response, HttpStatus.created, {
         'status': 'ok',
         'filename': destination.uri.pathSegments.last,
@@ -645,64 +711,41 @@ class HttpMediaHubService implements MediaHubService {
         'imported': callback != null,
       });
     } on _IncomingUploadTooLarge {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
+      await rejectInFlight(
         HttpStatus.requestEntityTooLarge,
         'upload_too_large',
         details: {'maxBytes': maxIncomingAudioBytes},
       );
     } on TimeoutException {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
-        HttpStatus.requestTimeout,
-        'upload_idle_timeout',
-      );
+      await rejectInFlight(HttpStatus.requestTimeout, 'upload_idle_timeout');
     } on _IncomingUploadTotalTimeout {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
-        HttpStatus.requestTimeout,
-        'upload_total_timeout',
-      );
+      await rejectInFlight(HttpStatus.requestTimeout, 'upload_total_timeout');
     } on _IncomingUploadStorageCheckUnavailable {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
+      await rejectInFlight(
         HttpStatus.insufficientStorage,
         'storage_check_unavailable',
       );
     } on _IncomingUploadInsufficientSpace {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
+      await rejectInFlight(
         HttpStatus.insufficientStorage,
         'insufficient_storage',
         details: {'minimumFreeBytes': minimumFreeSpaceBytes},
       );
     } on FileSystemException {
-      await _discardPartialUpload(uploadSink, partialFile);
-      await _rejectIncomingUpload(
-        request,
+      await rejectInFlight(
         HttpStatus.insufficientStorage,
         'storage_write_failed',
       );
     } catch (_) {
-      await _discardPartialUpload(uploadSink, partialFile);
+      await releaseUploadResources();
       rethrow;
     } finally {
-      idleTimer?.cancel();
-      totalTimer?.cancel();
+      await releaseUploadResources();
       try {
         await uploadIterator?.cancel();
       } catch (_) {
         // The request may already have been closed by the client.
       }
-      if (incomingReservation != null) {
-        await _releaseIncomingDestinationReservation(incomingReservation);
-      }
-      _releaseIncomingUpload(session.token);
     }
   }
 
@@ -740,15 +783,76 @@ class HttpMediaHubService implements MediaHubService {
     String errorCode, {
     Map<String, dynamic> details = const {},
     int? retryAfterSeconds,
+    StreamIterator<List<int>>? body,
+    Future<bool>? pendingMoveNext,
   }) async {
-    request.response.persistentConnection = false;
+    final response = request.response;
+    response.persistentConnection = false;
     if (retryAfterSeconds != null) {
-      request.response.headers.set('Retry-After', retryAfterSeconds.toString());
+      response.headers.set('Retry-After', retryAfterSeconds.toString());
     }
-    await _writeJson(request.response, statusCode, {
-      'error': errorCode,
-      ...details,
-    });
+    final bytes = utf8.encode(jsonEncode({'error': errorCode, ...details}));
+    response.statusCode = statusCode;
+    response.headers.contentType = ContentType.json;
+    response.contentLength = bytes.length;
+    response.add(bytes);
+    try {
+      // Send the answer first, then consume what the client is still sending
+      // so closing does not reset the connection under an unread response.
+      await response.flush();
+      await _drainRejectedUploadBody(
+        request,
+        iterator: body,
+        pendingMoveNext: pendingMoveNext,
+      );
+    } catch (_) {
+      // The client may already have gone away; closing below still releases
+      // the connection.
+    }
+    try {
+      await response.close();
+    } catch (_) {
+      // Nothing is left to report to a client that disconnected.
+    }
+  }
+
+  /// Reads and discards the rest of a rejected request body for at most
+  /// [incomingRejectionDrainGrace] and [_maximumRejectedBodyDrainBytes].
+  ///
+  /// Uses [iterator] (continuing [pendingMoveNext] if a read is in flight)
+  /// when the body was already being consumed; otherwise reads the request
+  /// directly. Never stores the bytes.
+  Future<void> _drainRejectedUploadBody(
+    HttpRequest request, {
+    StreamIterator<List<int>>? iterator,
+    Future<bool>? pendingMoveNext,
+  }) async {
+    final grace = incomingRejectionDrainGrace;
+    if (grace <= Duration.zero) return;
+    final ownsIterator = iterator == null;
+    final body = iterator ?? StreamIterator<List<int>>(request);
+    final elapsed = Stopwatch()..start();
+    var drained = 0;
+    var next = pendingMoveNext;
+    try {
+      while (drained <= _maximumRejectedBodyDrainBytes) {
+        final remaining = grace - elapsed.elapsed;
+        if (remaining <= Duration.zero) break;
+        final move = next ?? body.moveNext();
+        next = null;
+        final hasNext = await move.timeout(remaining, onTimeout: () => false);
+        if (!hasNext) break;
+        drained += body.current.length;
+      }
+    } catch (_) {
+      // A client that disconnects mid-drain needs nothing more from us.
+    } finally {
+      if (ownsIterator) {
+        try {
+          await body.cancel();
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> _discardPartialUpload(IOSink? sink, File? partial) async {

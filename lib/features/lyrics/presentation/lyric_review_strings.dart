@@ -220,9 +220,9 @@ abstract final class LyricReviewStrings {
       LyricProofreadV2ExplanationCode.forcedAlignmentEvidenceAvailable =>
         'ForcedAligner 已提供词级时间证据；这些证据仅供复核，不会直接写入歌词时间戳。',
       LyricProofreadV2ExplanationCode.forcedAlignmentUnavailable =>
-        'Forced alignment is unavailable. Existing lyric text and timestamps were preserved; review timing manually.',
+        'ForcedAligner 强制对齐不可用；已保留现有歌词文字和时间戳，请手动复核时间。',
       LyricProofreadV2ExplanationCode.forcedAlignmentDiagnosticsMissing =>
-        'Forced alignment completed without line diagnostics; review timing manually.',
+        'ForcedAligner 强制对齐已完成，但未返回逐行诊断；请手动复核时间。',
     };
   }
 

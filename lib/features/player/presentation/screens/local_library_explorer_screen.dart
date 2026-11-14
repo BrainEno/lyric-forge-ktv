@@ -13,12 +13,14 @@ import '../../domain/models/local_media_metadata.dart';
 import '../../domain/repositories/local_media_collection_repository.dart';
 import '../../domain/repositories/local_media_library_repository.dart';
 import '../../domain/repositories/local_media_metadata_repository.dart';
+import '../../domain/repositories/local_store_integrity.dart';
 import '../../domain/repositories/play_history_repository.dart';
 import '../../domain/services/audio_library_import_service.dart';
 import '../../domain/services/local_media_relink_service.dart';
 import '../../domain/services/playback_session_service.dart';
 import '../local_library_dependencies.dart';
 import '../widgets/local_media_metadata_dialog.dart';
+import '../widgets/local_store_integrity_banner.dart';
 import '../widgets/local_song_lyrics_import_action.dart';
 
 class LocalLibraryExplorerScreen extends StatefulWidget {
@@ -51,6 +53,7 @@ class _LocalLibraryExplorerScreenState
   bool _grid = true;
   String _query = '';
   String? _error;
+  List<LocalStoreLoadIssue> _storeIssues = const [];
   LocalLibrarySmartView _smartView = LocalLibrarySmartView.all;
   LocalLibrarySortMode _sortMode = LocalLibrarySortMode.title;
 
@@ -104,6 +107,7 @@ class _LocalLibraryExplorerScreenState
         limit: maxHistoryCount,
       );
       final playlists = await _collections.getPlaylists();
+      final storeIssues = await _readStoreIssues();
 
       final overrideByPath = <String, LocalMediaMetadata>{
         for (final item in overrides) _pathKey(item.sourcePath): item,
@@ -140,10 +144,13 @@ class _LocalLibraryExplorerScreenState
       if (!mounted) return;
       setState(() {
         _songs = songs;
+        _storeIssues = storeIssues;
         _error = null;
       });
     } catch (error) {
-      if (mounted) setState(() => _error = '音乐库加载失败：$error');
+      if (mounted) {
+        setState(() => _error = '音乐库加载失败：${describeLocalLibraryError(error)}');
+      }
     } finally {
       if (mounted && showLoading) setState(() => _loading = false);
     }
@@ -184,11 +191,45 @@ class _LocalLibraryExplorerScreenState
     try {
       await work();
     } catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = describeLocalLibraryError(error));
     } finally {
       if (mounted) setState(() => _working = false);
     }
   }
+
+  /// Stores that loaded only partly (#439); they refuse writes until repaired.
+  Future<List<LocalStoreLoadIssue>> _readStoreIssues() async {
+    final issues = <LocalStoreLoadIssue>[];
+    for (final store in <Object>[_library, _collections]) {
+      if (store is! LocalStoreIntegrity) continue;
+      final issue = await store.loadIssue();
+      if (issue != null) issues.add(issue);
+    }
+    return issues;
+  }
+
+  Future<void> _repairStore(LocalStoreLoadIssue issue) => _withWork(() async {
+    final Object store = switch (issue.kind) {
+      LocalStoreKind.mediaLibrary => _library,
+      LocalStoreKind.collections => _collections,
+    };
+    if (store is! LocalStoreIntegrity) return;
+    final confirmed = await confirmLocalStoreRepair(context, issue);
+    if (!confirmed) return;
+    final result = await store.repairKeepingReadableRecords();
+    await _reload(showLoading: false);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '已修复${localStoreDisplayName(issue.kind)}：保留 ${result.keptRecords} 条，'
+          '放弃 ${result.droppedRecords} 条无法读取的记录。'
+          '原文件副本：${result.preservedCopyPath}',
+        ),
+        duration: const Duration(seconds: 8),
+      ),
+    );
+  });
 
   Future<void> _addFiles() => _withWork(() async {
     final paths = await _importer.pickAudioFiles();
@@ -262,10 +303,10 @@ class _LocalLibraryExplorerScreenState
     );
   });
 
-  Future<void> _remove(_ExplorerSong song) async {
+  Future<void> _remove(_ExplorerSong song) => _withWork(() async {
     await _library.remove(song.entry.sourcePath);
     await _reload(showLoading: false);
-  }
+  });
 
   void _handleCompactAppAction(String action) {
     switch (action) {
@@ -375,6 +416,15 @@ class _LocalLibraryExplorerScreenState
                     }),
             ),
             if (_working) const LinearProgressIndicator(minHeight: 2),
+            if (_storeIssues.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: layout.pageGutter),
+                child: LocalStoreIntegrityBanner(
+                  issues: _storeIssues,
+                  busy: _working,
+                  onRepair: (issue) => unawaited(_repairStore(issue)),
+                ),
+              ),
             if (_error != null)
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: layout.pageGutter),
