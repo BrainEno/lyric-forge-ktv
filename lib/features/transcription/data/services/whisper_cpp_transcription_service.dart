@@ -527,11 +527,16 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       rawJsonPath: rawJsonPath,
     );
     final echo = removePromptEchoes(parsed.document.lines, outcome.plan.prompt);
+    if (echo.lines.isEmpty) {
+      // Every row was the prompt repeated back: nothing was recognised.
+      throw const TranscriptionException.input('Whisper 没有识别到可用歌词片段');
+    }
     return TranscriptionResult(
       lyrics: parsed.document.copyWith(
         lines: echo.lines,
         metadata: {
           ...parsed.document.metadata,
+          if (echo.removedCount > 0) 'segmentCount': echo.lines.length,
           kWhisperDecodingMetadataKey: {
             ...outcome.plan.toMetadata(fallbackReason: outcome.fallbackReason),
             'promptTransport': ?outcome.promptTransport,

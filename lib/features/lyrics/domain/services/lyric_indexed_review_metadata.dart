@@ -56,6 +56,9 @@ class LyricIndexedReviewMetadata {
         result[candidatesKey] = remapped;
         result[candidateCountKey] = remapped.length;
       }
+    } else {
+      // Counts without the list they count cannot be kept consistent.
+      result = clear(result);
     }
 
     final rawIndices = result[secondaryOnlyIndicesKey];
