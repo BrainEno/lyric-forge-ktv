@@ -165,8 +165,9 @@ void main() {
     isWindows: isWindows,
   );
 
-  List<String> recognitionArgs(_FakeWhisper fake) =>
-      fake.invocations.lastWhere((args) => !(args.length == 1 && args[0] == '-h'));
+  List<String> recognitionArgs(_FakeWhisper fake) => fake.invocations.lastWhere(
+    (args) => !(args.length == 1 && args[0] == '-h'),
+  );
 
   test('lyrics profile sends a metadata prompt and records it', () async {
     final fake = _FakeWhisper();
@@ -281,7 +282,10 @@ void main() {
         decoding['fallbackReason'],
         startsWith('runtime_rejected_arguments:'),
       );
-      expect(decoding['omittedFlags'], containsAll(['--prompt', '--suppress-nst']));
+      expect(
+        decoding['omittedFlags'],
+        containsAll(['--prompt', '--suppress-nst']),
+      );
       expect(messages, contains('Whisper 运行时不支持歌词参数，改用标准参数重试'));
     },
   );
@@ -334,7 +338,10 @@ void main() {
       expect(args.last, '--suppress-nst');
       final decoding =
           result.lyrics.metadata[kWhisperDecodingMetadataKey] as Map;
-      expect(decoding['fallbackReason'], 'windows_non_ascii_paths_prompt_omitted');
+      expect(
+        decoding['fallbackReason'],
+        'windows_non_ascii_paths_prompt_omitted',
+      );
       expect(decoding['omittedFlags'], contains('--prompt'));
       expect(decoding['effectiveProfile'], 'whisper-lyrics-v1');
     });
