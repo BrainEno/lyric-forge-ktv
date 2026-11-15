@@ -75,11 +75,7 @@ void main() {
     await _workflow(repository, null, service: service).transcribeProject('p');
 
     final draft = repository.project.lyricDocument!;
-    expect(draft.lines.map((line) => line.text), [
-      '我爱你',
-      '让我们一起唱',
-      '头发飘在风里',
-    ]);
+    expect(draft.lines.map((line) => line.text), ['我爱你', '让我们一起唱', '头发飘在风里']);
     expect(draft.lines.map((line) => line.startTime), [
       Duration.zero,
       const Duration(seconds: 2),
@@ -112,10 +108,7 @@ void main() {
     );
     final transcription =
         repository.project.metadata['transcription'] as Map<String, dynamic>;
-    expect(
-      (transcription['chineseScript'] as Map)['noopReason'],
-      'notChinese',
-    );
+    expect((transcription['chineseScript'] as Map)['noopReason'], 'notChinese');
   });
 
   test('missing vocal stem falls back to the original audio', () async {
