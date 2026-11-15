@@ -811,7 +811,9 @@ Map<String, Object?> evaluateLyricQualityPair({
   // words are split on whitespace and punctuation, while Han, kana and Hangul
   // are one token per character (no dictionary segmentation), so for Chinese
   // and Japanese WER equals the character error rate by construction.
-  final referenceWords = reference.expand((line) => _tokens(line.text)).toList();
+  final referenceWords = reference
+      .expand((line) => _tokens(line.text))
+      .toList();
   final hypothesisWords = hypothesis
       .expand((line) => _tokens(line.text))
       .toList();
@@ -967,7 +969,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     referenceWordCount += score['referenceWordCount'] as int? ?? 0;
     wordEditCount += score['wordEditCount'] as int? ?? 0;
     secondaryOnlyLineCount += score['secondaryOnlyLineCount'] as int? ?? 0;
-    secondaryOnlyMatchedCount += score['secondaryOnlyMatchedCount'] as int? ?? 0;
+    secondaryOnlyMatchedCount +=
+        score['secondaryOnlyMatchedCount'] as int? ?? 0;
     final pairs = score['timedMatchCount']! as int;
     final mae = _asDouble(score['startTimeMaeMs']);
     final within = _asDouble(score['within500msRate']);

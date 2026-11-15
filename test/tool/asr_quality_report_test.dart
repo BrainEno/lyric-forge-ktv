@@ -729,7 +729,10 @@ void main() {
 
     test('secondary-only rows are scored separately', () {
       final score = evaluate(
-        reference: [line('first line here', 0, 2000), line('found late', 3000, 5000)],
+        reference: [
+          line('first line here', 0, 2000),
+          line('found late', 3000, 5000),
+        ],
         hypothesis: [
           line('first line here', 0, 2000),
           const quality.QualityLine(
@@ -793,7 +796,10 @@ void main() {
         line('two line', 3000, 5000),
         line('three line', 6000, 8000),
       ];
-      final primary = [line('one line', 0, 2000), line('three line', 6000, 8000)];
+      final primary = [
+        line('one line', 0, 2000),
+        line('three line', 6000, 8000),
+      ];
       final secondary = [
         line('one line', 0, 2000),
         line('two line', 3000, 5000),
@@ -825,7 +831,10 @@ void main() {
         fused: primary,
       );
       expect(dropped['retentionRate'], 0.0);
-      expect((dropped['droppedReferenceLines'] as List).single, containsPair('text', 'two line'));
+      expect(
+        (dropped['droppedReferenceLines'] as List).single,
+        containsPair('text', 'two line'),
+      );
     });
 
     test('corpus retention must name existing candidates', () {
@@ -839,15 +848,16 @@ void main() {
               {'engine': 'a', 'text': 'one'},
               {'engine': 'b', 'text': 'one\ntwo'},
             ],
-            'secondaryRetention': {'primary': 'a', 'secondary': 'b', 'fused': fused},
+            'secondaryRetention': {
+              'primary': 'a',
+              'secondary': 'b',
+              'fused': fused,
+            },
           },
         ],
       });
       final report = quality.evaluateQualityCorpus(corpus('b'));
-      expect(
-        (report['secondaryRetention'] as Map)['retentionRate'],
-        1.0,
-      );
+      expect((report['secondaryRetention'] as Map)['retentionRate'], 1.0);
       expect(
         () => quality.evaluateQualityCorpus(corpus('missing')),
         throwsFormatException,
@@ -860,7 +870,10 @@ void main() {
           'fused': {'normalizedWordErrorRate': wer},
         },
       };
-      final comparison = quality.compareQualityReports(report(0.10), report(0.20));
+      final comparison = quality.compareQualityReports(
+        report(0.10),
+        report(0.20),
+      );
       expect(
         (comparison['regressions'] as List).single,
         containsPair('metric', 'normalizedWordErrorRate'),

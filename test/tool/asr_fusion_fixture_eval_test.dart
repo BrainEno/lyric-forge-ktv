@@ -119,9 +119,7 @@ void main() {
         'id': song['id'],
         'language': language,
         'reference': {
-          'text': File(
-            '$_fixtureRoot/${song['reference']}',
-          ).readAsStringSync(),
+          'text': File('$_fixtureRoot/${song['reference']}').readAsStringSync(),
           'reviewed': true,
         },
         'candidates': [
