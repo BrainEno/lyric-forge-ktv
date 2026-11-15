@@ -14,7 +14,9 @@
 - Validation:
   - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the tests and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
   - Run 43695802041: analyze had no errors or warnings (188 infos; the one new info was a relative `lib` import in the quality tool, now a package import). Full `flutter test`: 2220 passed, 2 skipped, 0 failed. Targeted tests: one failure, the generator drift check, because the generator wrote one trailing blank line that `dart format` removes; the generator now ends the file with a single newline.
+  - Run 43696185116 (targeted): `flutter analyze` had no errors or warnings and 186 infos (the baseline had 187). Targeted tests: 167 passed, 0 failed, including the generator drift check against an OpenCC checkout at the pinned revision. `dart tool/work_log.dart check` passed; its only warnings were commit subjects that do not exist until the squash merge.
   - The Python port used to cross-check the generator reproduces the committed table file byte for byte.
+  - The PR's own Flutter Quality Gate result is recorded in the PR body.
 - Notes:
   - Simplified → traditional is approximate: one-to-many characters (发/發/髮) depend on OpenCC's phrase table, and a phrase can win in the wrong place (我一出门就想你 → 我一齣門就想你). The setting and the dialog both say so.
   - The table source is about 750 KB and is parsed on first use with Han text.
