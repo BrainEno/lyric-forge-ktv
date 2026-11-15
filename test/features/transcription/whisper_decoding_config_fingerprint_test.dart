@@ -113,10 +113,7 @@ void main() {
       final standard = _base.copyWith(
         whisperDecodingProfile: WhisperDecodingProfile.standard,
       );
-      expect(
-        _fingerprint(standard, hints: _hints),
-        _fingerprint(standard),
-      );
+      expect(_fingerprint(standard, hints: _hints), _fingerprint(standard));
     });
 
     test('hints that sanitize to the same prompt share a fingerprint', () {
