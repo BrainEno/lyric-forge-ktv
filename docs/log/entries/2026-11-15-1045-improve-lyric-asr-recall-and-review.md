@@ -1,0 +1,31 @@
+# [2026-11-15 10:45] Improve lyric ASR recall and proofreading workflow
+
+- Scope: Fix #448: get more complete lyrics after import, surface likely errors quickly, and let the user audition and then accept or reject candidates in the existing review flow.
+  - Recognition: before this change, Whisper received no song context; only Qwen used `request.context`. The new pure-Dart `WhisperDecodingPolicy` adds `--prompt`, built only from the project title, artist, album and user proper nouns (`recognitionHints`, which has no lyric field), and `--suppress-nst`. Both flags were verified in whisper.cpp `927cfce` and are passed only when the runtime's `-h` advertises them. The prompt is language-adapted, sanitized and capped at 200 UTF-8 bytes. Non-ASCII prompts go through a UTF-8 `@file` on Windows. Unsupported or rejecting runtimes fall back to the exact pre-#448 arguments and record the reason, and whole-prompt echo rows are removed. The profile, hints and capability signature are part of the chunk checkpoint fingerprint.
+  - Fusion: an unmatched Whisper row that only re-segments adjacent Qwen rows is counted (`segmentationOnlySecondaryCount`) instead of inserted. Every other Whisper-only row is inserted as a 建议补入 candidate with an exact `secondaryOnlySuggestions` record; it is never dropped and never merged. The chunked service shifts and merges these records across chunks.
+  - Editor: a collapsed recognition summary card shows counts only, or 不可用/未采集 when data is missing, and opens the existing review queue. The inspector shows a suggestion card with audition, keep (a review decision) and reject (an undoable `deleteLine`). The controller shifts indexed review metadata on insert and delete. Nothing auto-saves.
+  - Evidence: `tool/asr_quality_report.dart` gains WER, `secondaryOnlyPrecision` and `secondaryRetention`. Original EN/ZH/JA fixtures plus a production-path fusion evaluation test produce before/after reports.
+- Files:
+  - New domain: `whisper_decoding_policy.dart`, `secondary_only_suggestion.dart`, `recognition_review_summary.dart`, `lyric_indexed_review_metadata.dart`.
+  - New data: `project_recognition_hints.dart`.
+  - New UI: `lyric_recognition_summary_card.dart`.
+  - Changed: the Whisper, Highest Quality and resumable-chunked services; the transcription workflow and rerun service; `transcription_models.dart`; the config dialog; the review priority service and strings; the editor controller, content, inspector and list pane.
+  - Tool: `tool/asr_quality_report.dart`.
+  - Tests: policy, decoding profile, fusion recall, secondary-only review, the review-flow widget test, config/fingerprint, quality-report additions and fixture fusion evaluation; fixtures under `test/fixtures/asr_quality/`.
+  - Docs: `docs/benchmarks/2026-11-14-fusion-fixtures-*`, `asr_quality_baseline.md`, `local_transcription.md`, `high_quality_asr_windows_setup.md` (Windows manual steps and results template), `decisions.md` (D-014), handoff.
+- Validation:
+  - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the tests and the work-log tool on GitHub Actions; it was deleted before the PR.
+  - Run 43667513959: analyze had no errors or warnings (187 pre-existing infos). Tests: 1448 passed and 8 failed. Whisper all-echo and indexed-metadata clear were fixed.
+  - Run 43667828790: 7 failures in the chunk editor integration test. The summary card had been placed above the list and shrank the height used for the two-pane decision. It now sits inside the list column and is collapsed by default.
+  - Run 43668205165: targeted tests, 1530 passed and 0 failed.
+  - Run 43668730024: targeted tests, 1136 passed and 0 failed. The fixture fusion evaluation passed on the current code. The baseline `0e93b65`, run with identical inputs, produced its report.
+  - Fixture fusion results, current vs baseline (fused output, 3 songs, 21 reference lines):
+    - Output lines: 23 vs 26. Precision: 91.3% vs 80.8%.
+    - CER: 2.8% vs 14.8%. WER: 3.2% vs 18.1%.
+    - Secondary-only rows: 6 vs 9; 4 of them true lines in both.
+    - Line recall: 100% in both. Secondary retention: 4/4 in both.
+  - Full suite and final analyze results are in the PR body. They come from the last validation run before the temporary workflow was removed.
+- Notes:
+  - Nothing ran on a real model. The whisper.cpp model download in the sandbox returned only an LFS pointer, so the benefit of the prompt is unmeasured. The fixtures are hand-written to exercise segmentation, missed lines, choruses and ad-libs; they measure fusion logic, not recognition accuracy. Real-model numbers must be collected with the Windows steps.
+  - Changing the profile invalidates existing chunk checkpoints by design.
+- Commit: `Improve lyric ASR recall and proofreading workflow`

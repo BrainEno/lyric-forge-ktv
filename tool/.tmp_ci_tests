@@ -1,1 +1,1 @@
-test/tool test/features/transcription/lyric_fusion_recall_test.dart test/features/lyrics test/features/transcription/whisper_cpp_decoding_profile_test.dart test/features/transcription/domain/whisper_decoding_policy_test.dart test/high_quality_transcription_service_test.dart test/resumable_chunked_transcription_service_test.dart
+test/features/transcription/whisper_decoding_config_fingerprint_test.dart test/transcription_config_test.dart test/tool

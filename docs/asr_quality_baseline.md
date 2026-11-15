@@ -33,7 +33,7 @@ dart run tool/asr_quality_report.dart --corpus corpus/corpus.json \
   --output corpus/baseline-2026-11.json
 ```
 
-输出示例（仓库内 CLI 冒烟测试的真实输出，3 行参考 + 4 行融合输出）：
+输出示例（仓库内 CLI 冒烟测试的真实输出，3 行参考 + 4 行融合输出；生成于 #448 之前，当前版本的表格在 CER 后多一列 `WER`，见第 10 节）：
 
 ```
 # Lyric quality baseline
@@ -209,3 +209,52 @@ snapshot associated with the selected overlap row, converts its times to the
 song clock, and leaves a row unknown if its selected checkpoint lacks evidence.
 The source/model/audio and preprocessing identity needed for future re-alignment
 must be verified separately before applying any suggestions.
+
+## 10. WER 与「仅副引擎行」指标（#448）
+
+#448 在同一工具里增加了三个指标，schema 仍为 v1，全部是新增键，旧报告可以继续读，旧的对比命令也能继续用。
+
+| 指标 | 定义 | 看什么 |
+|---|---|---|
+| **WER `normalizedWordErrorRate`** | 整篇词级编辑距离除以参考词数。文本先小写，全角折叠为半角，标点替换为空格。拉丁文字按空白和标点切词，词内撇号保留；汉字、假名、谚文每个字算一个词，**所以纯中文或日文歌曲 WER 等于 CER**。 | 英文歌的字错。CER 会被长单词稀释，WER 更接近听感。 |
+| **`secondaryOnlyPrecision`** | 融合结果里带「仅副引擎」标记的行中，能匹配到参考行的比例。另报 `secondaryOnlyLineCount`、`secondaryOnlyMatchedCount`、`secondaryOnlyUnmatchedCount`。 | 「建议补入」候选里有多少是真歌词。剩下的多是和声、ad-lib 或幻听，需要用户拒绝。 |
+| **`secondaryRetention.retentionRate`** | 先找出参考行中被副引擎匹配到、但主引擎没有匹配到的行（`secondaryOnlyReferenceLineCount`），再算其中仍被融合结果匹配到的比例。`retainedAsSuggestionCount` 统计保留下来、并且以「建议补入」标记呈现的行数。`droppedReferenceLines` 列出被丢掉的行。 | **低于 1.0 就说明融合静默丢掉了一句只有副引擎听到的正确歌词。** 这是 #448 的否决项，应当始终为 1.0。 |
+
+「仅副引擎」标记的来源，依次为：
+
+1. 每行的 `secondaryOnly: true`；
+2. `LyricDocument.metadata.secondaryOnlySuggestions`（v1，按 `start|end|text` 精确匹配）；
+3. 旧版 `metadata.secondaryOnlyLineIndices`（越界或非整数的索引会被忽略）。
+
+### 语料中声明 retention
+
+```json
+{
+  "id": "song-01",
+  "reference": { "path": "song-01/reference.lrc", "reviewed": true },
+  "candidates": [
+    { "engine": "qwen-only", "path": "song-01/qwen.json" },
+    { "engine": "whisper-only", "path": "song-01/whisper.json" },
+    { "engine": "fused", "path": "song-01/fused.json" }
+  ],
+  "secondaryRetention": { "primary": "qwen-only", "secondary": "whisper-only", "fused": "fused" }
+}
+```
+
+三个名字都必须是本曲已有的 candidate，否则工具报 `FormatException`。报告顶层的 `secondaryRetention` 汇总所有声明了 retention 的歌曲；没有任何一首声明时，不输出这个键。
+
+### 仓库内的确定性夹具
+
+`test/fixtures/asr_quality/{en,zh,ja}/` 下是**为本仓库原创的**歌词文本，以及手写的两引擎输出，不含音频，也不是模型的真实输出。`test/tool/asr_fusion_fixture_eval_test.dart` 把这些输出喂给生产代码 `HighQualityTranscriptionService`，再用本工具打分。夹具覆盖了以下情况：
+
+- 主引擎漏行（只有 Whisper 识别到的真歌词）；
+- 断句不同（Whisper 把相邻两行切成三段）；
+- 重复副歌；
+- 与已有行重叠的短 ad-lib。
+
+这个测试只使用基线已有的 API，所以可以原样复制到基线 checkout 里跑出「改动前」的报告。环境变量：
+
+- `LYRIC_FUSION_EVAL_OUT=path.json`：写出 JSON 和同名的 `.md`；
+- `LYRIC_FUSION_EVAL_BASELINE=1`：只出报告，不做断言。
+
+这些数字衡量的是**融合逻辑**，而不是模型识别能力。真实模型的前后对比要按 `docs/high_quality_asr_windows_setup.md` 的「#448 手工验证」一节在 Windows 上跑。
