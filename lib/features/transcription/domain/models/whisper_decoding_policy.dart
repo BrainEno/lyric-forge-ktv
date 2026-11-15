@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../lyrics/domain/text/chinese_script_converter.dart';
+
 /// Which whisper.cpp decoding profile a run asks for.
 ///
 /// * [standard] is the exact command line every release before the lyric
@@ -197,6 +199,7 @@ class WhisperDecodingPolicy {
     required RecognitionHints hints,
     required String language,
     required WhisperRuntimeCapabilities capabilities,
+    ChineseScriptTarget? chineseScript,
   }) {
     if (profile == WhisperDecodingProfile.standard) {
       return WhisperDecodingPlan.standard();
@@ -204,7 +207,11 @@ class WhisperDecodingPolicy {
 
     final omitted = <String>[];
     final extra = <String>[];
-    final promptResult = buildPrompt(hints: hints, language: language);
+    final promptResult = buildPrompt(
+      hints: hints,
+      language: language,
+      chineseScript: chineseScript,
+    );
     String? prompt;
     if (promptResult != null) {
       if (capabilities.supports(WhisperRuntimeCapabilities.promptFlag)) {
@@ -247,16 +254,29 @@ class WhisperDecodingPolicy {
     required WhisperDecodingProfile profile,
     required RecognitionHints hints,
     required String language,
+    ChineseScriptTarget? chineseScript,
   }) {
     if (profile == WhisperDecodingProfile.standard) return profile.id;
-    final prompt = buildPrompt(hints: hints, language: language)?.text ?? '';
+    final prompt =
+        buildPrompt(
+          hints: hints,
+          language: language,
+          chineseScript: chineseScript,
+        )?.text ??
+        '';
     return '${profile.id}\u0001$prompt';
   }
 
   /// Builds the language-adapted prompt, or null when no usable hint exists.
+  ///
+  /// [chineseScript] selects the script of the Chinese template's own words
+  /// (专辑/專輯). Whisper continues in the script of the preceding text, so a
+  /// traditional template nudges it towards traditional output; the user's
+  /// hint values are never converted, because names have their own spelling.
   WhisperPrompt? buildPrompt({
     required RecognitionHints hints,
     required String language,
+    ChineseScriptTarget? chineseScript,
   }) {
     final title = sanitizeTitle(hints.songTitle);
     final artist = sanitizeField(hints.artist);
@@ -271,7 +291,10 @@ class WhisperDecodingPolicy {
     }
     if (title.isEmpty && artist.isEmpty && terms.isEmpty) return null;
 
-    final template = _PromptTemplate.forLanguage(language);
+    final template = _PromptTemplate.forLanguage(
+      language,
+      chineseScript: chineseScript,
+    );
     final sources = <String>[];
     final parts = <String>[];
     if (title.isNotEmpty) {
@@ -412,9 +435,21 @@ class _PromptTemplate {
   String join(List<String> parts) =>
       parts.isEmpty ? '' : '${parts.join(separator)}$terminator';
 
-  static _PromptTemplate forLanguage(String language) {
+  static _PromptTemplate forLanguage(
+    String language, {
+    ChineseScriptTarget? chineseScript,
+  }) {
     final code = language.trim().toLowerCase().split(RegExp(r'[-_]')).first;
     return switch (code) {
+      'zh' ||
+      'yue' when chineseScript?.isTraditional ?? false => _PromptTemplate(
+        title: (value) => '歌曲《$value》',
+        artist: (value) => '演唱：$value',
+        album: (value) => '專輯：$value',
+        terms: (values) => '人名與專有名詞：${values.join('、')}',
+        separator: '，',
+        terminator: '。',
+      ),
       'zh' || 'yue' => _PromptTemplate(
         title: (value) => '歌曲《$value》',
         artist: (value) => '演唱：$value',

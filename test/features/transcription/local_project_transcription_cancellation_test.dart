@@ -56,6 +56,61 @@ void main() {
     },
   );
 
+  test('a mixed-script Chinese draft is unified and recorded (#450)', () async {
+    final repository = await _createRepository();
+    LyricLine line(String text, int second) => LyricLine(
+      id: 'z$second',
+      text: text,
+      startTime: Duration(seconds: second),
+      endTime: Duration(seconds: second + 1),
+    );
+    final service = _Service(
+      null,
+      null,
+      lyrics: LyricDocument(
+        language: 'zh',
+        lines: [line('我爱你', 0), line('让我们一起唱', 2), line('頭髮飄在風裡', 4)],
+      ),
+    );
+    await _workflow(repository, null, service: service).transcribeProject('p');
+
+    final draft = repository.project.lyricDocument!;
+    expect(draft.lines.map((line) => line.text), ['我爱你', '让我们一起唱', '头发飘在风里']);
+    expect(draft.lines.map((line) => line.startTime), [
+      Duration.zero,
+      const Duration(seconds: 2),
+      const Duration(seconds: 4),
+    ]);
+    final record =
+        draft.metadata['chineseScriptUnification'] as Map<String, Object?>;
+    expect(record['target'], 'simplified');
+    expect(record['convertedLineIds'], ['z4']);
+    final transcription =
+        repository.project.metadata['transcription'] as Map<String, dynamic>;
+    expect(transcription['chineseScript'], {
+      'preference': 'auto',
+      'target': 'simplified',
+      'convertedLines': 1,
+      'inconsistentLinesBefore': 1,
+      'noopReason': null,
+    });
+  });
+
+  test('an English draft is left alone and says why (#450)', () async {
+    final repository = await _createRepository();
+    await _workflow(repository, null).transcribeProject('p');
+    expect(repository.project.lyricDocument!.lines.single.text, 'ASR draft');
+    expect(
+      repository.project.lyricDocument!.metadata.containsKey(
+        'chineseScriptUnification',
+      ),
+      isFalse,
+    );
+    final transcription =
+        repository.project.metadata['transcription'] as Map<String, dynamic>;
+    expect((transcription['chineseScript'] as Map)['noopReason'], 'notChinese');
+  });
+
   test('missing vocal stem falls back to the original audio', () async {
     final repository = await _createRepository();
     final original = repository.project.audioAsset!.originalPath;
@@ -743,7 +798,10 @@ class _Repository implements ProjectRepository {
 class _Service implements TranscriptionService {
   final TranscriptionException? error;
   final Future<void> Function()? onTranscribe;
-  _Service(this.error, this.onTranscribe);
+  _Service(this.error, this.onTranscribe, {this.lyrics});
+
+  /// Recognised draft to return instead of the default English line.
+  final LyricDocument? lyrics;
   Future<void> Function()? onCancel;
   int cancelCalls = 0;
   TranscriptionRequest? lastRequest;
@@ -752,6 +810,15 @@ class _Service implements TranscriptionService {
     lastRequest = request;
     await onTranscribe?.call();
     if (error != null) throw error!;
+    final lyrics = this.lyrics;
+    if (lyrics != null) {
+      return TranscriptionResult(
+        lyrics: lyrics,
+        normalizedAudioPath: 'normalized.wav',
+        rawJsonPath: 'raw.json',
+        detectedLanguage: lyrics.language,
+      );
+    }
     return const TranscriptionResult(
       lyrics: LyricDocument(
         language: 'en',

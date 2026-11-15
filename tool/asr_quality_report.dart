@@ -26,7 +26,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
 
 /// Bumped when a metric definition or report key changes incompatibly.
 const int kQualityReportSchemaVersion = 1;
@@ -83,6 +84,17 @@ final RegExp _lrcTimestampAtLineStart = RegExp(
 );
 
 const LyricTokenizer _tokenizer = LyricTokenizer();
+
+/// Keeps simplified/traditional differences, for the written-form CER.
+const LyricTokenizer _writtenTokenizer = LyricTokenizer(
+  foldChineseScript: false,
+);
+const ChineseScriptUnificationService _scriptProfiles =
+    ChineseScriptUnificationService();
+
+/// Characters as written: like [_characters] but script differences count.
+List<int> _writtenCharacters(String text) =>
+    _writtenTokenizer.tokenize(text).join().runes.toList();
 
 /// One lyric line with optional millisecond boundaries.
 class QualityLine {
@@ -806,6 +818,24 @@ Map<String, Object?> evaluateLyricQualityPair({
     context: 'Song $songId / $engine character comparison',
     maxCells: _maxCharacterEditCells,
   );
+  // The headline CER folds simplified/traditional script, because a script
+  // difference is not a recognition error. The written-form CER keeps it, so
+  // the gap between the two is the cost of inconsistent script alone.
+  final writtenReference = _writtenCharacters(
+    reference.map((line) => line.text).join(' '),
+  );
+  final writtenHypothesis = _writtenCharacters(
+    hypothesis.map((line) => line.text).join(' '),
+  );
+  final writtenCharacterEdits = _editDistance<int>(
+    writtenReference,
+    writtenHypothesis,
+    context: 'Song $songId / $engine written character comparison',
+    maxCells: _maxCharacterEditCells,
+  );
+  final scriptProfile = _scriptProfiles.profileTexts(
+    hypothesis.map((line) => line.text),
+  );
 
   // Word error rate uses the same tokenizer as everything else here: Latin
   // words are split on whitespace and punctuation, while Han, kana and Hangul
@@ -875,6 +905,20 @@ Map<String, Object?> evaluateLyricQualityPair({
       characterEdits,
       referenceCharacters.length,
     ),
+    'writtenCharacterEditCount': writtenCharacterEdits,
+    'writtenCharacterErrorRate': _rate(
+      writtenCharacterEdits,
+      writtenReference.length,
+    ),
+    'scriptOnlyCharacterEditCount': writtenCharacterEdits - characterEdits,
+    'hypothesisScript': <String, Object?>{
+      'simplifiedLines': scriptProfile.simplifiedLines,
+      'traditionalLines': scriptProfile.traditionalLines,
+      'mixedLines': scriptProfile.mixedLines,
+      'neutralLines': scriptProfile.neutralLines,
+      'japaneseOrKoreanLines': scriptProfile.japaneseOrKoreanLines,
+    },
+    'scriptInconsistentLineCount': scriptProfile.inconsistentLines,
     'referenceWordCount': referenceWords.length,
     'hypothesisWordCount': hypothesisWords.length,
     'wordEditCount': wordEdits,
@@ -950,6 +994,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
   var matchedLineCount = 0;
   var referenceCharacterCount = 0;
   var characterEditCount = 0;
+  var writtenCharacterEditCount = 0;
+  var scriptInconsistentLineCount = 0;
   var duplicateLineCount = 0;
   var referenceWordCount = 0;
   var wordEditCount = 0;
@@ -965,6 +1011,13 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     matchedLineCount += score['matchedLineCount']! as int;
     referenceCharacterCount += score['referenceCharacterCount']! as int;
     characterEditCount += score['characterEditCount']! as int;
+    // Reports written before the script metrics existed fall back to the
+    // folded count, which is what their CER measured.
+    writtenCharacterEditCount +=
+        score['writtenCharacterEditCount'] as int? ??
+        score['characterEditCount']! as int;
+    scriptInconsistentLineCount +=
+        score['scriptInconsistentLineCount'] as int? ?? 0;
     duplicateLineCount += score['duplicateLineCount']! as int;
     referenceWordCount += score['referenceWordCount'] as int? ?? 0;
     wordEditCount += score['wordEditCount'] as int? ?? 0;
@@ -998,6 +1051,12 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
       characterEditCount,
       referenceCharacterCount,
     ),
+    'writtenCharacterEditCount': writtenCharacterEditCount,
+    'writtenCharacterErrorRate': _rate(
+      writtenCharacterEditCount,
+      referenceCharacterCount,
+    ),
+    'scriptInconsistentLineCount': scriptInconsistentLineCount,
     'referenceWordCount': referenceWordCount,
     'wordEditCount': wordEditCount,
     'normalizedWordErrorRate': _rate(wordEditCount, referenceWordCount),
@@ -1258,6 +1317,14 @@ const Map<String, Object?> _interpretation = <String, Object?>{
       'Character edits over the whole joined document divided by reference '
       'characters; same normalization as tool/asr_transcript_eval.dart, so the '
       'numbers are comparable between the two tools.',
+  'writtenCharacterErrorRate':
+      'The same character error rate without folding simplified and '
+      'traditional Chinese together. The difference from '
+      'normalizedCharacterErrorRate is the share of edits caused only by the '
+      'output using a different script than the reference.',
+  'scriptInconsistentLineCount':
+      'Hypothesis lines written in the minority Chinese script, plus lines '
+      'mixing both scripts. Lines with kana or hangul are not counted.',
   'normalizedWordErrorRate':
       'Word edits (substitutions + insertions + deletions) over reference '
       'words, after the same normalization as the CER. Latin text is split '
@@ -1476,10 +1543,11 @@ String formatQualityReport(Map<String, Object?> report) {
     ..writeln('## By engine')
     ..writeln()
     ..writeln(
-      '| engine | songs | recall | precision | CER | WER | duplicate rate | '
-      'line ratio | start MAE | within 500 ms |',
+      '| engine | songs | recall | precision | CER | written CER | WER | '
+      'duplicate rate | script-inconsistent lines | line ratio | start MAE | '
+      'within 500 ms |',
     )
-    ..writeln('|---|---|---|---|---|---|---|---|---|---|');
+    ..writeln('|---|---|---|---|---|---|---|---|---|---|---|---|');
 
   for (final engine in engineNames) {
     final summary = _asMap(engines[engine], 'Engine $engine');
@@ -1488,8 +1556,10 @@ String formatQualityReport(Map<String, Object?> report) {
       '${_percent(summary['lineRecall'])} | '
       '${_percent(summary['linePrecision'])} | '
       '${_percent(summary['normalizedCharacterErrorRate'])} | '
+      '${_percent(summary['writtenCharacterErrorRate'])} | '
       '${_percent(summary['normalizedWordErrorRate'])} | '
       '${_percent(summary['duplicateLineRate'])} | '
+      '${summary['scriptInconsistentLineCount'] ?? 0} | '
       '${_ratio(summary['lineCountRatio'])} | '
       '${_milliseconds(summary['startTimeMaeMs'])} | '
       '${_percent(summary['within500msRate'])} |',

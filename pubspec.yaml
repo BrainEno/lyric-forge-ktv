@@ -108,6 +108,9 @@ flutter:
   # App artwork shared by the Flutter UI and native platform packaging.
   assets:
     - assets/images/icon.png
+    # Apache-2.0 notice for the OpenCC-derived Chinese script tables; shown on
+    # the license page via LicenseRegistry (see lib/main.dart).
+    - third_party/opencc/LICENSE
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

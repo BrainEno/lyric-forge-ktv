@@ -1,6 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/chinese_script_preference.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 import '../../tool/asr_quality_report.dart' as quality;
 
@@ -22,6 +25,101 @@ Map<String, Object?> evaluate({
 );
 
 void main() {
+  group('Chinese script metrics (#450)', () {
+    // Synthetic lines written for this test, not taken from a song.
+    final reference = <quality.QualityLine>[
+      line('我们一起唱', 0, 3000),
+      line('让风带走', 3000, 6000),
+      line('头发飘在风里', 6000, 9000),
+      line('你在哪里', 9000, 12000),
+    ];
+    final mixedHypothesis = <quality.QualityLine>[
+      line('我们一起唱', 0, 3000),
+      line('让风带走', 3000, 6000),
+      line('頭髮飄在風裡', 6000, 9000),
+      line('你在哪里', 9000, 12000),
+    ];
+
+    test('a script-only difference is not a recognition error', () {
+      final score = evaluate(reference: reference, hypothesis: mixedHypothesis);
+
+      expect(score['normalizedCharacterErrorRate'], 0.0);
+      expect(score['lineRecall'], 1.0);
+      // 頭髮飄風裡 differ from 头发飘风里 only in script: 5 of 19 characters.
+      expect(score['writtenCharacterEditCount'], 5);
+      expect(score['writtenCharacterErrorRate'], closeTo(5 / 19, 1e-9));
+      expect(score['scriptOnlyCharacterEditCount'], 5);
+      expect(score['scriptInconsistentLineCount'], 1);
+      expect(score['hypothesisScript'], {
+        'simplifiedLines': 2,
+        'traditionalLines': 1,
+        'mixedLines': 0,
+        'neutralLines': 1,
+        'japaneseOrKoreanLines': 0,
+      });
+    });
+
+    test('unifying the draft removes the written-form gap', () {
+      final draft = LyricDocument(
+        language: 'zh',
+        lines: [
+          for (final item in mixedHypothesis)
+            LyricLine(
+              text: item.text,
+              startTime: Duration(milliseconds: item.startMs!),
+              endTime: Duration(milliseconds: item.endMs!),
+            ),
+        ],
+      );
+      final unified = const ChineseScriptUnificationService()
+          .plan(draft, preference: ChineseScriptPreference.auto)
+          .applyTo(draft);
+      final score = evaluate(
+        reference: reference,
+        hypothesis: [
+          for (final item in unified.lines)
+            line(
+              item.text,
+              item.startTime.inMilliseconds,
+              item.endTime.inMilliseconds,
+            ),
+        ],
+      );
+
+      expect(score['writtenCharacterErrorRate'], 0.0);
+      expect(score['scriptInconsistentLineCount'], 0);
+    });
+
+    test('engine summaries add the written-form totals', () {
+      final report = quality.evaluateQualityCorpus(
+        jsonEncode({
+          'schemaVersion': 1,
+          'songs': [
+            {
+              'id': 'script-01',
+              'language': 'zh',
+              'reference': {
+                'reviewed': true,
+                'lines': [for (final item in reference) item.toJson()],
+              },
+              'candidates': [
+                {
+                  'engine': 'fused',
+                  'lines': [for (final item in mixedHypothesis) item.toJson()],
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      final engines = report['overallByEngine']! as Map<String, Object?>;
+      final fused = engines['fused']! as Map<String, Object?>;
+      expect(fused['normalizedCharacterErrorRate'], 0.0);
+      expect(fused['writtenCharacterEditCount'], 5);
+      expect(fused['scriptInconsistentLineCount'], 1);
+    });
+  });
+
   group('line metrics', () {
     test('a clean transcript scores perfectly', () {
       final reference = <quality.QualityLine>[

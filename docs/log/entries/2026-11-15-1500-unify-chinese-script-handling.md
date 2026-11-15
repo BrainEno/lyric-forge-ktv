@@ -1,0 +1,23 @@
+# [2026-11-15 15:00] Handle simplified and traditional Chinese script consistently
+
+- Scope: Implement #450. Qwen and Whisper mix simplified and traditional script within one song, and every comparison path treated 愛/爱 as a different character.
+  - Tables: a generator turns OpenCC (Apache-2.0, pinned at `fae2a0a911c3`) into a pure-Dart table file: character maps, the full phrase dictionaries (entries equal to the character-level conversion stored as bare keys), Taiwan/Hong Kong variants and script-exclusive character sets. Regional vocabulary tables are not used because they would rewrite words. A comparison fold maps traditional, regional and simplified forms to one simplified representative; simplified characters are never folded through a regional table, so 什么 still equals 什麼.
+  - Comparison: the tokenizer, reference line alignment, dual-engine comparison, review priority and the quality tool compare script-folded keys. "Identical" in reference alignment still compares the written form, so adopting a reference's script is offered as a replacement.
+  - Output: a 中文字形 setting (auto / keep / simplified / Taiwan / Hong Kong). New drafts are unified once before the workflow writes them, and the result is recorded in `transcription.chineseScript` and the document's `chineseScriptUnification` metadata. Auto mode only converts minority-script and mixed lines; Japanese/Korean lines and documents are skipped. A traditional target also switches the Whisper prompt template to traditional words, and that is part of the checkpoint fingerprint.
+  - Editor: 校对 → 统一简繁字形 previews the changed lines, skips manually edited lines unless opted in, applies one undoable change and does not save.
+  - Evidence: a draft still matches the primary ASR transcript when replaying the recorded conversion with the same table revision reproduces every changed line.
+- Files:
+  - New: `tool/generate_chinese_script_tables.dart`; `lib/features/lyrics/domain/text/{chinese_script_data.g.dart,chinese_script_tables.dart,chinese_script_converter.dart}`; `chinese_script_preference.dart`; `chinese_script_unification_service.dart`; `chinese_script_unification_dialog.dart`; `third_party/opencc/{LICENSE,README.md}`.
+  - Changed: tokenizer, alignment, review priority, ASR text comparison, transcription models, Whisper policy and services, chunked service, transcription workflow, proofread evidence loader, editor screen/content/toolbar/proofread menu, transcription config dialog, `tool/asr_quality_report.dart`, `lib/main.dart`, `pubspec.yaml`.
+  - Tests: converter, unification service, cross-script comparison, dialog and menu, transcription settings and prompt, workflow metadata, evidence replay, quality-report script metrics, generator drift.
+  - Docs: `decisions.md` (D-015), handoff.
+- Validation:
+  - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the tests and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
+  - Run 43695802041: analyze had no errors or warnings (188 infos; the one new info was a relative `lib` import in the quality tool, now a package import). Full `flutter test`: 2220 passed, 2 skipped, 0 failed. Targeted tests: one failure, the generator drift check, because the generator wrote one trailing blank line that `dart format` removes; the generator now ends the file with a single newline.
+  - Run 43696185116 (targeted): `flutter analyze` had no errors or warnings and 186 infos (the baseline had 187). Targeted tests: 167 passed, 0 failed, including the generator drift check against an OpenCC checkout at the pinned revision. `dart tool/work_log.dart check` passed; its only warnings were commit subjects that do not exist until the squash merge.
+  - The Python port used to cross-check the generator reproduces the committed table file byte for byte.
+  - The PR's own Flutter Quality Gate result is recorded in the PR body.
+- Notes:
+  - Simplified → traditional is approximate: one-to-many characters (发/發/髮) depend on OpenCC's phrase table, and a phrase can win in the wrong place (我一出门就想你 → 我一齣門就想你). The setting and the dialog both say so.
+  - The table source is about 750 KB and is parsed on first use with Han text.
+- Commit: `Handle simplified and traditional Chinese script consistently`

@@ -22,6 +22,7 @@ import '../widgets/reference_alignment_backup_dialog.dart';
 import '../widgets/reference_alignment_result_comparison.dart';
 import '../controllers/line_audition_controller.dart';
 import '../controllers/lyric_editor_document_controller.dart';
+import '../widgets/chinese_script_unification_dialog.dart';
 import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
@@ -532,6 +533,28 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     );
   }
 
+  /// 统一简繁字形：预览后作为一次可撤销的批量修改写入编辑中的文档，不自动保存。
+  Future<void> _openChineseScriptUnification() async {
+    final document = _editingDocument;
+    if (document == null || document.lines.isEmpty) return;
+    final plan = await showChineseScriptUnificationDialog(
+      context,
+      document: document,
+      protectedIndices: _manuallyEditedLineIndices,
+      initialPreference: initialChineseScriptPreferenceFor(document),
+    );
+    if (plan == null || !plan.hasChanges || !mounted) return;
+    // The dialog worked on a snapshot; refuse to apply over newer edits.
+    if (!identical(_editingDocument, document)) return;
+    applyProofreadDocument(
+      document: plan.applyTo(document),
+      label: ChineseScriptStrings.actionTitle,
+      selectedLineIndex: plan.changes.first.index,
+      isReferenceProofread: false,
+      message: '已统一 ${plan.changes.length} 行的简繁字形（未写入磁盘）',
+    );
+  }
+
   Future<void> _showAlignmentComparison(ProjectManifest project) async {
     final before = _editor.alignmentSnapshot?.document;
     final after = _editingDocument;
@@ -555,7 +578,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     if (shouldPauseAudition) unawaited(_audioService.pause());
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('已撤销最近一次参考歌词批量更改（未写入磁盘）'),
+        content: Text('已撤销最近一次批量更改（未写入磁盘）'),
         duration: Duration(seconds: 3),
       ),
     );
@@ -1118,6 +1141,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         onRestoreAlignment: canRestore
                             ? _restoreAlignmentBackup
                             : null,
+                        onUnifyChineseScript: document.lines.isEmpty
+                            ? null
+                            : _openChineseScriptUnification,
                         onAddLine: _addNewLine,
                         onInsertAtPlayback: _insertLineAtPlayback,
                         onSeekPlayback: _seekPlayback,

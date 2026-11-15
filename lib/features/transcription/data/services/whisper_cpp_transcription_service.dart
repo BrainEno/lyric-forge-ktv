@@ -228,6 +228,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       hints: request.recognitionHints,
       language: request.config.language,
       capabilities: capabilities,
+      chineseScript: request.config.chineseScriptOutputTarget,
     );
   }
 
