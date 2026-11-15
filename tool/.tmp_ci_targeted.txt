@@ -1,6 +1,0 @@
-exit=0
-00:09 +128: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing removing an edge breaks a cycle and makes baseline stale
-00:09 +129: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing same-feature and external imports are excluded
-00:09 +130: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing backslash paths resolve consistently across hosts
-00:09 +131: All tests passed!
-exit=0

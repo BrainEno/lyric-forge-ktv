@@ -27,6 +27,10 @@
 
 全部来自 GitHub Actions 临时 workflow，沙箱里没有 Dart/Flutter 工具链。各次运行见工作日志条目。
 
+- `flutter analyze`：没有 error 或 warning，186 条 info，与基线相同。
+- `flutter test` 全量：2312 通过，2 跳过，0 失败（运行 43722256623）。
+- `dart tool/work_log.dart check`：通过。
+
 ## 下一步
 
 - 按 `docs/diagnostics.md` 的回环流程，在 Windows、macOS、Android 各一台设备上测 KTV 端到端延迟，并把结果写入 `docs/benchmarks/`。完成后才能关闭 #226。

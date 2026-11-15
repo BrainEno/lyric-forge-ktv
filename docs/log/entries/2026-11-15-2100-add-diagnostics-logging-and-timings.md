@@ -14,7 +14,8 @@
   - Docs: `decisions.md` (D-016), `diagnostics.md`, handoff.
 - Validation:
   - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the tests and the work-log tool on GitHub Actions and committed its output. It was deleted before the PR.
-  - Run results are recorded in the PR body.
+  - Run 43721445760 found two problems. First, a source contract test expects `ktvRecordingService = assembleKtvRecordingService(` in `app_services.dart`, so the KTV timing decorator moved inside that assembly behind an optional `timings` parameter. Second, the settings card failed Flutter's `ListTile` ink assertion because its tiles sat in a decorated `Container`; the card surface is now a `Material`. The run also flagged five new analyzer infos (unnecessary imports, one null-aware element); they are fixed.
+  - Run 43722256623: `flutter analyze` reported no errors or warnings and 186 infos, the same as the baseline. The full `flutter test` run had 2312 passed, 2 skipped and 0 failed. The targeted diagnostics, decorator, card and architecture tests all passed. `dart tool/work_log.dart check` passed; its only warnings were two commit subjects from earlier entries.
 - Notes:
   - Real device latency and long-song numbers still have to be collected with the loopback and benchmark procedures in `docs/diagnostics.md`, so #226 stays open.
   - Process RSS excludes `whisper-cli` and FFmpeg child processes; the docs describe how to measure them.

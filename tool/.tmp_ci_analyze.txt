@@ -1,3 +1,0 @@
-
-186 issues found. (ran in 22.1s)
-exit=0

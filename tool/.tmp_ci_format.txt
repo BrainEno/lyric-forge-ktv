@@ -1,4 +1,0 @@
-Formatted lib/features/settings/presentation/widgets/diagnostics_settings_card.dart
-Formatted 35 files (1 changed) in 0.17 seconds.
- M lib/features/settings/presentation/widgets/diagnostics_settings_card.dart
-?? tool/.tmp_ci_format.txt
