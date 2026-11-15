@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'diagnostics_assembly.dart';
 import 'ktv_recording_assembly.dart';
 
+import '../core/diagnostics/app_diagnostics.dart';
 import '../features/lyrics/data/services/local_lyric_file_export_service.dart';
 import '../features/lyrics/data/services/local_lyric_file_import_service.dart';
 import '../features/lyrics/domain/services/lyric_file_export_service.dart';
@@ -19,6 +21,7 @@ import '../features/player/data/services/file_ktv_microphone_preference_store.da
 import '../features/player/data/services/file_ktv_take_history_store.dart';
 import '../features/player/data/services/file_local_media_relink_service.dart';
 import '../features/player/data/services/record_soloud_ktv_microphone_service.dart';
+import '../features/player/data/services/timed_ktv_recording_service.dart';
 import '../features/player/data/services/just_audio_player_service.dart';
 import '../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../features/player/data/services/local_audio_library_import_service.dart';
@@ -58,6 +61,7 @@ import '../features/transcription/data/services/resilient_asr_runtime_manager.da
 import '../features/transcription/data/services/resumable_chunked_transcription_service.dart';
 import '../features/transcription/data/services/retrying_asr_runtime_manager.dart';
 import '../features/transcription/data/services/storage_preflight_asr_runtime_manager.dart';
+import '../features/transcription/data/services/timed_transcription_service.dart';
 import '../features/transcription/data/services/whisper_cpp_transcription_service.dart';
 import '../features/transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../features/transcription/domain/services/asr_download_connection_checker.dart';
@@ -112,6 +116,10 @@ class AppServices {
   /// would throw `LateInitializationError` instead of leaving the shell idle.
   bool get isInitialized => _initialized;
 
+  /// Local logs, crash records, operation timings and the exportable
+  /// diagnostics report. Built first so the rest of start-up is measured.
+  late final AppDiagnostics diagnostics;
+
   late final ProjectRepository projectRepository;
   late final AudioPlayerService audioPlayerService;
 
@@ -155,6 +163,7 @@ class AppServices {
 
   void initialize() {
     _initialized = true;
+    diagnostics = createAppDiagnostics();
     // Connection state and discovery exist before the player is built so a
     // restored remote session can recover a moved/restarted desktop from its
     // stable paired device identity at the lowest audio-load layer.
@@ -305,19 +314,28 @@ class AppServices {
     // resuming a long inference run beats keeping the song seamless. Both
     // engines already window audio internally, so chunking here would put a
     // second, coarser split above them and create the seams we were fixing.
-    transcriptionService = ResumableChunkedTranscriptionService(
-      delegate: HighQualityTranscriptionService(
-        primary: qwenNativeTranscriptionService,
-        fallback: WhisperCppTranscriptionService(),
+    // Outermost: one timing sample per user-visible recognition run, whatever
+    // engines and chunks it used underneath.
+    transcriptionService = TimedTranscriptionService(
+      delegate: ResumableChunkedTranscriptionService(
+        delegate: HighQualityTranscriptionService(
+          primary: qwenNativeTranscriptionService,
+          fallback: WhisperCppTranscriptionService(),
+        ),
       ),
+      timings: diagnostics.timings,
     );
     final transcriptionSettings = FileTranscriptionSettingsStore();
     transcriptionSettingsStore = transcriptionSettings;
     transcriptionDownloadProxyStore = transcriptionSettings;
-    ktvRecordingService = assembleKtvRecordingService(
-      audioService: audioPlayerService,
-      microphoneService: ktvMicrophoneService,
-      settingsStore: transcriptionSettingsStore,
+    ktvRecordingService = TimedKtvRecordingService(
+      delegate: assembleKtvRecordingService(
+        audioService: audioPlayerService,
+        microphoneService: ktvMicrophoneService,
+        settingsStore: transcriptionSettingsStore,
+      ),
+      timings: diagnostics.timings,
+      microphone: ktvMicrophoneService,
     );
     ktvTakeHistoryStore = const FileKtvTakeHistoryStore();
     asrResourceCoordinator = AsrResourceCoordinator();
@@ -332,6 +350,14 @@ class AppServices {
       workflow: createProjectTranscriptionWorkflow(),
     );
     unawaited(transcriptionQueue.initialize());
+    registerAppDiagnosticsSections(
+      diagnostics,
+      settingsStore: transcriptionSettingsStore,
+      runtimeManager: asrRuntimeManager,
+      microphoneService: ktvMicrophoneService,
+      projectRepository: projectRepository,
+      libraryRepository: localMediaLibraryRepository,
+    );
   }
 
   /// Per-consumer cancellation ownership with one shared resource gate.

@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../settings_screen_dependencies.dart';
 import '../widgets/ai_transcription_settings_section.dart';
 import '../widgets/asr_end_to_end_smoke_test_card.dart';
+import '../widgets/diagnostics_settings_card.dart';
 
 class SettingsScreen extends StatelessWidget {
   final SettingsScreenDependencies dependencies;
@@ -69,6 +70,10 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.lg),
                   AsrEndToEndSmokeTestCard(
                     smokeTestService: dependencies.smokeTestService,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  DiagnosticsSettingsCard(
+                    diagnostics: dependencies.diagnostics,
                   ),
                 ],
               ),

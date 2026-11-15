@@ -1,0 +1,77 @@
+name: tmp-233 validation
+
+on:
+  push:
+    branches: [arena/2cce7c3d-lyric-forge-ktv]
+    paths-ignore:
+      - 'tool/.tmp_ci_*.txt'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-233
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+
+      - name: Resolve packages
+        run: flutter pub get --enforce-lockfile
+
+      - name: Format changed Dart files
+        shell: bash
+        run: |
+          mapfile -t files < <(git diff --name-only --diff-filter=AM 247139233c86a52acdf4a31291719bcc5ecc6ff1 HEAD -- '*.dart')
+          dart format "${files[@]}" > tool/.tmp_ci_format.txt 2>&1 || true
+          git status --short >> tool/.tmp_ci_format.txt
+
+      - name: Work log
+        shell: bash
+        run: |
+          dart tool/work_log.dart write > tool/.tmp_ci_worklog.txt 2>&1 || true
+          dart tool/work_log.dart check >> tool/.tmp_ci_worklog.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_worklog.txt
+
+      - name: Analyze
+        shell: bash
+        run: |
+          flutter analyze --no-pub --no-fatal-infos lib test tool > tool/.tmp_ci_analyze_full.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_analyze_full.txt
+          { grep -E "error|warning" tool/.tmp_ci_analyze_full.txt || true; grep -E "diagnostics|timed_|settings|main.dart|app_services|quick_play|file_project_repository|ktv_microphone_sheet" tool/.tmp_ci_analyze_full.txt || true; tail -3 tool/.tmp_ci_analyze_full.txt; } > tool/.tmp_ci_analyze.txt
+          rm tool/.tmp_ci_analyze_full.txt
+
+      - name: Targeted tests
+        shell: bash
+        run: |
+          flutter test --no-pub --reporter expanded \
+            test/core/diagnostics \
+            test/features/transcription/timed_transcription_service_test.dart \
+            test/features/player/timed_ktv_recording_service_test.dart \
+            test/features/settings/diagnostics_settings_card_test.dart \
+            test/architecture > tool/.tmp_ci_targeted_full.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_targeted_full.txt
+          { grep -E "\[E\]|FAILED|Expected|Actual|Which|══|Error|error:|exit=" tool/.tmp_ci_targeted_full.txt | head -300; tail -5 tool/.tmp_ci_targeted_full.txt; } > tool/.tmp_ci_targeted.txt
+          rm tool/.tmp_ci_targeted_full.txt
+
+      - name: Full tests
+        shell: bash
+        run: |
+          flutter test --no-pub --reporter expanded > tool/.tmp_ci_full_raw.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_full_raw.txt
+          { grep -E "\[E\]|Some tests failed|All tests passed" tool/.tmp_ci_full_raw.txt | head -80; tail -4 tool/.tmp_ci_full_raw.txt; } > tool/.tmp_ci_full.txt
+          rm tool/.tmp_ci_full_raw.txt
+
+      - name: Commit results
+        shell: bash
+        run: |
+          git config user.name "tmp-ci"
+          git config user.email "tmp-ci@users.noreply.github.com"
+          git add -A
+          git commit -m "tmp-ci: format and validation output" || exit 0
+          git push origin HEAD:arena/2cce7c3d-lyric-forge-ktv

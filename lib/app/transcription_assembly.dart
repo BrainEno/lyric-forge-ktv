@@ -31,5 +31,6 @@ SettingsScreenDependencies assembleSettingsScreenDependencies(
   return SettingsScreenDependencies(
     asrRuntimeSetupDependencies: assembleAsrRuntimeSetupDependencies(services),
     smokeTestService: services.asrEndToEndSmokeTestService,
+    diagnostics: services.diagnostics,
   );
 }

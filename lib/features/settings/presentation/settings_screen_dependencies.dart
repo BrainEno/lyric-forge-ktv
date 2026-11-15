@@ -1,3 +1,4 @@
+import '../../../core/diagnostics/app_diagnostics.dart';
 import '../../transcription/domain/services/asr_end_to_end_smoke_test_service.dart';
 import '../../transcription/presentation/transcription_screen_dependencies.dart';
 
@@ -6,8 +7,12 @@ class SettingsScreenDependencies {
   final AsrRuntimeSetupDependencies asrRuntimeSetupDependencies;
   final AsrEndToEndSmokeTestService smokeTestService;
 
+  /// Logs, crash records, timings and the exportable diagnostics report.
+  final AppDiagnostics diagnostics;
+
   const SettingsScreenDependencies({
     required this.asrRuntimeSetupDependencies,
     required this.smokeTestService,
+    required this.diagnostics,
   });
 }
