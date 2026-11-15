@@ -1,5 +1,19 @@
+import '../text/chinese_script_converter.dart';
+
+/// Splits lyric text into comparison tokens.
+///
+/// Tokens are comparison keys, never display text: case, full-width forms
+/// and, by default, simplified/traditional Chinese script are folded, so
+/// 「愛你」 and 「爱你」 produce the same tokens and a script difference is
+/// not mistaken for a recognition error.
 class LyricTokenizer {
-  const LyricTokenizer();
+  /// When false, Han characters keep their written form (for callers that
+  /// need to see script differences, such as script-consistency reports).
+  final bool foldChineseScript;
+
+  const LyricTokenizer({this.foldChineseScript = true});
+
+  static const ChineseScriptConverter _script = ChineseScriptConverter();
 
   String normalize(String input) => tokenize(input).join(' ');
 
@@ -48,6 +62,7 @@ class LyricTokenizer {
         rune == 0x00b4) {
       return 0x27;
     }
+    if (foldChineseScript) return _script.foldRune(rune);
     return rune;
   }
 

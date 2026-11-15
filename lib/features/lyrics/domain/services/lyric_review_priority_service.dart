@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import '../models/secondary_only_suggestion.dart';
+import '../text/chinese_script_converter.dart';
 import 'lyric_review_decision_service.dart';
 import 'lyric_timeline_validator.dart';
 
@@ -283,8 +284,12 @@ class LyricReviewPriorityService {
     return null;
   }
 
-  String _normalize(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  /// Engines that disagree only on simplified versus traditional script
+  /// heard the same lyric; that is not a reason to review the line.
+  String _normalize(String value) => const ChineseScriptConverter()
+      .foldForComparison(value.toLowerCase())
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 
   double? _number(Object? value) {
     if (value is num) return value.toDouble();

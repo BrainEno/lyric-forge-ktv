@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/models/chinese_script_preference.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/project_proofread_evidence.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
 import 'package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/audio_asset.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
@@ -783,6 +785,84 @@ void main() {
       expect(result.status, ProjectProofreadEvidenceStatus.available);
       expect(result.secondaryEngine, 'qwen3-asr-1.7b');
       expect(result.secondary!.metadata, isEmpty);
+    });
+  });
+
+  group('script-unified drafts (#450)', () {
+    const chinesePrimary = LyricDocument(
+      language: 'zh',
+      lines: [
+        LyricLine(
+          id: 'z1',
+          text: '我爱你',
+          startTime: Duration.zero,
+          endTime: Duration(seconds: 2),
+        ),
+        LyricLine(
+          id: 'z2',
+          text: '让我们一起唱',
+          startTime: Duration(seconds: 2),
+          endTime: Duration(seconds: 4),
+        ),
+        LyricLine(
+          id: 'z3',
+          text: '頭髮飄在風裡',
+          startTime: Duration(seconds: 4),
+          endTime: Duration(seconds: 6),
+        ),
+      ],
+    );
+
+    LyricDocument unified() => const ChineseScriptUnificationService()
+        .plan(chinesePrimary, preference: ChineseScriptPreference.auto)
+        .applyTo(chinesePrimary);
+
+    test('a recorded script conversion still matches the primary', () async {
+      final draft = unified();
+      expect(draft.lines.last.text, '头发飘在风里');
+      await save(
+        evidence(sourceHash: hash, primaryDoc: chinesePrimary),
+        doc: draft,
+      );
+      final result = await load(doc: draft);
+      expect(result.status, ProjectProofreadEvidenceStatus.available);
+    });
+
+    test('a hand edit next to the record is not explained by it', () async {
+      final converted = unified();
+      final edited = converted.copyWith(
+        lines: [
+          ...converted.lines.take(2),
+          converted.lines.last.copyWith(text: '头发飘在雨里'),
+        ],
+      );
+      await save(
+        evidence(sourceHash: hash, primaryDoc: chinesePrimary),
+        doc: edited,
+      );
+      final result = await load(doc: edited);
+      expect(result.status, ProjectProofreadEvidenceStatus.auditOnly);
+    });
+
+    test('a record from other tables cannot validate the text', () async {
+      final converted = unified();
+      final stale = converted.copyWith(
+        metadata: {
+          ...converted.metadata,
+          ChineseScriptUnificationService.metadataKey: {
+            ...(converted.metadata[ChineseScriptUnificationService
+                        .metadataKey]
+                    as Map<String, Object?>),
+            'revision': 'opencc-older-tables',
+          },
+        },
+      );
+      await save(
+        evidence(sourceHash: hash, primaryDoc: chinesePrimary),
+        doc: stale,
+      );
+      final result = await load(doc: stale);
+      expect(result.status, ProjectProofreadEvidenceStatus.auditOnly);
     });
   });
 }

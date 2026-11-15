@@ -97,7 +97,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       'language=${config.language}',
       'fallbackConfidenceThreshold=${config.fallbackConfidenceThreshold}',
       'maxFallbackSegments=${config.maxFallbackSegments}',
-      'whisperDecoding=${const WhisperDecodingPolicy().fingerprintMaterial(profile: config.whisperDecodingProfile, hints: hints, language: config.language)}',
+      'whisperDecoding=${const WhisperDecodingPolicy().fingerprintMaterial(profile: config.whisperDecodingProfile, hints: hints, language: config.language, chineseScript: config.chineseScriptOutputTarget)}',
     ].join('\u0000');
     return sha256.convert(utf8.encode(material)).toString();
   }

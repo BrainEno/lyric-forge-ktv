@@ -55,6 +55,7 @@ class LyricEditorToolbar extends StatelessWidget {
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
+  final VoidCallback? onUnifyChineseScript;
 
   const LyricEditorToolbar({
     super.key,
@@ -77,6 +78,7 @@ class LyricEditorToolbar extends StatelessWidget {
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
+    this.onUnifyChineseScript,
   });
 
   @override
@@ -167,6 +169,7 @@ class LyricEditorToolbar extends StatelessWidget {
                   onProofreadV2: onProofreadV2,
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
+                  onUnifyChineseScript: onUnifyChineseScript,
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,

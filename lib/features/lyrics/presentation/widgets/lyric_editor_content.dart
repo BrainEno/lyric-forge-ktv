@@ -101,6 +101,7 @@ class LyricEditorContent extends StatelessWidget {
   final VoidCallback? onUndoReferenceAlignment;
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
+  final VoidCallback? onUnifyChineseScript;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
@@ -150,6 +151,7 @@ class LyricEditorContent extends StatelessWidget {
     required this.onUndoReferenceAlignment,
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
+    this.onUnifyChineseScript,
     required this.onAddLine,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
@@ -359,6 +361,7 @@ class LyricEditorContent extends StatelessWidget {
                   onProofreadV2: onProofreadV2,
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
+                  onUnifyChineseScript: onUnifyChineseScript,
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,
@@ -427,6 +430,7 @@ class LyricEditorContent extends StatelessWidget {
                   onUndoReferenceAlignment: onUndoReferenceAlignment,
                   onViewAlignmentComparison: onViewAlignmentComparison,
                   onRestoreAlignment: onRestoreAlignment,
+                  onUnifyChineseScript: onUnifyChineseScript,
                 ),
                 Expanded(
                   child: document.lines.isEmpty

@@ -11,6 +11,7 @@ enum LyricProofreadAction {
   proofreadV2,
   referenceAlignment,
   referenceProofread,
+  unifyChineseScript,
   viewComparison,
   undoAlignment,
   restoreBackup,
@@ -29,6 +30,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onProofreadV2,
     this.onReferenceAlignment,
     this.onReferenceProofread,
+    this.onUnifyChineseScript,
     this.onViewComparison,
     this.onUndoAlignment,
     this.onRestoreBackup,
@@ -43,6 +45,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 逐行智能纠错: text-only corrections from a pasted reference.
   final VoidCallback? onReferenceProofread;
+
+  /// 统一简繁字形: previews and applies a simplified/traditional unification.
+  final VoidCallback? onUnifyChineseScript;
 
   final VoidCallback? onViewComparison;
   final VoidCallback? onUndoAlignment;
@@ -90,7 +95,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message: '校对：智能提案、参考歌词纠正、逐行对比与回滚',
+          message: '校对：智能提案、参考歌词纠正、简繁统一、逐行对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -106,6 +111,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.proofreadV2: onProofreadV2,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
       LyricProofreadAction.referenceProofread: onReferenceProofread,
+      LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
       LyricProofreadAction.viewComparison: onViewComparison,
       LyricProofreadAction.undoAlignment: onUndoAlignment,
       LyricProofreadAction.restoreBackup: onRestoreBackup,
@@ -142,6 +148,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
         '逐行智能纠错（保留时间戳）',
         '有参考歌词；只改文字，时间戳保持不变',
       ),
+      LyricProofreadAction.unifyChineseScript => (
+        '统一简繁字形',
+        '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
+      ),
       LyricProofreadAction.viewComparison => ('查看逐行对比', '查看最近一次对齐的逐行差异'),
       LyricProofreadAction.undoAlignment => ('撤销最近更改', '未保存前有效'),
       LyricProofreadAction.restoreBackup => ('恢复对齐前版本', '需要使用前二次确认'),
@@ -153,6 +163,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.proofreadV2 => Icons.auto_awesome_rounded,
       LyricProofreadAction.referenceAlignment => Icons.auto_fix_high_rounded,
       LyricProofreadAction.referenceProofread => Icons.spellcheck_rounded,
+      LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,
       LyricProofreadAction.undoAlignment => Icons.undo_rounded,
       LyricProofreadAction.restoreBackup => Icons.history_rounded,

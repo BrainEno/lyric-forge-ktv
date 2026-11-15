@@ -4,8 +4,10 @@ import '../../../lyrics/domain/proofreading/lyric_tokenizer.dart';
 ///
 /// Tokenization is shared with lyric proofreading so supported writing systems
 /// are not silently discarded by the fusion path. Latin diacritics are folded
-/// for ASR comparison (for example, "Café" and "Cafe"), while other scripts
-/// remain intact.
+/// for ASR comparison (for example, "Café" and "Cafe"), and simplified and
+/// traditional Chinese fold together (Qwen3-ASR and whisper.cpp regularly pick
+/// different scripts for the same audio, which is not a disagreement about
+/// the lyric). Other scripts remain intact.
 class AsrTextComparison {
   const AsrTextComparison({this.tokenizer = const LyricTokenizer()});
 

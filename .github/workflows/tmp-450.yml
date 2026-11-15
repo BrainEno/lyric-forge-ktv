@@ -1,0 +1,52 @@
+name: tmp-450
+on:
+  push:
+    branches: ['arena/8ada1083-lyric-forge-ktv']
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get --enforce-lockfile
+      - name: Format and push
+        shell: bash
+        run: |
+          mapfile -t files < <(git diff --name-only --diff-filter=AM origin/main HEAD -- '*.dart')
+          dart format "${files[@]}" > /dev/null
+          if ! git diff --quiet; then
+            git config user.name ci-format
+            git config user.email ci-format@users.noreply.github.com
+            git commit -am "style: dart format (#450)"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+      - name: Analyze
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool
+        continue-on-error: true
+      - name: OpenCC checkout
+        run: |
+          git clone --quiet https://github.com/BYVoid/OpenCC.git "$RUNNER_TEMP/opencc"
+          git -C "$RUNNER_TEMP/opencc" checkout --quiet fae2a0a911c30764e669a7d8b0591cd8e852934a
+      - name: Targeted tests
+        env:
+          OPENCC_DIR: ${{ runner.temp }}/opencc
+        run: >
+          flutter test --no-pub --reporter expanded
+          test/features/lyrics/domain/text
+          test/features/lyrics/domain/services/chinese_script_unification_service_test.dart
+          test/features/lyrics/domain/chinese_script_comparison_test.dart
+          test/features/lyrics/presentation/widgets/chinese_script_unification_dialog_test.dart
+          test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart
+          test/features/transcription/chinese_script_transcription_settings_test.dart
+          test/features/transcription/project_proofread_evidence_loader_test.dart
+          test/tool/generate_chinese_script_tables_test.dart
+          test/tool/asr_quality_report_test.dart
+        continue-on-error: true
+      - name: Full suite
+        run: flutter test --no-pub --reporter failures-only
+        continue-on-error: true

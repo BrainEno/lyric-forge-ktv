@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app/app.dart';
 import 'app/app_services.dart';
@@ -13,6 +15,7 @@ import 'features/player/data/services/mobile_system_media_session.dart';
 /// imports a screen.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerBundledDataLicenses();
 
   final services = AppServices.instance;
   services.initialize();
@@ -43,4 +46,15 @@ Future<void> _initializeMobileMediaSessionAfterLaunch(
     debugPrint('Mobile system media session initialization failed: $error');
     debugPrintStack(stackTrace: stackTrace);
   }
+}
+
+/// Data files bundled without a Dart package carry their notices here, so the
+/// license page lists them next to the package licenses.
+void _registerBundledDataLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    final text = await rootBundle.loadString('third_party/opencc/LICENSE');
+    yield LicenseEntryWithLineBreaks(const [
+      'OpenCC (Chinese script tables)',
+    ], text);
+  });
 }

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../models/reference_lyric_line.dart';
+import '../text/chinese_script_converter.dart';
 
 /// 单个参考行的对齐结果。
 enum ReferenceLineAlignmentStatus {
@@ -216,6 +217,8 @@ class LyricAlignmentResult {
 /// 证据：如果同一参考行（或 ASR 行）换成另一条可行配对后，整段序列的最优
 /// 得分仍然接近，才标记为歧义，而不是只看单行相似度。
 class LyricAlignmentService {
+  static const ChineseScriptConverter _script = ChineseScriptConverter();
+
   /// 允许进入配对候选的最低相似度。低于该值直接视为不可配对。
   final double minimumPairSimilarity;
 
@@ -257,18 +260,30 @@ class LyricAlignmentService {
 
     final references = <_PreparedLine>[];
     for (var index = 0; index < referenceLines.length; index++) {
-      final normalized = normalizeLine(referenceLines[index].text);
+      final text = referenceLines[index].text;
+      final normalized = normalizeLine(text);
       if (normalized.isEmpty) continue;
       references.add(
-        _PreparedLine(originalIndex: index, normalized: normalized),
+        _PreparedLine(
+          originalIndex: index,
+          normalized: normalized,
+          written: normalizeLine(text, foldChineseScript: false),
+        ),
       );
     }
 
     final asrLines = <_PreparedLine>[];
     for (var index = 0; index < document.lines.length; index++) {
-      final normalized = normalizeLine(document.lines[index].text);
+      final text = document.lines[index].text;
+      final normalized = normalizeLine(text);
       if (normalized.isEmpty) continue;
-      asrLines.add(_PreparedLine(originalIndex: index, normalized: normalized));
+      asrLines.add(
+        _PreparedLine(
+          originalIndex: index,
+          normalized: normalized,
+          written: normalizeLine(text, foldChineseScript: false),
+        ),
+      );
     }
 
     final referenceCount = references.length;
@@ -391,7 +406,11 @@ class LyricAlignmentService {
 
       final asr = asrLines[matchedAsr];
       final asrLine = document.lines[asr.originalIndex];
-      final identical = preparedReference.normalized == asr.normalized;
+      // Similarity ignores simplified/traditional script so 「愛你」 still
+      // matches 「爱你」, but "identical" compares the written form: a
+      // reference in the other script is offered as a replacement, which is
+      // how a user adopts the reference's script.
+      final identical = preparedReference.written == asr.written;
       final similarity = similarities[r][matchedAsr];
       final ambiguous = ambiguousReferences.contains(r);
 
@@ -444,7 +463,7 @@ class LyricAlignmentService {
       }
 
       final reference = references[matchedReference];
-      final identical = reference.normalized == preparedAsr.normalized;
+      final identical = reference.written == preparedAsr.written;
       final similarity = similarities[matchedReference][a];
       final asrAmbiguous = ambiguousAsrLines.contains(a);
 
@@ -476,8 +495,10 @@ class LyricAlignmentService {
 
   /// 全角转半角、去空白与标点、大小写折叠后的文本。
   ///
+  /// 默认同时折叠简繁字形（「愛」与「爱」得到同一键），使比较不把字形差异
+  /// 当成识别错误；需要区分字形时传 `foldChineseScript: false`。
   /// 空行或纯标点行会得到空字符串。
-  static String normalizeLine(String text) {
+  static String normalizeLine(String text, {bool foldChineseScript = true}) {
     final buffer = StringBuffer();
     for (final rune in text.runes) {
       var code = rune;
@@ -487,6 +508,7 @@ class LyricAlignmentService {
         code = 0x20;
       }
       if (_isIgnorable(code)) continue;
+      if (foldChineseScript) code = _script.foldRune(code);
       buffer.write(String.fromCharCode(code).toLowerCase());
     }
     return buffer.toString();
@@ -1007,9 +1029,17 @@ class LyricAlignmentService {
 
 class _PreparedLine {
   final int originalIndex;
+
+  /// Script-folded comparison key, used for similarity.
   final String normalized;
+
+  /// Same normalisation without script folding, used for "identical".
+  final String written;
   final List<int> runes;
 
-  _PreparedLine({required this.originalIndex, required this.normalized})
-    : runes = normalized.runes.toList(growable: false);
+  _PreparedLine({
+    required this.originalIndex,
+    required this.normalized,
+    required this.written,
+  }) : runes = normalized.runes.toList(growable: false);
 }

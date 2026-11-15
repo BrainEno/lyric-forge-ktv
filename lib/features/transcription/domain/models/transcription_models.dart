@@ -1,3 +1,5 @@
+import '../../../lyrics/domain/models/chinese_script_preference.dart';
+import '../../../lyrics/domain/text/chinese_script_converter.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import 'whisper_decoding_policy.dart';
 
@@ -104,6 +106,10 @@ class TranscriptionConfig {
   final int fallbackConfidenceThreshold;
   final int maxFallbackSegments;
 
+  /// Simplified/traditional handling for Chinese drafts. Applied once, when a
+  /// new recognition draft is written; see `ChineseScriptUnificationService`.
+  final ChineseScriptPreference chineseScriptPreference;
+
   const TranscriptionConfig({
     this.mode = TranscriptionMode.highestQuality,
     this.profilePreference = TranscriptionProfilePreference.automatic,
@@ -121,7 +127,17 @@ class TranscriptionConfig {
     this.downloadProxy = '',
     this.fallbackConfidenceThreshold = 70,
     this.maxFallbackSegments = 20,
+    this.chineseScriptPreference = ChineseScriptPreference.auto,
   });
+
+  /// The script Chinese output should end up in, when one is known: the
+  /// explicit preference, else the script the language tag implies
+  /// (`zh-TW`, `zh-Hans`). Null means "whatever the engines produce".
+  ChineseScriptTarget? get chineseScriptOutputTarget =>
+      chineseScriptPreference.explicitTarget ??
+      (chineseScriptPreference == ChineseScriptPreference.keep
+          ? null
+          : ChineseLanguageTag.impliedTarget(language));
 
   bool get isWhisperConfigured =>
       whisperExecutable.trim().isNotEmpty && modelPath.trim().isNotEmpty;
@@ -171,6 +187,7 @@ class TranscriptionConfig {
     String? downloadProxy,
     int? fallbackConfidenceThreshold,
     int? maxFallbackSegments,
+    ChineseScriptPreference? chineseScriptPreference,
   }) {
     return TranscriptionConfig(
       mode: mode ?? this.mode,
@@ -191,6 +208,8 @@ class TranscriptionConfig {
       fallbackConfidenceThreshold:
           fallbackConfidenceThreshold ?? this.fallbackConfidenceThreshold,
       maxFallbackSegments: maxFallbackSegments ?? this.maxFallbackSegments,
+      chineseScriptPreference:
+          chineseScriptPreference ?? this.chineseScriptPreference,
     );
   }
 
@@ -212,6 +231,7 @@ class TranscriptionConfig {
       'downloadProxy': downloadProxy,
       'fallbackConfidenceThreshold': fallbackConfidenceThreshold,
       'maxFallbackSegments': maxFallbackSegments,
+      'chineseScriptPreference': chineseScriptPreference.name,
     };
   }
 
@@ -261,6 +281,9 @@ class TranscriptionConfig {
       fallbackConfidenceThreshold:
           (json['fallbackConfidenceThreshold'] as num?)?.toInt() ?? 70,
       maxFallbackSegments: (json['maxFallbackSegments'] as num?)?.toInt() ?? 20,
+      chineseScriptPreference: ChineseScriptPreference.fromName(
+        json['chineseScriptPreference'],
+      ),
     );
   }
 }

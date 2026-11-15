@@ -1,4 +1,5 @@
 import '../../../lyrics/domain/proofreading/project_proofread_evidence.dart';
+import '../../../lyrics/domain/services/chinese_script_unification_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../../project/domain/repositories/project_repository.dart';
@@ -324,10 +325,20 @@ class VerifiedProjectProofreadEvidenceLoader {
     if (draft.language != primary.language ||
         draft.lines.length != primary.lines.length)
       return false;
+    // A draft whose script was unified after recognition is still the primary
+    // transcript when replaying the recorded conversion reproduces every
+    // changed line exactly; any other text difference is a real edit.
+    final scriptRecord = ChineseScriptUnificationRecord.tryParse(
+      draft.metadata[ChineseScriptUnificationService.metadataKey],
+    );
+    bool sameText(String current, String original) =>
+        current == original ||
+        (scriptRecord?.explains(original: original, current: current) ??
+            false);
     for (var i = 0; i < draft.lines.length; i++) {
       final current = draft.lines[i];
       final original = primary.lines[i];
-      if (current.text != original.text ||
+      if (!sameText(current.text, original.text) ||
           current.startTime != original.startTime ||
           current.endTime != original.endTime ||
           current.confidence != original.confidence ||

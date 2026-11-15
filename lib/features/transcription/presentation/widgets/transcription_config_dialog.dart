@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/spacing_tokens.dart';
+import '../../../lyrics/domain/models/chinese_script_preference.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_download_connection_checker.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
@@ -46,6 +47,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   late int _fallbackThreshold;
   late int _maxFallbackSegments;
   late WhisperDecodingProfile _whisperDecodingProfile;
+  late ChineseScriptPreference _chineseScriptPreference;
   bool _testingDownloadConnection = false;
   String? _downloadConnectionMessage;
   bool _downloadConnectionSucceeded = false;
@@ -102,6 +104,8 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
     _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
     _whisperDecodingProfile =
         config?.whisperDecodingProfile ?? WhisperDecodingProfile.lyrics;
+    _chineseScriptPreference =
+        config?.chineseScriptPreference ?? ChineseScriptPreference.auto;
 
     for (final controller in [
       _qwenExecutableController,
@@ -158,6 +162,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       downloadProxy: _downloadProxyController.text.trim(),
       fallbackConfidenceThreshold: _fallbackThreshold,
       maxFallbackSegments: _maxFallbackSegments,
+      chineseScriptPreference: _chineseScriptPreference,
     );
   }
 
@@ -523,6 +528,45 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => _language = value);
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<ChineseScriptPreference>(
+                key: const ValueKey('chinese_script_preference_dropdown'),
+                initialValue: _chineseScriptPreference,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: '中文字形',
+                  helperText: '识别结果简繁混杂时的处理方式。只改字形不改用词；'
+                      '日文、韩文行不转换；比较与校对始终忽略简繁差异。',
+                  helperMaxLines: 3,
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: ChineseScriptPreference.auto,
+                    child: Text('自动（统一少数派行）'),
+                  ),
+                  DropdownMenuItem(
+                    value: ChineseScriptPreference.keep,
+                    child: Text('保持原样'),
+                  ),
+                  DropdownMenuItem(
+                    value: ChineseScriptPreference.simplified,
+                    child: Text('简体'),
+                  ),
+                  DropdownMenuItem(
+                    value: ChineseScriptPreference.traditionalTaiwan,
+                    child: Text('繁體（台灣）'),
+                  ),
+                  DropdownMenuItem(
+                    value: ChineseScriptPreference.traditionalHongKong,
+                    child: Text('繁體（香港）'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _chineseScriptPreference = value);
+                  }
                 },
               ),
               const SizedBox(height: AppSpacing.sm),

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../lyrics/domain/services/chinese_script_unification_service.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../../player/domain/services/audio_path_canonicalizer.dart';
 import '../../../player/domain/services/playback_lyrics_project_linker.dart';
@@ -45,6 +46,7 @@ class LocalProjectTranscriptionWorkflow
   final LocalMediaMetadataRepository _mediaMetadataRepository;
   final PlaybackSessionService _playbackSession;
   final AudioPathCanonicalizer _pathCanonicalizer;
+  final ChineseScriptUnificationService _scriptUnification;
 
   LocalProjectTranscriptionWorkflow({
     required ProjectRepository projectRepository,
@@ -56,6 +58,8 @@ class LocalProjectTranscriptionWorkflow
     required LocalMediaMetadataRepository mediaMetadataRepository,
     required PlaybackSessionService playbackSession,
     required AudioPathCanonicalizer pathCanonicalizer,
+    ChineseScriptUnificationService scriptUnification =
+        const ChineseScriptUnificationService(),
   }) : _projectRepository = projectRepository,
        _transcriptionService = transcriptionService,
        _settingsStore = settingsStore,
@@ -64,7 +68,8 @@ class LocalProjectTranscriptionWorkflow
        _resources = resources,
        _mediaMetadataRepository = mediaMetadataRepository,
        _playbackSession = playbackSession,
-       _pathCanonicalizer = pathCanonicalizer;
+       _pathCanonicalizer = pathCanonicalizer,
+       _scriptUnification = scriptUnification;
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -191,13 +196,21 @@ class LocalProjectTranscriptionWorkflow
       _checkCancelled();
       // From here a project write may commit; do not report cancellation.
       _phase = _WorkflowPhase.committing;
-      final editableLyrics = result.lyrics.copyWith(
+      final recognizedLyrics = result.lyrics.copyWith(
         metadata: {
           ...result.lyrics.metadata,
           'timelineFormat': 'lyricforge-timeline-v1',
           'editableDraft': true,
         },
       );
+      // A fresh draft has no manual edits, so the script preference can be
+      // applied here once. Only line text changes, and the conversion is
+      // recorded so independent ASR evidence still matches the draft.
+      final scriptPlan = _scriptUnification.plan(
+        recognizedLyrics,
+        preference: runtimeConfig.chineseScriptPreference,
+      );
+      final editableLyrics = scriptPlan.applyTo(recognizedLyrics);
       final latest = await _projectRepository.getProjectById(projectId);
       if (latest == null) {
         throw const TranscriptionException.input('识别完成，但工程已经不存在');
@@ -230,6 +243,14 @@ class LocalProjectTranscriptionWorkflow
               )?.name,
               'generatedAt': DateTime.now().toIso8601String(),
               'detectedLanguage': result.detectedLanguage,
+              'chineseScript': {
+                'preference': scriptPlan.preference.name,
+                'target': scriptPlan.target?.name,
+                'convertedLines': scriptPlan.changes.length,
+                'inconsistentLinesBefore':
+                    scriptPlan.profile.inconsistentLines,
+                'noopReason': scriptPlan.noopReason?.name,
+              },
               'inputPath': inputPath,
               'normalizedAudioPath': result.normalizedAudioPath,
               'rawJsonPath': result.rawJsonPath,
