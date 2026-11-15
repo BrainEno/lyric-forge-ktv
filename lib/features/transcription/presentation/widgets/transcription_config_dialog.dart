@@ -539,7 +539,8 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                   labelText: '中文字形',
                   helperText:
                       '识别结果简繁混杂时的处理方式。只改字形不改用词；'
-                      '日文、韩文行不转换；比较与校对始终忽略简繁差异。',
+                      '日文、韩文行不转换；简体转繁體为近似转换，请核对；'
+                      '比较与校对始终忽略简繁差异。',
                   helperMaxLines: 3,
                 ),
                 items: const [

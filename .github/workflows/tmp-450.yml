@@ -26,8 +26,7 @@ jobs:
             git push origin HEAD:${GITHUB_REF_NAME}
           fi
       - name: Analyze
-        run: flutter analyze --no-pub --no-fatal-infos lib test tool
-        continue-on-error: true
+        run: flutter analyze --no-pub --no-fatal-infos lib test tool > tool/.tmp_ci_analyze.txt 2>&1 || true
       - name: OpenCC checkout
         run: |
           git clone --quiet https://github.com/BYVoid/OpenCC.git "$RUNNER_TEMP/opencc"
@@ -46,7 +45,18 @@ jobs:
           test/features/transcription/project_proofread_evidence_loader_test.dart
           test/tool/generate_chinese_script_tables_test.dart
           test/tool/asr_quality_report_test.dart
-        continue-on-error: true
+          test/features/transcription/local_project_transcription_cancellation_test.dart
+          > tool/.tmp_ci_targeted.txt 2>&1 || true
       - name: Full suite
-        run: flutter test --no-pub --reporter failures-only
-        continue-on-error: true
+        if: ${{ !contains(github.event.head_commit.message, '[targeted]') }}
+        run: flutter test --no-pub --reporter failures-only > tool/.tmp_ci_full.txt 2>&1 || true
+      - name: Publish results
+        shell: bash
+        run: |
+          for f in tool/.tmp_ci_*.txt; do tail -c 60000 "$f" > "$f.tail" && mv "$f.tail" "$f"; done
+          git config user.name ci-report
+          git config user.email ci-report@users.noreply.github.com
+          git add -f tool/.tmp_ci_*.txt
+          git commit -m "ci: temporary results (#450)"
+          git pull --rebase origin ${GITHUB_REF_NAME}
+          git push origin HEAD:${GITHUB_REF_NAME}
