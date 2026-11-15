@@ -49,7 +49,9 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
 
 class _LyricRecognitionSummaryCardState
     extends State<LyricRecognitionSummaryCard> {
-  bool _expanded = true;
+  // Collapsed by default: counts stay visible, the explanation is one tap
+  // away. The card must not crowd the lyric rows it summarises.
+  bool _expanded = false;
 
   String _engineLine(RecognitionReviewSummary summary) {
     final primary = LyricRecognitionSummaryCard.engineLabel(
@@ -173,8 +175,7 @@ class _LyricRecognitionSummaryCardState
               ),
             ],
           ),
-          if (_expanded) ...[
-            Wrap(
+          Wrap(
               spacing: AppSpacing.md,
               runSpacing: AppSpacing.xs,
               children: [
@@ -203,6 +204,7 @@ class _LyricRecognitionSummaryCardState
                   ),
               ],
             ),
+          if (_expanded) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               [
@@ -216,8 +218,8 @@ class _LyricRecognitionSummaryCardState
                 color: AppColors.textSecondary,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
           ],
+          const SizedBox(height: AppSpacing.xs),
         ],
       ),
     );

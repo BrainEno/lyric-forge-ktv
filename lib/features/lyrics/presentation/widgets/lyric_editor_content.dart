@@ -428,17 +428,6 @@ class LyricEditorContent extends StatelessWidget {
                   onViewAlignmentComparison: onViewAlignmentComparison,
                   onRestoreAlignment: onRestoreAlignment,
                 ),
-                if (document.lines.isNotEmpty &&
-                    recognitionSummary.hasRecognitionData)
-                  LyricRecognitionSummaryCard(
-                    summary: recognitionSummary,
-                    onStartReview: reviewQueue.isEmpty
-                        ? null
-                        : () {
-                            onFilterChanged(LyricReviewFilter.needsReview);
-                            onSelectLine(reviewQueue.items.first.lineIndex);
-                          },
-                  ),
                 Expanded(
                   child: document.lines.isEmpty
                       ? _EmptyLyricsState(onAddLine: onAddLine)
@@ -448,7 +437,35 @@ class LyricEditorContent extends StatelessWidget {
                               constraints,
                             );
                             final twoPane = layout.supportsTwoPane;
-                            final list = LyricListPane(
+                            // The summary lives inside the list column, after
+                            // the pane decision, so it can never push a desktop
+                            // window into the single-pane layout.
+                            final summaryCard =
+                                recognitionSummary.hasRecognitionData
+                                ? LyricRecognitionSummaryCard(
+                                    summary: recognitionSummary,
+                                    onStartReview: reviewQueue.isEmpty
+                                        ? null
+                                        : () {
+                                            onFilterChanged(
+                                              LyricReviewFilter.needsReview,
+                                            );
+                                            final first =
+                                                reviewQueue.items.first.lineIndex;
+                                            if (twoPane) {
+                                              onSelectLine(first);
+                                            } else {
+                                              unawaited(
+                                                _showInspectorSheet(
+                                                  context,
+                                                  first,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                  )
+                                : null;
+                            final listPane = LyricListPane(
                               document: document,
                               visibleIndices: visibleIndices,
                               selectedIndex: selectedIndex,
@@ -489,6 +506,14 @@ class LyricEditorContent extends StatelessWidget {
                               manuallyEditedLineIndices:
                                   manuallyEditedLineIndices,
                             );
+                            final list = summaryCard == null
+                                ? listPane
+                                : Column(
+                                    children: [
+                                      summaryCard,
+                                      Expanded(child: listPane),
+                                    ],
+                                  );
 
                             if (!twoPane) return list;
 

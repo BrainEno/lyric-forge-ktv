@@ -1581,17 +1581,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
         overlapMs(last) < secondaryMs * 0.15) {
       return null;
     }
+    // Normalisation drops spaces and punctuation, so joining the rows directly
+    // reproduces the phrase across the boundary.
     final joined = [
       for (final index in overlapping)
         _normalizeForComparison(primaryLines[index].text),
-    ];
-    final withoutSeparator = joined.join();
-    final withSeparator = joined.join(' ');
-    if (withoutSeparator.contains(fragment) ||
-        withSeparator.contains(fragment)) {
-      return List.unmodifiable(overlapping);
-    }
-    return null;
+    ].join();
+    return joined.contains(fragment) ? List.unmodifiable(overlapping) : null;
   }
 
   List<Map<String, dynamic>> _remapCandidateIndices(
