@@ -11,13 +11,18 @@ import '../../domain/models/transcription_models.dart';
 import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
+import 'qwen_runtime_session.dart';
 import 'runtime_release_asset_metadata.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
-  static const String _runtimeReleaseTag = 'asr-runtime-v2';
+
+  /// First launch may download several GB of Qwen weights before the runtime
+  /// binds its listener, so the budget matches the previous 2700-poll loop.
+  static const Duration _qwenPreparationTimeout = Duration(seconds: 2700);
+  static const String _runtimeReleaseTag = 'asr-runtime-v3';
   static const String _managedRuntimeBuildRevision =
-      'qwen-eager-attention-contiguous-v1+forced-align-http-v1';
+      'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1';
   static const String _whisperModelName = 'ggml-large-v3.bin';
   static const String _whisperModelSha256 =
       '64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2';
@@ -30,6 +35,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   final TranscriptionProfileResolver profileResolver;
   final Future<Directory> Function()? managedRootResolver;
   final AsrDownloadHttpClientFactory httpClientFactory;
+  final QwenRuntimeLauncher _qwenRuntimeLauncher;
 
   final StreamController<AsrRuntimeInstallProgress> _progressController =
       StreamController<AsrRuntimeInstallProgress>.broadcast();
@@ -43,7 +49,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required this.profileResolver,
     this.managedRootResolver,
     AsrDownloadHttpClientFactory? httpClientFactory,
-  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory();
+    QwenRuntimeLauncher? qwenRuntimeLauncher,
+  }) : httpClientFactory = httpClientFactory ?? AsrDownloadHttpClientFactory(),
+       _qwenRuntimeLauncher = qwenRuntimeLauncher ?? QwenRuntimeLauncher();
 
   @override
   Stream<AsrRuntimeInstallProgress> get progressStream =>
@@ -786,35 +794,6 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   }) async {
     _emit(AsrRuntimeComponent.qwenModel, 0.72, '正在下载并准备 Qwen 模型；首次安装可能需要较长时间');
 
-    final port = await _reservePort();
-    final args = [
-      '--device',
-      config.qwenDevice,
-      '--dtype',
-      config.qwenDtype,
-      'serve',
-      '--model',
-      config.qwenModelPath,
-      '--host',
-      '127.0.0.1',
-      '--port',
-      port.toString(),
-      '--forced-aligner',
-      config.qwenAlignerModelPath,
-    ];
-
-    Process process;
-    try {
-      process = await Process.start(
-        executable,
-        args,
-        workingDirectory: File(executable).parent.path,
-      );
-    } on ProcessException catch (error) {
-      throw TranscriptionException('无法启动 Qwen 模型准备程序', details: error.message);
-    }
-
-    _activeProcess = process;
     final logTail = <String>[];
 
     void capture(String line) {
@@ -828,61 +807,74 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       }
     }
 
-    final stdoutSub = process.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(capture);
-    final stderrSub = process.stderr
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen(capture);
-
-    var exited = false;
-    unawaited(process.exitCode.then((_) => exited = true));
-
+    // The same authenticated launch as transcription: the runtime binds
+    // 127.0.0.1:0 itself, receives its session secret on stdin and must
+    // prove that secret before the readiness marker is written. A squatter
+    // answering /healthz can no longer mark the models as prepared.
+    QwenRuntimeSession? session;
     try {
-      const attempts = 2700;
-      for (var attempt = 0; attempt < attempts; attempt++) {
-        _throwIfCancelled();
+      session = await _qwenRuntimeLauncher.start(
+        executable: executable,
+        serveArguments: QwenRuntimeSessionProtocol.serveArguments(config),
+        workingDirectory: File(executable).parent.path,
+        startupTimeout: _qwenPreparationTimeout,
+        isCancelled: () => _cancelRequested,
+        onLogLine: capture,
+        onProcessStarted: (process) => _activeProcess = process,
+      );
+      _throwIfCancelled();
 
-        if (exited) {
-          throw TranscriptionException(
-            'Qwen 模型准备失败',
-            details: logTail.join('\n'),
-          );
-        }
-
-        if (await _healthReady(port)) {
-          final marker = _qwenReadyMarker(root, profile);
-          await marker.parent.create(recursive: true);
-          await marker.writeAsString(
-            jsonEncode({
-              'preparedAt': DateTime.now().toUtc().toIso8601String(),
-              'qwenModel': config.qwenModelPath,
-              'alignerModel': config.qwenAlignerModelPath,
-              'device': config.qwenDevice,
-              'dtype': config.qwenDtype,
-              'runtimePatchRevision': _managedRuntimeBuildRevision,
-            }),
-            flush: true,
-          );
-          _emit(
-            AsrRuntimeComponent.qwenAligner,
-            0.96,
-            'Qwen 与 ForcedAligner 已准备完成',
-          );
-          return;
-        }
-
-        await Future<void>.delayed(const Duration(seconds: 1));
-      }
-
-      throw TranscriptionException('Qwen 模型准备超时', details: logTail.join('\n'));
+      final marker = _qwenReadyMarker(root, profile);
+      await marker.parent.create(recursive: true);
+      await marker.writeAsString(
+        jsonEncode({
+          'preparedAt': DateTime.now().toUtc().toIso8601String(),
+          'qwenModel': config.qwenModelPath,
+          'alignerModel': config.qwenAlignerModelPath,
+          'device': config.qwenDevice,
+          'dtype': config.qwenDtype,
+          'runtimePatchRevision': _managedRuntimeBuildRevision,
+        }),
+        flush: true,
+      );
+      _emit(
+        AsrRuntimeComponent.qwenAligner,
+        0.96,
+        'Qwen 与 ForcedAligner 已准备完成',
+      );
+    } on QwenRuntimeLaunchException catch (error) {
+      _throwIfCancelled();
+      final details = error.details.isEmpty
+          ? logTail.join('\n')
+          : error.details;
+      throw switch (error.failure) {
+        QwenRuntimeLaunchFailure.startFailed => TranscriptionException(
+          '无法启动 Qwen 模型准备程序',
+          details: details,
+        ),
+        QwenRuntimeLaunchFailure.startupTimeout => TranscriptionException(
+          'Qwen 模型准备超时',
+          details: details,
+        ),
+        QwenRuntimeLaunchFailure.unsupportedRuntime => TranscriptionException(
+          'Qwen runtime 版本过旧，不支持本地会话认证，请重新安装识别引擎',
+          details: details,
+        ),
+        QwenRuntimeLaunchFailure.identityRejected ||
+        QwenRuntimeLaunchFailure.identityUnreachable => TranscriptionException(
+          'Qwen 模型准备失败：本地服务身份验证未通过',
+          details: details,
+        ),
+        QwenRuntimeLaunchFailure.cancelled =>
+          const TranscriptionException.cancelled('识别环境安装已取消'),
+        QwenRuntimeLaunchFailure.exitedDuringStartup => TranscriptionException(
+          'Qwen 模型准备失败',
+          details: details,
+        ),
+      };
     } finally {
-      process.kill();
       _activeProcess = null;
-      await stdoutSub.cancel();
-      await stderrSub.cancel();
+      await session?.close();
     }
   }
 
@@ -1109,31 +1101,6 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     // the pinned SHA-256 check, otherwise a same-sized wrong file would be
     // treated as a reusable model forever.
     return !verifyHash || await _verifySha256(path, _whisperModelSha256);
-  }
-
-  Future<bool> _healthReady(int port) async {
-    final client = HttpClient();
-    try {
-      final request = await client
-          .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
-          .timeout(const Duration(seconds: 2));
-      final response = await request.close().timeout(
-        const Duration(seconds: 2),
-      );
-      await response.drain<void>().timeout(const Duration(seconds: 2));
-      return response.statusCode == HttpStatus.ok;
-    } catch (_) {
-      return false;
-    } finally {
-      client.close(force: true);
-    }
-  }
-
-  Future<int> _reservePort() async {
-    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final port = socket.port;
-    await socket.close();
-    return port;
   }
 
   Future<Directory> _managedRoot() async {

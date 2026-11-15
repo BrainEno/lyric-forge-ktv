@@ -237,4 +237,170 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  group('authenticated runtime sessions', () {
+    late _RecordingAuthenticator authenticator;
+    late ForcedAlignmentHttpClient signedClient;
+
+    setUp(() {
+      authenticator = _RecordingAuthenticator();
+      signedClient = ForcedAlignmentHttpClient(
+        endpoint: endpoint,
+        authenticator: authenticator,
+      );
+    });
+
+    tearDown(() => signedClient.close(force: true));
+
+    Future<List<int>> serveOnce({
+      required int statusCode,
+      required Object body,
+    }) async {
+      final request = await server.first;
+      final received = await request.fold<List<int>>(
+        <int>[],
+        (bytes, chunk) => bytes..addAll(chunk),
+      );
+      expect(request.headers.value('x-test-signature'), 'signed');
+      request.response
+        ..statusCode = statusCode
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode(body));
+      await request.response.close();
+      return received;
+    }
+
+    Future<List<ForcedAlignedSpanView>> align() async {
+      final spans = await signedClient.align(
+        audioPath: '/tmp/song.wav',
+        text: 'hello world',
+        language: 'English',
+        audioDuration: const Duration(seconds: 2),
+      );
+      return spans.map((span) => (span.text, span.start)).toList();
+    }
+
+    test(
+      'signs the exact request bytes and accepts proven responses',
+      () async {
+        final served = serveOnce(
+          statusCode: HttpStatus.ok,
+          body: {
+            'items': [
+              {'text': 'hello', 'start_time': 0.1, 'end_time': 0.5},
+            ],
+          },
+        );
+
+        final spans = await align();
+        final sentBytes = await served;
+
+        expect(spans.single.$1, 'hello');
+        expect(authenticator.method, 'POST');
+        expect(authenticator.uri, endpoint);
+        expect(authenticator.body, sentBytes);
+        expect(authenticator.checkedStatus, HttpStatus.ok);
+        expect(utf8.decode(authenticator.checkedBody!), contains('hello'));
+      },
+    );
+
+    test('discards an unproven body before decoding it', () async {
+      authenticator.accept = false;
+      final served = serveOnce(
+        statusCode: HttpStatus.ok,
+        body: {
+          'items': [
+            {'text': 'forged', 'start_time': 0.1, 'end_time': 0.5},
+          ],
+        },
+      );
+
+      await expectLater(
+        align(),
+        throwsA(isA<ForcedAlignmentAuthenticationException>()),
+      );
+      await served;
+    });
+
+    test(
+      'an unproven error response is still an authentication failure',
+      () async {
+        authenticator.accept = false;
+        final served = serveOnce(
+          statusCode: HttpStatus.unauthorized,
+          body: {
+            'error': {'message': 'unauthorized'},
+          },
+        );
+
+        await expectLater(
+          align(),
+          throwsA(isA<ForcedAlignmentAuthenticationException>()),
+        );
+        await served;
+      },
+    );
+
+    test('authorization failures abort before any byte is sent', () async {
+      authenticator.throwOnAuthorize = true;
+      var connections = 0;
+      final subscription = server.listen((request) {
+        connections++;
+        request.response.close();
+      });
+
+      await expectLater(align(), throwsStateError);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await subscription.cancel();
+      expect(authenticator.body, isNull);
+      expect(connections, 0);
+    });
+  });
+}
+
+typedef ForcedAlignedSpanView = (String, Duration);
+
+class _RecordingAuthenticator implements ForcedAlignmentRequestAuthenticator {
+  bool accept = true;
+  bool throwOnAuthorize = false;
+  String? method;
+  Uri? uri;
+  List<int>? body;
+  int? checkedStatus;
+  List<int>? checkedBody;
+
+  @override
+  ForcedAlignmentRequestAuthorization authorize(
+    String method,
+    Uri uri,
+    List<int> body,
+  ) {
+    if (throwOnAuthorize) {
+      throw StateError('session closed');
+    }
+    this.method = method;
+    this.uri = uri;
+    this.body = List<int>.of(body);
+    return _RecordingAuthorization(this);
+  }
+}
+
+class _RecordingAuthorization implements ForcedAlignmentRequestAuthorization {
+  _RecordingAuthorization(this._owner);
+
+  final _RecordingAuthenticator _owner;
+
+  @override
+  Map<String, String> get headers => const {'x-test-signature': 'signed'};
+
+  @override
+  bool acceptsResponse({
+    required int statusCode,
+    required HttpHeaders headers,
+    required List<int> body,
+  }) {
+    _owner.checkedStatus = statusCode;
+    _owner.checkedBody = List<int>.of(body);
+    return _owner.accept;
+  }
 }

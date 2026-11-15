@@ -41,7 +41,7 @@ void main() {
         '.github/workflows/build-asr-runtime.yml',
       ).readAsString();
 
-      expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v2'"));
+      expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v3'"));
       expect(source, contains("['state', 'runtime-build-revision.txt']"));
       expect(source, contains('needsManagedRuntimeRefresh'));
       expect(source, contains('_managedRuntimeBuildIsCurrent(root)'));
@@ -55,17 +55,17 @@ void main() {
       );
       expect(source, contains('await staging.rename(bundle.path)'));
       expect(source, contains('await backup.rename(bundle.path)'));
-      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
+      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
       expect(
         workflow,
         contains(
-          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
         ),
       );
       expect(
         workflow,
         contains(
-          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"',
         ),
       );
     },

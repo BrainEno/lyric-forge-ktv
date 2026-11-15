@@ -4,6 +4,32 @@ import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 
+/// Signs one alignment request and checks the matching response.
+///
+/// The managed Qwen runtime requires every request to be signed with its
+/// per-launch session secret and signs every response with the same secret
+/// (see `QwenRuntimeSession`). External evaluation endpoints pass no
+/// authenticator and keep the plain HTTP contract.
+abstract interface class ForcedAlignmentRequestAuthenticator {
+  ForcedAlignmentRequestAuthorization authorize(
+    String method,
+    Uri uri,
+    List<int> body,
+  );
+}
+
+abstract interface class ForcedAlignmentRequestAuthorization {
+  Map<String, String> get headers;
+
+  /// Returns false when the response was not produced by the authenticated
+  /// runtime. The caller must then discard the body.
+  bool acceptsResponse({
+    required int statusCode,
+    required HttpHeaders headers,
+    required List<int> body,
+  });
+}
+
 /// A deliberately separate client for an explicit arbitrary-text alignment API.
 ///
 /// Qwen's current `/v1/transcribe` endpoint is ASR, not a forced-alignment
@@ -14,13 +40,16 @@ class ForcedAlignmentHttpClient {
   final Uri endpoint;
   final HttpClient _httpClient;
   final Duration requestTimeout;
+  final ForcedAlignmentRequestAuthenticator? _authenticator;
   HttpClientRequest? _activeRequest;
 
   ForcedAlignmentHttpClient({
     required this.endpoint,
     HttpClient? httpClient,
     this.requestTimeout = const Duration(minutes: 5),
-  }) : _httpClient = httpClient ?? HttpClient() {
+    ForcedAlignmentRequestAuthenticator? authenticator,
+  }) : _httpClient = httpClient ?? HttpClient(),
+       _authenticator = authenticator {
     if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
       throw ArgumentError.value(
         endpoint,
@@ -70,6 +99,13 @@ class ForcedAlignmentHttpClient {
       );
     }
 
+    final payload = utf8.encode(
+      jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
+    );
+    // Sign before connecting: a closed or foreign session fails here, before
+    // any socket is opened or any audio path / lyric byte leaves the process.
+    final authorization = _authenticator?.authorize('POST', endpoint, payload);
+
     final stopwatch = Stopwatch()..start();
     HttpClientRequest? request;
     try {
@@ -78,17 +114,27 @@ class ForcedAlignmentHttpClient {
           .timeout(_remainingTimeout(stopwatch));
       _activeRequest = request;
       request.headers.contentType = ContentType.json;
-      request.write(
-        jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
-      );
+      authorization?.headers.forEach(request.headers.set);
+      request.add(payload);
 
       final response = await request.close().timeout(
         _remainingTimeout(stopwatch),
       );
-      final body = await utf8.decoder
-          .bind(response)
-          .join()
+      // The exact received bytes are what the runtime's response proof covers.
+      final responseBytes = await response
+          .fold<List<int>>(<int>[], (bytes, chunk) => bytes..addAll(chunk))
           .timeout(_remainingTimeout(stopwatch));
+      if (authorization != null &&
+          !authorization.acceptsResponse(
+            statusCode: response.statusCode,
+            headers: response.headers,
+            body: responseBytes,
+          )) {
+        throw const ForcedAlignmentAuthenticationException(
+          'Forced-alignment response failed runtime session verification.',
+        );
+      }
+      final body = utf8.decode(responseBytes);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ForcedAlignmentException(
           'Forced-alignment endpoint returned HTTP ${response.statusCode}.',
@@ -227,4 +273,9 @@ class ForcedAlignmentException implements Exception {
 
   @override
   String toString() => 'ForcedAlignmentException: $message';
+}
+
+/// The endpoint answered without proving it is the authenticated runtime.
+class ForcedAlignmentAuthenticationException extends ForcedAlignmentException {
+  const ForcedAlignmentAuthenticationException(super.message);
 }
