@@ -1,4 +1,8 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'whisper_decoding_policy.dart';
+
+export 'whisper_decoding_policy.dart'
+    show RecognitionHints, WhisperDecodingProfile, WhisperDecodingProfileId;
 
 enum TranscriptionStage {
   validating,
@@ -86,6 +90,11 @@ class TranscriptionConfig {
   final String whisperExecutable;
   final String modelPath;
 
+  /// whisper.cpp decoding profile. [WhisperDecodingProfile.lyrics] only adds
+  /// flags the runtime advertises and falls back to the standard command line
+  /// otherwise; see `WhisperDecodingPolicy`.
+  final WhisperDecodingProfile whisperDecodingProfile;
+
   // Shared processing
   final String ffmpegExecutable;
   final String language;
@@ -106,6 +115,7 @@ class TranscriptionConfig {
     this.qwenDtype = 'bf16',
     required this.whisperExecutable,
     required this.modelPath,
+    this.whisperDecodingProfile = WhisperDecodingProfile.lyrics,
     this.ffmpegExecutable = 'ffmpeg',
     this.language = 'auto',
     this.downloadProxy = '',
@@ -155,6 +165,7 @@ class TranscriptionConfig {
     String? qwenDtype,
     String? whisperExecutable,
     String? modelPath,
+    WhisperDecodingProfile? whisperDecodingProfile,
     String? ffmpegExecutable,
     String? language,
     String? downloadProxy,
@@ -172,6 +183,8 @@ class TranscriptionConfig {
       qwenDtype: qwenDtype ?? this.qwenDtype,
       whisperExecutable: whisperExecutable ?? this.whisperExecutable,
       modelPath: modelPath ?? this.modelPath,
+      whisperDecodingProfile:
+          whisperDecodingProfile ?? this.whisperDecodingProfile,
       ffmpegExecutable: ffmpegExecutable ?? this.ffmpegExecutable,
       language: language ?? this.language,
       downloadProxy: downloadProxy ?? this.downloadProxy,
@@ -193,6 +206,7 @@ class TranscriptionConfig {
       'qwenDtype': qwenDtype,
       'whisperExecutable': whisperExecutable,
       'modelPath': modelPath,
+      'whisperDecodingProfile': whisperDecodingProfile.name,
       'ffmpegExecutable': ffmpegExecutable,
       'language': language,
       'downloadProxy': downloadProxy,
@@ -235,6 +249,11 @@ class TranscriptionConfig {
       qwenDtype: json['qwenDtype'] as String? ?? 'bf16',
       whisperExecutable: json['whisperExecutable'] as String? ?? '',
       modelPath: json['modelPath'] as String? ?? '',
+      // Unknown or missing values keep the default lyric profile; it already
+      // degrades to the standard command line on runtimes without the flags.
+      whisperDecodingProfile:
+          WhisperDecodingProfile.values.asNameMap()[json['whisperDecodingProfile']] ??
+          WhisperDecodingProfile.lyrics,
       ffmpegExecutable: json['ffmpegExecutable'] as String? ?? 'ffmpeg',
       language: json['language'] as String? ?? 'auto',
       downloadProxy: json['downloadProxy'] as String? ?? '',
@@ -256,12 +275,16 @@ class TranscriptionRequest {
   final TranscriptionConfig config;
   final String context;
 
+  /// Structured song metadata for decoding hints. Never contains lyric text.
+  final RecognitionHints recognitionHints;
+
   const TranscriptionRequest({
     required this.inputAudioPath,
     required this.outputDirectory,
     required this.config,
     this.normalizedInputAudioPath,
     this.context = '',
+    this.recognitionHints = RecognitionHints.none,
   });
 }
 

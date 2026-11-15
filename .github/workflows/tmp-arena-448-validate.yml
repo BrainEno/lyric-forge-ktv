@@ -1,0 +1,72 @@
+name: TMP arena 448 validate
+
+on:
+  push:
+    branches: [arena/90ba1ce5-lyric-forge-ktv]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-arena-448-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: "!contains(github.event.head_commit.message, '[skip tmp]')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Pub get
+        run: flutter pub get --enforce-lockfile
+      - name: Format changed files and push back
+        shell: bash
+        run: |
+          mapfile -t files < <(git diff --name-only --diff-filter=AM 0e93b6569b46b2a5b06de480c1d5661666e7026c HEAD -- '*.dart')
+          if (( ${#files[@]} )); then dart format "${files[@]}" >/dev/null; fi
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Apply dart format [skip tmp]"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "::notice::formatted ${#files[@]} files and pushed"
+          fi
+      - name: Analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub > analyze.txt 2>&1
+          code=$?
+          mapfile -t files < <(git diff --name-only 0e93b6569b46b2a5b06de480c1d5661666e7026c HEAD -- '*.dart')
+          grep -E "^\s*(error|warning) " analyze.txt | head -40 | while read -r line; do echo "::error::$line"; done
+          for f in "${files[@]}"; do grep -F "$f" analyze.txt | grep -E "^\s*info " | head -10 | while read -r line; do echo "::warning::$line"; done; done
+          tail -3 analyze.txt | while read -r line; do echo "::notice::$line"; done
+          if grep -qE "^\s*(error|warning) " analyze.txt; then exit 1; fi
+          exit 0
+      - name: Targeted tests
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          paths=$(cat tool/.tmp_ci_tests 2>/dev/null)
+          if [[ -z "$paths" ]]; then echo "::notice::no targeted tests"; exit 0; fi
+          flutter test --no-pub --reporter json $paths > targeted.json 2>/dev/null
+          code=$?
+          python3 .github/tmp_report.py targeted.json
+          exit $code
+      - name: Full suite
+        if: always() && hashFiles('tool/.tmp_ci_full') != ''
+        shell: bash
+        run: |
+          set +e
+          flutter test --no-pub --reporter json > full.json 2>/dev/null
+          code=$?
+          python3 .github/tmp_report.py full.json
+          exit $code
+      - name: Work log check
+        if: always()
+        run: dart tool/work_log.dart check

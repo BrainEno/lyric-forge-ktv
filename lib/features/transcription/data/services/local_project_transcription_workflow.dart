@@ -19,6 +19,7 @@ import '../../domain/services/project_transcription_workflow.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import '../../domain/services/transcription_service.dart';
 import '../../domain/services/transcription_settings_store.dart';
+import 'project_recognition_hints.dart';
 import 'project_transcription_input.dart';
 
 enum _WorkflowPhase { idle, preparing, recognizing, committing }
@@ -183,6 +184,7 @@ class LocalProjectTranscriptionWorkflow
           outputDirectory: outputDirectory.path,
           config: runtimeConfig,
           context: _buildRecognitionContext(project),
+          recognitionHints: recognitionHintsForProject(project),
         ),
       );
 

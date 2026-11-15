@@ -1,4 +1,5 @@
 import '../../../project/domain/models/lyric_document.dart';
+import '../models/secondary_only_suggestion.dart';
 import 'lyric_review_decision_service.dart';
 import 'lyric_timeline_validator.dart';
 
@@ -13,6 +14,10 @@ enum LyricReviewPriorityReasonCode {
   enginesDifferGreatly,
   enginesDifferClearly,
   enginesHaveDifferentCandidates,
+
+  /// Only the secondary recogniser produced this row; it was inserted as a
+  /// suggestion and has not been confirmed by a person.
+  secondaryOnlySuggestion,
   repeatedWords,
   unusuallyLongText,
   longTextWithShortInterval,
@@ -90,6 +95,7 @@ class LyricReviewPriorityService {
 
     final reviewedIndices = reviewDecisionService.reviewedIndices(document);
     final candidates = _fallbackCandidatesByIndex(document.metadata);
+    final suggestions = SecondaryOnlySuggestion.resolve(document);
     final timeline = timelineValidator.validate(
       lines: document.lines,
       audioDuration: audioDuration,
@@ -154,6 +160,13 @@ class LyricReviewPriorityService {
             LyricReviewPriorityReasonCode.enginesHaveDifferentCandidates,
           );
         }
+      }
+
+      // A row only one engine heard is exactly what a person must listen to
+      // before it is kept: weight it like a clear engine disagreement so it
+      // reaches the queue even if the engine itself was confident.
+      if (suggestions.containsKey(index) && text.isNotEmpty) {
+        score.add(25, LyricReviewPriorityReasonCode.secondaryOnlySuggestion);
       }
 
       if (line.confidence < 95 &&

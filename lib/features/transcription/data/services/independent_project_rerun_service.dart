@@ -6,6 +6,7 @@ import '../../../project/domain/repositories/project_repository.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_evidence_audio_verifier.dart';
+import 'project_recognition_hints.dart';
 import 'project_transcription_input.dart';
 
 enum IndependentRerunEngine { qwen, whisper }
@@ -120,6 +121,7 @@ class IndependentProjectRerunService {
             if (project.album != null && project.album!.trim().isNotEmpty)
               'Album: ${project.album!.trim()}',
           ].join('. '),
+          recognitionHints: recognitionHintsForProject(project),
         ),
       );
       _checkCancelled();

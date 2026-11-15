@@ -4,11 +4,13 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import '../../../lyrics/domain/models/secondary_only_suggestion.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/independent_asr_evidence.dart';
 import '../../domain/models/chunked_independent_asr_evidence.dart';
 import '../../domain/models/fusion_timing_evidence.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/whisper_decoding_policy.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_evidence_audio_verifier.dart';
@@ -74,7 +76,14 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
   /// cannot recognise anything, no matter what I pick". Executables are
   /// included because a replaced binary is a different recogniser, and the
   /// value is hashed so absolute paths stay out of the project directory.
-  static String checkpointConfigFingerprint(TranscriptionConfig config) {
+  ///
+  /// The Whisper decoding profile and the prompt it derives from [hints] are
+  /// part of it: a chunk decoded with a different prompt or flag set is a
+  /// different recognition and must not be replayed.
+  static String checkpointConfigFingerprint(
+    TranscriptionConfig config, {
+    RecognitionHints hints = RecognitionHints.none,
+  }) {
     final material = [
       'mode=${config.mode.name}',
       'engineOrder=${config.engineOrder.name}',
@@ -88,6 +97,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       'language=${config.language}',
       'fallbackConfidenceThreshold=${config.fallbackConfidenceThreshold}',
       'maxFallbackSegments=${config.maxFallbackSegments}',
+      'whisperDecoding=${const WhisperDecodingPolicy().fingerprintMaterial(profile: config.whisperDecodingProfile, hints: hints, language: config.language)}',
     ].join('\u0000');
     return sha256.convert(utf8.encode(material)).toString();
   }
@@ -141,7 +151,10 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
 
       final plan = _buildPlan(duration);
       final fingerprint = await _fingerprint(request.inputAudioPath);
-      final configFingerprint = checkpointConfigFingerprint(request.config);
+      final configFingerprint = checkpointConfigFingerprint(
+        request.config,
+        hints: request.recognitionHints,
+      );
       // Stat-based checkpoint compatibility is insufficient for provenance.
       // Hash only highest-quality chunk runs; failure disables evidence, not ASR.
       final sourceHashCandidate =
@@ -276,6 +289,7 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
                 outputDirectory: chunkOutput.path,
                 config: request.config,
                 context: request.context,
+                recognitionHints: request.recognitionHints,
               ),
               prefix: '分片 ${index + 1}/${plan.length} · ',
               base: base,
@@ -677,7 +691,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             offset.inMilliseconds,
       });
     }
-    final shiftedMetadata = Map<String, dynamic>.from(metadata)
+    final shiftedMetadata = Map<String, dynamic>.from(
+      // Suggestions are matched to rows by exact timestamps, so they move with
+      // the rows into song time.
+      SecondaryOnlySuggestion.shiftMetadata(metadata, offset),
+    )
       ..remove(FusionTimingEvidence.metadataKey)
       // Persist original evidence only in the verified checkpoint envelope.
       ..remove(IndependentAsrEvidence.metadataKey)
@@ -963,6 +981,34 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
     if (hasSecondaryOnlyKey) {
       merged['secondaryOnlyLineIndices'] = secondaryOnly;
       merged['secondaryOnlyLineCount'] = secondaryOnly.length;
+    }
+    // Suggestion records carry song-time timestamps (shifted per chunk), so
+    // they are concatenated rather than index-remapped; the editor resolves
+    // them against the merged rows and an overlap duplicate matches once.
+    if (documents.any(
+      (document) =>
+          document.metadata.containsKey(SecondaryOnlySuggestion.metadataKey),
+    )) {
+      merged[SecondaryOnlySuggestion.metadataKey] = SecondaryOnlySuggestion.wrap(
+        [
+          for (final document in documents)
+            ...SecondaryOnlySuggestion.read(document.metadata),
+        ],
+      );
+    }
+    var segmentationOnlyCount = 0;
+    var hasSegmentationKey = false;
+    for (final document in documents) {
+      final count = document.metadata['segmentationOnlySecondaryCount'];
+      if (count is num) {
+        hasSegmentationKey = true;
+        segmentationOnlyCount += count.toInt();
+      }
+    }
+    if (hasSegmentationKey) {
+      merged['segmentationOnlySecondaryCount'] = segmentationOnlyCount;
+      // Per-chunk detail uses chunk-local time; only the count survives.
+      merged.remove('segmentationOnlySecondary');
     }
     if (hasSuspiciousKey) {
       merged['suspiciousLineIndexes'] = suspicious;
