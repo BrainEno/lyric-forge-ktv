@@ -850,9 +850,8 @@ void main() {
         metadata: {
           ...converted.metadata,
           ChineseScriptUnificationService.metadataKey: {
-            ...(converted.metadata[ChineseScriptUnificationService
-                        .metadataKey]
-                    as Map<String, Object?>),
+            ...(converted.metadata[ChineseScriptUnificationService.metadataKey]
+                as Map<String, Object?>),
             'revision': 'opencc-older-tables',
           },
         },

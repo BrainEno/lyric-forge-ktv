@@ -333,8 +333,7 @@ class VerifiedProjectProofreadEvidenceLoader {
     );
     bool sameText(String current, String original) =>
         current == original ||
-        (scriptRecord?.explains(original: original, current: current) ??
-            false);
+        (scriptRecord?.explains(original: original, current: current) ?? false);
     for (var i = 0; i < draft.lines.length; i++) {
       final current = draft.lines[i];
       final original = primary.lines[i];

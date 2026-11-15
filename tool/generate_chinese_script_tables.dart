@@ -59,7 +59,9 @@ Future<void> main(List<String> args) async {
   final output = StringBuffer()
     ..writeln('// GENERATED FILE. Do not edit by hand.')
     ..writeln('//')
-    ..writeln('// Regenerate with tool/generate_chinese_script_tables.dart, then')
+    ..writeln(
+      '// Regenerate with tool/generate_chinese_script_tables.dart, then',
+    )
     ..writeln('// run dart format on this file.')
     ..writeln('//')
     ..writeln('// Derived from OpenCC (https://github.com/BYVoid/OpenCC)')
@@ -320,11 +322,11 @@ void _writeChunks(
     return;
   }
   for (var start = 0; start < items.length; start += perLine) {
-    final end = start + perLine < items.length
-        ? start + perLine
-        : items.length;
+    final end = start + perLine < items.length ? start + perLine : items.length;
     final last = end == items.length;
-    output.writeln("    '${items.sublist(start, end).join()}'${last ? ';' : ''}");
+    output.writeln(
+      "    '${items.sublist(start, end).join()}'${last ? ';' : ''}",
+    );
   }
   output.writeln();
 }

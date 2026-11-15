@@ -111,9 +111,12 @@ void main() {
   ) async {
     await openDialog(tester, protectedIndices: {2});
 
-    expect(find.text(ChineseScriptStrings.noop(
-      ChineseScriptNoopReason.onlyProtectedLines,
-    )), findsOneWidget);
+    expect(
+      find.text(
+        ChineseScriptStrings.noop(ChineseScriptNoopReason.onlyProtectedLines),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('无需转换'), findsOneWidget);
     expect(
       tester

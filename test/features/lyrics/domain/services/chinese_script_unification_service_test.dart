@@ -57,11 +57,7 @@ void main() {
     });
 
     test('Cantonese lyrics default to Hong Kong forms', () {
-      final draft = document([
-        '我愛你',
-        '讓我們一起唱',
-        '头发飘在风里',
-      ], language: 'yue');
+      final draft = document(['我愛你', '讓我們一起唱', '头发飘在风里'], language: 'yue');
       final plan = service.plan(
         draft,
         preference: ChineseScriptPreference.auto,
@@ -326,7 +322,10 @@ void main() {
         ChineseScriptPreference.fromName('nonsense'),
         ChineseScriptPreference.auto,
       );
-      expect(ChineseScriptPreference.fromName(null), ChineseScriptPreference.auto);
+      expect(
+        ChineseScriptPreference.fromName(null),
+        ChineseScriptPreference.auto,
+      );
     });
   });
 }

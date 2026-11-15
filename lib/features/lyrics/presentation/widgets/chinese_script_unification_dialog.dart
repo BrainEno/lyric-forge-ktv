@@ -39,8 +39,7 @@ class ChineseScriptStrings {
     ChineseScriptNoopReason.alreadyConsistent => '字形已经统一，没有需要修改的行。',
     ChineseScriptNoopReason.ambiguousMajority =>
       '简体行与繁体行数量相同，无法自动判断目标字形，请直接选择简体或繁體。',
-    ChineseScriptNoopReason.onlyProtectedLines =>
-      '需要转换的行都被手动编辑过，已按默认设置跳过。',
+    ChineseScriptNoopReason.onlyProtectedLines => '需要转换的行都被手动编辑过，已按默认设置跳过。',
   };
 }
 
@@ -279,9 +278,7 @@ class _ChineseScriptUnificationDialogState
               : null,
           style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
           icon: const Icon(Icons.translate_rounded, size: 18),
-          label: Text(
-            plan.hasChanges ? '转换 ${plan.changes.length} 行' : '无需转换',
-          ),
+          label: Text(plan.hasChanges ? '转换 ${plan.changes.length} 行' : '无需转换'),
         ),
       ],
     );

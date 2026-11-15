@@ -121,9 +121,7 @@ class ChineseScriptTables {
       data.traditionalToSimplifiedCharacters,
     );
     final taiwanReverse = _parsePairs(data.taiwanVariantReverseCharacters);
-    final hongKongReverse = _parsePairs(
-      data.hongKongVariantReverseCharacters,
-    );
+    final hongKongReverse = _parsePairs(data.hongKongVariantReverseCharacters);
     return ChineseScriptTables._(
       simplifiedToTraditional: simplifiedToTraditional,
       traditionalToSimplified: traditionalToSimplified,

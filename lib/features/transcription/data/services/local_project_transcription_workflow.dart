@@ -247,8 +247,7 @@ class LocalProjectTranscriptionWorkflow
                 'preference': scriptPlan.preference.name,
                 'target': scriptPlan.target?.name,
                 'convertedLines': scriptPlan.changes.length,
-                'inconsistentLinesBefore':
-                    scriptPlan.profile.inconsistentLines,
+                'inconsistentLinesBefore': scriptPlan.profile.inconsistentLines,
                 'noopReason': scriptPlan.noopReason?.name,
               },
               'inputPath': inputPath,

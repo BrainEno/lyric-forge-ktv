@@ -24,9 +24,8 @@ void main() {
     });
 
     test('bare phrase keys are rebuilt from the character table', () {
-      final phrases = ChineseScriptTables.instance
-          .simplifiedToTraditionalPhrases
-          .entries;
+      final phrases =
+          ChineseScriptTables.instance.simplifiedToTraditionalPhrases.entries;
       // Stored as `会了|`: converts like the characters, but still has to win
       // the match so 了如 → 瞭如 does not fire inside 学会了如何.
       expect(phrases['会了'], '會了');
@@ -88,7 +87,10 @@ void main() {
   group('simplified to traditional', () {
     test('uses the regional standard', () {
       expect(
-        converter.toTraditional('一只猫在面包店', ChineseScriptTarget.traditionalTaiwan),
+        converter.toTraditional(
+          '一只猫在面包店',
+          ChineseScriptTarget.traditionalTaiwan,
+        ),
         '一隻貓在麵包店',
       );
       expect(

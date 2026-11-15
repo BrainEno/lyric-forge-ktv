@@ -319,9 +319,7 @@ class ChineseScriptUnificationService {
   ChineseScriptDocumentProfile profileTexts(Iterable<String> texts) =>
       _summarize([for (final text in texts) converter.profile(text)]);
 
-  ChineseScriptDocumentProfile _summarize(
-    List<ChineseScriptProfile> profiles,
-  ) {
+  ChineseScriptDocumentProfile _summarize(List<ChineseScriptProfile> profiles) {
     var simplified = 0;
     var traditional = 0;
     var mixed = 0;

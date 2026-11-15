@@ -11,13 +11,12 @@ import 'package:lyric_forge_ktv/features/transcription/data/services/asr_text_co
 /// lyric (issue #450), while the written form stays visible where the user
 /// decides what to keep.
 void main() {
-  LyricLine line(String text, {int startMs = 0, int endMs = 4000}) =>
-      LyricLine(
-        text: text,
-        startTime: Duration(milliseconds: startMs),
-        endTime: Duration(milliseconds: endMs),
-        confidence: 90,
-      );
+  LyricLine line(String text, {int startMs = 0, int endMs = 4000}) => LyricLine(
+    text: text,
+    startTime: Duration(milliseconds: startMs),
+    endTime: Duration(milliseconds: endMs),
+    confidence: 90,
+  );
 
   group('tokenizer', () {
     test('folds script by default', () {

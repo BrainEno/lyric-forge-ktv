@@ -441,15 +441,15 @@ class _PromptTemplate {
   }) {
     final code = language.trim().toLowerCase().split(RegExp(r'[-_]')).first;
     return switch (code) {
-      'zh' || 'yue' when chineseScript?.isTraditional ?? false =>
-        _PromptTemplate(
-          title: (value) => '歌曲《$value》',
-          artist: (value) => '演唱：$value',
-          album: (value) => '專輯：$value',
-          terms: (values) => '人名與專有名詞：${values.join('、')}',
-          separator: '，',
-          terminator: '。',
-        ),
+      'zh' ||
+      'yue' when chineseScript?.isTraditional ?? false => _PromptTemplate(
+        title: (value) => '歌曲《$value》',
+        artist: (value) => '演唱：$value',
+        album: (value) => '專輯：$value',
+        terms: (values) => '人名與專有名詞：${values.join('、')}',
+        separator: '，',
+        terminator: '。',
+      ),
       'zh' || 'yue' => _PromptTemplate(
         title: (value) => '歌曲《$value》',
         artist: (value) => '演唱：$value',
