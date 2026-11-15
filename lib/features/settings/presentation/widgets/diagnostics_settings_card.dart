@@ -181,14 +181,18 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
     final summary = _summary;
     final busy = _busy != _Busy.none;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.bgElevated,
+    // A Material (not a decorated Container) so the switches and tiles below
+    // paint their ink on the card surface.
+    return Material(
+      color: AppColors.bgElevated,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.radiusXLarge),
-        border: Border.all(color: AppColors.borderMuted),
+        side: const BorderSide(color: AppColors.borderMuted),
       ),
-      child: Column(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
@@ -278,6 +282,7 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
           const SizedBox(height: AppSpacing.md),
           _TimingsPanel(timings: _diagnostics.timings),
         ],
+      ),
       ),
     );
   }
