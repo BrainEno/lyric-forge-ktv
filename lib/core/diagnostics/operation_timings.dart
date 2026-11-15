@@ -164,8 +164,7 @@ class OperationTimings {
       span.finish(
         outcome: classify?.call(error) ?? OperationOutcome.failure,
         attributes:
-            errorAttributesOf?.call(error) ??
-            {'error': '${error.runtimeType}'},
+            errorAttributesOf?.call(error) ?? {'error': '${error.runtimeType}'},
       );
       rethrow;
     }
@@ -231,9 +230,7 @@ class OperationTimings {
     for (final operation in operations)
       operation: {
         'summary': summarize(operation)!.toJson(),
-        'recent': [
-          for (final sample in samplesFor(operation)) sample.toJson(),
-        ],
+        'recent': [for (final sample in samplesFor(operation)) sample.toJson()],
       },
   };
 

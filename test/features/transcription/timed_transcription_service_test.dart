@@ -218,10 +218,7 @@ void main() {
       timings.samplesFor(TimedTranscriptionService.operation).single.attributes,
       containsPair('failureKind', 'unexpected'),
     );
-    expect(
-      logger.memory!.records.last.level,
-      LogLevel.error,
-    );
+    expect(logger.memory!.records.last.level, LogLevel.error);
   });
 
   test('a failing duration probe does not fail recognition', () async {

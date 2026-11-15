@@ -121,7 +121,12 @@ void main() {
       List.generate(10, (index) => '#$index frame').join('\n'),
     );
     final trimmed = AppLogger.trimStackTrace(trace, 3);
-    expect(trimmed.split('\n'), ['#0 frame', '#1 frame', '#2 frame', '…（另有 7 帧）']);
+    expect(trimmed.split('\n'), [
+      '#0 frame',
+      '#1 frame',
+      '#2 frame',
+      '…（另有 7 帧）',
+    ]);
   });
 
   group('LogRecord', () {

@@ -178,7 +178,9 @@ Duration? pcmWavDurationFromHeader(Uint8List header, {int? fileLength}) {
       var dataBytes = size;
       if (fileLength != null) {
         final available = fileLength - body;
-        if (dataBytes == 0 || dataBytes == 0xFFFFFFFF || dataBytes > available) {
+        if (dataBytes == 0 ||
+            dataBytes == 0xFFFFFFFF ||
+            dataBytes > available) {
           dataBytes = available;
         }
       }

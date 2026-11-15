@@ -165,7 +165,11 @@ class DiagnosticsReport {
       ..writeln('== $title ==');
   }
 
-  static void _writeMap(StringBuffer buffer, Map<Object?, Object?> map, int depth) {
+  static void _writeMap(
+    StringBuffer buffer,
+    Map<Object?, Object?> map,
+    int depth,
+  ) {
     final indent = '  ' * depth;
     for (final entry in map.entries) {
       final value = entry.value;

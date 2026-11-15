@@ -116,13 +116,15 @@ class FileLogSink implements LogSink {
     _pending.clear();
     await flush();
     final directory = await _logDirectory();
-    _chain = _chain.then((_) async {
-      for (final name in [fileName, rotatedFileName]) {
-        final file = File(_join(directory.path, name));
-        if (await file.exists()) await file.delete();
-      }
-      _knownSize = 0;
-    }).catchError((Object _) {});
+    _chain = _chain
+        .then((_) async {
+          for (final name in [fileName, rotatedFileName]) {
+            final file = File(_join(directory.path, name));
+            if (await file.exists()) await file.delete();
+          }
+          _knownSize = 0;
+        })
+        .catchError((Object _) {});
     await _chain;
   }
 

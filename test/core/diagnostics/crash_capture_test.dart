@@ -170,10 +170,7 @@ void main() {
 
       expect(handled, isTrue);
       expect(dispatcher.onError, previous);
-      expect(
-        logger.memory!.records.single.message,
-        'Uncaught platform error',
-      );
+      expect(logger.memory!.records.single.message, 'Uncaught platform error');
       expect((await crashes.load()).single.source, CrashSource.platform);
     });
 

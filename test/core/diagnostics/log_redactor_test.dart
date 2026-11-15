@@ -38,10 +38,7 @@ void main() {
         redactor.redact('{"password": "hunter2", "name": "ok"}'),
         '{"password": "<redacted>", "name": "ok"}',
       );
-      expect(
-        redactor.redact("{'api_key':'k-1'}"),
-        "{'api_key':'<redacted>'}",
-      );
+      expect(redactor.redact("{'api_key':'k-1'}"), "{'api_key':'<redacted>'}");
     });
 
     test('replaces URL user info', () {

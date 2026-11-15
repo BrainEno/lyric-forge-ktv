@@ -137,62 +137,65 @@ void main() {
     expect(report.crashes, isEmpty);
   });
 
-  test('text output has every part, the privacy notice and valid JSON',
-      () async {
-    final report = await _builder(
-      sections: [
-        DiagnosticsSection(
-          id: 'ktv',
-          title: 'KTV 麦克风',
-          collect: () async => {
-            'inputDevices': 2,
-            'engineLatencyMs': 12,
-            'devices': [
-              {'label': 'USB'},
-            ],
+  test(
+    'text output has every part, the privacy notice and valid JSON',
+    () async {
+      final report = await _builder(
+        sections: [
+          DiagnosticsSection(
+            id: 'ktv',
+            title: 'KTV 麦克风',
+            collect: () async => {
+              'inputDevices': 2,
+              'engineLatencyMs': 12,
+              'devices': [
+                {'label': 'USB'},
+              ],
+            },
+          ),
+        ],
+        logs: [
+          LogRecord(
+            time: DateTime.utc(2026, 11, 15),
+            level: LogLevel.error,
+            tag: 'ktv',
+            message: 'export failed',
+            stackTrace: '#0 mix',
+          ),
+        ],
+        timings: {
+          'ktv.exportMix': {
+            'summary': {'count': 1, 'medianMs': 4200},
+            'recent': const [],
           },
-        ),
-      ],
-      logs: [
-        LogRecord(
-          time: DateTime.utc(2026, 11, 15),
-          level: LogLevel.error,
-          tag: 'ktv',
-          message: 'export failed',
-          stackTrace: '#0 mix',
-        ),
-      ],
-      timings: {
-        'ktv.exportMix': {
-          'summary': {'count': 1, 'medianMs': 4200},
-          'recent': const [],
         },
-      },
-    ).build();
+      ).build();
 
-    final text = report.toText();
-    expect(text, contains('Elysium Player 诊断包'));
-    expect(text, contains(DiagnosticsReport.privacyNotice));
-    expect(text, contains('== 应用与平台 =='));
-    expect(text, contains('version: 1.0.0+1'));
-    expect(text, contains('== KTV 麦克风 =='));
-    expect(text, contains('engineLatencyMs: 12'));
-    expect(text, contains('  - label=USB'));
-    expect(text, contains('ktv.exportMix: count=1, medianMs=4200'));
-    expect(text, contains('== 崩溃记录（0） =='));
-    expect(text, contains('[ktv] export failed'));
-    expect(text, contains('    #0 mix'));
+      final text = report.toText();
+      expect(text, contains('Elysium Player 诊断包'));
+      expect(text, contains(DiagnosticsReport.privacyNotice));
+      expect(text, contains('== 应用与平台 =='));
+      expect(text, contains('version: 1.0.0+1'));
+      expect(text, contains('== KTV 麦克风 =='));
+      expect(text, contains('engineLatencyMs: 12'));
+      expect(text, contains('  - label=USB'));
+      expect(text, contains('ktv.exportMix: count=1, medianMs=4200'));
+      expect(text, contains('== 崩溃记录（0） =='));
+      expect(text, contains('[ktv] export failed'));
+      expect(text, contains('    #0 mix'));
 
-    final json = jsonDecode(text.split('---- JSON ----\n').last)
-        as Map<String, Object?>;
-    expect(json['schemaVersion'], DiagnosticsReport.schemaVersion);
-    expect(json['generatedAt'], '2026-11-15T09:05:07.000Z');
-    expect((json['sections'] as Map)['ktv'], isNotNull);
-    expect(json['logs'], hasLength(1));
+      final json =
+          jsonDecode(text.split('---- JSON ----\n').last)
+              as Map<String, Object?>;
+      expect(json['schemaVersion'], DiagnosticsReport.schemaVersion);
+      expect(json['generatedAt'], '2026-11-15T09:05:07.000Z');
+      expect((json['sections'] as Map)['ktv'], isNotNull);
+      expect(json['logs'], hasLength(1));
 
-    final short = report.toText(includeJson: false);
-    expect(short, isNot(contains('---- JSON ----')));
-  });
+      final short = report.toText(includeJson: false);
+      expect(short, isNot(contains('---- JSON ----')));
+    },
+  );
 
   test('suggests a timestamped file name', () async {
     final report = await _builder().build();

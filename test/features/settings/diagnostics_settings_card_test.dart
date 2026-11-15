@@ -253,12 +253,18 @@ void main() {
 
   group('formatting', () {
     test('durations', () {
-      expect(formatDiagnosticsDuration(const Duration(milliseconds: 420)),
-          '420 毫秒');
-      expect(formatDiagnosticsDuration(const Duration(milliseconds: 12400)),
-          '12.4 秒');
-      expect(formatDiagnosticsDuration(const Duration(seconds: 125)),
-          '2 分 5 秒');
+      expect(
+        formatDiagnosticsDuration(const Duration(milliseconds: 420)),
+        '420 毫秒',
+      );
+      expect(
+        formatDiagnosticsDuration(const Duration(milliseconds: 12400)),
+        '12.4 秒',
+      );
+      expect(
+        formatDiagnosticsDuration(const Duration(seconds: 125)),
+        '2 分 5 秒',
+      );
     });
 
     test('bytes', () {

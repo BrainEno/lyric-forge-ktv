@@ -110,30 +110,34 @@ class CrashRecordStore {
   }
 
   Future<void> add(CrashRecord record) {
-    _chain = _chain.then((_) async {
-      final records = [...await _read(), record];
-      final kept = records.length > capacity
-          ? records.sublist(records.length - capacity)
-          : records;
-      final file = await _file();
-      final temporary = File('${file.path}.tmp');
-      await temporary.writeAsString(
-        jsonEncode({
-          'version': 1,
-          'crashes': [for (final item in kept) item.toJson()],
-        }),
-        flush: true,
-      );
-      await temporary.rename(file.path);
-    }).catchError((Object _) {});
+    _chain = _chain
+        .then((_) async {
+          final records = [...await _read(), record];
+          final kept = records.length > capacity
+              ? records.sublist(records.length - capacity)
+              : records;
+          final file = await _file();
+          final temporary = File('${file.path}.tmp');
+          await temporary.writeAsString(
+            jsonEncode({
+              'version': 1,
+              'crashes': [for (final item in kept) item.toJson()],
+            }),
+            flush: true,
+          );
+          await temporary.rename(file.path);
+        })
+        .catchError((Object _) {});
     return _chain;
   }
 
   Future<void> clear() {
-    _chain = _chain.then((_) async {
-      final file = await _file();
-      if (await file.exists()) await file.delete();
-    }).catchError((Object _) {});
+    _chain = _chain
+        .then((_) async {
+          final file = await _file();
+          if (await file.exists()) await file.delete();
+        })
+        .catchError((Object _) {});
     return _chain;
   }
 }

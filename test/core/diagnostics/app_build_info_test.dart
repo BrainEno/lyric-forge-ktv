@@ -10,7 +10,8 @@ void main() {
     expect(
       appVersion,
       line.substring('version:'.length).trim(),
-      reason: 'Update appVersion in lib/core/diagnostics/app_build_info.dart '
+      reason:
+          'Update appVersion in lib/core/diagnostics/app_build_info.dart '
           'whenever the pubspec version changes.',
     );
   });

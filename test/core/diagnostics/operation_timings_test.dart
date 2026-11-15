@@ -56,8 +56,10 @@ void main() {
     final span = timings.start('ktv.exportMix');
     expect(span.finish(outcome: OperationOutcome.failure), isNotNull);
     expect(span.finish(), isNull);
-    expect(timings.samplesFor('ktv.exportMix').single.outcome,
-        OperationOutcome.failure);
+    expect(
+      timings.samplesFor('ktv.exportMix').single.outcome,
+      OperationOutcome.failure,
+    );
   });
 
   test('measure records success with media duration and attributes', () async {
@@ -75,33 +77,34 @@ void main() {
     expect(sample.attributes, {'value': 42});
   });
 
-  test('measure records failures, classifies cancellations and rethrows',
-      () async {
-    final timings = OperationTimings();
-    await expectLater(
-      timings.measure<void>('job', () async => throw StateError('x')),
-      throwsStateError,
-    );
-    await expectLater(
-      timings.measure<void>(
-        'job',
-        () async => throw const FormatException('cancel'),
-        classify: (_) => OperationOutcome.cancelled,
-      ),
-      throwsFormatException,
-    );
-    final samples = timings.samplesFor('job');
-    expect(samples.map((sample) => sample.outcome), [
-      OperationOutcome.failure,
-      OperationOutcome.cancelled,
-    ]);
-    expect(samples.first.attributes, {'error': 'StateError'});
-  });
+  test(
+    'measure records failures, classifies cancellations and rethrows',
+    () async {
+      final timings = OperationTimings();
+      await expectLater(
+        timings.measure<void>('job', () async => throw StateError('x')),
+        throwsStateError,
+      );
+      await expectLater(
+        timings.measure<void>(
+          'job',
+          () async => throw const FormatException('cancel'),
+          classify: (_) => OperationOutcome.cancelled,
+        ),
+        throwsFormatException,
+      );
+      final samples = timings.samplesFor('job');
+      expect(samples.map((sample) => sample.outcome), [
+        OperationOutcome.failure,
+        OperationOutcome.cancelled,
+      ]);
+      expect(samples.first.attributes, {'error': 'StateError'});
+    },
+  );
 
   test('toJson includes summary and recent samples; clear empties', () async {
-    final timings = OperationTimings(
-      clock: () => DateTime.utc(2026, 11, 15),
-    )..record(
+    final timings = OperationTimings(clock: () => DateTime.utc(2026, 11, 15))
+      ..record(
         'x',
         const Duration(seconds: 2),
         mediaDuration: const Duration(seconds: 8),

@@ -16,9 +16,7 @@ import '../features/transcription/domain/services/transcription_settings_store.d
 AppDiagnostics createAppDiagnostics() => AppDiagnostics(
   directory: () async {
     final support = await getApplicationSupportDirectory();
-    return Directory(
-      '${support.path}${Platform.pathSeparator}diagnostics',
-    );
+    return Directory('${support.path}${Platform.pathSeparator}diagnostics');
   },
 );
 
@@ -120,7 +118,8 @@ Map<String, Object?> collectKtvMicrophoneDiagnostics(
     'inputDevices': state.inputDevices.length,
     // The device label helps tell a USB interface from a built-in mic;
     // the platform id is an opaque handle and is left out.
-    'selectedDevice': selected?.label ?? (state.inputDevices.isEmpty ? null : '系统默认'),
+    'selectedDevice':
+        selected?.label ?? (state.inputDevices.isEmpty ? null : '系统默认'),
     'monitoring': state.isMonitoring,
     'permissionDenied': state.permissionDenied,
     'micGain': double.parse(state.micGain.toStringAsFixed(2)),

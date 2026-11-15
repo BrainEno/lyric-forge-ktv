@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-09 17:04] Guard live project audio source updates ([entry](log/entries/2026-11-09-1704-guard-live-project-source-updates.md))
 - [2026-11-09 15:51] Import existing project accompaniment ([entry](log/entries/2026-11-09-1551-import-project-accompaniment.md))
 - [2026-11-09 13:46] Retry failed project store loads ([entry](log/entries/2026-11-09-1346-retry-project-store-load.md))
 - [2026-11-09 13:31] Retry failed play history loads ([entry](log/entries/2026-11-09-1331-retry-play-history-load.md))

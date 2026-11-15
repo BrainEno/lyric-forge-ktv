@@ -291,7 +291,9 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
       : Icon(icon);
 
   static String _summaryLine(DiagnosticsSummary summary) {
-    final parts = <String>['日志 ${formatDiagnosticsBytes(summary.logFileBytes)}'];
+    final parts = <String>[
+      '日志 ${formatDiagnosticsBytes(summary.logFileBytes)}',
+    ];
     if (summary.crashCount == 0) {
       parts.add('没有崩溃记录');
     } else {

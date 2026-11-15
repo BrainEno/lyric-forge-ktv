@@ -163,7 +163,9 @@ void main() {
   test('start without a microphone service records no attributes', () async {
     await service().startRecording(_project);
     expect(
-      timings.samplesFor(TimedKtvRecordingService.startOperation).single
+      timings
+          .samplesFor(TimedKtvRecordingService.startOperation)
+          .single
           .attributes,
       isEmpty,
     );
@@ -180,22 +182,24 @@ void main() {
     expect(logger.memory!.records.last.level, LogLevel.warning);
   });
 
-  test('stop records the take length and warns on unreliable alignment',
-      () async {
-    delegate.stopResult = _session(reliable: false);
-    final session = await service().stopRecording();
+  test(
+    'stop records the take length and warns on unreliable alignment',
+    () async {
+      delegate.stopResult = _session(reliable: false);
+      final session = await service().stopRecording();
 
-    expect(session!.id, 's1');
-    final sample = timings
-        .samplesFor(TimedKtvRecordingService.stopOperation)
-        .single;
-    expect(sample.mediaDuration, const Duration(minutes: 5));
-    expect(sample.attributes, containsPair('alignmentReliable', false));
-    expect(
-      logger.memory!.records.map((record) => record.message),
-      contains('Take alignment is not reliable: backing restarted'),
-    );
-  });
+      expect(session!.id, 's1');
+      final sample = timings
+          .samplesFor(TimedKtvRecordingService.stopOperation)
+          .single;
+      expect(sample.mediaDuration, const Duration(minutes: 5));
+      expect(sample.attributes, containsPair('alignmentReliable', false));
+      expect(
+        logger.memory!.records.map((record) => record.message),
+        contains('Take alignment is not reliable: backing restarted'),
+      );
+    },
+  );
 
   test('stop without a session counts as cancelled', () async {
     expect(await service().stopRecording(), isNull);
@@ -214,8 +218,7 @@ void main() {
     );
   });
 
-  test('export passes volumes through and yields a real-time factor',
-      () async {
+  test('export passes volumes through and yields a real-time factor', () async {
     final exported = await service().exportMix(
       _session(),
       voiceVolume: 0.7,

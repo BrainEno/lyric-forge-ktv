@@ -50,7 +50,9 @@ class LogRedactor {
     // Never take the scheme word itself as the value: on a second pass
     // `Bearer <redacted>` must stay as it is.
     r'(?!(?:bearer|basic)\s)'
-    r'([^\s&,;"' "'" r'<>)\]}]+)',
+    r'([^\s&,;"'
+    "'"
+    r'<>)\]}]+)',
     caseSensitive: false,
   );
 
@@ -85,10 +87,7 @@ class LogRedactor {
       text = _replaceHome(text, home);
     }
     text = text.replaceAllMapped(_genericHome, (_) => '~');
-    text = text.replaceAllMapped(
-      _userInfo,
-      (match) => '${match[1]}$redacted@',
-    );
+    text = text.replaceAllMapped(_userInfo, (match) => '${match[1]}$redacted@');
     text = text.replaceAllMapped(
       _quotedPair,
       (match) =>
@@ -133,7 +132,9 @@ class LogRedactor {
     if (!windows) return text.replaceAll(home, '~');
     final source = StringBuffer();
     for (final char in home.split('')) {
-      source.write(char == '/' || char == r'\' ? r'[\\/]' : RegExp.escape(char));
+      source.write(
+        char == '/' || char == r'\' ? r'[\\/]' : RegExp.escape(char),
+      );
     }
     final pattern = RegExp(source.toString(), caseSensitive: false);
     return text.replaceAll(pattern, '~');

@@ -146,9 +146,7 @@ void main() {
       (await subject.fileSink.readRecent()).map((record) => record.message),
       ['诊断记录已清除'],
     );
-    expect(logger.memory!.records.map((record) => record.message), [
-      '诊断记录已清除',
-    ]);
+    expect(logger.memory!.records.map((record) => record.message), ['诊断记录已清除']);
     await subject.stop();
   });
 
