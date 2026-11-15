@@ -1,0 +1,2 @@
+# Empty context lines in a unified diff carry one required leading marker space.
+tool/patches/qwen3-asr-session-security.patch whitespace=-blank-at-eol

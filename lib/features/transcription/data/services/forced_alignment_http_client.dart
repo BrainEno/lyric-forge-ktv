@@ -3,43 +3,31 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
+import 'qwen_native_runtime_session.dart';
 
-/// A deliberately separate client for an explicit arbitrary-text alignment API.
+/// A separate client for an explicit arbitrary-text alignment API.
 ///
-/// Qwen's current `/v1/transcribe` endpoint is ASR, not a forced-alignment
-/// endpoint. This client only calls the URI supplied by its caller (typically
-/// a future local `/v1/align` bridge); it never silently sends text to
-/// `/v1/transcribe` or treats ASR context as forced alignment.
+/// Qwen's `/v1/transcribe` endpoint is ASR, not a forced-alignment endpoint.
+/// Production callers supply the active pinned Qwen runtime [session]. This
+/// client never sends alignment text to `/v1/transcribe` or treats ASR context
+/// as forced alignment.
 class ForcedAlignmentHttpClient {
   final Uri endpoint;
   final HttpClient _httpClient;
+  final QwenNativeRuntimeSession _session;
   final Duration requestTimeout;
   HttpClientRequest? _activeRequest;
 
   ForcedAlignmentHttpClient({
     required this.endpoint,
-    HttpClient? httpClient,
+    required QwenNativeRuntimeSession session,
     this.requestTimeout = const Duration(minutes: 5),
-  }) : _httpClient = httpClient ?? HttpClient() {
-    if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
-      throw ArgumentError.value(
-        endpoint,
-        'endpoint',
-        'Must be an HTTP(S) URI.',
-      );
-    }
-    if (endpoint.host.isEmpty) {
-      throw ArgumentError.value(endpoint, 'endpoint', 'Must include a host.');
-    }
-    if (requestTimeout <= Duration.zero) {
-      throw ArgumentError.value(
-        requestTimeout,
-        'requestTimeout',
-        'Must be positive.',
-      );
-    }
-    _httpClient.connectionTimeout = requestTimeout;
-  }
+  }) : _session = session,
+       _httpClient = _createPinnedHttpClient(
+         session: session,
+         endpoint: endpoint,
+         requestTimeout: requestTimeout,
+       );
 
   /// Aligns [text] against [audioPath], validating all returned spans.
   ///
@@ -77,7 +65,9 @@ class ForcedAlignmentHttpClient {
           .postUrl(endpoint)
           .timeout(_remainingTimeout(stopwatch));
       _activeRequest = request;
+      request.followRedirects = false;
       request.headers.contentType = ContentType.json;
+      _session.authorize(request);
       request.write(
         jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
       );
@@ -162,10 +152,16 @@ class ForcedAlignmentHttpClient {
         'Forced-alignment request timed out after '
         '${requestTimeout.inSeconds} seconds.',
       );
+    } on HandshakeException {
+      request?.abort();
+      throw const ForcedAlignmentException(
+        'Forced-alignment server identity verification failed.',
+      );
     } on IOException catch (error) {
       request?.abort(error, StackTrace.current);
       throw ForcedAlignmentException(
-        'Forced-alignment HTTP request was interrupted: $error',
+        'Forced-alignment HTTP request was interrupted: '
+        '${_session.redact(error.toString())}',
       );
     } finally {
       if (identical(_activeRequest, request)) _activeRequest = null;
@@ -218,6 +214,28 @@ class ForcedAlignmentHttpClient {
     }
     _httpClient.close(force: force);
   }
+}
+
+HttpClient _createPinnedHttpClient({
+  required QwenNativeRuntimeSession session,
+  required Uri endpoint,
+  required Duration requestTimeout,
+}) {
+  if (endpoint != session.endpoint('/v1/align')) {
+    throw ArgumentError.value(
+      endpoint,
+      'endpoint',
+      'Must be the active Qwen session alignment URI.',
+    );
+  }
+  if (requestTimeout <= Duration.zero) {
+    throw ArgumentError.value(
+      requestTimeout,
+      'requestTimeout',
+      'Must be positive.',
+    );
+  }
+  return session.createHttpClient(connectionTimeout: requestTimeout);
 }
 
 class ForcedAlignmentException implements Exception {

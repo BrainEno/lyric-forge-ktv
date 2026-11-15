@@ -11,16 +11,54 @@ import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
 import 'forced_alignment_http_client.dart';
+import 'qwen_native_runtime_session.dart';
+
+typedef QwenNativeRuntimeProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments,
+      Map<String, String> environment,
+    );
 
 class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
-  Qwen3AsrNativeTranscriptionService({AsrProcessSupervisor? processSupervisor})
-    : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
+  Qwen3AsrNativeTranscriptionService({
+    AsrProcessSupervisor? processSupervisor,
+    Duration idleShutdownDelay = const Duration(minutes: 10),
+  }) : this._(
+         processSupervisor: processSupervisor ?? AsrProcessSupervisor(),
+         runtimeProcessStarter: _startRuntimeProcess,
+         idleShutdownDelay: idleShutdownDelay,
+       );
+
+  /// Injects a fake child process for tests; production should use the default
+  /// constructor so the runtime identity comes from the launched native child.
+  Qwen3AsrNativeTranscriptionService.forTesting({
+    required QwenNativeRuntimeProcessStarter runtimeProcessStarter,
+    AsrProcessSupervisor? processSupervisor,
+    Duration idleShutdownDelay = const Duration(minutes: 10),
+  }) : this._(
+         processSupervisor: processSupervisor ?? AsrProcessSupervisor(),
+         runtimeProcessStarter: runtimeProcessStarter,
+         idleShutdownDelay: idleShutdownDelay,
+       );
+
+  Qwen3AsrNativeTranscriptionService._({
+    required AsrProcessSupervisor processSupervisor,
+    required QwenNativeRuntimeProcessStarter runtimeProcessStarter,
+    required Duration idleShutdownDelay,
+  }) : _processSupervisor = processSupervisor,
+       _runtimeProcessStarter = runtimeProcessStarter,
+       _idleShutdownDelay = idleShutdownDelay;
 
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
   final AsrProcessSupervisor _processSupervisor;
-  final HttpClient _httpClient = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 10);
+  final QwenNativeRuntimeProcessStarter _runtimeProcessStarter;
+  final Duration _idleShutdownDelay;
+  HttpClient? _httpClient;
+  QwenNativeRuntimeSession? _serverSession;
+  String? _pendingSessionToken;
+  bool _serverProtocolError = false;
 
   Process? _serverProcess;
   StreamSubscription<String>? _stdoutSubscription;
@@ -29,14 +67,27 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   ForcedAlignmentHttpClient? _activeAlignmentClient;
   Process? _activeToolProcess;
   Timer? _idleShutdownTimer;
+  Future<void>? _serverStartInProgress;
+  Future<void>? _serverStopInProgress;
 
-  int? _serverPort;
   String? _serverKey;
   bool _serverExited = false;
   bool _running = false;
   bool _cancelRequested = false;
 
   final List<String> _serverLogTail = [];
+
+  static Future<Process> _startRuntimeProcess(
+    String executable,
+    List<String> arguments,
+    Map<String, String> environment,
+  ) => Process.start(
+    executable,
+    arguments,
+    environment: environment,
+    includeParentEnvironment: false,
+    runInShell: false,
+  );
 
   @override
   Stream<TranscriptionProgress> get progressStream =>
@@ -211,12 +262,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         inputPath: audioPath,
         outputPath: normalizedPath,
       );
-      final port = _serverPort;
-      if (port == null) {
+      final session = _serverSession;
+      if (session == null || _httpClient == null) {
         throw const TranscriptionException.environment('Qwen3-ASR 服务尚未启动');
       }
       final client = ForcedAlignmentHttpClient(
-        endpoint: Uri.parse('http://127.0.0.1:$port/v1/align'),
+        endpoint: session.endpoint('/v1/align'),
+        session: session,
       );
       _activeAlignmentClient = client;
       try {
@@ -421,7 +473,21 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     }
   }
 
-  Future<void> _ensureServer(TranscriptionConfig config) async {
+  Future<void> _ensureServer(TranscriptionConfig config) {
+    final inProgress = _serverStartInProgress;
+    if (inProgress != null) return inProgress;
+
+    late final Future<void> starting;
+    starting = _ensureServerInternal(config).whenComplete(() {
+      if (identical(_serverStartInProgress, starting)) {
+        _serverStartInProgress = null;
+      }
+    });
+    _serverStartInProgress = starting;
+    return starting;
+  }
+
+  Future<void> _ensureServerInternal(TranscriptionConfig config) async {
     final key = [
       config.qwenExecutable,
       config.qwenModelPath,
@@ -430,50 +496,86 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       config.qwenDtype,
     ].join('|');
 
-    if (_serverProcess != null &&
-        _serverKey == key &&
-        await _isServerHealthy()) {
-      return;
+    if (_serverProcess != null && _serverKey == key && !_serverExited) {
+      try {
+        if (await _isServerHealthy()) return;
+      } on _QwenRuntimeIdentityException {
+        await _stopServer();
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 服务身份验证失败',
+        );
+      } on _QwenRuntimeAuthenticationException {
+        await _stopServer();
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 会话认证失败',
+        );
+      }
     }
 
     await _stopServer();
+    _throwIfCancelled();
 
-    final port = await _reservePort();
+    late final String token;
+    try {
+      token = createQwenRuntimeSessionToken();
+    } catch (_) {
+      throw const TranscriptionException.environment(
+        '无法为 Qwen3-ASR 会话生成安全凭据',
+      );
+    }
+    if (!isQwenRuntimeSessionToken(token)) {
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 会话凭据格式无效',
+      );
+    }
+    _pendingSessionToken = token;
+    final arguments = <String>[
+      '--device',
+      config.qwenDevice,
+      '--dtype',
+      config.qwenDtype,
+      'serve',
+      '--model',
+      config.qwenModelPath,
+      '--host',
+      '127.0.0.1',
+      '--port',
+      '0',
+      '--forced-aligner',
+      config.qwenAlignerModelPath,
+    ];
+    final environment = Map<String, String>.from(Platform.environment)
+      ..removeWhere(
+        (name, _) =>
+            name.toUpperCase() == qwenRuntimeSessionTokenEnvironment,
+      )
+      ..[qwenRuntimeSessionTokenEnvironment] = token;
 
     Process process;
     try {
-      process = await Process.start(config.qwenExecutable, [
-        '--device',
-        config.qwenDevice,
-        '--dtype',
-        config.qwenDtype,
-        'serve',
-        '--model',
-        config.qwenModelPath,
-        '--host',
-        '127.0.0.1',
-        '--port',
-        port.toString(),
-        '--forced-aligner',
-        config.qwenAlignerModelPath,
-      ]);
-    } on ProcessException catch (error) {
+      process = await _runtimeProcessStarter(
+        config.qwenExecutable,
+        arguments,
+        environment,
+      );
+    } catch (error) {
+      _pendingSessionToken = null;
       throw TranscriptionException.environment(
         '无法启动 Qwen3-ASR native runtime',
-        details: error.message,
+        details: error.toString().replaceAll(token, '[redacted]'),
       );
     }
 
     _serverProcess = process;
-    _serverPort = port;
     _serverKey = key;
     _serverExited = false;
+    _serverProtocolError = false;
     _serverLogTail.clear();
 
     _stdoutSubscription = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(_captureServerLog);
+        .listen(_captureServerStdout);
     _stderrSubscription = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -505,7 +607,27 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         );
       }
 
-      if (await _isServerHealthy()) return;
+      if (_serverProtocolError) {
+        await _stopServer();
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR native runtime 未提供有效的会话身份',
+        );
+      }
+
+      try {
+        if (await _isServerHealthy()) return;
+      } on _QwenRuntimeIdentityException {
+        await _stopServer();
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 服务身份验证失败',
+        );
+      } on _QwenRuntimeAuthenticationException {
+        await _stopServer();
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 会话认证失败',
+        );
+      }
+
       final remaining = startupTimeout - startupStopwatch.elapsed;
       if (remaining > Duration.zero) {
         await Future<void>.delayed(
@@ -522,34 +644,77 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     );
   }
 
+  void _captureServerStdout(String line) {
+    if (!line.startsWith('$qwenRuntimeReadyPrefix\t')) {
+      _captureServerLog(line);
+      return;
+    }
+
+    if (_serverSession != null) {
+      _serverProtocolError = true;
+      _captureServerLog('Duplicate native runtime readiness record');
+      return;
+    }
+
+    final token = _pendingSessionToken;
+    if (token == null) {
+      _serverProtocolError = true;
+      _captureServerLog('Unexpected native runtime readiness record');
+      return;
+    }
+
+    try {
+      final ready = parseQwenRuntimeReadyRecord(line);
+      final session = QwenNativeRuntimeSession(
+        port: ready.port,
+        certificateDer: ready.certificateDer,
+        token: token,
+      );
+      _serverSession = session;
+      _httpClient = session.createHttpClient();
+      _pendingSessionToken = null;
+    } catch (_) {
+      _serverProtocolError = true;
+      _captureServerLog('Invalid native runtime readiness record');
+    }
+  }
+
   void _captureServerLog(String line) {
+    final redacted = _pendingSessionToken == null
+        ? (_serverSession?.redact(line) ?? line)
+        : line.replaceAll(_pendingSessionToken!, '[redacted]');
     if (_serverLogTail.length >= 40) {
       _serverLogTail.removeAt(0);
     }
-    _serverLogTail.add(line);
-  }
-
-  Future<int> _reservePort() async {
-    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final port = socket.port;
-    await socket.close();
-    return port;
+    _serverLogTail.add(redacted);
   }
 
   Future<bool> _isServerHealthy() async {
-    final port = _serverPort;
-    if (port == null) return false;
+    final session = _serverSession;
+    final httpClient = _httpClient;
+    if (session == null || httpClient == null || _serverExited) return false;
 
     try {
-      final request = await _httpClient
-          .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
+      final request = await httpClient
+          .getUrl(session.endpoint('/healthz'))
           .timeout(const Duration(seconds: 2));
+      session.authorize(request);
       final response = await request.close().timeout(
         const Duration(seconds: 2),
       );
+      if (response.statusCode == HttpStatus.unauthorized) {
+        throw const _QwenRuntimeAuthenticationException();
+      }
       await response.drain<void>().timeout(const Duration(seconds: 2));
       return response.statusCode == HttpStatus.ok;
+    } on _QwenRuntimeAuthenticationException {
+      rethrow;
+    } on HandshakeException {
+      throw const _QwenRuntimeIdentityException();
     } catch (_) {
+      if (session.identityRejected) {
+        throw const _QwenRuntimeIdentityException();
+      }
       return false;
     }
   }
@@ -583,15 +748,16 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     required String context,
     required int maxNewTokens,
   }) async {
-    final port = _serverPort;
-    if (port == null) {
+    final session = _serverSession;
+    final httpClient = _httpClient;
+    if (session == null || httpClient == null || _serverExited) {
       throw const TranscriptionException.environment('Qwen3-ASR 服务尚未启动');
     }
 
-    final endpoint = Uri.parse('http://127.0.0.1:$port/v1/transcribe');
+    final endpoint = session.endpoint('/v1/transcribe');
     late final HttpClientRequest request;
     try {
-      request = await _httpClient
+      request = await httpClient
           .postUrl(endpoint)
           .timeout(const Duration(seconds: 10));
     } on TimeoutException catch (error) {
@@ -615,6 +781,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     try {
       _throwIfCancelled();
       request.headers.contentType = ContentType.json;
+      session.authorize(request);
 
       final language = _qwenLanguage(config.language);
       final body = <String, dynamic>{
@@ -639,11 +806,16 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       if (response == null) {
         throw const TranscriptionException.environment('Qwen3-ASR 未返回 HTTP 响应');
       }
+      if (response.statusCode == HttpStatus.unauthorized) {
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 会话认证失败',
+        );
+      }
       if (response.statusCode != HttpStatus.ok) {
         final environmentFailure = response.statusCode >= 500;
         throw TranscriptionException(
           'Qwen3-ASR 返回 HTTP ${response.statusCode}',
-          details: text,
+          details: session.redact(text),
           kind: environmentFailure
               ? TranscriptionFailureKind.environment
               : TranscriptionFailureKind.input,
@@ -677,11 +849,21 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       );
     } on TranscriptionException {
       rethrow;
+    } on HandshakeException {
+      _throwIfCancelled();
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 服务身份验证失败',
+      );
     } catch (error) {
       _throwIfCancelled();
+      if (session.identityRejected) {
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 服务身份验证失败',
+        );
+      }
       throw TranscriptionException.environment(
         'Qwen3-ASR 本地服务请求失败',
-        details: error.toString(),
+        details: session.redact(error.toString()),
       );
     } finally {
       if (identical(_activeRequest, request)) _activeRequest = null;
@@ -1015,7 +1197,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   void _scheduleIdleShutdown() {
     _idleShutdownTimer?.cancel();
     _idleShutdownTimer = Timer(
-      const Duration(minutes: 10),
+      _idleShutdownDelay,
       () => unawaited(_stopServer()),
     );
   }
@@ -1029,32 +1211,68 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _idleShutdownTimer = null;
     _activeAlignmentClient?.close(force: true);
     _activeRequest?.abort();
+    final serverStart = _serverStartInProgress;
     final process = _activeToolProcess;
     if (process != null) {
       await _processSupervisor.terminate(process);
       if (identical(_activeToolProcess, process)) _activeToolProcess = null;
     }
     await _stopServer();
+    if (serverStart != null) {
+      try {
+        await serverStart;
+      } catch (_) {
+        // The active transcription reports startup failure or cancellation.
+      }
+    }
+    await _stopServer();
   }
 
-  Future<void> _stopServer() async {
+  Future<void> _stopServer() {
+    final inProgress = _serverStopInProgress;
+    if (inProgress != null) return inProgress;
+
+    late final Future<void> stopping;
+    stopping = _stopServerInternal().whenComplete(() {
+      if (identical(_serverStopInProgress, stopping)) {
+        _serverStopInProgress = null;
+      }
+    });
+    _serverStopInProgress = stopping;
+    return stopping;
+  }
+
+  Future<void> _stopServerInternal() async {
     _idleShutdownTimer?.cancel();
     _idleShutdownTimer = null;
 
     final process = _serverProcess;
+    final httpClient = _httpClient;
+    final stdoutSubscription = _stdoutSubscription;
+    final stderrSubscription = _stderrSubscription;
     _serverProcess = null;
-    _serverPort = null;
+    _httpClient = null;
+    _stdoutSubscription = null;
+    _stderrSubscription = null;
     _serverKey = null;
     _serverExited = false;
+    _serverProtocolError = false;
+    httpClient?.close(force: true);
 
     if (process != null) {
       await _processSupervisor.terminate(process);
     }
 
-    await _stdoutSubscription?.cancel();
-    await _stderrSubscription?.cancel();
-    _stdoutSubscription = null;
-    _stderrSubscription = null;
+    await stdoutSubscription?.cancel();
+    await stderrSubscription?.cancel();
+
+    // Keep the session token available to the log redactor until the child is
+    // fully terminated; a cancelled, still-starting child may not be assigned
+    // to _serverProcess yet and must retain its pending token until a later stop.
+    _serverSession = null;
+    if (process != null || _serverStartInProgress == null) {
+      _pendingSessionToken = null;
+    }
   }
 
   @override
@@ -1062,13 +1280,21 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     _cancelRequested = true;
     _activeAlignmentClient?.close(force: true);
     _activeRequest?.abort();
+    final serverStart = _serverStartInProgress;
     final process = _activeToolProcess;
     if (process != null) {
       await _processSupervisor.terminate(process);
       if (identical(_activeToolProcess, process)) _activeToolProcess = null;
     }
     await _stopServer();
-    _httpClient.close(force: true);
+    if (serverStart != null) {
+      try {
+        await serverStart;
+      } catch (_) {
+        // Disposal must wait for startup cleanup without replacing the caller's error.
+      }
+    }
+    await _stopServer();
     await _progressController.close();
   }
 }
@@ -1089,4 +1315,12 @@ class _TimedToken {
 
 class _QwenCancelledException implements Exception {
   const _QwenCancelledException();
+}
+
+class _QwenRuntimeIdentityException implements Exception {
+  const _QwenRuntimeIdentityException();
+}
+
+class _QwenRuntimeAuthenticationException implements Exception {
+  const _QwenRuntimeAuthenticationException();
 }

@@ -7,15 +7,24 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_re
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/forced_alignment_http_client.dart';
 
+import '../../../../support/qwen_runtime_test_identity.dart';
+
 void main() {
   late HttpServer server;
   late ForcedAlignmentHttpClient client;
   late ForcedAlignmentProofreadService service;
+  late QwenRuntimeTestIdentity identity;
+
+  setUpAll(() async {
+    identity = await QwenRuntimeTestIdentity.load();
+  });
 
   setUp(() async {
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server = await identity.bindServer();
+    final session = identity.session(server.port);
     client = ForcedAlignmentHttpClient(
-      endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+      endpoint: session.endpoint('/v1/align'),
+      session: session,
     );
     service = ForcedAlignmentProofreadService(runner: client.align);
   });

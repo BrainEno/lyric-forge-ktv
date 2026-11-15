@@ -1,0 +1,1497 @@
+diff --git a/qwen3_asr_cli/Cargo.toml b/qwen3_asr_cli/Cargo.toml
+index 13ae9a7..afa03ba 100644
+--- a/qwen3_asr_cli/Cargo.toml
++++ b/qwen3_asr_cli/Cargo.toml
+@@ -17,10 +17,12 @@ serde_json = "1"
+ tracing = "0.1"
+ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+ axum = { version = "0.8.4", features = ["json", "ws", "multipart"] }
+-tokio = { version = "1", features = ["rt-multi-thread", "net", "sync"] }
++tokio = { version = "1", features = ["rt-multi-thread", "net", "sync", "time"] }
+ tower-http = { version = "0.6", features = ["cors"] }
+ futures-util = "0.3"
+ base64 = "0.22"
++rcgen = "=0.13.2"
++tokio-rustls = { version = "=0.26.4", default-features = false, features = ["ring", "tls12"] }
+ 
+ qwen3_asr = { path = "../qwen3_asr", features = ["audio-loading", "forced-aligner", "timing"] }
+ candle-core = { version = "0.9" }
+@@ -36,4 +38,5 @@ cudnn = ["qwen3_asr/cudnn"]
+ 
+ [dev-dependencies]
+ ureq = { version = "2.12.1", features = ["json"] }
+-tungstenite = "0.24"
++rustls = { version = "=0.23.36", default-features = false, features = ["ring", "std", "tls12"] }
++tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
+index 516f006..491e176 100644
+--- a/qwen3_asr_cli/src/cmd_serve.rs
++++ b/qwen3_asr_cli/src/cmd_serve.rs
+@@ -9,7 +9,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+ use anyhow::{Context, Result};
+ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+ use axum::extract::{DefaultBodyLimit, Multipart, Query, State};
+-use axum::http::{HeaderMap, Method, StatusCode, header::CONTENT_TYPE};
++use axum::http::{HeaderMap, Method, StatusCode, header::{AUTHORIZATION, CONTENT_TYPE}};
+ use axum::response::sse::{Event, Sse};
+ use axum::response::{IntoResponse, Response};
+ use axum::routing::{get, post};
+@@ -2178,9 +2178,15 @@ fn handle_single_command(
+         WorkerCommand::Align { req, resp } => {
+             let out = match mode {
+                 WorkerMode::Real(real) => run_align_real(real, req),
+-                WorkerMode::Mock(_) => Err(ApiError::bad_request(
+-                    "forced alignment is unavailable in mock mode",
+-                )),
++                WorkerMode::Mock(_) => Ok(serde_json::json!({
++                    "results": [{
++                        "items": [{
++                            "text": req.text,
++                            "start_time": 0.0,
++                            "end_time": 1.0
++                        }]
++                    }]
++                })),
+             };
+             send_worker_response(resp, out);
+         }
+@@ -3441,6 +3447,15 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         anyhow::bail!("openai_stream_text_window_tokens must be > 0");
+     }
+ 
++    if cmd.host != "127.0.0.1" {
++        anyhow::bail!("session-secure Qwen serve supports only IPv4 loopback (127.0.0.1)");
++    }
++    if cmd.port != 0 {
++        anyhow::bail!("session-secure Qwen serve must request an OS-assigned port");
++    }
++
++    let session_token = crate::session_security::SessionToken::from_environment()?;
++
+     let mode = if cmd.mock {
+         WorkerMode::Mock(MockWorkerState {
+             sessions: HashMap::new(),
+@@ -3498,7 +3513,7 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+     let cors = CorsLayer::new()
+         .allow_origin(Any)
+         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+-        .allow_headers([CONTENT_TYPE]);
++        .allow_headers([CONTENT_TYPE, AUTHORIZATION]);
+ 
+     let app = Router::new()
+         .route("/", get(root))
+@@ -3529,6 +3544,10 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         .route("/api/finish", post(compat_api_finish).options(options_ok))
+         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+         .layer(cors)
++        .layer(axum::middleware::from_fn_with_state(
++            session_token,
++            crate::session_security::require_session_auth,
++        ))
+         .with_state(state.clone());
+ 
+     let addr = format!("{}:{}", cmd.host, cmd.port);
+@@ -3552,9 +3571,19 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+         .context("failed to build tokio runtime for serve")?;
+ 
+     rt.block_on(async move {
+-        let listener = tokio::net::TcpListener::bind(addr.as_str())
+-            .await
+-            .map_err(|e| anyhow::anyhow!("failed to bind HTTP server at {addr}: {e}"))?;
++        let (listener, certificate) =
++            crate::session_security::LocalTlsListener::bind(cmd.host.as_str(), cmd.port).await?;
++        let mut stdout = std::io::stdout().lock();
++        use std::io::Write as _;
++        writeln!(
++            stdout,
++            "{}\t{}\t{}",
++            crate::session_security::READY_PREFIX,
++            listener.local_addr()?.port(),
++            certificate
++        )?;
++        stdout.flush()?;
++
+         axum::serve(listener, app)
+             .await
+             .map_err(|e| anyhow::anyhow!("serve loop failed: {e}"))
+diff --git a/qwen3_asr_cli/src/main.rs b/qwen3_asr_cli/src/main.rs
+index fca557b..805fc3c 100644
+--- a/qwen3_asr_cli/src/main.rs
++++ b/qwen3_asr_cli/src/main.rs
+@@ -8,6 +8,7 @@ mod cmd_serve;
+ mod cmd_stream;
+ mod cmd_transcribe;
+ mod model_defaults;
++mod session_security;
+ 
+ use anyhow::Result;
+ use clap::Parser;
+diff --git a/qwen3_asr_cli/src/session_security.rs b/qwen3_asr_cli/src/session_security.rs
+new file mode 100644
+index 0000000..25e5bb2
+--- /dev/null
++++ b/qwen3_asr_cli/src/session_security.rs
+@@ -0,0 +1,179 @@
++use std::future::Future;
++use std::io;
++use std::net::SocketAddr;
++use std::sync::Arc;
++use std::time::Duration;
++
++use anyhow::{Context, Result, anyhow};
++use axum::extract::{Request, State};
++use axum::http::{StatusCode, header::AUTHORIZATION};
++use axum::middleware::Next;
++use axum::response::{IntoResponse, Response};
++use axum::serve::Listener;
++use base64::Engine;
++use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
++use rcgen::generate_simple_self_signed;
++use tokio::net::{TcpListener, TcpStream};
++use tokio::sync::{Semaphore, mpsc};
++use tokio::time::timeout;
++use tokio_rustls::TlsAcceptor;
++use tokio_rustls::rustls::{self, pki_types::PrivateKeyDer};
++use tokio_rustls::server::TlsStream;
++
++pub const SESSION_TOKEN_ENV: &str = "LYRICFORGE_QWEN_SESSION_TOKEN";
++pub const READY_PREFIX: &str = "LYRICFORGE_QWEN_READY";
++const TOKEN_BYTES: usize = 32;
++const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
++const MAX_PENDING_TLS_HANDSHAKES: usize = 32;
++const ACCEPTED_CONNECTION_BUFFER: usize = 32;
++
++#[derive(Clone)]
++pub struct SessionToken(Arc<[u8; TOKEN_BYTES]>);
++
++impl SessionToken {
++    pub fn from_environment() -> Result<Self> {
++        let encoded = std::env::var(SESSION_TOKEN_ENV)
++            .map_err(|_| anyhow!("required local runtime session credential is missing"))?;
++        let decoded = URL_SAFE_NO_PAD
++            .decode(encoded.as_bytes())
++            .map_err(|_| anyhow!("local runtime session credential has an invalid format"))?;
++        let bytes: [u8; TOKEN_BYTES] = decoded
++            .as_slice()
++            .try_into()
++            .map_err(|_| anyhow!("local runtime session credential has an invalid length"))?;
++        Ok(Self(Arc::new(bytes)))
++    }
++}
++
++pub async fn require_session_auth(
++    State(expected): State<SessionToken>,
++    request: Request,
++    next: Next,
++) -> Response {
++    let authorized = request
++        .headers()
++        .get(AUTHORIZATION)
++        .and_then(|value| value.to_str().ok())
++        .and_then(|value| value.strip_prefix("Bearer "))
++        .filter(|value| value.len() == 43)
++        .and_then(|value| URL_SAFE_NO_PAD.decode(value.as_bytes()).ok())
++        .is_some_and(|candidate| constant_time_equal(candidate.as_slice(), expected.0.as_slice()));
++
++    if authorized {
++        next.run(request).await
++    } else {
++        StatusCode::UNAUTHORIZED.into_response()
++    }
++}
++
++fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
++    if left.len() != right.len() {
++        return false;
++    }
++
++    left.iter()
++        .zip(right)
++        .fold(0_u8, |difference, (left, right)| {
++            difference | (*left ^ *right)
++        })
++        == 0
++}
++
++pub struct LocalTlsListener {
++    address: SocketAddr,
++    accepted: mpsc::Receiver<(TlsStream<TcpStream>, SocketAddr)>,
++}
++
++impl LocalTlsListener {
++    pub async fn bind(host: &str, port: u16) -> Result<(Self, String)> {
++        if host != "127.0.0.1" {
++            return Err(anyhow!("session-secure Qwen serve must bind IPv4 loopback only"));
++        }
++        if port != 0 {
++            return Err(anyhow!("session-secure Qwen serve must request an OS-assigned port"));
++        }
++        let certified = generate_simple_self_signed(vec!["127.0.0.1".to_owned()])
++            .context("failed to create an ephemeral local runtime certificate")?;
++        let certificate = certified.cert.der().clone();
++        if certificate.len() > 8192 {
++            return Err(anyhow!(
++                "ephemeral local runtime certificate exceeds the readiness-record limit"
++            ));
++        }
++        let private_key = PrivateKeyDer::Pkcs8(certified.key_pair.serialize_der().into());
++
++        let provider = Arc::new(rustls::crypto::ring::default_provider());
++        let server_config = rustls::ServerConfig::builder_with_provider(provider)
++            .with_safe_default_protocol_versions()
++            .context("failed to select local runtime TLS versions")?
++            .with_no_client_auth()
++            .with_single_cert(vec![certificate.clone()], private_key)
++            .context("failed to configure local runtime TLS certificate")?;
++        let acceptor = TlsAcceptor::from(Arc::new(server_config));
++
++        let address = format!("{host}:{port}");
++        let listener = TcpListener::bind(address.as_str())
++            .await
++            .with_context(|| format!("failed to bind local TLS listener at {address}"))?;
++        let local_address = listener
++            .local_addr()
++            .context("failed to read local runtime listener address")?;
++
++        let (sender, accepted) = mpsc::channel(ACCEPTED_CONNECTION_BUFFER);
++        let handshake_slots = Arc::new(Semaphore::new(MAX_PENDING_TLS_HANDSHAKES));
++        tokio::spawn(async move {
++            loop {
++                match listener.accept().await {
++                    Ok((stream, peer)) => {
++                        let Ok(slot) = Arc::clone(&handshake_slots).try_acquire_owned() else {
++                            drop(stream);
++                            continue;
++                        };
++                        let acceptor = acceptor.clone();
++                        let sender = sender.clone();
++                        tokio::spawn(async move {
++                            let _slot = slot;
++                            if let Ok(Ok(stream)) =
++                                timeout(TLS_HANDSHAKE_TIMEOUT, acceptor.accept(stream)).await
++                            {
++                                let _ = sender.send((stream, peer)).await;
++                            }
++                        });
++                    }
++                    Err(error) => {
++                        tracing::warn!(error = %error, "local Qwen listener accept failed");
++                        tokio::time::sleep(Duration::from_millis(100)).await;
++                    }
++                }
++            }
++        });
++
++        Ok((
++            Self {
++                address: local_address,
++                accepted,
++            },
++            STANDARD.encode(certificate.as_ref()),
++        ))
++    }
++}
++
++impl Listener for LocalTlsListener {
++    type Io = TlsStream<TcpStream>;
++    type Addr = SocketAddr;
++
++    fn accept(&mut self) -> impl Future<Output = (Self::Io, Self::Addr)> + Send {
++        async move {
++            loop {
++                match self.accepted.recv().await {
++                    Some(accepted) => return accepted,
++                    None => std::future::pending::<(Self::Io, Self::Addr)>().await,
++                }
++            }
++        }
++    }
++
++    fn local_addr(&self) -> io::Result<Self::Addr> {
++        Ok(self.address)
++    }
++}
+diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
+index 92ed06d..4ccee20 100644
+--- a/qwen3_asr_cli/tests/serve_integration.rs
++++ b/qwen3_asr_cli/tests/serve_integration.rs
+@@ -1,19 +1,42 @@
+-use std::net::TcpListener;
++use std::collections::HashMap;
++use std::io::{BufRead, BufReader};
++use std::net::{TcpListener, TcpStream};
+ use std::process::{Child, Command, Stdio};
++use std::sync::{Arc, Mutex, OnceLock};
+ use std::thread;
+ use std::time::Duration;
+ 
+ use anyhow::{Context, Result, bail};
++use base64::Engine;
++use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
++use rustls::pki_types::CertificateDer;
++use rustls::{ClientConfig, RootCertStore};
+ use serde_json::Value;
+ use tungstenite::Message as WsMessage;
++use tungstenite::client::IntoClientRequest;
++
++const SESSION_TOKEN_ENV: &str = "LYRICFORGE_QWEN_SESSION_TOKEN";
++const READY_PREFIX: &str = "LYRICFORGE_QWEN_READY";
++const TEST_TOKEN_SEED: u8 = 0x5a;
++
++#[derive(Clone)]
++struct TestSession {
++    agent: ureq::Agent,
++    token: String,
++    tls_config: Arc<ClientConfig>,
++    certificate_der: Vec<u8>,
++}
++
++static TEST_SESSIONS: OnceLock<Mutex<HashMap<String, TestSession>>> = OnceLock::new();
+ 
+ struct ChildGuard {
+     child: Child,
++    registry_key: String,
+ }
+ 
+ impl ChildGuard {
+-    fn new(child: Child) -> Self {
+-        Self { child }
++    fn new(child: Child, registry_key: String) -> Self {
++        Self { child, registry_key }
+     }
+ }
+ 
+@@ -21,14 +44,105 @@ impl Drop for ChildGuard {
+     fn drop(&mut self) {
+         let _ = self.child.kill();
+         let _ = self.child.wait();
++        if let Some(sessions) = TEST_SESSIONS.get() {
++            if let Ok(mut sessions) = sessions.lock() {
++                sessions.remove(&self.registry_key);
++            }
++        }
+     }
+ }
+ 
+-fn reserve_local_port() -> Result<u16> {
+-    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+-    let port = listener.local_addr()?.port();
+-    drop(listener);
+-    Ok(port)
++fn test_token(seed: u8) -> String {
++    URL_SAFE_NO_PAD.encode([seed; 32])
++}
++
++fn session_for(base_url: &str) -> Result<TestSession> {
++    TEST_SESSIONS
++        .get()
++        .ok_or_else(|| anyhow::anyhow!("test runtime session registry is not initialized"))?
++        .lock()
++        .map_err(|_| anyhow::anyhow!("test runtime session registry is poisoned"))?
++        .get(base_url)
++        .cloned()
++        .ok_or_else(|| anyhow::anyhow!("no authenticated test session for {base_url}"))
++}
++
++fn register_session(base_url: String, session: TestSession) -> Result<()> {
++    TEST_SESSIONS
++        .get_or_init(|| Mutex::new(HashMap::new()))
++        .lock()
++        .map_err(|_| anyhow::anyhow!("test runtime session registry is poisoned"))?
++        .insert(base_url, session);
++    Ok(())
++}
++
++fn runtime_tls_config(certificate_der: Vec<u8>) -> Result<Arc<ClientConfig>> {
++    let mut roots = RootCertStore::empty();
++    roots
++        .add(CertificateDer::from(certificate_der))
++        .context("failed to trust the child runtime's test certificate")?;
++    let provider = Arc::new(rustls::crypto::ring::default_provider());
++    let config = ClientConfig::builder_with_provider(provider)
++        .with_safe_default_protocol_versions()
++        .context("failed to select test TLS versions")?
++        .with_root_certificates(roots)
++        .with_no_client_auth();
++    Ok(Arc::new(config))
++}
++
++fn authenticated_request(base_url: &str, path: &str, method: &str) -> Result<ureq::Request> {
++    let session = session_for(base_url)?;
++    let url = format!("{base_url}{path}");
++    let authorization = format!("Bearer {}", session.token);
++    Ok(session
++        .agent
++        .request(method, url.as_str())
++        .set("authorization", authorization.as_str()))
++}
++
++fn read_runtime_ready_line(stdout: std::process::ChildStdout) -> Result<String> {
++    let (sender, receiver) = std::sync::mpsc::channel();
++    thread::spawn(move || {
++        let mut reader = BufReader::new(stdout);
++        let mut line = String::new();
++        loop {
++            line.clear();
++            match reader.read_line(&mut line) {
++                Ok(0) | Err(_) => break,
++                Ok(_) if line.starts_with(&format!("{READY_PREFIX}\t")) => {
++                    let _ = sender.send(line.clone());
++                    return;
++                }
++                Ok(_) => {}
++            }
++        }
++    });
++    receiver
++        .recv_timeout(Duration::from_secs(20))
++        .context("native runtime did not report its bound TLS listener")
++}
++
++fn parse_runtime_ready(line: &str) -> Result<(u16, Vec<u8>)> {
++    let mut fields = line.trim_end().split('\t');
++    if fields.next() != Some(READY_PREFIX) {
++        bail!("invalid native runtime readiness record");
++    }
++    let port = fields
++        .next()
++        .ok_or_else(|| anyhow::anyhow!("missing native runtime port"))?
++        .parse::<u16>()?;
++    if port == 0 {
++        bail!("native runtime reported port zero instead of its bound port");
++    }
++    let certificate = STANDARD.decode(
++        fields
++            .next()
++            .ok_or_else(|| anyhow::anyhow!("missing native runtime certificate"))?,
++    )?;
++    if fields.next().is_some() || certificate.is_empty() || certificate.len() > 8192 {
++        bail!("invalid native runtime TLS identity record");
++    }
++    Ok((port, certificate))
+ }
+ 
+ fn response_to_json(response: ureq::Response) -> Result<Value> {
+@@ -39,11 +153,9 @@ fn response_to_json(response: ureq::Response) -> Result<Value> {
+ }
+ 
+ fn post_json(base_url: &str, path: &str, payload: &Value) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/json")
+-        .send_string(payload.to_string().as_str())
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/json");
++    match request.send_string(payload.to_string().as_str()) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -54,11 +166,9 @@ fn post_json(base_url: &str, path: &str, payload: &Value) -> Result<(u16, Value)
+ }
+ 
+ fn post_json_text(base_url: &str, path: &str, payload: &Value) -> Result<(u16, String)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/json")
+-        .send_string(payload.to_string().as_str())
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/json");
++    match request.send_string(payload.to_string().as_str()) {
+         Ok(response) => {
+             let status = response.status();
+             let body = response
+@@ -77,11 +187,9 @@ fn post_json_text(base_url: &str, path: &str, payload: &Value) -> Result<(u16, S
+ }
+ 
+ fn post_octet_stream(base_url: &str, path: &str, payload: &[u8]) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/octet-stream")
+-        .send_bytes(payload)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/octet-stream");
++    match request.send_bytes(payload) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -92,12 +200,10 @@ fn post_octet_stream(base_url: &str, path: &str, payload: &[u8]) -> Result<(u16,
+ }
+ 
+ fn post_multipart(base_url: &str, path: &str, boundary: &str, body: &[u8]) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", content_type.as_str())
+-        .send_bytes(body)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", content_type.as_str());
++    match request.send_bytes(body) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -113,12 +219,10 @@ fn post_multipart_text(
+     boundary: &str,
+     body: &[u8],
+ ) -> Result<(u16, String)> {
+-    let url = format!("{base_url}{path}");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", content_type.as_str())
+-        .send_bytes(body)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", content_type.as_str());
++    match request.send_bytes(body) {
+         Ok(response) => {
+             let status = response.status();
+             let body = response
+@@ -137,8 +241,8 @@ fn post_multipart_text(
+ }
+ 
+ fn post_empty(base_url: &str, path: &str) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str()).call() {
++    let request = authenticated_request(base_url, path, "POST")?;
++    match request.call() {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -149,8 +253,8 @@ fn post_empty(base_url: &str, path: &str) -> Result<(u16, Value)> {
+ }
+ 
+ fn get_json(base_url: &str, path: &str) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::get(url.as_str()).call() {
++    let request = authenticated_request(base_url, path, "GET")?;
++    match request.call() {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -160,36 +264,43 @@ fn get_json(base_url: &str, path: &str) -> Result<(u16, Value)> {
+     }
+ }
+ 
++fn request_status(result: std::result::Result<ureq::Response, ureq::Error>) -> Result<(u16, String)> {
++    match result {
++        Ok(response) => {
++            let status = response.status();
++            Ok((status, response.into_string().unwrap_or_default()))
++        }
++        Err(ureq::Error::Status(status, response)) => {
++            Ok((status, response.into_string().unwrap_or_default()))
++        }
++        Err(err) => bail!("request failed: {err}"),
++    }
++}
++
+ fn options(base_url: &str, path: &str) -> Result<ureq::Response> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::request("OPTIONS", url.as_str())
++    let request = authenticated_request(base_url, path, "OPTIONS")?
+         .set("origin", "http://localhost:5173")
+         .set("access-control-request-method", "POST")
+-        .call()
+-    {
++        .set("access-control-request-headers", "authorization,content-type");
++    match request.call() {
+         Ok(response) => Ok(response),
+         Err(ureq::Error::Status(status, response)) => {
+             bail!("expected OPTIONS success for {path}, got {status}: {response:?}")
+         }
+-        Err(err) => bail!("request error for OPTIONS {path}: {err}"),
++        Err(err) => bail!("request error for {path}: {err}"),
+     }
+ }
+ 
+ fn wait_for_health(base_url: &str) -> Result<Value> {
+-    let url = format!("{base_url}/healthz");
+     let mut last_err: Option<String> = None;
+ 
+     for _ in 0..80 {
+-        match ureq::get(url.as_str())
+-            .timeout(Duration::from_millis(250))
+-            .call()
+-        {
+-            Ok(response) => return response_to_json(response),
+-            Err(err) => {
+-                last_err = Some(err.to_string());
+-                thread::sleep(Duration::from_millis(100));
+-            }
++        match get_json(base_url, "/healthz") {
++            Ok((status, body)) if status == 200 => return Ok(body),
++            Ok((status, body)) => last_err = Some(format!("HTTP {status}: {body}")),
++            Err(err) => last_err = Some(err.to_string()),
+         }
++        thread::sleep(Duration::from_millis(100));
+     }
+ 
+     bail!(
+@@ -237,9 +348,13 @@ fn assert_openai_error(
+ }
+ 
+ fn spawn_mock_server_with_args(extra_args: &[&str]) -> Result<(ChildGuard, String)> {
+-    let port = reserve_local_port()?;
+-    let base_url = format!("http://127.0.0.1:{port}");
++    spawn_mock_server_with_token(extra_args, test_token(TEST_TOKEN_SEED))
++}
+ 
++fn spawn_mock_server_with_token(
++    extra_args: &[&str],
++    token: String,
++) -> Result<(ChildGuard, String)> {
+     let mut cmd = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"));
+     cmd.arg("--device")
+         .arg("cpu")
+@@ -251,15 +366,44 @@ fn spawn_mock_server_with_args(extra_args: &[&str]) -> Result<(ChildGuard, Strin
+         .arg("--host")
+         .arg("127.0.0.1")
+         .arg("--port")
+-        .arg(port.to_string())
+-        .arg("--mock");
++        .arg("0")
++        .arg("--mock")
++        .env(SESSION_TOKEN_ENV, token.as_str());
+     cmd.args(extra_args)
+-        .stdout(Stdio::null())
++        .stdout(Stdio::piped())
+         .stderr(Stdio::null());
+ 
+     let child = cmd.spawn().context("failed to spawn mock serve process")?;
+-
+-    let guard = ChildGuard::new(child);
++    let mut guard = ChildGuard::new(child, String::new());
++    let stdout = guard
++        .child
++        .stdout
++        .take()
++        .context("native mock runtime stdout was not piped")?;
++    let ready_line = read_runtime_ready_line(stdout)?;
++    if ready_line.contains(&token) {
++        bail!("runtime readiness record leaked its session credential");
++    }
++    let (port, certificate_der) = parse_runtime_ready(ready_line.as_str())?;
++    let base_url = format!("https://127.0.0.1:{port}");
++    if base_url.contains(&token) {
++        bail!("runtime endpoint URL leaked its session credential");
++    }
++    guard.registry_key = base_url.clone();
++    let tls_config = runtime_tls_config(certificate_der.clone())?;
++    let agent = ureq::AgentBuilder::new()
++        .try_proxy_from_env(false)
++        .tls_config(tls_config.clone())
++        .build();
++    register_session(
++        base_url.clone(),
++        TestSession {
++            agent,
++            token,
++            tls_config,
++            certificate_der,
++        },
++    )?;
+     let _ = wait_for_health(base_url.as_str())?;
+     Ok((guard, base_url))
+ }
+@@ -268,11 +412,140 @@ fn spawn_mock_server() -> Result<(ChildGuard, String)> {
+     spawn_mock_server_with_args(&[])
+ }
+ 
++#[test]
++fn mock_serve_fails_closed_without_a_valid_session_credential() -> Result<()> {
++    let args = [
++        "--device",
++        "cpu",
++        "--dtype",
++        "f32",
++        "serve",
++        "--model",
++        "mock-model",
++        "--host",
++        "127.0.0.1",
++        "--port",
++        "0",
++        "--mock",
++    ];
++    for credential in [None, Some("not-a-256-bit-base64url-token")] {
++        let mut command = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"));
++        command.args(args);
++        match credential {
++            Some(value) => {
++                command.env(SESSION_TOKEN_ENV, value);
++            }
++            None => {
++                command.env_remove(SESSION_TOKEN_ENV);
++            }
++        }
++        let output = command
++            .output()
++            .context("failed to run the invalid-credential mock server")?;
++        if output.status.success() {
++            bail!("serve unexpectedly started without a valid session credential");
++        }
++        if String::from_utf8_lossy(&output.stdout).contains(READY_PREFIX) {
++            bail!("serve published readiness without a valid session credential");
++        }
++    }
++    Ok(())
++}
++
++#[test]
++fn mock_serve_requires_an_os_assigned_port() -> Result<()> {
++    let output = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"))
++        .args([
++            "--device",
++            "cpu",
++            "--dtype",
++            "f32",
++            "serve",
++            "--model",
++            "mock-model",
++            "--host",
++            "127.0.0.1",
++            "--port",
++            "49152",
++            "--mock",
++        ])
++        .env(SESSION_TOKEN_ENV, test_token(0x42))
++        .output()
++        .context("failed to run the fixed-port mock server")?;
++    if output.status.success() {
++        bail!("session-secure serve unexpectedly accepted a fixed port");
++    }
++    if String::from_utf8_lossy(&output.stdout).contains(READY_PREFIX) {
++        bail!("fixed-port serve published a readiness record");
++    }
++    let stderr = String::from_utf8_lossy(&output.stderr);
++    if !stderr.contains("OS-assigned port") {
++        bail!("fixed-port rejection did not report the required OS-assigned port policy: {stderr}");
++    }
++    Ok(())
++}
++
++#[test]
++fn mock_serve_rejects_non_loopback_bind_addresses() -> Result<()> {
++    let output = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"))
++        .args([
++            "--device",
++            "cpu",
++            "--dtype",
++            "f32",
++            "serve",
++            "--model",
++            "mock-model",
++            "--host",
++            "0.0.0.0",
++            "--port",
++            "0",
++            "--mock",
++        ])
++        .env(SESSION_TOKEN_ENV, test_token(0x41))
++        .output()
++        .context("failed to run the non-loopback mock server")?;
++    if output.status.success() {
++        bail!("session-secure serve unexpectedly accepted a non-loopback bind");
++    }
++    if String::from_utf8_lossy(&output.stdout).contains(READY_PREFIX) {
++        bail!("non-loopback serve published a readiness record");
++    }
++    Ok(())
++}
++
+ fn ws_url(base_url: &str) -> String {
+-    let ws_base = base_url.replacen("http://", "ws://", 1);
++    let ws_base = base_url.replacen("https://", "wss://", 1);
+     format!("{ws_base}/v1/ws/stream")
+ }
+ 
++fn connect_authenticated_websocket(
++    base_url: &str,
++) -> Result<(
++    tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>,
++    tungstenite::handshake::client::Response,
++)> {
++    let session = session_for(base_url)?;
++    let url = ws_url(base_url);
++    let mut request = url.into_client_request()?;
++    let authorization = format!("Bearer {}", session.token);
++    request
++        .headers_mut()
++        .insert("authorization", authorization.parse()?);
++    let port = base_url
++        .strip_prefix("https://127.0.0.1:")
++        .ok_or_else(|| anyhow::anyhow!("unexpected test runtime URL"))?
++        .parse::<u16>()?;
++    let stream = TcpStream::connect(("127.0.0.1", port))?;
++    let (socket, response) = tungstenite::client_tls_with_config(
++        request,
++        stream,
++        None,
++        Some(tungstenite::Connector::Rustls(session.tls_config)),
++    )?;
++    Ok((socket, response))
++}
++
+ fn ws_read_json(
+     socket: &mut tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>,
+ ) -> Result<Value> {
+@@ -283,6 +556,181 @@ fn ws_read_json(
+     }
+ }
+ 
++#[test]
++fn mock_serve_session_authenticates_health_transcribe_and_alignment() -> Result<()> {
++    let (_guard, base_url) = spawn_mock_server()?;
++    let session = session_for(base_url.as_str())?;
++    let health_url = format!("{base_url}/healthz");
++    let transcribe_url = format!("{base_url}/v1/transcribe");
++    let align_url = format!("{base_url}/v1/align");
++    let wrong_token = format!("Bearer {}", test_token(TEST_TOKEN_SEED.wrapping_add(1)));
++    let sensitive_audio = r#"{"audio":"/private/music/secret.wav","language":"English"}"#;
++
++    let (missing_health, _) = request_status(session.agent.get(health_url.as_str()).call())?;
++    let (wrong_health, _) = request_status(
++        session
++            .agent
++            .get(health_url.as_str())
++            .set("authorization", wrong_token.as_str())
++            .call(),
++    )?;
++    let (missing_transcribe, _) = request_status(
++        session
++            .agent
++            .post(transcribe_url.as_str())
++            .set("content-type", "application/json")
++            .send_string(sensitive_audio),
++    )?;
++    let (missing_align, _) = request_status(
++        session
++            .agent
++            .post(align_url.as_str())
++            .set("content-type", "application/json")
++            .send_string(
++                r#"{"audio":"/private/music/secret.wav","text":"private lyric","language":"English"}"#,
++            ),
++    )?;
++    let (missing_options, _) = request_status(
++        session
++            .agent
++            .request("OPTIONS", transcribe_url.as_str())
++            .set("origin", "http://localhost:5173")
++            .set("access-control-request-method", "POST")
++            .set("access-control-request-headers", "authorization,content-type")
++            .call(),
++    )?;
++    let websocket_url = format!("{base_url}/v1/ws/stream");
++    let (missing_websocket, _) = request_status(
++        session
++            .agent
++            .get(websocket_url.as_str())
++            .set("connection", "Upgrade")
++            .set("upgrade", "websocket")
++            .set("sec-websocket-version", "13")
++            .set("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
++            .call(),
++    )?;
++    let (wrong_align, _) = request_status(
++        session
++            .agent
++            .post(align_url.as_str())
++            .set("authorization", wrong_token.as_str())
++            .set("content-type", "application/json")
++            .send_string(
++                r#"{"audio":"/private/music/secret.wav","text":"hello","language":"English"}"#,
++            ),
++    )?;
++
++    for (route, status) in [
++        ("healthz without credentials", missing_health),
++        ("healthz with wrong credentials", wrong_health),
++        ("transcription without credentials", missing_transcribe),
++        ("alignment without credentials", missing_align),
++        ("OPTIONS without credentials", missing_options),
++        ("websocket without credentials", missing_websocket),
++        ("alignment with wrong credentials", wrong_align),
++    ] {
++        if status != 401 {
++            bail!("expected 401 for {route}, got {status}");
++        }
++    }
++
++    let (health_status, _) = get_json(base_url.as_str(), "/healthz")?;
++    if health_status != 200 {
++        bail!("expected authenticated /healthz to return 200, got {health_status}");
++    }
++    let (transcribe_status, transcribe_body) = post_json(
++        base_url.as_str(),
++        "/v1/transcribe",
++        &serde_json::json!({"audio": "fixture-audio", "language": "English"}),
++    )?;
++    if transcribe_status != 200 {
++        bail!("expected authorized /v1/transcribe to return 200, got {transcribe_status}: {transcribe_body}");
++    }
++    let (align_status, align_body) = post_json(
++        base_url.as_str(),
++        "/v1/align",
++        &serde_json::json!({
++            "audio": "fixture-audio",
++            "text": "authorized alignment",
++            "language": "English"
++        }),
++    )?;
++    if align_status != 200 {
++        bail!("expected authorized /v1/align to return 200, got {align_status}: {align_body}");
++    }
++    let aligned_text = align_body
++        .get("results")
++        .and_then(Value::as_array)
++        .and_then(|results| results.first())
++        .and_then(|result| result.get("items"))
++        .and_then(Value::as_array)
++        .and_then(|items| items.first())
++        .and_then(|item| item.get("text"))
++        .and_then(Value::as_str)
++        .ok_or_else(|| anyhow::anyhow!("missing authorized alignment item: {align_body}"))?;
++    if aligned_text != "authorized alignment" {
++        bail!("unexpected authorized alignment text: {aligned_text}");
++    }
++
++    Ok(())
++}
++
++#[test]
++fn mock_serve_rejects_old_session_credentials_after_restart() -> Result<()> {
++    let old_token = test_token(0x31);
++    let new_token = test_token(0x72);
++    let (old_guard, old_url) = spawn_mock_server_with_token(&[], old_token.clone())?;
++    let old_certificate = session_for(old_url.as_str())?.certificate_der;
++    drop(old_guard);
++
++    let (_new_guard, new_url) = spawn_mock_server_with_token(&[], new_token.clone())?;
++    let new_session = session_for(new_url.as_str())?;
++    if old_certificate == new_session.certificate_der {
++        bail!("runtime certificate was reused across a process restart");
++    }
++    let authorization = format!("Bearer {old_token}");
++    let health_url = format!("{new_url}/healthz");
++    let (old_status, _) = request_status(
++        new_session
++            .agent
++            .get(health_url.as_str())
++            .set("authorization", authorization.as_str())
++            .call(),
++    )?;
++    if old_status != 401 {
++        bail!("expected a prior process-session credential to be rejected after restart, got {old_status}");
++    }
++    let (new_status, _) = get_json(new_url.as_str(), "/healthz")?;
++    if new_status != 200 {
++        bail!("expected the new process-session credential to be accepted, got {new_status}");
++    }
++    Ok(())
++}
++
++#[test]
++fn mock_serve_binds_and_keeps_an_os_assigned_port() -> Result<()> {
++    let attacker_listener = TcpListener::bind(("127.0.0.1", 0))?;
++    let occupied_port = attacker_listener.local_addr()?.port();
++    let (_guard, base_url) = spawn_mock_server()?;
++    let runtime_port = base_url
++        .strip_prefix("https://127.0.0.1:")
++        .ok_or_else(|| anyhow::anyhow!("unexpected runtime URL"))?
++        .parse::<u16>()?;
++    if runtime_port == occupied_port {
++        bail!("runtime selected a port held by another process");
++    }
++    match TcpListener::bind(("127.0.0.1", runtime_port)) {
++        Ok(listener) => {
++            drop(listener);
++            bail!("runtime did not retain ownership of its OS-assigned port");
++        }
++        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {}
++        Err(error) => return Err(error.into()),
++    }
++    Ok(())
++}
++
+ #[test]
+ fn mock_serve_stream_session_lifecycle() -> Result<()> {
+     let (_guard, base_url) = spawn_mock_server()?;
+@@ -886,8 +1334,7 @@ fn mock_serve_openai_chat_stream_disconnect_cleans_up_session() -> Result<()> {
+             }
+         ]
+     });
+-    let url = format!("{base_url}/v1/chat/completions");
+-    let response = match ureq::post(url.as_str())
++    let response = match authenticated_request(base_url, "/v1/chat/completions", "POST")?
+         .set("content-type", "application/json")
+         .send_string(payload.to_string().as_str())
+     {
+@@ -986,9 +1433,8 @@ fn mock_serve_openai_transcription_stream_disconnect_cleans_up_session() -> Resu
+     body.extend_from_slice(vec![0_u8; 300_000].as_slice());
+     body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+ 
+-    let url = format!("{base_url}/v1/audio/transcriptions");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    let response = match ureq::post(url.as_str())
++    let response = match authenticated_request(base_url, "/v1/audio/transcriptions", "POST")?
+         .set("content-type", content_type.as_str())
+         .send_bytes(body.as_slice())
+     {
+@@ -1087,9 +1533,8 @@ fn mock_serve_openai_translation_stream_disconnect_cleans_up_session() -> Result
+     body.extend_from_slice(vec![0_u8; 300_000].as_slice());
+     body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+ 
+-    let url = format!("{base_url}/v1/audio/translations");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    let response = match ureq::post(url.as_str())
++    let response = match authenticated_request(base_url, "/v1/audio/translations", "POST")?
+         .set("content-type", content_type.as_str())
+         .send_bytes(body.as_slice())
+     {
+@@ -2255,9 +2700,8 @@ fn mock_serve_official_demo_api_error_edges_shape() -> Result<()> {
+ #[test]
+ fn mock_serve_websocket_stream_session_lifecycle() -> Result<()> {
+     let (_guard, base_url) = spawn_mock_server()?;
+-    let url = ws_url(base_url.as_str());
+-    let (mut socket, _resp) = tungstenite::connect(url.as_str())
+-        .with_context(|| format!("failed websocket connect to {url}"))?;
++    let (mut socket, _resp) = connect_authenticated_websocket(base_url.as_str())
++        .with_context(|| format!("failed websocket connect to {}", ws_url(base_url.as_str())))?;
+ 
+     socket
+         .send(WsMessage::Text(
+diff --git a/qwen3_asr_cli/tests/serve_integration_heavy.rs b/qwen3_asr_cli/tests/serve_integration_heavy.rs
+index 52b08da..bf67312 100644
+--- a/qwen3_asr_cli/tests/serve_integration_heavy.rs
++++ b/qwen3_asr_cli/tests/serve_integration_heavy.rs
+@@ -1,24 +1,46 @@
+-use std::net::TcpListener;
++use std::collections::HashMap;
++use std::io::{BufRead, BufReader};
++use std::net::TcpStream;
+ use std::path::PathBuf;
+ use std::process::{Child, Command, Stdio};
++use std::sync::{Arc, Mutex, OnceLock};
+ use std::thread;
+ use std::time::Duration;
+ 
+ use anyhow::{Context, Result, bail};
++use base64::Engine;
++use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+ use qwen3_asr::AudioInput;
++use rustls::pki_types::CertificateDer;
++use rustls::{ClientConfig, RootCertStore};
+ use serde_json::Value;
+ use tungstenite::Message as WsMessage;
++use tungstenite::client::IntoClientRequest;
+ 
+ const DEFAULT_MODEL: &str = "Qwen/Qwen3-ASR-0.6B";
+ const DEFAULT_ALIGNER_MODEL: &str = "Qwen/Qwen3-ForcedAligner-0.6B";
+ 
++const SESSION_TOKEN_ENV: &str = "LYRICFORGE_QWEN_SESSION_TOKEN";
++const READY_PREFIX: &str = "LYRICFORGE_QWEN_READY";
++const TEST_TOKEN: u8 = 0x65;
++
++#[derive(Clone)]
++struct TestSession {
++    agent: ureq::Agent,
++    token: String,
++    tls_config: Arc<ClientConfig>,
++}
++
++static TEST_SESSIONS: OnceLock<Mutex<HashMap<String, TestSession>>> = OnceLock::new();
++
+ struct ChildGuard {
+     child: Child,
++    registry_key: String,
+ }
+ 
+ impl ChildGuard {
+-    fn new(child: Child) -> Self {
+-        Self { child }
++    fn new(child: Child, registry_key: String) -> Self {
++        Self { child, registry_key }
+     }
+ }
+ 
+@@ -26,14 +48,70 @@ impl Drop for ChildGuard {
+     fn drop(&mut self) {
+         let _ = self.child.kill();
+         let _ = self.child.wait();
++        if let Some(sessions) = TEST_SESSIONS.get() {
++            if let Ok(mut sessions) = sessions.lock() {
++                sessions.remove(&self.registry_key);
++            }
++        }
+     }
+ }
+ 
+-fn reserve_local_port() -> Result<u16> {
+-    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+-    let port = listener.local_addr()?.port();
+-    drop(listener);
+-    Ok(port)
++fn test_token() -> String {
++    URL_SAFE_NO_PAD.encode([TEST_TOKEN; 32])
++}
++
++fn session_for(base_url: &str) -> Result<TestSession> {
++    TEST_SESSIONS
++        .get()
++        .ok_or_else(|| anyhow::anyhow!("test runtime session registry is not initialized"))?
++        .lock()
++        .map_err(|_| anyhow::anyhow!("test runtime session registry is poisoned"))?
++        .get(base_url)
++        .cloned()
++        .ok_or_else(|| anyhow::anyhow!("no authenticated test session for {base_url}"))
++}
++
++fn runtime_tls_config(certificate_der: Vec<u8>) -> Result<Arc<ClientConfig>> {
++    let mut roots = RootCertStore::empty();
++    roots
++        .add(CertificateDer::from(certificate_der))
++        .context("failed to trust the native runtime test certificate")?;
++    let provider = Arc::new(rustls::crypto::ring::default_provider());
++    let config = ClientConfig::builder_with_provider(provider)
++        .with_safe_default_protocol_versions()
++        .context("failed to select test TLS versions")?
++        .with_root_certificates(roots)
++        .with_no_client_auth();
++    Ok(Arc::new(config))
++}
++
++fn register_session(base_url: String, token: String, tls_config: Arc<ClientConfig>) -> Result<()> {
++    let agent = ureq::AgentBuilder::new()
++        .tls_config(tls_config.clone())
++        .build();
++    TEST_SESSIONS
++        .get_or_init(|| Mutex::new(HashMap::new()))
++        .lock()
++        .map_err(|_| anyhow::anyhow!("test runtime session registry is poisoned"))?
++        .insert(
++            base_url,
++            TestSession {
++                agent,
++                token,
++                tls_config,
++            },
++        );
++    Ok(())
++}
++
++fn authenticated_request(base_url: &str, path: &str, method: &str) -> Result<ureq::Request> {
++    let session = session_for(base_url)?;
++    let url = format!("{base_url}{path}");
++    let authorization = format!("Bearer {}", session.token);
++    Ok(session
++        .agent
++        .request(method, url.as_str())
++        .set("authorization", authorization.as_str()))
+ }
+ 
+ fn response_to_json(response: ureq::Response) -> Result<Value> {
+@@ -44,11 +122,9 @@ fn response_to_json(response: ureq::Response) -> Result<Value> {
+ }
+ 
+ fn post_json(base_url: &str, path: &str, payload: &Value) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/json")
+-        .send_string(payload.to_string().as_str())
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/json");
++    match request.send_string(payload.to_string().as_str()) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -59,22 +135,16 @@ fn post_json(base_url: &str, path: &str, payload: &Value) -> Result<(u16, Value)
+ }
+ 
+ fn post_json_text(base_url: &str, path: &str, payload: &Value) -> Result<(u16, String)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/json")
+-        .send_string(payload.to_string().as_str())
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/json");
++    match request.send_string(payload.to_string().as_str()) {
+         Ok(response) => {
+             let status = response.status();
+-            let body = response
+-                .into_string()
+-                .context("failed reading response body")?;
++            let body = response.into_string().context("failed reading response body")?;
+             Ok((status, body))
+         }
+         Err(ureq::Error::Status(status, response)) => {
+-            let body = response
+-                .into_string()
+-                .context("failed reading error response body")?;
++            let body = response.into_string().context("failed reading error response body")?;
+             Ok((status, body))
+         }
+         Err(err) => bail!("request error for {path}: {err}"),
+@@ -82,8 +152,8 @@ fn post_json_text(base_url: &str, path: &str, payload: &Value) -> Result<(u16, S
+ }
+ 
+ fn get_json(base_url: &str, path: &str) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::get(url.as_str()).call() {
++    let request = authenticated_request(base_url, path, "GET")?;
++    match request.call() {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -94,11 +164,9 @@ fn get_json(base_url: &str, path: &str) -> Result<(u16, Value)> {
+ }
+ 
+ fn post_octet_stream(base_url: &str, path: &str, payload: &[u8]) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", "application/octet-stream")
+-        .send_bytes(payload)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", "application/octet-stream");
++    match request.send_bytes(payload) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -109,12 +177,10 @@ fn post_octet_stream(base_url: &str, path: &str, payload: &[u8]) -> Result<(u16,
+ }
+ 
+ fn post_multipart(base_url: &str, path: &str, boundary: &str, body: &[u8]) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", content_type.as_str())
+-        .send_bytes(body)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", content_type.as_str());
++    match request.send_bytes(body) {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -130,23 +196,17 @@ fn post_multipart_text(
+     boundary: &str,
+     body: &[u8],
+ ) -> Result<(u16, String)> {
+-    let url = format!("{base_url}{path}");
+     let content_type = format!("multipart/form-data; boundary={boundary}");
+-    match ureq::post(url.as_str())
+-        .set("content-type", content_type.as_str())
+-        .send_bytes(body)
+-    {
++    let request = authenticated_request(base_url, path, "POST")?
++        .set("content-type", content_type.as_str());
++    match request.send_bytes(body) {
+         Ok(response) => {
+             let status = response.status();
+-            let body = response
+-                .into_string()
+-                .context("failed reading response body")?;
++            let body = response.into_string().context("failed reading response body")?;
+             Ok((status, body))
+         }
+         Err(ureq::Error::Status(status, response)) => {
+-            let body = response
+-                .into_string()
+-                .context("failed reading error response body")?;
++            let body = response.into_string().context("failed reading error response body")?;
+             Ok((status, body))
+         }
+         Err(err) => bail!("request error for {path}: {err}"),
+@@ -154,8 +214,8 @@ fn post_multipart_text(
+ }
+ 
+ fn post_empty(base_url: &str, path: &str) -> Result<(u16, Value)> {
+-    let url = format!("{base_url}{path}");
+-    match ureq::post(url.as_str()).call() {
++    let request = authenticated_request(base_url, path, "POST")?;
++    match request.call() {
+         Ok(response) => {
+             let status = response.status();
+             Ok((status, response_to_json(response)?))
+@@ -165,23 +225,61 @@ fn post_empty(base_url: &str, path: &str) -> Result<(u16, Value)> {
+     }
+ }
+ 
++fn read_runtime_ready_line(stdout: std::process::ChildStdout) -> Result<String> {
++    let (sender, receiver) = std::sync::mpsc::channel();
++    thread::spawn(move || {
++        let mut reader = BufReader::new(stdout);
++        let mut line = String::new();
++        loop {
++            line.clear();
++            match reader.read_line(&mut line) {
++                Ok(0) | Err(_) => break,
++                Ok(_) if line.starts_with(&format!("{READY_PREFIX}\t")) => {
++                    let _ = sender.send(line.clone());
++                    return;
++                }
++                Ok(_) => {}
++            }
++        }
++    });
++    receiver
++        .recv_timeout(Duration::from_secs(600))
++        .context("native runtime did not report its bound TLS listener")
++}
++
++fn parse_runtime_ready(line: &str) -> Result<(u16, Vec<u8>)> {
++    let mut fields = line.trim_end().split('\t');
++    if fields.next() != Some(READY_PREFIX) {
++        bail!("invalid native runtime readiness record");
++    }
++    let port = fields
++        .next()
++        .ok_or_else(|| anyhow::anyhow!("missing native runtime port"))?
++        .parse::<u16>()?;
++    if port == 0 {
++        bail!("native runtime reported port zero instead of its bound port");
++    }
++    let certificate = STANDARD.decode(
++        fields
++            .next()
++            .ok_or_else(|| anyhow::anyhow!("missing native runtime certificate"))?,
++    )?;
++    if fields.next().is_some() || certificate.is_empty() || certificate.len() > 8192 {
++        bail!("invalid native runtime TLS identity record");
++    }
++    Ok((port, certificate))
++}
++
+ fn wait_for_health(base_url: &str) -> Result<Value> {
+-    let url = format!("{base_url}/healthz");
+     let mut last_err: Option<String> = None;
+-
+     for _ in 0..240 {
+-        match ureq::get(url.as_str())
+-            .timeout(Duration::from_secs(2))
+-            .call()
+-        {
+-            Ok(response) => return response_to_json(response),
+-            Err(err) => {
+-                last_err = Some(err.to_string());
+-                thread::sleep(Duration::from_millis(500));
+-            }
++        match get_json(base_url, "/healthz") {
++            Ok((200, body)) => return Ok(body),
++            Ok((status, body)) => last_err = Some(format!("HTTP {status}: {body}")),
++            Err(err) => last_err = Some(err.to_string()),
+         }
++        thread::sleep(Duration::from_millis(500));
+     }
+-
+     bail!(
+         "server did not become healthy in time: {}",
+         last_err.unwrap_or_else(|| "unknown error".to_string())
+@@ -189,18 +287,35 @@ fn wait_for_health(base_url: &str) -> Result<Value> {
+ }
+ 
+ fn ws_url(base_url: &str) -> String {
+-    let ws_base = base_url.replacen("http://", "ws://", 1);
++    let ws_base = base_url.replacen("https://", "wss://", 1);
+     format!("{ws_base}/v1/ws/stream")
+ }
+ 
+-fn ws_read_json(
+-    socket: &mut tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>,
+-) -> Result<Value> {
+-    let msg = socket.read().context("failed reading websocket message")?;
+-    match msg {
+-        WsMessage::Text(s) => serde_json::from_str(&s).context("failed parsing websocket json"),
+-        other => bail!("expected websocket text message, got {other:?}"),
+-    }
++fn connect_authenticated_websocket(
++    base_url: &str,
++) -> Result<(
++    tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<std::net::TcpStream>>,
++    tungstenite::handshake::client::Response,
++)> {
++    let session = session_for(base_url)?;
++    let url = ws_url(base_url);
++    let mut request = url.into_client_request()?;
++    let authorization = format!("Bearer {}", session.token);
++    request
++        .headers_mut()
++        .insert("authorization", authorization.parse()?);
++    let port = base_url
++        .strip_prefix("https://127.0.0.1:")
++        .ok_or_else(|| anyhow::anyhow!("unexpected test runtime URL"))?
++        .parse::<u16>()?;
++    let stream = TcpStream::connect(("127.0.0.1", port))?;
++    let (socket, response) = tungstenite::client_tls_with_config(
++        request,
++        stream,
++        None,
++        Some(tungstenite::Connector::Rustls(session.tls_config)),
++    )?;
++    Ok((socket, response))
+ }
+ 
+ fn fixture_audio_path() -> Result<String> {
+@@ -308,10 +423,9 @@ fn assert_openai_error(
+ }
+ 
+ fn spawn_real_server_with_args(extra_args: &[&str]) -> Result<(ChildGuard, String)> {
+-    let port = reserve_local_port()?;
+-    let base_url = format!("http://127.0.0.1:{port}");
+     let model = heavy_model();
+     let aligner_model = heavy_aligner_model();
++    let token = test_token();
+ 
+     let mut cmd = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"));
+     cmd.arg("--device")
+@@ -324,16 +438,27 @@ fn spawn_real_server_with_args(extra_args: &[&str]) -> Result<(ChildGuard, Strin
+         .arg("--host")
+         .arg("127.0.0.1")
+         .arg("--port")
+-        .arg(port.to_string())
++        .arg("0")
+         .arg("--forced-aligner")
+-        .arg(aligner_model);
++        .arg(aligner_model)
++        .env(SESSION_TOKEN_ENV, token.as_str());
+     cmd.args(extra_args)
+-        .stdout(Stdio::null())
++        .stdout(Stdio::piped())
+         .stderr(Stdio::null());
+ 
+     let child = cmd.spawn().context("failed to spawn real serve process")?;
+-
+-    let guard = ChildGuard::new(child);
++    let mut guard = ChildGuard::new(child, String::new());
++    let stdout = guard
++        .child
++        .stdout
++        .take()
++        .context("native runtime stdout was not piped")?;
++    let ready_line = read_runtime_ready_line(stdout)?;
++    let (port, certificate_der) = parse_runtime_ready(ready_line.as_str())?;
++    let base_url = format!("https://127.0.0.1:{port}");
++    guard.registry_key = base_url.clone();
++    let tls_config = runtime_tls_config(certificate_der)?;
++    register_session(base_url.clone(), token, tls_config)?;
+     let _ = wait_for_health(base_url.as_str())?;
+     Ok((guard, base_url))
+ }
+@@ -904,9 +1029,8 @@ fn real_serve_http_and_websocket_smoke() -> Result<()> {
+         bail!("expected non-empty /api/finish text");
+     }
+ 
+-    let ws = ws_url(base_url.as_str());
+-    let (mut socket, _resp) = tungstenite::connect(ws.as_str())
+-        .with_context(|| format!("failed websocket connect to {ws}"))?;
++    let (mut socket, _resp) = connect_authenticated_websocket(base_url.as_str())
++        .with_context(|| format!("failed websocket connect to {}", ws_url(base_url.as_str())))?;
+ 
+     socket
+         .send(WsMessage::Text(

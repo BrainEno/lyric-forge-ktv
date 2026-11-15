@@ -10,7 +10,22 @@ on:
       - 'test/windows_native_plugin_build_config_test.dart'
       - 'test/core/persistence/atomic_json_file_test.dart'
       - 'lib/features/transfer/data/services/http_media_hub_service.dart'
+      - 'lib/features/transcription/data/services/forced_alignment_http_client.dart'
+      - 'lib/features/transcription/data/services/managed_asr_runtime_manager.dart'
+      - 'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart'
+      - 'lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart'
+      - 'lib/features/transcription/data/services/qwen_native_runtime_session.dart'
+      - 'tool/forced_alignment_eval.dart'
+      - 'test/tool/forced_alignment_eval_test.dart'
+      - 'test/fixtures/qwen_runtime_test_identity/**'
+      - 'test/support/qwen_runtime_test_identity.dart'
+      - 'test/features/lyrics/domain/proofreading/forced_alignment_proofread_service_test.dart'
       - 'test/features/transfer/media_hub_disk_space_probe_contract_test.dart'
+      - 'test/features/transcription/forced_alignment_http_client_test.dart'
+      - 'test/features/transcription/managed_model_asr_runtime_manager_http_test.dart'
+      - 'test/runtime_integrity_install_contract_test.dart'
+      - 'test/features/transcription/qwen3_asr_native_transcription_service_test.dart'
+      - 'test/features/transcription/qwen3_asr_native_transcription_security_test.dart'
       - '.fvmrc'
       - '.github/actions/setup-flutter/action.yml'
       - '.github/workflows/windows-native-build-validation.yml'
@@ -30,4 +45,11 @@ jobs:
       - run: flutter test test/windows_native_plugin_build_config_test.dart
       - run: flutter test test/core/persistence/atomic_json_file_test.dart
       - run: flutter test test/features/transfer/media_hub_disk_space_probe_contract_test.dart
+      - run: flutter test test/features/transcription/forced_alignment_http_client_test.dart
+      - run: flutter test test/features/lyrics/domain/proofreading/forced_alignment_proofread_service_test.dart
+      - run: flutter test test/features/transcription/managed_model_asr_runtime_manager_http_test.dart
+      - run: flutter test test/runtime_integrity_install_contract_test.dart
+      - run: flutter test test/tool/forced_alignment_eval_test.dart
+      - run: flutter test test/features/transcription/qwen3_asr_native_transcription_service_test.dart
+      - run: flutter test test/features/transcription/qwen3_asr_native_transcription_security_test.dart
       - run: flutter build windows --debug

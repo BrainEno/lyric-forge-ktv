@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:crypto/crypto.dart';
 
 import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
+import '../lib/features/transcription/data/services/qwen_native_runtime_session.dart';
 
 const _maxSpans = 1000;
 const _maxCells = 1000000;
@@ -655,10 +656,12 @@ Future<String> _sha256File(File file) async =>
 
 /// Captures a local /v1/align response and converts its timestamps to ms.
 ///
-/// Only loopback endpoints are accepted so lyric text and local audio paths
-/// cannot be sent to an arbitrary remote host by this developer tool.
+/// Captures only through a process-scoped, certificate-pinned Qwen session.
+///
+/// The endpoint is derived from the child-reported loopback port; callers
+/// cannot redirect lyric text or local paths to another host.
 Future<Map<String, Object?>> captureForcedAlignmentSample({
-  required Uri endpoint,
+  required QwenNativeRuntimeSession session,
   required String audioPath,
   required String lyricText,
   required String language,
@@ -671,26 +674,6 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   String? runtimeVersion,
   Duration requestTimeout = const Duration(minutes: 5),
 }) async {
-  if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
-    throw ArgumentError.value(endpoint, 'endpoint', 'Must be an HTTP(S) URI.');
-  }
-  final address = InternetAddress.tryParse(endpoint.host);
-  final loopback =
-      endpoint.host.toLowerCase() == 'localhost' || address?.isLoopback == true;
-  if (!loopback || endpoint.host.isEmpty) {
-    throw ArgumentError.value(
-      endpoint,
-      'endpoint',
-      'Must use a loopback host to protect local media and lyrics.',
-    );
-  }
-  if (endpoint.path != '/v1/align') {
-    throw ArgumentError.value(
-      endpoint,
-      'endpoint',
-      'Path must be /v1/align; transcription is not forced alignment.',
-    );
-  }
   if (audioPath.trim().isEmpty ||
       lyricText.trim().isEmpty ||
       language.trim().isEmpty ||
@@ -729,10 +712,11 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
     audioDurationMs,
   );
 
-  final client = HttpClient();
+  final client = session.createHttpClient(connectionTimeout: requestTimeout);
   try {
+    final endpoint = session.endpoint('/v1/align');
     final request = await client.postUrl(endpoint).timeout(requestTimeout);
-    request.followRedirects = false;
+    session.authorize(request);
     request.headers.contentType = ContentType.json;
     request.write(
       jsonEncode({'audio': audioPath, 'text': lyricText, 'language': language}),
@@ -773,7 +757,10 @@ Future<Map<String, Object?>> captureForcedAlignmentSample({
   }
 }
 
-Future<void> _runCaptureCommand(List<String> args) async {
+Future<void> _runCaptureCommand(
+  List<String> args, {
+  Map<String, String>? environment,
+}) async {
   if (args.contains('--help')) {
     _writeCaptureUsage();
     return;
@@ -785,7 +772,7 @@ Future<void> _runCaptureCommand(List<String> args) async {
   }
   const flags = {'--reference-reviewed'};
   const allowedValues = {
-    '--endpoint',
+    '--ready-record',
     '--audio',
     '--text-file',
     '--reference',
@@ -818,7 +805,7 @@ Future<void> _runCaptureCommand(List<String> args) async {
     index += 2;
   }
   const required = [
-    '--endpoint',
+    '--ready-record',
     '--audio',
     '--text-file',
     '--reference',
@@ -840,10 +827,10 @@ Future<void> _runCaptureCommand(List<String> args) async {
   if (durationMs == null || durationMs <= 0) {
     throw ArgumentError('--duration-ms must be a positive integer.');
   }
-  final endpoint = Uri.tryParse(options['--endpoint']!);
-  if (endpoint == null) {
-    throw ArgumentError('--endpoint must be a valid URI.');
-  }
+  final session = await _loadQwenSession(
+    options['--ready-record']!,
+    environment: environment ?? Platform.environment,
+  );
 
   final audioPath = options['--audio']!;
   final textPath = options['--text-file']!;
@@ -896,7 +883,7 @@ Future<void> _runCaptureCommand(List<String> args) async {
   // Resolve relative paths against the CLI's working directory before sending
   // them to the local sidecar, whose working directory may be different.
   final sample = await captureForcedAlignmentSample(
-    endpoint: endpoint,
+    session: session,
     audioPath: File(audioPath).absolute.path,
     lyricText: lyricText,
     language: options['--language']!,
@@ -950,10 +937,52 @@ Future<void> _runCaptureCommand(List<String> args) async {
   stdout.writeln('Captured sample ${sample['id']} into $targetPath.');
 }
 
+Future<QwenNativeRuntimeSession> _loadQwenSession(
+  String readyRecordPath, {
+  required Map<String, String> environment,
+}) async {
+  final file = File(readyRecordPath);
+  if (!await file.exists()) {
+    throw FileSystemException(
+      'Runtime readiness record not found.',
+      readyRecordPath,
+    );
+  }
+  if (await file.length() > 65536) {
+    throw const FormatException(
+      'Runtime readiness record file is too large.',
+    );
+  }
+  final readinessLines = (await file.readAsLines())
+      .where((line) => line.startsWith('$qwenRuntimeReadyPrefix\t'))
+      .toList(growable: false);
+  if (readinessLines.length != 1) {
+    throw const FormatException(
+      'Readiness file must contain exactly one Qwen runtime identity record.',
+    );
+  }
+  final token = environment[qwenRuntimeSessionTokenEnvironment];
+  if (token == null || !isQwenRuntimeSessionToken(token)) {
+    throw const FormatException(
+      'Set a valid LYRICFORGE_QWEN_SESSION_TOKEN in the environment; '
+      'never pass it as a command-line argument.',
+    );
+  }
+  final ready = parseQwenRuntimeReadyRecord(readinessLines.single);
+  return QwenNativeRuntimeSession(
+    port: ready.port,
+    certificateDer: ready.certificateDer,
+    token: token,
+  );
+}
+
 void _writeCaptureUsage() {
   stdout.writeln('Usage: dart run tool/forced_alignment_eval.dart capture');
   stdout.writeln(
-    '  --endpoint http://127.0.0.1:PORT/v1/align --audio <audio.wav>',
+    '  --ready-record <runtime-ready.txt> --audio <audio.wav>',
+  );
+  stdout.writeln(
+    '  Session token must be set in LYRICFORGE_QWEN_SESSION_TOKEN (environment only).',
   );
   stdout.writeln('  --text-file <lyrics.txt> --reference <gold-spans.json>');
   stdout.writeln('  --id <sample-id> --language <English|Chinese|Japanese>');
@@ -964,10 +993,18 @@ void _writeCaptureUsage() {
   stdout.writeln('  [--runtime-version <version>]');
 }
 
-Future<void> main(List<String> args) async {
+Future<void> main(List<String> args) => runForcedAlignmentEval(args);
+
+Future<void> runForcedAlignmentEval(
+  List<String> args, {
+  Map<String, String>? environment,
+}) async {
   if (args.isNotEmpty && args.first == 'capture') {
     try {
-      await _runCaptureCommand(args.skip(1).toList());
+      await _runCaptureCommand(
+        args.skip(1).toList(),
+        environment: environment,
+      );
     } on FormatException catch (error) {
       stderr.writeln('Capture failed: ${error.message}');
       exitCode = 2;
@@ -976,6 +1013,9 @@ Future<void> main(List<String> args) async {
       exitCode = 2;
     } on FileSystemException catch (error) {
       stderr.writeln(error.message);
+      exitCode = 2;
+    } on HandshakeException catch (error) {
+      stderr.writeln('Qwen runtime TLS identity verification failed: $error');
       exitCode = 2;
     } on SocketException catch (error) {
       stderr.writeln('Could not reach local /v1/align: $error');

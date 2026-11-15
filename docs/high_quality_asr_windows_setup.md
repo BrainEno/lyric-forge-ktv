@@ -31,7 +31,7 @@ supports:
 - CUDA
 - f16 / bf16 / f32
 - forced-alignment timestamps
-- local HTTP serving
+- per-process HTTPS serving bound to IPv4 loopback on an OS-assigned port
 - official-style long-audio chunking and timestamp merge
 
 Build a CUDA-enabled release binary from that runtime:
@@ -144,14 +144,16 @@ The pinned native runtime build now includes a separate `POST /v1/align` endpoin
 }
 ```
 
-A successful response contains `results[0].items`, where each item has `text`, `start_time`, and `end_time` in seconds. This is distinct from `/v1/transcribe`; the server uses the already-loaded ForcedAligner and does not treat `context` as reference text. Existing runtime bundles do not gain this endpoint automatically: rebuild or reinstall the bundle produced by the updated native workflow. Native CI must pass before treating the endpoint as available.
+A successful response contains `results[0].items`, where each item has `text`, `start_time`, and `end_time` in seconds. This is distinct from `/v1/transcribe`; the server uses the already-loaded ForcedAligner and does not treat `context` as reference text. The endpoint is available only over the per-process pinned TLS/Bearer session; the child accepts `--port 0`, not a reserved fixed port, and missing credentials fail closed. The managed app passes the token through the child environment, reads the port and public certificate from that child's stdout pipe, and authenticates health/transcribe/align requests without following redirects. Existing runtime bundles do not gain this endpoint or security boundary automatically: reinstall the bundle produced by the updated native workflow. Native CI must pass before treating the endpoint as available.
+
+This protects the managed session from unrelated local listeners, not from same-user software that can inspect process environments or memory, or from administrators/debuggers. CI mock runtimes validate protocol behavior only: they do not verify a real NVIDIA GPU, driver/antivirus policy, installed package behavior, real-song timing accuracy, or Chinese/English/Japanese coverage. Complete the target-PC checklist below after installing the rebuilt bundle.
 
 ## Validation checklist on the target PC
 
 1. `qwen3-asr.exe --help`
 2. confirm the binary was built with CUDA support
-3. run the server once with the official 1.7B + aligner model IDs
-4. confirm `GET /healthz`
+3. install the managed runtime and official 1.7B + aligner models
+4. verify the app-managed HTTPS health check (pinned certificate and Bearer token)
 5. configure Whisper large-v3 and FFmpeg
 6. import one Chinese song, one English song and one Japanese song
 7. run Highest Quality mode

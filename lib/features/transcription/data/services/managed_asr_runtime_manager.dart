@@ -12,12 +12,13 @@ import '../../domain/services/asr_runtime_manager.dart';
 import '../../domain/services/transcription_profile_resolver.dart';
 import 'asr_download_http_client_factory.dart';
 import 'runtime_release_asset_metadata.dart';
+import 'qwen_native_runtime_session.dart';
 
 class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   static const Duration _downloadTimeout = Duration(seconds: 60);
-  static const String _runtimeReleaseTag = 'asr-runtime-v2';
+  static const String _runtimeReleaseTag = 'asr-runtime-v3';
   static const String _managedRuntimeBuildRevision =
-      'qwen-eager-attention-contiguous-v1+forced-align-http-v1';
+      'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1';
   static const String _whisperModelName = 'ggml-large-v3.bin';
   static const String _whisperModelSha256 =
       '64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2';
@@ -38,6 +39,7 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
   bool _cancelRequested = false;
   HttpClientRequest? _activeRequest;
   Process? _activeProcess;
+  Future<void>? _qwenPreparationInProgress;
 
   ManagedAsrRuntimeManager({
     required this.profileResolver,
@@ -386,7 +388,9 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         }
       }
 
+      _throwIfCancelled();
       final finalStatus = await inspect(repaired);
+      _throwIfCancelled();
       if (!finalStatus.isReady) {
         throw const TranscriptionException('自动安装已结束，但仍有组件未通过检查，请点击“重新检测”或“修复”');
       }
@@ -783,10 +787,46 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     required String executable,
     required TranscriptionConfig config,
     required TranscriptionProfilePreference profile,
+  }) {
+    final inProgress = _qwenPreparationInProgress;
+    if (inProgress != null) return inProgress;
+
+    late final Future<void> preparing;
+    preparing = _prepareQwenModelsInternal(
+      root: root,
+      executable: executable,
+      config: config,
+      profile: profile,
+    ).whenComplete(() {
+      if (identical(_qwenPreparationInProgress, preparing)) {
+        _qwenPreparationInProgress = null;
+      }
+    });
+    _qwenPreparationInProgress = preparing;
+    return preparing;
+  }
+
+  Future<void> _prepareQwenModelsInternal({
+    required Directory root,
+    required String executable,
+    required TranscriptionConfig config,
+    required TranscriptionProfilePreference profile,
   }) async {
     _emit(AsrRuntimeComponent.qwenModel, 0.72, '正在下载并准备 Qwen 模型；首次安装可能需要较长时间');
 
-    final port = await _reservePort();
+    late final String token;
+    try {
+      token = createQwenRuntimeSessionToken();
+    } catch (_) {
+      throw const TranscriptionException.environment(
+        '无法为 Qwen3-ASR 会话生成安全凭据',
+      );
+    }
+    if (!isQwenRuntimeSessionToken(token)) {
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 会话凭据格式无效',
+      );
+    }
     final args = [
       '--device',
       config.qwenDevice,
@@ -798,10 +838,17 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       '--host',
       '127.0.0.1',
       '--port',
-      port.toString(),
+      '0',
       '--forced-aligner',
       config.qwenAlignerModelPath,
     ];
+    final environment = Map<String, String>.from(Platform.environment)
+      ..removeWhere(
+        (name, _) =>
+            name.toUpperCase() == qwenRuntimeSessionTokenEnvironment,
+      )
+      ..[qwenRuntimeSessionTokenEnvironment] = token;
+    _throwIfCancelled();
 
     Process process;
     try {
@@ -809,18 +856,28 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
         executable,
         args,
         workingDirectory: File(executable).parent.path,
+        environment: environment,
+        includeParentEnvironment: false,
+        runInShell: false,
       );
     } on ProcessException catch (error) {
-      throw TranscriptionException('无法启动 Qwen 模型准备程序', details: error.message);
+      throw TranscriptionException(
+        '无法启动 Qwen 模型准备程序',
+        details: error.message.replaceAll(token, '[redacted]'),
+      );
     }
 
     _activeProcess = process;
     final logTail = <String>[];
+    QwenNativeRuntimeSession? session;
+    HttpClient? healthClient;
+    var protocolError = false;
 
     void capture(String line) {
       if (logTail.length >= 60) logTail.removeAt(0);
-      logTail.add(line);
-      final lower = line.toLowerCase();
+      final redacted = line.replaceAll(token, '[redacted]');
+      logTail.add(redacted);
+      final lower = redacted.toLowerCase();
       if (lower.contains('download') ||
           lower.contains('fetch') ||
           lower.contains('loading')) {
@@ -828,10 +885,35 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
       }
     }
 
+    void captureStdout(String line) {
+      if (!line.startsWith('$qwenRuntimeReadyPrefix\t')) {
+        capture(line);
+        return;
+      }
+      if (session != null) {
+        protocolError = true;
+        capture('Duplicate native runtime readiness record');
+        return;
+      }
+      try {
+        final ready = parseQwenRuntimeReadyRecord(line);
+        final readySession = QwenNativeRuntimeSession(
+          port: ready.port,
+          certificateDer: ready.certificateDer,
+          token: token,
+        );
+        session = readySession;
+        healthClient = readySession.createHttpClient();
+      } catch (_) {
+        protocolError = true;
+        capture('Invalid native runtime readiness record');
+      }
+    }
+
     final stdoutSub = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(capture);
+        .listen(captureStdout);
     final stderrSub = process.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -851,8 +933,19 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
             details: logTail.join('\n'),
           );
         }
+        if (protocolError) {
+          throw TranscriptionException.environment(
+            'Qwen native runtime 未提供有效的会话身份',
+            details: logTail.join('\n'),
+          );
+        }
 
-        if (await _healthReady(port)) {
+        final readySession = session;
+        final client = healthClient;
+        if (readySession != null &&
+            client != null &&
+            await _healthReady(readySession, client)) {
+          _throwIfCancelled();
           final marker = _qwenReadyMarker(root, profile);
           await marker.parent.create(recursive: true);
           await marker.writeAsString(
@@ -879,11 +972,17 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
 
       throw TranscriptionException('Qwen 模型准备超时', details: logTail.join('\n'));
     } finally {
-      process.kill();
-      _activeProcess = null;
+      healthClient?.close(force: true);
+      await _terminateManagedRuntimeProcess(process);
       await stdoutSub.cancel();
       await stderrSub.cancel();
     }
+  }
+
+  Future<void> _terminateManagedRuntimeProcess(Process process) async {
+    process.kill();
+    await process.exitCode;
+    if (identical(_activeProcess, process)) _activeProcess = null;
   }
 
   Future<void> _download(
@@ -1111,29 +1210,39 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     return !verifyHash || await _verifySha256(path, _whisperModelSha256);
   }
 
-  Future<bool> _healthReady(int port) async {
-    final client = HttpClient();
+  Future<bool> _healthReady(
+    QwenNativeRuntimeSession session,
+    HttpClient client,
+  ) async {
     try {
       final request = await client
-          .getUrl(Uri.parse('http://127.0.0.1:$port/healthz'))
+          .getUrl(session.endpoint('/healthz'))
           .timeout(const Duration(seconds: 2));
+      session.authorize(request);
       final response = await request.close().timeout(
         const Duration(seconds: 2),
       );
+      if (response.statusCode == HttpStatus.unauthorized) {
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 会话认证失败',
+        );
+      }
       await response.drain<void>().timeout(const Duration(seconds: 2));
       return response.statusCode == HttpStatus.ok;
+    } on TranscriptionException {
+      rethrow;
+    } on HandshakeException {
+      throw const TranscriptionException.environment(
+        'Qwen3-ASR 服务身份验证失败',
+      );
     } catch (_) {
+      if (session.identityRejected) {
+        throw const TranscriptionException.environment(
+          'Qwen3-ASR 服务身份验证失败',
+        );
+      }
       return false;
-    } finally {
-      client.close(force: true);
     }
-  }
-
-  Future<int> _reservePort() async {
-    final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    final port = socket.port;
-    await socket.close();
-    return port;
   }
 
   Future<Directory> _managedRoot() async {
@@ -1469,14 +1578,31 @@ class ManagedAsrRuntimeManager implements AsrRuntimeManager {
     if (!_installing) return;
     _cancelRequested = true;
     _activeRequest?.abort();
-    _activeProcess?.kill();
-    _activeProcess = null;
+    final qwenPreparation = _qwenPreparationInProgress;
+    final process = _activeProcess;
+    if (process != null) await _terminateManagedRuntimeProcess(process);
+    if (qwenPreparation != null) {
+      try {
+        await qwenPreparation;
+      } catch (_) {
+        // The installation future reports its own cancellation or startup error.
+      }
+    }
   }
 
   Future<void> dispose() async {
     _cancelRequested = true;
     _activeRequest?.abort();
-    _activeProcess?.kill();
+    final qwenPreparation = _qwenPreparationInProgress;
+    final process = _activeProcess;
+    if (process != null) await _terminateManagedRuntimeProcess(process);
+    if (qwenPreparation != null) {
+      try {
+        await qwenPreparation;
+      } catch (_) {
+        // Disposal must wait for startup cleanup without replacing install errors.
+      }
+    }
     await _progressController.close();
   }
 }

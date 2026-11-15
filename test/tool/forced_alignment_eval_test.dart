@@ -1,13 +1,24 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/qwen_native_runtime_session.dart';
 
 import '../../tool/forced_alignment_eval.dart' as evaluator;
 
+const _sessionTokenEnvironment = 'LYRICFORGE_QWEN_SESSION_TOKEN';
+
 void main() {
+  late _TestIdentity identity;
+
+  setUpAll(() async {
+    identity = await _TestIdentity.load();
+  });
+
   test('reports boundary MAE, median, p95 and tolerance rate', () {
     final report = evaluator.evaluateForcedAlignmentCorpus(
       jsonEncode({
@@ -223,9 +234,8 @@ void main() {
   test(
     'captures local alignment spans as millisecond corpus entries',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       Map<String, dynamic>? receivedPayload;
-      final subscription = server.listen((request) async {
+      final runtime = await _TestRuntime.bind(identity, (request) async {
         receivedPayload =
             jsonDecode(await utf8.decoder.bind(request).join())
                 as Map<String, dynamic>;
@@ -245,7 +255,7 @@ void main() {
       });
       try {
         final sample = await evaluator.captureForcedAlignmentSample(
-          endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+          session: runtime.session,
           audioPath: 'song.wav',
           lyricText: 'hello world',
           language: 'English',
@@ -254,6 +264,10 @@ void main() {
             {'text': 'hello', 'startMs': 100, 'endMs': 300},
           ]),
           audioDurationMs: 2000,
+        );
+        expect(
+          runtime.requests.single.authorization,
+          'Bearer ${runtime.token}',
         );
         expect(receivedPayload?['audio'], 'song.wav');
         expect(receivedPayload?['text'], 'hello world');
@@ -270,34 +284,15 @@ void main() {
           'endMs': 300,
         });
       } finally {
-        await subscription.cancel();
-        await server.close(force: true);
+        await runtime.close();
       }
     },
   );
 
-  test('rejects remote capture endpoints before sending lyric data', () async {
-    await expectLater(
-      evaluator.captureForcedAlignmentSample(
-        endpoint: Uri.parse('https://example.com/v1/align'),
-        audioPath: 'song.wav',
-        lyricText: 'private lyric',
-        language: 'English',
-        sampleId: 'en-remote',
-        referenceSpansJson: jsonEncode([
-          {'text': 'lyric', 'startMs': 100, 'endMs': 200},
-        ]),
-        audioDurationMs: 1000,
-      ),
-      throwsArgumentError,
-    );
-  });
-
   test(
     'rejects captured spans that exceed the annotated audio duration',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final subscription = server.listen((request) async {
+      final runtime = await _TestRuntime.bind(identity, (request) async {
         await utf8.decoder.bind(request).join();
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -312,7 +307,7 @@ void main() {
       try {
         await expectLater(
           evaluator.captureForcedAlignmentSample(
-            endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+            session: runtime.session,
             audioPath: 'song.wav',
             lyricText: 'too late',
             language: 'English',
@@ -325,29 +320,38 @@ void main() {
           throwsFormatException,
         );
       } finally {
-        await subscription.cancel();
-        await server.close(force: true);
+        await runtime.close();
       }
     },
   );
 
   test(
-    'does not follow redirects away from the local alignment endpoint',
+    'does not follow redirects or forward session credentials to another process',
     () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final subscription = server.listen((request) async {
+      var redirectedRequests = 0;
+      final target = await _TestRuntime.bind(
+        identity,
+        (request) async {
+          await request.drain<void>();
+          request.response.statusCode = HttpStatus.unauthorized;
+          await request.response.close();
+        },
+        onRequest: (_) => redirectedRequests++,
+      );
+      final source = await _TestRuntime.bind(identity, (request) async {
         await utf8.decoder.bind(request).join();
-        request.response.statusCode = HttpStatus.found;
-        request.response.headers.set(
-          HttpHeaders.locationHeader,
-          'https://example.com/v1/align',
-        );
+        request.response
+          ..statusCode = HttpStatus.found
+          ..headers.set(
+            HttpHeaders.locationHeader,
+            target.session.endpoint('/v1/align').toString(),
+          );
         await request.response.close();
       });
       try {
         await expectLater(
           evaluator.captureForcedAlignmentSample(
-            endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+            session: source.session,
             audioPath: 'song.wav',
             lyricText: 'private lyric',
             language: 'English',
@@ -357,11 +361,18 @@ void main() {
             ]),
             audioDurationMs: 1000,
           ),
-          throwsFormatException,
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              contains('HTTP 302'),
+            ),
+          ),
         );
+        expect(redirectedRequests, 0);
       } finally {
-        await subscription.cancel();
-        await server.close(force: true);
+        await source.close();
+        await target.close();
       }
     },
   );
@@ -380,8 +391,7 @@ void main() {
           ]),
         );
       final output = File('${temp.path}/corpus.json');
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final subscription = server.listen((request) async {
+      final runtime = await _TestRuntime.bind(identity, (request) async {
         await utf8.decoder.bind(request).join();
         await output.writeAsString('created during alignment');
         request.response.headers.contentType = ContentType.json;
@@ -394,12 +404,13 @@ void main() {
         );
         await request.response.close();
       });
+      final readyRecord = await runtime.writeReadyRecord(temp);
       try {
         exitCode = 0;
-        await evaluator.main([
+        await evaluator.runForcedAlignmentEval([
           'capture',
-          '--endpoint',
-          'http://127.0.0.1:${server.port}/v1/align',
+          '--ready-record',
+          readyRecord.path,
           '--audio',
           audio.path,
           '--text-file',
@@ -414,13 +425,12 @@ void main() {
           '1000',
           '--output',
           output.path,
-        ]);
+        ], environment: runtime.environment);
         expect(exitCode, 2);
         expect(await output.readAsString(), 'created during alignment');
       } finally {
         exitCode = 0;
-        await subscription.cancel();
-        await server.close(force: true);
+        await runtime.close();
         await temp.delete(recursive: true);
       }
     },
@@ -459,8 +469,7 @@ void main() {
           ],
         }),
       );
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final subscription = server.listen((request) async {
+      final runtime = await _TestRuntime.bind(identity, (request) async {
         await utf8.decoder.bind(request).join();
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -472,12 +481,13 @@ void main() {
         );
         await request.response.close();
       });
+      final readyRecord = await runtime.writeReadyRecord(temp);
       try {
         exitCode = 0;
-        await evaluator.main([
+        await evaluator.runForcedAlignmentEval([
           'capture',
-          '--endpoint',
-          'http://127.0.0.1:${server.port}/v1/align',
+          '--ready-record',
+          readyRecord.path,
           '--audio',
           audio.path,
           '--text-file',
@@ -497,7 +507,7 @@ void main() {
           'qwen3-asr-rs-test',
           '--append-to',
           corpusFile.path,
-        ]);
+        ], environment: runtime.environment);
         expect(exitCode, 0);
         final corpus =
             jsonDecode(await corpusFile.readAsString()) as Map<String, dynamic>;
@@ -523,8 +533,7 @@ void main() {
         ]);
       } finally {
         exitCode = 0;
-        await subscription.cancel();
-        await server.close(force: true);
+        await runtime.close();
         await temp.delete(recursive: true);
       }
     },
@@ -607,7 +616,7 @@ void main() {
       );
       try {
         exitCode = 0;
-        await evaluator.main([
+        await evaluator.runForcedAlignmentEval([
           corpus.path,
           '--require-provenance',
           '--output',
@@ -658,7 +667,7 @@ void main() {
       );
       try {
         exitCode = 0;
-        await evaluator.main([
+        await evaluator.runForcedAlignmentEval([
           '--output',
           report.path,
           '--require-provenance',
@@ -692,8 +701,7 @@ void main() {
           ]),
         );
       final output = File('${temp.path}/corpus.json');
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final subscription = server.listen((request) async {
+      final runtime = await _TestRuntime.bind(identity, (request) async {
         await utf8.decoder.bind(request).join();
         await audio.writeAsString('changed audio');
         request.response.headers.contentType = ContentType.json;
@@ -706,12 +714,13 @@ void main() {
         );
         await request.response.close();
       });
+      final readyRecord = await runtime.writeReadyRecord(temp);
       try {
         exitCode = 0;
-        await evaluator.main([
+        await evaluator.runForcedAlignmentEval([
           'capture',
-          '--endpoint',
-          'http://127.0.0.1:${server.port}/v1/align',
+          '--ready-record',
+          readyRecord.path,
           '--audio',
           audio.path,
           '--text-file',
@@ -726,15 +735,128 @@ void main() {
           '1000',
           '--output',
           output.path,
-        ]);
+        ], environment: runtime.environment);
         expect(exitCode, 2);
         expect(await output.exists(), isFalse);
       } finally {
         exitCode = 0;
-        await subscription.cancel();
-        await server.close(force: true);
+        await runtime.close();
         await temp.delete(recursive: true);
       }
     },
   );
+}
+
+
+class _TestIdentity {
+  final Uint8List certificateDer;
+  final Uint8List certificatePem;
+  final Uint8List privateKeyPem;
+
+  const _TestIdentity({
+    required this.certificateDer,
+    required this.certificatePem,
+    required this.privateKeyPem,
+  });
+
+  static Future<_TestIdentity> load() async {
+    const root = 'test/fixtures/qwen_runtime_test_identity';
+    final certificatePem = await File('$root/certificate.pem').readAsBytes();
+    final privateKeyPem = await File('$root/private_key.pem').readAsBytes();
+    final encoded = utf8
+        .decode(certificatePem)
+        .replaceAll(
+          RegExp(r'-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s'),
+          '',
+        );
+    return _TestIdentity(
+      certificateDer: base64Decode(encoded),
+      certificatePem: certificatePem,
+      privateKeyPem: privateKeyPem,
+    );
+  }
+
+  SecurityContext serverContext() => SecurityContext()
+    ..useCertificateChainBytes(certificatePem)
+    ..usePrivateKeyBytes(privateKeyPem);
+}
+
+class _TestRuntime {
+  final HttpServer server;
+  final StreamSubscription<HttpRequest> _subscription;
+  final QwenNativeRuntimeSession session;
+  final String token;
+  final String readinessLine;
+  final List<({String method, Uri uri, String? authorization})> requests;
+
+  _TestRuntime({
+    required this.server,
+    required StreamSubscription<HttpRequest> subscription,
+    required this.session,
+    required this.token,
+    required this.readinessLine,
+    required this.requests,
+  }) : _subscription = subscription;
+
+  Map<String, String> get environment => {
+    _sessionTokenEnvironment: token,
+  };
+
+  static Future<_TestRuntime> bind(
+    _TestIdentity identity,
+    Future<void> Function(HttpRequest request) handler, {
+    void Function(HttpRequest request)? onRequest,
+  }) async {
+    final token = createQwenRuntimeSessionToken();
+    final server = await HttpServer.bindSecure(
+      InternetAddress.loopbackIPv4,
+      0,
+      identity.serverContext(),
+    );
+    final session = QwenNativeRuntimeSession(
+      port: server.port,
+      certificateDer: identity.certificateDer,
+      token: token,
+    );
+    final requests = <({String method, Uri uri, String? authorization})>[];
+    final subscription = server.listen((request) async {
+      final authorization = request.headers.value(
+        HttpHeaders.authorizationHeader,
+      );
+      requests.add((
+        method: request.method,
+        uri: request.uri,
+        authorization: authorization,
+      ));
+      onRequest?.call(request);
+      if (authorization != 'Bearer $token') {
+        await request.drain<void>();
+        request.response.statusCode = HttpStatus.unauthorized;
+        await request.response.close();
+        return;
+      }
+      await handler(request);
+    });
+    return _TestRuntime(
+      server: server,
+      subscription: subscription,
+      session: session,
+      token: token,
+      readinessLine:
+          '$qwenRuntimeReadyPrefix\t${server.port}\t'
+          '${base64Encode(identity.certificateDer)}',
+      requests: requests,
+    );
+  }
+
+  Future<File> writeReadyRecord(Directory directory) async {
+    final file = File('${directory.path}/runtime-ready.txt');
+    await file.writeAsString('$readinessLine\n', flush: true);
+    return file;
+  }
+
+  Future<void> close() async {
+    await _subscription.cancel();
+    await server.close(force: true);
+  }
 }

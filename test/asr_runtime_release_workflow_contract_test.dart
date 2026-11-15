@@ -8,14 +8,20 @@ void main() {
       '.github/workflows/build-asr-runtime.yml',
     ).readAsString();
 
-    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
+    expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
     expect(
       workflow,
-      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains(
+        'runtimePatchRevision = "'
+        'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1"',
+      ),
     );
     expect(
       workflow,
-      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains(
+        '"runtimePatchRevision": "'
+        'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1"',
+      ),
     );
     expect(
       workflow,
@@ -116,8 +122,8 @@ void main() {
     );
     expect(
       workflow,
-      contains('mock_serve_align_rejects_missing_contract_fields'),
-      reason: 'native CI must exercise the explicit alignment request contract',
+      contains('cargo test --release -p qwen3_asr_cli --test serve_integration'),
+      reason: 'native CI runs the full mock integration suite, including alignment contracts',
     );
     expect(patch, contains('WorkerCommand::Align'));
     expect(patch, contains('align(&audio_inputs, &texts, &languages)'));
@@ -130,6 +136,60 @@ void main() {
     expect(patch, contains('"text must not be empty"'));
     expect(patch, contains('"language must not be empty"'));
   });
+
+  test(
+    'managed Qwen runtime applies and tests per-process session security',
+    () async {
+      final workflow = await File(
+        '.github/workflows/build-asr-runtime.yml',
+      ).readAsString();
+      final patch = await File(
+        'tool/patches/qwen3-asr-session-security.patch',
+      ).readAsString();
+
+      expect(workflow, contains('Apply Qwen local session security boundary'));
+      expect(
+        workflow,
+        contains('tool/patches/qwen3-asr-session-security.patch'),
+      );
+      expect(
+        workflow,
+        contains(
+          'cargo test --release -p qwen3_asr_cli '
+          '--test serve_integration --features cuda',
+        ),
+      );
+      expect(
+        workflow,
+        contains(
+          'cargo test --release -p qwen3_asr_cli '
+          '--test serve_integration --features accelerate',
+        ),
+      );
+      expect(patch, contains('SESSION_TOKEN_ENV'));
+      expect(patch, contains('LocalTlsListener'));
+      expect(patch, contains('require_session_auth'));
+      expect(patch, contains('must request an OS-assigned port'));
+      expect(
+        patch,
+        contains('mock_serve_fails_closed_without_a_valid_session_credential'),
+      );
+      expect(
+        patch,
+        contains('mock_serve_rejects_old_session_credentials_after_restart'),
+      );
+      expect(
+        patch,
+        contains('mock_serve_binds_and_keeps_an_os_assigned_port'),
+      );
+      expect(
+        patch,
+        contains(
+          'mock_serve_session_authenticates_health_transcribe_and_alignment',
+        ),
+      );
+    },
+  );
 
   test('Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback', () async {
     final workflow = await File(

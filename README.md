@@ -93,9 +93,15 @@ Media Hub sharing is stopped until you explicitly confirm the sharing scope. Pai
 
 Authenticated incoming uploads accept only the local library's audio filename extensions (MP3, FLAC, WAV, M4A, AAC, and OGG). This is a filename check, not content validation or malware scanning; only pair with devices you trust.
 
-## Local ASR runtime trust boundary
+## Local Qwen runtime trust boundary
 
-The desktop app starts the Qwen native runtime on `127.0.0.1` with a dynamically selected port. Its HTTP API has no authentication or encryption: other processes on the same machine can connect while it is running, submit audio or consume compute resources. Loopback binding limits network exposure, not access by local users or processes; do not forward the port or run untrusted local software. Port selection releases a reserved socket before the runtime binds it, so a local process could also race to occupy that port. Media Hub pairing and its Bearer token do not protect this separate local API.
+On supported desktop builds, LyricForge launches the pinned Qwen Rust runtime as a child process. Each start receives a fresh 256-bit token from the operating system's secure random source. The token is transferred to the child through its environment and kept in process memory; it is not placed in command-line arguments, persisted files, ordinary logs, or endpoint URLs. The child refuses to serve without a valid token, binds its own listener directly to `127.0.0.1:0`, and keeps that socket open for the life of the process. This avoids the old reserve-a-port, close-it, then rebind race.
+
+Each child also creates an ephemeral TLS certificate and key in memory. After the socket is bound, it reports the actual port and public certificate over the stdout pipe created for that child. LyricForge pins the certificate fingerprint from that process-owned pipe and sends HTTPS requests only after the TLS identity is verified. Health checks, transcription, ForcedAligner, and WebSocket routes require a Bearer token; redirects are not followed. Audio paths, transcription context, and reference lyrics are not sent to a service that fails certificate pinning. The token is carried in an Authorization header, never in the public URL. Media Hub's separate token does not authorize Qwen requests.
+
+This is a local process boundary, not a sandbox. Loopback is not private from processes running as the same user. A same-user process, administrator, debugger, or malware with permission to inspect process environments, memory, pipes, or files can potentially recover session material or replace the runtime binary; this design does not claim to defend against those attacks. Use the managed, integrity-checked runtime and do not run untrusted local software. Do not forward the Qwen port or expose it on a LAN/public interface.
+
+The listener and TLS implementation use the Rustls/Tokio APIs on Windows and macOS; the app does not depend on Unix-only socket inheritance or transfer a parent-owned socket handle. Platform security policy, antivirus, filesystem permissions, TLS-library behavior, runtime packaging, and GPU drivers still vary. CI builds and mock tests do not prove successful inference on every Windows/macOS machine or a real NVIDIA GPU; validate the installed bundle on the target device before relying on production audio.
 
 ## Development and tests
 

@@ -31,7 +31,7 @@ env:
   QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
   WHISPER_REPO: https://github.com/ggml-org/whisper.cpp.git
   WHISPER_REV: 927cfce34f31707e17f2bff35c349632fb9e2c3a
-  RUNTIME_TAG: asr-runtime-v2
+  RUNTIME_TAG: asr-runtime-v3
 
 jobs:
   flutter-validation:
@@ -153,6 +153,22 @@ jobs:
             throw "Patched Qwen alignment handler was not found."
           }
 
+      - name: Apply Qwen local session security boundary
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-session-security.patch"
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Qwen session security patch no longer applies to the pinned source." }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply the Qwen session security patch." }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/session_security.rs" -Pattern "require_session_auth" -Quiet)) {
+            throw "Qwen session authentication middleware was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "LocalTlsListener::bind" -Quiet)) {
+            throw "Qwen local runtime TLS listener was not patched."
+          }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -179,6 +195,13 @@ jobs:
           path: qwen-build.log
           if-no-files-found: warn
           retention-days: 3
+
+      - name: Test Qwen session security with CPU mock runtime
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features cuda
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Fetch pinned whisper.cpp source
         shell: pwsh
@@ -233,7 +256,7 @@ jobs:
 
           @{
             schemaVersion = 1
-            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"
+            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1"
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -296,11 +319,18 @@ jobs:
           grep -q '"/v1/align"' qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
           grep -q "aligner" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
 
-      - name: Test eager attention matmul layout regression
+      - name: Apply Qwen local session security boundary
+        run: |
+          git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-security.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-security.patch"
+          grep -q "require_session_auth" qwen-runtime-src/qwen3_asr_cli/src/session_security.rs
+          grep -q "LocalTlsListener" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+
+      - name: Test eager attention matmul layout regression and session security
         run: |
           cd qwen-runtime-src
           cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
-          cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_align_rejects_missing_contract_fields
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate
 
       - name: Build Qwen Intel runtime
         run: |
@@ -335,7 +365,7 @@ jobs:
           cat > runtime/runtime-manifest.json <<EOF
           {
             "schemaVersion": 1,
-            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1",
+            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1",
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",
@@ -395,6 +425,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           if ! gh release view "$RUNTIME_TAG" >/dev/null 2>&1; then
-            gh release create "$RUNTIME_TAG" --title "LyricForge ASR Runtime v1" --prerelease --notes "Managed local ASR runtime bundles for LyricForge. Each platform bundle is published as soon as that platform build is healthy, so one platform cannot block another. Install the available bundle from the in-app setup wizard."
+            gh release create "$RUNTIME_TAG" --title "LyricForge ASR Runtime v3" --prerelease --notes "Managed local ASR runtime bundles for LyricForge. Qwen sessions use per-process bearer authentication, TLS certificate pinning, and a child-owned loopback listener. Each platform bundle is published as soon as that platform build is healthy. Install the available bundle from the in-app setup wizard."
           fi
           gh release upload "$RUNTIME_TAG" dist/*.zip --clobber

@@ -37,11 +37,18 @@ void main() {
       final source = await File(
         'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
       ).readAsString();
+      final modelManagerSource = await File(
+        'lib/features/transcription/data/services/managed_model_asr_runtime_manager.dart',
+      ).readAsString();
       final workflow = await File(
         '.github/workflows/build-asr-runtime.yml',
       ).readAsString();
 
-      expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v2'"));
+      expect(source, contains("_runtimeReleaseTag = 'asr-runtime-v3'"));
+      expect(
+        modelManagerSource,
+        contains("_runtimeReleaseTag = 'asr-runtime-v3'"),
+      );
       expect(source, contains("['state', 'runtime-build-revision.txt']"));
       expect(source, contains('needsManagedRuntimeRefresh'));
       expect(source, contains('_managedRuntimeBuildIsCurrent(root)'));
@@ -55,19 +62,46 @@ void main() {
       );
       expect(source, contains('await staging.rename(bundle.path)'));
       expect(source, contains('await backup.rename(bundle.path)'));
-      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
+      expect(workflow, contains('RUNTIME_TAG: asr-runtime-v3'));
       expect(
         workflow,
         contains(
-          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          'runtimePatchRevision = "'
+          'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1"',
         ),
       );
       expect(
         workflow,
         contains(
-          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          '"runtimePatchRevision": "'
+          'qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1"',
         ),
       );
+    },
+  );
+
+  test(
+    'managed Qwen model preparation uses the pinned authenticated child session',
+    () async {
+      final source = await File(
+        'lib/features/transcription/data/services/managed_asr_runtime_manager.dart',
+      ).readAsString();
+
+      expect(source, contains('createQwenRuntimeSessionToken()'));
+      expect(source, contains('qwenRuntimeSessionTokenEnvironment'));
+      expect(source, contains('parseQwenRuntimeReadyRecord(line)'));
+      expect(source, contains('readySession.createHttpClient()'));
+      expect(source, contains("session.endpoint('/healthz')"));
+      expect(source, contains('session.authorize(request)'));
+      expect(source, contains('environment: environment'));
+      expect(source, contains('includeParentEnvironment: false'));
+      expect(source, contains('await _terminateManagedRuntimeProcess(process)'));
+      expect(source, contains('await process.exitCode'));
+      expect(source, contains('_qwenPreparationInProgress'));
+      expect(source, contains('await qwenPreparation'));
+      expect(source, contains("'--port',\n      '0'"));
+      expect(source, isNot(contains('_reservePort')));
+      expect(source, isNot(contains(r'http://127.0.0.1:$port/healthz')));
     },
   );
 

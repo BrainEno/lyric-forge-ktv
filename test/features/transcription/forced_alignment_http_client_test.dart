@@ -1,19 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/forced_alignment_http_client.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/qwen_native_runtime_session.dart';
+
+import '../../support/qwen_runtime_test_identity.dart';
 
 void main() {
   late HttpServer server;
   late Uri endpoint;
   late ForcedAlignmentHttpClient client;
+  late QwenRuntimeTestIdentity identity;
+  late QwenNativeRuntimeSession session;
+
+  setUpAll(() async {
+    identity = await QwenRuntimeTestIdentity.load();
+  });
 
   setUp(() async {
-    server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    endpoint = Uri.parse('http://127.0.0.1:${server.port}/v1/align');
-    client = ForcedAlignmentHttpClient(endpoint: endpoint);
+    server = await identity.bindServer();
+    session = identity.session(server.port);
+    endpoint = session.endpoint('/v1/align');
+    client = ForcedAlignmentHttpClient(endpoint: endpoint, session: session);
   });
 
   tearDown(() async {
@@ -28,6 +39,7 @@ void main() {
       final responseFuture = received.then((request) async {
         expect(request.method, 'POST');
         expect(request.uri.path, '/v1/align');
+        expect(request.headers.value('authorization'), startsWith('Bearer '));
         expect(request.headers.contentType?.mimeType, 'application/json');
         final payload =
             jsonDecode(await utf8.decoder.bind(request).join()) as Map;
@@ -65,6 +77,117 @@ void main() {
       expect(spans.first.start, const Duration(milliseconds: 250));
       expect(spans.last.end, const Duration(milliseconds: 1400));
       expect(() => spans.add(spans.first), throwsUnsupportedError);
+    },
+  );
+
+  test('refuses a plaintext or mismatched endpoint for a Qwen session', () {
+    final plaintextEndpoint = Uri(
+      scheme: 'http',
+      host: '127.0.0.1',
+      port: server.port,
+      path: '/v1/align',
+    );
+    expect(
+      () => ForcedAlignmentHttpClient(
+        endpoint: plaintextEndpoint,
+        session: session,
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('pins TLS before sending alignment text or audio paths', () async {
+    var receivedRequest = false;
+    final subscription = server.listen((_) => receivedRequest = true);
+    final mismatchedCertificate = Uint8List.fromList(identity.certificateDer)
+      ..[0] ^= 1;
+    final mismatchedSession = QwenNativeRuntimeSession(
+      port: server.port,
+      certificateDer: mismatchedCertificate,
+      token: createQwenRuntimeSessionToken(),
+    );
+    final mismatchedClient = ForcedAlignmentHttpClient(
+      endpoint: mismatchedSession.endpoint('/v1/align'),
+      session: mismatchedSession,
+    );
+    try {
+      await expectLater(
+        mismatchedClient.align(
+          audioPath: '/private/song.wav',
+          text: 'private lyric',
+          language: 'English',
+          audioDuration: const Duration(seconds: 2),
+        ),
+        throwsA(
+          isA<ForcedAlignmentException>().having(
+            (error) => error.message,
+            'message',
+            contains('identity verification'),
+          ),
+        ),
+      );
+      expect(mismatchedSession.identityRejected, isTrue);
+      expect(receivedRequest, isFalse);
+    } finally {
+      mismatchedClient.close(force: true);
+      await subscription.cancel();
+    }
+  });
+
+  test(
+    'does not follow alignment redirects to another loopback listener',
+    () async {
+      var redirectedRequests = 0;
+      final target = await identity.bindServer();
+      final targetSubscription = target.listen((request) async {
+        redirectedRequests++;
+        await request.drain<void>();
+        request.response
+          ..statusCode = HttpStatus.ok
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({'items': []}));
+        await request.response.close();
+      });
+      final targetEndpoint = Uri(
+        scheme: 'https',
+        host: InternetAddress.loopbackIPv4.address,
+        port: target.port,
+        path: '/v1/align',
+      );
+      final sourceSubscription = server.listen((request) async {
+        await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = HttpStatus.found
+          ..headers.set(HttpHeaders.locationHeader, targetEndpoint.toString());
+        await request.response.close();
+      });
+      final redirectClient = ForcedAlignmentHttpClient(
+        endpoint: endpoint,
+        session: session,
+      );
+      try {
+        await expectLater(
+          redirectClient.align(
+            audioPath: '/private/song.wav',
+            text: 'private lyric',
+            language: 'English',
+            audioDuration: const Duration(seconds: 2),
+          ),
+          throwsA(
+            isA<ForcedAlignmentException>().having(
+              (error) => error.message,
+              'message',
+              contains('HTTP 302'),
+            ),
+          ),
+        );
+        expect(redirectedRequests, 0);
+      } finally {
+        redirectClient.close(force: true);
+        await sourceSubscription.cancel();
+        await targetSubscription.cancel();
+        await target.close(force: true);
+      }
     },
   );
 
@@ -153,6 +276,7 @@ void main() {
     client.close(force: true);
     client = ForcedAlignmentHttpClient(
       endpoint: endpoint,
+      session: session,
       requestTimeout: const Duration(milliseconds: 500),
     );
     final responseStarted = Completer<void>();
@@ -191,6 +315,7 @@ void main() {
     client.close(force: true);
     client = ForcedAlignmentHttpClient(
       endpoint: endpoint,
+      session: session,
       requestTimeout: const Duration(minutes: 1),
     );
     final responseStarted = Completer<void>();

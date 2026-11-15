@@ -54,7 +54,7 @@ class ManagedModelAsrRuntimeManager implements AsrRuntimeManager {
   static const String _qwen17 = 'Qwen/Qwen3-ASR-1.7B';
   static const String _qwen06 = 'Qwen/Qwen3-ASR-0.6B';
   static const String _aligner06 = 'Qwen/Qwen3-ForcedAligner-0.6B';
-  static const String _runtimeReleaseTag = 'asr-runtime-v1';
+  static const String _runtimeReleaseTag = 'asr-runtime-v3';
 
   static const Map<String, List<String>> _modelFiles = {
     _qwen17: [

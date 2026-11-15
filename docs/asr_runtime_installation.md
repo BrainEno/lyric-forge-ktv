@@ -169,7 +169,7 @@ revision.
 Runtime release tag:
 
 ```text
-asr-runtime-v2
+asr-runtime-v3
 ```
 
 Assets:
@@ -191,13 +191,35 @@ bundles, making those attention inputs contiguous on every backend. The macOS
 runtime job runs a focused Rust regression test against non-contiguous Q/K
 views before packaging the bundle.
 
-The fix is published under the separate `asr-runtime-v2` tag. Each bundle
-manifest records the patch revision, and the installer rejects archives that
-lack the expected revision. Existing managed installs without a matching
-revision marker are detected as outdated; one-click repair downloads the patched
-runtime, stages and verifies it before replacing the current bundle, preserves
-the downloaded model weights, and invalidates the old Qwen model-readiness
-marker so native startup and health checks run again.
+The native workflow targets the separate `asr-runtime-v3` runtime tag. Each
+successfully built bundle manifest records the patch revision
+`qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-security-v1`,
+and the installer rejects archives that lack the expected revision. Existing
+managed installs without a matching revision marker are detected as outdated;
+one-click repair downloads the patched runtime, stages and verifies it before
+replacing the current bundle, preserves the downloaded model weights, and
+invalidates the old Qwen model-readiness marker so native startup and health
+checks run again.
+
+The security patch requires a fresh 256-bit token in the child environment for
+each process start. The runtime creates an ephemeral TLS identity in memory,
+binds directly to IPv4 loopback on an OS-assigned port (`127.0.0.1:0`), and
+reports only the port and public certificate on its private stdout pipe. The
+parent pins that certificate before sending Bearer-authenticated HTTPS health,
+transcription, or ForcedAligner requests; redirects are disabled. No session
+token is placed in arguments, URLs, readiness files, or ordinary logs. Model
+preparation uses the same secure health check instead of reserving a port and
+probing unauthenticated HTTP. The listener rejects fixed ports, non-loopback
+hosts, and missing or malformed credentials; all HTTP, WebSocket, and `OPTIONS`
+routes require authentication.
+
+This is a per-process trust boundary, not a sandbox against other software
+running as the same user. Such a process, an administrator, or a debugger with
+permission to inspect process environments, memory, pipes, or files may recover
+session material or replace the runtime binary. Do not forward the loopback
+port or expose it on a LAN/public interface. Native CI and mock tests do not
+prove that a bundle works with a particular OS policy, GPU driver, or real
+NVIDIA GPU; perform target-device validation before relying on production audio.
 
 ### Qwen models
 
@@ -232,9 +254,10 @@ to those local model directories. The native Qwen sidecar therefore receives a
 local `--model` path and a local `--forced-aligner` path instead of depending on
 a hidden user-level Hugging Face cache.
 
-During setup LyricForge then starts the native sidecar and waits for `/healthz`.
-This verifies that both managed model directories can actually be loaded before
-the environment is marked ready.
+During setup LyricForge then starts the native sidecar and waits for an HTTPS
+`/healthz` response authenticated with that process session's pinned certificate
+and Bearer token. This verifies that both managed model directories can actually
+be loaded before the environment is marked ready.
 
 A ready marker records model path, aligner path, device, and dtype. Changing any
 of those invalidates the runtime marker and causes the setup wizard to prepare
@@ -310,7 +333,7 @@ Intel macOS:
 - whisper-cli
 
 Pull requests build and smoke-check artifacts. Pushes to main additionally
-create or update the rolling `asr-runtime-v2` prerelease.
+create or update the rolling `asr-runtime-v3` prerelease.
 
 This keeps Rust/Cargo/CUDA build tooling out of the end-user setup flow.
 

@@ -113,11 +113,24 @@ qwen3-asr
   serve
   --model <Qwen3-ASR-1.7B model path>
   --host 127.0.0.1
-  --port <ephemeral local port>
+  --port 0
   --forced-aligner <Qwen3-ForcedAligner-0.6B model path>
 ```
 
-The sidecar must provide:
+The managed sidecar binds only to IPv4 loopback and asks the OS for its port
+with `--port 0`. Each start receives a fresh 256-bit session token through its
+environment, creates a temporary TLS identity in memory, and reports only its
+bound port plus public certificate on that child process's stdout pipe. The
+parent pins the certificate before sending a Bearer token or any audio/lyric
+request body. `/healthz`, `/v1/transcribe`, `/v1/align`, WebSocket, `OPTIONS`,
+and compatibility routes are all authenticated; requests use HTTPS and do not
+follow redirects. The token is never an argument, URL parameter, or log field.
+The app does not intentionally persist the token or expose its private session
+to external tools. This is not a sandbox: a same-user process with permission to
+inspect the child environment, memory, or pipes may still recover session
+material.
+
+The authenticated routes include:
 
 ```text
 GET /healthz
@@ -319,11 +332,11 @@ The next quality-critical pipeline stage is therefore local source separation.
 
 The official Qwen3-ASR Python API exposes `Qwen3ForcedAligner.align(audio, text, language)`, returning item-level text and start/end seconds. That is a real arbitrary-text alignment API, but it is a Python library call, not evidence that every server wrapping the model exposes the same request contract.
 
-LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-aligner` and the app calls `POST /v1/transcribe`. That request accepts audio and transcription options; it does not send the supplied lyric text as an alignment target. The existing timestamps therefore describe ASR output, not an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
+For ordinary ASR, the app calls `POST /v1/transcribe` with audio and transcription options. That route does not send supplied lyric text as an alignment target, so its timestamps describe ASR output rather than an arbitrary reference lyric aligned on demand. Do not use the `context` field as a substitute.
 
-The repository now carries a patch against the pinned Rust/Candle source that adds `POST /v1/align` with explicit `audio`, `text`, and `language` inputs. It calls the loaded `Qwen3ForcedAligner.align` API directly and returns `results[0].items` with `text`, `start_time`, and `end_time` in seconds; it does not route through ASR `context`. The native build workflow applies the patch for Windows CUDA and macOS Intel bundles and runs an endpoint contract integration test. Until that native CI passes and a rebuilt bundle is installed, existing downloaded runtime binaries must still be treated as lacking this endpoint.
+The repository now carries a maintained patch against the pinned Rust/Candle source that adds `POST /v1/align` with explicit `audio`, `text`, and `language` inputs. It calls the loaded `Qwen3ForcedAligner.align` API directly and returns `results[0].items` with `text`, `start_time`, and `end_time` in seconds; it does not route through ASR `context`. The session-security patch applies after the align route: it requires a valid environment token, binds the child-owned listener directly to IPv4 loopback on OS-assigned port 0, and wraps every route in TLS plus Bearer authentication. Windows CUDA and macOS Intel CI run the security integration suite, including unauthorized health/transcribe/align/OPTIONS/WebSocket requests, rejected non-loopback/fixed-port binds, port ownership, and session restart/credential rotation.
 
-The Dart HTTP adapter validates non-empty spans, timestamp ordering, and audio-duration bounds. `ForcedAlignmentProofreadService` now passes explicit audio path, reference text, and language to `/v1/align`, then maps the returned spans into the ASR-first proofread proposal as review-only tokens. Incomplete line coverage returns a warning; request/runtime errors fall back to the ordinary proposal with a visible `forcedAlignmentUnavailable` note. Neither success nor failure edits source lyric text or timestamps. The native endpoint contract CI has passed, but existing installed runtime bundles still need rebuilding before they expose `/v1/align`; real-song accuracy and Chinese/English/Japanese coverage remain unverified.
+The Dart alignment adapter validates non-empty spans, timestamp ordering, and audio-duration bounds. `ForcedAlignmentProofreadService` passes explicit audio path, reference text, and language to `/v1/align` using the same pinned session as transcription, then maps the returned spans into the ASR-first proofread proposal as review-only tokens. Redirects are not followed. Incomplete line coverage returns a warning; request/runtime errors fall back to the ordinary proposal with a visible `forcedAlignmentUnavailable` note. Neither success nor failure edits source lyric text or timestamps. CI mock tests do not establish actual audio timing accuracy or GPU/device compatibility; real-song accuracy and Chinese/English/Japanese coverage remain unverified.
 
 
 ## Forced-alignment evidence in proofreading proposals
@@ -435,12 +448,14 @@ The corpus uses schema version 1, a non-empty `samples` array, unique sample IDs
 
 ## Capture real local ForcedAligner results
 
-The evaluator has a `capture` subcommand that calls a local `POST /v1/align`
-endpoint, stores the returned spans as `actualSpans`, and converts
-`start_time`/`end_time` seconds to integer milliseconds. It only accepts a
-loopback host (`localhost`, `127.0.0.1`, or another loopback IP) and the exact
-`/v1/align` path; lyrics and local file paths are never sent to an arbitrary
-remote service.
+The evaluator's `capture` subcommand calls `POST /v1/align` through a
+child-reported session: it reads the bound port and public certificate from a
+readiness-record file, reads the session token from the environment, verifies
+the pinned TLS identity, and stores returned spans as `actualSpans` with times
+converted from seconds to milliseconds. It does not accept an arbitrary
+endpoint or token argument. Use a standalone developer runtime session for this
+tool; the app's private runtime token is intentionally not exported to external
+tools.
 
 Prepare a UTF-8 text file containing the exact lyric text sent to the aligner,
 and a separate JSON file of manually checked reference intervals. The reference
@@ -453,12 +468,55 @@ file may be a JSON array or an object with a `referenceSpans` array:
 ]
 ```
 
-Start a rebuilt local native runtime on a known loopback port, then capture the
-first sample from PowerShell:
+Start a rebuilt local runtime for a separate developer session. Generate a
+fresh 256-bit token without printing it or placing it in process arguments, then
+launch the child with port 0 and save its stdout. The readiness line contains a
+public certificate, not the token:
+
+```powershell
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$env:LYRICFORGE_QWEN_SESSION_TOKEN = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+$rng.Dispose()
+$stdout = 'D:/Evaluation/qwen-runtime-stdout.txt'
+$stderr = 'D:/Evaluation/qwen-runtime-stderr.txt'
+$runtime = Start-Process -FilePath 'D:/LyricForge/ASRRuntime/bundle/bin/qwen3-asr.exe' `
+  -ArgumentList @(
+    '--device', 'cuda', '--dtype', 'bf16', 'serve',
+    '--model', 'Qwen/Qwen3-ASR-1.7B', '--host', '127.0.0.1',
+    '--port', '0', '--forced-aligner', 'Qwen/Qwen3-ForcedAligner-0.6B'
+  ) `
+  -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+$readyLine = $null
+while ($null -eq $readyLine) {
+  if (Test-Path $stdout) {
+    $readyLine = Get-Content $stdout |
+      Where-Object { $_ -match '^LYRICFORGE_QWEN_READY\t[1-9][0-9]*\t[A-Za-z0-9+/]+={0,2}$' } |
+      Select-Object -First 1
+  }
+  if ($null -ne $readyLine) { break }
+  if ($runtime.HasExited) {
+    throw "Qwen runtime exited before reporting its TLS identity. See $stderr"
+  }
+  Start-Sleep -Milliseconds 200
+}
+$readyRecord = 'D:/Evaluation/qwen-runtime-ready.txt'
+[System.IO.File]::WriteAllText(
+  $readyRecord,
+  $readyLine,
+  [System.Text.UTF8Encoding]::new($false)
+)
+```
+
+Keep the same PowerShell session so the environment token remains available.
+The tool derives its HTTPS loopback URL from the readiness record, pins the
+certificate, authenticates with a Bearer header, and refuses redirects. Capture
+the first sample:
 
 ```powershell
 dart run tool/forced_alignment_eval.dart capture `
-  --endpoint http://127.0.0.1:8000/v1/align `
+  --ready-record "D:/Evaluation/qwen-runtime-ready.txt" `
   --audio "D:/Songs/example.wav" `
   --text-file "D:/Songs/example.txt" `
   --reference "D:/Songs/example-reference.json" `
@@ -472,7 +530,7 @@ For the next song, keep the same corpus and use `--append-to` instead of
 
 ```powershell
 dart run tool/forced_alignment_eval.dart capture `
-  --endpoint http://127.0.0.1:8000/v1/align `
+  --ready-record "D:/Evaluation/qwen-runtime-ready.txt" `
   --audio "D:/Songs/chinese-song.wav" `
   --text-file "D:/Songs/chinese-song.txt" `
   --reference "D:/Songs/chinese-song-reference.json" `
@@ -481,7 +539,17 @@ dart run tool/forced_alignment_eval.dart capture `
   --append-to "D:/Evaluation/forced_alignment_corpus.json"
 ```
 
-The tool validates sample IDs, span order and duration bounds before writing. It reserves a new output path exclusively and refuses to overwrite an appended corpus that changed during alignment.
+The tool validates sample IDs, span order and duration bounds before writing.
+It reserves a new output path exclusively and refuses to overwrite an appended
+corpus that changed during alignment. When finished, stop the developer runtime
+and remove the token from the current shell:
+
+```powershell
+Stop-Process -Id $runtime.Id -ErrorAction SilentlyContinue
+Wait-Process -Id $runtime.Id -ErrorAction SilentlyContinue
+Remove-Item Env:LYRICFORGE_QWEN_SESSION_TOKEN
+```
+
 An empty `items` array is preserved as an empty actual result so evaluation can
 report zero recall instead of hiding a failed alignment. Reference intervals
 must be manually checked against the same audio file; this workflow does not
@@ -577,7 +645,7 @@ Example capture command in PowerShell:
 
 ```powershell
 dart run tool/forced_alignment_eval.dart capture `
-  --endpoint "http://127.0.0.1:8080/v1/align" `
+  --ready-record "D:/Evaluation/qwen-runtime-ready.txt" `
   --audio "D:/Evaluation/clip.wav" `
   --text-file "D:/Evaluation/reference-lyrics.txt" `
   --reference "D:/Evaluation/reference-spans.json" `
