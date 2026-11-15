@@ -321,7 +321,11 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       );
     } on _UnsupportedWhisperArgumentsException catch (error) {
       _throwIfCancelled();
-      _emit(TranscriptionStage.transcribing, 0.20, 'Whisper 运行时不支持歌词参数，改用标准参数重试');
+      _emit(
+        TranscriptionStage.transcribing,
+        0.20,
+        'Whisper 运行时不支持歌词参数，改用标准参数重试',
+      );
       final standard = WhisperDecodingPlan.standard(
         requested: plan.requestedProfile,
         omittedFlags: [
@@ -401,7 +405,8 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     );
   }
 
-  static bool _isAscii(String value) => value.runes.every((rune) => rune < 0x80);
+  static bool _isAscii(String value) =>
+      value.runes.every((rune) => rune < 0x80);
 
   Future<void> _runWhisper({
     required TranscriptionConfig config,
@@ -530,7 +535,8 @@ class WhisperCppTranscriptionService implements TranscriptionService {
           kWhisperDecodingMetadataKey: {
             ...outcome.plan.toMetadata(fallbackReason: outcome.fallbackReason),
             'promptTransport': ?outcome.promptTransport,
-            if (echo.removedCount > 0) 'promptEchoRemovedCount': echo.removedCount,
+            if (echo.removedCount > 0)
+              'promptEchoRemovedCount': echo.removedCount,
           },
         },
       ),
@@ -662,7 +668,11 @@ class _WhisperTransport {
   final String? note;
   final WhisperDecodingPlan? plan;
 
-  const _WhisperTransport({required this.useResponseFile, this.note, this.plan});
+  const _WhisperTransport({
+    required this.useResponseFile,
+    this.note,
+    this.plan,
+  });
 }
 
 class _UnsupportedWhisperArgumentsException implements Exception {

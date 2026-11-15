@@ -13,7 +13,8 @@ import 'asr_audio_normalization.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'asr_text_comparison.dart';
 import 'asr_process_supervisor.dart';
-import 'whisper_cpp_transcription_service.dart' show kWhisperDecodingMetadataKey;
+import 'whisper_cpp_transcription_service.dart'
+    show kWhisperDecodingMetadataKey;
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
@@ -126,7 +127,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         outputDirectory: request.outputDirectory,
         config: request.config,
         context: request.context,
-          recognitionHints: request.recognitionHints,
+        recognitionHints: request.recognitionHints,
       );
 
       _throwIfCancelled();
@@ -157,7 +158,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             outputDirectory: request.outputDirectory,
             config: request.config,
             context: request.context,
-          recognitionHints: request.recognitionHints,
+            recognitionHints: request.recognitionHints,
           ),
           reason: TranscriptionDegradationReason.qwenUnavailable,
           detail: error.toString(),
@@ -184,7 +185,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
               mode: TranscriptionMode.whisperOnly,
             ),
             context: request.context,
-          recognitionHints: request.recognitionHints,
+            recognitionHints: request.recognitionHints,
           ),
         );
       } on TranscriptionException catch (error) {
@@ -283,9 +284,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
             'segmentationOnlySecondary': merge.segmentationOnlySecondary,
           'fusionPolicy':
               'add_unmatched_secondary_as_low_confidence_review_lines',
-          kWhisperDecodingMetadataKey: ?fallbackResult
-              .lyrics
-              .metadata[kWhisperDecodingMetadataKey],
+          kWhisperDecodingMetadataKey:
+              ?fallbackResult.lyrics.metadata[kWhisperDecodingMetadataKey],
           'whisperRawJsonPath': fallbackResult.rawJsonPath,
         },
       );
@@ -497,7 +497,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             outputDirectory: qwenDirectory.path,
             config: request.config,
             context: request.context,
-          recognitionHints: request.recognitionHints,
+            recognitionHints: request.recognitionHints,
           ),
         );
       } finally {
@@ -1565,7 +1565,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
     // It must really straddle the boundary: a row that sits almost entirely
     // inside one primary row and grazes the next is a different situation
     // (handled by the containment rules), not a re-segmentation.
-    final secondaryMs = (secondary.endTime - secondary.startTime).inMilliseconds;
+    final secondaryMs =
+        (secondary.endTime - secondary.startTime).inMilliseconds;
     int overlapMs(LyricLine primary) {
       final start = primary.startTime > secondary.startTime
           ? primary.startTime

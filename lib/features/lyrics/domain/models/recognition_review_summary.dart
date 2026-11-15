@@ -110,8 +110,8 @@ class RecognitionReviewSummary {
         if (index is! int || index < 0 || index >= document.lines.length) {
           continue;
         }
-        final alternative = text(entry['alternativeText']) ??
-            text(entry['whisperText']);
+        final alternative =
+            text(entry['alternativeText']) ?? text(entry['whisperText']);
         final primary = text(entry['primaryText']) ?? text(entry['qwenText']);
         if (alternative == null) continue;
         if (primary != null && primary == alternative) continue;
@@ -133,8 +133,8 @@ class RecognitionReviewSummary {
     final segmentation = metadata['segmentationOnlySecondaryCount'];
 
     return RecognitionReviewSummary(
-      primaryEngine: text(metadata['primaryEngine']) ??
-          text(metadata['generatedBy']),
+      primaryEngine:
+          text(metadata['primaryEngine']) ?? text(metadata['generatedBy']),
       secondaryEngine: metadata['fallbackStatus'] == 'completed'
           ? text(metadata['fallbackEngine'])
           : null,

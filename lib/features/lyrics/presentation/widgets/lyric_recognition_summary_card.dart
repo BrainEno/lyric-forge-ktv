@@ -66,8 +66,7 @@ class _LyricRecognitionSummaryCardState
     if (summary.whisperEffectiveProfile == null) {
       // Old projects and runs without Whisper have no profile record.
       return summary.primaryEngine?.toLowerCase().contains('whisper') == true ||
-              summary.secondaryEngine?.toLowerCase().contains('whisper') ==
-                  true
+              summary.secondaryEngine?.toLowerCase().contains('whisper') == true
           ? 'Whisper 参数：未采集'
           : null;
     }

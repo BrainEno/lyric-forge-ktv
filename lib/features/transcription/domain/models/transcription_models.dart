@@ -252,7 +252,8 @@ class TranscriptionConfig {
       // Unknown or missing values keep the default lyric profile; it already
       // degrades to the standard command line on runtimes without the flags.
       whisperDecodingProfile:
-          WhisperDecodingProfile.values.asNameMap()[json['whisperDecodingProfile']] ??
+          WhisperDecodingProfile.values
+              .asNameMap()[json['whisperDecodingProfile']] ??
           WhisperDecodingProfile.lyrics,
       ffmpegExecutable: json['ffmpegExecutable'] as String? ?? 'ffmpeg',
       language: json['language'] as String? ?? 'auto',

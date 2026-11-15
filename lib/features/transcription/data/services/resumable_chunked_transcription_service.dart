@@ -691,15 +691,16 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             offset.inMilliseconds,
       });
     }
-    final shiftedMetadata = Map<String, dynamic>.from(
-      // Suggestions are matched to rows by exact timestamps, so they move with
-      // the rows into song time.
-      SecondaryOnlySuggestion.shiftMetadata(metadata, offset),
-    )
-      ..remove(FusionTimingEvidence.metadataKey)
-      // Persist original evidence only in the verified checkpoint envelope.
-      ..remove(IndependentAsrEvidence.metadataKey)
-      ..remove(ChunkedIndependentAsrEvidence.metadataKey);
+    final shiftedMetadata =
+        Map<String, dynamic>.from(
+            // Suggestions are matched to rows by exact timestamps, so they move with
+            // the rows into song time.
+            SecondaryOnlySuggestion.shiftMetadata(metadata, offset),
+          )
+          ..remove(FusionTimingEvidence.metadataKey)
+          // Persist original evidence only in the verified checkpoint envelope.
+          ..remove(IndependentAsrEvidence.metadataKey)
+          ..remove(ChunkedIndependentAsrEvidence.metadataKey);
     if (timingEntries.isNotEmpty) {
       shiftedMetadata[FusionTimingEvidence.metadataKey] =
           FusionTimingEvidence.wrap(timingEntries);
@@ -989,12 +990,11 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
       (document) =>
           document.metadata.containsKey(SecondaryOnlySuggestion.metadataKey),
     )) {
-      merged[SecondaryOnlySuggestion.metadataKey] = SecondaryOnlySuggestion.wrap(
-        [
-          for (final document in documents)
-            ...SecondaryOnlySuggestion.read(document.metadata),
-        ],
-      );
+      merged[SecondaryOnlySuggestion.metadataKey] =
+          SecondaryOnlySuggestion.wrap([
+            for (final document in documents)
+              ...SecondaryOnlySuggestion.read(document.metadata),
+          ]);
     }
     var segmentationOnlyCount = 0;
     var hasSegmentationKey = false;
