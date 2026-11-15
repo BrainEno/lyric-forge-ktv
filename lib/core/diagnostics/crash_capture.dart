@@ -98,9 +98,7 @@ class CrashRecordStore {
       final decoded = jsonDecode(await file.readAsString());
       final raw = decoded is Map ? decoded['crashes'] : null;
       if (raw is! List) return const [];
-      return [
-        for (final item in raw) ?CrashRecord.tryParse(item),
-      ];
+      return [for (final item in raw) ?CrashRecord.tryParse(item)];
     } on Object {
       // A damaged crash file is not worth another crash.
       return const [];

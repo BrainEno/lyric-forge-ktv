@@ -1,0 +1,4 @@
+Formatted lib/core/diagnostics/crash_capture.dart
+Formatted 35 files (1 changed) in 0.13 seconds.
+ M lib/core/diagnostics/crash_capture.dart
+?? tool/.tmp_ci_format.txt
