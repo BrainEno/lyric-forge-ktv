@@ -42,6 +42,18 @@ void main() {
         output,
       ]);
       expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+      final generated = File(output).readAsLinesSync();
+      final committed = File(_committedPath).readAsLinesSync();
+      for (var index = 0; index < generated.length; index++) {
+        if (index >= committed.length || generated[index] != committed[index]) {
+          fail(
+            'Line ${index + 1} differs. Generated: '
+            '${generated[index]}\nCommitted: '
+            '${index < committed.length ? committed[index] : '<end>'}',
+          );
+        }
+      }
+      expect(generated.length, committed.length);
       expect(
         File(output).readAsStringSync(),
         File(_committedPath).readAsStringSync(),

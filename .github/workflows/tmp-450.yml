@@ -19,6 +19,7 @@ jobs:
         run: |
           mapfile -t files < <(git diff --name-only --diff-filter=AM origin/main HEAD -- '*.dart')
           dart format "${files[@]}" > /dev/null
+          dart tool/work_log.dart write
           if ! git diff --quiet; then
             git config user.name ci-format
             git config user.email ci-format@users.noreply.github.com
@@ -50,6 +51,8 @@ jobs:
       - name: Full suite
         if: ${{ !contains(github.event.head_commit.message, '[targeted]') }}
         run: flutter test --no-pub --reporter failures-only > tool/.tmp_ci_full.txt 2>&1 || true
+      - name: Work log check
+        run: dart tool/work_log.dart check > tool/.tmp_ci_worklog.txt 2>&1 || true
       - name: Publish results
         shell: bash
         run: |

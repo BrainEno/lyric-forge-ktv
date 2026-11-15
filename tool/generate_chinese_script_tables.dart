@@ -170,7 +170,8 @@ Future<void> main(List<String> args) async {
 
   final target = File(options['--output'] ?? _outputPath);
   await target.parent.create(recursive: true);
-  await target.writeAsString(output.toString());
+  // Exactly one trailing newline, as `dart format` leaves it.
+  await target.writeAsString('${output.toString().trimRight()}\n');
   stdout.writeln('Wrote ${target.path}');
 }
 

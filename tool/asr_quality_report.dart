@@ -26,8 +26,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
-import '../lib/features/lyrics/domain/services/chinese_script_unification_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
 
 /// Bumped when a metric definition or report key changes incompatibly.
 const int kQualityReportSchemaVersion = 1;

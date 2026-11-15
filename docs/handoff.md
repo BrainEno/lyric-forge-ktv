@@ -2,64 +2,40 @@
 
 ## 目标
 
-修复 #448：导入歌曲后歌词更完整，错误能被快速发现，用户可以试听，再在现有复核流程里接受或拒绝。PR 标题固定为 `[model-eval] Improve lyric ASR recall and proofreading workflow`。不自行合并，等统一评审。
+实现 #450：识别结果简繁混排时，比较路径不再把字形差异当成识别错误；用户可以选择输出字形，新草稿按设置统一一次，编辑器里也能预览后统一。简→繁是近似转换，界面和文档都要标明。PR 关闭 #450，合并前先征求用户确认。
 
 ## Git 现场
 
-- 分支：`arena/90ba1ce5-lyric-forge-ktv`，基于 main `0e93b6569b46b2a5b06de480c1d5661666e7026c`。
-- 验证用的临时 workflow `tmp-arena-448-validate.yml`、`.github/tmp_report.py`、`tool/.tmp_ci_*` 在开 PR 前删除，不进入 PR diff。
-- `docs/benchmarks/2026-11-14-fusion-fixtures-*` 由临时 workflow 生成并提交：基线 `0e93b65` 与当前代码用同一份夹具输入各跑一次。
+- 分支：`arena/8ada1083-lyric-forge-ktv`，基于 main `c6a693952f7b3a8a5f554e0251cf9a8cf6bc1488`。
+- 验证用的临时 workflow `.github/workflows/tmp-450.yml` 和它提交的 `tool/.tmp_ci_*.txt` 在开 PR 前删除，不进入 PR diff。
+- `chinese_script_data.g.dart` 由 `tool/generate_chinese_script_tables.dart --opencc <OpenCC 检出> --revision fae2a0a911c30764e669a7d8b0591cd8e852934a` 生成；`test/tool/generate_chinese_script_tables_test.dart` 在设置 `OPENCC_DIR` 时校验生成结果与提交的文件逐字节一致。
 
 ## 已改文件
 
-- **识别**
-  - `whisper_decoding_policy.dart`（domain）：两个 profile，standard 与 lyrics。
-    - 提示词只来自 `RecognitionHints`（歌名、歌手、专辑、用户专有名词）；这个类型没有歌词字段。
-    - 提示词按语言模板生成、清洗，并限制在 200 UTF-8 字节以内。
-    - 根据 `-h` 输出判断运行时能力，只使用运行时实际列出的参数（`--prompt`、`--suppress-nst`）。
-  - `whisper_cpp_transcription_service.dart`：
-    - 能力缓存按 `path|size|mtime`。
-    - Windows 下非 ASCII 提示词通过 UTF-8 `@file` 传递。
-    - 运行时拒绝参数时，用标准参数重试一次。
-    - 去除提示词回声行。
-    - 解码计划（不含提示词原文）写入 `metadata.whisperDecoding`。
-  - `resumable_chunked_transcription_service.dart`：指纹包含 profile 和提示；`secondaryOnlySuggestions` 跨分片平移、合并。
-  - `high_quality_transcription_service.dart`：
-    - 仅断句不同的副引擎行只计数，不插入。
-    - 其余仅副引擎行作为「建议补入」插入，并在 `secondaryOnlySuggestions` 中精确记录。
-- **编辑器**
-  - `recognition_review_summary.dart` 与 `lyric_recognition_summary_card.dart`：摘要卡默认折叠，位于列表栏内部。
-  - inspector 的 `SecondarySuggestionCard`：试听、保留、拒绝。
-  - controller 在插入、删除行时平移带索引的复核 metadata。
-- **证据**
-  - `tool/asr_quality_report.dart`：新增 WER、`secondaryOnlyPrecision`、`secondaryRetention`。
-  - EN/ZH/JA 原创夹具，以及 `test/tool/asr_fusion_fixture_eval_test.dart`。
-- **文档**：`asr_quality_baseline.md` 第 10 节；`local_transcription.md`；`high_quality_asr_windows_setup.md`（#448 手工验证步骤和结果模板）；`decisions.md`（D-014）；工作日志条目 `2026-11-15-1045`。
+- **字表与转换（lyrics domain，纯 Dart）**
+  - `text/chinese_script_data.g.dart`：OpenCC 字符表、完整词组表（与逐字转换结果相同的词条存为 `key|`）、台湾/香港异体表、简体独有与繁体独有字集。
+  - `text/chinese_script_tables.dart`：首次使用时解析；`comparisonFold` 把繁体、地区异体和简体折叠到同一代表字（幂等，简体字不会经地区表反向折叠，所以「什么」与「什麼」相同）。
+  - `text/chinese_script_converter.dart`：最长词组匹配转换、`convertLine`（繁体行只做地区字形调整）、`foldForComparison`、字形判定。
+  - `models/chinese_script_preference.dart`、`services/chinese_script_unification_service.dart`：自动/显式目标、跳过日韩行与手改行、可重放的 `chineseScriptUnification` 记录。
+- **比较路径**：`lyric_tokenizer.dart`（默认折叠）、`lyric_alignment_service.dart`（相似度折叠，「一致」比较原写法）、`lyric_review_priority_service.dart`、`asr_text_comparison.dart`（经 tokenizer）。
+- **识别**：`transcription_models.dart`（设置项与 `chineseScriptOutputTarget`）、`whisper_decoding_policy.dart`（繁体提示模板，进入指纹）、Whisper 与分片服务传参、`local_project_transcription_workflow.dart`（落盘前统一并写 `transcription.chineseScript`）、`project_proofread_evidence_loader.dart`（重放记录后仍匹配主引擎）。
+- **界面**：设置对话框「中文字形」下拉框；编辑器「校对 → 统一简繁字形」对话框（预览、默认跳过手改行、可撤销、不自动保存）。
+- **工具与许可**：`tool/asr_quality_report.dart`（字形折叠 CER、书写 CER、字形不一致行数）；`third_party/opencc/` 与 `lib/main.dart` 的许可证注册；`pubspec.yaml` 资源。
+- **文档**：`decisions.md`（D-015）、本文件、工作日志条目 `2026-11-15-1500`。
 
 ## 检查结果
 
-全部来自 GitHub Actions；沙箱里没有 Dart/Flutter 工具链。每次运行的结果见工作日志条目，全量测试结果见 PR 正文。
-
-夹具上的融合结果（当前对比基线）：
-
-| 指标 | 当前 | 基线 |
-|---|---|---|
-| 融合输出行数 | 23 | 26 |
-| 精确率 | 91.3% | 80.8% |
-| CER | 2.8% | 14.8% |
-| WER | 3.2% | 18.1% |
-| 行召回 | 100% | 100% |
-| 仅副引擎行保留 | 4/4 | 4/4 |
+全部来自 GitHub Actions 临时 workflow；沙箱里没有 Dart/Flutter 工具链。各次运行见工作日志条目。
 
 ## 下一步
 
-- 在 Windows 真机上按 `docs/high_quality_asr_windows_setup.md` 的 #448 一节跑 A/B，填结果模板。
-- 根据真实数据决定 lyrics profile 是否继续作为默认值。
+- 用真实混排的识别结果观察自动模式的命中率，再决定默认值是否保持「自动」。
+- 如需更准的简→繁，可以考虑按上下文提示一简对多繁的字，而不是只依赖词组表。
 
 ## 已知风险
 
-- 提示词在真实模型上的收益没有测量过，可能是零，也可能引入轻微偏置。遇到这种情况可以在设置中关闭「Whisper 歌词增强解码」，恢复到旧的命令行。
-- 夹具是手写的，用来覆盖断句、漏行、副歌和 ad-lib；它衡量的是融合逻辑，不代表真实歌曲的分布。
-- 切换 profile 会让已有的分片断点失效（这是有意的）。
+- 简→繁是近似转换：一简对多繁的字（发/發/髮、干/乾/幹）由 OpenCC 词组表决定，词组之外按默认候选。已知「我一出门就想你」会变成「我一齣門就想你」。界面在设置项与对话框里都提示逐行核对。
+- 字表更新必须改 `chineseScriptDataRevision`；旧记录无法再证明文本未被手改，相关 V2 证据会降为只读审计（有意为之）。
+- 原有 CER 现在是字形折叠后的值；旧报告与新报告比较时，字形差异造成的 CER 下降不是识别改进，书写 CER 才包含它。
 
-最后更新：2026-11-15 10:48（Asia/Taipei）
+最后更新：2026-11-15 15:00（Asia/Taipei）
