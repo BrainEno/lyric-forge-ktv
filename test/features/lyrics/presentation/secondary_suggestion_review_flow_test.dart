@@ -72,8 +72,7 @@ void main() {
   group('controller decisions on a suggestion', () {
     LyricEditorDocumentController controller() {
       var now = DateTime.utc(2026, 11, 14, 12);
-      return LyricEditorDocumentController(clock: () => now)
-        ..load(_document());
+      return LyricEditorDocumentController(clock: () => now)..load(_document());
     }
 
     test('rejecting deletes only that row, keeps other candidates, and is '
@@ -248,20 +247,24 @@ void main() {
       final summary = summaryFor(_document());
       await pump(tester, summary, onStartReview: () => started++);
 
+      expect(find.text('识别结果 · Qwen3-ASR + Whisper 双引擎'), findsOneWidget);
       expect(
-        find.text('识别结果 · Qwen3-ASR + Whisper 双引擎'),
+        find.textContaining('双引擎分歧：1', findRichText: true),
         findsOneWidget,
       );
-      expect(find.textContaining('双引擎分歧：1', findRichText: true), findsOneWidget);
       expect(find.textContaining('建议补入：1', findRichText: true), findsOneWidget);
       expect(find.textContaining('总行数：3', findRichText: true), findsOneWidget);
       expect(find.textContaining('%', findRichText: true), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('lyric_recognition_summary_start')));
+      await tester.tap(
+        find.byKey(const ValueKey('lyric_recognition_summary_start')),
+      );
       expect(started, 1);
       expect(
         tester
-            .getSize(find.byKey(const ValueKey('lyric_recognition_summary_start')))
+            .getSize(
+              find.byKey(const ValueKey('lyric_recognition_summary_start')),
+            )
             .height,
         greaterThanOrEqualTo(48),
       );
@@ -291,8 +294,14 @@ void main() {
       );
       await pump(tester, summaryFor(document));
 
-      expect(find.textContaining('双引擎分歧：不可用', findRichText: true), findsOneWidget);
-      expect(find.textContaining('建议补入：不可用', findRichText: true), findsOneWidget);
+      expect(
+        find.textContaining('双引擎分歧：不可用', findRichText: true),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('建议补入：不可用', findRichText: true),
+        findsOneWidget,
+      );
       await tester.tap(
         find.byKey(const ValueKey('lyric_recognition_summary_toggle')),
       );

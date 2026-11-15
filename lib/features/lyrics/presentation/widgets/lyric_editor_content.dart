@@ -450,8 +450,10 @@ class LyricEditorContent extends StatelessWidget {
                                             onFilterChanged(
                                               LyricReviewFilter.needsReview,
                                             );
-                                            final first =
-                                                reviewQueue.items.first.lineIndex;
+                                            final first = reviewQueue
+                                                .items
+                                                .first
+                                                .lineIndex;
                                             if (twoPane) {
                                               onSelectLine(first);
                                             } else {

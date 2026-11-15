@@ -176,34 +176,34 @@ class _LyricRecognitionSummaryCardState
             ],
           ),
           Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.xs,
-              children: [
-                for (final metric in metrics)
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '${metric.label}：',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                          ),
+            spacing: AppSpacing.md,
+            runSpacing: AppSpacing.xs,
+            children: [
+              for (final metric in metrics)
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${metric.label}：',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
                         ),
-                        TextSpan(
-                          text: metric.value,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: metric.attention
-                                ? AppColors.warning
-                                : AppColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
+                      ),
+                      TextSpan(
+                        text: metric.value,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: metric.attention
+                              ? AppColors.warning
+                              : AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+            ],
+          ),
           if (_expanded) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(

@@ -53,10 +53,7 @@ TranscriptionRequest _request(
 
 /// Runs one dual-engine fusion. `qwen` and `whisper` are the two engines'
 /// rows; [order] decides which one is primary.
-Future<
-  ({LyricDocument document, _Fake qwen, _Fake whisper})
->
-_fuse(
+Future<({LyricDocument document, _Fake qwen, _Fake whisper})> _fuse(
   Directory directory, {
   required List<LyricLine> qwen,
   required List<LyricLine> whisper,
@@ -159,34 +156,37 @@ void main() {
       expect(SecondaryOnlySuggestion.resolve(fused.document).keys, [1]);
     });
 
-    test('a repeated chorus missing once is suggested once, at its time', () async {
-      final chorus = 'sing it back to me';
-      final fused = await _fuse(
-        directory,
-        qwen: [
-          _line(chorus, 0, 3000),
-          _line('bridge words in between', 3000, 6000),
-          _line(chorus, 12000, 15000),
-        ],
-        whisper: [
-          _line(chorus, 0, 3000),
-          _line('bridge words in between', 3000, 6000),
-          _line(chorus, 7000, 10000),
-          _line(chorus, 12000, 15000),
-        ],
-      );
-      final lines = fused.document.lines;
-      expect(lines.map((line) => line.text), [
-        chorus,
-        'bridge words in between',
-        chorus,
-        chorus,
-      ]);
-      final suggestions = SecondaryOnlySuggestion.resolve(fused.document);
-      // Text alone would match three rows; the timestamps pin it to one.
-      expect(suggestions.keys, [2]);
-      expect(lines[2].startTime, const Duration(seconds: 7));
-    });
+    test(
+      'a repeated chorus missing once is suggested once, at its time',
+      () async {
+        final chorus = 'sing it back to me';
+        final fused = await _fuse(
+          directory,
+          qwen: [
+            _line(chorus, 0, 3000),
+            _line('bridge words in between', 3000, 6000),
+            _line(chorus, 12000, 15000),
+          ],
+          whisper: [
+            _line(chorus, 0, 3000),
+            _line('bridge words in between', 3000, 6000),
+            _line(chorus, 7000, 10000),
+            _line(chorus, 12000, 15000),
+          ],
+        );
+        final lines = fused.document.lines;
+        expect(lines.map((line) => line.text), [
+          chorus,
+          'bridge words in between',
+          chorus,
+          chorus,
+        ]);
+        final suggestions = SecondaryOnlySuggestion.resolve(fused.document);
+        // Text alone would match three rows; the timestamps pin it to one.
+        expect(suggestions.keys, [2]);
+        expect(lines[2].startTime, const Duration(seconds: 7));
+      },
+    );
 
     test('suggestion records survive a JSON round trip unchanged', () async {
       final fused = await _fuse(
@@ -194,10 +194,14 @@ void main() {
         qwen: [_line('first', 0, 2000)],
         whisper: [_line('first', 0, 2000), _line('only here', 5000, 6000)],
       );
-      final stored = fused.document.metadata[SecondaryOnlySuggestion.metadataKey]
-          as Map<String, dynamic>;
+      final stored =
+          fused.document.metadata[SecondaryOnlySuggestion.metadataKey]
+              as Map<String, dynamic>;
       expect(stored['version'], SecondaryOnlySuggestion.version);
-      expect(SecondaryOnlySuggestion.read(fused.document.metadata), hasLength(1));
+      expect(
+        SecondaryOnlySuggestion.read(fused.document.metadata),
+        hasLength(1),
+      );
     });
   });
 
@@ -275,28 +279,31 @@ void main() {
       expect(short.document.metadata['segmentationOnlySecondaryCount'], 0);
     });
 
-    test('a row that only grazes the next primary row is not covered', () async {
-      // The words straddle the text boundary, but 98% of the time span sits
-      // inside row 0: that is not a re-cut of both rows, so it stays a
-      // suggestion for a person to judge.
-      final fused = await _fuse(
-        directory,
-        qwen: [
-          _line('one two three four five six seven', 0, 6000),
-          _line('eight nine', 6000, 9000),
-        ],
-        whisper: [
-          _line('one two three four five six seven', 0, 6000),
-          _line('seven eight', 1000, 6100),
-          _line('eight nine', 6000, 9000),
-        ],
-      );
-      expect(fused.document.metadata['segmentationOnlySecondaryCount'], 0);
-      expect(
-        SecondaryOnlySuggestion.resolve(fused.document).values.single.text,
-        'seven eight',
-      );
-    });
+    test(
+      'a row that only grazes the next primary row is not covered',
+      () async {
+        // The words straddle the text boundary, but 98% of the time span sits
+        // inside row 0: that is not a re-cut of both rows, so it stays a
+        // suggestion for a person to judge.
+        final fused = await _fuse(
+          directory,
+          qwen: [
+            _line('one two three four five six seven', 0, 6000),
+            _line('eight nine', 6000, 9000),
+          ],
+          whisper: [
+            _line('one two three four five six seven', 0, 6000),
+            _line('seven eight', 1000, 6100),
+            _line('eight nine', 6000, 9000),
+          ],
+        );
+        expect(fused.document.metadata['segmentationOnlySecondaryCount'], 0);
+        expect(
+          SecondaryOnlySuggestion.resolve(fused.document).values.single.text,
+          'seven eight',
+        );
+      },
+    );
   });
 
   group('recognition hints and diagnostics', () {
@@ -312,19 +319,25 @@ void main() {
       expect(fused.whisper.requests.single.recognitionHints, same(hints));
     });
 
-    test('Whisper decoding metadata is carried into the fused document', () async {
-      final decoding = {
-        'requestedProfile': 'whisper-lyrics-v1',
-        'effectiveProfile': 'whisper-lyrics-v1',
-      };
-      final fused = await _fuse(
-        directory,
-        qwen: [_line('a line', 0, 2000)],
-        whisper: [_line('a line', 0, 2000)],
-        whisperMetadata: {'draft': true, kWhisperDecodingMetadataKey: decoding},
-      );
-      expect(fused.document.metadata[kWhisperDecodingMetadataKey], decoding);
-    });
+    test(
+      'Whisper decoding metadata is carried into the fused document',
+      () async {
+        final decoding = {
+          'requestedProfile': 'whisper-lyrics-v1',
+          'effectiveProfile': 'whisper-lyrics-v1',
+        };
+        final fused = await _fuse(
+          directory,
+          qwen: [_line('a line', 0, 2000)],
+          whisper: [_line('a line', 0, 2000)],
+          whisperMetadata: {
+            'draft': true,
+            kWhisperDecodingMetadataKey: decoding,
+          },
+        );
+        expect(fused.document.metadata[kWhisperDecodingMetadataKey], decoding);
+      },
+    );
   });
 }
 

@@ -68,7 +68,10 @@ void main() {
 
       // A row inserted above shifts the index; the record follows the row.
       final shifted = document.copyWith(
-        lines: [_line('new intro', 0, 0 + 500, id: 'z'), ...document.lines],
+        lines: [
+          _line('new intro', 0, 0 + 500, id: 'z'),
+          ...document.lines,
+        ],
       );
       expect(SecondaryOnlySuggestion.resolve(shifted).keys, [2]);
     });
