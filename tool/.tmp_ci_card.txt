@@ -1,0 +1,29 @@
+
+::group::✅ Passing tests
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export wraps the service for timing only when timings are given
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export production service registry uses this assembly and shared settings
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export uses selected executable and writes a valid session result
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export falls back to PATH ffmpeg for missing settings
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export falls back to PATH ffmpeg for blank []
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export falls back to PATH ffmpeg for blank [ 
+	 ]
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export real persisted settings are reloaded by the assembled exporter
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export resolves current settings on every export instead of caching them
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export settings failure propagates, clears export lock, and allows retry
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export export lock is held while settings read is pending
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export does not read settings or invoke process for unreliable take
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export does not load settings when voice file is missing
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/ktv_recording_assembly_test.dart: app assembly routes shared FFmpeg settings to KTV export does not load settings when backing file is missing
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: shows log size and crash summary
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: exports the redacted report through the file saver
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: a cancelled export shows nothing
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: copies the text report without JSON
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: clearing asks first and then removes records
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: switches change verbosity and crash storage
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: lists timing summaries with readable labels
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: formatting durations
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: formatting bytes
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/settings/diagnostics_settings_card_test.dart: formatting summary with failures and no media
+::endgroup::
+
+🎉 23 tests passed.

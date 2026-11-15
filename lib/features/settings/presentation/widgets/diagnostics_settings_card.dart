@@ -193,96 +193,96 @@ class _DiagnosticsSettingsCardState extends State<DiagnosticsSettingsCard> {
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.monitor_heart_outlined,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.monitor_heart_outlined,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '诊断与日志',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              '遇到问题时导出诊断包并附在反馈里。${DiagnosticsReport.privacyNotice}',
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '诊断与日志',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              summary == null ? '正在读取诊断记录…' : _summaryLine(summary),
+              key: const ValueKey('diagnostics-summary'),
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SwitchListTile(
+              key: const ValueKey('diagnostics-verbose'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('详细日志'),
+              subtitle: const Text('额外记录调试信息，排查问题时开启，日志会增长得更快'),
+              value: summary?.verbose ?? _diagnostics.verbose,
+              onChanged: busy ? null : _setVerbose,
+            ),
+            SwitchListTile(
+              key: const ValueKey('diagnostics-store-crashes'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('保存崩溃记录'),
+              subtitle: const Text('应用出现未处理的错误时在本机保留摘要，最多 10 条'),
+              value: summary?.storeCrashes ?? _diagnostics.storeCrashes,
+              onChanged: busy ? null : _setStoreCrashes,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                FilledButton.icon(
+                  key: const ValueKey('diagnostics-export'),
+                  onPressed: busy ? null : _export,
+                  icon: _busyIcon(_Busy.export, Icons.save_alt),
+                  label: const Text('导出诊断包'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('diagnostics-copy'),
+                  onPressed: busy ? null : _copy,
+                  icon: _busyIcon(_Busy.copy, Icons.copy_all_outlined),
+                  label: const Text('复制诊断信息'),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('diagnostics-clear'),
+                  onPressed: busy ? null : _clear,
+                  icon: _busyIcon(_Busy.clear, Icons.delete_outline),
+                  label: const Text('清除记录'),
+                ),
+              ],
+            ),
+            if (_message != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _message!,
+                key: const ValueKey('diagnostics-message'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _messageIsError
+                      ? theme.colorScheme.error
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '遇到问题时导出诊断包并附在反馈里。${DiagnosticsReport.privacyNotice}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            summary == null ? '正在读取诊断记录…' : _summaryLine(summary),
-            key: const ValueKey('diagnostics-summary'),
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          SwitchListTile(
-            key: const ValueKey('diagnostics-verbose'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('详细日志'),
-            subtitle: const Text('额外记录调试信息，排查问题时开启，日志会增长得更快'),
-            value: summary?.verbose ?? _diagnostics.verbose,
-            onChanged: busy ? null : _setVerbose,
-          ),
-          SwitchListTile(
-            key: const ValueKey('diagnostics-store-crashes'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('保存崩溃记录'),
-            subtitle: const Text('应用出现未处理的错误时在本机保留摘要，最多 10 条'),
-            value: summary?.storeCrashes ?? _diagnostics.storeCrashes,
-            onChanged: busy ? null : _setStoreCrashes,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              FilledButton.icon(
-                key: const ValueKey('diagnostics-export'),
-                onPressed: busy ? null : _export,
-                icon: _busyIcon(_Busy.export, Icons.save_alt),
-                label: const Text('导出诊断包'),
-              ),
-              OutlinedButton.icon(
-                key: const ValueKey('diagnostics-copy'),
-                onPressed: busy ? null : _copy,
-                icon: _busyIcon(_Busy.copy, Icons.copy_all_outlined),
-                label: const Text('复制诊断信息'),
-              ),
-              TextButton.icon(
-                key: const ValueKey('diagnostics-clear'),
-                onPressed: busy ? null : _clear,
-                icon: _busyIcon(_Busy.clear, Icons.delete_outline),
-                label: const Text('清除记录'),
-              ),
-            ],
-          ),
-          if (_message != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              _message!,
-              key: const ValueKey('diagnostics-message'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: _messageIsError
-                    ? theme.colorScheme.error
-                    : AppColors.textSecondary,
-              ),
-            ),
+            const SizedBox(height: AppSpacing.md),
+            _TimingsPanel(timings: _diagnostics.timings),
           ],
-          const SizedBox(height: AppSpacing.md),
-          _TimingsPanel(timings: _diagnostics.timings),
-        ],
-      ),
+        ),
       ),
     );
   }
