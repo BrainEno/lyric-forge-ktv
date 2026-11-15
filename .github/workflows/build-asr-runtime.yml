@@ -153,6 +153,38 @@ jobs:
             throw "Patched Qwen alignment handler was not found."
           }
 
+      - name: Apply Qwen session authentication and assigned-port reporting
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-session-authentication.patch"
+          git apply --unidiff-zero --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Qwen session-authentication patch no longer applies to the pinned source." }
+          git apply --unidiff-zero $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply the Qwen session-authentication patch." }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "authenticate_session_request" -Quiet)) {
+            throw "Qwen session-authentication middleware was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "LYRICFORGE_QWEN_READY_V1" -Quiet)) {
+            throw "Qwen OS-assigned port announcement was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "authenticated_response_proof" -Quiet)) {
+            throw "Qwen response-body authentication was not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "lyricforge-qwen-stream-proof-v1" -Quiet)) {
+            throw "Qwen authenticated SSE event proofs were not found."
+          }
+          if (-not (Select-String -Path "qwen3_asr_cli/src/cmd_serve.rs" -Pattern "lyricforge-qwen-ws-response-v1" -Quiet)) {
+            throw "Qwen authenticated WebSocket frame proofs were not found."
+          }
+
+      - name: Test Qwen session authentication and assigned-port startup
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features cuda mock_serve_session_auth_
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -233,7 +265,7 @@ jobs:
 
           @{
             schemaVersion = 1
-            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"
+            runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2"
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -296,11 +328,22 @@ jobs:
           grep -q '"/v1/align"' qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
           grep -q "aligner" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
 
+      - name: Apply Qwen session authentication and assigned-port reporting
+        run: |
+          git -C qwen-runtime-src apply --unidiff-zero --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-authentication.patch"
+          git -C qwen-runtime-src apply --unidiff-zero "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-session-authentication.patch"
+          grep -q "authenticate_session_request" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+          grep -q "LYRICFORGE_QWEN_READY_V1" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+          grep -q "authenticated_response_proof" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+          grep -q "lyricforge-qwen-stream-proof-v1" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+          grep -q "lyricforge-qwen-ws-response-v1" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
+
       - name: Test eager attention matmul layout regression
         run: |
           cd qwen-runtime-src
           cargo test --release -p qwen3_asr --lib --features accelerate test_eager_attention_matmul_materializes_transposed_inputs
           cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_align_rejects_missing_contract_fields
+          cargo test --release -p qwen3_asr_cli --test serve_integration --features accelerate mock_serve_session_auth_
 
       - name: Build Qwen Intel runtime
         run: |
@@ -335,7 +378,7 @@ jobs:
           cat > runtime/runtime-manifest.json <<EOF
           {
             "schemaVersion": 1,
-            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1",
+            "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2",
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",

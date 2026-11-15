@@ -11,11 +11,15 @@ void main() {
     expect(workflow, contains('RUNTIME_TAG: asr-runtime-v2'));
     expect(
       workflow,
-      contains('runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains(
+        'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2"',
+      ),
     );
     expect(
       workflow,
-      contains('"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"'),
+      contains(
+        '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2"',
+      ),
     );
     expect(
       workflow,
@@ -130,6 +134,95 @@ void main() {
     expect(patch, contains('"text must not be empty"'));
     expect(patch, contains('"language must not be empty"'));
   });
+
+  test(
+    'managed Qwen builds enforce session authentication on Windows and macOS',
+    () async {
+      final workflow = await File(
+        '.github/workflows/build-asr-runtime.yml',
+      ).readAsString();
+      final patch = await File(
+        'tool/patches/qwen3-asr-session-authentication.patch',
+      ).readAsString();
+      final clientAuth = await File(
+        'lib/features/transcription/data/services/'
+        'qwen_runtime_session_auth.dart',
+      ).readAsString();
+
+      expect(
+        workflow,
+        contains(
+          'Apply Qwen session authentication and assigned-port reporting',
+        ),
+      );
+      expect(
+        workflow,
+        contains('tool/patches/qwen3-asr-session-authentication.patch'),
+      );
+      expect(
+        workflow,
+        contains('git apply --unidiff-zero --check'),
+        reason: 'the checked-in zero-context patch must use Git\'s explicit opt-in',
+      );
+      expect(
+        workflow,
+        contains(
+          'cargo test --release -p qwen3_asr_cli --test serve_integration '
+          '--features cuda mock_serve_session_auth_',
+        ),
+      );
+      expect(
+        workflow,
+        contains(
+          'cargo test --release -p qwen3_asr_cli --test serve_integration '
+          '--features accelerate mock_serve_session_auth_',
+        ),
+      );
+      expect(patch, contains('--session-auth-stdin'));
+      expect(patch, contains('LYRICFORGE_QWEN_READY_V1'));
+      expect(patch, contains('mac.verify_slice(&signature)'));
+      expect(patch, contains('MAX_AUTH_NONCES: usize = 65_536'));
+      expect(patch, contains('!used.insert(nonce)'));
+      expect(patch, contains('SESSION_PROOF_HEADER'));
+      expect(patch, contains('lyricforge-qwen-response-v1'));
+      expect(patch, contains('lyricforge-qwen-stream-proof-v1'));
+      expect(patch, contains('lyricforge-qwen-ws-response-v1'));
+      expect(
+        patch,
+        contains('sequence != verified_events as u64'),
+        reason: 'native SSE tests must reject gaps, replays, and reordering',
+      );
+      expect(
+        patch,
+        contains('for expected_sequence in 0u64..2'),
+        reason: 'native WebSocket tests must check monotonic frame proofs',
+      );
+      expect(clientAuth, contains('createStreamVerifier'));
+      expect(clientAuth, contains('verifySseEvent'));
+      expect(clientAuth, contains('verifyWebSocketFrame'));
+      expect(clientAuth, contains('sequence != _nextSequence'));
+      expect(
+        patch,
+        contains(
+          'mock_serve_session_auth_protects_health_transcribe_and_align',
+        ),
+      );
+      expect(
+        patch,
+        contains('mock_serve_session_auth_rejects_tampering_and_replay'),
+      );
+      expect(
+        patch,
+        contains(
+          'mock_serve_session_auth_authenticates_websocket_upgrade_and_frames',
+        ),
+      );
+      expect(
+        patch,
+        contains('mock_serve_session_auth_signs_openai_sse_events'),
+      );
+    },
+  );
 
   test('Windows bundle keeps Qwen on CUDA and Whisper as CPU fallback', () async {
     final workflow = await File(

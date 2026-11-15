@@ -59,13 +59,13 @@ void main() {
       expect(
         workflow,
         contains(
-          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          'runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2"',
         ),
       );
       expect(
         workflow,
         contains(
-          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1"',
+          '"runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v2"',
         ),
       );
     },

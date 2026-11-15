@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
+import 'qwen_runtime_session_auth.dart';
 
 /// A deliberately separate client for an explicit arbitrary-text alignment API.
 ///
@@ -12,12 +13,14 @@ import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.d
 /// `/v1/transcribe` or treats ASR context as forced alignment.
 class ForcedAlignmentHttpClient {
   final Uri endpoint;
+  final QwenRuntimeSessionAuth sessionAuth;
   final HttpClient _httpClient;
   final Duration requestTimeout;
   HttpClientRequest? _activeRequest;
 
   ForcedAlignmentHttpClient({
     required this.endpoint,
+    required this.sessionAuth,
     HttpClient? httpClient,
     this.requestTimeout = const Duration(minutes: 5),
   }) : _httpClient = httpClient ?? HttpClient() {
@@ -76,19 +79,43 @@ class ForcedAlignmentHttpClient {
       request = await _httpClient
           .postUrl(endpoint)
           .timeout(_remainingTimeout(stopwatch));
+      request.followRedirects = false;
       _activeRequest = request;
-      request.headers.contentType = ContentType.json;
-      request.write(
+      final requestBody = utf8.encode(
         jsonEncode({'audio': audioPath, 'text': text, 'language': language}),
       );
+      final proof = sessionAuth.signRequest(
+        method: 'POST',
+        uri: endpoint,
+        body: requestBody,
+      );
+      request.headers
+        ..contentType = ContentType.json
+        ..set(QwenRuntimeSessionAuth.requestHeader, proof.headerValue);
+      request.add(requestBody);
 
       final response = await request.close().timeout(
         _remainingTimeout(stopwatch),
       );
-      final body = await utf8.decoder
-          .bind(response)
-          .join()
+      final responseBody = await response
+          .fold<List<int>>(<int>[], (body, chunk) {
+            body.addAll(chunk);
+            return body;
+          })
           .timeout(_remainingTimeout(stopwatch));
+      if (!sessionAuth.verifyResponse(
+        nonce: proof.nonce,
+        statusCode: response.statusCode,
+        body: responseBody,
+        proof: response.headers.value(
+          QwenRuntimeSessionAuth.responseProofHeader,
+        ),
+      )) {
+        throw const ForcedAlignmentException(
+          'Forced-alignment endpoint identity could not be authenticated.',
+        );
+      }
+      final body = utf8.decode(responseBody);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ForcedAlignmentException(
           'Forced-alignment endpoint returned HTTP ${response.statusCode}.',

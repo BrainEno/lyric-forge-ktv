@@ -97,8 +97,20 @@ user downloading all models only to discover afterward that the native runtime
 cannot be installed.
 
 The expected release currently remains `asr-runtime-v2` with platform-specific
-runtime assets. Publishing that runtime bundle is a separate deployment task
-from the managed-model and batch-queue work described here.
+runtime assets. Its managed Qwen build revision includes the Windows/macOS
+session-authentication patch; bundles with an older revision are stale and are
+refreshed by the managed runtime installer. The app gives each process a fresh
+session key over stdin, requires the runtime to bind port zero and report the
+bound port, and authenticates HTTP requests and responses before trusting
+health, transcription, or forced-alignment results. A per-request Dart stream
+verifier also checks SSE/WebSocket event proofs and rejects nonce mismatches,
+sequence gaps, replays, reordering, and modified payloads; a streaming consumer
+must verify the upgrade/response proof and stop on any failure. The current app
+transcription and alignment clients use ordinary HTTP. This is local request
+authentication, not transport encryption or protection from same-user malware
+that can inspect or replace the app/runtime. Publishing that runtime bundle is
+a separate deployment task from the managed-model and batch-queue work described
+here.
 
 ## FFmpeg preprocessing
 

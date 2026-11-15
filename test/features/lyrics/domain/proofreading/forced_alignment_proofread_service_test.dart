@@ -1,27 +1,34 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/proofread_result.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 import 'package:lyric_forge_ktv/features/transcription/data/services/forced_alignment_http_client.dart';
+import 'package:lyric_forge_ktv/features/transcription/data/services/qwen_runtime_session_auth.dart';
 
 void main() {
   late HttpServer server;
   late ForcedAlignmentHttpClient client;
   late ForcedAlignmentProofreadService service;
+  late QwenRuntimeSessionAuth sessionAuth;
 
   setUp(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    sessionAuth = QwenRuntimeSessionAuth.generate();
+    _activeSessionAuth = sessionAuth;
     client = ForcedAlignmentHttpClient(
       endpoint: Uri.parse('http://127.0.0.1:${server.port}/v1/align'),
+      sessionAuth: sessionAuth,
     );
     service = ForcedAlignmentProofreadService(runner: client.align);
   });
 
   tearDown(() async {
     client.close(force: true);
+    sessionAuth.revoke();
     await server.close(force: true);
   });
 
@@ -49,21 +56,21 @@ void main() {
             jsonDecode(await utf8.decoder.bind(request).join()) as Map;
         expect(payload['text'], 'hello world');
         expect(payload['language'], 'English');
+        final responseBody = jsonEncode({
+          'results': [
+            {
+              'items': [
+                {'text': 'hello', 'start_time': 0.2, 'end_time': 0.6},
+                {'text': 'world', 'start_time': 0.7, 'end_time': 1.1},
+              ],
+            },
+          ],
+        });
+        _addResponseProof(request, HttpStatus.ok, responseBody);
         request.response
           ..statusCode = HttpStatus.ok
           ..headers.contentType = ContentType.json
-          ..write(
-            jsonEncode({
-              'results': [
-                {
-                  'items': [
-                    {'text': 'hello', 'start_time': 0.2, 'end_time': 0.6},
-                    {'text': 'world', 'start_time': 0.7, 'end_time': 1.1},
-                  ],
-                },
-              ],
-            }),
-          );
+          ..write(responseBody);
         await request.response.close();
       });
 
@@ -103,16 +110,16 @@ void main() {
     () async {
       final responseFuture = server.first.then((request) async {
         await utf8.decoder.bind(request).join();
+        final responseBody = jsonEncode({
+          'items': [
+            {'text': 'unrelated', 'start_time': 0.2, 'end_time': 0.6},
+          ],
+        });
+        _addResponseProof(request, HttpStatus.ok, responseBody);
         request.response
           ..statusCode = HttpStatus.ok
           ..headers.contentType = ContentType.json
-          ..write(
-            jsonEncode({
-              'items': [
-                {'text': 'unrelated', 'start_time': 0.2, 'end_time': 0.6},
-              ],
-            }),
-          );
+          ..write(responseBody);
         await request.response.close();
       });
 
@@ -390,6 +397,11 @@ void main() {
   test('keeps review usable when endpoint fails', () async {
     final responseFuture = server.first.then((request) async {
       await utf8.decoder.bind(request).join();
+      _addResponseProof(
+        request,
+        HttpStatus.serviceUnavailable,
+        'runtime unavailable',
+      );
       request.response
         ..statusCode = HttpStatus.serviceUnavailable
         ..write('runtime unavailable');
@@ -418,3 +430,20 @@ void main() {
     );
   });
 }
+
+void _addResponseProof(HttpRequest request, int statusCode, String body) {
+  final auth = request.headers.value(QwenRuntimeSessionAuth.requestHeader)!;
+  final nonce = auth.split(':').first;
+  final encodedSecret = base64Url.normalize(_activeSessionAuth.bootstrapPayload);
+  final secret = base64Url.decode(encodedSecret);
+  final bodyHash = sha256.convert(utf8.encode(body));
+  final message =
+      'lyricforge-qwen-response-v1\n$nonce\n$statusCode\n$bodyHash';
+  final proof = Hmac(sha256, secret).convert(utf8.encode(message)).toString();
+  request.response.headers.set(
+    QwenRuntimeSessionAuth.responseProofHeader,
+    proof,
+  );
+}
+
+late QwenRuntimeSessionAuth _activeSessionAuth;

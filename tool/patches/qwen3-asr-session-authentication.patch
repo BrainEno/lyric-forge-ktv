@@ -1,0 +1,1082 @@
+diff --git a/qwen3_asr_cli/Cargo.toml b/qwen3_asr_cli/Cargo.toml
+index 13ae9a7..5c3ac07 100644
+--- a/qwen3_asr_cli/Cargo.toml
++++ b/qwen3_asr_cli/Cargo.toml
+@@ -23,0 +24,2 @@ base64 = "0.22"
++hmac = "0.12"
++sha2 = "0.10"
+diff --git a/qwen3_asr_cli/src/args.rs b/qwen3_asr_cli/src/args.rs
+index 98985ba..2bc8cd6 100644
+--- a/qwen3_asr_cli/src/args.rs
++++ b/qwen3_asr_cli/src/args.rs
+@@ -333 +333 @@ pub enum Command {
+-        /// Port to bind.
++        /// Port to bind. Use 0 to request an operating-system assigned port.
+@@ -336,0 +337,5 @@ pub enum Command {
++        /// Read a 32-byte URL-safe base64 session key from stdin and require
++        /// request authentication on every HTTP route.
++        #[arg(long, default_value_t = false)]
++        session_auth_stdin: bool,
++
+diff --git a/qwen3_asr_cli/src/cmd_serve.rs b/qwen3_asr_cli/src/cmd_serve.rs
+index 516f006..b276e89 100644
+--- a/qwen3_asr_cli/src/cmd_serve.rs
++++ b/qwen3_asr_cli/src/cmd_serve.rs
+@@ -1 +1 @@
+-use std::collections::{HashMap, VecDeque};
++use std::collections::{HashMap, HashSet, VecDeque};
+@@ -2,0 +3 @@ use std::convert::Infallible;
++use std::io::{BufRead, Read};
+@@ -4 +5 @@ use std::path::Path;
+-use std::sync::Arc;
++use std::sync::{Arc, Mutex};
+@@ -9,0 +11 @@ use anyhow::{Context, Result};
++use axum::body::{Body, to_bytes};
+@@ -11,2 +13,3 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+-use axum::extract::{DefaultBodyLimit, Multipart, Query, State};
+-use axum::http::{HeaderMap, Method, StatusCode, header::CONTENT_TYPE};
++use axum::extract::{DefaultBodyLimit, Extension, Multipart, Query, State};
++use axum::http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header::CONTENT_TYPE};
++use axum::middleware::{self, Next};
+@@ -18,0 +22 @@ use futures_util::StreamExt;
++use hmac::{Hmac, Mac};
+@@ -19,0 +24 @@ use serde::Deserialize;
++use sha2::{Digest, Sha256};
+@@ -30,0 +36,4 @@ const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;
++const MAX_AUTHENTICATED_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
++const SESSION_AUTH_HEADER: &str = "x-lyricforge-session-auth";
++const SESSION_PROOF_HEADER: &str = "x-lyricforge-session-proof";
++const MAX_AUTH_NONCES: usize = 65_536;
+@@ -40,0 +50 @@ pub struct ServeCmd {
++    pub session_auth_stdin: bool,
+@@ -261,0 +272,207 @@ struct AppState {
++#[derive(Clone)]
++struct SessionAuth {
++    key: Arc<[u8; 32]>,
++    used_nonces: Arc<Mutex<HashSet<[u8; 16]>>>,
++}
++
++#[derive(Clone)]
++struct RequestAuthContext {
++    nonce_hex: String,
++    key: Arc<[u8; 32]>,
++}
++
++impl SessionAuth {
++    fn new(key: [u8; 32]) -> Self {
++        Self {
++            key: Arc::new(key),
++            used_nonces: Arc::new(Mutex::new(HashSet::new())),
++        }
++    }
++
++    fn consume_nonce(&self, nonce: [u8; 16]) -> bool {
++        let mut used = self.used_nonces.lock().unwrap_or_else(|error| error.into_inner());
++        if used.len() >= MAX_AUTH_NONCES || !used.insert(nonce) {
++            return false;
++        }
++        true
++    }
++}
++
++fn read_session_auth_key() -> Result<[u8; 32]> {
++    let mut encoded = Vec::with_capacity(48);
++    let bytes_read = std::io::stdin()
++        .lock()
++        .take(128)
++        .read_until(b'\n', &mut encoded)
++        .context("failed to read the Qwen session key from stdin")?;
++    if bytes_read == 0 || bytes_read > 64 || !encoded.ends_with(b"\n") {
++        encoded.fill(0);
++        anyhow::bail!("invalid Qwen session key input");
++    }
++    let encoded_len = encoded
++        .iter()
++        .position(|byte| *byte == b'\n')
++        .unwrap_or(encoded.len());
++    let encoded_len = if encoded_len > 0 && encoded[encoded_len - 1] == b'\r' {
++        encoded_len - 1
++    } else {
++        encoded_len
++    };
++    let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
++        .decode(&encoded[..encoded_len])
++        .map_err(|_| anyhow::anyhow!("invalid Qwen session key encoding"));
++    encoded.fill(0);
++    let mut decoded = decoded?;
++    if decoded.len() != 32 {
++        decoded.fill(0);
++        anyhow::bail!("Qwen session key must contain exactly 32 bytes");
++    }
++    let mut key = [0u8; 32];
++    key.copy_from_slice(&decoded);
++    decoded.fill(0);
++    Ok(key)
++}
++
++fn decode_hex<const N: usize>(input: &str) -> Option<[u8; N]> {
++    if input.len() != N * 2 {
++        return None;
++    }
++    let mut output = [0u8; N];
++    for (index, pair) in input.as_bytes().chunks_exact(2).enumerate() {
++        let high = (pair[0] as char).to_digit(16)? as u8;
++        let low = (pair[1] as char).to_digit(16)? as u8;
++        output[index] = (high << 4) | low;
++    }
++    Some(output)
++}
++
++fn encode_hex(input: &[u8]) -> String {
++    const HEX: &[u8; 16] = b"0123456789abcdef";
++    let mut output = String::with_capacity(input.len() * 2);
++    for byte in input {
++        output.push(HEX[(byte >> 4) as usize] as char);
++        output.push(HEX[(byte & 0x0f) as usize] as char);
++    }
++    output
++}
++
++fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
++    let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key size");
++    mac.update(message);
++    mac.finalize().into_bytes().into()
++}
++
++fn authenticated_response_proof(
++    auth: &RequestAuthContext,
++    status: StatusCode,
++    body: &[u8],
++) -> String {
++    let body_hash = Sha256::digest(body);
++    let canonical = format!(
++        "lyricforge-qwen-response-v1\n{}\n{}\n{}",
++        auth.nonce_hex,
++        status.as_u16(),
++        encode_hex(&body_hash),
++    );
++    encode_hex(&hmac_sha256(auth.key.as_ref(), canonical.as_bytes()))
++}
++
++async fn authenticate_session_request(
++    axum::extract::State(auth): axum::extract::State<SessionAuth>,
++    request: Request<Body>,
++    next: Next,
++) -> Response {
++    let (mut parts, body) = request.into_parts();
++    let Some(header) = parts
++        .headers
++        .get(SESSION_AUTH_HEADER)
++        .and_then(|value| value.to_str().ok())
++    else {
++        return StatusCode::UNAUTHORIZED.into_response();
++    };
++    let Some((nonce_hex, signature_hex)) = header.split_once(':') else {
++        return StatusCode::UNAUTHORIZED.into_response();
++    };
++    let nonce_hex = nonce_hex.to_owned();
++    let Some(nonce) = decode_hex::<16>(&nonce_hex) else {
++        return StatusCode::UNAUTHORIZED.into_response();
++    };
++    let Some(signature) = decode_hex::<32>(signature_hex) else {
++        return StatusCode::UNAUTHORIZED.into_response();
++    };
++    let body = match to_bytes(body, MAX_BODY_BYTES).await {
++        Ok(body) => body,
++        Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
++    };
++
++    let body_hash = Sha256::digest(&body);
++    let path = parts
++        .uri
++        .path_and_query()
++        .map(|value| value.as_str())
++        .unwrap_or_else(|| parts.uri.path());
++    let canonical = format!(
++        "lyricforge-qwen-request-v1\n{}\n{}\n{}\n{}",
++        parts.method.as_str(),
++        path,
++        encode_hex(&body_hash),
++        nonce_hex.as_str(),
++    );
++    let mut mac = Hmac::<Sha256>::new_from_slice(auth.key.as_ref())
++        .expect("HMAC accepts any key size");
++    mac.update(canonical.as_bytes());
++    if mac.verify_slice(&signature).is_err() || !auth.consume_nonce(nonce) {
++        return StatusCode::UNAUTHORIZED.into_response();
++    }
++
++    let request_auth = RequestAuthContext {
++        nonce_hex,
++        key: auth.key.clone(),
++    };
++    parts.extensions.insert(request_auth.clone());
++    let request = Request::from_parts(parts, Body::from(body));
++    let response = next.run(request).await;
++    let (mut parts, body) = response.into_parts();
++    let is_sse = parts
++        .headers
++        .get(CONTENT_TYPE)
++        .and_then(|value| value.to_str().ok())
++        .is_some_and(|value| value.starts_with("text/event-stream"));
++
++    // A streaming response cannot be hashed before its first byte is sent. Its
++    // response header authenticates the status with an empty-body digest, while
++    // each SSE event carries its own proof over the event data.
++    let (body, proof_body) = if is_sse {
++        (body, axum::body::Bytes::new())
++    } else {
++        let bytes = match to_bytes(body, MAX_AUTHENTICATED_RESPONSE_BYTES).await {
++            Ok(bytes) => bytes,
++            Err(_) => {
++                let message = "Qwen response exceeded the authenticated response limit";
++                let bytes = axum::body::Bytes::from_static(message.as_bytes());
++                let mut response = Response::new(Body::from(bytes.clone()));
++                *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
++                response.headers_mut().insert(
++                    CONTENT_TYPE,
++                    HeaderValue::from_static("text/plain; charset=utf-8"),
++                );
++                let proof = authenticated_response_proof(
++                    &request_auth,
++                    response.status(),
++                    bytes.as_ref(),
++                );
++                if let Ok(value) = HeaderValue::from_str(&proof) {
++                    response.headers_mut().insert(SESSION_PROOF_HEADER, value);
++                }
++                return response;
++            }
++        };
++        (Body::from(bytes.clone()), bytes)
++    };
++    let proof = authenticated_response_proof(&request_auth, parts.status, proof_body.as_ref());
++    if let Ok(value) = HeaderValue::from_str(&proof) {
++        parts.headers.insert(SESSION_PROOF_HEADER, value);
++    }
++    Response::from_parts(parts, body)
++}
++
+@@ -1327,0 +1545,2 @@ struct OpenAiChatSseState {
++    request_auth: Option<RequestAuthContext>,
++    proof_sequence: u64,
+@@ -1348,0 +1568 @@ impl OpenAiChatSseState {
++        request_auth: Option<RequestAuthContext>,
+@@ -1351,0 +1572,2 @@ impl OpenAiChatSseState {
++            request_auth,
++            proof_sequence: 0,
+@@ -1419,5 +1641,25 @@ async fn close_openai_chat_stream_with_error(state: &mut OpenAiChatSseState, err
+-fn openai_sse_event(item: OpenAiChatSseEmit) -> Event {
+-    match item {
+-        OpenAiChatSseEmit::Json(value) => Event::default().data(value.to_string()),
+-        OpenAiChatSseEmit::Done => Event::default().data("[DONE]"),
+-    }
++fn openai_sse_event(
++    item: OpenAiChatSseEmit,
++    auth: Option<&RequestAuthContext>,
++    sequence: u64,
++) -> Event {
++    let data = match item {
++        OpenAiChatSseEmit::Json(value) => value.to_string(),
++        OpenAiChatSseEmit::Done => "[DONE]".to_string(),
++    };
++    let event = Event::default().data(data.clone());
++    let Some(auth) = auth else {
++        return event;
++    };
++    let data_hash = Sha256::digest(data.as_bytes());
++    let canonical = format!(
++        "lyricforge-qwen-stream-v1\n{}\n{}\n{}",
++        auth.nonce_hex,
++        sequence,
++        encode_hex(&data_hash),
++    );
++    let proof = encode_hex(&hmac_sha256(auth.key.as_ref(), canonical.as_bytes()));
++    event.comment(format!(
++        "lyricforge-qwen-stream-proof-v1 {} {} {proof}",
++        auth.nonce_hex, sequence,
++    ))
+@@ -1432,0 +1675 @@ fn build_openai_chat_stream(
++    request_auth: Option<RequestAuthContext>,
+@@ -1434,2 +1677,9 @@ fn build_openai_chat_stream(
+-    let init =
+-        OpenAiChatSseState::new(app_state, session_id, pushes, completion_id, created, model);
++    let init = OpenAiChatSseState::new(
++        app_state,
++        session_id,
++        pushes,
++        completion_id,
++        created,
++        model,
++        request_auth,
++    );
+@@ -1439 +1689,4 @@ fn build_openai_chat_stream(
+-                return Some((Ok(openai_sse_event(item)), state));
++                let sequence = state.proof_sequence;
++                state.proof_sequence = sequence.saturating_add(1);
++                let event = openai_sse_event(item, state.request_auth.as_ref(), sequence);
++                return Some((Ok(event), state));
+@@ -1538,0 +1792,2 @@ struct OpenAiTranscriptionSseState {
++    request_auth: Option<RequestAuthContext>,
++    proof_sequence: u64,
+@@ -1558,0 +1814 @@ impl OpenAiTranscriptionSseState {
++        request_auth: Option<RequestAuthContext>,
+@@ -1561,0 +1818,2 @@ impl OpenAiTranscriptionSseState {
++            request_auth,
++            proof_sequence: 0,
+@@ -1658,0 +1917 @@ fn build_openai_transcription_stream(
++    request_auth: Option<RequestAuthContext>,
+@@ -1666,0 +1926 @@ fn build_openai_transcription_stream(
++        request_auth,
+@@ -1671 +1931,4 @@ fn build_openai_transcription_stream(
+-                return Some((Ok(openai_sse_event(item)), state));
++                let sequence = state.proof_sequence;
++                state.proof_sequence = sequence.saturating_add(1);
++                let event = openai_sse_event(item, state.request_auth.as_ref(), sequence);
++                return Some((Ok(event), state));
+@@ -2780,0 +3044 @@ async fn openai_chat_completions(
++    auth: Option<Extension<RequestAuthContext>>,
+@@ -2783 +3047,2 @@ async fn openai_chat_completions(
+-    match openai_chat_completions_impl(&state, req).await {
++    let request_auth = auth.map(|Extension(auth)| auth);
++    match openai_chat_completions_impl(&state, req, request_auth).await {
+@@ -2794,0 +3060 @@ async fn openai_chat_completions_impl(
++    request_auth: Option<RequestAuthContext>,
+@@ -2843,0 +3110 @@ async fn openai_chat_completions_impl(
++            request_auth,
+@@ -2882,0 +3150 @@ async fn openai_audio_transcriptions(
++    auth: Option<Extension<RequestAuthContext>>,
+@@ -2885 +3153,7 @@ async fn openai_audio_transcriptions(
+-    match openai_audio_transcriptions_impl(&state, &mut multipart, OpenAiAudioTask::Transcriptions)
++    let request_auth = auth.map(|Extension(auth)| auth);
++    match openai_audio_transcriptions_impl(
++        &state,
++        &mut multipart,
++        OpenAiAudioTask::Transcriptions,
++        request_auth,
++    )
+@@ -2897,0 +3172 @@ async fn openai_audio_translations(
++    auth: Option<Extension<RequestAuthContext>>,
+@@ -2900 +3175,7 @@ async fn openai_audio_translations(
+-    match openai_audio_transcriptions_impl(&state, &mut multipart, OpenAiAudioTask::Translations)
++    let request_auth = auth.map(|Extension(auth)| auth);
++    match openai_audio_transcriptions_impl(
++        &state,
++        &mut multipart,
++        OpenAiAudioTask::Translations,
++        request_auth,
++    )
+@@ -2914,0 +3196 @@ async fn openai_audio_transcriptions_impl(
++    request_auth: Option<RequestAuthContext>,
+@@ -3047,0 +3330 @@ async fn openai_audio_transcriptions_impl(
++            request_auth,
+@@ -3220 +3503,24 @@ fn resolve_ws_session_id(explicit: Option<String>, current: &Option<String>) ->
+-async fn send_ws_json(socket: &mut WebSocket, value: Value) -> bool {
++async fn send_ws_json(
++    socket: &mut WebSocket,
++    mut value: Value,
++    auth: Option<&RequestAuthContext>,
++    proof_sequence: &mut u64,
++) -> bool {
++    if let Some(auth) = auth {
++        let Some(object) = value.as_object_mut() else {
++            return false;
++        };
++        let sequence = *proof_sequence;
++        *proof_sequence = sequence.saturating_add(1);
++        object.insert("session_sequence".to_string(), Value::from(sequence));
++        let signed_data = Value::Object(object.clone()).to_string();
++        let data_hash = Sha256::digest(signed_data.as_bytes());
++        let canonical = format!(
++            "lyricforge-qwen-ws-response-v1\n{}\n{}\n{}",
++            auth.nonce_hex,
++            sequence,
++            encode_hex(&data_hash),
++        );
++        let proof = encode_hex(&hmac_sha256(auth.key.as_ref(), canonical.as_bytes()));
++        object.insert("session_proof".to_string(), Value::String(proof));
++    }
+@@ -3227 +3533,6 @@ async fn send_ws_json(socket: &mut WebSocket, value: Value) -> bool {
+-async fn send_ws_error(socket: &mut WebSocket, err: &ApiError) -> bool {
++async fn send_ws_error(
++    socket: &mut WebSocket,
++    err: &ApiError,
++    auth: Option<&RequestAuthContext>,
++    proof_sequence: &mut u64,
++) -> bool {
+@@ -3234,0 +3546,2 @@ async fn send_ws_error(socket: &mut WebSocket, err: &ApiError) -> bool {
++        auth,
++        proof_sequence,
+@@ -3239 +3552,5 @@ async fn send_ws_error(socket: &mut WebSocket, err: &ApiError) -> bool {
+-async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
++async fn handle_ws_socket(
++    state: AppState,
++    mut socket: WebSocket,
++    request_auth: Option<RequestAuthContext>,
++) {
+@@ -3249,0 +3567 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
++    let mut proof_sequence = 0u64;
+@@ -3273 +3591,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                        if !send_ws_error(&mut socket, &err).await {
++                        if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3308 +3632,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                                if !send_ws_error(&mut socket, &err).await {
++                                if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3325 +3655,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                                if !send_ws_error(&mut socket, &err).await {
++                                if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3342 +3678,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                                if !send_ws_error(&mut socket, &err).await {
++                                if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3379 +3721,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                        if !send_ws_json(&mut socket, value).await {
++                        if !send_ws_json(
++                            &mut socket,
++                            value,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3384 +3732,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                        if !send_ws_error(&mut socket, &err).await {
++                        if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3392 +3746,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-                if !send_ws_error(&mut socket, &err).await {
++                if !send_ws_error(
++                            &mut socket,
++                            &err,
++                            request_auth.as_ref(),
++                            &mut proof_sequence,
++                        )
++                        .await {
+@@ -3416,2 +3776,7 @@ async fn handle_ws_socket(state: AppState, mut socket: WebSocket) {
+-async fn ws_stream(State(state): State<AppState>, ws: WebSocketUpgrade) -> impl IntoResponse {
+-    ws.on_upgrade(move |socket| handle_ws_socket(state, socket))
++async fn ws_stream(
++    State(state): State<AppState>,
++    auth: Option<Extension<RequestAuthContext>>,
++    ws: WebSocketUpgrade,
++) -> impl IntoResponse {
++    let request_auth = auth.map(|Extension(auth)| auth);
++    ws.on_upgrade(move |socket| handle_ws_socket(state, socket, request_auth))
+@@ -3420,0 +3786,6 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
++    let session_auth = if cmd.session_auth_stdin {
++        Some(SessionAuth::new(read_session_auth_key()?))
++    } else {
++        None
++    };
++
+@@ -3501 +3872,4 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
+-        .allow_headers([CONTENT_TYPE]);
++        .allow_headers([
++            CONTENT_TYPE,
++            axum::http::HeaderName::from_static(SESSION_AUTH_HEADER),
++        ]);
+@@ -3532,0 +3907,8 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
++    let app = if let Some(session_auth) = session_auth {
++        app.layer(middleware::from_fn_with_state(
++            session_auth,
++            authenticate_session_request,
++        ))
++    } else {
++        app
++    };
+@@ -3557,0 +3940,6 @@ pub fn run(cmd: ServeCmd, device: &candle_core::Device, opts: &LoadOptions) -> R
++        if cmd.session_auth_stdin {
++            let port = listener.local_addr()?.port();
++            println!("LYRICFORGE_QWEN_READY_V1 {port}");
++            std::io::Write::flush(&mut std::io::stdout())
++                .context("failed to report the Qwen listener port")?;
++        }
+diff --git a/qwen3_asr_cli/src/main.rs b/qwen3_asr_cli/src/main.rs
+index fca557b..ae5445a 100644
+--- a/qwen3_asr_cli/src/main.rs
++++ b/qwen3_asr_cli/src/main.rs
+@@ -137,0 +138 @@ fn main() -> Result<()> {
++            session_auth_stdin,
+@@ -151,0 +153 @@ fn main() -> Result<()> {
++                session_auth_stdin,
+diff --git a/qwen3_asr_cli/tests/serve_integration.rs b/qwen3_asr_cli/tests/serve_integration.rs
+index 92ed06d..0855ba9 100644
+--- a/qwen3_asr_cli/tests/serve_integration.rs
++++ b/qwen3_asr_cli/tests/serve_integration.rs
+@@ -0,0 +1 @@
++use std::io::{BufRead, BufReader, Write};
+@@ -6,0 +8,2 @@ use anyhow::{Context, Result, bail};
++use base64::Engine;
++use hmac::{Hmac, Mac};
+@@ -7,0 +11 @@ use serde_json::Value;
++use sha2::{Digest, Sha256};
+@@ -8,0 +13,4 @@ use tungstenite::Message as WsMessage;
++use tungstenite::client::IntoClientRequest;
++
++static NEXT_AUTH_TEST_NONCE: std::sync::atomic::AtomicU64 =
++    std::sync::atomic::AtomicU64::new(1);
+@@ -270,0 +279,211 @@ fn spawn_mock_server() -> Result<(ChildGuard, String)> {
++fn next_auth_test_nonce() -> String {
++    format!(
++        "{:032x}",
++        NEXT_AUTH_TEST_NONCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
++    )
++}
++
++fn hex_encode(bytes: &[u8]) -> String {
++    const HEX: &[u8; 16] = b"0123456789abcdef";
++    let mut output = String::with_capacity(bytes.len() * 2);
++    for byte in bytes {
++        output.push(HEX[(byte >> 4) as usize] as char);
++        output.push(HEX[(byte & 0x0f) as usize] as char);
++    }
++    output
++}
++
++fn session_request_header(
++    secret: &[u8; 32],
++    method: &str,
++    path: &str,
++    body: &[u8],
++    nonce: &str,
++) -> String {
++    let body_hash = Sha256::digest(body);
++    let canonical = format!(
++        "lyricforge-qwen-request-v1\n{}\n{}\n{}\n{}",
++        method,
++        path,
++        hex_encode(&body_hash),
++        nonce,
++    );
++    let mut mac = Hmac::<Sha256>::new_from_slice(secret).expect("valid HMAC key");
++    mac.update(canonical.as_bytes());
++    format!("{nonce}:{}", hex_encode(&mac.finalize().into_bytes()))
++}
++
++fn expected_session_response_proof(
++    secret: &[u8; 32],
++    nonce: &str,
++    status: u16,
++    body: &[u8],
++) -> String {
++    let body_hash = Sha256::digest(body);
++    let canonical = format!(
++        "lyricforge-qwen-response-v1\n{nonce}\n{status}\n{}",
++        hex_encode(&body_hash),
++    );
++    let mut mac = Hmac::<Sha256>::new_from_slice(secret).expect("valid HMAC key");
++    mac.update(canonical.as_bytes());
++    hex_encode(&mac.finalize().into_bytes())
++}
++
++fn expected_session_stream_proof(
++    secret: &[u8; 32],
++    nonce: &str,
++    sequence: u64,
++    data: &str,
++) -> String {
++    let data_hash = Sha256::digest(data.as_bytes());
++    let canonical = format!(
++        "lyricforge-qwen-stream-v1\n{nonce}\n{sequence}\n{}",
++        hex_encode(&data_hash),
++    );
++    let mut mac = Hmac::<Sha256>::new_from_slice(secret).expect("valid HMAC key");
++    mac.update(canonical.as_bytes());
++    hex_encode(&mac.finalize().into_bytes())
++}
++
++fn expected_session_ws_response_proof(
++    secret: &[u8; 32],
++    nonce: &str,
++    sequence: u64,
++    payload: &Value,
++) -> String {
++    let body_hash = Sha256::digest(payload.to_string().as_bytes());
++    let canonical = format!(
++        "lyricforge-qwen-ws-response-v1\n{nonce}\n{sequence}\n{}",
++        hex_encode(&body_hash),
++    );
++    let mut mac = Hmac::<Sha256>::new_from_slice(secret).expect("valid HMAC key");
++    mac.update(canonical.as_bytes());
++    hex_encode(&mac.finalize().into_bytes())
++}
++
++fn authenticated_get(
++    base_url: &str,
++    path: &str,
++    secret: &[u8; 32],
++    nonce: &str,
++) -> Result<(u16, Value, Option<String>, String)> {
++    let url = format!("{base_url}{path}");
++    let auth = session_request_header(secret, "GET", path, &[], nonce);
++    let response = match ureq::get(url.as_str())
++        .set("x-lyricforge-session-auth", auth.as_str())
++        .call()
++    {
++        Ok(response) => response,
++        Err(ureq::Error::Status(_, response)) => response,
++        Err(err) => bail!("authenticated GET {path} failed: {err}"),
++    };
++    let status = response.status();
++    let proof = response.header("x-lyricforge-session-proof").map(str::to_owned);
++    let response_body = response
++        .into_string()
++        .context("failed reading authenticated GET response body")?;
++    if status != 401 {
++        let expected = expected_session_response_proof(
++            secret,
++            nonce,
++            status,
++            response_body.as_bytes(),
++        );
++        if proof.as_deref() != Some(expected.as_str()) {
++            bail!("authenticated GET {path} response body proof did not match");
++        }
++    }
++    let body = if status == 401 {
++        Value::Null
++    } else {
++        serde_json::from_str(&response_body).context("failed parsing authenticated GET response")?
++    };
++    Ok((status, body, proof, response_body))
++}
++
++fn authenticated_post(
++    base_url: &str,
++    path: &str,
++    secret: &[u8; 32],
++    nonce: &str,
++    payload: &Value,
++) -> Result<(u16, Value, Option<String>, String)> {
++    let url = format!("{base_url}{path}");
++    let body = payload.to_string();
++    let auth = session_request_header(secret, "POST", path, body.as_bytes(), nonce);
++    let response = match ureq::post(url.as_str())
++        .set("content-type", "application/json")
++        .set("x-lyricforge-session-auth", auth.as_str())
++        .send_string(body.as_str())
++    {
++        Ok(response) => response,
++        Err(ureq::Error::Status(_, response)) => response,
++        Err(err) => bail!("authenticated POST {path} failed: {err}"),
++    };
++    let status = response.status();
++    let proof = response.header("x-lyricforge-session-proof").map(str::to_owned);
++    let response_body = response
++        .into_string()
++        .context("failed reading authenticated POST response body")?;
++    if status != 401 {
++        let expected = expected_session_response_proof(
++            secret,
++            nonce,
++            status,
++            response_body.as_bytes(),
++        );
++        if proof.as_deref() != Some(expected.as_str()) {
++            bail!("authenticated POST {path} response body proof did not match");
++        }
++    }
++    let body = if status == 401 {
++        Value::Null
++    } else {
++        serde_json::from_str(&response_body).context("failed parsing authenticated POST response")?
++    };
++    Ok((status, body, proof, response_body))
++}
++
++fn spawn_authenticated_mock_server() -> Result<(ChildGuard, String, [u8; 32])> {
++    let secret = [0x5au8; 32];
++    let bootstrap = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(secret);
++    let mut cmd = Command::new(env!("CARGO_BIN_EXE_qwen3-asr"));
++    cmd.arg("--device")
++        .arg("cpu")
++        .arg("--dtype")
++        .arg("f32")
++        .arg("serve")
++        .arg("--model")
++        .arg("mock-model")
++        .arg("--host")
++        .arg("127.0.0.1")
++        .arg("--port")
++        .arg("0")
++        .arg("--mock")
++        .arg("--session-auth-stdin")
++        .stdin(Stdio::piped())
++        .stdout(Stdio::piped())
++        .stderr(Stdio::null());
++    let mut child = cmd.spawn().context("failed to spawn authenticated mock server")?;
++    let mut stdin = child.stdin.take().context("missing runtime stdin pipe")?;
++    writeln!(stdin, "{bootstrap}")?;
++    drop(stdin);
++
++    let stdout = child.stdout.take().context("missing runtime stdout pipe")?;
++    let mut reader = BufReader::new(stdout);
++    let mut line = String::new();
++    let port = loop {
++        line.clear();
++        if reader.read_line(&mut line)? == 0 {
++            bail!("authenticated mock runtime exited before reporting its bound port");
++        }
++        if let Some(port) = line.trim().strip_prefix("LYRICFORGE_QWEN_READY_V1 ") {
++            break port.parse::<u16>().context("invalid reported runtime port")?;
++        }
++    };
++    if port == 0 {
++        bail!("runtime did not report an operating-system assigned port");
++    }
++    Ok((ChildGuard::new(child), format!("http://127.0.0.1:{port}"), secret))
++}
++
+@@ -487,0 +707,325 @@ fn mock_serve_align_rejects_missing_contract_fields() -> Result<()> {
++#[test]
++fn mock_serve_session_auth_protects_health_transcribe_and_align() -> Result<()> {
++    let (_guard, base_url, secret) = spawn_authenticated_mock_server()?;
++
++    let health_nonce = next_auth_test_nonce();
++    let (status_unsigned, _, unsigned_proof, unsigned_body) = authenticated_get(
++        base_url.as_str(),
++        "/healthz",
++        &secret,
++        &health_nonce,
++    )?;
++    if status_unsigned != 200
++        || unsigned_proof.as_deref()
++            != Some(
++                expected_session_response_proof(
++                    &secret,
++                    &health_nonce,
++                    200,
++                    unsigned_body.as_bytes(),
++                )
++                .as_str(),
++            )
++    {
++        bail!("signed health request was not authenticated: {status_unsigned}");
++    }
++
++    let unsigned_url = format!("{base_url}/healthz");
++    let unsigned = ureq::get(unsigned_url.as_str()).call();
++    match unsigned {
++        Err(ureq::Error::Status(401, _)) => {}
++        Ok(response) => bail!("unsigned /healthz unexpectedly returned {}", response.status()),
++        Err(ureq::Error::Status(status, _)) => bail!("unsigned /healthz returned {status}, expected 401"),
++        Err(error) => bail!("unsigned /healthz request failed: {error}"),
++    }
++    for (path, payload) in [
++        ("/v1/transcribe", serde_json::json!({"audio":"mock-audio-path"})),
++        ("/v1/align", serde_json::json!({"audio":"mock-audio-path","text":"lyrics","language":"English"})),
++    ] {
++        let url = format!("{base_url}{path}");
++        match ureq::post(url.as_str())
++            .set("content-type", "application/json")
++            .send_string(payload.to_string().as_str())
++        {
++            Err(ureq::Error::Status(401, _)) => {}
++            Ok(response) => bail!("unsigned {path} unexpectedly returned {}", response.status()),
++            Err(ureq::Error::Status(status, _)) => bail!("unsigned {path} returned {status}, expected 401"),
++            Err(error) => bail!("unsigned {path} request failed: {error}"),
++        }
++    }
++
++    let transcribe_payload = serde_json::json!({
++        "audio": "mock-audio-path",
++        "context": "private context",
++        "language": "English"
++    });
++    let transcribe_nonce = next_auth_test_nonce();
++    let (status_transcribe, transcribe_body, transcribe_proof, transcribe_raw_body) = authenticated_post(
++        base_url.as_str(),
++        "/v1/transcribe",
++        &secret,
++        &transcribe_nonce,
++        &transcribe_payload,
++    )?;
++    if status_transcribe != 200 {
++        bail!("signed transcribe request was rejected: {status_transcribe} {transcribe_body}");
++    }
++    if transcribe_proof.as_deref()
++        != Some(
++            expected_session_response_proof(
++                &secret,
++                &transcribe_nonce,
++                200,
++                transcribe_raw_body.as_bytes(),
++            )
++            .as_str(),
++        )
++    {
++        bail!("transcribe response proof did not authenticate the Qwen runtime");
++    }
++    if !transcribe_body.to_string().contains("mock-transcribe") {
++        bail!("unexpected signed transcription response: {transcribe_body}");
++    }
++
++    let align_nonce = next_auth_test_nonce();
++    let (status_align, align_body, _, _) = authenticated_post(
++        base_url.as_str(),
++        "/v1/align",
++        &secret,
++        &align_nonce,
++        &serde_json::json!({
++            "audio": "mock-audio-path",
++            "text": "private lyrics",
++            "language": "English"
++        }),
++    )?;
++    if status_align != 400 || !align_body.to_string().contains("unavailable in mock mode") {
++        bail!("signed align request did not pass auth middleware: {status_align} {align_body}");
++    }
++
++    Ok(())
++}
++
++#[test]
++fn mock_serve_session_auth_rejects_tampering_and_replay() -> Result<()> {
++    let (_guard, base_url, secret) = spawn_authenticated_mock_server()?;
++    let nonce = next_auth_test_nonce();
++    let (status_first, _, proof, first_raw_body) = authenticated_get(
++        base_url.as_str(),
++        "/healthz",
++        &secret,
++        &nonce,
++    )?;
++    if status_first != 200 {
++        bail!("first signed health request failed: {status_first}");
++    }
++    let (status_replay, _, replay_proof, _) = authenticated_get(
++        base_url.as_str(),
++        "/healthz",
++        &secret,
++        &nonce,
++    )?;
++    if status_replay != 401 || replay_proof.is_some() {
++        bail!("replayed session nonce was not rejected: {status_replay}");
++    }
++    if proof.as_deref()
++        != Some(
++            expected_session_response_proof(
++                &secret,
++                &nonce,
++                200,
++                first_raw_body.as_bytes(),
++            )
++            .as_str(),
++        )
++    {
++        bail!("valid health response proof was not accepted");
++    }
++
++    let url = format!("{base_url}/v1/transcribe");
++    let original_body = r#"{"audio":"original"}"#;
++    let auth = session_request_header(
++        &secret,
++        "POST",
++        "/v1/transcribe",
++        original_body.as_bytes(),
++        &next_auth_test_nonce(),
++    );
++    let tampered = ureq::post(url.as_str())
++        .set("content-type", "application/json")
++        .set("x-lyricforge-session-auth", auth.as_str())
++        .send_string(r#"{"audio":"tampered"}"#);
++    match tampered {
++        Err(ureq::Error::Status(401, _)) => {}
++        Ok(response) => bail!("tampered signed body unexpectedly returned {}", response.status()),
++        Err(ureq::Error::Status(status, _)) => bail!("tampered body returned {status}, expected 401"),
++        Err(error) => bail!("tampered request failed: {error}"),
++    }
++    Ok(())
++}
++
++#[test]
++fn mock_serve_session_auth_authenticates_websocket_upgrade_and_frames() -> Result<()> {
++    let (_guard, base_url, secret) = spawn_authenticated_mock_server()?;
++    let nonce = next_auth_test_nonce();
++    let url = ws_url(base_url.as_str());
++    let mut request = url.clone().into_client_request()?;
++    let auth = session_request_header(
++        &secret,
++        "GET",
++        "/v1/ws/stream",
++        &[],
++        &nonce,
++    );
++    request
++        .headers_mut()
++        .insert("x-lyricforge-session-auth", auth.parse()?);
++
++    let (mut socket, response) =
++        tungstenite::connect(request).context("authenticated WebSocket connect failed")?;
++    if response.status().as_u16() != 101 {
++        bail!("expected authenticated WebSocket upgrade, got {}", response.status());
++    }
++    let handshake_proof = response
++        .headers()
++        .get("x-lyricforge-session-proof")
++        .and_then(|value| value.to_str().ok());
++    if handshake_proof
++        != Some(
++            expected_session_response_proof(
++                &secret,
++                &nonce,
++                101,
++                &[],
++            )
++            .as_str(),
++        )
++    {
++        bail!("WebSocket upgrade response did not carry a valid proof");
++    }
++
++    for expected_sequence in 0u64..2 {
++        socket.send(WsMessage::Text("{\"type\":\"health\"}".into()))?;
++        let mut frame = ws_read_json(&mut socket)?;
++        let sequence = frame
++            .get("session_sequence")
++            .and_then(Value::as_u64)
++            .ok_or_else(|| anyhow::anyhow!("missing WebSocket response proof sequence"))?;
++        if sequence != expected_sequence {
++            bail!("WebSocket response sequence was {sequence}, expected {expected_sequence}");
++        }
++        let frame_proof = frame
++            .get("session_proof")
++            .and_then(Value::as_str)
++            .ok_or_else(|| anyhow::anyhow!("missing WebSocket response proof"))?
++            .to_string();
++        frame
++            .as_object_mut()
++            .ok_or_else(|| anyhow::anyhow!("WebSocket response was not a JSON object"))?
++            .remove("session_proof");
++        if frame_proof
++            != expected_session_ws_response_proof(&secret, &nonce, sequence, &frame)
++        {
++            bail!("WebSocket response frame proof did not authenticate the payload");
++        }
++    }
++    socket.close(None)?;
++
++    match tungstenite::connect(url.as_str()) {
++        Err(tungstenite::Error::Http(response)) if response.status().as_u16() == 401 => {}
++        Ok((mut socket, _)) => {
++            let _ = socket.close(None);
++            bail!("unsigned WebSocket upgrade unexpectedly succeeded");
++        }
++        Err(error) => bail!("unsigned WebSocket upgrade failed unexpectedly: {error}"),
++    }
++    Ok(())
++}
++
++#[test]
++fn mock_serve_session_auth_signs_openai_sse_events() -> Result<()> {
++    let (_guard, base_url, secret) = spawn_authenticated_mock_server()?;
++    let nonce = next_auth_test_nonce();
++    let payload = serde_json::json!({
++        "model": "mock-model",
++        "stream": true,
++        "messages": [
++            {
++                "role": "user",
++                "content": [
++                    {
++                        "type": "audio_url",
++                        "audio_url": {"url": "mock-audio-input"}
++                    }
++                ]
++            }
++        ]
++    });
++    let body = payload.to_string();
++    let auth = session_request_header(
++        &secret,
++        "POST",
++        "/v1/chat/completions",
++        body.as_bytes(),
++        &nonce,
++    );
++    let url = format!("{base_url}/v1/chat/completions");
++    let response = ureq::post(url.as_str())
++        .set("content-type", "application/json")
++        .set("x-lyricforge-session-auth", auth.as_str())
++        .send_string(body.as_str())
++        .map_err(|error| anyhow::anyhow!("authenticated SSE request failed: {error}"))?;
++    if response.status() != 200 {
++        bail!("expected authenticated SSE status 200, got {}", response.status());
++    }
++    let header_proof = response
++        .header("x-lyricforge-session-proof")
++        .ok_or_else(|| anyhow::anyhow!("missing authenticated SSE response proof"))?;
++    let expected_header = expected_session_response_proof(&secret, &nonce, 200, &[]);
++    if header_proof != expected_header {
++        bail!("authenticated SSE response handshake proof did not match");
++    }
++    let response_body = response
++        .into_string()
++        .context("failed reading authenticated SSE response")?;
++
++    let normalized_body = response_body.replace("\r\n", "\n");
++    let mut verified_events = 0usize;
++    for block in normalized_body.split("\n\n") {
++        let proof = block.lines().find_map(|line| {
++            line.strip_prefix(": lyricforge-qwen-stream-proof-v1 ")
++        });
++        let data = block
++            .lines()
++            .find_map(|line| line.strip_prefix("data: "));
++        let Some(data) = data else {
++            continue;
++        };
++        let comment = proof
++            .ok_or_else(|| anyhow::anyhow!("SSE data event omitted its proof comment"))?;
++        let mut fields = comment.split_whitespace();
++        let proof_nonce = fields.next().unwrap_or_default();
++        let sequence = fields
++            .next()
++            .ok_or_else(|| anyhow::anyhow!("SSE proof omitted its sequence"))?
++            .parse::<u64>()?;
++        let proof = fields
++            .next()
++            .ok_or_else(|| anyhow::anyhow!("SSE proof omitted its HMAC"))?;
++        if fields.next().is_some() {
++            bail!("SSE proof contained unexpected fields");
++        }
++        if proof_nonce != nonce || sequence != verified_events as u64 {
++            bail!("authenticated SSE events were missing, repeated, or reordered");
++        }
++        if proof != expected_session_stream_proof(&secret, &nonce, sequence, data) {
++            bail!("authenticated SSE event proof did not match its data");
++        }
++        verified_events += 1;
++    }
++    if verified_events == 0 {
++        bail!("authenticated SSE stream returned no proof-verified events");
++    }
++    Ok(())
++}
++
