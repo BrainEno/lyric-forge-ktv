@@ -39,12 +39,12 @@ jobs:
         shell: bash
         run: |
           dart tool/work_log.dart write > tool/.tmp_ci_worklog.txt 2>&1 || true
-          dart tool/work_log.dart check >> tool/.tmp_ci_worklog.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_worklog.txt
+          dart tool/work_log.dart check >> tool/.tmp_ci_worklog.txt 2>&1 && echo "exit=0" >> tool/.tmp_ci_worklog.txt || echo "exit=$?" >> tool/.tmp_ci_worklog.txt
 
       - name: Analyze
         shell: bash
         run: |
-          flutter analyze --no-pub --no-fatal-infos lib test tool > tool/.tmp_ci_analyze_full.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_analyze_full.txt
+          flutter analyze --no-pub --no-fatal-infos lib test tool > tool/.tmp_ci_analyze_full.txt 2>&1 && echo "exit=0" >> tool/.tmp_ci_analyze_full.txt || echo "exit=$?" >> tool/.tmp_ci_analyze_full.txt
           { grep -E "error|warning" tool/.tmp_ci_analyze_full.txt || true; grep -E "diagnostics|timed_|settings|main.dart|app_services|quick_play|file_project_repository|ktv_microphone_sheet" tool/.tmp_ci_analyze_full.txt || true; tail -3 tool/.tmp_ci_analyze_full.txt; } > tool/.tmp_ci_analyze.txt
           rm tool/.tmp_ci_analyze_full.txt
 
@@ -56,18 +56,20 @@ jobs:
             test/features/transcription/timed_transcription_service_test.dart \
             test/features/player/timed_ktv_recording_service_test.dart \
             test/features/settings/diagnostics_settings_card_test.dart \
-            test/architecture > tool/.tmp_ci_targeted_full.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_targeted_full.txt
+            test/architecture > tool/.tmp_ci_targeted_full.txt 2>&1 && echo "exit=0" >> tool/.tmp_ci_targeted_full.txt || echo "exit=$?" >> tool/.tmp_ci_targeted_full.txt
           { grep -E "\[E\]|FAILED|Expected|Actual|Which|══|Error|error:|exit=" tool/.tmp_ci_targeted_full.txt | head -300; tail -5 tool/.tmp_ci_targeted_full.txt; } > tool/.tmp_ci_targeted.txt
           rm tool/.tmp_ci_targeted_full.txt
 
       - name: Full tests
+        if: always()
         shell: bash
         run: |
-          flutter test --no-pub --reporter expanded > tool/.tmp_ci_full_raw.txt 2>&1; echo "exit=$?" >> tool/.tmp_ci_full_raw.txt
+          flutter test --no-pub --reporter expanded > tool/.tmp_ci_full_raw.txt 2>&1 && echo "exit=0" >> tool/.tmp_ci_full_raw.txt || echo "exit=$?" >> tool/.tmp_ci_full_raw.txt
           { grep -E "\[E\]|Some tests failed|All tests passed" tool/.tmp_ci_full_raw.txt | head -80; tail -4 tool/.tmp_ci_full_raw.txt; } > tool/.tmp_ci_full.txt
           rm tool/.tmp_ci_full_raw.txt
 
       - name: Commit results
+        if: always()
         shell: bash
         run: |
           git config user.name "tmp-ci"
