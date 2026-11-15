@@ -1,1 +1,1 @@
-test/features/transcription/whisper_decoding_config_fingerprint_test.dart test/transcription_config_test.dart test/tool
+test/tool/asr_quality_report_test.dart

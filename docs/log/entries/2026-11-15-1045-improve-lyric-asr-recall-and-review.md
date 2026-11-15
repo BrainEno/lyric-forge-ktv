@@ -24,7 +24,13 @@
     - CER: 2.8% vs 14.8%. WER: 3.2% vs 18.1%.
     - Secondary-only rows: 6 vs 9; 4 of them true lines in both.
     - Line recall: 100% in both. Secondary retention: 4/4 in both.
-  - Full suite and final analyze results are in the PR body. They come from the last validation run before the temporary workflow was removed.
+  - Run 43669089471 (head 3ef9dd0):
+    - `dart format` was applied to the changed files.
+    - `flutter analyze --no-pub` had no errors or warnings; the 187 infos match the pre-change count.
+    - Targeted tests: 94 passed.
+    - Full `flutter test`: 2150 passed, 1 skipped, 0 failed (the baseline had 2058 passed and 1 skipped).
+    - `dart tool/work_log.dart check` failed only because the handoff lacked its `最后更新` line, which is now added.
+  - The PR's own Flutter Quality Gate result is recorded in the PR body.
 - Notes:
   - Nothing ran on a real model. The whisper.cpp model download in the sandbox returned only an LFS pointer, so the benefit of the prompt is unmeasured. The fixtures are hand-written to exercise segmentation, missed lines, choruses and ad-libs; they measure fusion logic, not recognition accuracy. Real-model numbers must be collected with the Windows steps.
   - Changing the profile invalidates existing chunk checkpoints by design.
