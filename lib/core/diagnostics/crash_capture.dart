@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
@@ -100,8 +99,7 @@ class CrashRecordStore {
       final raw = decoded is Map ? decoded['crashes'] : null;
       if (raw is! List) return const [];
       return [
-        for (final item in raw)
-          if (CrashRecord.tryParse(item) case final record?) record,
+        for (final item in raw) ?CrashRecord.tryParse(item),
       ];
     } on Object {
       // A damaged crash file is not worth another crash.

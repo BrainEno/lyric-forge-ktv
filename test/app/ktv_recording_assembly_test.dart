@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lyric_forge_ktv/app/ktv_recording_assembly.dart';
+import 'package:lyric_forge_ktv/core/diagnostics/operation_timings.dart';
+import 'package:lyric_forge_ktv/features/player/data/services/timed_ktv_recording_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/services/ktv_recording_service.dart';
 import 'package:lyric_forge_ktv/features/player/domain/models/ktv_recording_session.dart';
 import 'package:lyric_forge_ktv/features/transcription/domain/models/transcription_models.dart';
@@ -34,6 +36,23 @@ void main() {
   });
 
   group('app assembly routes shared FFmpeg settings to KTV export', () {
+    test('wraps the service for timing only when timings are given', () async {
+      final timings = OperationTimings();
+      final timed = assembleKtvRecordingService(
+        audioService: UnusedAudioPlayer(),
+        microphoneService: UnusedMicrophone(),
+        settingsStore: settings,
+        processRunner: runner.run,
+        timings: timings,
+      );
+      addTearDown(timed.dispose);
+      expect(timed, isA<TimedKtvRecordingService>());
+      expect(service, isNot(isA<TimedKtvRecordingService>()));
+
+      final source = File('lib/app/app_services.dart').readAsStringSync();
+      expect(source, contains('timings: diagnostics.timings'));
+    });
+
     test(
       'production service registry uses this assembly and shared settings',
       () {

@@ -57,7 +57,10 @@ jobs:
             test/features/player/timed_ktv_recording_service_test.dart \
             test/features/settings/diagnostics_settings_card_test.dart \
             test/architecture > tool/.tmp_ci_targeted_full.txt 2>&1 && echo "exit=0" >> tool/.tmp_ci_targeted_full.txt || echo "exit=$?" >> tool/.tmp_ci_targeted_full.txt
-          { grep -E "\[E\]|FAILED|Expected|Actual|Which|══|Error|error:|exit=" tool/.tmp_ci_targeted_full.txt | head -300; tail -5 tool/.tmp_ci_targeted_full.txt; } > tool/.tmp_ci_targeted.txt
+          { grep -E "\[E\]|exit=" tool/.tmp_ci_targeted_full.txt | head -100; tail -5 tool/.tmp_ci_targeted_full.txt; } > tool/.tmp_ci_targeted.txt
+          flutter test --no-pub test/features/settings/diagnostics_settings_card_test.dart test/app/ktv_recording_assembly_test.dart > tool/.tmp_ci_card_full.txt 2>&1 || true
+          head -c 40000 tool/.tmp_ci_card_full.txt > tool/.tmp_ci_card.txt
+          rm tool/.tmp_ci_card_full.txt
           rm tool/.tmp_ci_targeted_full.txt
 
       - name: Full tests

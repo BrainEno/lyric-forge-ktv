@@ -21,7 +21,6 @@ import '../features/player/data/services/file_ktv_microphone_preference_store.da
 import '../features/player/data/services/file_ktv_take_history_store.dart';
 import '../features/player/data/services/file_local_media_relink_service.dart';
 import '../features/player/data/services/record_soloud_ktv_microphone_service.dart';
-import '../features/player/data/services/timed_ktv_recording_service.dart';
 import '../features/player/data/services/just_audio_player_service.dart';
 import '../features/player/data/services/library_metadata_playback_session_service.dart';
 import '../features/player/data/services/local_audio_library_import_service.dart';
@@ -328,14 +327,11 @@ class AppServices {
     final transcriptionSettings = FileTranscriptionSettingsStore();
     transcriptionSettingsStore = transcriptionSettings;
     transcriptionDownloadProxyStore = transcriptionSettings;
-    ktvRecordingService = TimedKtvRecordingService(
-      delegate: assembleKtvRecordingService(
-        audioService: audioPlayerService,
-        microphoneService: ktvMicrophoneService,
-        settingsStore: transcriptionSettingsStore,
-      ),
+    ktvRecordingService = assembleKtvRecordingService(
+      audioService: audioPlayerService,
+      microphoneService: ktvMicrophoneService,
+      settingsStore: transcriptionSettingsStore,
       timings: diagnostics.timings,
-      microphone: ktvMicrophoneService,
     );
     ktvTakeHistoryStore = const FileKtvTakeHistoryStore();
     asrResourceCoordinator = AsrResourceCoordinator();
