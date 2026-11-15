@@ -1,0 +1,52 @@
+{
+  "lines": [
+    {
+      "text": "风吹过旧街的路灯",
+      "startMs": 1000,
+      "endMs": 4500,
+      "confidence": 85
+    },
+    {
+      "text": "你说过要",
+      "startMs": 5000,
+      "endMs": 6500,
+      "confidence": 85
+    },
+    {
+      "text": "等我回来雨落在窗前",
+      "startMs": 6500,
+      "endMs": 10500,
+      "confidence": 85
+    },
+    {
+      "text": "不停",
+      "startMs": 10500,
+      "endMs": 12500,
+      "confidence": 85
+    },
+    {
+      "text": "我把思念写成信",
+      "startMs": 13000,
+      "endMs": 16500,
+      "confidence": 85
+    },
+    {
+      "text": "天亮以前我们再唱一遍",
+      "startMs": 17000,
+      "endMs": 20500,
+      "confidence": 85
+    },
+    {
+      "text": "唱给远方的你听",
+      "startMs": 21000,
+      "endMs": 24500,
+      "confidence": 85
+    },
+    {
+      "text": "唱给远方的你听",
+      "startMs": 25000,
+      "endMs": 28500,
+      "confidence": 85
+    }
+  ]
+}

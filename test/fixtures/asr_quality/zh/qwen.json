@@ -1,0 +1,34 @@
+{
+  "lines": [
+    {
+      "text": "风吹过旧街的路灯",
+      "startMs": 1000,
+      "endMs": 4500,
+      "confidence": 90
+    },
+    {
+      "text": "你说过要等我回来",
+      "startMs": 5000,
+      "endMs": 8500,
+      "confidence": 90
+    },
+    {
+      "text": "雨落在窗前不停",
+      "startMs": 9000,
+      "endMs": 12500,
+      "confidence": 90
+    },
+    {
+      "text": "我把思念写成信",
+      "startMs": 13000,
+      "endMs": 16500,
+      "confidence": 90
+    },
+    {
+      "text": "唱给远方的你听",
+      "startMs": 21000,
+      "endMs": 24500,
+      "confidence": 90
+    }
+  ]
+}

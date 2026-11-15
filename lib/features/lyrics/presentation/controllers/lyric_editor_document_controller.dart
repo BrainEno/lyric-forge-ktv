@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_edit_history.dart';
+import '../../domain/services/lyric_indexed_review_metadata.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
@@ -247,6 +248,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
         : const Duration(seconds: 5);
 
     _recordEdit('添加歌词行');
+    final insertedIndex = lines.length;
     lines.add(
       LyricLine(
         text: '',
@@ -257,7 +259,10 @@ class LyricEditorDocumentController extends ChangeNotifier {
     _document = markerService.assignMissingLineIds(
       current.copyWith(
         lines: lines,
-        metadata: clearIndexedReviewMetadata(current.metadata),
+        metadata: LyricIndexedReviewMetadata.afterRowInserted(
+          current.metadata,
+          insertedIndex,
+        ),
       ),
     );
     _selectedLineIndex = lines.length - 1;
@@ -281,7 +286,10 @@ class LyricEditorDocumentController extends ChangeNotifier {
     _document = markerService.assignMissingLineIds(
       current.copyWith(
         lines: lines,
-        metadata: clearIndexedReviewMetadata(current.metadata),
+        metadata: LyricIndexedReviewMetadata.afterRowInserted(
+          current.metadata,
+          insertion.index,
+        ),
       ),
     );
     _selectedLineIndex = insertion.index;
@@ -338,7 +346,12 @@ class LyricEditorDocumentController extends ChangeNotifier {
     final lines = List<LyricLine>.from(document.lines)..removeAt(index);
     _document = document.copyWith(
       lines: lines,
-      metadata: clearIndexedReviewMetadata(document.metadata),
+      // Shift, rather than drop, the other rows' engine candidates: rejecting
+      // one suggested row must not erase every remaining disagreement.
+      metadata: LyricIndexedReviewMetadata.afterRowRemoved(
+        document.metadata,
+        index,
+      ),
     );
     if (removedLine.id != null) {
       _manuallyEditedLineIds.remove(removedLine.id);
@@ -468,16 +481,11 @@ class LyricEditorDocumentController extends ChangeNotifier {
 
   /// Drops `fallbackCandidates` and its counts.
   ///
-  /// Those metadata entries are indexed by row, so inserting or deleting a row
-  /// would silently attach a candidate to the wrong line.
+  /// Row edits now shift those entries with [LyricIndexedReviewMetadata]; this
+  /// remains for callers that replace rows wholesale and cannot map indices.
   static Map<String, dynamic> clearIndexedReviewMetadata(
     Map<String, dynamic> metadata,
-  ) {
-    return Map<String, dynamic>.from(metadata)
-      ..remove('fallbackCandidates')
-      ..remove('fallbackCandidateCount')
-      ..remove('fallbackAppliedCount');
-  }
+  ) => LyricIndexedReviewMetadata.clear(metadata);
 
   void _restoreHistoryEntry(LyricEditSnapshot snapshot) {
     _documentRevision++;

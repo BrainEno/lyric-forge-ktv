@@ -1,0 +1,52 @@
+{
+  "lines": [
+    {
+      "text": "夜明けの駅で君を待つ",
+      "startMs": 1000,
+      "endMs": 4500,
+      "confidence": 85
+    },
+    {
+      "text": "小さな声で",
+      "startMs": 5000,
+      "endMs": 6500,
+      "confidence": 85
+    },
+    {
+      "text": "名前を呼んだ遠い空",
+      "startMs": 6500,
+      "endMs": 10500,
+      "confidence": 85
+    },
+    {
+      "text": "に光が見える",
+      "startMs": 10500,
+      "endMs": 12500,
+      "confidence": 85
+    },
+    {
+      "text": "忘れないでこの歌を",
+      "startMs": 13000,
+      "endMs": 16500,
+      "confidence": 85
+    },
+    {
+      "text": "君へ届けこの歌声",
+      "startMs": 17000,
+      "endMs": 20500,
+      "confidence": 85
+    },
+    {
+      "text": "ああ",
+      "startMs": 19800,
+      "endMs": 20300,
+      "confidence": 85
+    },
+    {
+      "text": "君へ届けこの歌声",
+      "startMs": 21000,
+      "endMs": 24500,
+      "confidence": 85
+    }
+  ]
+}

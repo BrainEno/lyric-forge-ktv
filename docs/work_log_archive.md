@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-09 13:46] Retry failed project store loads ([entry](log/entries/2026-11-09-1346-retry-project-store-load.md))
 - [2026-11-09 13:31] Retry failed play history loads ([entry](log/entries/2026-11-09-1331-retry-play-history-load.md))
 - [2026-11-09 12:19] Show dashboard history read failures ([entry](log/entries/2026-11-09-1219-dashboard-history-errors.md))
 - [2026-11-09 11:54] Clarify project separation status ([entry](log/entries/2026-11-09-1154-clarify-project-separation-status.md))

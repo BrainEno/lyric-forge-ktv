@@ -6,6 +6,7 @@ import '../../../../core/theme/spacing_tokens.dart';
 import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
+import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/character_diff_service.dart';
 import 'lyric_editor_atoms.dart';
 
@@ -18,6 +19,7 @@ class InspectorPane extends StatelessWidget {
   final LyricDocument document;
   final int? selectedIndex;
   final Map<String, dynamic>? fallbackCandidate;
+  final SecondaryOnlySuggestion? secondarySuggestion;
   final bool isReviewed;
   final ValueChanged<bool>? onReviewDecision;
   final PlaybackState playback;
@@ -35,6 +37,7 @@ class InspectorPane extends StatelessWidget {
     required this.document,
     required this.selectedIndex,
     required this.fallbackCandidate,
+    this.secondarySuggestion,
     required this.isReviewed,
     required this.onReviewDecision,
     required this.playback,
@@ -62,6 +65,7 @@ class InspectorPane extends StatelessWidget {
       index: index,
       line: line,
       fallbackCandidate: fallbackCandidate,
+      secondarySuggestion: secondarySuggestion,
       isReviewed: isReviewed,
       onReviewDecision: onReviewDecision,
       isCurrentPlaybackLine:
@@ -85,6 +89,9 @@ class LineInspector extends StatefulWidget {
   final int index;
   final LyricLine line;
   final Map<String, dynamic>? fallbackCandidate;
+
+  /// Set when only the secondary engine heard this row ("建议补入").
+  final SecondaryOnlySuggestion? secondarySuggestion;
   final bool isReviewed;
   final ValueChanged<bool>? onReviewDecision;
   final bool isCurrentPlaybackLine;
@@ -101,6 +108,7 @@ class LineInspector extends StatefulWidget {
     required this.index,
     required this.line,
     required this.fallbackCandidate,
+    this.secondarySuggestion,
     required this.isReviewed,
     required this.onReviewDecision,
     required this.isCurrentPlaybackLine,
@@ -315,10 +323,28 @@ class _LineInspectorState extends State<LineInspector> {
                 const LyricTinyBadge(label: '副歌', accent: true),
               if (widget.fallbackCandidate != null)
                 const LyricTinyBadge(label: '双引擎复核'),
+              if (widget.secondarySuggestion != null && !widget.isReviewed)
+                const LyricTinyBadge(label: '建议补入', warning: true),
             ],
           ),
+          if (widget.secondarySuggestion != null && !widget.isReviewed) ...[
+            const SizedBox(height: AppSpacing.md),
+            SecondarySuggestionCard(
+              suggestion: widget.secondarySuggestion!,
+              onPreview: widget.onPreview,
+              onKeep:
+                  widget.onReviewDecision == null ||
+                      widget.line.id?.isNotEmpty != true
+                  ? null
+                  : () => widget.onReviewDecision!(true),
+              onReject: widget.onDelete,
+            ),
+          ],
+          // A pending suggestion has its own keep/reject card below; one
+          // decision button per row keeps the hierarchy calm.
           if (widget.onReviewDecision != null &&
-              widget.line.id?.isNotEmpty == true) ...[
+              widget.line.id?.isNotEmpty == true &&
+              !(widget.secondarySuggestion != null && !widget.isReviewed)) ...[
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -677,6 +703,102 @@ class NoSelectionInspector extends StatelessWidget {
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Explains a row only the secondary engine heard and offers the three
+/// decisions: listen, keep it (records a review decision, text unchanged), or
+/// reject it (deletes the row through the normal, undoable delete). Nothing is
+/// saved automatically; both decisions only change the editor draft.
+class SecondarySuggestionCard extends StatelessWidget {
+  final SecondaryOnlySuggestion suggestion;
+  final VoidCallback onPreview;
+  final VoidCallback? onKeep;
+  final VoidCallback onReject;
+
+  const SecondarySuggestionCard({
+    super.key,
+    required this.suggestion,
+    required this.onPreview,
+    required this.onKeep,
+    required this.onReject,
+  });
+
+  static String engineLabel(String? engine) {
+    final lower = engine?.toLowerCase() ?? '';
+    if (lower.contains('whisper')) return 'Whisper';
+    if (lower.contains('qwen')) return 'Qwen';
+    return '备用引擎';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final minHeight = AppResponsive.of(context).minimumInteractiveExtent;
+    final theme = Theme.of(context);
+    final engine = engineLabel(suggestion.engine);
+    return Container(
+      key: const ValueKey('secondary_suggestion_card'),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withAlpha(16),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: Border.all(color: AppColors.warning.withAlpha(70)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '建议补入 · 仅 $engine 识别到',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: AppColors.warning,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '主引擎在这段时间没有对应歌词。这一行已按时间插入草稿，但尚未确认：'
+            '可能是漏识别的歌词，也可能是和声、口白或误识别。请先试听再决定。',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              TextButton.icon(
+                onPressed: onPreview,
+                style: TextButton.styleFrom(minimumSize: Size(0, minHeight)),
+                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                label: const Text('试听这一行'),
+              ),
+              FilledButton.tonal(
+                key: const ValueKey('secondary_suggestion_keep'),
+                onPressed: onKeep,
+                style: FilledButton.styleFrom(minimumSize: Size(0, minHeight)),
+                child: const Text('保留并标记已复核'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('secondary_suggestion_reject'),
+                onPressed: onReject,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  minimumSize: Size(0, minHeight),
+                ),
+                child: const Text('不补入，删除这一行'),
+              ),
+            ],
+          ),
+          Text(
+            '两种决定都只修改未保存的草稿，可用撤销恢复。',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
       ),

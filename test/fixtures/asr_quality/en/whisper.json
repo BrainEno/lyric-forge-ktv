@@ -1,0 +1,64 @@
+{
+  "lines": [
+    {
+      "text": "Harbor lights are fading slow",
+      "startMs": 1000,
+      "endMs": 4500,
+      "confidence": 85
+    },
+    {
+      "text": "I keep your letters",
+      "startMs": 5000,
+      "endMs": 7000,
+      "confidence": 85
+    },
+    {
+      "text": "in my coat every wave",
+      "startMs": 7000,
+      "endMs": 10500,
+      "confidence": 85
+    },
+    {
+      "text": "a word you wrote",
+      "startMs": 10500,
+      "endMs": 12500,
+      "confidence": 85
+    },
+    {
+      "text": "Carry me where rivers go",
+      "startMs": 13000,
+      "endMs": 16500,
+      "confidence": 85
+    },
+    {
+      "text": "Morning finds the empty pier",
+      "startMs": 17000,
+      "endMs": 20500,
+      "confidence": 85
+    },
+    {
+      "text": "Sing it back, sing it back",
+      "startMs": 21000,
+      "endMs": 24500,
+      "confidence": 85
+    },
+    {
+      "text": "oh oh oh",
+      "startMs": 24550,
+      "endMs": 24950,
+      "confidence": 85
+    },
+    {
+      "text": "Hold the night until it's clear",
+      "startMs": 25000,
+      "endMs": 28500,
+      "confidence": 85
+    },
+    {
+      "text": "Sing it back, sing it back",
+      "startMs": 29000,
+      "endMs": 32500,
+      "confidence": 85
+    }
+  ]
+}

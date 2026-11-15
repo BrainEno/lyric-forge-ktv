@@ -120,3 +120,22 @@
 - 影响：先复用现有服务/状态，不为同一实体再创建平行事实源；选择其他方案需说明生命周期、所有权、错误与取消行为并补相应测试。依赖在 `lib/app/` 组合根创建并注入 screen/use case；feature 不反向引用 app shell 或 service locator。跨 feature 通过稳定 domain 契约协作，现存依赖环和跨 feature presentation 引用需逐步收敛，不能因为存在基线而继续扩大。assembly、分层与依赖图契约是静态保护，不替代实际行为测试。
 - 状态：生效
 - 来源：[Phase 4.4 状态管理](log/entries/2026-11-03-2113-phase44-state-management-final.md)；issue #235。
+
+## D-014 Whisper 只接收工程元数据提示；仅副引擎行只作为待复核候选
+
+- 日期：2026-11-14
+- 背景：#448 之前 Whisper 拿不到任何歌曲上下文，只有 Qwen 用到了 `request.context`。双引擎融合会把 Whisper 的不同断句当成新行插入，也可能让只有 Whisper 识别到的真歌词在界面上不可见。另一方面，给模型喂参考歌词、编造置信度，或者自动合并不确定的行，都会污染第二引擎的证据。
+- 决定：
+  - 新增纯 Dart 的 `WhisperDecodingPolicy`。只有运行时 `-h` 实际列出的参数才会使用，目前是 `--prompt` 和 `--suppress-nst`。提示词只来自 `RecognitionHints`（歌名、歌手、专辑、用户专有名词）；这个类型没有歌词字段。提示词按语言生成、清洗，并限制在 200 UTF-8 字节以内。运行时不支持时回退到标准参数，并记录回退原因。
+  - 解码 profile、提示和能力签名都进入 chunk 断点指纹。
+  - 融合时，只有满足以下全部条件的副引擎行才算断句差异，计数但不插入：时间重叠、相邻主引擎行连续、文字被这些主行拼接后的文本包含。
+  - 其余仅副引擎行作为「建议补入」插入，并在 `secondaryOnlySuggestions` 中精确记录；不丢弃，也不合并进主引擎行。
+  - 编辑器里，「保留」只写复核决定，「拒绝」是可撤销的删行。两者都只改未保存的文档，不自动保存。
+  - 识别摘要卡只显示计数；缺数据时显示「不可用 / 未采集」，不显示百分比。
+- 影响：
+  - 旧的 whisper.cpp 运行时照常工作（使用标准参数）。
+  - 切换 profile 会让旧的 chunk 断点失效。
+  - 质量工具新增 WER、`secondaryOnlyPrecision` 和 `secondaryRetention`；retention 低于 1.0 视为融合退化。
+  - 真实模型上的收益尚未验证，需要按 Windows 手工步骤采集。
+- 状态：生效
+- 来源：issue #448；[2026-11-15 10:45 条目](log/entries/2026-11-15-1045-improve-lyric-asr-recall-and-review.md)

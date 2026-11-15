@@ -1,15 +1,35 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/transcription_models.dart';
+import '../../domain/models/whisper_decoding_policy.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_process_supervisor.dart';
 import 'whisper_json_transcript_parser.dart';
 
+/// Metadata key holding the decoding profile a Whisper run actually used.
+const String kWhisperDecodingMetadataKey = 'whisperDecoding';
+
 class WhisperCppTranscriptionService implements TranscriptionService {
-  WhisperCppTranscriptionService({AsrProcessSupervisor? processSupervisor})
-    : _processSupervisor = processSupervisor ?? AsrProcessSupervisor();
+  WhisperCppTranscriptionService({
+    AsrProcessSupervisor? processSupervisor,
+    bool? isWindows,
+    WhisperDecodingPolicy decodingPolicy = const WhisperDecodingPolicy(),
+  }) : _processSupervisor = processSupervisor ?? AsrProcessSupervisor(),
+       _isWindows = isWindows ?? Platform.isWindows,
+       _decodingPolicy = decodingPolicy;
+
+  final bool _isWindows;
+  final WhisperDecodingPolicy _decodingPolicy;
+
+  /// Help-text probes are cached per binary identity (path, size, mtime), so a
+  /// replaced runtime is probed again while a batch probes each binary once.
+  static final Map<String, WhisperRuntimeCapabilities> _capabilityCache = {};
+
+  /// Test hook: forget every cached help-text probe.
+  static void clearCapabilityCache() => _capabilityCache.clear();
 
   final StreamController<TranscriptionProgress> _progressController =
       StreamController<TranscriptionProgress>.broadcast();
@@ -61,11 +81,15 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       }
       _throwIfCancelled();
 
+      final plan = await _planDecoding(request);
+      _throwIfCancelled();
+
       _emit(TranscriptionStage.transcribing, 0.20, 'Whisper 正在识别歌词');
-      await _runWhisper(
+      final outcome = await _runWhisperWithFallback(
         config: request.config,
         inputPath: normalizedPath,
         outputBase: outputBase,
+        plan: plan,
       );
       _throwIfCancelled();
 
@@ -73,6 +97,7 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       final result = await _parseResult(
         rawJsonPath: rawJsonPath,
         normalizedAudioPath: normalizedPath,
+        outcome: outcome,
       );
 
       _emit(TranscriptionStage.completed, 1.0, '歌词草稿已生成');
@@ -185,35 +210,251 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     }
   }
 
+  /// Decides which decoding flags this run uses. Probing never fails the run:
+  /// an unreadable help text means "unknown", which yields the standard
+  /// command line every runtime has always accepted.
+  Future<WhisperDecodingPlan> _planDecoding(
+    TranscriptionRequest request,
+  ) async {
+    final profile = request.config.whisperDecodingProfile;
+    if (profile == WhisperDecodingProfile.standard) {
+      return WhisperDecodingPlan.standard();
+    }
+    final capabilities = await _probeCapabilities(
+      request.config.whisperExecutable,
+    );
+    return _decodingPolicy.plan(
+      profile: profile,
+      hints: request.recognitionHints,
+      language: request.config.language,
+      capabilities: capabilities,
+    );
+  }
+
+  Future<WhisperRuntimeCapabilities> _probeCapabilities(
+    String executable,
+  ) async {
+    final value = executable.trim();
+    var key = value;
+    try {
+      final file = File(value);
+      if (await file.exists()) {
+        final stat = await file.stat();
+        key = '$value|${stat.size}|${stat.modified.microsecondsSinceEpoch}';
+      }
+    } on FileSystemException {
+      // Fall back to the bare path as the cache key.
+    }
+    final cached = _capabilityCache[key];
+    if (cached != null) return cached;
+
+    WhisperRuntimeCapabilities capabilities;
+    try {
+      final result = await _processSupervisor.run(
+        value,
+        const ['-h'],
+        timeout: AsrProcessTimeoutPolicy.executableProbe,
+        operation: 'whisper-cli 能力探测',
+        // The usage text is ~90 lines on stderr; keep all of it.
+        maxOutputLines: 400,
+      );
+      capabilities = WhisperRuntimeCapabilities.fromHelpText(
+        [...result.stdoutTail, ...result.stderrTail].join('\n'),
+      );
+    } on ProcessException {
+      capabilities = WhisperRuntimeCapabilities.unknown;
+    } on AsrProcessTimeoutException {
+      capabilities = WhisperRuntimeCapabilities.unknown;
+    }
+    _throwIfCancelled();
+    _capabilityCache[key] = capabilities;
+    return capabilities;
+  }
+
+  /// Runs the planned profile and, if the runtime rejects its flags, retries
+  /// once with the standard command line. The retry is recorded, never silent.
+  Future<_WhisperRunOutcome> _runWhisperWithFallback({
+    required TranscriptionConfig config,
+    required String inputPath,
+    required String outputBase,
+    required WhisperDecodingPlan plan,
+  }) async {
+    var effectivePlan = plan;
+    String? transportNote;
+    final transport = _chooseTransport(
+      config: config,
+      inputPath: inputPath,
+      outputBase: outputBase,
+      plan: plan,
+    );
+    if (transport.plan != null) {
+      effectivePlan = transport.plan!;
+      transportNote = transport.note;
+    }
+
+    if (effectivePlan.isStandard) {
+      await _runWhisper(
+        config: config,
+        inputPath: inputPath,
+        outputBase: outputBase,
+        plan: effectivePlan,
+        useResponseFile: false,
+      );
+      return _WhisperRunOutcome(
+        plan: effectivePlan,
+        fallbackReason: transportNote,
+      );
+    }
+
+    try {
+      await _runWhisper(
+        config: config,
+        inputPath: inputPath,
+        outputBase: outputBase,
+        plan: effectivePlan,
+        useResponseFile: transport.useResponseFile,
+      );
+      return _WhisperRunOutcome(
+        plan: effectivePlan,
+        fallbackReason: transportNote,
+        promptTransport: transport.useResponseFile ? 'response-file' : 'argv',
+      );
+    } on _UnsupportedWhisperArgumentsException catch (error) {
+      _throwIfCancelled();
+      _emit(
+        TranscriptionStage.transcribing,
+        0.20,
+        'Whisper 运行时不支持歌词参数，改用标准参数重试',
+      );
+      final standard = WhisperDecodingPlan.standard(
+        requested: plan.requestedProfile,
+        omittedFlags: [
+          ...plan.omittedFlags,
+          for (final argument in effectivePlan.extraArguments)
+            if (argument.startsWith('-')) argument,
+        ],
+      );
+      await _runWhisper(
+        config: config,
+        inputPath: inputPath,
+        outputBase: outputBase,
+        plan: standard,
+        useResponseFile: false,
+      );
+      return _WhisperRunOutcome(
+        plan: standard,
+        fallbackReason: 'runtime_rejected_arguments: ${error.detail}',
+      );
+    }
+  }
+
+  /// whisper-cli on Windows receives argv in the system ANSI code page (see
+  /// `SetConsoleOutputCP` in cli.cpp), so a CJK prompt passed on the command
+  /// line arrives as '?' or mojibake. Its `@file` response-file form reads
+  /// each line as raw bytes instead, which keeps UTF-8 intact — but then file
+  /// paths are raw bytes too, so it is only used when every path is ASCII.
+  /// Otherwise the prompt is dropped and the reason recorded.
+  _WhisperTransport _chooseTransport({
+    required TranscriptionConfig config,
+    required String inputPath,
+    required String outputBase,
+    required WhisperDecodingPlan plan,
+  }) {
+    final prompt = plan.prompt;
+    if (!_isWindows || prompt == null || _isAscii(prompt)) {
+      return const _WhisperTransport(useResponseFile: false);
+    }
+    final paths = [config.modelPath, inputPath, outputBase];
+    final pathsAreSafe = paths.every(
+      (path) => _isAscii(path) && !path.contains('\n') && !path.contains('\r'),
+    );
+    if (pathsAreSafe) {
+      return const _WhisperTransport(useResponseFile: true);
+    }
+    final withoutPrompt = <String>[];
+    for (var index = 0; index < plan.extraArguments.length; index++) {
+      final argument = plan.extraArguments[index];
+      if (argument == WhisperRuntimeCapabilities.promptFlag) {
+        index++;
+        continue;
+      }
+      withoutPrompt.add(argument);
+    }
+    return _WhisperTransport(
+      useResponseFile: false,
+      note: 'windows_non_ascii_paths_prompt_omitted',
+      plan: withoutPrompt.isEmpty
+          ? WhisperDecodingPlan.standard(
+              requested: plan.requestedProfile,
+              omittedFlags: [
+                ...plan.omittedFlags,
+                WhisperRuntimeCapabilities.promptFlag,
+              ],
+            )
+          : WhisperDecodingPlan(
+              requestedProfile: plan.requestedProfile,
+              effectiveProfile: plan.effectiveProfile,
+              extraArguments: List.unmodifiable(withoutPrompt),
+              prompt: null,
+              promptSources: const <String>[],
+              omittedFlags: List.unmodifiable([
+                ...plan.omittedFlags,
+                WhisperRuntimeCapabilities.promptFlag,
+              ]),
+            ),
+    );
+  }
+
+  static bool _isAscii(String value) =>
+      value.runes.every((rune) => rune < 0x80);
+
   Future<void> _runWhisper({
     required TranscriptionConfig config,
     required String inputPath,
     required String outputBase,
+    required WhisperDecodingPlan plan,
+    required bool useResponseFile,
   }) async {
     final jsonFile = File('$outputBase.json');
     if (await jsonFile.exists()) await jsonFile.delete();
 
+    final arguments = <String>[
+      '-m',
+      config.modelPath,
+      '-f',
+      inputPath,
+      '-l',
+      config.language,
+      '-ojf',
+      '-of',
+      outputBase,
+      '-pp',
+      ...plan.extraArguments,
+    ];
+    File? responseFile;
+    if (useResponseFile) {
+      responseFile = File('$outputBase.args.rsp');
+      // One argument per line, UTF-8 without BOM, '\n' endings: cli.cpp reads
+      // it with std::getline and uses each line verbatim.
+      await responseFile.writeAsString('${arguments.join('\n')}\n');
+    }
+
     var succeeded = false;
+    var sawUnknownArgument = false;
+    String? unknownArgumentLine;
     try {
       final result = await _runProcess(
         config.whisperExecutable,
-        [
-          '-m',
-          config.modelPath,
-          '-f',
-          inputPath,
-          '-l',
-          config.language,
-          '-ojf',
-          '-of',
-          outputBase,
-          '-pp',
-        ],
+        responseFile == null ? arguments : ['@${responseFile.path}'],
         operation: 'whisper.cpp 歌词识别',
         timeout: await AsrProcessTimeoutPolicy.whisperInferenceForPcmWav(
           inputPath,
         ),
         onStderrLine: (line) {
+          if (WhisperRuntimeCapabilities.isUnknownArgumentLine(line)) {
+            sawUnknownArgument = true;
+            unknownArgumentLine ??= line.trim();
+          }
           final match = RegExp(
             r'progress\s*=\s*(\d+)%',
             caseSensitive: false,
@@ -230,6 +471,21 @@ class WhisperCppTranscriptionService implements TranscriptionService {
         },
       );
 
+      // An unknown flag prints usage and exits 0 without writing JSON, so the
+      // stderr line, not the exit code, is the signal.
+      if (sawUnknownArgument && !plan.isStandard) {
+        throw _UnsupportedWhisperArgumentsException(
+          unknownArgumentLine ?? 'unknown argument',
+        );
+      }
+      // A runtime without response-file support treats '@…' as an input file
+      // and fails or produces nothing; retry with the plain standard line.
+      if (responseFile != null &&
+          (result.exitCode != 0 || !await jsonFile.exists())) {
+        throw const _UnsupportedWhisperArgumentsException(
+          'response file not honoured',
+        );
+      }
       if (result.exitCode != 0) {
         throw TranscriptionException.environment(
           'whisper.cpp 识别进程失败',
@@ -243,6 +499,13 @@ class WhisperCppTranscriptionService implements TranscriptionService {
       }
       succeeded = true;
     } finally {
+      if (responseFile != null) {
+        try {
+          if (await responseFile.exists()) await responseFile.delete();
+        } on FileSystemException {
+          // A leftover argument file is harmless; keep the real outcome.
+        }
+      }
       if (!succeeded && await jsonFile.exists()) {
         try {
           await jsonFile.delete();
@@ -256,19 +519,67 @@ class WhisperCppTranscriptionService implements TranscriptionService {
   Future<TranscriptionResult> _parseResult({
     required String rawJsonPath,
     required String normalizedAudioPath,
+    required _WhisperRunOutcome outcome,
   }) async {
     final source = await File(rawJsonPath).readAsString();
     final parsed = const WhisperJsonTranscriptParser().parse(
       source,
       rawJsonPath: rawJsonPath,
     );
+    final echo = removePromptEchoes(parsed.document.lines, outcome.plan.prompt);
+    if (echo.lines.isEmpty) {
+      // Every row was the prompt repeated back: nothing was recognised.
+      throw const TranscriptionException.input('Whisper 没有识别到可用歌词片段');
+    }
     return TranscriptionResult(
-      lyrics: parsed.document,
+      lyrics: parsed.document.copyWith(
+        lines: echo.lines,
+        metadata: {
+          ...parsed.document.metadata,
+          if (echo.removedCount > 0) 'segmentCount': echo.lines.length,
+          kWhisperDecodingMetadataKey: {
+            ...outcome.plan.toMetadata(fallbackReason: outcome.fallbackReason),
+            'promptTransport': ?outcome.promptTransport,
+            if (echo.removedCount > 0)
+              'promptEchoRemovedCount': echo.removedCount,
+          },
+        },
+      ),
       normalizedAudioPath: normalizedAudioPath,
       rawJsonPath: rawJsonPath,
       detectedLanguage: parsed.detectedLanguage,
     );
   }
+
+  /// Whisper occasionally reproduces its prompt verbatim over a silent intro.
+  /// Only a row that repeats the *entire* prompt is removed: the prompt is
+  /// built from metadata templates, so a whole-prompt row is never a lyric,
+  /// while a row that merely contains the title (a chorus often does) stays.
+  static ({List<LyricLine> lines, int removedCount}) removePromptEchoes(
+    List<LyricLine> lines,
+    String? prompt,
+  ) {
+    if (prompt == null) return (lines: lines, removedCount: 0);
+    final normalizedPrompt = _normalizeForEcho(prompt);
+    // Require some substance so a one-word prompt cannot remove a lyric.
+    if (normalizedPrompt.runes.length < 6) {
+      return (lines: lines, removedCount: 0);
+    }
+    final kept = <LyricLine>[];
+    var removed = 0;
+    for (final line in lines) {
+      if (_normalizeForEcho(line.text) == normalizedPrompt) {
+        removed++;
+      } else {
+        kept.add(line);
+      }
+    }
+    return (lines: removed == 0 ? lines : kept, removedCount: removed);
+  }
+
+  static String _normalizeForEcho(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\s\p{P}\p{S}]', unicode: true), '');
 
   Future<_ProcessResult> _runProcess(
     String executable,
@@ -343,6 +654,36 @@ class WhisperCppTranscriptionService implements TranscriptionService {
     await cancel();
     await _progressController.close();
   }
+}
+
+class _WhisperRunOutcome {
+  final WhisperDecodingPlan plan;
+  final String? fallbackReason;
+  final String? promptTransport;
+
+  const _WhisperRunOutcome({
+    required this.plan,
+    this.fallbackReason,
+    this.promptTransport,
+  });
+}
+
+class _WhisperTransport {
+  final bool useResponseFile;
+  final String? note;
+  final WhisperDecodingPlan? plan;
+
+  const _WhisperTransport({
+    required this.useResponseFile,
+    this.note,
+    this.plan,
+  });
+}
+
+class _UnsupportedWhisperArgumentsException implements Exception {
+  final String detail;
+
+  const _UnsupportedWhisperArgumentsException(this.detail);
 }
 
 class _ProcessResult {

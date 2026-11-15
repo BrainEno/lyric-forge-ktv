@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../../lyrics/domain/models/secondary_only_suggestion.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/independent_asr_evidence.dart';
 import '../../domain/models/fusion_timing_evidence.dart';
@@ -12,6 +13,8 @@ import 'asr_audio_normalization.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'asr_text_comparison.dart';
 import 'asr_process_supervisor.dart';
+import 'whisper_cpp_transcription_service.dart'
+    show kWhisperDecodingMetadataKey;
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
@@ -124,6 +127,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
         outputDirectory: request.outputDirectory,
         config: request.config,
         context: request.context,
+        recognitionHints: request.recognitionHints,
       );
 
       _throwIfCancelled();
@@ -154,6 +158,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             outputDirectory: request.outputDirectory,
             config: request.config,
             context: request.context,
+            recognitionHints: request.recognitionHints,
           ),
           reason: TranscriptionDegradationReason.qwenUnavailable,
           detail: error.toString(),
@@ -180,6 +185,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
               mode: TranscriptionMode.whisperOnly,
             ),
             context: request.context,
+            recognitionHints: request.recognitionHints,
           ),
         );
       } on TranscriptionException catch (error) {
@@ -269,8 +275,17 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'fallbackHighlightLimit': request.config.maxFallbackSegments,
           'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
           'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+          SecondaryOnlySuggestion.metadataKey: SecondaryOnlySuggestion.wrap(
+            merge.suggestions,
+          ),
+          'segmentationOnlySecondaryCount':
+              merge.segmentationOnlySecondary.length,
+          if (merge.segmentationOnlySecondary.isNotEmpty)
+            'segmentationOnlySecondary': merge.segmentationOnlySecondary,
           'fusionPolicy':
               'add_unmatched_secondary_as_low_confidence_review_lines',
+          kWhisperDecodingMetadataKey:
+              ?fallbackResult.lyrics.metadata[kWhisperDecodingMetadataKey],
           'whisperRawJsonPath': fallbackResult.rawJsonPath,
         },
       );
@@ -445,6 +460,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
               '${request.outputDirectory}${Platform.pathSeparator}whisper_primary',
           config: request.config.copyWith(mode: TranscriptionMode.whisperOnly),
           context: request.context,
+          recognitionHints: request.recognitionHints,
         ),
       );
     } finally {
@@ -481,6 +497,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
             outputDirectory: qwenDirectory.path,
             config: request.config,
             context: request.context,
+            recognitionHints: request.recognitionHints,
           ),
         );
       } finally {
@@ -571,6 +588,13 @@ class HighQualityTranscriptionService implements TranscriptionService {
         'fallbackHighlightLimit': request.config.maxFallbackSegments,
         'secondaryOnlyLineCount': merge.secondaryOnlyLineIndices.length,
         'secondaryOnlyLineIndices': merge.secondaryOnlyLineIndices,
+        SecondaryOnlySuggestion.metadataKey: SecondaryOnlySuggestion.wrap(
+          merge.suggestions,
+        ),
+        'segmentationOnlySecondaryCount':
+            merge.segmentationOnlySecondary.length,
+        if (merge.segmentationOnlySecondary.isNotEmpty)
+          'segmentationOnlySecondary': merge.segmentationOnlySecondary,
         'fusionPolicy':
             'add_unmatched_secondary_as_low_confidence_review_lines',
         'qwenRawJsonPath': qwenResult.rawJsonPath,
@@ -736,6 +760,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       primaryLines: lines,
       secondaryLines: qwenSecondOpinion.lines,
       matchedSecondaryIndices: matchedSecondaryIndices,
+      secondaryEngine: TranscriptionModelIdentity.qwenAsrEngine(
+        config.qwenModelPath,
+      ),
     );
     final remappedCandidates = _remapCandidateIndices(
       candidates.map((candidate) => candidate.data).toList(growable: false),
@@ -747,6 +774,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       candidates: remappedCandidates,
       appliedCount: appliedCount,
       secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
+      suggestions: timeline.suggestions,
+      segmentationOnlySecondary: timeline.segmentationOnly,
       timingEvidence: _fusionTimingEvidence(timeline, whisperPrimary.lines),
     );
   }
@@ -852,6 +881,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           outputDirectory: directory.path,
           config: request.config.copyWith(mode: TranscriptionMode.whisperOnly),
           context: request.context,
+          recognitionHints: request.recognitionHints,
         ),
       );
     } on TranscriptionException catch (error) {
@@ -1133,6 +1163,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
       primaryLines: lines,
       secondaryLines: fallback.lines,
       matchedSecondaryIndices: matchedSecondaryIndices,
+      secondaryEngine: TranscriptionModelIdentity.whisperEngine(
+        config.modelPath,
+      ),
     );
     final remappedCandidates = _remapCandidateIndices(
       candidates.map((candidate) => candidate.data).toList(growable: false),
@@ -1144,6 +1177,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
       candidates: remappedCandidates,
       appliedCount: appliedCount,
       secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
+      suggestions: timeline.suggestions,
+      segmentationOnlySecondary: timeline.segmentationOnly,
       timingEvidence: _fusionTimingEvidence(timeline, primary.lines),
     );
   }
@@ -1396,6 +1431,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required List<LyricLine> primaryLines,
     required List<LyricLine> secondaryLines,
     required Set<int> matchedSecondaryIndices,
+    String? secondaryEngine,
   }) {
     final entries = <_MergedTimelineEntry>[
       for (var index = 0; index < primaryLines.length; index++)
@@ -1405,6 +1441,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           secondaryOnly: false,
         ),
     ];
+    final segmentationOnly = <Map<String, dynamic>>[];
 
     for (var index = 0; index < secondaryLines.length; index++) {
       if (matchedSecondaryIndices.contains(index)) continue;
@@ -1412,6 +1449,19 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (line.text.trim().isEmpty ||
           line.startTime.isNegative ||
           line.endTime <= line.startTime) {
+        continue;
+      }
+      final covering = _segmentationCoverage(line, primaryLines);
+      if (covering != null) {
+        // Every word of this row is already on screen, split across the
+        // primary rows it straddles. Inserting it would show those words twice
+        // (the "repeated line" users report), so it is recorded instead.
+        segmentationOnly.add({
+          'text': line.text,
+          'startMs': line.startTime.inMilliseconds,
+          'endMs': line.endTime.inMilliseconds,
+          'coveredByPrimaryLineIndices': covering,
+        });
         continue;
       }
       entries.add(
@@ -1424,6 +1474,9 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ),
           primaryIndex: null,
           secondaryOnly: true,
+          engineConfidence: line.confidenceSource == LyricConfidenceSource.model
+              ? line.confidence
+              : null,
         ),
       );
     }
@@ -1443,6 +1496,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
     final primaryIndexToMergedIndex = <int, int>{};
     final secondaryOnlyLineIndices = <int>[];
+    final suggestions = <SecondaryOnlySuggestion>[];
     final mergedLines = <LyricLine>[];
     for (var index = 0; index < entries.length; index++) {
       final entry = entries[index];
@@ -1451,14 +1505,89 @@ class HighQualityTranscriptionService implements TranscriptionService {
       if (primaryIndex != null) {
         primaryIndexToMergedIndex[primaryIndex] = index;
       }
-      if (entry.secondaryOnly) secondaryOnlyLineIndices.add(index);
+      if (entry.secondaryOnly) {
+        secondaryOnlyLineIndices.add(index);
+        suggestions.add(
+          SecondaryOnlySuggestion(
+            text: entry.line.text,
+            startMs: entry.line.startTime.inMilliseconds,
+            endMs: entry.line.endTime.inMilliseconds,
+            engine: secondaryEngine,
+            engineConfidence: entry.engineConfidence,
+          ),
+        );
+      }
     }
 
     return _MergedTimeline(
       lines: List.unmodifiable(mergedLines),
       primaryIndexToMergedIndex: Map.unmodifiable(primaryIndexToMergedIndex),
       secondaryOnlyLineIndices: List.unmodifiable(secondaryOnlyLineIndices),
+      suggestions: List.unmodifiable(suggestions),
+      segmentationOnly: List.unmodifiable(segmentationOnly),
     );
+  }
+
+  /// Returns the primary row indices whose concatenated text contains the
+  /// whole secondary row, when that row straddles a primary line boundary.
+  ///
+  /// Two recognisers often cut the same sung phrase at different places:
+  /// primary "I walk the line | under neon light", secondary "the line under
+  /// neon". The secondary row adds no words, yet it overlaps no single primary
+  /// row closely enough to be paired. Only a contiguous run of at least two
+  /// primary rows qualifies, the secondary span must lie inside their union,
+  /// and the full normalised text must appear in their joined text — a novel
+  /// word, an ad-lib or a harmony line fails that test and stays a suggestion.
+  List<int>? _segmentationCoverage(
+    LyricLine secondary,
+    List<LyricLine> primaryLines,
+  ) {
+    const tolerance = Duration(milliseconds: 400);
+    final fragment = _normalizeForComparison(secondary.text);
+    // Very short fragments ("oh", "yeah") are too easy to find by accident.
+    if (fragment.runes.length < 4) return null;
+    final overlapping = <int>[
+      for (var index = 0; index < primaryLines.length; index++)
+        if (primaryLines[index].endTime > secondary.startTime &&
+            primaryLines[index].startTime < secondary.endTime)
+          index,
+    ];
+    if (overlapping.length < 2) return null;
+    for (var index = 1; index < overlapping.length; index++) {
+      if (overlapping[index] != overlapping[index - 1] + 1) return null;
+    }
+    final first = primaryLines[overlapping.first];
+    final last = primaryLines[overlapping.last];
+    if (secondary.startTime < first.startTime - tolerance ||
+        secondary.endTime > last.endTime + tolerance) {
+      return null;
+    }
+    // It must really straddle the boundary: a row that sits almost entirely
+    // inside one primary row and grazes the next is a different situation
+    // (handled by the containment rules), not a re-segmentation.
+    final secondaryMs =
+        (secondary.endTime - secondary.startTime).inMilliseconds;
+    int overlapMs(LyricLine primary) {
+      final start = primary.startTime > secondary.startTime
+          ? primary.startTime
+          : secondary.startTime;
+      final end = primary.endTime < secondary.endTime
+          ? primary.endTime
+          : secondary.endTime;
+      return (end - start).inMilliseconds;
+    }
+
+    if (overlapMs(first) < secondaryMs * 0.15 ||
+        overlapMs(last) < secondaryMs * 0.15) {
+      return null;
+    }
+    // Normalisation drops spaces and punctuation, so joining the rows directly
+    // reproduces the phrase across the boundary.
+    final joined = [
+      for (final index in overlapping)
+        _normalizeForComparison(primaryLines[index].text),
+    ].join();
+    return joined.contains(fragment) ? List.unmodifiable(overlapping) : null;
   }
 
   List<Map<String, dynamic>> _remapCandidateIndices(
@@ -1667,6 +1796,8 @@ class _MergeResult {
   final List<Map<String, dynamic>> candidates;
   final int appliedCount;
   final List<int> secondaryOnlyLineIndices;
+  final List<SecondaryOnlySuggestion> suggestions;
+  final List<Map<String, dynamic>> segmentationOnlySecondary;
   final Map<String, dynamic> timingEvidence;
 
   const _MergeResult({
@@ -1675,6 +1806,8 @@ class _MergeResult {
     required this.appliedCount,
     required this.timingEvidence,
     this.secondaryOnlyLineIndices = const [],
+    this.suggestions = const [],
+    this.segmentationOnlySecondary = const [],
   });
 }
 
@@ -1682,11 +1815,15 @@ class _MergedTimeline {
   final List<LyricLine> lines;
   final Map<int, int> primaryIndexToMergedIndex;
   final List<int> secondaryOnlyLineIndices;
+  final List<SecondaryOnlySuggestion> suggestions;
+  final List<Map<String, dynamic>> segmentationOnly;
 
   const _MergedTimeline({
     required this.lines,
     required this.primaryIndexToMergedIndex,
     required this.secondaryOnlyLineIndices,
+    required this.suggestions,
+    required this.segmentationOnly,
   });
 }
 
@@ -1694,11 +1831,13 @@ class _MergedTimelineEntry {
   final LyricLine line;
   final int? primaryIndex;
   final bool secondaryOnly;
+  final int? engineConfidence;
 
   const _MergedTimelineEntry({
     required this.line,
     required this.primaryIndex,
     required this.secondaryOnly,
+    this.engineConfidence,
   });
 }
 

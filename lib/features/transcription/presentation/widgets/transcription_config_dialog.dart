@@ -45,6 +45,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
   late String _qwenDtype;
   late int _fallbackThreshold;
   late int _maxFallbackSegments;
+  late WhisperDecodingProfile _whisperDecodingProfile;
   bool _testingDownloadConnection = false;
   String? _downloadConnectionMessage;
   bool _downloadConnectionSucceeded = false;
@@ -99,6 +100,8 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
     _qwenDtype = config?.qwenDtype ?? 'bf16';
     _fallbackThreshold = config?.fallbackConfidenceThreshold ?? 70;
     _maxFallbackSegments = config?.maxFallbackSegments ?? 20;
+    _whisperDecodingProfile =
+        config?.whisperDecodingProfile ?? WhisperDecodingProfile.lyrics;
 
     for (final controller in [
       _qwenExecutableController,
@@ -149,6 +152,7 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
       qwenDtype: _qwenDtype,
       whisperExecutable: _whisperController.text.trim(),
       modelPath: _whisperModelController.text.trim(),
+      whisperDecodingProfile: _whisperDecodingProfile,
       ffmpegExecutable: _ffmpegController.text.trim(),
       language: _language,
       downloadProxy: _downloadProxyController.text.trim(),
@@ -520,6 +524,22 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 onChanged: (value) {
                   if (value != null) setState(() => _language = value);
                 },
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SwitchListTile.adaptive(
+                key: const ValueKey('whisper_lyrics_decoding_switch'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Whisper 歌词增强解码'),
+                subtitle: const Text(
+                  '只把歌名、歌手等工程信息作为提示，并抑制♪等非人声符号；'
+                  '不会提供参考歌词。运行时不支持时自动改用标准参数。',
+                ),
+                value: _whisperDecodingProfile == WhisperDecodingProfile.lyrics,
+                onChanged: (value) => setState(
+                  () => _whisperDecodingProfile = value
+                      ? WhisperDecodingProfile.lyrics
+                      : WhisperDecodingProfile.standard,
+                ),
               ),
               if (highQuality) ...[
                 const SizedBox(height: AppSpacing.md),

@@ -86,16 +86,26 @@ const LyricTokenizer _tokenizer = LyricTokenizer();
 
 /// One lyric line with optional millisecond boundaries.
 class QualityLine {
-  const QualityLine({required this.text, this.startMs, this.endMs});
+  const QualityLine({
+    required this.text,
+    this.startMs,
+    this.endMs,
+    this.secondaryOnly = false,
+  });
 
   final String text;
   final int? startMs;
   final int? endMs;
 
+  /// True when the fused document marked this row as heard only by the
+  /// secondary engine (a "建议补入" suggestion awaiting review).
+  final bool secondaryOnly;
+
   Map<String, Object?> toJson() => <String, Object?>{
     'text': text,
     'startMs': startMs,
     'endMs': endMs,
+    if (secondaryOnly) 'secondaryOnly': true,
   };
 
   @override
@@ -549,10 +559,61 @@ List<QualityLine> _parseLineArray(List<dynamic> raw, String label) {
         endMs:
             _optionalMilliseconds(map['endMs']) ??
             _optionalMilliseconds(map['endTime']),
+        secondaryOnly: map['secondaryOnly'] == true,
       ),
     );
   }
   return lines;
+}
+
+/// Applies the fused document's secondary-only markers to parsed lines.
+///
+/// Version-1 `secondaryOnlySuggestions` records are matched by exact text and
+/// timing, like the editor does; older documents fall back to
+/// `secondaryOnlyLineIndices`. Unknown shapes leave the lines unflagged.
+List<QualityLine> _applySecondaryOnlyMarkers(
+  List<QualityLine> lines,
+  Map<String, dynamic>? metadata,
+) {
+  if (metadata == null) return lines;
+  final flagged = <int>{};
+  final suggestions = metadata['secondaryOnlySuggestions'];
+  if (suggestions is Map &&
+      suggestions['version'] == 1 &&
+      suggestions['entries'] is List) {
+    final keys = <String>{
+      for (final entry in suggestions['entries'] as List)
+        if (entry is Map &&
+            entry['text'] is String &&
+            entry['startMs'] is int &&
+            entry['endMs'] is int)
+          '${entry['startMs']}|${entry['endMs']}|${entry['text']}',
+    };
+    for (var index = 0; index < lines.length; index++) {
+      final line = lines[index];
+      if (keys.contains('${line.startMs}|${line.endMs}|${line.text}')) {
+        flagged.add(index);
+      }
+    }
+  } else if (metadata['secondaryOnlyLineIndices'] is List) {
+    for (final value in metadata['secondaryOnlyLineIndices'] as List) {
+      if (value is int && value >= 0 && value < lines.length) {
+        flagged.add(value);
+      }
+    }
+  }
+  if (flagged.isEmpty) return lines;
+  return <QualityLine>[
+    for (var index = 0; index < lines.length; index++)
+      flagged.contains(index)
+          ? QualityLine(
+              text: lines[index].text,
+              startMs: lines[index].startMs,
+              endMs: lines[index].endMs,
+              secondaryOnly: true,
+            )
+          : lines[index],
+  ];
 }
 
 List<dynamic>? _linesFromProjects(List<dynamic> projects, String label) {
@@ -578,6 +639,7 @@ List<dynamic>? _linesFromProjects(List<dynamic> projects, String label) {
 List<QualityLine> parseLyricJsonContent(String content, String label) {
   final decoded = jsonDecode(content);
   List<dynamic>? lineArray;
+  Map<String, dynamic>? metadata;
   if (decoded is List) {
     final first = decoded.isEmpty ? null : decoded.first;
     if (first is Map && !first.containsKey('text')) {
@@ -597,14 +659,23 @@ List<QualityLine> parseLyricJsonContent(String content, String label) {
         throw FormatException('$label lyricDocument has no lines array.');
       }
       lineArray = lines;
+      if (document['metadata'] is Map) {
+        metadata = (document['metadata'] as Map).cast<String, dynamic>();
+      }
     } else if (map['lines'] is List) {
       lineArray = map['lines'] as List;
+      if (map['metadata'] is Map) {
+        metadata = (map['metadata'] as Map).cast<String, dynamic>();
+      }
     }
   }
   if (lineArray == null) {
     throw FormatException('$label JSON is not a lyric document.');
   }
-  return _parseLineArray(lineArray, label);
+  return _applySecondaryOnlyMarkers(
+    _parseLineArray(lineArray, label),
+    metadata,
+  );
 }
 
 /// Detects the format of [content] and parses it.
@@ -736,6 +807,34 @@ Map<String, Object?> evaluateLyricQualityPair({
     maxCells: _maxCharacterEditCells,
   );
 
+  // Word error rate uses the same tokenizer as everything else here: Latin
+  // words are split on whitespace and punctuation, while Han, kana and Hangul
+  // are one token per character (no dictionary segmentation), so for Chinese
+  // and Japanese WER equals the character error rate by construction.
+  final referenceWords = reference
+      .expand((line) => _tokens(line.text))
+      .toList();
+  final hypothesisWords = hypothesis
+      .expand((line) => _tokens(line.text))
+      .toList();
+  final wordEdits = _editDistance<String>(
+    referenceWords,
+    hypothesisWords,
+    context: 'Song $songId / $engine word comparison',
+    maxCells: _maxCharacterEditCells,
+  );
+
+  final matchedHypothesis = <int>{
+    for (final match in outcome.matches) match.hypothesisIndex,
+  };
+  final secondaryOnlyIndexes = <int>[
+    for (var index = 0; index < hypothesis.length; index++)
+      if (hypothesis[index].secondaryOnly) index,
+  ];
+  final secondaryOnlyMatched = secondaryOnlyIndexes
+      .where(matchedHypothesis.contains)
+      .length;
+
   final startDeltas = <int>[];
   final endDeltas = <int>[];
   for (final match in outcome.matches) {
@@ -775,6 +874,18 @@ Map<String, Object?> evaluateLyricQualityPair({
     'normalizedCharacterErrorRate': _rate(
       characterEdits,
       referenceCharacters.length,
+    ),
+    'referenceWordCount': referenceWords.length,
+    'hypothesisWordCount': hypothesisWords.length,
+    'wordEditCount': wordEdits,
+    'normalizedWordErrorRate': _rate(wordEdits, referenceWords.length),
+    'secondaryOnlyLineCount': secondaryOnlyIndexes.length,
+    'secondaryOnlyMatchedCount': secondaryOnlyMatched,
+    'secondaryOnlyUnmatchedCount':
+        secondaryOnlyIndexes.length - secondaryOnlyMatched,
+    'secondaryOnlyPrecision': _rate(
+      secondaryOnlyMatched,
+      secondaryOnlyIndexes.length,
     ),
     'duplicateLineCount': duplicateLineCount,
     'duplicateLineRate': _rate(duplicateLineCount, hypothesisLineCount),
@@ -840,6 +951,10 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
   var referenceCharacterCount = 0;
   var characterEditCount = 0;
   var duplicateLineCount = 0;
+  var referenceWordCount = 0;
+  var wordEditCount = 0;
+  var secondaryOnlyLineCount = 0;
+  var secondaryOnlyMatchedCount = 0;
   var timedPairs = 0;
   var weightedStartError = 0.0;
   var weightedWithinTolerance = 0.0;
@@ -851,6 +966,11 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     referenceCharacterCount += score['referenceCharacterCount']! as int;
     characterEditCount += score['characterEditCount']! as int;
     duplicateLineCount += score['duplicateLineCount']! as int;
+    referenceWordCount += score['referenceWordCount'] as int? ?? 0;
+    wordEditCount += score['wordEditCount'] as int? ?? 0;
+    secondaryOnlyLineCount += score['secondaryOnlyLineCount'] as int? ?? 0;
+    secondaryOnlyMatchedCount +=
+        score['secondaryOnlyMatchedCount'] as int? ?? 0;
     final pairs = score['timedMatchCount']! as int;
     final mae = _asDouble(score['startTimeMaeMs']);
     final within = _asDouble(score['within500msRate']);
@@ -877,6 +997,15 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     'normalizedCharacterErrorRate': _rate(
       characterEditCount,
       referenceCharacterCount,
+    ),
+    'referenceWordCount': referenceWordCount,
+    'wordEditCount': wordEditCount,
+    'normalizedWordErrorRate': _rate(wordEditCount, referenceWordCount),
+    'secondaryOnlyLineCount': secondaryOnlyLineCount,
+    'secondaryOnlyMatchedCount': secondaryOnlyMatchedCount,
+    'secondaryOnlyPrecision': _rate(
+      secondaryOnlyMatchedCount,
+      secondaryOnlyLineCount,
     ),
     'duplicateLineCount': duplicateLineCount,
     'duplicateLineRate': _rate(duplicateLineCount, hypothesisLineCount),
@@ -914,6 +1043,7 @@ Map<String, Object?> evaluateQualityCorpus(
   }
 
   final songResults = <Map<String, Object?>>[];
+  final retentions = <Map<String, Object?>>[];
   final warnings = <String>[];
   final scoresByEngine = <String, List<Map<String, Object?>>>{};
   final songIds = <String>{};
@@ -957,6 +1087,7 @@ Map<String, Object?> evaluateQualityCorpus(
     }
     final engineNames = <String>{};
     final songScores = <Map<String, Object?>>[];
+    final hypothesesByEngine = <String, List<QualityLine>>{};
     for (final rawCandidate in candidates) {
       final candidate = _asMap(rawCandidate, 'Candidate for $id');
       final rawEngine = candidate['engine'];
@@ -972,6 +1103,7 @@ Map<String, Object?> evaluateQualityCorpus(
         '$id / $engine',
         baseDirectory,
       );
+      hypothesesByEngine[engine] = hypothesis;
       final score = evaluateLyricQualityPair(
         songId: id,
         engine: engine,
@@ -989,12 +1121,37 @@ Map<String, Object?> evaluateQualityCorpus(
         );
       }
     }
+    Map<String, Object?>? retention;
+    final rawRetention = song['secondaryRetention'];
+    if (rawRetention != null) {
+      final spec = _asMap(rawRetention, 'secondaryRetention for $id');
+      List<QualityLine> roleLines(String role) {
+        final name = spec[role];
+        if (name is! String || !hypothesesByEngine.containsKey(name)) {
+          throw FormatException(
+            'Song $id secondaryRetention.$role must name one of its '
+            'candidate engines.',
+          );
+        }
+        return hypothesesByEngine[name]!;
+      }
+
+      retention = evaluateSecondaryRetention(
+        reference: reference,
+        primary: roleLines('primary'),
+        secondary: roleLines('secondary'),
+        fused: roleLines('fused'),
+        matchThreshold: threshold,
+      );
+      retentions.add(retention);
+    }
     songResults.add(<String, Object?>{
       'id': id,
       'language': language,
       'referenceLineCount': reference.length,
       'referenceReviewed': referenceReviewed,
       'candidates': songScores,
+      'secondaryRetention': ?retention,
     });
   }
 
@@ -1012,9 +1169,81 @@ Map<String, Object?> evaluateQualityCorpus(
       for (final engine in engines)
         engine: _summarizeEngine(scoresByEngine[engine]!),
     },
+    if (retentions.isNotEmpty)
+      'secondaryRetention': _summarizeRetention(retentions),
     'songs': songResults,
     'warnings': warnings,
     'interpretation': _interpretation,
+  };
+}
+
+/// How many true lyric lines only the secondary engine heard survive fusion.
+///
+/// A *secondary-only reference line* is a reference line that the secondary
+/// engine's own output matches and the primary engine's own output does not.
+/// It is *retained* when the fused document matches it. A retention below 1.0
+/// means fusion threw away a correct line that one engine had found — the
+/// "silently dropped" failure — regardless of whether the row was then marked
+/// for review.
+Map<String, Object?> evaluateSecondaryRetention({
+  required List<QualityLine> reference,
+  required List<QualityLine> primary,
+  required List<QualityLine> secondary,
+  required List<QualityLine> fused,
+  double matchThreshold = kDefaultMatchThreshold,
+}) {
+  Map<int, int> matched(List<QualityLine> hypothesis) => <int, int>{
+    for (final match in matchLyricLines(
+      reference,
+      hypothesis,
+      threshold: matchThreshold,
+    ).matches)
+      match.referenceIndex: match.hypothesisIndex,
+  };
+
+  final byPrimary = matched(primary);
+  final bySecondary = matched(secondary);
+  final byFused = matched(fused);
+  final secondaryOnly = <int>[
+    for (final index in bySecondary.keys)
+      if (!byPrimary.containsKey(index)) index,
+  ]..sort();
+  final retained = secondaryOnly.where(byFused.containsKey).toList();
+  final asSuggestion = retained
+      .where((index) => fused[byFused[index]!].secondaryOnly)
+      .length;
+  return <String, Object?>{
+    'secondaryOnlyReferenceLineCount': secondaryOnly.length,
+    'retainedCount': retained.length,
+    'retainedAsSuggestionCount': asSuggestion,
+    'retentionRate': _rate(retained.length, secondaryOnly.length),
+    'droppedReferenceLines': <Object?>[
+      for (final index in secondaryOnly)
+        if (!byFused.containsKey(index))
+          <String, Object?>{
+            'index': index,
+            'text': reference[index].text,
+            'startMs': reference[index].startMs,
+          },
+    ],
+  };
+}
+
+Map<String, Object?> _summarizeRetention(List<Map<String, Object?>> songs) {
+  var total = 0;
+  var retained = 0;
+  var asSuggestion = 0;
+  for (final song in songs) {
+    total += song['secondaryOnlyReferenceLineCount']! as int;
+    retained += song['retainedCount']! as int;
+    asSuggestion += song['retainedAsSuggestionCount']! as int;
+  }
+  return <String, Object?>{
+    'songCount': songs.length,
+    'secondaryOnlyReferenceLineCount': total,
+    'retainedCount': retained,
+    'retainedAsSuggestionCount': asSuggestion,
+    'retentionRate': _rate(retained, total),
   };
 }
 
@@ -1029,6 +1258,19 @@ const Map<String, Object?> _interpretation = <String, Object?>{
       'Character edits over the whole joined document divided by reference '
       'characters; same normalization as tool/asr_transcript_eval.dart, so the '
       'numbers are comparable between the two tools.',
+  'normalizedWordErrorRate':
+      'Word edits (substitutions + insertions + deletions) over reference '
+      'words, after the same normalization as the CER. Latin text is split '
+      'into words; Han, kana and Hangul are one token per character, so for '
+      'Chinese and Japanese this equals the character error rate.',
+  'secondaryOnlyPrecision':
+      'Of the rows the fused document marked as heard only by the secondary '
+      'engine, the share that match a reference line. The rest are '
+      'harmonies, ad-libs or noise the reviewer has to reject.',
+  'secondaryRetention.retentionRate':
+      'Reference lines found by the secondary engine but not the primary, '
+      'that are still present in the fused document. Below 1.0 means fusion '
+      'silently dropped a correct line.',
   'duplicateLineRate':
       'Extra hypothesis lines that restate another line within '
       'duplicateWindowMs, over hypothesis lines. Chorus repeats further apart '
@@ -1131,6 +1373,14 @@ Map<String, Object?> compareQualityReports(
     );
     record(
       engine,
+      'normalizedWordErrorRate',
+      before,
+      after,
+      higherIsBetter: false,
+      tolerance: _errorRateRegressionTolerance,
+    );
+    record(
+      engine,
       'duplicateLineRate',
       before,
       after,
@@ -1158,6 +1408,7 @@ Map<String, Object?> compareQualityReports(
         'lineRecall',
         'linePrecision',
         'normalizedCharacterErrorRate',
+        'normalizedWordErrorRate',
         'duplicateLineRate',
         'lineCountRatio',
         'startTimeMaeMs',
@@ -1225,10 +1476,10 @@ String formatQualityReport(Map<String, Object?> report) {
     ..writeln('## By engine')
     ..writeln()
     ..writeln(
-      '| engine | songs | recall | precision | CER | duplicate rate | '
+      '| engine | songs | recall | precision | CER | WER | duplicate rate | '
       'line ratio | start MAE | within 500 ms |',
     )
-    ..writeln('|---|---|---|---|---|---|---|---|---|');
+    ..writeln('|---|---|---|---|---|---|---|---|---|---|');
 
   for (final engine in engineNames) {
     final summary = _asMap(engines[engine], 'Engine $engine');
@@ -1237,6 +1488,7 @@ String formatQualityReport(Map<String, Object?> report) {
       '${_percent(summary['lineRecall'])} | '
       '${_percent(summary['linePrecision'])} | '
       '${_percent(summary['normalizedCharacterErrorRate'])} | '
+      '${_percent(summary['normalizedWordErrorRate'])} | '
       '${_percent(summary['duplicateLineRate'])} | '
       '${_ratio(summary['lineCountRatio'])} | '
       '${_milliseconds(summary['startTimeMaeMs'])} | '
@@ -1269,6 +1521,21 @@ String formatQualityReport(Map<String, Object?> report) {
         '${_milliseconds(candidate['startTimeMaeMs'])} |',
       );
     }
+  }
+
+  final retention = report['secondaryRetention'];
+  if (retention is Map) {
+    buffer
+      ..writeln()
+      ..writeln('## Secondary-only retention')
+      ..writeln()
+      ..writeln(
+        '${retention['retainedCount']} of '
+        '${retention['secondaryOnlyReferenceLineCount']} reference line(s) '
+        'heard only by the secondary engine survive fusion '
+        '(${_percent(retention['retentionRate'])}); '
+        '${retention['retainedAsSuggestionCount']} are marked for review.',
+      );
   }
 
   final duplicates = <Map<String, Object?>>[];

@@ -10,6 +10,8 @@ import '../../../player/domain/models/playback_state.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/lyric_review_queue.dart';
+import '../../domain/models/recognition_review_summary.dart';
+import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import 'lyric_editor_atoms.dart';
@@ -18,6 +20,7 @@ import 'lyric_edit_shortcuts.dart';
 import 'lyric_inspector_pane.dart';
 import 'lyric_list_pane.dart';
 import 'lyric_proofread_menu_button.dart';
+import 'lyric_recognition_summary_card.dart';
 import 'unsaved_lyric_edits_dialog.dart';
 
 class LyricEditorLoadingState extends StatelessWidget {
@@ -239,6 +242,9 @@ class LyricEditorContent extends StatelessWidget {
                 index: index,
                 line: document.lines[index],
                 fallbackCandidate: _fallbackCandidateFor(index),
+                secondarySuggestion: SecondaryOnlySuggestion.resolve(
+                  document,
+                )[index],
                 isReviewed: isReviewed,
                 onReviewDecision: canRecordDecision
                     ? (reviewed) {
@@ -288,6 +294,11 @@ class LyricEditorContent extends StatelessWidget {
     final spec = AppResponsive.of(context);
     final currentPlaybackLine = _currentPlaybackLineIndex();
     final visibleIndices = _visibleIndices();
+    final secondarySuggestions = SecondaryOnlySuggestion.resolve(document);
+    final recognitionSummary = RecognitionReviewSummary.fromDocument(
+      document,
+      reviewQueue,
+    );
     final selectedIndex =
         selectedLineIndex != null &&
             selectedLineIndex! >= 0 &&
@@ -426,7 +437,37 @@ class LyricEditorContent extends StatelessWidget {
                               constraints,
                             );
                             final twoPane = layout.supportsTwoPane;
-                            final list = LyricListPane(
+                            // The summary lives inside the list column, after
+                            // the pane decision, so it can never push a desktop
+                            // window into the single-pane layout.
+                            final summaryCard =
+                                recognitionSummary.hasRecognitionData
+                                ? LyricRecognitionSummaryCard(
+                                    summary: recognitionSummary,
+                                    onStartReview: reviewQueue.isEmpty
+                                        ? null
+                                        : () {
+                                            onFilterChanged(
+                                              LyricReviewFilter.needsReview,
+                                            );
+                                            final first = reviewQueue
+                                                .items
+                                                .first
+                                                .lineIndex;
+                                            if (twoPane) {
+                                              onSelectLine(first);
+                                            } else {
+                                              unawaited(
+                                                _showInspectorSheet(
+                                                  context,
+                                                  first,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                  )
+                                : null;
+                            final listPane = LyricListPane(
                               document: document,
                               visibleIndices: visibleIndices,
                               selectedIndex: selectedIndex,
@@ -435,6 +476,9 @@ class LyricEditorContent extends StatelessWidget {
                               focusRequestId: focusRequestId,
                               focusLineIndex: focusLineIndex,
                               fallbackCandidateFor: _fallbackCandidateFor,
+                              secondarySuggestionIndices: secondarySuggestions
+                                  .keys
+                                  .toSet(),
                               reviewPriorityByIndex: reviewPriorityByIndex,
                               filter: filter,
                               activeAuditionLineIndex: activeAuditionLineIndex,
@@ -464,6 +508,14 @@ class LyricEditorContent extends StatelessWidget {
                               manuallyEditedLineIndices:
                                   manuallyEditedLineIndices,
                             );
+                            final list = summaryCard == null
+                                ? listPane
+                                : Column(
+                                    children: [
+                                      summaryCard,
+                                      Expanded(child: listPane),
+                                    ],
+                                  );
 
                             if (!twoPane) return list;
 
@@ -479,6 +531,9 @@ class LyricEditorContent extends StatelessWidget {
                                     fallbackCandidate: selectedIndex == null
                                         ? null
                                         : _fallbackCandidateFor(selectedIndex),
+                                    secondarySuggestion: selectedIndex == null
+                                        ? null
+                                        : secondarySuggestions[selectedIndex],
                                     isReviewed:
                                         selectedIndex != null &&
                                         _isLineReviewed(selectedIndex),

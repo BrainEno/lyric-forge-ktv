@@ -31,6 +31,9 @@ class LyricListPane extends StatefulWidget {
   final int focusRequestId;
   final int? focusLineIndex;
   final Map<String, dynamic>? Function(int) fallbackCandidateFor;
+
+  /// Rows only the secondary engine heard, shown as "建议补入".
+  final Set<int> secondarySuggestionIndices;
   final ValueChanged<int>? onPreviewLine;
   final ValueChanged<int> onInsertedLineFocus;
   final ValueChanged<int> onSelectLine;
@@ -53,6 +56,7 @@ class LyricListPane extends StatefulWidget {
     required this.focusRequestId,
     required this.focusLineIndex,
     required this.fallbackCandidateFor,
+    this.secondarySuggestionIndices = const {},
     required this.onPreviewLine,
     required this.onInsertedLineFocus,
     required this.onSelectLine,
@@ -431,6 +435,8 @@ class _LyricListPaneState extends State<LyricListPane> {
                     widget.document,
                     index,
                   ),
+                  isSecondarySuggestion: widget.secondarySuggestionIndices
+                      .contains(index),
                   priority: widget.reviewPriorityByIndex[index],
                   selected: widget.selectedIndex == index,
                   playing: widget.currentPlaybackLine == index,
@@ -851,6 +857,7 @@ class LyricReviewRow extends StatelessWidget {
   final LyricLine line;
   final Map<String, dynamic>? fallbackCandidate;
   final bool isReviewed;
+  final bool isSecondarySuggestion;
   final LyricReviewPriority? priority;
   final bool selected;
   final bool playing;
@@ -873,6 +880,7 @@ class LyricReviewRow extends StatelessWidget {
     required this.line,
     required this.fallbackCandidate,
     required this.isReviewed,
+    this.isSecondarySuggestion = false,
     required this.priority,
     required this.selected,
     required this.playing,
@@ -1180,6 +1188,13 @@ class LyricReviewRow extends StatelessWidget {
                   if (fallbackCandidate != null && !isReviewed) ...[
                     const SizedBox(width: AppSpacing.xs),
                     LyricTinyBadge(label: spec.isCompact ? '双擎' : '双引擎'),
+                  ],
+                  if (isSecondarySuggestion && !isReviewed) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    LyricTinyBadge(
+                      label: spec.isCompact ? '补入' : '建议补入',
+                      warning: true,
+                    ),
                   ],
                   if (isReviewed) ...[
                     const SizedBox(width: AppSpacing.xs),

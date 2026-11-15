@@ -188,6 +188,58 @@ Low-confidence lines are not removed. Automatically generated lyrics remain a
 draft and require user review. The project keeps confidence/fallback metadata so
 the editor can surface suspicious or disputed lines instead of hiding them.
 
+## Lyric-aware Whisper decoding (#448)
+
+`WhisperDecodingPolicy` (domain, pure Dart) turns a `WhisperDecodingProfile`
+and the project's `RecognitionHints` into extra CLI arguments. Before #448,
+Whisper received no song context at all; only Qwen did.
+
+- **Profiles:** `standard` (`whisper-standard-v1`) is the exact pre-#448
+  command line. `lyrics` (`whisper-lyrics-v1`, the default) adds `--prompt`
+  and `--suppress-nst`. Both flags were verified in the pinned whisper.cpp
+  source (`927cfce`).
+- **Prompt contents:** only the title, artist, album and user-entered proper
+  nouns (`project.metadata.recognitionTerms`). `RecognitionHints` has no lyric
+  field, so reference lyrics cannot reach the recogniser. The prompt is
+  language-adapted (zh/yue, ja, en) and sanitized: video-title noise such as
+  "(Official Video)" and control characters are removed, each field is capped
+  in runes, and the whole prompt is capped at 200 UTF-8 bytes, well inside
+  whisper's `n_text_ctx/2` token limit.
+- **Capability probe:** the runtime's `-h` output is cached per
+  `path|size|mtime`. Flags that the runtime does not advertise are never
+  passed. The plan then degrades to `standard` and records the omitted flags.
+  If the runtime still rejects the arguments, the service retries once with
+  the standard arguments and records `runtime_rejected_arguments`.
+- **Windows:** whisper.cpp reads argv in the ANSI code page. A non-ASCII
+  prompt is therefore passed through a UTF-8 `@response` file. If any path is
+  non-ASCII, the prompt is omitted, with reason
+  `windows_non_ascii_paths_prompt_omitted`.
+- **Prompt echo:** rows that repeat the whole prompt (prompts of 6 runes or
+  more) are removed. A result that consists only of echo is an error, not an
+  empty draft.
+- **Recorded data:** the decoding plan (without the prompt text) is stored as
+  `metadata.whisperDecoding`, and the profile, hints and capability signature
+  are part of the chunk checkpoint fingerprint.
+- **Not used:** `--vad`, `--carry-initial-prompt`, and explicit beam or
+  temperature settings. The reasons are documented on the policy class.
+
+### Secondary-only lines
+
+When Highest Quality fusion finds a Whisper row with no Qwen counterpart, it
+does one of two things:
+
+- If the row is only a different segmentation of adjacent Qwen rows (the
+  timing overlaps both rows and the text is contained in their joined text),
+  it is counted in `metadata.segmentationOnlySecondaryCount` and not inserted.
+- Otherwise it is inserted as a `建议补入` candidate and recorded in
+  `metadata.secondaryOnlySuggestions` (v1, exact `start|end|text` records).
+
+These rows are never dropped and never merged into a Qwen line. The review
+priority service ranks them with the reason `secondaryOnlySuggestion`. The
+editor shows them in the inspector with audition, keep and reject actions.
+Keep is a review decision; reject is an undoable row deletion. Neither action
+saves the project.
+
 ## Current limitations
 
 - source separation is still a separate future pipeline stage;

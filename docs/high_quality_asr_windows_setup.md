@@ -159,6 +159,80 @@ A successful response contains `results[0].items`, where each item has `text`, `
 9. repeat with a song longer than 3 minutes to verify long-audio alignment
 10. test cancel during Qwen inference and during Whisper fallback
 
+## #448 manual verification: lyric-aware Whisper decoding and review flow
+
+CI runs no inference. The steps below are the only way to get real-model
+before/after numbers. Do not fill in the template with estimates: leave a cell
+as `not measured` when a step was skipped.
+
+### Preparation
+
+1. Use the managed runtime, or a self-built `whisper-cli.exe`. In PowerShell,
+   run `whisper-cli.exe -h 2>&1 | Select-String -Pattern "prompt|suppress-nst"`
+   and record whether both flags are listed. If either is missing, LyricForge
+   falls back to the standard arguments. That is expected, and the diagnostics
+   show `已安全回退`.
+2. Choose 3 songs you are allowed to use locally (one each in zh, en and ja,
+   ideally each with a repeated chorus and one ad-lib). Write a reviewed
+   `reference.lrc` for each **by hand** and keep it outside the repository
+   (`corpus/` is git-ignored).
+3. In each project, set the title and artist on the project card. Optionally
+   add proper nouns as `recognitionTerms` in the project metadata. Never put
+   lyric lines there.
+
+### Runs per song
+
+| Run | Settings | Export |
+|---|---|---|
+| A (before) | Recognition settings → turn off `Whisper 歌词增强解码`, Highest Quality | `A-fused.json` (the project's lyric JSON), plus `whisper.json` from the run's artifact folder |
+| B (after) | Turn on `Whisper 歌词增强解码`, Highest Quality, then **重新识别歌词** on the project page (it backs up the current lyrics first) | `B-fused.json`, `B-whisper.json` |
+| C (primary only) | Qwen only (or the Qwen raw output from run B's artifacts) | `qwen.json` |
+
+The checkpoint fingerprint includes the decoding profile, so run B must not
+reuse run A's chunks. Confirm that the progress log shows the chunks being
+recognised again.
+
+Build `corpus/corpus.json` with candidates `qwen-only`, `whisper-A`,
+`whisper-B`, `fused-A` and `fused-B`. Add
+`"secondaryRetention": {"primary": "qwen-only", "secondary": "whisper-B", "fused": "fused-B"}`
+to each song, then run:
+
+```powershell
+dart run tool/asr_quality_report.dart --corpus corpus/corpus.json --output corpus/448-after.json
+```
+
+### Review-flow checks (Windows desktop, 1280x800 and a narrow window)
+
+1. After recognition, the editor shows the collapsed `识别结果` card above the
+   list. Expanding it shows the engines, total lines, `双引擎分歧`, `建议补入`
+   and `待复核`, and no percentages. With a single engine, the card shows
+   `不可用` instead of numbers.
+2. `开始复核 N 行` (`复核` in a compact window) opens the existing review queue at the first pending row.
+3. A `建议补入` row shows the Whisper text and the reason, plus `试听这一行`,
+   keep and reject buttons. Keep marks the row as reviewed. Reject deletes the
+   row, and Ctrl+Z restores it. The file on disk does not change until you
+   press Save.
+4. Manually edit a line, then re-run recognition: the edited line is protected,
+   exactly as before.
+
+### Results template
+
+```markdown
+| Song | Lang | Whisper build / flags advertised | Run | Effective profile | Lines (ref/hyp) | Line recall | CER | WER | Duplicate rate | Secondary-only rows (matched/total) | Retention | Start MAE |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| | zh | | A | whisper-standard-v1 | | | | | | | | |
+| | zh | | B | | | | | | | | | |
+| | en | | A | whisper-standard-v1 | | | | | | | | |
+| | en | | B | | | | | | | | | |
+| | ja | | A | whisper-standard-v1 | | | | | | | | |
+| | ja | | B | | | | | | | | | |
+
+GPU / driver:
+Model files (name, size):
+Review-flow checks 1-4 (pass/fail + note):
+Regressions observed and explanation:
+```
+
 ## Current limitation
 
 Highest Quality ASR already prefers an existing vocal stem, but the final
