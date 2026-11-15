@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "description": "Synthetic engine outputs for deterministic fusion evaluation. All lyric text is original and written for this repository; no audio, no model output.",
+  "songs": [
+    {
+      "id": "fixture-en",
+      "language": "en",
+      "title": "Harbor Lights (fixture, original text)",
+      "reference": "en/reference.lrc",
+      "qwen": "en/qwen.json",
+      "whisper": "en/whisper.json"
+    },
+    {
+      "id": "fixture-zh",
+      "language": "zh",
+      "title": "旧街（测试夹具，原创文本）",
+      "reference": "zh/reference.lrc",
+      "qwen": "zh/qwen.json",
+      "whisper": "zh/whisper.json"
+    },
+    {
+      "id": "fixture-ja",
+      "language": "ja",
+      "title": "夜明けの駅（テスト用、オリジナル歌詞）",
+      "reference": "ja/reference.lrc",
+      "qwen": "ja/qwen.json",
+      "whisper": "ja/whisper.json"
+    }
+  ]
+}

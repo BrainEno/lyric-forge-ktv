@@ -704,4 +704,167 @@ void main() {
       );
     });
   });
+
+  group('word error rate and secondary-only metrics (#448)', () {
+    test('WER counts Latin words and CJK characters', () {
+      final english = evaluate(
+        reference: [line('hold the night until it is clear', 0, 3000)],
+        hypothesis: [line('hold the light until it clear', 0, 3000)],
+      );
+      expect(english['referenceWordCount'], 7);
+      // one substitution (night -> light) and one deletion (is).
+      expect(english['wordEditCount'], 2);
+      expect(english['normalizedWordErrorRate'], closeTo(2 / 7, 1e-9));
+
+      final chinese = evaluate(
+        reference: [line('唱给远方的你听', 0, 3000)],
+        hypothesis: [line('唱给远方你听', 0, 3000)],
+      );
+      expect(chinese['referenceWordCount'], 7);
+      expect(
+        chinese['normalizedWordErrorRate'],
+        chinese['normalizedCharacterErrorRate'],
+      );
+    });
+
+    test('secondary-only rows are scored separately', () {
+      final score = evaluate(
+        reference: [line('first line here', 0, 2000), line('found late', 3000, 5000)],
+        hypothesis: [
+          line('first line here', 0, 2000),
+          const quality.QualityLine(
+            text: 'found late',
+            startMs: 3000,
+            endMs: 5000,
+            secondaryOnly: true,
+          ),
+          const quality.QualityLine(
+            text: 'oh oh',
+            startMs: 5200,
+            endMs: 5600,
+            secondaryOnly: true,
+          ),
+        ],
+      );
+      expect(score['secondaryOnlyLineCount'], 2);
+      expect(score['secondaryOnlyMatchedCount'], 1);
+      expect(score['secondaryOnlyUnmatchedCount'], 1);
+      expect(score['secondaryOnlyPrecision'], 0.5);
+    });
+
+    test('LyricDocument metadata marks secondary-only rows', () {
+      final lines = quality.parseLyricJsonContent(
+        jsonEncode({
+          'lines': [
+            {'text': 'a', 'startMs': 0, 'endMs': 1000},
+            {'text': 'b', 'startMs': 1000, 'endMs': 2000},
+          ],
+          'metadata': {
+            'secondaryOnlySuggestions': {
+              'version': 1,
+              'entries': [
+                {'text': 'b', 'startMs': 1000, 'endMs': 2000},
+              ],
+            },
+          },
+        }),
+        'doc',
+      );
+      expect(lines.map((line) => line.secondaryOnly), [false, true]);
+
+      final legacy = quality.parseLyricJsonContent(
+        jsonEncode({
+          'lines': [
+            {'text': 'a', 'startMs': 0, 'endMs': 1000},
+            {'text': 'b', 'startMs': 1000, 'endMs': 2000},
+          ],
+          'metadata': {
+            'secondaryOnlyLineIndices': [0, 7, 'x'],
+          },
+        }),
+        'doc',
+      );
+      expect(legacy.map((line) => line.secondaryOnly), [true, false]);
+    });
+
+    test('retention counts lines only the secondary engine found', () {
+      final reference = [
+        line('one line', 0, 2000),
+        line('two line', 3000, 5000),
+        line('three line', 6000, 8000),
+      ];
+      final primary = [line('one line', 0, 2000), line('three line', 6000, 8000)];
+      final secondary = [
+        line('one line', 0, 2000),
+        line('two line', 3000, 5000),
+        line('three line', 6000, 8000),
+      ];
+      final kept = quality.evaluateSecondaryRetention(
+        reference: reference,
+        primary: primary,
+        secondary: secondary,
+        fused: [
+          line('one line', 0, 2000),
+          const quality.QualityLine(
+            text: 'two line',
+            startMs: 3000,
+            endMs: 5000,
+            secondaryOnly: true,
+          ),
+          line('three line', 6000, 8000),
+        ],
+      );
+      expect(kept['secondaryOnlyReferenceLineCount'], 1);
+      expect(kept['retentionRate'], 1.0);
+      expect(kept['retainedAsSuggestionCount'], 1);
+
+      final dropped = quality.evaluateSecondaryRetention(
+        reference: reference,
+        primary: primary,
+        secondary: secondary,
+        fused: primary,
+      );
+      expect(dropped['retentionRate'], 0.0);
+      expect((dropped['droppedReferenceLines'] as List).single, containsPair('text', 'two line'));
+    });
+
+    test('corpus retention must name existing candidates', () {
+      String corpus(String fused) => jsonEncode({
+        'schemaVersion': 1,
+        'songs': [
+          {
+            'id': 's',
+            'reference': {'text': 'one\ntwo', 'reviewed': true},
+            'candidates': [
+              {'engine': 'a', 'text': 'one'},
+              {'engine': 'b', 'text': 'one\ntwo'},
+            ],
+            'secondaryRetention': {'primary': 'a', 'secondary': 'b', 'fused': fused},
+          },
+        ],
+      });
+      final report = quality.evaluateQualityCorpus(corpus('b'));
+      expect(
+        (report['secondaryRetention'] as Map)['retentionRate'],
+        1.0,
+      );
+      expect(
+        () => quality.evaluateQualityCorpus(corpus('missing')),
+        throwsFormatException,
+      );
+    });
+
+    test('WER regressions are reported against a baseline', () {
+      Map<String, Object?> report(double wer) => {
+        'overallByEngine': {
+          'fused': {'normalizedWordErrorRate': wer},
+        },
+      };
+      final comparison = quality.compareQualityReports(report(0.10), report(0.20));
+      expect(
+        (comparison['regressions'] as List).single,
+        containsPair('metric', 'normalizedWordErrorRate'),
+      );
+    });
+  });
 }

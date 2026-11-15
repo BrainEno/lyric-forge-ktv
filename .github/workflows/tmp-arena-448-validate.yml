@@ -70,3 +70,47 @@ jobs:
       - name: Work log check
         if: always()
         run: dart tool/work_log.dart check
+
+  fusion-before-after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    if: "!contains(github.event.head_commit.message, '[skip tmp]') && hashFiles('tool/.tmp_ci_fusion_eval') != ''"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - name: Current fusion report
+        shell: bash
+        run: |
+          flutter pub get --enforce-lockfile
+          LYRIC_FUSION_EVAL_OUT=$PWD/out/fusion_current.json flutter test --no-pub test/tool/asr_fusion_fixture_eval_test.dart --reporter json > cur.json || true
+          python3 .github/tmp_report.py cur.json
+      - name: Baseline fusion report (0e93b65, same inputs)
+        shell: bash
+        run: |
+          git worktree add ../baseline 0e93b6569b46b2a5b06de480c1d5661666e7026c
+          mkdir -p ../baseline/test/tool ../baseline/test/fixtures
+          cp tool/asr_quality_report.dart ../baseline/tool/
+          cp test/tool/asr_fusion_fixture_eval_test.dart ../baseline/test/tool/
+          cp -r test/fixtures/asr_quality ../baseline/test/fixtures/
+          cd ../baseline
+          flutter pub get --enforce-lockfile
+          LYRIC_FUSION_EVAL_BASELINE=1 LYRIC_FUSION_EVAL_OUT=$GITHUB_WORKSPACE/out/fusion_baseline.json flutter test --no-pub test/tool/asr_fusion_fixture_eval_test.dart --reporter json > $GITHUB_WORKSPACE/base.json || true
+          cd $GITHUB_WORKSPACE
+          python3 .github/tmp_report.py base.json
+      - name: Publish reports
+        shell: bash
+        run: |
+          cat out/fusion_baseline.md >> $GITHUB_STEP_SUMMARY || true
+          cat out/fusion_current.md >> $GITHUB_STEP_SUMMARY || true
+          mkdir -p docs/benchmarks
+          cp out/fusion_baseline.json docs/benchmarks/2026-11-14-fusion-fixtures-baseline-0e93b65.json
+          cp out/fusion_current.json docs/benchmarks/2026-11-14-fusion-fixtures-current.json
+          cp out/fusion_baseline.md docs/benchmarks/2026-11-14-fusion-fixtures-baseline-0e93b65.md
+          cp out/fusion_current.md docs/benchmarks/2026-11-14-fusion-fixtures-current.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/benchmarks
+          git commit -m "Record fixture fusion reports [skip tmp]" || exit 0
+          for i in 1 2 3; do git pull --rebase -q origin ${GITHUB_REF_NAME} && git push origin HEAD:${GITHUB_REF_NAME} && break; sleep 5; done
