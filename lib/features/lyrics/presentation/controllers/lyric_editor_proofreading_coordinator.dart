@@ -71,6 +71,9 @@ abstract interface class LyricEditorProofreadFlowHost {
     required int? selectedLineIndex,
     required bool isReferenceProofread,
     required String message,
+
+    /// Rows whose new text the user chose explicitly; protected afterwards.
+    Set<String> markManuallyEditedLineIds = const {},
   });
 }
 

@@ -24,16 +24,13 @@ import '../controllers/line_audition_controller.dart';
 import '../controllers/lyric_editor_document_controller.dart';
 import '../widgets/chinese_script_unification_dialog.dart';
 import '../controllers/lyric_editor_proofreading_coordinator.dart';
+import '../controllers/lyric_batch_text_tools_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_atoms.dart';
 import '../widgets/lyric_editor_content.dart';
-import '../widgets/lyric_batch_text_edit.dart';
 import '../widgets/lyric_editor_toolbar.dart';
-import '../widgets/lyric_find_replace_dialog.dart';
 import '../widgets/lyric_proofread_v2_dialog.dart';
-import '../widgets/lyric_repetition_consistency_dialog.dart';
-import '../widgets/lyric_text_cleanup_dialog.dart';
 import '../widgets/project_save_conflict_dialog.dart';
 
 class LyricEditorScreen extends StatefulWidget {
@@ -65,6 +62,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   late final LyricManualEditMarkerService _lineMarkers;
   late final ReferenceLyricTextParser _referenceParser;
   late final LyricEditorProofreadingCoordinator _proofreading;
+  late final LyricBatchTextToolsCoordinator _batchTools =
+      LyricBatchTextToolsCoordinator(host: this);
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
   Future<bool>? _saveInFlight;
@@ -513,6 +512,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     required int? selectedLineIndex,
     required bool isReferenceProofread,
     required String message,
+    Set<String> markManuallyEditedLineIds = const {},
   }) {
     if (!mounted) return;
     final shouldPauseAudition = _audition.isSounding;
@@ -523,6 +523,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
         selectedLineIndex: selectedLineIndex,
         keepBatchSnapshot: true,
         isReferenceProofread: isReferenceProofread,
+        markManuallyEditedLineIds: markManuallyEditedLineIds,
       );
       _audition.clear();
       _filter = LyricReviewFilter.all;
@@ -556,80 +557,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
       selectedLineIndex: plan.changes.first.index,
       isReferenceProofread: false,
       message: '已统一 ${plan.changes.length} 行的简繁字形（未写入磁盘）',
-    );
-  }
-
-  /// 批量查找替换：替换后的行视为手动编辑，作为一次可撤销的批量修改。
-  Future<void> _openFindReplace() async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-    final edit = await showLyricFindReplaceDialog(
-      context,
-      document: document,
-      protectedIndices: _manuallyEditedLineIndices,
-    );
-    _applyBatchTextEdit(edit, snapshot: document);
-  }
-
-  /// 重复段落一致性检查：按多数或手动确认的写法统一副歌等重复行。
-  Future<void> _openRepetitionConsistency(ProjectManifest project) async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-    final edit = await showLyricRepetitionConsistencyDialog(
-      context,
-      document: document,
-      protectedIndices: _manuallyEditedLineIndices,
-      onPreviewLine: project.audioAsset == null
-          ? null
-          : (index) => _previewLine(project, index),
-    );
-    _applyBatchTextEdit(edit, snapshot: document);
-  }
-
-  /// 清理识别文本：去掉标点、标注和字幕水印，可能删除整行。
-  Future<void> _openTextCleanup() async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-    final edit = await showLyricTextCleanupDialog(
-      context,
-      document: document,
-      protectedIndices: _manuallyEditedLineIndices,
-    );
-    _applyBatchTextEdit(edit, snapshot: document);
-  }
-
-  /// Applies a batch tool's result as one undoable change, unless the
-  /// document changed while the dialog was open (the plan would be stale).
-  void _applyBatchTextEdit(
-    LyricBatchTextEdit? edit, {
-    required LyricDocument snapshot,
-  }) {
-    if (edit == null || !mounted) return;
-    if (!identical(_editingDocument, snapshot)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('歌词在预览期间已被修改，本次批量更改未应用，请重新打开。')),
-      );
-      return;
-    }
-    final shouldPauseAudition = _audition.isSounding;
-    setState(() {
-      _editor.replaceDocument(
-        edit.document,
-        label: edit.label,
-        selectedLineIndex: edit.selectedLineIndex,
-        keepBatchSnapshot: true,
-        markManuallyEditedLineIds: edit.manuallyEditedLineIds,
-      );
-      _audition.clear();
-      _filter = LyricReviewFilter.all;
-    });
-    if (shouldPauseAudition) unawaited(_audioService.pause());
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(edit.message),
-        duration: const Duration(seconds: 6),
-        action: SnackBarAction(label: '撤销', onPressed: _undoAlignmentApply),
-      ),
     );
   }
 
@@ -1222,15 +1149,13 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         onUnifyChineseScript: document.lines.isEmpty
                             ? null
                             : _openChineseScriptUnification,
-                        onRepetitionConsistency: document.lines.isEmpty
+                        onBatchTextTool: document.lines.isEmpty
                             ? null
-                            : () => _openRepetitionConsistency(project),
-                        onTextCleanup: document.lines.isEmpty
-                            ? null
-                            : _openTextCleanup,
-                        onFindReplace: document.lines.isEmpty
-                            ? null
-                            : _openFindReplace,
+                            : (tool) => _batchTools.open(
+                                tool,
+                                project: project,
+                                document: _editingDocument,
+                              ),
                         onAddLine: _addNewLine,
                         onInsertAtPlayback: _insertLineAtPlayback,
                         onSeekPlayback: _seekPlayback,

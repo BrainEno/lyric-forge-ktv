@@ -14,6 +14,7 @@ import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
+import 'lyric_batch_text_edit.dart';
 import 'lyric_editor_atoms.dart';
 import 'lyric_editor_toolbar.dart';
 import 'lyric_edit_shortcuts.dart';
@@ -102,9 +103,10 @@ class LyricEditorContent extends StatelessWidget {
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback? onUnifyChineseScript;
-  final VoidCallback? onRepetitionConsistency;
-  final VoidCallback? onTextCleanup;
-  final VoidCallback? onFindReplace;
+
+  /// Opens one of the batch text tools (find-and-replace, repeated-line
+  /// consistency, text clean-up); null while there are no lyrics.
+  final ValueChanged<LyricBatchTextTool>? onBatchTextTool;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
@@ -155,9 +157,7 @@ class LyricEditorContent extends StatelessWidget {
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
     this.onUnifyChineseScript,
-    this.onRepetitionConsistency,
-    this.onTextCleanup,
-    this.onFindReplace,
+    this.onBatchTextTool,
     required this.onAddLine,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
@@ -297,6 +297,12 @@ class LyricEditorContent extends StatelessWidget {
     Navigator.of(context).pop();
   }
 
+  /// A menu callback for [tool], or null when the tools are unavailable.
+  VoidCallback? _batchTool(LyricBatchTextTool tool) {
+    final open = onBatchTextTool;
+    return open == null ? null : () => open(tool);
+  }
+
   @override
   Widget build(BuildContext context) {
     final spec = AppResponsive.of(context);
@@ -341,7 +347,7 @@ class LyricEditorContent extends StatelessWidget {
         onUndo: onUndo,
         onRedo: onRedo,
         onSave: isSaving ? null : _requestSave,
-        onFindReplace: onFindReplace,
+        onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -369,9 +375,11 @@ class LyricEditorContent extends StatelessWidget {
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
                   onUnifyChineseScript: onUnifyChineseScript,
-                  onRepetitionConsistency: onRepetitionConsistency,
-                  onTextCleanup: onTextCleanup,
-                  onFindReplace: onFindReplace,
+                  onRepetitionConsistency: _batchTool(
+                    LyricBatchTextTool.repetitionConsistency,
+                  ),
+                  onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
+                  onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,
@@ -441,9 +449,7 @@ class LyricEditorContent extends StatelessWidget {
                   onViewAlignmentComparison: onViewAlignmentComparison,
                   onRestoreAlignment: onRestoreAlignment,
                   onUnifyChineseScript: onUnifyChineseScript,
-                  onRepetitionConsistency: onRepetitionConsistency,
-                  onTextCleanup: onTextCleanup,
-                  onFindReplace: onFindReplace,
+                  onBatchTextTool: onBatchTextTool,
                 ),
                 Expanded(
                   child: document.lines.isEmpty

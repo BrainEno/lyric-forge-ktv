@@ -1,9 +1,0 @@
-lyric_text_cleanup_service_test exit=0
-lyric_find_replace_service_test exit=0
-lyric_repetition_consistency_service_test exit=0
-lyric_batch_text_edit_controller_test exit=0
-lyric_batch_text_tools_test exit=0
-lyric_proofread_menu_button_test exit=0
-lyric_edit_shortcuts_test exit=0
-lyric_editor_toolbar_test exit=0
-asr_quality_report_test exit=0

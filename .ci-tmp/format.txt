@@ -1,8 +1,0 @@
-Formatted lib/features/lyrics/domain/services/lyric_find_replace_service.dart
-Formatted lib/features/lyrics/domain/services/lyric_repetition_consistency_service.dart
-Formatted lib/features/lyrics/domain/services/lyric_text_cleanup_service.dart
-Formatted lib/features/lyrics/presentation/widgets/lyric_find_replace_dialog.dart
-Formatted test/features/lyrics/domain/services/lyric_find_replace_service_test.dart
-Formatted test/features/lyrics/domain/services/lyric_repetition_consistency_service_test.dart
-Formatted test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart
-Formatted 20 files (7 changed) in 0.17 seconds.

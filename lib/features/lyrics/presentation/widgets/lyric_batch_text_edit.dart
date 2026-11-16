@@ -5,6 +5,9 @@ import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../../project/domain/models/lyric_document.dart';
 
+/// The document-wide text tools in the proofreading menu.
+enum LyricBatchTextTool { findReplace, repetitionConsistency, textCleanup }
+
 /// What a batch text tool (find-and-replace, repeated-line consistency, text
 /// clean-up) hands back to the editor after the user confirmed its preview.
 ///
