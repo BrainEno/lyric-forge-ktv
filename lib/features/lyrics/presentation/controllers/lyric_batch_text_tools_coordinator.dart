@@ -7,6 +7,8 @@ import '../widgets/lyric_find_replace_dialog.dart';
 import '../widgets/lyric_repetition_consistency_dialog.dart';
 import '../widgets/lyric_structure_dialog.dart';
 import '../widgets/lyric_text_cleanup_dialog.dart';
+import '../widgets/lyric_timeline_repair_dialog.dart';
+import '../widgets/lyric_timing_shift_dialog.dart';
 import 'lyric_editor_proofreading_coordinator.dart';
 
 /// Runs a batch text tool against a snapshot of the editing document and
@@ -90,5 +92,37 @@ class LyricBatchTextToolsCoordinator {
           ? null
           : (index) => host.previewProofreadLine(project, index),
     ),
+    LyricBatchTextTool.timelineRepair => showLyricTimelineRepairDialog(
+      context,
+      document: document,
+      protectedIndices: protectedIndices,
+      audioDuration: project.audioAsset?.duration,
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
+    ),
+    LyricBatchTextTool.timingShift => showLyricTimingShiftDialog(
+      context,
+      document: document,
+      selectedIndex: host.proofreadSelectedLineIndex,
+      audioDuration: project.audioAsset?.duration,
+      playhead: pausedPlayhead(project, document),
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
+    ),
   };
+
+  /// The playhead on [document]'s timeline when this project's audio is
+  /// loaded and paused, so the timing tools can offer it as a target time.
+  /// A moving playhead is not offered: it is already somewhere else by the
+  /// time the user reads it.
+  Duration? pausedPlayhead(ProjectManifest project, LyricDocument document) {
+    final item = host.proofreadPlaybackSession.currentState.currentItem;
+    if (item?.projectId != project.id) return null;
+    final playback = host.proofreadAudioService.currentState;
+    if (playback.isPlaying) return null;
+    final position = playback.position - (document.globalOffset ?? Duration.zero);
+    return position.isNegative ? Duration.zero : position;
+  }
 }

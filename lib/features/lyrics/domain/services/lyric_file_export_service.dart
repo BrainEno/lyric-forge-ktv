@@ -1,4 +1,5 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'lyric_export_encoder.dart';
 
 abstract class LyricFileExportService {
   String encodeLrc(
@@ -14,6 +15,18 @@ abstract class LyricFileExportService {
     String? title,
     String? artist,
     String? album,
+  });
+
+  /// Encodes [document] as [format] and asks the user where to save it.
+  ///
+  /// Returns the saved path, or null when the user cancelled. Throws
+  /// [LyricExportException] when writing fails.
+  Future<String?> exportFile(
+    LyricDocument document, {
+    required LyricExportFormat format,
+    required String suggestedFileName,
+    LyricExportOptions options = const LyricExportOptions(),
+    LyricExportMetadata metadata = const LyricExportMetadata(),
   });
 }
 
