@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
+import 'lyric_find_replace_dialog.dart';
+import 'lyric_repetition_consistency_dialog.dart';
+import 'lyric_text_cleanup_dialog.dart';
 
 /// The proofreading capabilities, in the order they are offered.
 ///
@@ -11,7 +14,10 @@ enum LyricProofreadAction {
   proofreadV2,
   referenceAlignment,
   referenceProofread,
+  repetitionConsistency,
+  textCleanup,
   unifyChineseScript,
+  findReplace,
   viewComparison,
   undoAlignment,
   restoreBackup,
@@ -31,6 +37,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onReferenceAlignment,
     this.onReferenceProofread,
     this.onUnifyChineseScript,
+    this.onRepetitionConsistency,
+    this.onTextCleanup,
+    this.onFindReplace,
     this.onViewComparison,
     this.onUndoAlignment,
     this.onRestoreBackup,
@@ -48,6 +57,15 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 统一简繁字形: previews and applies a simplified/traditional unification.
   final VoidCallback? onUnifyChineseScript;
+
+  /// 重复段落一致性检查: unifies repeats (choruses) recognised differently.
+  final VoidCallback? onRepetitionConsistency;
+
+  /// 清理识别文本: strips punctuation, annotations and caption boilerplate.
+  final VoidCallback? onTextCleanup;
+
+  /// 批量查找替换: replaces a misrecognised word everywhere at once.
+  final VoidCallback? onFindReplace;
 
   final VoidCallback? onViewComparison;
   final VoidCallback? onUndoAlignment;
@@ -95,7 +113,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message: '校对：智能提案、参考歌词纠正、简繁统一、逐行对比与回滚',
+          message: '校对：智能提案、参考歌词纠正、重复行统一、文本清理、简繁统一、查找替换、逐行对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -111,7 +129,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.proofreadV2: onProofreadV2,
       LyricProofreadAction.referenceAlignment: onReferenceAlignment,
       LyricProofreadAction.referenceProofread: onReferenceProofread,
+      LyricProofreadAction.repetitionConsistency: onRepetitionConsistency,
+      LyricProofreadAction.textCleanup: onTextCleanup,
       LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
+      LyricProofreadAction.findReplace: onFindReplace,
       LyricProofreadAction.viewComparison: onViewComparison,
       LyricProofreadAction.undoAlignment: onUndoAlignment,
       LyricProofreadAction.restoreBackup: onRestoreBackup,
@@ -148,9 +169,21 @@ class LyricProofreadMenuButton extends StatelessWidget {
         '逐行智能纠错（保留时间戳）',
         '有参考歌词；只改文字，时间戳保持不变',
       ),
+      LyricProofreadAction.repetitionConsistency => (
+        LyricRepetitionStrings.actionTitle,
+        LyricRepetitionStrings.actionDetail,
+      ),
+      LyricProofreadAction.textCleanup => (
+        LyricTextCleanupStrings.actionTitle,
+        LyricTextCleanupStrings.actionDetail,
+      ),
       LyricProofreadAction.unifyChineseScript => (
         '统一简繁字形',
         '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
+      ),
+      LyricProofreadAction.findReplace => (
+        LyricFindReplaceStrings.actionTitle,
+        LyricFindReplaceStrings.actionDetail,
       ),
       LyricProofreadAction.viewComparison => ('查看逐行对比', '查看最近一次对齐的逐行差异'),
       LyricProofreadAction.undoAlignment => ('撤销最近更改', '未保存前有效'),
@@ -163,7 +196,11 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.proofreadV2 => Icons.auto_awesome_rounded,
       LyricProofreadAction.referenceAlignment => Icons.auto_fix_high_rounded,
       LyricProofreadAction.referenceProofread => Icons.spellcheck_rounded,
+      LyricProofreadAction.repetitionConsistency =>
+        Icons.library_add_check_rounded,
+      LyricProofreadAction.textCleanup => Icons.cleaning_services_rounded,
       LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
+      LyricProofreadAction.findReplace => Icons.find_replace_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,
       LyricProofreadAction.undoAlignment => Icons.undo_rounded,
       LyricProofreadAction.restoreBackup => Icons.history_rounded,

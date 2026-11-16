@@ -416,11 +416,16 @@ class LyricEditorDocumentController extends ChangeNotifier {
     required int? selectedLineIndex,
     bool keepBatchSnapshot = false,
     bool isReferenceProofread = false,
+    Set<String> markManuallyEditedLineIds = const {},
   }) {
     final snapshot = keepBatchSnapshot && _document != null
         ? _captureSnapshot(isReferenceProofread: isReferenceProofread)
         : null;
     _recordEdit(label);
+    // Rows whose text the user chose explicitly (find-and-replace, picking a
+    // spelling) are protected like hand edits; undo restores the old marks
+    // from the history entry and the batch snapshot captured above.
+    _manuallyEditedLineIds.addAll(markManuallyEditedLineIds);
     _document = after;
     _selectedLineIndex = selectedLineIndex;
     _markEdited();

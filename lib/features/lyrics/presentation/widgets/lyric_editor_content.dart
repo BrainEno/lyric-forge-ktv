@@ -102,6 +102,9 @@ class LyricEditorContent extends StatelessWidget {
   final VoidCallback? onViewAlignmentComparison;
   final VoidCallback? onRestoreAlignment;
   final VoidCallback? onUnifyChineseScript;
+  final VoidCallback? onRepetitionConsistency;
+  final VoidCallback? onTextCleanup;
+  final VoidCallback? onFindReplace;
   final VoidCallback onAddLine;
   final VoidCallback onInsertAtPlayback;
   final ValueChanged<Duration> onSeekPlayback;
@@ -152,6 +155,9 @@ class LyricEditorContent extends StatelessWidget {
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
     this.onUnifyChineseScript,
+    this.onRepetitionConsistency,
+    this.onTextCleanup,
+    this.onFindReplace,
     required this.onAddLine,
     required this.onInsertAtPlayback,
     required this.onSeekPlayback,
@@ -335,6 +341,7 @@ class LyricEditorContent extends StatelessWidget {
         onUndo: onUndo,
         onRedo: onRedo,
         onSave: isSaving ? null : _requestSave,
+        onFindReplace: onFindReplace,
         child: Scaffold(
           backgroundColor: AppColors.bgBase,
           appBar: AppBar(
@@ -362,6 +369,9 @@ class LyricEditorContent extends StatelessWidget {
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
                   onUnifyChineseScript: onUnifyChineseScript,
+                  onRepetitionConsistency: onRepetitionConsistency,
+                  onTextCleanup: onTextCleanup,
+                  onFindReplace: onFindReplace,
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,
@@ -431,6 +441,9 @@ class LyricEditorContent extends StatelessWidget {
                   onViewAlignmentComparison: onViewAlignmentComparison,
                   onRestoreAlignment: onRestoreAlignment,
                   onUnifyChineseScript: onUnifyChineseScript,
+                  onRepetitionConsistency: onRepetitionConsistency,
+                  onTextCleanup: onTextCleanup,
+                  onFindReplace: onFindReplace,
                 ),
                 Expanded(
                   child: document.lines.isEmpty
