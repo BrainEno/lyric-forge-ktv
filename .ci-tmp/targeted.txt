@@ -37,20 +37,20 @@ Try `flutter pub outdated` for more information.
 ::group::✅ Passing tests
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.units Han characters are single units and punctuation rides along
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.units Latin words are weighted by their vowel groups
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: measures the song median and flags crowded and sparse rows
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.units digits weigh one unit each; text without sung units stays
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: applying the proposals moves only the ends and records them
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.syllables spreads the row over its units by weight
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.syllables rounding error is carried so the units add up exactly
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: hand-timed and protected rows are reported without proposals
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: LyricKaraokeTimingService.syllables a row without a usable end gets zero durations
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: a crowded row with no room after it has no proposal
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: few measurable rows fall back to the default pace
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: karaoke export formats word-timed LRC keeps the line stamp and closes with the end
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: karaoke export formats ASS rows sweep per unit with a lead-in bounded by the row above
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: karaoke export formats ASS lead-in can be turned off
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: karaoke export formats ASS timestamps use h:mm:ss.cc
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_karaoke_export_test.dart: karaoke export formats karaoke formats are syllable-timed and keep their extensions
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: measures the song median and flags crowded and sparse rows
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: applying the proposals moves only the ends and records them
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: hand-timed and protected rows are reported without proposals
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: a crowded row with no room after it has no proposal
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: few measurable rows fall back to the default pace
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_pace_analyzer_test.dart: draft health counts pace issues
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_tap_sync_session_test.dart: LyricTapSyncSession presses each press times the next row and bounces are ignored
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_tap_sync_session_test.dart: LyricTapSyncSession presses release ends the open row, never shorter than the minimum
@@ -103,54 +103,24 @@ Try `flutter pub outdated` for more information.
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_timeline_repair_planner_test.dart: LyricTimelineRepairPlanner protection and apply estimates durations within 1 to 6 seconds
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_timeline_repair_planner_test.dart: LyricTimelineRepairPlanner protection and apply a clean timeline has nothing to plan
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_timeline_repair_planner_test.dart: draft health counts rows with timeline problems
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog opens before the first row, taps rows in order and applies
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog extrapolates the position between player reports
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimelineRepairDialog pre-selects rule-based repairs and applies them
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog opens before the first row, taps rows in order and applies
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimelineRepairDialog select all also re-slots the out-of-order row
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimelineRepairDialog lists what cannot be repaired by rule
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog extrapolates the position between player reports
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimelineRepairDialog a clean timeline says so
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog hold mode records the release as the end
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog starts from the selected row and needs a non-zero offset
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog reaction compensation and speed are applied
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricTapSyncDialog the pad times rows on pointer down
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog typed offsets, the whole-song scope and bad input
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricPaceCheckDialog lists both kinds, pre-selects proposals and applies them
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog starts from the selected row and needs a non-zero offset
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: LyricPaceCheckDialog a steady song has nothing to adjust
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog aligns the first row of the range to the paused playhead
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the proofread menu offers the pace check and tap-to-sync
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the summary card hints at pace issues last
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog typed offsets, the whole-song scope and bad input
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog aligns the first row of the range to the paused playhead
-::endgroup::
-::group::❌ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the export dialog previews ASS karaoke with a lead-in switch (failed)
-══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
-The following TestFailure was thrown running a test:
-Expected: contains '[Script Info]'
-  Actual: '…（已省略脚本信息和样式）\n'
-            '[Events]\n'
-            'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n'
-            'Dialogue: 0,0:00:01.00,0:00:03.50,Karaoke,,0,0,0,,{\\k100}{\\kf50}我{\\kf50}爱{\\kf50}你'
-   Which: does not contain '[Script Info]'
-
-When the exception was thrown, this was the stack:
-#4      main.<anonymous closure> (file:///home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart:388:5)
-<asynchronous suspension>
-#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
-<asynchronous suspension>
-#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
-<asynchronous suspension>
-<asynchronous suspension>
-(elided one frame from package:stack_trace)
-
-This was caught by the test expectation on the following line:
-  file:///home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart line 388
-The test description was:
-  the export dialog previews ASS karaoke with a lead-in switch
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Test failed. See exception logs above.
-The test description was: the export dialog previews ASS karaoke with a lead-in switch
-
-::endgroup::
-::group::✅ Passing tests
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricTimingShiftDialog two-point calibration stretches between the anchors
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart: the export dialog previews ASS karaoke with a lead-in switch
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricExportDialog previews LRC with end markers and warns about the timeline
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricExportDialog switching format updates the preview and the result
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: LyricExportCoordinator exports the chosen format and remembers it
@@ -158,12 +128,12 @@ The test description was: the export dialog previews ASS karaoke with a lead-in 
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart: a timeline hint opens the timeline check last
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 默认只留少数几个控件，其余收进菜单
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 紧凑宽度不再横向滚动，也不重复显示校对菜单
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 只有一个复核数字，筛选菜单里也都是同一套口径
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 只有一个复核数字，筛选菜单里也都是同一套口径
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 未评分的稿子不显示低置信度，而是说明引擎没给分数
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 偏移按钮显示当前值，并按 100ms 步进
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 偏移归零项在无偏移时不可点
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: the menu explains the reference and no-reference strategies
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 偏移归零项在无偏移时不可点
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 循环本行只在待复核列表下出现
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 更多的入口按可用性出现
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart: 撤销与重做在没有历史时置灰，并说明快捷键
@@ -176,23 +146,23 @@ The test description was: the export dialog previews ASS karaoke with a lead-in 
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LineInspector split and merge Ctrl+Enter in the text splits at the cursor
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LineInspector split and merge merge runs the callback and is disabled on the last row
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace previews matches and replaces the selected rows
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: the list context menu offers split and merge
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace protected rows are skipped until the user opts in
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog pre-selects confident suggestions and applies them
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: the list context menu offers split and merge
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency pre-selects a clear majority and unifies the outlier
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog select all includes the guessed split
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog a clean document has nothing to apply
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency an undecided group waits for the user to choose
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency says so when every repeat is consistent
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog pre-selects confident suggestions and applies them
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up previews rewrites and removals and applies them
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog select all includes the guessed split
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: LyricStructureDialog a clean document has nothing to apply
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up nothing to clean disables the confirm button
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: recognition summary health hints each hint opens the tool that fixes it
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: recognition summary health hints a clean draft or a missing health shows no hints
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: the proofreading menu offers the line-structure tool
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up previews rewrites and removals and applies them
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up nothing to clean disables the confirm button
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: the proofreading menu offers the three tools
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find-and-replace shortcut Ctrl+H opens find and replace
 ✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find-and-replace shortcut on macOS Ctrl+H is left to text fields; Cmd+Shift+H works
 ::endgroup::
 
-::error::126 tests passed, 1 failed.
-exit=1
+🎉 127 tests passed.
+exit=0
