@@ -153,23 +153,23 @@ void main() {
       ),
     );
 
-    Future<void> openMenu(String rowLabel) async {
-      await tester.tap(find.text(rowLabel), buttons: kSecondaryButton);
+    Future<void> openMenu(String rowText) async {
+      await tester.tap(find.text(rowText), buttons: kSecondaryButton);
       await tester.pumpAndSettle();
     }
 
-    await openMenu('第 1 行');
+    await openMenu('我爱你，你爱我');
     await tester.tap(find.text('从中间断点拆分为两行'));
     await tester.pumpAndSettle();
     expect(calls.last, ('split', 0, null));
 
-    await openMenu('第 1 行');
+    await openMenu('我爱你，你爱我');
     await tester.tap(find.text('与下一行合并'));
     await tester.pumpAndSettle();
     expect(calls.last, ('merge', 0));
 
     // The last row has nothing to merge with.
-    await openMenu('第 2 行');
+    await openMenu('下一行');
     expect(find.text('与下一行合并'), findsNothing);
     expect(find.text('从中间断点拆分为两行'), findsOneWidget);
   });

@@ -45,12 +45,13 @@ jobs:
           grep -n -B2 -A40 "\[E\]\|Some tests failed\|FAILED" $out/full.txt | head -c 60000 > $out/full-failures.txt
           rm -f $out/full.txt
           head -c 200000 $out/targeted.txt > $out/t.tmp && mv $out/t.tmp $out/targeted.txt
+          dart tool/work_log.dart write > $out/worklog-write.txt 2>&1; echo "worklog write exit=$?" >> $out/summary.txt
           dart tool/work_log.dart check > $out/worklog.txt 2>&1 && echo "worklog exit=0" >> $out/summary.txt || echo "worklog exit=$?" >> $out/summary.txt
       - name: Commit results
         shell: bash
         run: |
           git config user.name "ci-bot"
           git config user.email "ci-bot@users.noreply.github.com"
-          git add -A .ci-tmp lib test tool
+          git add -A .ci-tmp lib test tool docs
           git commit -m "tmp: validation results" || true
           git push origin HEAD:${GITHUB_REF_NAME}
