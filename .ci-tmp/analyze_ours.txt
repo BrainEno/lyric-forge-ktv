@@ -1,0 +1,6 @@
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart:2097:7 • curly_braces_in_flow_control_structures
+   info • Unnecessary 'const' keyword. Try removing the keyword • test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart:185:20 • unnecessary_const
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:184:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1543:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1548:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1903:21 • prefer_interpolation_to_compose_strings

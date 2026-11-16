@@ -125,7 +125,8 @@ class _LyricFindReplaceDialogState extends State<LyricFindReplaceDialog> {
     Navigator.of(context).pop(
       LyricBatchTextEdit(
         document: plan.applyTo(widget.document, excludedIndices: _excluded),
-        label: '${LyricFindReplaceStrings.actionTitle}：'
+        label:
+            '${LyricFindReplaceStrings.actionTitle}：'
             '“${plan.query.find}” → “${plan.query.replacement}”',
         message: LyricFindReplaceStrings.applied(selected.length, occurrences),
         selectedLineIndex: selected.first.index,

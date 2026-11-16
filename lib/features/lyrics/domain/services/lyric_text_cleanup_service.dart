@@ -547,7 +547,9 @@ class LyricTextCleanupService {
   static const ChineseScriptConverter _converter = ChineseScriptConverter();
 
   static final RegExp _keyNoise = RegExp(
-    r'[，。、；：！？,;:!?「」『』“”"' "'" r'～~\-—…·]',
+    r'[，。、；：！？,;:!?「」『』“”"'
+    "'"
+    r'～~\-—…·]',
   );
 
   static String _comparisonKey(String text) => _converter
@@ -617,6 +619,7 @@ class LyricTextCleanupService {
   /// Han characters and Japanese kana; Hangul is excluded on purpose.
   static bool _isSpacelessScript(int rune) {
     if (ChineseScriptConverter.isHanRune(rune)) return true;
-    return (rune >= 0x3040 && rune <= 0x30ff) || (rune >= 0x31f0 && rune <= 0x31ff);
+    return (rune >= 0x3040 && rune <= 0x30ff) ||
+        (rune >= 0x31f0 && rune <= 0x31ff);
   }
 }

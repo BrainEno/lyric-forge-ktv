@@ -63,9 +63,7 @@ void main() {
   });
 
   test('ignores punctuation, case and script when grouping spellings', () {
-    final report = service.analyze(
-      _doc(['我愛你到永遠', '我爱你到永远。', '我碍你到永远']),
-    );
+    final report = service.analyze(_doc(['我愛你到永遠', '我爱你到永远。', '我碍你到永远']));
     final group = report.groups.single;
     expect(group.variants.first.count, 2);
     expect(group.variants.first.text, '我愛你到永遠');
@@ -92,10 +90,7 @@ void main() {
   });
 
   test('a tie without confidence is undecided', () {
-    final group = service
-        .analyze(_doc(['夜空中最亮的星', '夜空中最亮的心']))
-        .groups
-        .single;
+    final group = service.analyze(_doc(['夜空中最亮的星', '夜空中最亮的心'])).groups.single;
     expect(group.recommendation, LyricRepetitionRecommendation.undecided);
     expect(group.recommendedVariant, isNull);
     expect(group.selectedByDefault, isFalse);
@@ -103,30 +98,25 @@ void main() {
 
   test('confidence breaks a tie but is never pre-selected', () {
     final group = service
-        .analyze(
-          _doc(['夜空中最亮的星', '夜空中最亮的心'], confidence: [55, 92]),
-        )
+        .analyze(_doc(['夜空中最亮的星', '夜空中最亮的心'], confidence: [55, 92]))
         .groups
         .single;
-    expect(group.recommendation, LyricRepetitionRecommendation.higherConfidence);
+    expect(
+      group.recommendation,
+      LyricRepetitionRecommendation.higherConfidence,
+    );
     expect(group.recommended!.text, '夜空中最亮的心');
     expect(group.selectedByDefault, isFalse);
 
     final close = service
-        .analyze(
-          _doc(['夜空中最亮的星', '夜空中最亮的心'], confidence: [85, 90]),
-        )
+        .analyze(_doc(['夜空中最亮的星', '夜空中最亮的心'], confidence: [85, 90]))
         .groups
         .single;
     expect(close.recommendation, LyricRepetitionRecommendation.undecided);
   });
 
   test('a manually confirmed spelling beats the majority', () {
-    final document = _doc([
-      '夜空中最亮的心',
-      '夜空中最亮的心',
-      '夜空中最亮的星',
-    ]);
+    final document = _doc(['夜空中最亮的心', '夜空中最亮的心', '夜空中最亮的星']);
     final report = service.analyze(document, protectedIndices: {2});
     final group = report.groups.single;
     expect(
@@ -160,16 +150,19 @@ void main() {
     expect(withProtected.map((change) => change.index), [2, 3]);
   });
 
-  test('more than one confirmed spelling means the variation is deliberate', () {
-    final group = service
-        .analyze(
-          _doc(['夜空中最亮的星', '夜空中最亮的心', '夜空中最亮的星']),
-          protectedIndices: {0, 1},
-        )
-        .groups
-        .single;
-    expect(group.recommendation, LyricRepetitionRecommendation.undecided);
-  });
+  test(
+    'more than one confirmed spelling means the variation is deliberate',
+    () {
+      final group = service
+          .analyze(
+            _doc(['夜空中最亮的星', '夜空中最亮的心', '夜空中最亮的星']),
+            protectedIndices: {0, 1},
+          )
+          .groups
+          .single;
+      expect(group.recommendation, LyricRepetitionRecommendation.undecided);
+    },
+  );
 
   test('clusters around the seed, not by chaining', () {
     // A and C differ by two characters (too far), each is one away from B.
@@ -177,10 +170,7 @@ void main() {
       _doc(['一二三四五六', '一二三四五六', '一二三四五七', '一二三四八七']),
     );
     final group = report.groups.single;
-    expect(group.variants.map((variant) => variant.text), [
-      '一二三四五六',
-      '一二三四五七',
-    ]);
+    expect(group.variants.map((variant) => variant.text), ['一二三四五六', '一二三四五七']);
   });
 
   test('bounded edit distance', () {

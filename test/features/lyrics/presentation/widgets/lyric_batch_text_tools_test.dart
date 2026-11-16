@@ -24,8 +24,7 @@ LyricDocument _doc(List<String> texts) => LyricDocument(
   ],
 );
 
-typedef _Opener =
-    Future<LyricBatchTextEdit?> Function(BuildContext context);
+typedef _Opener = Future<LyricBatchTextEdit?> Function(BuildContext context);
 
 void main() {
   late LyricBatchTextEdit? result;
@@ -146,12 +145,7 @@ void main() {
     testWidgets('pre-selects a clear majority and unifies the outlier', (
       tester,
     ) async {
-      final document = _doc([
-        '夜空中最亮的星',
-        '能否听清那仰望的人',
-        '夜空中最亮的星',
-        '夜空中最亮的心',
-      ]);
+      final document = _doc(['夜空中最亮的星', '能否听清那仰望的人', '夜空中最亮的星', '夜空中最亮的心']);
       await open(
         tester,
         (context) => showLyricRepetitionConsistencyDialog(

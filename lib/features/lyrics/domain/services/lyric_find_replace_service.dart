@@ -183,8 +183,7 @@ class LyricFindReplaceService {
           before: line.text,
           after: _replace(line.text, ranges, query.replacement),
           ranges: List.unmodifiable(ranges),
-          isProtected:
-              !includeProtected && protectedIndices.contains(index),
+          isProtected: !includeProtected && protectedIndices.contains(index),
         ),
       );
     }

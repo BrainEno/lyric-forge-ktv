@@ -217,7 +217,9 @@ class LyricRepetitionConsistencyService {
   });
 
   static final RegExp _noise = RegExp(
-    r'[\s，。、；：！？,.;:!?「」『』“”"' "'" r'()（）\[\]【】～~\-—…·♪]',
+    r'[\s，。、；：！？,.;:!?「」『』“”"'
+    "'"
+    r'()（）\[\]【】～~\-—…·♪]',
   );
 
   /// Comparison key for a row; empty when the row has nothing to compare.
@@ -252,7 +254,9 @@ class LyricRepetitionConsistencyService {
     //    group and absorbs every unassigned variant close to it. Comparing
     //    against the seed (not any member) keeps chains like A~B~C from
     //    merging A and C when they are not alike.
-    final keyRunes = [for (final variant in variants) variant.key.runes.toList()];
+    final keyRunes = [
+      for (final variant in variants) variant.key.runes.toList(),
+    ];
     final assigned = List<bool>.filled(variants.length, false);
     final groups = <LyricRepetitionGroup>[];
     for (var seed = 0; seed < variants.length; seed++) {
@@ -269,9 +273,7 @@ class LyricRepetitionConsistencyService {
       if (members.length < 2) continue;
       groups.add(_group(members));
     }
-    groups.sort(
-      (a, b) => _firstIndex(a).compareTo(_firstIndex(b)),
-    );
+    groups.sort((a, b) => _firstIndex(a).compareTo(_firstIndex(b)));
     return LyricRepetitionReport(
       groups: List.unmodifiable(groups),
       comparedRows: compared,
@@ -396,7 +398,10 @@ class LyricRepetitionConsistencyService {
   static int? boundedEditDistance(List<int> a, List<int> b, int limit) {
     if ((a.length - b.length).abs() > limit) return null;
     final big = limit + 1;
-    var previous = List<int>.generate(b.length + 1, (j) => j <= limit ? j : big);
+    var previous = List<int>.generate(
+      b.length + 1,
+      (j) => j <= limit ? j : big,
+    );
     for (var i = 1; i <= a.length; i++) {
       final current = List<int>.filled(b.length + 1, big);
       current[0] = i <= limit ? i : big;

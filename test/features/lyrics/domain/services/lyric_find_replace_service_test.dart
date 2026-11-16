@@ -105,10 +105,14 @@ void main() {
   });
 
   test('explains why nothing would change', () {
-    expect(plan(['我爱你'], '', 'x').noopReason,
-        LyricFindReplaceNoopReason.emptyQuery);
-    expect(plan(['我爱你'], '恨', 'x').noopReason,
-        LyricFindReplaceNoopReason.noMatches);
+    expect(
+      plan(['我爱你'], '', 'x').noopReason,
+      LyricFindReplaceNoopReason.emptyQuery,
+    );
+    expect(
+      plan(['我爱你'], '恨', 'x').noopReason,
+      LyricFindReplaceNoopReason.noMatches,
+    );
     expect(
       plan(['我爱你'], '爱', '爱').noopReason,
       LyricFindReplaceNoopReason.replacementIdentical,
