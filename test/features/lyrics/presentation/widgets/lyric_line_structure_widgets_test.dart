@@ -6,6 +6,7 @@ import 'package:lyric_forge_ktv/features/lyrics/domain/models/lyric_review_queue
 import 'package:lyric_forge_ktv/features/lyrics/domain/models/recognition_review_summary.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_draft_health_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart';
+import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_inspector_pane.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_list_pane.dart';
 import 'package:lyric_forge_ktv/features/lyrics/presentation/widgets/lyric_proofread_menu_button.dart';
