@@ -1,5 +1,0 @@
-✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find-and-replace shortcut on macOS Ctrl+H is left to text fields; Cmd+Shift+H works
-::endgroup::
-
-🎉 127 tests passed.
-exit=0

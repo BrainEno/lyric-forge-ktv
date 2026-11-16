@@ -34,6 +34,8 @@
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
   - `dart format` reformatted 4 of the 21 changed files.
   - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - The 12 targeted test files passed (127 tests). The full `flutter test` suite had 2516 passed, 2 skipped and 0 failed (main: 2477).
+  - `dart tool/work_log.dart write` and `check` passed; the one warning predates this change.
   - The editor screen stays at 1178 lines.
 - Notes: The pace thresholds and tap-sync parameters are empirical and should be calibrated on the #413 corpus. Syllable timing is proportional, so held notes will be off.
 - Commit: `Add tap-to-sync, pace check and karaoke export formats`

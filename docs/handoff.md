@@ -36,7 +36,7 @@
 
 - `dart format`：改动文件已格式化。
 - `flutter analyze`：没有 error 或 warning，186 条 info，与 main 相同。
-- `flutter test`：见 PR 描述中的最终运行结果。
+- `flutter test` 全量：2516 通过，2 跳过，0 失败（main 为 2477 通过）。
 - `dart tool/work_log.dart write` 和 `check`：通过（唯一的 warning 是旧条目的问题，早已存在）。
 - `lyric_editor_screen.dart`：仍为 1178 行。
 
