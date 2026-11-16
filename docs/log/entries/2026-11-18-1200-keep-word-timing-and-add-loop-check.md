@@ -1,0 +1,37 @@
+# [2026-11-18 12:00] Keep word timing and add a recognition loop check
+
+- Scope: Real word timing from recognition is kept through editing and used by karaoke export, and a new proofreading tool catches recognition loops. Both are wired through existing services and the batch-tool coordinator, so the editor screen does not grow.
+  - Word timing (`LyricWordTiming`, `LyricLine.words`, `LyricWordTimingService`).
+    - Each row can carry per-word text, start and end in absolute time. It is stored under an optional `words` key in the project JSON; malformed entries are skipped on load.
+    - The Qwen native service keeps the aligner's word tokens when grouping them into rows, and reads `words`/`tokens` nested inside segments. Chunked transcription shifts word times along with their rows.
+    - Words match a row by sung characters (Han, kana, Hangul, letters, digits; not spaces or punctuation). They are used only while the counts agree, so punctuation clean-up, script conversion and homophone fixes keep them, while adding or removing characters disables them.
+    - Words inside the row (60 ms tolerance) are used as recorded. After the row was moved, stretched, tap-synced or trimmed, they are mapped linearly onto its new span, so the timing tools need no changes.
+    - Word-timed LRC and ASS start each unit at its first sung character; rows without usable words fall back to the D-020 estimate. The export dialog reports how many rows use real word timing.
+    - Splitting without a usable playhead breaks at the first word of the second half and divides the words. Merging keeps words only when both rows have usable ones.
+    - The inspector shows each word with its start time, marks words held for 2.5 s or more, and explains when an edit has disabled the row's word timing.
+  - 识别循环检查 (`LyricAsrLoopDetector`, dialog, menu entry and a 识别循环 N 行 hint on the recognition summary).
+    - In a row: a unit of 1–8 sung tokens repeated at least 4 times back to back (8 for a single Han-type character). Strong from 6 (12) repeats, selected by default. The fix keeps 2 (4) repeats and leaves surrounding text alone.
+    - Across rows: at least 4 consecutive rows with the same sung text (punctuation, spacing and case ignored); strong from 6. The fix keeps the first 2 rows and deletes the rest.
+    - Hand-edited rows are listed but never changed. In-row loops inside deleted rows are not listed separately. Applying is one undoable edit.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_word_timing_service,lyric_asr_loop_detector}.dart`.
+  - New widgets: `lib/features/lyrics/presentation/widgets/{lyric_asr_loop_dialog,lyric_word_timing_strip}.dart`.
+  - Changed:
+    - `lib/features/project/domain/models/lyric_document.dart` (`LyricWordTiming`, `LyricLine.words`)
+    - `qwen3_asr_native_transcription_service.dart`, `resumable_chunked_transcription_service.dart`
+    - `lyric_karaoke_timing_service.dart` (`characterStarts`), `lyric_export_encoder.dart` (`LyricExportCue.characterStarts`), `lyric_line_structure_service.dart` (`wordTiming` split source, word-aware split/merge), `lyric_draft_health_service.dart` (`loopRows`)
+    - `lyric_editor_document_controller.dart` (split hint), `lyric_batch_text_edit.dart` (`asrLoopCheck`), `lyric_batch_text_tools_coordinator.dart`
+    - `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_editor_content.dart`, `lyric_recognition_summary_card.dart`, `lyric_export_dialog.dart`, `lyric_inspector_pane.dart`
+  - Tests:
+    - Word timing service tests (JSON, matching, mapping, slicing, split/merge, karaoke and export) and loop detector tests.
+    - Widget tests for the loop dialog, menu entry, summary hint, word timing strip and export note.
+    - The fake Qwen runtime returns nested segment words; the lifecycle test checks they survive.
+  - Docs: `decisions.md` (D-021), handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
+  - `dart format` reformatted 6 of the 25 changed files.
+  - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - The 12 targeted test files passed (153 tests). The full `flutter test` suite had 2555 passed, 2 skipped and 0 failed (main: 2516).
+  - `dart tool/work_log.dart write` and `check` passed; the one warning predates this change.
+  - The editor screen stays at 1178 lines.
+- Notes: Loop thresholds are empirical and should be calibrated on the #413 corpus. Older app versions ignore the `words` key and drop it on save. The Whisper path does not provide word timing yet.
+- Commit: `Keep word timing, add recognition loop check and word timing view`
