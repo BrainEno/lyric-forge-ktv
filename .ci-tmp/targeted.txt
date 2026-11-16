@@ -1,0 +1,134 @@
+00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart
+00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: suggestSplitOffset picks the punctuation break nearest the sung middle
+00:00 +1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: suggestSplitOffset prefers the more central of several breaks
+00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: suggestSplitOffset falls back to the middle of a Han run without breaks
+00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: suggestSplitOffset never splits inside a Latin word
+00:00 +4: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: suggestSplitOffset needs at least one sung character on each side
+00:00 +5: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split divides the span in proportion to what is sung
+00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split keeps the id on the first half and leaves the second unset
+00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split uses a playhead inside the line as the boundary
+00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split ignores a playhead outside the line
+00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split splits at an explicit cursor offset
+00:00 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split never leaves a half shorter than the minimum duration
+00:00 +11: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split refuses a break with nothing on one side
+00:00 +12: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split refuses a line too short to split
+00:00 +13: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split reports when no natural break exists
+00:00 +14: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: split moves a cursor off the middle of a surrogate pair
+00:00 +15: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: merge joins Han text directly and Latin text with a space
+00:00 +16: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: merge spans both rows and keeps the first id
+00:00 +17: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: merge keeps the weaker real score
+00:00 +18: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: merge a placeholder score never outranks a real one
+00:00 +19: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_line_structure_service_test.dart: merge a heuristic score stays marked as heuristic
+00:00 +20: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze suggests splitting an over-long row at its natural break
+00:00 +21: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze suggests merging a fragment into the closer neighbour
+00:00 +22: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze a long row without any break is suggested but not pre-selected
+00:00 +23: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze a fragment separated by a long pause is left alone
+00:00 +24: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze does not merge when the result would be too long
+00:00 +25: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze skips hand-edited rows and reports them
+00:00 +26: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze never touches a 建议补入 row
+00:00 +27: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: analyze never merges caption or annotation rows into a lyric
+00:00 +28: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: applyTo applies every selected suggestion in one pass
+00:00 +29: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: applyTo applies only the selected suggestions
+00:00 +30: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: applyTo keeps evidence on untouched rows and drops it on changed rows
+00:00 +31: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: LyricDraftHealthService counts what each batch tool would offer
+00:00 +32: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: LyricDraftHealthService a clean draft has no issues and an empty one is clean
+00:00 +33: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_structure_advisor_test.dart: LyricDraftHealthService memoises per document instance
+test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart:134:21: Error: Undefined name 'LyricReviewFilter'.
+            filter: LyricReviewFilter.all,
+                    ^^^^^^^^^^^^^^^^^
+00:01 +34: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine splits at the natural break and selects the second half
+00:01 +35: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine uses the cursor offset and a playhead inside the row
+00:01 +36: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine is one undo step that also restores the manual marks
+00:01 +37: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine a failed split is not an edit and explains why
+00:01 +38: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine drops evidence of the split row and shifts later rows
+00:01 +39: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: splitLine reports whether the audition must be dropped
+00:01 +40: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: mergeLineWithNext joins the rows, keeps the first id and follows the selection
+00:01 +41: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: mergeLineWithNext a selected second row moves onto the merged row
+00:01 +42: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: mergeLineWithNext the last row has nothing to merge with
+00:01 +43: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: mergeLineWithNext drops evidence of both rows and shifts later rows up
+00:01 +44: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: mergeLineWithNext undo restores both rows
+00:01 +45: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: LyricIndexedReviewMetadata structural remaps afterRowSplit drops the split row and shifts later rows down
+00:01 +46: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: LyricIndexedReviewMetadata structural remaps afterRowsMerged drops both rows and shifts later rows up
+00:01 +47 -1: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart [E]
+  Failed to load "/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart":
+  Compilation failed for testPath=/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart:134:21: Error: Undefined name 'LyricReviewFilter'.
+              filter: LyricReviewFilter.all,
+                      ^^^^^^^^^^^^^^^^^
+  .
+00:02 +47 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) a script-only difference is not a recognition error
+00:02 +48 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) unifying the draft removes the written-form gap
+00:02 +49 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) engine summaries add the written-form totals
+00:02 +50 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics counts caption boilerplate and inconsistent repeats
+00:02 +51 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics a clean transcript scores zero on both
+00:02 +52 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics counts over-long rows and merge-worthy fragments
+00:02 +53 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics untimed rows are never counted as fragments
+00:02 +54 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+00:02 +55 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a missing line lowers recall but not precision
+00:02 +56 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a whole extra line lowers precision and line count ratio
+00:02 +57 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics character error rate ignores case, punctuation and spacing
+00:02 +58 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches a word of a line emitted as its own row
+00:02 +59 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line
+00:02 +60 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection a chorus that repeats a minute later is not a duplicate
+00:02 +61 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection near-identical variants in the same window count once
+00:02 +62 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection identical lines at different times are distinct lyrics
+00:02 +63 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection without timestamps only adjacent lines are compared
+00:02 +64 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection very short fragments are ignored
+00:02 +65 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps reports mean, median and p95 start error over matched pairs
+00:02 +66 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps end-time error is reported when both sides carry end times
+00:02 +67 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps timing metrics stay null when either side has no timestamps
+00:02 +68 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC timestamps, metadata and repeated stamps are expanded
+00:02 +69 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC fractions are read as centiseconds and milliseconds
+00:02 +70 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing an LRC file that opens with a metadata tag is not read as JSON
+00:02 +71 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing a JSON array of lyric lines is still read as JSON
+00:02 +72 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LyricDocument JSON with millisecond fields is accepted
+00:02 +73 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing a projects.json export is unwrapped to its lyric document
+00:02 +74 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing two lyric documents in one export are rejected
+00:02 +75 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing plain text becomes untimed lines
+00:02 +76 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing empty input is rejected
+00:02 +77 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring scores every engine of every song
+00:02 +78 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring aggregates rates from totals, not averaged averages
+00:02 +79 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring unreviewed references and untimed sources produce warnings
+00:02 +80 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring rejects a wrong schema version and duplicate engines
+00:02 +81 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: baseline comparison flags inserted duplicates as a regression
+00:02 +82 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: baseline comparison reports no regression when output is unchanged
+00:02 +83 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: baseline comparison names engines that disappeared from the current run
+00:02 +84 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: report rendering text report lists engines, songs and duplicate samples
+00:02 +85 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: report rendering report is deterministic across runs
+00:02 +86 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: guards an empty reference is rejected
+00:02 +87 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: guards an empty hypothesis is rejected
+00:02 +88 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +89 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +90 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +91 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +92 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +93 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +94 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:02 +95 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:03 +96 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: the menu explains the reference and no-reference strategies
+00:03 +97 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: menu entries run the flow they promise
+00:03 +98 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart: confidence 100 shows alternative until explicitly reviewed
+00:03 +99 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart: confidence 100 shows alternative until explicitly reviewed
+00:03 +100 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart: confidence 100 shows alternative until explicitly reviewed
+00:04 +101 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_inspector_pane_test.dart: compares model originals and can restore primary after fusion
+00:04 +102 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 按 visibleIndices 渲染歌词行
+00:04 +103 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 按 visibleIndices 渲染歌词行
+00:04 +104 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 按 visibleIndices 渲染歌词行
+00:04 +105 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 按 visibleIndices 渲染歌词行
+00:04 +106 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 按 visibleIndices 渲染歌词行
+00:04 +107 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: review priority tooltip maps stable reason codes to UI labels
+00:04 +108 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 100 confidence does not hide unreviewed engine evidence
+00:04 +109 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +110 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +111 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +112 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +113 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +114 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: candidate summary distinguishes global and filtered highlights on compact and wide layouts
+00:05 +115 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: legacy candidates without a limit remain visible
+00:05 +116 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 点击行会请求选中该行
+00:05 +117 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 筛选后没有待复核行时说明复核已完成
+00:05 +118 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 没有可见行但不是复核筛选时给出筛选空状态
+00:05 +119 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_list_pane_test.dart: 超过 8 行时提供搜索框，可过滤到匹配行
+00:05 +120 -1: Some tests failed.
+
+Failing tests:
+  /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart

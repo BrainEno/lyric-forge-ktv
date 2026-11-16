@@ -1,0 +1,43 @@
+50-00:01 +45: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: LyricIndexedReviewMetadata structural remaps afterRowSplit drops the split row and shifts later rows down
+51-00:01 +46: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart: LyricIndexedReviewMetadata structural remaps afterRowsMerged drops both rows and shifts later rows up
+52:00:01 +47 -1: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart [E]
+53-  Failed to load "/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart":
+54-  Compilation failed for testPath=/home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart: test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart:134:21: Error: Undefined name 'LyricReviewFilter'.
+55-              filter: LyricReviewFilter.all,
+56-                      ^^^^^^^^^^^^^^^^^
+57-  .
+58-00:02 +47 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) a script-only difference is not a recognition error
+59-00:02 +48 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) unifying the draft removes the written-form gap
+60-00:02 +49 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: Chinese script metrics (#450) engine summaries add the written-form totals
+61-00:02 +50 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics counts caption boilerplate and inconsistent repeats
+62-00:02 +51 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics a clean transcript scores zero on both
+63-00:02 +52 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics counts over-long rows and merge-worthy fragments
+64-00:02 +53 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: recogniser artefact metrics untimed rows are never counted as fragments
+65-00:02 +54 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a clean transcript scores perfectly
+66-00:02 +55 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a missing line lowers recall but not precision
+67-00:02 +56 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics a whole extra line lowers precision and line count ratio
+68-00:02 +57 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: line metrics character error rate ignores case, punctuation and spacing
+69-00:02 +58 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches a word of a line emitted as its own row
+70-00:02 +59 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection catches fragments nested deep inside a long parent line
+71-00:02 +60 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection a chorus that repeats a minute later is not a duplicate
+72-00:02 +61 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection near-identical variants in the same window count once
+73-00:02 +62 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection identical lines at different times are distinct lyrics
+74-00:02 +63 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection without timestamps only adjacent lines are compared
+75-00:02 +64 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: duplicate detection very short fragments are ignored
+76-00:02 +65 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps reports mean, median and p95 start error over matched pairs
+77-00:02 +66 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps end-time error is reported when both sides carry end times
+78-00:02 +67 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: timestamps timing metrics stay null when either side has no timestamps
+79-00:02 +68 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC timestamps, metadata and repeated stamps are expanded
+80-00:02 +69 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LRC fractions are read as centiseconds and milliseconds
+81-00:02 +70 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing an LRC file that opens with a metadata tag is not read as JSON
+82-00:02 +71 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing a JSON array of lyric lines is still read as JSON
+83-00:02 +72 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing LyricDocument JSON with millisecond fields is accepted
+84-00:02 +73 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing a projects.json export is unwrapped to its lyric document
+85-00:02 +74 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing two lyric documents in one export are rejected
+86-00:02 +75 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing plain text becomes untimed lines
+87-00:02 +76 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: parsing empty input is rejected
+88-00:02 +77 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring scores every engine of every song
+89-00:02 +78 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring aggregates rates from totals, not averaged averages
+90-00:02 +79 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring unreviewed references and untimed sources produce warnings
+91-00:02 +80 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: corpus scoring rejects a wrong schema version and duplicate engines
+92-00:02 +81 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/tool/asr_quality_report_test.dart: baseline comparison flags inserted duplicates as a regression

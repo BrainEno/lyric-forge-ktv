@@ -1,0 +1,4 @@
+Warnings (2):
+  [commit-subject] Entry commit subject not found in git history: Verify ASR source audio evidence (2026-11-09-2329-verify-asr-source-audio.md)
+  [commit-subject] Entry commit subject not found in git history: Handle simplified and traditional Chinese script consistently (2026-11-15-1500-unify-chinese-script-handling.md)
+Work log lint passed (0 errors, 2 warning(s)).

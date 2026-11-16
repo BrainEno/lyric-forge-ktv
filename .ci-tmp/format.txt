@@ -1,0 +1,8 @@
+Formatted lib/features/lyrics/domain/services/lyric_line_structure_service.dart
+Formatted lib/features/lyrics/domain/services/lyric_structure_advisor.dart
+Formatted lib/features/lyrics/presentation/widgets/lyric_structure_dialog.dart
+Formatted test/features/lyrics/domain/services/lyric_structure_advisor_test.dart
+Formatted test/features/lyrics/presentation/controllers/lyric_editor_line_structure_test.dart
+Formatted test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart
+Formatted tool/asr_quality_report.dart
+Formatted 21 files (7 changed) in 0.17 seconds.

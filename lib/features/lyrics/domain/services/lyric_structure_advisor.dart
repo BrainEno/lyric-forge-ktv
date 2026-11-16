@@ -245,8 +245,7 @@ class LyricStructureAdvisor {
 
       final duration = line.endTime - line.startTime;
       final isFragment =
-          weight <= fragmentMaximumWeight ||
-          duration < fragmentMaximumDuration;
+          weight <= fragmentMaximumWeight || duration < fragmentMaximumDuration;
       if (!isFragment) continue;
 
       final partner = _mergePartner(lines, index, weight, eligible);

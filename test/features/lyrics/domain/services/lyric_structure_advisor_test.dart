@@ -94,7 +94,11 @@ void main() {
         mixed.lines,
         metadata: {
           SecondaryOnlySuggestion.metadataKey: SecondaryOnlySuggestion.wrap([
-            const SecondaryOnlySuggestion(text: '啊', startMs: 9100, endMs: 9500),
+            const SecondaryOnlySuggestion(
+              text: '啊',
+              startMs: 9100,
+              endMs: 9500,
+            ),
           ]),
         },
       );

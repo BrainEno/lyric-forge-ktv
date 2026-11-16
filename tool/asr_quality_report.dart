@@ -1965,7 +1965,9 @@ int _asrBoilerplateLineCount(List<String> texts) => texts
   List<QualityLine> lines,
   String? language,
 ) {
-  final timed = lines.every((line) => line.startMs != null && line.endMs != null);
+  final timed = lines.every(
+    (line) => line.startMs != null && line.endMs != null,
+  );
   final document = LyricDocument(
     language: language ?? '',
     lines: [

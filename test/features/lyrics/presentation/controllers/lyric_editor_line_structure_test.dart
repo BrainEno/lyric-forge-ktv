@@ -176,9 +176,7 @@ void main() {
           metadata[LyricIndexedReviewMetadata.candidatesKey] as List;
       expect(candidates, hasLength(1));
       expect((candidates.single as Map)['lineIndex'], 1);
-      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [
-        1,
-      ]);
+      expect(metadata[LyricIndexedReviewMetadata.secondaryOnlyIndicesKey], [1]);
     });
 
     test('undo restores both rows', () {

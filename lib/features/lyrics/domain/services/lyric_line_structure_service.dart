@@ -164,7 +164,8 @@ class LyricLineStructureService {
         rightWeight = right.length.toDouble();
       }
       final ratio = leftWeight / (leftWeight + rightWeight);
-      final raw = line.startTime.inMicroseconds + duration.inMicroseconds * ratio;
+      final raw =
+          line.startTime.inMicroseconds + duration.inMicroseconds * ratio;
       final step = timeGranularity.inMicroseconds <= 0
           ? 1
           : timeGranularity.inMicroseconds;

@@ -188,11 +188,12 @@ void main() {
             body: Builder(
               builder: (context) => Center(
                 child: TextButton(
-                  onPressed: () async => result = await showLyricStructureDialog(
-                    context,
-                    document: document,
-                    protectedIndices: const {},
-                  ),
+                  onPressed: () async =>
+                      result = await showLyricStructureDialog(
+                        context,
+                        document: document,
+                        protectedIndices: const {},
+                      ),
                   child: const Text('open'),
                 ),
               ),

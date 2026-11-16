@@ -187,15 +187,12 @@ class _LyricStructureDialogState extends State<LyricStructureDialog> {
             suggestion: plan.suggestions[position],
             selected: _selected.contains(position),
             onSelectedChanged: (value) => setState(
-              () => value
-                  ? _selected.add(position)
-                  : _selected.remove(position),
+              () =>
+                  value ? _selected.add(position) : _selected.remove(position),
             ),
             onPreview: widget.onPreviewLine == null
                 ? null
-                : () => widget.onPreviewLine!(
-                    plan.suggestions[position].index,
-                  ),
+                : () => widget.onPreviewLine!(plan.suggestions[position].index),
           ),
         if (plan.suggestions.length > visible)
           LyricBatchNote(
