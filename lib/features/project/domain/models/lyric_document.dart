@@ -23,6 +23,49 @@ enum LyricConfidenceSource {
   unscored,
 }
 
+/// One sung word (or character) of a row with its own time, as a forced
+/// aligner or word-by-word tap-to-sync produced it.
+///
+/// Times are absolute on the timeline the row had when they were recorded.
+/// They are kept even when the row is later moved or its text corrected:
+/// `LyricWordTimingService` maps them onto the row's current span and only
+/// uses them while the row still has as many sung characters as the words
+/// do, so a homophone fix (在→再) keeps the timing and a rewrite drops it.
+class LyricWordTiming {
+  final String text;
+  final Duration start;
+  final Duration end;
+
+  const LyricWordTiming({
+    required this.text,
+    required this.start,
+    required this.end,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'text': text,
+    'start': start.inMilliseconds,
+    'end': end.inMilliseconds,
+  };
+
+  /// Null for malformed entries, so one bad word never breaks a document.
+  static LyricWordTiming? tryFromJson(Object? json) {
+    if (json is! Map) return null;
+    final text = json['text'];
+    final start = json['start'];
+    final end = json['end'];
+    if (text is! String || start is! int || end is! int) return null;
+    return LyricWordTiming(
+      text: text,
+      start: Duration(milliseconds: start),
+      end: Duration(milliseconds: end),
+    );
+  }
+
+  @override
+  String toString() => 'LyricWordTiming($text, $start, $end)';
+}
+
 class LyricLine {
   final String text;
   final Duration startTime;
@@ -46,6 +89,10 @@ class LyricLine {
   /// 用于"手工编辑保护"跨会话持久化与对齐结果溯源；旧数据没有该字段时为 null。
   final String? id;
 
+  /// Per-word timing from a forced aligner or word-by-word tap-to-sync;
+  /// empty when only the row's start and end are known.
+  final List<LyricWordTiming> words;
+
   const LyricLine({
     required this.text,
     required this.startTime,
@@ -54,6 +101,7 @@ class LyricLine {
     this.confidence = 100,
     this.confidenceSource = LyricConfidenceSource.model,
     this.id,
+    this.words = const [],
   });
 
   LyricLine copyWith({
@@ -64,6 +112,7 @@ class LyricLine {
     int? confidence,
     LyricConfidenceSource? confidenceSource,
     String? id,
+    List<LyricWordTiming>? words,
   }) {
     return LyricLine(
       text: text ?? this.text,
@@ -73,6 +122,7 @@ class LyricLine {
       confidence: confidence ?? this.confidence,
       confidenceSource: confidenceSource ?? this.confidenceSource,
       id: id ?? this.id,
+      words: words ?? this.words,
     );
   }
 
@@ -85,6 +135,7 @@ class LyricLine {
       'confidence': confidence,
       'confidenceSource': confidenceSource.name,
       if (id != null) 'id': id,
+      if (words.isNotEmpty) 'words': [for (final word in words) word.toJson()],
     };
   }
 
@@ -97,8 +148,19 @@ class LyricLine {
       confidence: json['confidence'] as int? ?? 100,
       confidenceSource: _confidenceSourceFromJson(json['confidenceSource']),
       id: json['id'] as String?,
+      words: _wordsFromJson(json['words']),
     );
   }
+}
+
+List<LyricWordTiming> _wordsFromJson(Object? raw) {
+  if (raw is! List) return const [];
+  final words = <LyricWordTiming>[];
+  for (final item in raw) {
+    final word = LyricWordTiming.tryFromJson(item);
+    if (word != null) words.add(word);
+  }
+  return List.unmodifiable(words);
 }
 
 LyricConfidenceSource _confidenceSourceFromJson(Object? raw) {

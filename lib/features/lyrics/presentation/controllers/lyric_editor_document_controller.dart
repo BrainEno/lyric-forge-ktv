@@ -424,9 +424,11 @@ class LyricEditorDocumentController extends ChangeNotifier {
     _selectedLineIndex = index + 1;
     _markEdited();
     notifyListeners();
-    final how = split.timingSource == LyricSplitTimingSource.playback
-        ? '分界取暂停位置'
-        : '分界按字数比例估算，可再微调';
+    final how = switch (split.timingSource) {
+      LyricSplitTimingSource.playback => '分界取暂停位置',
+      LyricSplitTimingSource.wordTiming => '分界取逐字时间',
+      LyricSplitTimingSource.textProportion => '分界按字数比例估算，可再微调',
+    };
     return LyricEditResult(
       clearsAudition: auditionTarget,
       hint: '已拆分第 ${index + 1} 行（$how）',

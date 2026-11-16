@@ -1,0 +1,59 @@
+name: tmp validate
+
+on:
+  push:
+    branches: [arena/01574735-lyric-forge-ktv]
+    paths-ignore:
+      - '.ci-tmp/**'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-flutter
+      - run: flutter pub get
+      - name: Validate
+        run: |
+          mkdir -p .ci-tmp
+          files=$(git diff --name-only --diff-filter=AM origin/main...HEAD -- '*.dart')
+          echo "$files" > .ci-tmp/changed.txt
+          dart format $files > .ci-tmp/format.txt 2>&1 && echo exit=0 >> .ci-tmp/format.txt || echo exit=$? >> .ci-tmp/format.txt
+          flutter analyze > .ci-tmp/analyze.txt 2>&1 && echo exit=0 >> .ci-tmp/analyze.txt || echo exit=$? >> .ci-tmp/analyze.txt
+          grep -E "^ *(error|warning) •" .ci-tmp/analyze.txt > .ci-tmp/analyze-problems.txt || true
+          grep -cE "^ *info •" .ci-tmp/analyze.txt > .ci-tmp/analyze-info-count.txt || true
+          flutter test \
+            test/features/lyrics/domain/services/lyric_word_timing_service_test.dart \
+            test/features/lyrics/domain/services/lyric_asr_loop_detector_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_loop_and_word_timing_widgets_test.dart \
+            test/features/lyrics/domain/services/lyric_karaoke_export_test.dart \
+            test/features/lyrics/domain/services/lyric_export_encoder_test.dart \
+            test/features/lyrics/domain/services/lyric_line_structure_service_test.dart \
+            test/features/lyrics/domain/services/lyric_structure_advisor_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_tap_sync_and_pace_widgets_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_timing_tools_widgets_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_line_structure_widgets_test.dart \
+            test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart \
+            test/features/transcription/qwen_runtime_service_lifecycle_test.dart \
+            > .ci-tmp/targeted.txt 2>&1 && echo exit=0 >> .ci-tmp/targeted.txt || echo exit=$? >> .ci-tmp/targeted.txt
+          tail -3 .ci-tmp/targeted.txt
+          if grep -q "^exit=0" .ci-tmp/targeted.txt; then
+            flutter test > .ci-tmp/full.txt 2>&1 && echo exit=0 >> .ci-tmp/full.txt || echo exit=$? >> .ci-tmp/full.txt
+            tail -30 .ci-tmp/full.txt > .ci-tmp/full-tail.txt
+            grep -n "EXCEPTION\|Expected:\|Actual:\|\[E\]" .ci-tmp/full.txt | head -200 > .ci-tmp/full-failures.txt || true
+            rm .ci-tmp/full.txt
+          fi
+          (dart tool/work_log.dart write && dart tool/work_log.dart check) > .ci-tmp/worklog.txt 2>&1 && echo exit=0 >> .ci-tmp/worklog.txt || echo exit=$? >> .ci-tmp/worklog.txt
+      - name: Commit results
+        run: |
+          git config user.name ci-bot
+          git config user.email ci-bot@users.noreply.github.com
+          git add .ci-tmp lib test tool docs
+          git commit -m "ci: tmp validation results" || exit 0
+          git push origin HEAD:${GITHUB_REF_NAME}

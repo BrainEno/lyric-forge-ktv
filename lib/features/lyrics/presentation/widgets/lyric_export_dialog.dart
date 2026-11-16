@@ -81,6 +81,9 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
   late final int _timelineRows = widget.planner
       .plan(widget.document, audioDuration: widget.audioDuration)
       .problemRowCount;
+  late final int _wordTimedRows = widget.encoder.wordTiming.usableRowCount(
+    widget.document,
+  );
   late final int _emptyRows = widget.document.lines
       .where((line) => LyricExportEncoder.singleLine(line.text).isEmpty)
       .length;
@@ -185,10 +188,15 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
             ),
           ),
         const SizedBox(height: AppSpacing.xs),
-        if (_format.syllableTimed)
+        if (_format.syllableTimed && _wordTimedRows == 0)
           const LyricBatchNote(
             '逐字时间按每行的开始、结束时间和字数比例估算，不是逐字识别结果；'
             '长音、拖腔处会有偏差，可在 Aegisub 等工具中细调。',
+          )
+        else if (_format.syllableTimed)
+          LyricBatchNote(
+            '$_wordTimedRows 行使用识别或逐字打点得到的真实逐字时间'
+            '${_wordTimedRows < exportedRows ? '，其余行按字数比例估算' : ''}。',
           ),
         if (_format.timed && _timelineRows > 0)
           LyricBatchNote(

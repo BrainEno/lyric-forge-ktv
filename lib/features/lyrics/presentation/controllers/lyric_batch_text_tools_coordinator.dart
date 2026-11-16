@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
+import '../widgets/lyric_asr_loop_dialog.dart';
 import '../widgets/lyric_batch_text_edit.dart';
 import '../widgets/lyric_find_replace_dialog.dart';
 import '../widgets/lyric_pace_check_dialog.dart';
@@ -124,6 +125,14 @@ class LyricBatchTextToolsCoordinator {
           : (index) => host.previewProofreadLine(project, index),
     ),
     LyricBatchTextTool.tapSync => _openTapSync(context, project, document),
+    LyricBatchTextTool.asrLoopCheck => showLyricAsrLoopDialog(
+      context,
+      document: document,
+      protectedIndices: protectedIndices,
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
+    ),
   };
 
   /// Tap-to-sync needs this project's audio loaded and free-running: a

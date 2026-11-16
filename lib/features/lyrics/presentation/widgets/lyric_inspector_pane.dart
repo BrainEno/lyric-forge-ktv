@@ -11,6 +11,7 @@ import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
 import '../../domain/services/character_diff_service.dart';
 import 'lyric_editor_atoms.dart';
+import 'lyric_word_timing_strip.dart';
 
 /// Right-hand inspector for the selected line: timestamps, confidence, nudges
 /// and alternative candidates.
@@ -369,6 +370,10 @@ class _LineInspectorState extends State<LineInspector> {
                 const LyricTinyBadge(label: '建议补入', warning: true),
             ],
           ),
+          if (_workingLine.words.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            LyricWordTimingStrip(line: _workingLine),
+          ],
           if (widget.secondarySuggestion != null && !widget.isReviewed) ...[
             const SizedBox(height: AppSpacing.md),
             SecondarySuggestionCard(

@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'lyric_karaoke_timing_service.dart';
+import 'lyric_word_timing_service.dart';
 
 /// File formats the editor can export.
 enum LyricExportFormat {
@@ -44,8 +45,8 @@ enum LyricExportFormat {
 
   String get description => switch (this) {
     LyricExportFormat.lrc => '音乐播放器、KTV 软件通用；只记录每行开始时间',
-    LyricExportFormat.karaokeLrc => '支持逐字高亮的播放器使用；字的时间按字数在行内估算',
-    LyricExportFormat.ass => '卡拉 OK 视频制作用；逐字填色扫过，字的时间按字数在行内估算',
+    LyricExportFormat.karaokeLrc => '支持逐字高亮的播放器使用；有逐字时间的行用真实时间，其余按字数估算',
+    LyricExportFormat.ass => '卡拉 OK 视频制作用；逐字填色扫过，有逐字时间的行用真实时间，其余按字数估算',
     LyricExportFormat.srt => '视频剪辑、卡拉 OK 视频制作常用；带开始和结束时间',
     LyricExportFormat.vtt => '网页播放器使用；带开始和结束时间',
     LyricExportFormat.plainText => '不带时间，按间奏自动分段，便于分享或核对',
@@ -54,8 +55,8 @@ enum LyricExportFormat {
   /// Whether the format carries timestamps.
   bool get timed => this != LyricExportFormat.plainText;
 
-  /// Whether the format times every syllable. Those times are estimated
-  /// inside each row, so the dialog says so.
+  /// Whether the format times every syllable. Rows without word timing get
+  /// estimated syllable times, so the dialog says so.
   bool get syllableTimed =>
       this == LyricExportFormat.karaokeLrc || this == LyricExportFormat.ass;
 }
@@ -108,10 +109,15 @@ class LyricExportCue {
   final Duration end;
   final String text;
 
+  /// When every sung character of [text] begins on the export timeline, from
+  /// the row's word timing; null when the row has none.
+  final List<Duration>? characterStarts;
+
   const LyricExportCue({
     required this.start,
     required this.end,
     required this.text,
+    this.characterStarts,
   });
 }
 
@@ -130,9 +136,13 @@ class LyricExportCue {
 /// the next cue is cut at that cue's start, because most subtitle renderers
 /// stack overlapping cues on top of each other.
 class LyricExportEncoder {
-  const LyricExportEncoder({this.karaoke = const LyricKaraokeTimingService()});
+  const LyricExportEncoder({
+    this.karaoke = const LyricKaraokeTimingService(),
+    this.wordTiming = const LyricWordTimingService(),
+  });
 
   final LyricKaraokeTimingService karaoke;
+  final LyricWordTimingService wordTiming;
 
   /// Duration given to a cue whose row has no usable end.
   static const Duration fallbackDuration = Duration(seconds: 3);
@@ -181,7 +191,17 @@ class LyricExportEncoder {
       if (text.isEmpty) continue;
       final start = _clamp(line.startTime + offset);
       final end = _clamp(line.endTime + offset);
-      cues.add(LyricExportCue(start: start, end: end, text: text));
+      final times = wordTiming.characterTimes(line);
+      cues.add(
+        LyricExportCue(
+          start: start,
+          end: end,
+          text: text,
+          characterStarts: times == null
+              ? null
+              : [for (final time in times) _clamp(time.start + offset)],
+        ),
+      );
     }
     // A stable sort keeps rows that share a start in lyric order.
     final indexed = [for (var i = 0; i < cues.length; i++) (i, cues[i])];
@@ -205,7 +225,14 @@ class LyricExportEncoder {
         if (nextStart > cue.start && end > nextStart) end = nextStart;
       }
       if (end - cue.start < minimumCue) end = cue.start + minimumCue;
-      result.add(LyricExportCue(start: cue.start, end: end, text: cue.text));
+      result.add(
+        LyricExportCue(
+          start: cue.start,
+          end: end,
+          text: cue.text,
+          characterStarts: cue.characterStarts,
+        ),
+      );
     }
     return result;
   }
@@ -236,7 +263,8 @@ class LyricExportEncoder {
   ///
   /// Each row keeps its plain `[mm:ss.mmm]` line timestamp, so players
   /// without word support still show the row in time; the inline `<…>`
-  /// stamps are estimated by [LyricKaraokeTimingService]. The closing stamp
+  /// stamps come from the row's word timing, or are estimated by
+  /// [LyricKaraokeTimingService] when it has none. The closing stamp
   /// is the row's end, which tells word-aware players when to finish the
   /// sweep.
   String encodeKaraokeLrc(
@@ -247,7 +275,12 @@ class LyricExportEncoder {
     _writeLrcHeader(buffer, document, metadata);
     for (final cue in subtitleCues(document)) {
       buffer.write('[${lrcTimestamp(cue.start)}]');
-      for (final syllable in karaoke.syllables(cue.text, cue.start, cue.end)) {
+      for (final syllable in karaoke.syllables(
+        cue.text,
+        cue.start,
+        cue.end,
+        characterStarts: cue.characterStarts,
+      )) {
         buffer.write('<${lrcTimestamp(syllable.start)}>${syllable.text}');
       }
       buffer.writeln('<${lrcTimestamp(cue.end)}>');
@@ -310,7 +343,12 @@ class LyricExportEncoder {
       final text = StringBuffer();
       final lead = _centiseconds(cue.start) - _centiseconds(shownFrom);
       if (lead > 0) text.write('{\\k$lead}');
-      for (final syllable in karaoke.syllables(cue.text, cue.start, cue.end)) {
+      for (final syllable in karaoke.syllables(
+        cue.text,
+        cue.start,
+        cue.end,
+        characterStarts: cue.characterStarts,
+      )) {
         final length = (syllable.duration.inMilliseconds / 10).round();
         text.write('{\\kf$length}${_escapeAss(syllable.text)}');
       }

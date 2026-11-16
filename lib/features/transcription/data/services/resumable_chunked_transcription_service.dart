@@ -711,6 +711,15 @@ class ResumableChunkedTranscriptionService implements TranscriptionService {
             (line) => line.copyWith(
               startTime: line.startTime + offset,
               endTime: line.endTime + offset,
+              // Word timing is absolute too; shift it with its row.
+              words: [
+                for (final word in line.words)
+                  LyricWordTiming(
+                    text: word.text,
+                    start: word.start + offset,
+                    end: word.end + offset,
+                  ),
+              ],
             ),
           )
           .toList(growable: false),

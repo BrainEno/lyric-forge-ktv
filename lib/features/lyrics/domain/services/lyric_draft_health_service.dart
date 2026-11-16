@@ -1,4 +1,5 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'lyric_asr_loop_detector.dart';
 import 'lyric_pace_analyzer.dart';
 import 'lyric_repetition_consistency_service.dart';
 import 'lyric_structure_advisor.dart';
@@ -23,7 +24,10 @@ import 'lyric_timeline_repair_planner.dart';
 /// * [paceRows] — rows sung far faster or slower than the rest of the song
 ///   (an end cut at a breath, a row spanning an interlude, dropped or
 ///   invented words): the pace check proposes end times and lists the rest
-///   for listening.
+///   for listening;
+/// * [loopRows] — rows where the recogniser looped (a phrase repeated a dozen
+///   times in one row, or a run of identical rows): the recognition loop
+///   check cuts them down.
 ///
 /// Counts ignore manual-edit protection on purpose: they describe the draft,
 /// and each tool still asks before touching a hand-edited row.
@@ -34,6 +38,7 @@ class LyricDraftHealth {
   final int fragments;
   final int timelineRows;
   final int paceRows;
+  final int loopRows;
 
   const LyricDraftHealth({
     required this.captionRows,
@@ -42,6 +47,7 @@ class LyricDraftHealth {
     required this.fragments,
     this.timelineRows = 0,
     this.paceRows = 0,
+    this.loopRows = 0,
   });
 
   static const LyricDraftHealth clean = LyricDraftHealth(
@@ -58,7 +64,8 @@ class LyricDraftHealth {
       repetitionGroups > 0 ||
       structureIssues > 0 ||
       timelineRows > 0 ||
-      paceRows > 0;
+      paceRows > 0 ||
+      loopRows > 0;
 }
 
 /// Computes [LyricDraftHealth] for a document.
@@ -73,6 +80,7 @@ class LyricDraftHealthService {
     this.structure = const LyricStructureAdvisor(),
     this.timeline = const LyricTimelineRepairPlanner(),
     this.pace = const LyricPaceAnalyzer(),
+    this.loops = const LyricAsrLoopDetector(),
   });
 
   final LyricTextCleanupService cleanup;
@@ -80,6 +88,7 @@ class LyricDraftHealthService {
   final LyricStructureAdvisor structure;
   final LyricTimelineRepairPlanner timeline;
   final LyricPaceAnalyzer pace;
+  final LyricAsrLoopDetector loops;
 
   static final Expando<LyricDraftHealth> _cache = Expando<LyricDraftHealth>(
     'LyricDraftHealth',
@@ -111,6 +120,7 @@ class LyricDraftHealthService {
       // found once the tool is opened with the project's audio.
       timelineRows: timeline.plan(document).problemRowCount,
       paceRows: pace.plan(document).issues.length,
+      loopRows: loops.loopRowCount(document),
     );
   }
 }
