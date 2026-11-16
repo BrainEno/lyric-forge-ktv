@@ -1,8 +1,0 @@
-Formatted lib/features/lyrics/domain/services/lyric_karaoke_tag_parser.dart
-Formatted lib/features/lyrics/domain/services/lyric_word_timing_editor.dart
-Formatted lib/features/lyrics/presentation/widgets/lyric_word_timing_check_dialog.dart
-Formatted test/features/lyrics/data/services/karaoke_import_test.dart
-Formatted test/features/lyrics/domain/services/lyric_word_timing_check_and_edit_test.dart
-Formatted test/features/lyrics/presentation/widgets/lyric_word_timing_tools_widgets_test.dart
-Formatted 20 files (6 changed) in 0.13 seconds.
-exit=0

@@ -31,8 +31,9 @@ class LyricWordTimingEditor {
   ({List<LyricWordTiming> words, bool estimated}) start(LyricLine line) {
     final own = wordTiming.normalized(line);
     if (own.isNotEmpty) return (words: own, estimated: false);
-    if (line.endTime <= line.startTime)
+    if (line.endTime <= line.startTime) {
       return (words: const [], estimated: true);
+    }
     return (
       words: List.unmodifiable([
         for (final syllable in karaoke.syllables(
