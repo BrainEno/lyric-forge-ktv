@@ -19,6 +19,12 @@ enum LyricBatchTextTool {
 
   /// Moves or stretches the timestamps of a range of rows (平移/伸缩时间轴).
   timingShift,
+
+  /// Re-times rows by pressing a key as each one is sung (打轴).
+  tapSync,
+
+  /// Finds rows sung implausibly fast or slow (语速异常检查).
+  paceCheck,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

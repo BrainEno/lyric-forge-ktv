@@ -1,9 +1,19 @@
 import '../../../project/domain/models/lyric_document.dart';
+import 'lyric_karaoke_timing_service.dart';
 
 /// File formats the editor can export.
 enum LyricExportFormat {
   /// Synchronised lyrics for music players and KTV software.
   lrc,
+
+  /// Word-timed LRC (the "enhanced" `<mm:ss.mmm>` extension): every sung
+  /// unit carries its own estimated time, for players that highlight
+  /// syllable by syllable.
+  karaokeLrc,
+
+  /// Advanced SubStation Alpha subtitles with `\kf` karaoke sweeps, for
+  /// karaoke video tools (Aegisub, video editors, libass players).
+  ass,
 
   /// SubRip subtitles, for video editors and karaoke video tools.
   srt,
@@ -16,6 +26,8 @@ enum LyricExportFormat {
 
   String get extension => switch (this) {
     LyricExportFormat.lrc => 'lrc',
+    LyricExportFormat.karaokeLrc => 'lrc',
+    LyricExportFormat.ass => 'ass',
     LyricExportFormat.srt => 'srt',
     LyricExportFormat.vtt => 'vtt',
     LyricExportFormat.plainText => 'txt',
@@ -23,6 +35,8 @@ enum LyricExportFormat {
 
   String get label => switch (this) {
     LyricExportFormat.lrc => 'LRC 同步歌词',
+    LyricExportFormat.karaokeLrc => '逐字 LRC',
+    LyricExportFormat.ass => 'ASS 卡拉 OK 字幕',
     LyricExportFormat.srt => 'SRT 字幕',
     LyricExportFormat.vtt => 'WebVTT 字幕',
     LyricExportFormat.plainText => '纯文本歌词',
@@ -30,6 +44,8 @@ enum LyricExportFormat {
 
   String get description => switch (this) {
     LyricExportFormat.lrc => '音乐播放器、KTV 软件通用；只记录每行开始时间',
+    LyricExportFormat.karaokeLrc => '支持逐字高亮的播放器使用；字的时间按字数在行内估算',
+    LyricExportFormat.ass => '卡拉 OK 视频制作用；逐字填色扫过，字的时间按字数在行内估算',
     LyricExportFormat.srt => '视频剪辑、卡拉 OK 视频制作常用；带开始和结束时间',
     LyricExportFormat.vtt => '网页播放器使用；带开始和结束时间',
     LyricExportFormat.plainText => '不带时间，按间奏自动分段，便于分享或核对',
@@ -37,6 +53,11 @@ enum LyricExportFormat {
 
   /// Whether the format carries timestamps.
   bool get timed => this != LyricExportFormat.plainText;
+
+  /// Whether the format times every syllable. Those times are estimated
+  /// inside each row, so the dialog says so.
+  bool get syllableTimed =>
+      this == LyricExportFormat.karaokeLrc || this == LyricExportFormat.ass;
 }
 
 /// Options that change how an export is written.
@@ -57,11 +78,17 @@ class LyricExportOptions {
   /// A gap this long starts a new paragraph for [paragraphsAtPauses].
   final Duration paragraphGap;
 
+  /// ASS only: show each row up to this long before it is sung (never
+  /// before the previous row has finished), so the singer can read ahead.
+  /// The lead-in is an unhighlighted `\k` at the start of the row.
+  final Duration assLeadIn;
+
   const LyricExportOptions({
     this.lrcEndMarkers = false,
     this.paragraphsAtPauses = true,
     this.pauseThreshold = const Duration(milliseconds: 1500),
     this.paragraphGap = const Duration(seconds: 4),
+    this.assLeadIn = const Duration(seconds: 1),
   });
 }
 
@@ -103,7 +130,11 @@ class LyricExportCue {
 /// the next cue is cut at that cue's start, because most subtitle renderers
 /// stack overlapping cues on top of each other.
 class LyricExportEncoder {
-  const LyricExportEncoder();
+  const LyricExportEncoder({
+    this.karaoke = const LyricKaraokeTimingService(),
+  });
+
+  final LyricKaraokeTimingService karaoke;
 
   /// Duration given to a cue whose row has no usable end.
   static const Duration fallbackDuration = Duration(seconds: 3);
@@ -123,6 +154,15 @@ class LyricExportEncoder {
         metadata: metadata,
         endMarkers: options.lrcEndMarkers,
         pauseThreshold: options.pauseThreshold,
+      ),
+      LyricExportFormat.karaokeLrc => encodeKaraokeLrc(
+        document,
+        metadata: metadata,
+      ),
+      LyricExportFormat.ass => encodeAss(
+        document,
+        metadata: metadata,
+        leadIn: options.assLeadIn,
       ),
       LyricExportFormat.srt => encodeSrt(document),
       LyricExportFormat.vtt => encodeVtt(document, metadata: metadata),
@@ -179,19 +219,7 @@ class LyricExportEncoder {
     Duration pauseThreshold = const Duration(milliseconds: 1500),
   }) {
     final buffer = StringBuffer();
-
-    void tag(String key, String? value) {
-      final normalized = value == null ? null : singleLine(value);
-      if (normalized == null || normalized.isEmpty) return;
-      buffer.writeln('[$key:$normalized]');
-    }
-
-    tag('ti', metadata.title);
-    tag('ar', metadata.artist);
-    tag('al', metadata.album);
-    tag('lang', document.language);
-    buffer.writeln('[re:LyricForge]');
-    buffer.writeln('[ve:1]');
+    _writeLrcHeader(buffer, document, metadata);
 
     final list = cues(document);
     for (var index = 0; index < list.length; index++) {
@@ -204,6 +232,138 @@ class LyricExportEncoder {
       }
     }
     return buffer.toString();
+  }
+
+  /// Word-timed LRC: `[start]<t1>unit<t2>unit…<end>` per row.
+  ///
+  /// Each row keeps its plain `[mm:ss.mmm]` line timestamp, so players
+  /// without word support still show the row in time; the inline `<…>`
+  /// stamps are estimated by [LyricKaraokeTimingService]. The closing stamp
+  /// is the row's end, which tells word-aware players when to finish the
+  /// sweep.
+  String encodeKaraokeLrc(
+    LyricDocument document, {
+    LyricExportMetadata metadata = const LyricExportMetadata(),
+  }) {
+    final buffer = StringBuffer();
+    _writeLrcHeader(buffer, document, metadata);
+    for (final cue in subtitleCues(document)) {
+      buffer.write('[${lrcTimestamp(cue.start)}]');
+      for (final syllable in karaoke.syllables(cue.text, cue.start, cue.end)) {
+        buffer.write('<${lrcTimestamp(syllable.start)}>${syllable.text}');
+      }
+      buffer.writeln('<${lrcTimestamp(cue.end)}>');
+    }
+    return buffer.toString();
+  }
+
+  /// ASS subtitles with one `Dialogue` per row and a `\kf` sweep per unit.
+  ///
+  /// The style highlights in the KTV convention: white before a syllable is
+  /// sung, blue after, with a dark outline so the text reads on any video.
+  /// A row may appear up to [leadIn] early (but not before the previous
+  /// row's end); the early part is an empty `\k` so nothing is highlighted
+  /// before the singer starts.
+  String encodeAss(
+    LyricDocument document, {
+    LyricExportMetadata metadata = const LyricExportMetadata(),
+    Duration leadIn = const Duration(seconds: 1),
+  }) {
+    final title = [
+      metadata.title,
+      metadata.artist,
+    ].whereType<String>().map(singleLine).where((t) => t.isNotEmpty).join(' - ');
+    final buffer = StringBuffer()
+      ..writeln('[Script Info]')
+      ..writeln('; Generated by LyricForge')
+      ..writeln('Title: ${title.isEmpty ? 'LyricForge' : _escapeAss(title)}')
+      ..writeln('ScriptType: v4.00+')
+      ..writeln('WrapStyle: 0')
+      ..writeln('ScaledBorderAndShadow: yes')
+      ..writeln('PlayResX: 1920')
+      ..writeln('PlayResY: 1080')
+      ..writeln()
+      ..writeln('[V4+ Styles]')
+      ..writeln(
+        'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, '
+        'OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, '
+        'ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, '
+        'Alignment, MarginL, MarginR, MarginV, Encoding',
+      )
+      ..writeln(
+        'Style: $assStyleName,Noto Sans CJK SC,72,&H00FF9A2E,&H00FFFFFF,'
+        '&H00202020,&H80000000,-1,0,0,0,100,100,0,0,1,4,2,2,80,80,90,1',
+      )
+      ..writeln()
+      ..writeln('[Events]')
+      ..writeln(
+        'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, '
+        'Effect, Text',
+      );
+
+    final list = subtitleCues(document);
+    for (var index = 0; index < list.length; index++) {
+      final cue = list[index];
+      final earliest = index == 0 ? Duration.zero : list[index - 1].end;
+      var shownFrom = cue.start - (leadIn.isNegative ? Duration.zero : leadIn);
+      if (shownFrom < earliest) shownFrom = earliest;
+      if (shownFrom > cue.start) shownFrom = cue.start;
+      final text = StringBuffer();
+      final lead = _centiseconds(cue.start) - _centiseconds(shownFrom);
+      if (lead > 0) text.write('{\\k$lead}');
+      for (final syllable in karaoke.syllables(cue.text, cue.start, cue.end)) {
+        final length = (syllable.duration.inMilliseconds / 10).round();
+        text.write('{\\kf$length}${_escapeAss(syllable.text)}');
+      }
+      buffer.writeln(
+        'Dialogue: 0,${assTimestamp(shownFrom)},${assTimestamp(cue.end)},'
+        '$assStyleName,,0,0,0,,$text',
+      );
+    }
+    return buffer.toString();
+  }
+
+  /// The style every ASS row uses.
+  static const String assStyleName = 'Karaoke';
+
+  /// `h:mm:ss.cc`, as ASS reads it.
+  static String assTimestamp(Duration value) {
+    final total = _centiseconds(value);
+    final hours = total ~/ 360000;
+    final minutes = (total ~/ 6000).remainder(60).toString().padLeft(2, '0');
+    final seconds = (total ~/ 100).remainder(60).toString().padLeft(2, '0');
+    final centis = total.remainder(100).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds.$centis';
+  }
+
+  static int _centiseconds(Duration value) =>
+      (_clamp(value).inMilliseconds / 10).round();
+
+  /// Braces open ASS override blocks and a backslash starts `\N`-style
+  /// escapes; neither has a portable escape, so they become their
+  /// full-width forms.
+  static String _escapeAss(String text) => text
+      .replaceAll('\\', '＼')
+      .replaceAll('{', '｛')
+      .replaceAll('}', '｝');
+
+  void _writeLrcHeader(
+    StringBuffer buffer,
+    LyricDocument document,
+    LyricExportMetadata metadata,
+  ) {
+    void tag(String key, String? value) {
+      final normalized = value == null ? null : singleLine(value);
+      if (normalized == null || normalized.isEmpty) return;
+      buffer.writeln('[$key:$normalized]');
+    }
+
+    tag('ti', metadata.title);
+    tag('ar', metadata.artist);
+    tag('al', metadata.album);
+    tag('lang', document.language);
+    buffer.writeln('[re:LyricForge]');
+    buffer.writeln('[ve:1]');
   }
 
   String encodeSrt(LyricDocument document) {

@@ -330,7 +330,7 @@ void main() {
     expect(insert.onPressed, isNull);
     expect(find.text('先试听本工程'), findsOneWidget);
 
-    expect(find.text('LRC、SRT、WebVTT 或纯文本'), findsOneWidget);
+    expect(find.text('LRC、逐字 LRC、ASS 卡拉 OK、SRT、WebVTT 或纯文本'), findsOneWidget);
     await tester.tap(find.text('导出歌词'));
     await tester.pumpAndSettle();
     expect(calls, contains('export'));
