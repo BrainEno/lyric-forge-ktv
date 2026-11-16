@@ -82,10 +82,7 @@ void main() {
           onPreviewLine: previewed.add,
         ),
       );
-      expect(
-        find.text('行内循环 2 处，连续重复行 1 组；默认勾选 2 项明显的循环。'),
-        findsOneWidget,
-      );
+      expect(find.text('行内循环 2 处，连续重复行 1 组；默认勾选 2 项明显的循环。'), findsOneWidget);
       expect(find.text('删减 1 行，删除 4 行'), findsOneWidget);
       expect(find.textContaining('可能是歌词本身的重复'), findsOneWidget);
 
@@ -225,10 +222,7 @@ void main() {
       find.byKey(const ValueKey('lyric_export_format_karaokeLrc')),
     );
     await tester.pumpAndSettle();
-    expect(
-      find.text('1 行使用识别或逐字打点得到的真实逐字时间，其余行按字数比例估算。'),
-      findsOneWidget,
-    );
+    expect(find.text('1 行使用识别或逐字打点得到的真实逐字时间，其余行按字数比例估算。'), findsOneWidget);
     expect(find.textContaining('逐字时间按每行'), findsNothing);
   });
 }

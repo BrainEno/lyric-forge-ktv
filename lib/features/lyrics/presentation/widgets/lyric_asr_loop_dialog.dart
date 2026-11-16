@@ -215,9 +215,7 @@ class _LoopRow extends StatelessWidget {
         before: line.text,
         after: issue.fixable ? issue.proposedText : null,
         note: note,
-        highlights: [
-          for (final run in issue.runs) (run.keptEnd, run.end),
-        ],
+        highlights: [for (final run in issue.runs) (run.keptEnd, run.end)],
         selected: selected,
         onSelectedChanged: onSelectedChanged,
       );

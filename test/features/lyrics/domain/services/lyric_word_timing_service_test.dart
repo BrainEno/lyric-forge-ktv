@@ -81,14 +81,20 @@ void main() {
     });
 
     test('follows a row that was moved or stretched', () {
-      final moved = timedRow().copyWith(startTime: ms(11000), endTime: ms(13000));
+      final moved = timedRow().copyWith(
+        startTime: ms(11000),
+        endTime: ms(13000),
+      );
       expect(starts(service.characterTimes(moved)), [11000, 11400, 12000]);
 
       final stretched = timedRow().copyWith(endTime: ms(5000));
       // Still inside the row, so the words stay where they were sung.
       expect(starts(service.characterTimes(stretched)), [1000, 1400, 2000]);
 
-      final doubled = timedRow().copyWith(startTime: ms(2000), endTime: ms(6000));
+      final doubled = timedRow().copyWith(
+        startTime: ms(2000),
+        endTime: ms(6000),
+      );
       expect(starts(service.characterTimes(doubled)), [2000, 2800, 4000]);
     });
 
@@ -123,7 +129,10 @@ void main() {
 
   group('slice and normalized', () {
     test('slices keep the original word grouping on the row timeline', () {
-      final moved = timedRow().copyWith(startTime: ms(11000), endTime: ms(13000));
+      final moved = timedRow().copyWith(
+        startTime: ms(11000),
+        endTime: ms(13000),
+      );
       final tail = service.slice(moved, 1, 3);
       expect(tail.map((w) => w.text), ['爱', '你']);
       expect(tail.first.start, ms(11400));
@@ -201,7 +210,10 @@ void main() {
         ms(1500),
         characterStarts: [ms(0)],
       );
-      expect([for (final s in syllables) s.start.inMilliseconds], [0, 500, 1000]);
+      expect(
+        [for (final s in syllables) s.start.inMilliseconds],
+        [0, 500, 1000],
+      );
     });
 
     test('a Latin word starts at its first letter', () {
@@ -209,14 +221,7 @@ void main() {
         'hold me',
         ms(0),
         ms(1000),
-        characterStarts: [
-          ms(0),
-          ms(100),
-          ms(200),
-          ms(300),
-          ms(700),
-          ms(850),
-        ],
+        characterStarts: [ms(0), ms(100), ms(200), ms(300), ms(700), ms(850)],
       );
       expect(
         [for (final s in syllables) (s.text, s.start.inMilliseconds)],

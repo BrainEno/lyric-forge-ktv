@@ -1,0 +1,226 @@
+Resolving dependencies...
+Downloading packages...
+  archive 4.5.2 (4.7.1 available)
+  code_assets 2.1.0 (2.2.0 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 10.3.10 (13.3.3 available)
+  flutter_cache_manager 3.4.6 (3.5.0 available)
+  flutter_soloud 4.1.7 (5.3.0 available)
+  image 4.12.0 (4.13.1 available)
+  jni 1.1.1 (1.1.2 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  mobile_scanner 7.4.2 (7.5.0 available)
+  objective_c 9.6.2 (9.6.4 available)
+  qr 3.0.2 (4.0.1 available)
+  record 6.2.1 (7.2.0 available)
+  record_android 1.5.2 (2.3.0 available)
+  record_ios 1.2.1 (2.1.1 available)
+  record_linux 1.3.1 (2.2.0 available)
+  record_macos 1.2.2 (2.1.1 available)
+  record_platform_interface 1.6.0 (2.2.0 available)
+  record_web 1.3.0 (2.2.0 available)
+  record_windows 1.0.7 (2.4.0 available)
+  sqflite 2.4.5 (2.4.6 available)
+  sqflite_android 2.4.5 (2.4.6 available)
+  sqflite_common 2.5.14 (2.5.17 available)
+  sqflite_darwin 2.4.4+1 (2.4.6 available)
+  sqflite_platform_interface 2.4.3 (2.4.4 available)
+  synchronized 3.5.0 (3.6.1+1 available)
+  test_api 0.7.12 (0.7.15 available)
+  win32 5.15.0 (6.4.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing lyric-forge-ktv...                                    
+
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart:113:56 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart:143:11 • curly_braces_in_flow_control_structures
+   info • Constructors in '@immutable' classes should be declared as 'const'. Try adding 'const' to the constructor declaration • lib/features/lyrics/presentation/controllers/line_audition_controller.dart:83:3 • prefer_const_constructors_in_immutables
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/controllers/reference_timing_audition_coordinator.dart:77:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/controllers/reference_timing_audition_coordinator.dart:81:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/controllers/reference_timing_audition_coordinator.dart:85:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/controllers/reference_timing_audition_coordinator.dart:92:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/controllers/reference_timing_audition_coordinator.dart:96:9 • curly_braces_in_flow_control_structures
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart:45:9 • use_key_in_widget_constructors
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart:527:9 • use_key_in_widget_constructors
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart:625:9 • use_key_in_widget_constructors
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart:747:9 • use_key_in_widget_constructors
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:53:9 • use_key_in_widget_constructors
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:383:11 • use_null_aware_elements
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:413:11 • use_null_aware_elements
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:762:9 • use_key_in_widget_constructors
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:803:25 • prefer_interpolation_to_compose_strings
+   info • Constructors for public widgets should have a named 'key' parameter. Try adding a named parameter to the constructor • lib/features/lyrics/presentation/widgets/lyric_list_pane.dart:901:9 • use_key_in_widget_constructors
+   info • Use an initializing formal to assign a parameter to a field. Try using an initialing formal ('this.message') to initialize the field • lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart:328:7 • prefer_initializing_formals
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart:769:7 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of multiple underscores. Try using '_' • lib/features/lyrics/presentation/widgets/reference_proofread_review_dialog.dart:95:39 • unnecessary_underscores
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/player/data/services/library_metadata_playback_session_service.dart:373:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/player/data/services/remote_rebinding_playback_session_service.dart:140:7 • curly_braces_in_flow_control_structures
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/player/presentation/screens/local_collections_screen.dart:519:19 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/player/presentation/screens/player_screen.dart:269:7 • curly_braces_in_flow_control_structures
+   info • 'onReorder' is deprecated and shouldn't be used. Use the onReorderItem callback instead. The onReorderItem callback adjusts the newIndex parameter for a removed item at the oldIndex. This feature was deprecated after v3.41.0-0.0.pre. Try replacing the use of the deprecated member with the replacement • lib/features/player/presentation/widgets/playback_queue_panel.dart:109:21 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/project/data/services/file_project_accompaniment_importer.dart:41:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/project/presentation/screens/project_detail_screen.dart:114:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/project/presentation/screens/project_detail_screen.dart:209:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/asr_evidence_audio_verifier.dart:61:7 • curly_braces_in_flow_control_structures
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/transcription/data/services/high_quality_transcription_service.dart:258:11 • use_null_aware_elements
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/transcription/data/services/high_quality_transcription_service.dart:572:9 • use_null_aware_elements
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/independent_project_rerun_service.dart:135:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/independent_project_rerun_workflow.dart:81:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/independent_project_rerun_workflow.dart:150:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/local_project_transcription_workflow.dart:86:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/local_project_transcription_workflow.dart:405:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/local_project_transcription_workflow.dart:414:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_proofread_evidence_loader.dart:302:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_proofread_evidence_loader.dart:315:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_proofread_evidence_loader.dart:327:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_proofread_evidence_loader.dart:345:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_rerun_candidate_store.dart:65:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_rerun_candidate_store.dart:72:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_rerun_candidate_store.dart:101:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_rerun_candidate_store.dart:114:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/project_rerun_candidate_store.dart:146:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/reference_alignment_audio_guard.dart:28:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/reference_alignment_audio_guard.dart:43:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/reference_alignment_audio_guard.dart:83:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/reference_alignment_audio_guard.dart:86:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/reference_alignment_audio_guard.dart:88:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/resumable_chunked_transcription_service.dart:651:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/data/services/resumable_chunked_transcription_service.dart:875:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:97:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:109:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:118:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:142:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:149:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:154:11 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:164:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:177:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart:183:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/fusion_timing_evidence.dart:52:7 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/fusion_timing_evidence.dart:68:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transcription/domain/models/fusion_timing_evidence.dart:84:9 • curly_braces_in_flow_control_structures
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • lib/features/transcription/domain/models/transcription_model_identity.dart:77:7 • prefer_interpolation_to_compose_strings
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/features/transfer/presentation/screens/mobile_remote_music_library_screen.dart:100:9 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/architecture/support/feature_dependency_graph.dart:139:5 • curly_braces_in_flow_control_structures
+   info • Statements in a while should be enclosed in a block. Try wrapping the statement in a block • test/architecture/support/feature_dependency_graph.dart:291:69 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/features/lyrics/presentation/screens/lyric_editor_save_conflict_test.dart:2097:7 • curly_braces_in_flow_control_structures
+   info • Unnecessary 'const' keyword. Try removing the keyword • test/features/lyrics/presentation/widgets/lyric_editor_toolbar_test.dart:185:20 • unnecessary_const
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:208:20 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:208:24 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:230:22 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:230:26 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:250:22 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:250:26 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:277:22 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:277:26 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:278:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:278:31 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:320:39 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:320:43 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:343:24 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/lyrics/presentation/widgets/reference_timing_audition_test.dart:343:28 • unnecessary_underscores
+   info • The import of 'dart:async' is unnecessary because all of the used elements are also provided by the import of 'package:flutter_test/flutter_test.dart'. Try removing the import directive • test/features/player/data/local_store_integrity_test.dart:1:8 • unnecessary_import
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:180:96 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:267:25 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:314:27 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:376:30 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/asr_managed_storage_service_test.dart:413:96 • unnecessary_brace_in_string_interps
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:13:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:41:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:63:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:81:27 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:104:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/asr_process_supervisor_test.dart:129:29 • unnecessary_underscores
+   info • Unnecessary braces in a string interpolation. Try removing the braces • test/features/transcription/managed_model_asr_runtime_manager_http_test.dart:67:32 • unnecessary_brace_in_string_interps
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/features/transcription/project_proofread_evidence_loader_test.dart:81:13 • use_null_aware_elements
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/qwen3_asr_native_transcription_service_test.dart:43:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/features/transcription/retrying_asr_runtime_manager_test.dart:145:24 • unnecessary_underscores
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/features/transcription/retrying_asr_runtime_manager_test.dart:174:13 • curly_braces_in_flow_control_structures
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/features/transcription/whisper_json_transcript_parser_test.dart:19:3 • use_null_aware_elements
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:34:46 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:53:19 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:409:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:429:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:451:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:468:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:489:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:520:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:567:20 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/features/transfer/http_media_hub_upload_test.dart:659:18 • prefer_interpolation_to_compose_strings
+   info • String literals shouldn't be concatenated by the '+' operator. Try removing the operator to use adjacent strings • test/features/transfer/media_hub_discovery_reconnect_test.dart:112:49 • prefer_adjacent_string_concatenation
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/resumable_chunked_transcription_service_test.dart:420:17 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/resumable_chunked_transcription_service_test.dart:494:13 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of multiple underscores. Try using '_' • test/resumable_chunked_transcription_service_test.dart:621:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores. Try using '_' • test/resumable_chunked_transcription_service_test.dart:661:31 • unnecessary_underscores
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/resumable_chunked_transcription_service_test.dart:1672:19 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • test/resumable_chunked_transcription_service_test.dart:1783:13 • curly_braces_in_flow_control_structures
+   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • test/tool/asr_transcript_eval_test.dart:184:11 • use_null_aware_elements
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:365:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:366:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:367:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:368:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:445:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • test/tool/asr_transcript_eval_test.dart:446:31 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:169:14 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:170:14 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:171:14 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:191:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:210:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:229:9 • prefer_interpolation_to_compose_strings
+   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • tool/asr_preprocessing_ab_eval.dart:248:7 • curly_braces_in_flow_control_structures
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:254:19 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:257:11 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:259:15 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:280:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:337:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:339:13 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:409:12 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:410:12 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:411:12 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:537:21 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:550:20 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_preprocessing_ab_eval.dart:554:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:186:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1562:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1567:35 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_quality_report.dart:1922:21 • prefer_interpolation_to_compose_strings
+   info • Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import • tool/asr_transcript_eval.dart:5:8 • avoid_relative_lib_imports
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:17:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:24:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:28:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:44:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:52:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:60:27 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:84:29 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:112:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:119:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:121:13 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:127:29 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:131:29 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:137:11 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:139:15 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:188:7 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:271:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:273:13 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:280:9 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:280:33 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:629:22 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:660:21 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:665:22 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:677:26 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:683:20 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/asr_transcript_eval.dart:687:7 • prefer_interpolation_to_compose_strings
+   info • Can't use a relative path to import a library in 'lib'. Try fixing the relative path or changing the import to a 'package:' import • tool/forced_alignment_eval.dart:8:8 • avoid_relative_lib_imports
+   info • Unnecessary braces in a string interpolation. Try removing the braces • tool/forced_alignment_eval.dart:68:37 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • tool/forced_alignment_eval.dart:71:37 • unnecessary_brace_in_string_interps
+   info • Unnecessary braces in a string interpolation. Try removing the braces • tool/forced_alignment_eval.dart:74:37 • unnecessary_brace_in_string_interps
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1034:22 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1069:22 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1081:26 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1087:20 • prefer_interpolation_to_compose_strings
+   info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1090:20 • prefer_interpolation_to_compose_strings
+
+186 issues found. (ran in 18.7s)
+exit=1

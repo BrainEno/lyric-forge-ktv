@@ -1,0 +1,5 @@
+Wrote work-log navigation (summary, index snapshot, and archive refs; 8 active of 300 entries).
+Warnings (1):
+  [commit-subject] Entry commit subject not found in git history: Handle simplified and traditional Chinese script consistently (2026-11-15-1500-unify-chinese-script-handling.md)
+Work log lint passed (0 errors, 1 warning(s)).
+exit=0

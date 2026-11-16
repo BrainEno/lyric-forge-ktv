@@ -1,0 +1,8 @@
+Formatted lib/features/lyrics/presentation/widgets/lyric_asr_loop_dialog.dart
+Formatted lib/features/lyrics/presentation/widgets/lyric_proofread_menu_button.dart
+Formatted test/features/lyrics/domain/services/lyric_asr_loop_detector_test.dart
+Formatted test/features/lyrics/domain/services/lyric_word_timing_service_test.dart
+Formatted test/features/lyrics/presentation/widgets/lyric_loop_and_word_timing_widgets_test.dart
+Formatted test/features/transcription/qwen_runtime_service_lifecycle_test.dart
+Formatted 25 files (6 changed) in 0.18 seconds.
+exit=0

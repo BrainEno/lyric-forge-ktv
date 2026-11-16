@@ -22,10 +22,14 @@ void main() {
 
   group('tokens', () {
     test('Han characters are single tokens, Latin words stay whole', () {
-      expect(
-        detector.tokens("我爱你, don't stop lovin'").map((t) => t.key),
-        ['我', '爱', '你', "don't", 'stop', 'lovin'],
-      );
+      expect(detector.tokens("我爱你, don't stop lovin'").map((t) => t.key), [
+        '我',
+        '爱',
+        '你',
+        "don't",
+        'stop',
+        'lovin',
+      ]);
       expect(detector.rowKey('Baby, BABY!'), detector.rowKey('baby baby'));
     });
   });
@@ -66,11 +70,7 @@ void main() {
   group('plan', () {
     test('lists in-row loops with a strength', () {
       final plan = detector.plan(
-        doc([
-          '我爱你我爱你我爱你我爱你',
-          '普通的一句',
-          '我爱你我爱你我爱你我爱你我爱你我爱你',
-        ]),
+        doc(['我爱你我爱你我爱你我爱你', '普通的一句', '我爱你我爱你我爱你我爱你我爱你我爱你']),
       );
       expect(plan.issues, hasLength(2));
       expect(plan.issues.first.kind, LyricAsrLoopKind.inRowRepeat);

@@ -149,7 +149,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message: '校对：智能提案、参考歌词纠正、重复行统一、文本清理、识别循环检查、整理断行、时间轴检查与平移、简繁统一、查找替换、逐行对比与回滚',
+          message:
+              '校对：智能提案、参考歌词纠正、重复行统一、文本清理、识别循环检查、整理断行、时间轴检查与平移、简繁统一、查找替换、逐行对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
