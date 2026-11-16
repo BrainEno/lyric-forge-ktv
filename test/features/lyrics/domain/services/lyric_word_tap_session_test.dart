@@ -7,12 +7,8 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 // Every lyric below is synthetic text written for these tests.
 Duration ms(int value) => Duration(milliseconds: value);
 
-LyricLine row(String text, int startMs, int endMs, String id) => LyricLine(
-  text: text,
-  startTime: ms(startMs),
-  endTime: ms(endMs),
-  id: id,
-);
+LyricLine row(String text, int startMs, int endMs, String id) =>
+    LyricLine(text: text, startTime: ms(startMs), endTime: ms(endMs), id: id);
 
 LyricDocument song() => LyricDocument(
   language: 'zh',

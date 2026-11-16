@@ -15,12 +15,8 @@ import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.da
 // Every lyric below is synthetic text written for these tests.
 Duration _ms(int value) => Duration(milliseconds: value);
 
-LyricLine _line(String text, int startMs, int endMs, {String? id}) => LyricLine(
-  text: text,
-  startTime: _ms(startMs),
-  endTime: _ms(endMs),
-  id: id,
-);
+LyricLine _line(String text, int startMs, int endMs, {String? id}) =>
+    LyricLine(text: text, startTime: _ms(startMs), endTime: _ms(endMs), id: id);
 
 class _FakePlayer {
   final StreamController<PlaybackState> _states =
@@ -208,7 +204,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: Center(child: LyricProofreadMenuButton(onWordTap: () => fired++)),
+          body: Center(
+            child: LyricProofreadMenuButton(onWordTap: () => fired++),
+          ),
         ),
       ),
     );

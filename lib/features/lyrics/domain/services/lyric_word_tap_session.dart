@@ -39,7 +39,8 @@ class LyricWordTapMark {
   );
 
   @override
-  String toString() => 'LyricWordTapMark($rowPosition:$unitIndex, $start, $end)';
+  String toString() =>
+      'LyricWordTapMark($rowPosition:$unitIndex, $start, $end)';
 }
 
 /// The document after a word-by-word session, plus what changed.
@@ -291,8 +292,7 @@ class LyricWordTapSession {
       final nextPress = from + row.units.length < _marks.length
           ? _marks[from + row.units.length].start
           : null;
-      final untimedNext =
-          nextPress == null && row.lineIndex + 1 < lines.length
+      final untimedNext = nextPress == null && row.lineIndex + 1 < lines.length
           ? lines[row.lineIndex + 1].startTime
           : null;
       final words = <LyricWordTiming>[];
@@ -371,9 +371,7 @@ class LyricWordTapSession {
     Duration? untimedNext,
   ) {
     if (nextPress != null && nextPress - start <= maxTailCarry) {
-      return nextPress - start < minimumUnit
-          ? start + minimumUnit
-          : nextPress;
+      return nextPress - start < minimumUnit ? start + minimumUnit : nextPress;
     }
     var end = start + _averageUnit(rowMarks);
     if (nextPress != null && end > nextPress) end = nextPress;
@@ -406,7 +404,11 @@ class LyricWordTapSession {
     LyricKaraokeTimingService karaoke,
   ) {
     final rows = <LyricWordTapRow>[];
-    for (var index = startIndex < 0 ? 0 : startIndex; index < lines.length; index++) {
+    for (
+      var index = startIndex < 0 ? 0 : startIndex;
+      index < lines.length;
+      index++
+    ) {
       final units = karaoke.units(lines[index].text);
       if (units.isEmpty || units.every((unit) => unit.weight <= 0)) continue;
       rows.add(

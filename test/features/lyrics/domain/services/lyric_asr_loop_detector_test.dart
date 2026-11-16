@@ -180,7 +180,8 @@ void main() {
           ),
       ],
     );
-    final issue = detector.plan(LyricDocument(language: 'zh', lines: [line]))
+    final issue = detector
+        .plan(LyricDocument(language: 'zh', lines: [line]))
         .issues
         .single;
     final words = LyricAsrLoopPlan.keptWords(

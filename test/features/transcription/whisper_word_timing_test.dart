@@ -53,19 +53,13 @@ void main() {
   test('a Han character always starts a new word', () {
     expect(
       wordsOf(
-        response('我爱你', [
-          token('我', 1000, 1300),
-          token('爱你', 1300, 2000),
-        ]),
+        response('我爱你', [token('我', 1000, 1300), token('爱你', 1300, 2000)]),
       ),
       [('我', 1000, 1300), ('爱你', 1300, 2000)],
     );
     expect(
       wordsOf(
-        response('爱 you', [
-          token('爱', 1000, 1300),
-          token(' you', 1300, 2000),
-        ]),
+        response('爱 you', [token('爱', 1000, 1300), token(' you', 1300, 2000)]),
       ),
       [('爱', 1000, 1300), ('you', 1300, 2000)],
     );
@@ -93,10 +87,7 @@ void main() {
     );
     expect(
       wordsOf(
-        response('我爱你们', [
-          token('我', 1000, 1300),
-          token('爱你', 1300, 2000),
-        ]),
+        response('我爱你们', [token('我', 1000, 1300), token('爱你', 1300, 2000)]),
       ),
       isEmpty,
     );

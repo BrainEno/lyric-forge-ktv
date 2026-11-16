@@ -208,7 +208,10 @@ class WhisperJsonTranscriptParser {
   /// offsets, or words whose sung characters do not add up to the segment
   /// text drop the word timing of the whole segment, so a wrong grouping
   /// can never misplace the karaoke sweep.
-  List<LyricWordTiming> segmentWords(Map<String, dynamic> segment, String text) {
+  List<LyricWordTiming> segmentWords(
+    Map<String, dynamic> segment,
+    String text,
+  ) {
     final tokens = segment['tokens'];
     if (tokens is! List || tokens.isEmpty) return const [];
     final words = <({StringBuffer text, int from, int to})>[];

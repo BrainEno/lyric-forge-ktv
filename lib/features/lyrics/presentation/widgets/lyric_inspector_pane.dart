@@ -388,7 +388,8 @@ class _LineInspectorState extends State<LineInspector> {
             LyricWordTimingStrip(
               line: _workingLine,
               onSeek: widget.onSeekToTime,
-              onClear: () => _emitUpdate(_workingLine.copyWith(words: const [])),
+              onClear: () =>
+                  _emitUpdate(_workingLine.copyWith(words: const [])),
             ),
           ],
           if (widget.secondarySuggestion != null && !widget.isReviewed) ...[

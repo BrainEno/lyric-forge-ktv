@@ -65,7 +65,12 @@ class LyricWordTimingStrip extends StatelessWidget {
         key: const ValueKey('word_timing_stale'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [Expanded(child: label), ?clear]),
+          Row(
+            children: [
+              Expanded(child: label),
+              ?clear,
+            ],
+          ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             staleNote,
@@ -152,33 +157,35 @@ class _WordChip extends StatelessWidget {
           '${LyricWordTimingStrip.clock(word.end)}'
           ' · ${seconds.toStringAsFixed(2)} 秒'
           '${onTap == null ? '' : ' · 点击跳到这里'}',
-      child: _tappable(Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: 2,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.bgBase,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: long ? AppColors.warning : AppColors.textTertiary,
-            width: long ? 1.2 : 0.5,
+      child: _tappable(
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: 2,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.bgBase,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: long ? AppColors.warning : AppColors.textTertiary,
+              width: long ? 1.2 : 0.5,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(word.text.trim(), style: theme.textTheme.bodyMedium),
+              Text(
+                LyricWordTimingStrip.clock(word.start),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: AppColors.textTertiary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(word.text.trim(), style: theme.textTheme.bodyMedium),
-            Text(
-              LyricWordTimingStrip.clock(word.start),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: AppColors.textTertiary,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      )),
+      ),
     );
   }
 
