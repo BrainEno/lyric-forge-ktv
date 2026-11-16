@@ -33,7 +33,7 @@
   - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
   - Run 43803821134: the new widget test file did not compile (missing `LyricReviewFilter` import). The full suite otherwise passed: 2418 passed, 1 failed (that load error), 2 skipped.
   - Run 43804268162: analyze reported no errors or warnings and 186 infos, the same as the baseline. The full suite had 2428 passed, 1 failed, 2 skipped. The failure was the list context-menu test, which looked up a row label the list does not render; it now finds the row by its lyric text.
-  - The final run's results are recorded in the handoff.
+  - Run 43804942749: analyze reported no errors or warnings and 186 infos. All 9 targeted test files passed. The full `flutter test` run had 2429 passed, 2 skipped and 0 failed (baseline 2369). `dart tool/work_log.dart write` regenerated the navigation and `check` passed; its only warning is a commit subject from an earlier entry.
 - Notes:
   - The thresholds (20, 2, 0.7 s, 0.35 s) are empirical and should be calibrated on the #413 real-song baseline.
   - A proportional boundary is only a starting point. The hint and the preview both ask the user to audition and nudge it.

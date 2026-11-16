@@ -42,7 +42,7 @@
 全部来自 GitHub Actions 临时 workflow，沙箱里没有 Dart/Flutter 工具链。
 
 - `flutter analyze`：没有 error 或 warning，186 条 info，与基线相同。
-- `flutter test` 全量：最终结果见 PR 描述（基线为 2369 通过、2 跳过）。前两轮发现的两个问题都出在测试代码里：缺少一个 import；右键菜单测试的查找方式不对。两处都已修正。
+- `flutter test` 全量：2429 通过，2 跳过，0 失败（运行 43804942749；基线为 2369 通过）。前两轮发现的两个问题都出在测试代码里：缺少一个 import；右键菜单测试的查找方式不对。两处都已修正。
 - `dart tool/work_log.dart check`：通过。
 
 ## 下一步
