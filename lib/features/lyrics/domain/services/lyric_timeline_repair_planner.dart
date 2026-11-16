@@ -86,8 +86,10 @@ class LyricTimelineRepairPlan {
   bool get isEmpty => fixes.isEmpty;
 
   /// Rows the user has to look at: fixable rows plus manual issues.
-  int get problemRowCount =>
-      {...fixes.map((f) => f.index), ...manualIssues.map((i) => i.index)}.length;
+  int get problemRowCount => {
+    ...fixes.map((f) => f.index),
+    ...manualIssues.map((i) => i.index),
+  }.length;
 
   /// [document] with the fixes at [selectedPositions] (indices into
   /// [fixes]) applied. Repaired rows with a stable id are recorded as
@@ -374,12 +376,8 @@ class LyricTimelineRepairPlanner {
       final left = before >= 0 ? lines[before].startTime : null;
       final right = after < lines.length ? lines[after].startTime : null;
       // The pair that remains must be in order.
-      final remainingLeft = removed == above
-          ? left
-          : lines[above].startTime;
-      final remainingRight = removed == above
-          ? lines[below].startTime
-          : right;
+      final remainingLeft = removed == above ? left : lines[above].startTime;
+      final remainingRight = removed == above ? lines[below].startTime : right;
       if (remainingLeft != null &&
           remainingRight != null &&
           remainingRight <= remainingLeft) {
@@ -465,7 +463,9 @@ class LyricTimelineRepairPlanner {
     final duration = originalDuration > available
         ? available
         : originalDuration;
-    final end = duration < minimumDuration ? left + minimumDuration : left + duration;
+    final end = duration < minimumDuration
+        ? left + minimumDuration
+        : left + duration;
     return (left, end);
   }
 

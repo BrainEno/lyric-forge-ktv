@@ -192,9 +192,7 @@ class _LyricTimelineRepairDialogState extends State<LyricTimelineRepairDialog> {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Expanded(
-                child: Text('可自动修复', style: theme.textTheme.labelLarge),
-              ),
+              Expanded(child: Text('可自动修复', style: theme.textTheme.labelLarge)),
               TextButton(
                 key: const ValueKey('timeline_repair_toggle_all'),
                 onPressed: () => _update(() {

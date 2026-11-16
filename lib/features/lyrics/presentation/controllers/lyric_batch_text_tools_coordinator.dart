@@ -122,7 +122,8 @@ class LyricBatchTextToolsCoordinator {
     if (item?.projectId != project.id) return null;
     final playback = host.proofreadAudioService.currentState;
     if (playback.isPlaying) return null;
-    final position = playback.position - (document.globalOffset ?? Duration.zero);
+    final position =
+        playback.position - (document.globalOffset ?? Duration.zero);
     return position.isNegative ? Duration.zero : position;
   }
 }

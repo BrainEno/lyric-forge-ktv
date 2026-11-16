@@ -167,10 +167,7 @@ void main() {
       expect(plan.selectionAfterApply({0, 1}), 0);
       expect(identical(plan.applyTo(source, const {}), source), isTrue);
 
-      expect(
-        planner.remainingIssues(source, plan, {0, 1}),
-        isEmpty,
-      );
+      expect(planner.remainingIssues(source, plan, {0, 1}), isEmpty);
       expect(
         planner.remainingIssues(source, plan, {1}).map((i) => i.lineIndex),
         containsAll([0, 1]),
@@ -180,7 +177,10 @@ void main() {
     test('keeps existing provenance entries of other rows', () {
       final source = LyricDocument(
         language: 'zh',
-        lines: [line('第一句', 0, 3000, id: 'a'), line('第二句', 2500, 5000)],
+        lines: [
+          line('第一句', 0, 3000, id: 'a'),
+          line('第二句', 2500, 5000),
+        ],
         metadata: const {
           kLyricTimingProvenanceKey: {'z': 'reference'},
         },

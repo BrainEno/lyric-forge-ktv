@@ -234,9 +234,7 @@ class LyricExportEncoder {
       buffer
         ..writeln()
         ..writeln('NOTE')
-        ..writeln(
-          [title, artist].where((part) => part.isNotEmpty).join(' - '),
-        );
+        ..writeln([title, artist].where((part) => part.isNotEmpty).join(' - '));
     }
     for (final cue in subtitleCues(document)) {
       buffer

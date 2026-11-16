@@ -36,20 +36,23 @@ void main() {
       );
     });
 
-    test('end markers clear the lyric before pauses and after the last row', () {
-      final encoded = encoder.encodeLrc(song, endMarkers: true);
-      final body = encoded
-          .split('\n')
-          .where((l) => l.startsWith('[0'))
-          .toList();
-      expect(body, [
-        '[00:01.000]第一句',
-        '[00:03.500]第二句',
-        '[00:05.000]',
-        '[00:10.000]第三句',
-        '[00:12.000]',
-      ]);
-    });
+    test(
+      'end markers clear the lyric before pauses and after the last row',
+      () {
+        final encoded = encoder.encodeLrc(song, endMarkers: true);
+        final body = encoded
+            .split('\n')
+            .where((l) => l.startsWith('[0'))
+            .toList();
+        expect(body, [
+          '[00:01.000]第一句',
+          '[00:03.500]第二句',
+          '[00:05.000]',
+          '[00:10.000]第三句',
+          '[00:12.000]',
+        ]);
+      },
+    );
 
     test('end markers survive an import round trip as row ends', () {
       final encoded = encoder.encode(
@@ -139,7 +142,10 @@ void main() {
       final importer = LocalLyricFileImportService();
       for (final format in [LyricExportFormat.srt, LyricExportFormat.vtt]) {
         final imported = importer
-            .parseText(encoder.encode(song, format), extension: format.extension)
+            .parseText(
+              encoder.encode(song, format),
+              extension: format.extension,
+            )
             .document;
         expect(imported.lines.map((l) => l.text), [
           '第一句',

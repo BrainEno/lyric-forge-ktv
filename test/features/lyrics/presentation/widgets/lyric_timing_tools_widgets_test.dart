@@ -112,7 +112,9 @@ void main() {
       tester,
     ) async {
       final result = await open(tester, faulty);
-      await tester.tap(find.byKey(const ValueKey('timeline_repair_toggle_all')));
+      await tester.tap(
+        find.byKey(const ValueKey('timeline_repair_toggle_all')),
+      );
       await tester.pumpAndSettle();
       expect(find.text('修复 2 行'), findsOneWidget);
       expect(find.text('按当前勾选应用后，时间轴不再有冲突。'), findsOneWidget);
@@ -286,7 +288,10 @@ void main() {
     ) async {
       await open(tester);
       expect(preview(tester), contains('[re:LyricForge]'));
-      expect(preview(tester), endsWith('[00:05.000]\n[00:10.000]第三句\n[00:12.000]'));
+      expect(
+        preview(tester),
+        endsWith('[00:05.000]\n[00:10.000]第三句\n[00:12.000]'),
+      );
       expect(find.textContaining('行时间轴存在问题'), findsOneWidget);
       expect(find.text('1 个空行不会导出。'), findsOneWidget);
       expect(find.text('导出 .lrc'), findsOneWidget);
@@ -312,7 +317,10 @@ void main() {
       expect(preview(tester), '第一句\n第二句\n\n第三句');
       // Plain text has no timing, so the timeline warning is irrelevant.
       expect(find.textContaining('行时间轴存在问题'), findsNothing);
-      expect(find.byKey(const ValueKey('lyric_export_paragraphs')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('lyric_export_paragraphs')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('lyric_export_confirm')));
       await tester.pumpAndSettle();
@@ -355,9 +363,7 @@ void main() {
     });
   });
 
-  testWidgets('the proofreading menu offers both timing tools', (
-    tester,
-  ) async {
+  testWidgets('the proofreading menu offers both timing tools', (tester) async {
     final fired = <String>[];
     await tester.pumpWidget(
       MaterialApp(

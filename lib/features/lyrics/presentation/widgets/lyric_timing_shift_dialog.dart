@@ -460,7 +460,8 @@ class _LyricTimingShiftDialogState extends State<LyricTimingShiftDialog> {
           if (_mode == LyricTimingShiftMode.twoPoint)
             '速度系数 ${result.scale.toStringAsFixed(4)}'
                 '（${result.scale >= 1 ? '+' : ''}$scalePercent%）',
-          if (result.clampedCount > 0) '${result.clampedCount} 行被限制在 0:00 或音频末尾',
+          if (result.clampedCount > 0)
+            '${result.clampedCount} 行被限制在 0:00 或音频末尾',
         ].join('，'),
         key: const ValueKey('timing_shift_summary'),
         style: theme.textTheme.titleSmall,

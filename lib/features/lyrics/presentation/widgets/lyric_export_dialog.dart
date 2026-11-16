@@ -168,10 +168,8 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
             '导出后可能出现两句同时显示。建议先用「校对 → 检查时间轴」修复。',
             warning: true,
           ),
-        if (_emptyRows > 0)
-          LyricBatchNote('$_emptyRows 个空行不会导出。'),
-        if (exportedRows == 0)
-          const LyricBatchNote('没有可导出的歌词。', warning: true),
+        if (_emptyRows > 0) LyricBatchNote('$_emptyRows 个空行不会导出。'),
+        if (exportedRows == 0) const LyricBatchNote('没有可导出的歌词。', warning: true),
         const SizedBox(height: AppSpacing.sm),
         Text('预览', style: theme.textTheme.labelLarge),
         const SizedBox(height: AppSpacing.xs),
