@@ -1,0 +1,30 @@
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Cyrillic supplement, extensions, and combining marks
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves polytonic Greek letters
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves supplementary CJK ideographs
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-D letters
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-E letters
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-C letters
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison folds precomposed and decomposed Latin diacritics
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison empty normalized text is not evidence of agreement
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/transcription_managed_model_profile_test.dart: managed Qwen profile paths RTX profile preserves matching local managed model directories
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/transcription_managed_model_profile_test.dart: managed Qwen profile paths RTX profile rejects a local model directory for the wrong model size
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_release_asset_metadata_test.dart: RuntimeReleaseAssetMetadata parses GitHub release digest, size and download URL
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_release_asset_metadata_test.dart: RuntimeReleaseAssetMetadata rejects an asset without a trustworthy SHA-256 digest
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/runtime_release_asset_metadata_test.dart: RuntimeReleaseAssetMetadata rejects a release that does not contain the requested platform asset
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository history survives repository recreation with resume position
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository saving same file replaces the older record instead of duplicating it
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository missing local history is hidden but can be relinked later
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository remote stream URLs are never persisted as local recent history
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository failed initial load can be retried after the store is repaired
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository successful initial load stays cached
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_play_history_repository_test.dart: FilePlayHistoryRepository clear removes persisted history
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
+✅ /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
+::endgroup::
+
+🎉 2555 tests passed, 2 skipped.
+exit=0
