@@ -1,0 +1,33 @@
+# [2026-11-19 12:00] Add word-by-word tap-to-sync and Whisper word timing
+
+- Scope: Real word timing (`LyricLine.words`, D-021) now has two more sources and survives one more edit, and the inspector can act on it. Everything is wired through existing services and the batch-tool coordinator, so the editor screen does not grow.
+  - 逐字打轴 (`LyricWordTapSession`, `LyricWordTapDialog`, menu entry 逐字打轴（卡拉 OK）).
+    - Units are the karaoke export units: one Han character, kana or Hangul syllable, or one Latin word, with punctuation attached. Rows without sung text are skipped.
+    - The user presses once per unit (space or the pad). Presses within 60 ms are bounces. Hold mode ends a unit on release; Enter ends it explicitly.
+    - A unit ends at its explicit end or the next press, but not across a pause longer than `maxCarry`. A row's last unit runs into the next row's first press within 1.5 s, otherwise it gets the row's average unit (200 ms–1.5 s). No unit is shorter than 60 ms.
+    - Only fully pressed rows get `words`, new row times and manual timing provenance; a row left half-done is unchanged and reported. An overlapping row before the session is trimmed.
+    - Backspace undoes (an explicit end first, then the press), R redoes the row, ← goes back 3 s and drops later presses. Speed and reaction compensation are available. Applying is one undoable edit.
+    - Row tap-sync and word tap-sync share `LyricTapClock` (position extrapolation, global offset, reaction compensation) and `LyricTapPad`.
+  - Whisper word timing (`WhisperJsonTranscriptParser.segmentWords`).
+    - Token `offsets` from `-ojf` become words. A leading space or a Han-type character starts a word, punctuation-only tokens join the previous word, and control tokens (`[_BEG_]`, `[_TT_…]`) are skipped.
+    - A U+FFFD token, missing or out-of-range offsets, or a sung-character count that differs from the segment text drops the words of the whole segment.
+  - A loop collapse keeps the word timing of the text that remains (`LyricAsrLoopPlan.keptWords`).
+  - Inspector word chips seek the project audio to the word (with the global offset); a 清除 button removes the row's word timing.
+- Files:
+  - New domain service: `lib/features/lyrics/domain/services/lyric_word_tap_session.dart`.
+  - New widgets: `lib/features/lyrics/presentation/widgets/{lyric_tap_controls,lyric_word_tap_dialog}.dart`.
+  - Changed:
+    - `whisper_json_transcript_parser.dart` (`segmentWords`), `lyric_asr_loop_detector.dart` (`keptWords`)
+    - `lyric_tap_sync_dialog.dart` (shared clock and pad), `lyric_batch_text_edit.dart` (`wordTap`), `lyric_batch_text_tools_coordinator.dart`
+    - `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_editor_content.dart`, `lyric_inspector_pane.dart`, `lyric_word_timing_strip.dart`
+  - Tests: word tap session tests, word tap dialog, clock, menu and strip widget tests, Whisper word timing tests, loop collapse word timing tests.
+  - Docs: `decisions.md` (D-022), handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
+  - `dart format` reformatted 8 of the 17 changed files on the first run; the second run changed none.
+  - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - The first targeted run failed one Whisper test: timestamp tokens such as `[_TT_150]` do not end in `_]`, so they were not skipped. Control tokens are now any `[_…]`.
+  - The 8 targeted test files then passed (70 tests). The full `flutter test` suite had 2574 passed, 2 skipped and 0 failed (main: 2555).
+  - `dart tool/work_log.dart write` and `check` passed; the only warnings are the old entry and this entry's commit subject, which exists once the PR is merged.
+  - The editor screen stays at 1178 lines.
+- Notes: Word tap-sync timing depends on the user's reaction; compensation is off by default. Whisper artifacts without token offsets behave as before.
+- Commit: `Add word-by-word tap-to-sync and Whisper word timing`

@@ -11,6 +11,7 @@ import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_tap_sync_session.dart';
 import '../../domain/services/lyric_timing_shift_service.dart';
 import 'lyric_batch_text_edit.dart';
+import 'lyric_tap_controls.dart';
 
 /// User-facing text of tap-to-sync.
 class LyricTapSyncStrings {
@@ -135,10 +136,13 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
               : widget.startIndex),
   );
   final FocusNode _focus = FocusNode(debugLabel: 'LyricTapSync');
-  final Stopwatch _stopwatch = Stopwatch()..start();
-  Duration _reportedAt = Duration.zero;
+  late final LyricTapClock _clock = LyricTapClock(
+    initial: widget.transport.currentState(),
+    offset: _offset,
+    now: widget.now,
+    maxExtrapolation: LyricTapSyncDialog.maxExtrapolation,
+  );
   StreamSubscription<PlaybackState>? _subscription;
-  late PlaybackState _state = widget.transport.currentState();
   late final double _initialSpeed;
   LyricTapSyncMode _mode = LyricTapSyncMode.tap;
   bool _shiftFollowing = false;
@@ -148,15 +152,15 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
 
   Duration get _offset => widget.document.globalOffset ?? Duration.zero;
 
+  PlaybackState get _state => _clock.state;
+
   @override
   void initState() {
     super.initState();
     _initialSpeed = _state.speed;
-    _reportedAt = _now();
     _subscription = widget.transport.states.listen((state) {
       if (!mounted) return;
-      _reportedAt = _now();
-      setState(() => _state = state);
+      setState(() => _clock.report(state));
     });
     if (!_state.isPlaying && !_session.isComplete) {
       final first = widget.document.lines[_session.cursor].startTime + _offset;
@@ -180,28 +184,10 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
   static Future<void> _ignoreErrors(Future<void> future) =>
       future.catchError((Object _) {});
 
-  Duration _now() => widget.now?.call() ?? _stopwatch.elapsed;
-
-  /// The audio position now, extrapolated from the last report.
-  Duration _audioNow() {
-    if (!_state.isPlaying) return _state.position;
-    var elapsed = _now() - _reportedAt;
-    if (elapsed.isNegative) elapsed = Duration.zero;
-    if (elapsed > LyricTapSyncDialog.maxExtrapolation) {
-      elapsed = LyricTapSyncDialog.maxExtrapolation;
-    }
-    return _state.position +
-        Duration(microseconds: (elapsed.inMicroseconds * _state.speed).round());
-  }
+  Duration _audioNow() => _clock.audioNow();
 
   /// The press time on the document timeline, reaction time removed.
-  Duration _pressTime() {
-    final latency = Duration(
-      microseconds: (_latencyMs * 1000 * _state.speed).round(),
-    );
-    final value = _audioNow() - _offset - latency;
-    return value.isNegative ? Duration.zero : value;
-  }
+  Duration _pressTime() => _clock.pressTime(latencyMs: _latencyMs);
 
   Future<void> _seek(Duration audioPosition) async {
     try {
@@ -416,7 +402,8 @@ class _LyricTapSyncDialogState extends State<LyricTapSyncDialog> {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          _TapPad(
+          LyricTapPad(
+            padKey: const ValueKey('tap_sync_pad'),
             label: !_state.isPlaying
                 ? '开始播放（空格）'
                 : session.isComplete
@@ -612,54 +599,6 @@ class _RowPreview extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// The big touch target. It listens to raw pointer events rather than a tap
-/// gesture: inside the scrollable dialog a tap recogniser waits up to
-/// 100 ms to rule out a scroll before it reports the press, and the moment
-/// of the press is the timestamp.
-class _TapPad extends StatelessWidget {
-  const _TapPad({
-    required this.label,
-    required this.enabled,
-    required this.onDown,
-    required this.onUp,
-  });
-
-  final String label;
-  final bool enabled;
-  final VoidCallback onDown;
-  final VoidCallback onUp;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: enabled
-          ? AppColors.accent.withValues(alpha: 0.18)
-          : AppColors.bgSurface,
-      borderRadius: BorderRadius.circular(12),
-      child: Listener(
-        key: const ValueKey('tap_sync_pad'),
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: enabled ? (_) => onDown() : null,
-        onPointerUp: enabled ? (_) => onUp() : null,
-        onPointerCancel: enabled ? (_) => onUp() : null,
-        child: SizedBox(
-          height: 88,
-          child: Center(
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: enabled ? AppColors.textPrimary : AppColors.textTertiary,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'lyric_line_structure_service.dart';
+import 'lyric_word_timing_service.dart';
 
 /// What kind of recognition loop a finding is.
 enum LyricAsrLoopKind {
@@ -141,11 +142,15 @@ class LyricAsrLoopPlan {
   }
 
   /// [document] with the selected findings applied: looping rows rewritten,
-  /// repeated rows deleted. Rows keep their ids and timing; a rewritten row
-  /// keeps its word timing only while it still matches the text (see
-  /// `LyricWordTimingService`).
-  LyricDocument applyTo(LyricDocument document, Set<int> positions) {
+  /// repeated rows deleted. Rows keep their ids and timing. A rewritten row
+  /// with usable word timing keeps the timing of the words that remain.
+  LyricDocument applyTo(
+    LyricDocument document,
+    Set<int> positions, {
+    LyricWordTimingService wordTiming = const LyricWordTimingService(),
+  }) {
     final texts = <int, String>{};
+    final runs = <int, List<LyricAsrLoopRun>>{};
     final removed = <int>{};
     for (final position in positions) {
       if (position < 0 || position >= issues.length) continue;
@@ -155,6 +160,7 @@ class LyricAsrLoopPlan {
         removed.addAll(issue.removedIndices);
       } else {
         texts[issue.index] = issue.proposedText!;
+        runs[issue.index] = issue.runs;
       }
     }
     if (texts.isEmpty && removed.isEmpty) return document;
@@ -163,9 +169,39 @@ class LyricAsrLoopPlan {
       if (removed.contains(index)) continue;
       final line = document.lines[index];
       final text = texts[index];
-      lines.add(text == null ? line : line.copyWith(text: text));
+      if (text == null) {
+        lines.add(line);
+        continue;
+      }
+      final words = keptWords(line, runs[index]!, wordTiming);
+      lines.add(
+        words == null
+            ? line.copyWith(text: text)
+            : line.copyWith(text: text, words: words),
+      );
     }
     return document.copyWith(lines: lines);
+  }
+
+  /// The word timing of the parts of [line] that [runs] keep, or null when
+  /// the row has no usable word timing.
+  static List<LyricWordTiming>? keptWords(
+    LyricLine line,
+    List<LyricAsrLoopRun> runs,
+    LyricWordTimingService wordTiming,
+  ) {
+    if (!wordTiming.isUsable(line)) return null;
+    final text = line.text;
+    int sungBefore(int offset) =>
+        wordTiming.sungCount(text.substring(0, offset));
+    final words = <LyricWordTiming>[];
+    var cursor = 0;
+    for (final run in runs) {
+      words.addAll(wordTiming.slice(line, cursor, sungBefore(run.keptEnd)));
+      cursor = sungBefore(run.end);
+    }
+    words.addAll(wordTiming.slice(line, cursor, wordTiming.sungCount(text)));
+    return List.unmodifiable(words);
   }
 }
 
