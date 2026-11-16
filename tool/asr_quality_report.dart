@@ -28,6 +28,9 @@ import 'dart:typed_data';
 
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_repetition_consistency_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_text_cleanup_service.dart';
+import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
 /// Bumped when a metric definition or report key changes incompatibly.
 const int kQualityReportSchemaVersion = 1;
@@ -91,6 +94,9 @@ const LyricTokenizer _writtenTokenizer = LyricTokenizer(
 );
 const ChineseScriptUnificationService _scriptProfiles =
     ChineseScriptUnificationService();
+const LyricTextCleanupService _textCleanup = LyricTextCleanupService();
+const LyricRepetitionConsistencyService _repetitionConsistency =
+    LyricRepetitionConsistencyService();
 
 /// Characters as written: like [_characters] but script differences count.
 List<int> _writtenCharacters(String text) =>
@@ -836,6 +842,12 @@ Map<String, Object?> evaluateLyricQualityPair({
   final scriptProfile = _scriptProfiles.profileTexts(
     hypothesis.map((line) => line.text),
   );
+  final hypothesisTexts = [for (final line in hypothesis) line.text];
+  final boilerplateLineCount = _asrBoilerplateLineCount(hypothesisTexts);
+  final repetitionInconsistentLineCount = _repetitionInconsistentLineCount(
+    hypothesisTexts,
+    language,
+  );
 
   // Word error rate uses the same tokenizer as everything else here: Latin
   // words are split on whitespace and punctuation, while Han, kana and Hangul
@@ -919,6 +931,8 @@ Map<String, Object?> evaluateLyricQualityPair({
       'japaneseOrKoreanLines': scriptProfile.japaneseOrKoreanLines,
     },
     'scriptInconsistentLineCount': scriptProfile.inconsistentLines,
+    'asrBoilerplateLineCount': boilerplateLineCount,
+    'repetitionInconsistentLineCount': repetitionInconsistentLineCount,
     'referenceWordCount': referenceWords.length,
     'hypothesisWordCount': hypothesisWords.length,
     'wordEditCount': wordEdits,
@@ -996,6 +1010,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
   var characterEditCount = 0;
   var writtenCharacterEditCount = 0;
   var scriptInconsistentLineCount = 0;
+  var asrBoilerplateLineCount = 0;
+  var repetitionInconsistentLineCount = 0;
   var duplicateLineCount = 0;
   var referenceWordCount = 0;
   var wordEditCount = 0;
@@ -1018,6 +1034,9 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
         score['characterEditCount']! as int;
     scriptInconsistentLineCount +=
         score['scriptInconsistentLineCount'] as int? ?? 0;
+    asrBoilerplateLineCount += score['asrBoilerplateLineCount'] as int? ?? 0;
+    repetitionInconsistentLineCount +=
+        score['repetitionInconsistentLineCount'] as int? ?? 0;
     duplicateLineCount += score['duplicateLineCount']! as int;
     referenceWordCount += score['referenceWordCount'] as int? ?? 0;
     wordEditCount += score['wordEditCount'] as int? ?? 0;
@@ -1057,6 +1076,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
       referenceCharacterCount,
     ),
     'scriptInconsistentLineCount': scriptInconsistentLineCount,
+    'asrBoilerplateLineCount': asrBoilerplateLineCount,
+    'repetitionInconsistentLineCount': repetitionInconsistentLineCount,
     'referenceWordCount': referenceWordCount,
     'wordEditCount': wordEditCount,
     'normalizedWordErrorRate': _rate(wordEditCount, referenceWordCount),
@@ -1325,6 +1346,14 @@ const Map<String, Object?> _interpretation = <String, Object?>{
   'scriptInconsistentLineCount':
       'Hypothesis lines written in the minority Chinese script, plus lines '
       'mixing both scripts. Lines with kana or hangul are not counted.',
+  'asrBoilerplateLineCount':
+      'Hypothesis lines that are only a recogniser annotation ([音乐], ♪) or a '
+      'known subtitle hallucination (谢谢观看, Amara.org); the editor clean-up '
+      'tool deletes them.',
+  'repetitionInconsistentLineCount':
+      'Rows of near-identical repeated lines (choruses) whose spelling differs '
+      'from the most frequent spelling in their group; what the editor '
+      'repeated-line consistency check would offer to unify.',
   'normalizedWordErrorRate':
       'Word edits (substitutions + insertions + deletions) over reference '
       'words, after the same normalization as the CER. Latin text is split '
@@ -1898,4 +1927,35 @@ Future<void> main(List<String> args) async {
     stderr.writeln('${error.message}: ${error.path ?? ''}');
     exitCode = 2;
   }
+}
+
+/// Rows the editor clean-up would delete as recogniser artefacts.
+int _asrBoilerplateLineCount(List<String> texts) => texts
+    .where(
+      (text) =>
+          text.trim().isNotEmpty &&
+          (_textCleanup.isAsrBoilerplate(text.trim()) ||
+              _textCleanup.isAnnotationOnly(text.trim())),
+    )
+    .length;
+
+/// Rows outside the most frequent spelling of their repeated-line group.
+int _repetitionInconsistentLineCount(List<String> texts, String? language) {
+  final document = LyricDocument(
+    language: language ?? '',
+    lines: [
+      for (final text in texts)
+        LyricLine(
+          text: text,
+          startTime: Duration.zero,
+          endTime: Duration.zero,
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+    ],
+  );
+  var count = 0;
+  for (final group in _repetitionConsistency.analyze(document).groups) {
+    count += group.totalRows - group.variants.first.count;
+  }
+  return count;
 }

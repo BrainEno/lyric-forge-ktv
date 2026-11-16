@@ -8,6 +8,7 @@ import '../../../player/presentation/widgets/seekable_progress_bar.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../lyric_review_strings.dart';
+import 'lyric_batch_text_edit.dart';
 import 'lyric_proofread_menu_button.dart';
 
 /// Which lines the editor list shows.
@@ -57,6 +58,10 @@ class LyricEditorToolbar extends StatelessWidget {
   final VoidCallback? onRestoreAlignment;
   final VoidCallback? onUnifyChineseScript;
 
+  /// Opens one of the batch text tools (find-and-replace, repeated-line
+  /// consistency, text clean-up); null while there are no lyrics.
+  final ValueChanged<LyricBatchTextTool>? onBatchTextTool;
+
   const LyricEditorToolbar({
     super.key,
     required this.document,
@@ -79,7 +84,14 @@ class LyricEditorToolbar extends StatelessWidget {
     required this.onViewAlignmentComparison,
     required this.onRestoreAlignment,
     this.onUnifyChineseScript,
+    this.onBatchTextTool,
   });
+
+  /// A menu callback for [tool], or null when the tools are unavailable.
+  VoidCallback? _batchTool(LyricBatchTextTool tool) {
+    final open = onBatchTextTool;
+    return open == null ? null : () => open(tool);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +182,11 @@ class LyricEditorToolbar extends StatelessWidget {
                   onReferenceAlignment: onReferenceAlignment,
                   onReferenceProofread: onReferenceProofread,
                   onUnifyChineseScript: onUnifyChineseScript,
+                  onRepetitionConsistency: _batchTool(
+                    LyricBatchTextTool.repetitionConsistency,
+                  ),
+                  onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
+                  onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
                   onRestoreBackup: onRestoreAlignment,

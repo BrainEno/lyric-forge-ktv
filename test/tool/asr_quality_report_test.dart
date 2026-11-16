@@ -120,6 +120,38 @@ void main() {
     });
   });
 
+  group('recogniser artefact metrics', () {
+    // Synthetic lines written for this test, not taken from a song.
+    final reference = <quality.QualityLine>[
+      line('夜空中最亮的星', 0, 3000),
+      line('能否听清那仰望的人', 3000, 6000),
+      line('夜空中最亮的星', 6000, 9000),
+      line('夜空中最亮的星', 9000, 12000),
+    ];
+
+    test('counts caption boilerplate and inconsistent repeats', () {
+      final score = evaluate(
+        reference: reference,
+        hypothesis: [
+          line('夜空中最亮的星', 0, 3000),
+          line('能否听清那仰望的人', 3000, 6000),
+          line('夜空中最亮的星', 6000, 9000),
+          line('夜空中最亮的心', 9000, 12000),
+          line('[音乐]', 12000, 14000),
+          line('字幕由Amara.org社区提供', 14000, 16000),
+        ],
+      );
+      expect(score['asrBoilerplateLineCount'], 2);
+      expect(score['repetitionInconsistentLineCount'], 1);
+    });
+
+    test('a clean transcript scores zero on both', () {
+      final score = evaluate(reference: reference, hypothesis: reference);
+      expect(score['asrBoilerplateLineCount'], 0);
+      expect(score['repetitionInconsistentLineCount'], 0);
+    });
+  });
+
   group('line metrics', () {
     test('a clean transcript scores perfectly', () {
       final reference = <quality.QualityLine>[
