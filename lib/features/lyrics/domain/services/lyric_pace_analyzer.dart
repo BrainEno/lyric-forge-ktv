@@ -135,9 +135,7 @@ class LyricPacePlan {
 /// * rows whose timing provenance is manual (hand-timed or tapped) are
 ///   reported without a proposal, as are rows in [protectedIndices].
 class LyricPaceAnalyzer {
-  const LyricPaceAnalyzer({
-    this.structure = const LyricLineStructureService(),
-  });
+  const LyricPaceAnalyzer({this.structure = const LyricLineStructureService()});
 
   final LyricLineStructureService structure;
 
@@ -221,7 +219,11 @@ class LyricPaceAnalyzer {
         );
       }
     }
-    return LyricPacePlan(medianRate: median, measured: measured, issues: issues);
+    return LyricPacePlan(
+      medianRate: median,
+      measured: measured,
+      issues: issues,
+    );
   }
 
   /// Sung units per second, or null for rows that are not judged.

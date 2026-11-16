@@ -106,8 +106,9 @@ class LyricTapSyncSession {
   bool get isEmpty => _marks.isEmpty;
 
   /// The last timed row while it has no explicit end yet.
-  int? get openIndex =>
-      _marks.isNotEmpty && _marks.last.end == null ? _marks.last.lineIndex : null;
+  int? get openIndex => _marks.isNotEmpty && _marks.last.end == null
+      ? _marks.last.lineIndex
+      : null;
 
   /// Times the row at [cursor] as starting at [time]. Returns whether the
   /// press was taken.
@@ -237,7 +238,8 @@ class LyricTapSyncSession {
           : (mark.lineIndex + 1 < lines.length
                 ? lines[mark.lineIndex + 1].startTime
                 : null);
-      final end = mark.end ?? _implicitEnd(mark, original, nextStart, estimator);
+      final end =
+          mark.end ?? _implicitEnd(mark, original, nextStart, estimator);
       lines[mark.lineIndex] = original.copyWith(
         startTime: mark.start,
         endTime: end,

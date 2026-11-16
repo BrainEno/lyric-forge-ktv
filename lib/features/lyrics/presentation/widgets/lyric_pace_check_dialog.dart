@@ -111,7 +111,10 @@ class _LyricPaceCheckDialogState extends State<LyricPaceCheckDialog> {
         .length;
     final sparse = plan.issues.length - crowded;
     final fixable = plan.fixablePositions;
-    final shown = plan.issues.length.clamp(0, LyricPaceCheckDialog.previewLimit);
+    final shown = plan.issues.length.clamp(
+      0,
+      LyricPaceCheckDialog.previewLimit,
+    );
 
     return LyricBatchEditDialogFrame(
       title: LyricPaceCheckStrings.actionTitle,
