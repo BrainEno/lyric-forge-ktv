@@ -1,0 +1,29 @@
+name: tmp worklog write
+
+on:
+  push:
+    branches: [arena/545e77c0-lyric-forge-ktv]
+
+permissions:
+  contents: write
+
+jobs:
+  write:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Flutter
+        uses: ./.github/actions/setup-flutter
+      - name: Write and check
+        shell: bash
+        run: |
+          mkdir -p .ci-tmp
+          dart tool/work_log.dart write > .ci-tmp/write.txt 2>&1 || true
+          (dart tool/work_log.dart check >> .ci-tmp/write.txt 2>&1 && echo exit=0 || echo exit=$?) >> .ci-tmp/write.txt
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "tmp: regenerate work log" || exit 0
+          git push origin HEAD:${GITHUB_REF_NAME}

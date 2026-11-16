@@ -1,0 +1,30 @@
+# [2026-11-16 09:00] Add batch proofreading tools
+
+- Scope: Three no-reference proofreading tools in the editor's 校对 menu, chosen because they remove the most repetitive manual work after recognition.
+  - 批量查找替换 (Ctrl+H; Cmd+Shift+H on macOS): replaces a misrecognised word everywhere at once. Matching ignores simplified/traditional differences and Latin case by default, with optional whole-word matching for English. The preview highlights the matches, and each row can be left out. Protected rows are skipped unless the user opts in. Replaced rows are marked as manually edited, so later proofreading does not overwrite them.
+  - 重复段落一致性检查: groups near-identical rows (choruses) that were recognised with different spellings and proposes one spelling per group.
+    - Comparison key: script-folded, lower-cased, without whitespace or punctuation; at least 4 characters. Edit distance must be within 25% of the longer key.
+    - Clustering is seeded by the most frequent spelling, so near-matches do not chain.
+    - Recommendation: a manually confirmed spelling first, then a strict majority, then confidence on a tie (at least 10 points apart; never pre-selected).
+    - Only clear cases are pre-selected. Each group can be switched off or re-pointed, and each spelling can be auditioned.
+  - 清理识别文本: per-rule clean-up. Rules on by default: whitespace, full-width ASCII, [音乐]/(Music)/♪ annotations, punctuation inside a line becomes a space, trailing punctuation is removed (？ and ！ stay). Off by default: removing spaces between Han characters, and deleting empty rows. Rows that are only annotations, or only known subtitle hallucinations (谢谢观看, 字幕由Amara.org社区提供, Thanks for watching), are deleted. Row-indexed review evidence is shifted past them. A row a text rule would empty is never blanked.
+  - All three tools edit text only. They apply as one undoable batch change through the existing proofread host, are refused when the document changed while the dialog was open, and do not save.
+  - The quality report gains `asrBoilerplateLineCount` and `repetitionInconsistentLineCount` (per song and per engine), computed with the same rules.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_find_replace_service,lyric_repetition_consistency_service,lyric_text_cleanup_service}.dart`.
+  - New presentation: `lyric_batch_text_edit.dart` (result type, shared dialog frame, preview row), `lyric_find_replace_dialog.dart`, `lyric_repetition_consistency_dialog.dart`, `lyric_text_cleanup_dialog.dart`, `controllers/lyric_batch_text_tools_coordinator.dart`.
+  - Changed:
+    - `lyric_editor_document_controller.dart`: `replaceDocument(markManuallyEditedLineIds:)`.
+    - `lyric_editor_proofreading_coordinator.dart`: host `applyProofreadDocument(markManuallyEditedLineIds:)`.
+    - `lyric_editor_screen.dart`, `lyric_editor_content.dart`, `lyric_editor_toolbar.dart`, `lyric_proofread_menu_button.dart`, `lyric_edit_shortcuts.dart`.
+    - `tool/asr_quality_report.dart`.
+  - Tests: the three services, a controller protection and undo test, dialog, menu and shortcut widget tests, and the quality-report metrics.
+  - Docs: `decisions.md` (D-017), handoff.
+- Validation:
+  - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
+  - Run 43797830747: analyze reported no errors or warnings and 186 infos, the same as the baseline. All targeted tests passed. The full suite had 1 failure: the orchestration contract keeps `lyric_editor_screen.dart` under 1200 lines, and the screen had grown to 1268. The tool sequencing moved into `LyricBatchTextToolsCoordinator`, and the screen passes one `onBatchTextTool` callback; it is now 1193 lines.
+  - Run 43798504706: analyze reported no errors or warnings and 186 infos. All 9 targeted test files passed. The full `flutter test` run had 2369 passed, 2 skipped and 0 failed. `dart tool/work_log.dart check` passed; its only warnings were two commit subjects from earlier entries.
+- Notes:
+  - The annotation and subtitle-hallucination word lists are empirical; new recogniser artefacts need to be added to `LyricTextCleanupService`.
+  - The repeated-line check reads only the lyrics, not the audio. A recommended spelling can be wrong, which is why only clear majorities are pre-selected and every group can be auditioned.
+- Commit: `Add batch proofreading tools: find-and-replace, repeated-line consistency, text clean-up`

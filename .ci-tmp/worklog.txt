@@ -1,6 +1,0 @@
-Work log lint failed (1 error(s), 2 warning(s)):
-  [broken-link] Broken link in docs/decisions.md: log/entries/2026-11-16-0900-add-batch-proofreading-tools.md
-Warnings (2):
-  [commit-subject] Entry commit subject not found in git history: Verify ASR source audio evidence (2026-11-09-2329-verify-asr-source-audio.md)
-  [commit-subject] Entry commit subject not found in git history: Handle simplified and traditional Chinese script consistently (2026-11-15-1500-unify-chinese-script-handling.md)
-exit=1
