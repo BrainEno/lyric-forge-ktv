@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/color_tokens.dart';
 import 'lyric_find_replace_dialog.dart';
 import 'lyric_repetition_consistency_dialog.dart';
+import 'lyric_structure_dialog.dart';
 import 'lyric_text_cleanup_dialog.dart';
 
 /// The proofreading capabilities, in the order they are offered.
@@ -16,6 +17,7 @@ enum LyricProofreadAction {
   referenceProofread,
   repetitionConsistency,
   textCleanup,
+  lineStructure,
   unifyChineseScript,
   findReplace,
   viewComparison,
@@ -39,6 +41,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onUnifyChineseScript,
     this.onRepetitionConsistency,
     this.onTextCleanup,
+    this.onLineStructure,
     this.onFindReplace,
     this.onViewComparison,
     this.onUndoAlignment,
@@ -63,6 +66,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 清理识别文本: strips punctuation, annotations and caption boilerplate.
   final VoidCallback? onTextCleanup;
+
+  /// 整理断行: splits over-long rows and merges fragments.
+  final VoidCallback? onLineStructure;
 
   /// 批量查找替换: replaces a misrecognised word everywhere at once.
   final VoidCallback? onFindReplace;
@@ -113,7 +119,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
           );
         }
         return Tooltip(
-          message: '校对：智能提案、参考歌词纠正、重复行统一、文本清理、简繁统一、查找替换、逐行对比与回滚',
+          message: '校对：智能提案、参考歌词纠正、重复行统一、文本清理、整理断行、简繁统一、查找替换、逐行对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -131,6 +137,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.referenceProofread: onReferenceProofread,
       LyricProofreadAction.repetitionConsistency: onRepetitionConsistency,
       LyricProofreadAction.textCleanup: onTextCleanup,
+      LyricProofreadAction.lineStructure: onLineStructure,
       LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
       LyricProofreadAction.findReplace: onFindReplace,
       LyricProofreadAction.viewComparison: onViewComparison,
@@ -177,6 +184,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricTextCleanupStrings.actionTitle,
         LyricTextCleanupStrings.actionDetail,
       ),
+      LyricProofreadAction.lineStructure => (
+        LyricStructureStrings.actionTitle,
+        LyricStructureStrings.actionDetail,
+      ),
       LyricProofreadAction.unifyChineseScript => (
         '统一简繁字形',
         '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
@@ -199,6 +210,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.repetitionConsistency =>
         Icons.library_add_check_rounded,
       LyricProofreadAction.textCleanup => Icons.cleaning_services_rounded,
+      LyricProofreadAction.lineStructure => Icons.view_agenda_outlined,
       LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
       LyricProofreadAction.findReplace => Icons.find_replace_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,

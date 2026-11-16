@@ -150,6 +150,31 @@ void main() {
       expect(score['asrBoilerplateLineCount'], 0);
       expect(score['repetitionInconsistentLineCount'], 0);
     });
+
+    test('counts over-long rows and merge-worthy fragments', () {
+      final score = evaluate(
+        reference: reference,
+        hypothesis: [
+          line('夜空中最亮的星 能否听清那仰望的人心底的孤独和叹息', 0, 6000),
+          line('夜空中最亮的', 6000, 8800),
+          line('星', 8900, 9300),
+          line('夜空中最亮的星', 12000, 15000),
+        ],
+      );
+      expect(score['overlongLineCount'], 1);
+      expect(score['fragmentLineCount'], 1);
+      final clean = evaluate(reference: reference, hypothesis: reference);
+      expect(clean['overlongLineCount'], 0);
+      expect(clean['fragmentLineCount'], 0);
+    });
+
+    test('untimed rows are never counted as fragments', () {
+      final score = evaluate(
+        reference: reference,
+        hypothesis: [line('夜空中最亮的'), line('星'), line('能否听清那仰望的人')],
+      );
+      expect(score['fragmentLineCount'], 0);
+    });
   });
 
   group('line metrics', () {

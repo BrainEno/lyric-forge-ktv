@@ -4,6 +4,8 @@ import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
 import '../../../../core/theme/spacing_tokens.dart';
 import '../../domain/models/recognition_review_summary.dart';
+import '../../domain/services/lyric_draft_health_service.dart';
+import 'lyric_batch_text_edit.dart';
 
 /// A compact post-recognition summary above the lyric list.
 ///
@@ -18,11 +20,47 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
   /// Null hides the button (for example while nothing is pending).
   final VoidCallback? onStartReview;
 
+  /// Mechanical problems a batch tool can fix; null hides the hints.
+  final LyricDraftHealth? health;
+
+  /// Opens the batch tool a hint refers to. Null hides the hints.
+  final ValueChanged<LyricBatchTextTool>? onOpenBatchTool;
+
   const LyricRecognitionSummaryCard({
     super.key,
     required this.summary,
     required this.onStartReview,
+    this.health,
+    this.onOpenBatchTool,
   });
+
+  /// One hint per tool that has work to do, in the order worth doing it:
+  /// deleting caption rows first (they would otherwise be split or unified),
+  /// then fixing line structure, then unifying repeated lines.
+  static List<({LyricBatchTextTool tool, String label, String tooltip})>
+  healthHints(LyricDraftHealth health) => [
+    if (health.captionRows > 0)
+      (
+        tool: LyricBatchTextTool.textCleanup,
+        label: '字幕水印/标注 ${health.captionRows} 行',
+        tooltip: '识别器在静音或伴奏处编造的“谢谢观看”、[音乐] 等行；打开“清理识别文本”预览后删除',
+      ),
+    if (health.structureIssues > 0)
+      (
+        tool: LyricBatchTextTool.lineStructure,
+        label: [
+          if (health.longLines > 0) '过长 ${health.longLines} 行',
+          if (health.fragments > 0) '碎片 ${health.fragments} 处',
+        ].join(' · '),
+        tooltip: '一行装了两句或一句被切碎；打开“整理断行”逐条确认拆分与合并',
+      ),
+    if (health.repetitionGroups > 0)
+      (
+        tool: LyricBatchTextTool.repetitionConsistency,
+        label: '重复句写法不一 ${health.repetitionGroups} 组',
+        tooltip: '同一句歌词在不同段落识别成不同写法；打开“重复段落一致性检查”统一',
+      ),
+  ];
 
   /// Short display name for an engine identity such as `qwen3-asr-1.7b`.
   static String engineLabel(String? engine) {
@@ -77,6 +115,42 @@ class _LyricRecognitionSummaryCardState
     );
     if (!summary.whisperProfileDegraded) return 'Whisper 参数：$effective';
     return 'Whisper 参数：$effective（运行时不支持歌词增强，已安全回退）';
+  }
+
+  List<Widget> _healthChips(
+    LyricDraftHealth health,
+    ValueChanged<LyricBatchTextTool> open,
+  ) {
+    final hints = LyricRecognitionSummaryCard.healthHints(health);
+    if (hints.isEmpty) return const [];
+    return [
+      const SizedBox(height: AppSpacing.xs),
+      Wrap(
+        key: const ValueKey('lyric_recognition_summary_health'),
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            '可批量整理：',
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+          ),
+          for (final hint in hints)
+            Tooltip(
+              message: hint.tooltip,
+              child: ActionChip(
+                key: ValueKey('lyric_health_${hint.tool.name}'),
+                visualDensity: VisualDensity.compact,
+                avatar: const Icon(Icons.auto_fix_normal_rounded, size: 16),
+                label: Text(hint.label),
+                onPressed: () => open(hint.tool),
+              ),
+            ),
+        ],
+      ),
+    ];
   }
 
   @override
@@ -204,6 +278,8 @@ class _LyricRecognitionSummaryCardState
                 ),
             ],
           ),
+          if (widget.health != null && widget.onOpenBatchTool != null)
+            ..._healthChips(widget.health!, widget.onOpenBatchTool!),
           if (_expanded) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(

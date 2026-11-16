@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/lyric_edit_history.dart';
 import '../../domain/services/lyric_indexed_review_metadata.dart';
+import '../../domain/services/lyric_line_structure_service.dart';
 import '../../domain/services/lyric_manual_edit_marker_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_timeline_insertion_service.dart';
@@ -88,6 +89,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
     this.markerService = const LyricManualEditMarkerService(),
     this.reviewDecisionService = const LyricReviewDecisionService(),
     this.insertionService = const LyricTimelineInsertionService(),
+    this.structureService = const LyricLineStructureService(),
     LyricEditHistory? history,
     DateTime Function()? clock,
   }) : history = history ?? LyricEditHistory(),
@@ -96,6 +98,7 @@ class LyricEditorDocumentController extends ChangeNotifier {
   final LyricManualEditMarkerService markerService;
   final LyricReviewDecisionService reviewDecisionService;
   final LyricTimelineInsertionService insertionService;
+  final LyricLineStructureService structureService;
   final LyricEditHistory history;
   final DateTime Function() _clock;
 
@@ -368,6 +371,122 @@ class LyricEditorDocumentController extends ChangeNotifier {
     notifyListeners();
     return LyricEditResult(clearsAudition: auditionTarget);
   }
+
+  /// Splits the row at [index] into two consecutive rows.
+  ///
+  /// [textOffset] is where the second half begins (a text field's cursor);
+  /// null picks the natural break nearest the sung middle. [playbackPosition]
+  /// is a timeline position the caller trusts as the audible break (a paused
+  /// playhead); it is ignored when it falls outside the row.
+  ///
+  /// Both halves count as hand-edited: the user decided where the line ends,
+  /// and alignment must not undo that. The second half is selected so the
+  /// user can keep splitting a long run.
+  LyricEditResult splitLine(
+    int index, {
+    int? textOffset,
+    Duration? playbackPosition,
+    bool auditionTarget = false,
+  }) {
+    final document = _document;
+    if (document == null || index < 0 || index >= document.lines.length) {
+      return const LyricEditResult.notApplied();
+    }
+    final result = structureService.split(
+      document.lines[index],
+      textOffset: textOffset,
+      playbackPosition: playbackPosition,
+    );
+    final split = result.split;
+    if (split == null) {
+      return LyricEditResult.notApplied(
+        message: splitFailureMessage(result.failure!),
+      );
+    }
+
+    _recordEdit('拆分第 ${index + 1} 行');
+    final lines = List<LyricLine>.from(document.lines)
+      ..[index] = split.first
+      ..insert(index + 1, split.second);
+    final updated = markerService.assignMissingLineIds(
+      document.copyWith(
+        lines: lines,
+        metadata: LyricIndexedReviewMetadata.afterRowSplit(
+          document.metadata,
+          index,
+        ),
+      ),
+    );
+    _document = updated;
+    for (final line in [updated.lines[index], updated.lines[index + 1]]) {
+      if (line.id != null) _manuallyEditedLineIds.add(line.id!);
+    }
+    _selectedLineIndex = index + 1;
+    _markEdited();
+    notifyListeners();
+    final how = split.timingSource == LyricSplitTimingSource.playback
+        ? '分界取暂停位置'
+        : '分界按字数比例估算，可再微调';
+    return LyricEditResult(
+      clearsAudition: auditionTarget,
+      hint: '已拆分第 ${index + 1} 行（$how）',
+    );
+  }
+
+  /// Merges the row at [index] with the one after it.
+  ///
+  /// The merged row keeps the first row's id and is marked hand-edited; the
+  /// second row's mark goes with it.
+  LyricEditResult mergeLineWithNext(int index, {bool auditionTarget = false}) {
+    final document = _document;
+    if (document == null || index < 0 || index >= document.lines.length) {
+      return const LyricEditResult.notApplied();
+    }
+    if (index + 1 >= document.lines.length) {
+      return const LyricEditResult.notApplied(message: '已经是最后一行，没有可合并的下一行');
+    }
+    final first = document.lines[index];
+    final second = document.lines[index + 1];
+
+    _recordEdit('合并第 ${index + 1}–${index + 2} 行');
+    final merged = structureService.merge(first, second);
+    final lines = List<LyricLine>.from(document.lines)
+      ..[index] = merged
+      ..removeAt(index + 1);
+    final updated = markerService.assignMissingLineIds(
+      document.copyWith(
+        lines: lines,
+        metadata: LyricIndexedReviewMetadata.afterRowsMerged(
+          document.metadata,
+          index,
+        ),
+      ),
+    );
+    _document = updated;
+    if (second.id != null) _manuallyEditedLineIds.remove(second.id);
+    final mergedId = updated.lines[index].id;
+    if (mergedId != null) _manuallyEditedLineIds.add(mergedId);
+
+    final selected = _selectedLineIndex;
+    if (selected != null && selected > index) {
+      _selectedLineIndex = selected == index + 1 ? index : selected - 1;
+    }
+    _markEdited();
+    notifyListeners();
+    return LyricEditResult(
+      clearsAudition: auditionTarget,
+      hint: '已合并第 ${index + 1}–${index + 2} 行',
+    );
+  }
+
+  /// User-facing reason a split did not happen.
+  static String splitFailureMessage(LyricLineSplitFailure failure) =>
+      switch (failure) {
+        LyricLineSplitFailure.emptyPart => '光标两侧都要有歌词才能拆分：请把光标放在要断开的位置',
+        LyricLineSplitFailure.tooShortToSplit => '这一行太短，拆分后每段不足 0.2 秒',
+        LyricLineSplitFailure.noNaturalBreak =>
+          '没有找到自然断点：请在歌词文本中把光标放到要断开的位置再拆分',
+      };
 
   LyricEditResult updateGlobalOffset(Duration offset) {
     _recordEdit('调整全局偏移', mergeKey: 'offset');

@@ -29,6 +29,7 @@ import 'dart:typed_data';
 import 'package:lyric_forge_ktv/features/lyrics/domain/proofreading/lyric_tokenizer.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/chinese_script_unification_service.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_repetition_consistency_service.dart';
+import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_structure_advisor.dart';
 import 'package:lyric_forge_ktv/features/lyrics/domain/services/lyric_text_cleanup_service.dart';
 import 'package:lyric_forge_ktv/features/project/domain/models/lyric_document.dart';
 
@@ -97,6 +98,7 @@ const ChineseScriptUnificationService _scriptProfiles =
 const LyricTextCleanupService _textCleanup = LyricTextCleanupService();
 const LyricRepetitionConsistencyService _repetitionConsistency =
     LyricRepetitionConsistencyService();
+const LyricStructureAdvisor _structureAdvisor = LyricStructureAdvisor();
 
 /// Characters as written: like [_characters] but script differences count.
 List<int> _writtenCharacters(String text) =>
@@ -848,6 +850,7 @@ Map<String, Object?> evaluateLyricQualityPair({
     hypothesisTexts,
     language,
   );
+  final structure = _structureCounts(hypothesis, language);
 
   // Word error rate uses the same tokenizer as everything else here: Latin
   // words are split on whitespace and punctuation, while Han, kana and Hangul
@@ -933,6 +936,8 @@ Map<String, Object?> evaluateLyricQualityPair({
     'scriptInconsistentLineCount': scriptProfile.inconsistentLines,
     'asrBoilerplateLineCount': boilerplateLineCount,
     'repetitionInconsistentLineCount': repetitionInconsistentLineCount,
+    'overlongLineCount': structure.overlong,
+    'fragmentLineCount': structure.fragments,
     'referenceWordCount': referenceWords.length,
     'hypothesisWordCount': hypothesisWords.length,
     'wordEditCount': wordEdits,
@@ -1012,6 +1017,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
   var scriptInconsistentLineCount = 0;
   var asrBoilerplateLineCount = 0;
   var repetitionInconsistentLineCount = 0;
+  var overlongLineCount = 0;
+  var fragmentLineCount = 0;
   var duplicateLineCount = 0;
   var referenceWordCount = 0;
   var wordEditCount = 0;
@@ -1037,6 +1044,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     asrBoilerplateLineCount += score['asrBoilerplateLineCount'] as int? ?? 0;
     repetitionInconsistentLineCount +=
         score['repetitionInconsistentLineCount'] as int? ?? 0;
+    overlongLineCount += score['overlongLineCount'] as int? ?? 0;
+    fragmentLineCount += score['fragmentLineCount'] as int? ?? 0;
     duplicateLineCount += score['duplicateLineCount']! as int;
     referenceWordCount += score['referenceWordCount'] as int? ?? 0;
     wordEditCount += score['wordEditCount'] as int? ?? 0;
@@ -1078,6 +1087,8 @@ Map<String, Object?> _summarizeEngine(List<Map<String, Object?>> scores) {
     'scriptInconsistentLineCount': scriptInconsistentLineCount,
     'asrBoilerplateLineCount': asrBoilerplateLineCount,
     'repetitionInconsistentLineCount': repetitionInconsistentLineCount,
+    'overlongLineCount': overlongLineCount,
+    'fragmentLineCount': fragmentLineCount,
     'referenceWordCount': referenceWordCount,
     'wordEditCount': wordEditCount,
     'normalizedWordErrorRate': _rate(wordEditCount, referenceWordCount),
@@ -1354,6 +1365,14 @@ const Map<String, Object?> _interpretation = <String, Object?>{
       'Rows of near-identical repeated lines (choruses) whose spelling differs '
       'from the most frequent spelling in their group; what the editor '
       'repeated-line consistency check would offer to unify.',
+  'overlongLineCount':
+      'Hypothesis rows too long for one karaoke line (more than 20 Han '
+      'characters, Latin letters counting half) that have a break to split '
+      'at; what the editor line-structure tool would offer to split.',
+  'fragmentLineCount':
+      'Short fragments (two characters or under 0.7 s) separated from a '
+      'neighbour by at most 0.35 s; what the editor line-structure tool would '
+      'offer to merge. Rows without timestamps are never counted.',
   'normalizedWordErrorRate':
       'Word edits (substitutions + insertions + deletions) over reference '
       'words, after the same normalization as the CER. Latin text is split '
@@ -1938,6 +1957,36 @@ int _asrBoilerplateLineCount(List<String> texts) => texts
               _textCleanup.isAnnotationOnly(text.trim())),
     )
     .length;
+
+/// Rows the editor line-structure tool would split, and fragments it would
+/// merge. Rows without timestamps cannot be judged as fragments, so a
+/// hypothesis without timing only reports over-long rows.
+({int overlong, int fragments}) _structureCounts(
+  List<QualityLine> lines,
+  String? language,
+) {
+  final timed = lines.every((line) => line.startMs != null && line.endMs != null);
+  final document = LyricDocument(
+    language: language ?? '',
+    lines: [
+      for (var index = 0; index < lines.length; index++)
+        LyricLine(
+          text: lines[index].text,
+          // Untimed rows get a long, evenly spaced span so they are never
+          // mistaken for short fragments.
+          startTime: Duration(
+            milliseconds: timed ? lines[index].startMs! : index * 10000,
+          ),
+          endTime: Duration(
+            milliseconds: timed ? lines[index].endMs! : index * 10000 + 5000,
+          ),
+          confidenceSource: LyricConfidenceSource.unscored,
+        ),
+    ],
+  );
+  final plan = _structureAdvisor.analyze(document);
+  return (overlong: plan.splitCount, fragments: plan.mergeCount);
+}
 
 /// Rows outside the most frequent spelling of their repeated-line group.
 int _repetitionInconsistentLineCount(List<String> texts, String? language) {
