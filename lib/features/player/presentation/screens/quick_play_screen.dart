@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/diagnostics/app_logger.dart';
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/navigation/routes.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -93,8 +94,12 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
       final paths = await _importer.pickAudioFiles();
       if (paths.isNotEmpty) await _queuePaths(paths);
     } catch (error, stackTrace) {
-      debugPrint('Audio multi-select error: $error');
-      debugPrint('$stackTrace');
+      appLog.warning(
+        'player',
+        'Audio multi-select failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) setState(() => _error = '无法导入音频: $error');
     }
   }
@@ -115,8 +120,12 @@ class _QuickPlayScreenState extends State<QuickPlayScreen> {
       }
       await _queuePaths(paths);
     } catch (error, stackTrace) {
-      debugPrint('Audio folder import error: $error');
-      debugPrint('$stackTrace');
+      appLog.warning(
+        'player',
+        'Audio folder import failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
       if (mounted) setState(() => _error = '无法读取音乐文件夹: $error');
     } finally {
       if (mounted) setState(() => _isLoading = false);

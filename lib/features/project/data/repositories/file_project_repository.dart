@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../../../core/diagnostics/app_logger.dart';
 import '../../../../core/persistence/atomic_json_file.dart';
 import '../../../player/domain/repositories/local_media_metadata_repository.dart';
 import '../../../player/domain/services/audio_path_canonicalizer.dart';
@@ -259,18 +259,18 @@ class FileProjectRepository implements ProjectRepository {
   }
 
   void _reportAutoLinkError(Object error, StackTrace stackTrace) {
-    developer.log(
+    appLog.warning(
+      'project',
       'Background lyric association or queue update failed after project save',
-      name: 'FileProjectRepository',
       error: error,
       stackTrace: stackTrace,
     );
     try {
       _onAutoLinkError?.call(error, stackTrace);
     } catch (callbackError, callbackStackTrace) {
-      developer.log(
+      appLog.error(
+        'project',
         'Background lyric association error callback failed',
-        name: 'FileProjectRepository',
         error: callbackError,
         stackTrace: callbackStackTrace,
       );

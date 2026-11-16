@@ -2,40 +2,46 @@
 
 ## 目标
 
-实现 #450：识别结果简繁混排时，比较路径不再把字形差异当成识别错误；用户可以选择输出字形，新草稿按设置统一一次，编辑器里也能预览后统一。简→繁是近似转换，界面和文档都要标明。PR 关闭 #450，合并前先征求用户确认。
+实现 #233（统一日志、崩溃接管与可导出的诊断包）和 #226 中可以在代码里完成的部分：KTV 录音/导出与歌词识别的实测耗时、实时倍率与内存峰值采集，端到端延迟与长歌基准的测量流程文档，以及 KTV 麦克风面板上的数据来源说明。真实设备上的数值仍需按文档采集。PR 关闭 #233，并关联 #226（不关闭，设备测量未完成）；合并前先征求用户确认。
 
 ## Git 现场
 
-- 分支：`arena/8ada1083-lyric-forge-ktv`，基于 main `c6a693952f7b3a8a5f554e0251cf9a8cf6bc1488`。
-- 验证用的临时 workflow `.github/workflows/tmp-450.yml` 和它提交的 `tool/.tmp_ci_*.txt` 在开 PR 前删除，不进入 PR diff。
-- `chinese_script_data.g.dart` 由 `tool/generate_chinese_script_tables.dart --opencc <OpenCC 检出> --revision fae2a0a911c30764e669a7d8b0591cd8e852934a` 生成；`test/tool/generate_chinese_script_tables_test.dart` 在设置 `OPENCC_DIR` 时校验生成结果与提交的文件逐字节一致。
+- 分支：`arena/2cce7c3d-lyric-forge-ktv`，基于 main `247139233c86a52acdf4a31291719bcc5ecc6ff1`。
+- 验证用的临时 workflow 和它提交的结果文件在开 PR 前删除，不进入 PR diff。
 
 ## 已改文件
 
-- **字表与转换（lyrics domain，纯 Dart）**
-  - `text/chinese_script_data.g.dart`：OpenCC 字符表、完整词组表（与逐字转换结果相同的词条存为 `key|`）、台湾/香港异体表、简体独有与繁体独有字集。
-  - `text/chinese_script_tables.dart`：首次使用时解析；`comparisonFold` 把繁体、地区异体和简体折叠到同一代表字（幂等，简体字不会经地区表反向折叠，所以「什么」与「什麼」相同）。
-  - `text/chinese_script_converter.dart`：最长词组匹配转换、`convertLine`（繁体行只做地区字形调整）、`foldForComparison`、字形判定。
-  - `models/chinese_script_preference.dart`、`services/chinese_script_unification_service.dart`：自动/显式目标、跳过日韩行与手改行、可重放的 `chineseScriptUnification` 记录。
-- **比较路径**：`lyric_tokenizer.dart`（默认折叠）、`lyric_alignment_service.dart`（相似度折叠，「一致」比较原写法）、`lyric_review_priority_service.dart`、`asr_text_comparison.dart`（经 tokenizer）。
-- **识别**：`transcription_models.dart`（设置项与 `chineseScriptOutputTarget`）、`whisper_decoding_policy.dart`（繁体提示模板，进入指纹）、Whisper 与分片服务传参、`local_project_transcription_workflow.dart`（落盘前统一并写 `transcription.chineseScript`）、`project_proofread_evidence_loader.dart`（重放记录后仍匹配主引擎）。
-- **界面**：设置对话框「中文字形」下拉框；编辑器「校对 → 统一简繁字形」对话框（预览、默认跳过手改行、可撤销、不自动保存）。
-- **工具与许可**：`tool/asr_quality_report.dart`（字形折叠 CER、书写 CER、字形不一致行数）；`third_party/opencc/` 与 `lib/main.dart` 的许可证注册；`pubspec.yaml` 资源。
-- **文档**：`decisions.md`（D-015）、本文件、工作日志条目 `2026-11-15-1500`。
+- **诊断核心（`lib/core/diagnostics/`）**
+  - `log_record.dart`、`log_redactor.dart`、`app_logger.dart`：分级日志，唯一脱敏点，内存与控制台 sink。
+  - `file_log_sink.dart`：JSON Lines 文件日志，512 KB 轮转。
+  - `crash_capture.dart`：`FlutterError.onError` / `PlatformDispatcher.onError` 接管与崩溃摘要存储。
+  - `operation_timings.dart`、`process_memory.dart`：耗时样本、实时倍率、RSS。
+  - `app_build_info.dart`、`diagnostics_report.dart`、`app_diagnostics.dart`：版本与平台、诊断包、门面与偏好。
+- **装配**：`lib/app/diagnostics_assembly.dart`（目录与功能分区：识别环境、KTV 麦克风、资料库规模）；`app_services.dart` 先建 `diagnostics`，用 `TimedTranscriptionService` / `TimedKtvRecordingService` 包住最外层服务；`transcription_assembly.dart` 把 `diagnostics` 交给设置页；`main.dart` 启动诊断。
+- **计时装饰器**：`features/transcription/data/services/timed_transcription_service.dart`（含 WAV 头时长解析）、`features/player/data/services/timed_ktv_recording_service.dart`。
+- **界面**：设置页新增「诊断与日志」卡片（导出、复制、清除、详细日志、崩溃记录开关、耗时列表）；KTV 麦克风面板在延迟数值下方说明数据来源与局限。
+- **调用点替换**：`quick_play_screen.dart`、`file_project_repository.dart`、`main.dart` 的 `debugPrint` / `developer.log` 改为 `appLog`。
+- **文档**：`docs/diagnostics.md`（组成、脱敏规则、诊断包内容、实测流程）、`decisions.md`（D-016）、本文件、工作日志条目 `2026-11-15-2100`。
 
 ## 检查结果
 
-全部来自 GitHub Actions 临时 workflow；沙箱里没有 Dart/Flutter 工具链。各次运行见工作日志条目。
+全部来自 GitHub Actions 临时 workflow，沙箱里没有 Dart/Flutter 工具链。各次运行见工作日志条目。
+
+- `flutter analyze`：没有 error 或 warning，186 条 info，与基线相同。
+- `flutter test` 全量：2312 通过，2 跳过，0 失败（运行 43722256623）。
+- `dart tool/work_log.dart check`：通过。
 
 ## 下一步
 
-- 用真实混排的识别结果观察自动模式的命中率，再决定默认值是否保持「自动」。
-- 如需更准的简→繁，可以考虑按上下文提示一简对多繁的字，而不是只依赖词组表。
+- 按 `docs/diagnostics.md` 的回环流程，在 Windows、macOS、Android 各一台设备上测 KTV 端到端延迟，并把结果写入 `docs/benchmarks/`。完成后才能关闭 #226。
+- 用 5、8、12 分钟的歌各跑一次识别和混音导出，记录 RTF 与 `peakRssMb`。Whisper 子进程的内存要单独测。
+- 其余模块逐步把日志迁到 `appLog`（转写、传输、媒体中心），并只记元数据。
 
 ## 已知风险
 
-- 简→繁是近似转换：一简对多繁的字（发/發/髮、干/乾/幹）由 OpenCC 词组表决定，词组之外按默认候选。已知「我一出门就想你」会变成「我一齣門就想你」。界面在设置项与对话框里都提示逐行核对。
-- 字表更新必须改 `chineseScriptDataRevision`；旧记录无法再证明文本未被手改，相关 V2 证据会降为只读审计（有意为之）。
-- 原有 CER 现在是字形折叠后的值；旧报告与新报告比较时，字形差异造成的 CER 下降不是识别改进，书写 CER 才包含它。
+- 脱敏基于模式匹配，不认识的密钥格式（比如没有键名的裸令牌）不会被替换。诊断包导出前可读，用户可以检查。
+- `peakRssMb` 不包含 `whisper-cli`、FFmpeg 子进程。
+- `appVersion` 是手写常量，改版本号时必须同步，否则测试失败（这是有意设计的）。
+- 崩溃处理器在 `AppServices.initialize()` 之后才装上，初始化过程中的同步异常仍由 Flutter 默认处理。
 
-最后更新：2026-11-15 15:00（Asia/Taipei）
+最后更新：2026-11-15 21:00（Asia/Taipei）

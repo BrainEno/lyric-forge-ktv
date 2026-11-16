@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'app/app.dart';
 import 'app/app_services.dart';
+import 'core/diagnostics/app_logger.dart';
 import 'features/player/data/services/mobile_system_media_session.dart';
 
 /// Process bootstrap: build the services, then run the app.
@@ -19,6 +20,9 @@ void main() {
 
   final services = AppServices.instance;
   services.initialize();
+  // Crash handlers and the file log attach synchronously here; reading the
+  // saved verbosity finishes in the background.
+  unawaited(services.diagnostics.start());
 
   // The first Flutter frame must never depend on an optional native media
   // integration. AudioService/AVAudioSession can take time to initialise on a
@@ -43,8 +47,12 @@ Future<void> _initializeMobileMediaSessionAfterLaunch(
   } catch (error, stackTrace) {
     // Playback itself continues to work through just_audio. Failing to attach
     // system media controls must not blank or terminate the whole application.
-    debugPrint('Mobile system media session initialization failed: $error');
-    debugPrintStack(stackTrace: stackTrace);
+    appLog.warning(
+      'player',
+      'Mobile system media session initialization failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 }
 

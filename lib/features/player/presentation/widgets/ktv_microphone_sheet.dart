@@ -12,6 +12,13 @@ import '../../domain/services/ktv_microphone_service.dart';
 import 'ktv_control_label.dart';
 import 'playback_error_banner.dart';
 
+/// Where the latency figure comes from and what it leaves out (#226). The
+/// engine reports its own buffering only; converters, the output device and
+/// Bluetooth add latency it cannot see.
+const String ktvLatencySourceNote =
+    '数据来源：音频引擎自报的缓冲延迟，不含声卡转换、输出设备与蓝牙耳机的延迟，'
+    '实际听感通常更长。录音与导出的实测耗时可在「设置 → 诊断与日志」查看和导出。';
+
 /// Microphone input, monitoring and the three volumes, as a modal sheet.
 ///
 /// Moved here from `_KtvAudioControlsSheet`, a private widget of the deleted
@@ -289,6 +296,14 @@ class KtvMicrophoneSheet extends StatelessWidget {
                         totalMs == null
                             ? '设备未报告稳定的硬件延迟；这里的数值只增加软件监听延迟。'
                             : '音频引擎约 ${engineMs}ms + 附加 ${extraMs}ms = 约 ${totalMs}ms。',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        ktvLatencySourceNote,
+                        key: const ValueKey('ktv-latency-source-note'),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textTertiary,
                         ),

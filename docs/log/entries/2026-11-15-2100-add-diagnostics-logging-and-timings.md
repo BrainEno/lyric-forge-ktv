@@ -1,0 +1,22 @@
+# [2026-11-15 21:00] Add diagnostics, crash capture and operation timings
+
+- Scope: Implement #233 and the code-side part of #226.
+  - Logging: a leveled, tagged `AppLogger` (`appLog`). Every record passes through one `LogRedactor` before it reaches any sink. The redactor replaces secret values (query, header, `key=value` and JSON forms), Bearer/Basic credentials, URL user info, e-mails and home-directory user names, and it is idempotent. Sinks: memory (500 records), debug console, and a JSON Lines file (`app.log`, rotated once at 512 KB).
+  - Crashes: `FlutterError.onError` and `PlatformDispatcher.onError` log the error and keep the 10 most recent redacted summaries. Previous handlers still run. Storing summaries can be switched off in settings.
+  - Report: version and platform, feature sections (ASR runtime, KTV microphone, library counts), timings, crashes and the most recent 400 log lines, as text followed by JSON. Sections are structured maps only and are redacted again. A failing or slow section reports its own failure without breaking the report.
+  - Timings: decorators wrap the outermost transcription and KTV recording services. Recognition samples carry the song length read from the normalized WAV header, giving a real-time factor. Recognition and mix export also carry process RSS. KTV start samples carry the engine-reported latency and the monitor delay.
+  - UI: a 诊断与日志 settings card with export (file saver), copy (text only), clear (with confirmation), a verbose-logging switch, a crash-record switch and a live timing list. The KTV microphone sheet now explains where its latency figure comes from and what it omits.
+  - Call sites: the `debugPrint` calls in `quick_play_screen.dart` and `main.dart`, and `developer.log` in `file_project_repository.dart`, now use `appLog`.
+- Files:
+  - New: `lib/core/diagnostics/{log_record,log_redactor,app_logger,file_log_sink,crash_capture,operation_timings,process_memory,app_build_info,diagnostics_report,app_diagnostics}.dart`; `lib/app/diagnostics_assembly.dart`; `timed_transcription_service.dart`; `timed_ktv_recording_service.dart`; `diagnostics_settings_card.dart`; `docs/diagnostics.md`.
+  - Changed: `app_services.dart`, `transcription_assembly.dart`, `main.dart`, `settings_screen.dart`, `settings_screen_dependencies.dart`, `ktv_microphone_sheet.dart`, `quick_play_screen.dart`, `file_project_repository.dart`.
+  - Tests: redactor, logger, file sink, timings, crash capture, report, diagnostics facade, build info, both timing decorators and the settings card.
+  - Docs: `decisions.md` (D-016), `diagnostics.md`, handoff.
+- Validation:
+  - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the tests and the work-log tool on GitHub Actions and committed its output. It was deleted before the PR.
+  - Run 43721445760 found two problems. First, a source contract test expects `ktvRecordingService = assembleKtvRecordingService(` in `app_services.dart`, so the KTV timing decorator moved inside that assembly behind an optional `timings` parameter. Second, the settings card failed Flutter's `ListTile` ink assertion because its tiles sat in a decorated `Container`; the card surface is now a `Material`. The run also flagged five new analyzer infos (unnecessary imports, one null-aware element); they are fixed.
+  - Run 43722256623: `flutter analyze` reported no errors or warnings and 186 infos, the same as the baseline. The full `flutter test` run had 2312 passed, 2 skipped and 0 failed. The targeted diagnostics, decorator, card and architecture tests all passed. `dart tool/work_log.dart check` passed; its only warnings were two commit subjects from earlier entries.
+- Notes:
+  - Real device latency and long-song numbers still have to be collected with the loopback and benchmark procedures in `docs/diagnostics.md`, so #226 stays open.
+  - Process RSS excludes `whisper-cli` and FFmpeg child processes; the docs describe how to measure them.
+- Commit: `Add diagnostics, crash capture and operation timings`
