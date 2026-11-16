@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-14 22:20] Harden the local Qwen runtime security boundary ([entry](log/entries/2026-11-14-2220-harden-qwen-runtime-boundary.md))
 - [2026-11-14 20:37] Protect lyric saves, local stores, and rejected uploads ([entry](log/entries/2026-11-14-2037-protect-saves-stores-uploads.md))
 - [2026-11-13 22:15] Add chunk audit end-to-end integration tests ([entry](log/entries/2026-11-13-2215-test-chunk-audit-integration.md))
 - [2026-11-09 23:29] Verify ASR source audio evidence ([entry](log/entries/2026-11-09-2329-verify-asr-source-audio.md))

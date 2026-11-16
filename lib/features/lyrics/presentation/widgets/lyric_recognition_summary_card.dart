@@ -35,7 +35,8 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
   });
 
   /// One hint per tool that has work to do, in the order worth doing it:
-  /// deleting caption rows first (they would otherwise be split or unified),
+  /// deleting caption rows and recognition loops first (they would otherwise
+  /// be split or unified),
   /// then fixing line structure, then unifying repeated lines, and timing
   /// last because the other tools change rows it would otherwise re-time.
   static List<({LyricBatchTextTool tool, String label, String tooltip})>
@@ -45,6 +46,12 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         tool: LyricBatchTextTool.textCleanup,
         label: '字幕水印/标注 ${health.captionRows} 行',
         tooltip: '识别器在静音或伴奏处编造的“谢谢观看”、[音乐] 等行；打开“清理识别文本”预览后删除',
+      ),
+    if (health.loopRows > 0)
+      (
+        tool: LyricBatchTextTool.asrLoopCheck,
+        label: '识别循环 ${health.loopRows} 行',
+        tooltip: '识别器卡住时把一句反复输出十几遍，或连续多行完全相同；打开“识别循环检查”预览后删减',
       ),
     if (health.structureIssues > 0)
       (

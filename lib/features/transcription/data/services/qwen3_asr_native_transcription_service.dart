@@ -895,8 +895,29 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       endTime: token.end,
       confidence: score.value,
       confidenceSource: score.source,
+      words: _segmentWords(raw),
     );
   }
+
+  /// Word timing nested in a segment (`words` / `tokens`), kept so karaoke
+  /// export and splitting can use the aligner's real times.
+  List<LyricWordTiming> _segmentWords(dynamic raw) {
+    if (raw is! Map) return const [];
+    final nested = raw['words'] ?? raw['tokens'];
+    if (nested is! List) return const [];
+    final tokens = <_TimedToken>[];
+    for (final item in nested) {
+      final token = _parseTimedToken(item);
+      if (token != null) tokens.add(token);
+    }
+    return _wordTimings(tokens);
+  }
+
+  List<LyricWordTiming> _wordTimings(List<_TimedToken> tokens) =>
+      List.unmodifiable([
+        for (final token in tokens)
+          LyricWordTiming(text: token.text, start: token.start, end: token.end),
+      ]);
 
   _TimedToken? _parseTimedToken(dynamic raw) {
     if (raw is! Map) return null;
@@ -971,6 +992,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           endTime: buffer.last.end,
           confidence: score.value,
           confidenceSource: score.source,
+          words: _wordTimings(buffer),
         ),
       );
       buffer.clear();

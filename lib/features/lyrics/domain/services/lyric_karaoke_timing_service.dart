@@ -45,6 +45,11 @@ class LyricKaraokeSyllable {
 /// Durations are rounded to [resolution] with the rounding error carried
 /// forward, so the syllables always add up to exactly the row's duration
 /// (after rounding the row itself) and never drift.
+///
+/// When the row has real word timing (a forced aligner or word-by-word
+/// tap-to-sync), [syllables] takes the start of every sung character
+/// instead and each unit starts where its first character was sung; the
+/// estimate is only the fallback.
 class LyricKaraokeTimingService {
   const LyricKaraokeTimingService({
     this.resolution = const Duration(milliseconds: 10),
@@ -117,17 +122,32 @@ class LyricKaraokeTimingService {
   /// is not after its start gets every unit at [start] with zero duration;
   /// callers are expected to pass a usable end (export cues always have
   /// one).
+  ///
+  /// [characterStarts], when given, holds the time every sung character of
+  /// [text] begins (see `LyricWordTimingService`). It is used only when it
+  /// has exactly one entry per sung character; otherwise the times are
+  /// estimated.
   List<LyricKaraokeSyllable> syllables(
     String text,
     Duration start,
-    Duration end,
-  ) {
+    Duration end, {
+    List<Duration>? characterStarts,
+  }) {
     final parts = units(text);
     if (parts.isEmpty) return const [];
     final step = resolution.inMicroseconds;
     final startSteps = (start.inMicroseconds / step).round();
     final endSteps = (end.inMicroseconds / step).round();
     final totalSteps = endSteps > startSteps ? endSteps - startSteps : 0;
+    if (characterStarts != null) {
+      final timed = _timedSyllables(
+        parts,
+        characterStarts,
+        startSteps: startSteps,
+        totalSteps: totalSteps,
+      );
+      if (timed != null) return timed;
+    }
     final totalWeight = parts.fold<double>(0, (sum, part) => sum + part.weight);
 
     final result = <LyricKaraokeSyllable>[];
@@ -158,6 +178,67 @@ class LyricKaraokeTimingService {
       consumedSteps += steps;
     }
     return result;
+  }
+
+  /// Units placed at the start of their first sung character, or null when
+  /// [characterStarts] does not match the text.
+  List<LyricKaraokeSyllable>? _timedSyllables(
+    List<({String text, double weight})> parts,
+    List<Duration> characterStarts, {
+    required int startSteps,
+    required int totalSteps,
+  }) {
+    final counts = [for (final part in parts) _sungCount(part.text)];
+    final total = counts.fold<int>(0, (sum, count) => sum + count);
+    if (total == 0 || total != characterStarts.length) return null;
+
+    final step = resolution.inMicroseconds;
+    // Unit boundaries in steps from the row start, never going backwards
+    // and never leaving the row.
+    final offsets = <int>[];
+    var character = 0;
+    var floor = 0;
+    for (var index = 0; index < parts.length; index++) {
+      int offset;
+      if (index == 0) {
+        // The first unit owns the row from its start, so a breath before the
+        // first word is not left unhighlighted.
+        offset = 0;
+      } else if (counts[index] == 0) {
+        offset = floor;
+      } else {
+        final at = characterStarts[character];
+        offset = (at.inMicroseconds / step).round() - startSteps;
+      }
+      if (offset < floor) offset = floor;
+      if (offset > totalSteps) offset = totalSteps;
+      offsets.add(offset);
+      floor = offset;
+      character += counts[index];
+    }
+
+    final result = <LyricKaraokeSyllable>[];
+    for (var index = 0; index < parts.length; index++) {
+      final from = offsets[index];
+      final to = index + 1 < parts.length ? offsets[index + 1] : totalSteps;
+      result.add(
+        LyricKaraokeSyllable(
+          text: parts[index].text,
+          start: Duration(microseconds: (startSteps + from) * step),
+          duration: Duration(microseconds: (to - from) * step),
+        ),
+      );
+    }
+    return result;
+  }
+
+  static int _sungCount(String text) {
+    const structure = LyricLineStructureService();
+    var count = 0;
+    for (final rune in text.runes) {
+      if (structure.sungWeight(String.fromCharCode(rune)) > 0) count++;
+    }
+    return count;
   }
 
   /// A rough English syllable count: groups of vowels, a silent final "e"

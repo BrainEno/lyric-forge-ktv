@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import '../text/chinese_script_converter.dart';
+import 'lyric_word_timing_service.dart';
 
 /// Where the boundary time of a split came from.
 enum LyricSplitTimingSource {
@@ -10,6 +11,11 @@ enum LyricSplitTimingSource {
   /// No usable playhead: the line's time span is divided in proportion to how
   /// much is sung on each side of the break.
   textProportion,
+
+  /// No usable playhead, but the row has word timing (forced aligner or
+  /// word-by-word tap-to-sync): the break is where the first word of the
+  /// second half starts.
+  wordTiming,
 }
 
 /// Why a line could not be split.
@@ -116,7 +122,9 @@ class LyricLineStructureService {
   ///
   /// [playbackPosition] is a timeline position (global offset already
   /// removed). It is used as the boundary only when it leaves both halves at
-  /// least [minimumPartDuration]; otherwise the time is proportional.
+  /// least [minimumPartDuration]; otherwise the row's word timing is used
+  /// when it has one, and the time is proportional when it does not. Word
+  /// timing is divided between the halves.
   LyricLineSplitResult split(
     LyricLine line, {
     int? textOffset,
@@ -149,6 +157,11 @@ class LyricLineStructureService {
     final earliest = line.startTime + minimumPartDuration;
     final latest = line.endTime - minimumPartDuration;
 
+    final words = LyricWordTimingService(structure: this);
+    final leftSung = words.sungCount(left);
+    final totalSung = words.sungCount(text);
+    final wordBreak = words.characterStart(line, leftSung);
+
     late final Duration splitTime;
     late final LyricSplitTimingSource source;
     if (playbackPosition != null &&
@@ -156,6 +169,11 @@ class LyricLineStructureService {
         playbackPosition <= latest) {
       splitTime = playbackPosition;
       source = LyricSplitTimingSource.playback;
+    } else if (wordBreak != null &&
+        wordBreak >= earliest &&
+        wordBreak <= latest) {
+      splitTime = wordBreak;
+      source = LyricSplitTimingSource.wordTiming;
     } else {
       var leftWeight = sungWeight(left);
       var rightWeight = sungWeight(right);
@@ -178,7 +196,11 @@ class LyricLineStructureService {
 
     return LyricLineSplitResult.success(
       LyricLineSplit(
-        first: line.copyWith(text: left, endTime: splitTime),
+        first: line.copyWith(
+          text: left,
+          endTime: splitTime,
+          words: words.slice(line, 0, leftSung),
+        ),
         second: LyricLine(
           text: right,
           startTime: splitTime,
@@ -186,6 +208,7 @@ class LyricLineStructureService {
           isChorus: line.isChorus,
           confidence: line.confidence,
           confidenceSource: line.confidenceSource,
+          words: words.slice(line, leftSung, totalSung),
         ),
         textOffset: offset,
         splitTime: splitTime,
@@ -194,7 +217,8 @@ class LyricLineStructureService {
     );
   }
 
-  /// [first] and [second] as one row. The result keeps [first]'s id.
+  /// [first] and [second] as one row. The result keeps [first]'s id, and
+  /// the word timing of both rows when both have usable word timing.
   LyricLine merge(LyricLine first, LyricLine second) {
     final start = first.startTime <= second.startTime
         ? first.startTime
@@ -225,6 +249,9 @@ class LyricLineStructureService {
       source = LyricConfidenceSource.unscored;
     }
 
+    final timing = LyricWordTimingService(structure: this);
+    final firstWords = timing.normalized(first);
+    final secondWords = timing.normalized(second);
     return LyricLine(
       text: joinText(first.text, second.text),
       startTime: start,
@@ -233,6 +260,9 @@ class LyricLineStructureService {
       confidence: confidence,
       confidenceSource: source,
       id: first.id,
+      words: firstWords.isEmpty || secondWords.isEmpty
+          ? const []
+          : List.unmodifiable([...firstWords, ...secondWords]),
     );
   }
 

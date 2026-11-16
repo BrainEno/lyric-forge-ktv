@@ -251,7 +251,15 @@ class FakeRuntimeProcess implements Process {
                 'language': 'English',
                 'text': 'hello world',
                 'segments': [
-                  {'text': 'hello world', 'start': 0.5, 'end': 1.5},
+                  {
+                    'text': 'hello world',
+                    'start': 0.5,
+                    'end': 1.5,
+                    'words': [
+                      {'text': 'hello', 'start': 0.5, 'end': 0.9},
+                      {'text': 'world', 'start': 0.9, 'end': 1.5},
+                    ],
+                  },
                 ],
               },
             ],

@@ -186,6 +186,7 @@ class LyricEditorToolbar extends StatelessWidget {
                     LyricBatchTextTool.repetitionConsistency,
                   ),
                   onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
+                  onAsrLoopCheck: _batchTool(LyricBatchTextTool.asrLoopCheck),
                   onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
                   onTimelineRepair: _batchTool(
                     LyricBatchTextTool.timelineRepair,

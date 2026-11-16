@@ -25,6 +25,9 @@ enum LyricBatchTextTool {
 
   /// Finds rows sung implausibly fast or slow (语速异常检查).
   paceCheck,
+
+  /// Cuts down phrases and rows the recogniser repeated (识别循环检查).
+  asrLoopCheck,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

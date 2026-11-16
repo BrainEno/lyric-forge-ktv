@@ -134,6 +134,15 @@ void main() {
 
       expect(first.lyrics.lines.single.text, 'hello world');
       expect(second.lyrics.lines.single.text, 'hello world');
+      // Word timing nested in a segment is kept for karaoke export.
+      expect(first.lyrics.lines.single.words.map((word) => word.text), [
+        'hello',
+        'world',
+      ]);
+      expect(
+        first.lyrics.lines.single.words.last.start,
+        const Duration(milliseconds: 900),
+      );
       expect(runtime.launches, hasLength(1));
       final process = runtime.launches.single;
       final transcribes = process.requestsTo('/v1/transcribe').toList();
