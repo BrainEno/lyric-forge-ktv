@@ -221,7 +221,7 @@ class WhisperJsonTranscriptParser {
       final piece = token['text'];
       if (piece is! String) return const [];
       final trimmed = piece.trim();
-      if (trimmed.startsWith('[_') && trimmed.endsWith('_]')) continue;
+      if (trimmed.startsWith('[_') && trimmed.endsWith(']')) continue;
       if (piece.isEmpty) continue;
       if (piece.contains('\uFFFD')) return const [];
       final offsets = _asStringMap(token['offsets']);

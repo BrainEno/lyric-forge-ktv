@@ -305,3 +305,30 @@
   - 编辑器屏幕没有增加代码。新工具通过 `LyricBatchTextToolsCoordinator` 接入。
 - 状态：生效
 - 来源：自选任务（逐字时间、识别循环）；[工作日志](log/entries/2026-11-18-1200-keep-word-timing-and-add-loop-check.md)
+
+## D-022 逐字打轴写入真实逐字时间；Whisper 逐词时间；循环删减保留逐字时间
+
+- 日期：2026-11-19
+- 背景：
+  - D-021 让 Qwen 的逐词时间进入了 `LyricLine.words`，但没有对齐器结果的行（Whisper 转写、手工输入的歌词）只能按字数估算，逐字 LRC / ASS 在长音和拖腔处偏差明显。卡拉 OK 歌词的通行做法是人工逐字打轴。
+  - whisper.cpp 的 `-ojf` 输出本身就带每个 token 的 `offsets`，解析时被丢掉了。
+  - 识别循环检查删减一行里的重复后，整行的逐字时间因为字数不再匹配而失效。
+  - 检查器里的逐词时间只能看，不能跳过去听，也不能清掉错误的逐字时间。
+- 决定：
+  - **逐字打轴**（`LyricWordTapSession` + `LyricWordTapDialog`，「校对」菜单“逐字打轴（卡拉 OK）”）：
+    - 单位与卡拉 OK 导出相同（`LyricKaraokeTimingService.units`）：一个汉字、假名、谚文音节或一个拉丁单词，标点跟随前一个单位；没有演唱文字的行（空行、`♪`）跳过。
+    - 每唱到一个单位按一下空格（或点大按钮）。60 ms 内的重复按键视为抖动。“按住”模式按下开始、松开结束；Enter 结束当前单位。
+    - 单位结束于明确的结束点，否则到下一次按键；超过 `maxCarry` 的停顿不算拖音。一行最后一个单位：下一行首次按键在 1.5 秒内就连到那里，否则取本行平均单位时长（200 ms–1.5 s，单字行取 1.5 s）。单位最短 60 ms。
+    - 只有整行按完的行才写入 `words` 和行时间，并记为手动打轴（`LyricTimingProvenance.manual`）；没按完的行保持原样并提示。前一行与第一行重叠时截短前一行。
+    - 退格撤回（先撤结束点，再撤按键），R 重打本行，← 后退 3 秒并撤掉之后的打点，可以放慢播放和设置反应补偿。应用为一次可撤销修改。
+    - 行级打轴与逐字打轴共用 `LyricTapClock`（播放位置外推、全局偏移、反应补偿）和 `LyricTapPad`。
+  - **Whisper 逐词时间**（`WhisperJsonTranscriptParser.segmentWords`）：读取 token 的 `offsets`。带前导空格的 token 开始新词，汉字类字符各自开始新词，纯标点 token 并入前一个词，`[_BEG_]` 等控制 token 跳过。出现 U+FFFD（多字节字符被拆开）、缺少 offsets、越界，或演唱字符数与段文字不一致时，整段不写逐字时间，宁缺毋错。
+  - **循环删减保留逐字时间**：`LyricAsrLoopPlan.keptWords` 按演唱字符位置切出保留部分的逐字时间（`LyricWordTimingService.slice`），删减后的行仍可用真实逐字时间导出。
+  - **检查器**：逐词时间的每个词可点击，跳到该词开始处播放（加上全局偏移）；“清除”按钮删除这一行的逐字时间，导出改回估算。
+- 影响：
+  - transcription 的数据层引用 lyrics 领域服务（演唱字符规则），与 lyrics 不引用 transcription 的约束不冲突。
+  - 逐字打轴依赖手感，反应补偿默认关闭；放慢播放时补偿按速度缩放。
+  - Whisper 只有 `-ojf`（完整 JSON）时 token 才带 offsets；旧的产物没有 offsets，行为与以前相同。
+  - 编辑器屏幕没有增加代码，新工具经 `LyricBatchTextToolsCoordinator` 接入。
+- 状态：生效
+- 来源：D-021 的下一步（逐字打轴、Whisper 逐词时间、循环删减后保留逐字时间）；[工作日志](log/entries/2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md)
