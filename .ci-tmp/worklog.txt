@@ -1,6 +1,0 @@
-Wrote work-log navigation (summary, index snapshot, and archive refs; 8 active of 302 entries).
-Warnings (2):
-  [commit-subject] Entry commit subject not found in git history: Handle simplified and traditional Chinese script consistently (2026-11-15-1500-unify-chinese-script-handling.md)
-  [commit-subject] Entry commit subject not found in git history: Add word-by-word tap-to-sync and Whisper word timing (2026-11-19-1200-add-word-tap-sync-and-whisper-word-timing.md)
-Work log lint passed (0 errors, 2 warning(s)).
-exit=0

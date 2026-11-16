@@ -1,4 +1,0 @@
-116:2026-11-16T09:08:05.853221Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata read failed
-132:2026-11-16T09:08:05.877731Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata write failed
-154:2026-11-16T09:08:05.912390Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata failed
-168:2026-11-16T09:08:05.914895Z ERROR [project] Background lyric association error callback failed — StateError: Bad state: observer failed

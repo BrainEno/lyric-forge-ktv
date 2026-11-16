@@ -23,6 +23,11 @@
   - Tests: word tap session tests, word tap dialog, clock, menu and strip widget tests, Whisper word timing tests, loop collapse word timing tests.
   - Docs: `decisions.md` (D-022), handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
-  - VALIDATION_PLACEHOLDER
+  - `dart format` reformatted 8 of the 17 changed files on the first run; the second run changed none.
+  - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - The first targeted run failed one Whisper test: timestamp tokens such as `[_TT_150]` do not end in `_]`, so they were not skipped. Control tokens are now any `[_…]`.
+  - The 8 targeted test files then passed (70 tests). The full `flutter test` suite had 2574 passed, 2 skipped and 0 failed (main: 2555).
+  - `dart tool/work_log.dart write` and `check` passed; the only warnings are the old entry and this entry's commit subject, which exists once the PR is merged.
+  - The editor screen stays at 1178 lines.
 - Notes: Word tap-sync timing depends on the user's reaction; compensation is off by default. Whisper artifacts without token offsets behave as before.
 - Commit: `Add word-by-word tap-to-sync and Whisper word timing`
