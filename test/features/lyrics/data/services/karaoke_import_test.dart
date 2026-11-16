@@ -19,7 +19,10 @@ void main() {
 
   group('tag parser', () {
     test('enhanced LRC stamps time each piece and close the row', () {
-      final tags = parser.lrc('<00:01.00>我<00:01.40>爱<00:01.80>你，<00:02.50>', ms(1000));
+      final tags = parser.lrc(
+        '<00:01.00>我<00:01.40>爱<00:01.80>你，<00:02.50>',
+        ms(1000),
+      );
       expect(tags.text, '我爱你，');
       expect(tags.end, ms(2500));
       expect(wordsOf(_line(tags, 1000, 3000)), [
@@ -30,7 +33,10 @@ void main() {
     });
 
     test('inline square stamps and Latin words with spaces', () {
-      final tags = parser.lrc('Hold [00:05.50]me [00:06.00]tight[00:07.25]', ms(5000));
+      final tags = parser.lrc(
+        'Hold [00:05.50]me [00:06.00]tight[00:07.25]',
+        ms(5000),
+      );
       expect(tags.text, 'Hold me tight');
       expect(wordsOf(_line(tags, 5000, 8000)), [
         ('Hold', 5000, 5500),
@@ -53,7 +59,10 @@ void main() {
     });
 
     test('ASS karaoke durations count from the event start', () {
-      final tags = parser.ass(r'{\an8}{\k100}{\kf40}我{\K40}爱{\ko70}你，\N{\k30}啊', ms(10000));
+      final tags = parser.ass(
+        r'{\an8}{\k100}{\kf40}我{\K40}爱{\ko70}你，\N{\k30}啊',
+        ms(10000),
+      );
       expect(tags.text, '我爱你，\n啊');
       expect(parser.firstSungStart(tags), ms(11000));
       expect(wordsOf(_line(tags, 10000, 13000)), [
@@ -179,7 +188,10 @@ void main() {
         extension: 'lrc',
       );
       expect([for (final line in lrc.document.lines) _times(line)], expected);
-      final ass = importer.parseText(encoder.encodeAss(source), extension: 'ass');
+      final ass = importer.parseText(
+        encoder.encodeAss(source),
+        extension: 'ass',
+      );
       expect([for (final line in ass.document.lines) _times(line)], expected);
       expect(ass.document.lines.map((l) => l.startTime), [ms(3000), ms(6000)]);
     });

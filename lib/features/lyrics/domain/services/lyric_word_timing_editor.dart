@@ -31,7 +31,8 @@ class LyricWordTimingEditor {
   ({List<LyricWordTiming> words, bool estimated}) start(LyricLine line) {
     final own = wordTiming.normalized(line);
     if (own.isNotEmpty) return (words: own, estimated: false);
-    if (line.endTime <= line.startTime) return (words: const [], estimated: true);
+    if (line.endTime <= line.startTime)
+      return (words: const [], estimated: true);
     return (
       words: List.unmodifiable([
         for (final syllable in karaoke.syllables(
@@ -60,9 +61,7 @@ class LyricWordTimingEditor {
     if (index < 0 || index >= words.length) return words;
     final word = words[index];
     final previous = index > 0 ? words[index - 1] : null;
-    var lower = previous == null
-        ? Duration.zero
-        : previous.start + minimumWord;
+    var lower = previous == null ? Duration.zero : previous.start + minimumWord;
     final upper = word.end - minimumWord;
     if (lower > upper) lower = upper;
     final value = _clamp(to, lower, upper);
@@ -232,7 +231,10 @@ class LyricWordTimingEditor {
   }
 
   /// Whether [words] differ from [other] in text or time.
-  static bool sameWords(List<LyricWordTiming> words, List<LyricWordTiming> other) {
+  static bool sameWords(
+    List<LyricWordTiming> words,
+    List<LyricWordTiming> other,
+  ) {
     if (words.length != other.length) return false;
     for (var index = 0; index < words.length; index++) {
       final a = words[index];

@@ -138,11 +138,7 @@ class LyricKaraokeTagParser {
       for (final tag in _assKaraoke.allMatches(block.group(1)!)) {
         final centiseconds = double.parse(tag.group(1)!);
         final length = Duration(milliseconds: (centiseconds * 10).round());
-        pieces.add((
-          start: cursor,
-          end: cursor + length,
-          text: StringBuffer(),
-        ));
+        pieces.add((start: cursor, end: cursor + length, text: StringBuffer()));
         cursor += length;
       }
     }
@@ -203,7 +199,10 @@ class LyricKaraokeTagParser {
 
   /// Word timing from [tags] for a row ending at [rowEnd]; empty when the
   /// tags time nothing sung or go backwards.
-  List<LyricWordTiming> words(LyricKaraokeTags tags, {required Duration rowEnd}) {
+  List<LyricWordTiming> words(
+    LyricKaraokeTags tags, {
+    required Duration rowEnd,
+  }) {
     final pieces = tags.pieces;
     if (pieces.isEmpty) return const [];
     final words = <({StringBuffer text, Duration start, Duration end})>[];

@@ -166,7 +166,11 @@ void main() {
           text: '我爱你',
           startTime: _ms(1000),
           endTime: _ms(2000),
-          words: [_w('我', 1000, 1300), _w('爱', 1300, 1600), _w('你', 1600, 2000)],
+          words: [
+            _w('我', 1000, 1300),
+            _w('爱', 1300, 1600),
+            _w('你', 1600, 2000),
+          ],
         ),
         LyricLine(text: '你好', startTime: _ms(3000), endTime: _ms(4000)),
       ],
@@ -187,7 +191,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('word_edit_start_50')));
       await tester.pump();
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('word_edit_selected'))).data,
+        tester
+            .widget<Text>(find.byKey(const ValueKey('word_edit_selected')))
+            .data,
         contains('0.25 秒'),
       );
       await tester.sendKeyEvent(LogicalKeyboardKey.keyL);

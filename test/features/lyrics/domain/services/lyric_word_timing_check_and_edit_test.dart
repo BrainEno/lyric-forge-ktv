@@ -39,15 +39,40 @@ void main() {
         language: 'zh',
         lines: [
           // 0: fine.
-          row('我爱你', 0, 900, words: [w('我', 0, 300), w('爱', 300, 600), w('你', 600, 900)]),
+          row(
+            '我爱你',
+            0,
+            900,
+            words: [w('我', 0, 300), w('爱', 300, 600), w('你', 600, 900)],
+          ),
           // 1: a character was added after recognition.
-          row('我爱你们', 1000, 2000, words: [w('我', 1000, 1300), w('爱', 1300, 1600), w('你', 1600, 2000)]),
+          row(
+            '我爱你们',
+            1000,
+            2000,
+            words: [w('我', 1000, 1300), w('爱', 1300, 1600), w('你', 1600, 2000)],
+          ),
           // 2: the row was moved by two seconds.
-          row('你好', 5000, 6000, words: [w('你', 3000, 3500), w('好', 3500, 4000)]),
+          row(
+            '你好',
+            5000,
+            6000,
+            words: [w('你', 3000, 3500), w('好', 3500, 4000)],
+          ),
           // 3: a word held three seconds, then a squeezed one.
-          row('啊呀', 7000, 10100, words: [w('啊', 7000, 10000), w('呀', 10000, 10020)]),
+          row(
+            '啊呀',
+            7000,
+            10100,
+            words: [w('啊', 7000, 10000), w('呀', 10000, 10020)],
+          ),
           // 4: a long breath inside the row.
-          row('一二', 11000, 14000, words: [w('一', 11000, 11500), w('二', 13000, 14000)]),
+          row(
+            '一二',
+            11000,
+            14000,
+            words: [w('一', 11000, 11500), w('二', 13000, 14000)],
+          ),
           // 5: no word timing at all.
           row('没有', 15000, 16000),
           row('', 16000, 17000),
@@ -77,7 +102,10 @@ void main() {
       final fixed = plan.applyTo(document, plan.fixablePositions.toSet());
       expect(fixed.lines[1].words, isEmpty);
       expect(fixed.lines[1].text, '我爱你们');
-      expect(times(fixed.lines[2].words), [('你', 5000, 5500), ('好', 5500, 6000)]);
+      expect(times(fixed.lines[2].words), [
+        ('你', 5000, 5500),
+        ('好', 5500, 6000),
+      ]);
       expect(fixed.lines[2].startTime, ms(5000));
       expect(auditor.plan(fixed).fixablePositions, isEmpty);
       expect(identical(plan.applyTo(document, {}), document), isTrue);
@@ -117,10 +145,11 @@ void main() {
     test('words never go shorter than the minimum or past their bounds', () {
       expect(times(editor.moveStart(words, 0, ms(1290)))[0], ('我', 1260, 1300));
       expect(times(editor.moveEnd(words, 2, ms(1500)))[2], ('你', 1800, 1840));
-      expect(
-        times(editor.moveEnd(words, 2, ms(9000), ceiling: ms(2500)))[2],
-        ('你', 1800, 2500),
-      );
+      expect(times(editor.moveEnd(words, 2, ms(9000), ceiling: ms(2500)))[2], (
+        '你',
+        1800,
+        2500,
+      ));
       expect(times(editor.moveStart(words, 1, ms(0)))[1], ('爱', 1040, 1600));
       expect(times(editor.moveStart(words, 0, ms(-500)))[0], ('我', 0, 1300));
     });
@@ -142,10 +171,10 @@ void main() {
       final split = editor.split(merged, 0);
       expect(times(split).take(2), [('我', 1000, 1300), ('爱', 1300, 1600)]);
       expect(identical(editor.split(words, 0), words), isTrue);
-      expect(
-        times(editor.split([w('你好吗？', 0, 900)], 0)),
-        [('你好', 0, 600), ('吗？', 600, 900)],
-      );
+      expect(times(editor.split([w('你好吗？', 0, 900)], 0)), [
+        ('你好', 0, 600),
+        ('吗？', 600, 900),
+      ]);
     });
 
     test('starts from the row or the estimate and applies to the row', () {
@@ -163,7 +192,10 @@ void main() {
       expect(grown.endTime, ms(2000));
       final fitted = editor.apply(line, words, fitRow: true);
       expect(fitted.endTime, ms(2000));
-      expect(editor.apply(line, words.sublist(0, 2), fitRow: true).endTime, ms(1600));
+      expect(
+        editor.apply(line, words.sublist(0, 2), fitRow: true).endTime,
+        ms(1600),
+      );
 
       final document = editor.replaceRow(
         LyricDocument(language: 'zh', lines: [line]),
