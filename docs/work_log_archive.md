@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-09 23:29] Verify ASR source audio evidence ([entry](log/entries/2026-11-09-2329-verify-asr-source-audio.md))
 - [2026-11-09 17:30] Guard active project session source updates ([entry](log/entries/2026-11-09-1730-sync-active-project-source-session.md))
 - [2026-11-09 17:04] Guard live project audio source updates ([entry](log/entries/2026-11-09-1704-guard-live-project-source-updates.md))
 - [2026-11-09 15:51] Import existing project accompaniment ([entry](log/entries/2026-11-09-1551-import-project-accompaniment.md))

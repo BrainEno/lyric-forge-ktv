@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/layout/app_responsive.dart';
 import '../../../../core/theme/color_tokens.dart';
@@ -27,6 +29,12 @@ class InspectorPane extends StatelessWidget {
   final int? currentPlaybackLine;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
+
+  /// Splits a row at a text offset; null offset means the natural break.
+  final void Function(int index, int? textOffset)? onSplitLine;
+
+  /// Merges a row with the next one.
+  final ValueChanged<int>? onMergeLineWithNext;
   final ValueChanged<int> onPreviewLine;
   final ValueChanged<int> onSetStartFromPlayback;
   final ValueChanged<int> onSetEndFromPlayback;
@@ -45,6 +53,8 @@ class InspectorPane extends StatelessWidget {
     required this.currentPlaybackLine,
     required this.onUpdateLine,
     required this.onDeleteLine,
+    this.onSplitLine,
+    this.onMergeLineWithNext,
     required this.onPreviewLine,
     required this.onSetStartFromPlayback,
     required this.onSetEndFromPlayback,
@@ -74,6 +84,13 @@ class InspectorPane extends StatelessWidget {
       autofocusText: autofocusText,
       onUpdate: (updated) => onUpdateLine(index, updated),
       onDelete: () => onDeleteLine(index),
+      onSplit: onSplitLine == null
+          ? null
+          : (textOffset) => onSplitLine!(index, textOffset),
+      onMergeWithNext:
+          onMergeLineWithNext == null || index + 1 >= document.lines.length
+          ? null
+          : () => onMergeLineWithNext!(index),
       onPreview: () => onPreviewLine(index),
       onUsePlaybackAsStart: playbackBelongsToProject
           ? () => onSetStartFromPlayback(index)
@@ -99,6 +116,13 @@ class LineInspector extends StatefulWidget {
   final bool autofocusText;
   final ValueChanged<LyricLine> onUpdate;
   final VoidCallback onDelete;
+
+  /// Splits this row. The argument is the text cursor offset when the cursor
+  /// sits inside the text, otherwise null (split at the natural break).
+  final ValueChanged<int?>? onSplit;
+
+  /// Merges this row with the next one; null on the last row.
+  final VoidCallback? onMergeWithNext;
   final VoidCallback onPreview;
   final VoidCallback? onUsePlaybackAsStart;
   final VoidCallback? onUsePlaybackAsEnd;
@@ -116,6 +140,8 @@ class LineInspector extends StatefulWidget {
     this.autofocusText = false,
     required this.onUpdate,
     required this.onDelete,
+    this.onSplit,
+    this.onMergeWithNext,
     required this.onPreview,
     this.onUsePlaybackAsStart,
     this.onUsePlaybackAsEnd,
@@ -249,6 +275,22 @@ class _LineInspectorState extends State<LineInspector> {
     _emitUpdate(_workingLine.copyWith(endTime: next));
   }
 
+  /// The cursor offset when it sits strictly inside the text, else null.
+  int? _cursorSplitOffset() {
+    final selection = _textController.selection;
+    final text = _textController.text;
+    if (!selection.isValid || !selection.isCollapsed) return null;
+    final offset = selection.baseOffset;
+    if (offset <= 0 || offset >= text.length) return null;
+    return offset;
+  }
+
+  void _split() => widget.onSplit?.call(_cursorSplitOffset());
+
+  static bool get _isApple =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   void _applyCandidate(String text) {
     if (text.trim().isEmpty) return;
     _textController.text = text;
@@ -359,24 +401,43 @@ class _LineInspectorState extends State<LineInspector> {
             ),
             const SizedBox(height: AppSpacing.md),
           ],
-          TextField(
-            controller: _textController,
-            focusNode: _textFocusNode,
-            onChanged: _updateText,
-            minLines: 2,
-            maxLines: spec.isShort ? 3 : 4,
-            style: Theme.of(context).textTheme.titleMedium,
-            decoration: InputDecoration(
-              labelText: '歌词文本',
-              hintText: '输入这一行歌词',
-              filled: true,
-              fillColor: AppColors.bgSurface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                borderSide: BorderSide.none,
+          CallbackShortcuts(
+            // Ctrl/Cmd+Enter splits at the cursor without leaving the text.
+            bindings: <ShortcutActivator, VoidCallback>{
+              if (widget.onSplit != null)
+                SingleActivator(
+                  LogicalKeyboardKey.enter,
+                  control: !_isApple,
+                  meta: _isApple,
+                ): _split,
+            },
+            child: TextField(
+              controller: _textController,
+              focusNode: _textFocusNode,
+              onChanged: _updateText,
+              minLines: 2,
+              maxLines: spec.isShort ? 3 : 4,
+              style: Theme.of(context).textTheme.titleMedium,
+              decoration: InputDecoration(
+                labelText: '歌词文本',
+                hintText: '输入这一行歌词',
+                filled: true,
+                fillColor: AppColors.bgSurface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
+          if (widget.onSplit != null || widget.onMergeWithNext != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            LineStructureActions(
+              onSplit: widget.onSplit == null ? null : _split,
+              onMergeWithNext: widget.onMergeWithNext,
+              splitShortcutLabel: _isApple ? '⌘↩' : 'Ctrl+Enter',
+            ),
+          ],
           if (!widget.isReviewed &&
               widget.fallbackCandidate != null &&
               alternative?.trim().isNotEmpty == true) ...[
@@ -802,6 +863,65 @@ class SecondarySuggestionCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Split and merge buttons under the lyric text.
+///
+/// Splitting takes the text cursor as the break; with the cursor at either end
+/// (or the field unfocused) it uses the natural break nearest the middle. The
+/// boundary time is the paused playhead when it sits inside the row, otherwise
+/// it is divided by how much is sung on each side.
+class LineStructureActions extends StatelessWidget {
+  final VoidCallback? onSplit;
+  final VoidCallback? onMergeWithNext;
+  final String splitShortcutLabel;
+
+  const LineStructureActions({
+    super.key,
+    required this.onSplit,
+    required this.onMergeWithNext,
+    required this.splitShortcutLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = AppResponsive.of(context);
+    final style = OutlinedButton.styleFrom(
+      minimumSize: Size(0, spec.minimumInteractiveExtent),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+    );
+    return Row(
+      children: [
+        Expanded(
+          child: Tooltip(
+            message:
+                '从光标处断开为两行（$splitShortcutLabel）；光标不在文字中间时，'
+                '从最接近中间的空格或标点断开。暂停在本行内时，以暂停位置作为分界时间',
+            child: OutlinedButton.icon(
+              key: const ValueKey('inspector_split_line'),
+              onPressed: onSplit,
+              style: style,
+              icon: const Icon(Icons.call_split_rounded, size: 18),
+              label: const Text('拆分此行', overflow: TextOverflow.ellipsis),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Tooltip(
+            message: '把下一行接到这一行后面，时间取两行的起止范围',
+            child: OutlinedButton.icon(
+              key: const ValueKey('inspector_merge_next'),
+              onPressed: onMergeWithNext,
+              style: style,
+              icon: const Icon(Icons.call_merge_rounded, size: 18),
+              label: const Text('与下一行合并', overflow: TextOverflow.ellipsis),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

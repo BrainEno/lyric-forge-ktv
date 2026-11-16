@@ -12,6 +12,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../../domain/models/lyric_review_queue.dart';
 import '../../domain/models/recognition_review_summary.dart';
 import '../../domain/models/secondary_only_suggestion.dart';
+import '../../domain/services/lyric_draft_health_service.dart';
 import '../../domain/services/lyric_review_decision_service.dart';
 import '../../domain/services/lyric_review_priority_service.dart';
 import 'lyric_batch_text_edit.dart';
@@ -114,6 +115,15 @@ class LyricEditorContent extends StatelessWidget {
   final int? focusLineIndex;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
+
+  /// Splits a row at a text offset (null: the natural break nearest the sung
+  /// middle). The third argument is the paused playhead on the timeline when
+  /// this project's audio is paused, which then marks the audible break.
+  final void Function(int index, int? textOffset, Duration? playhead)?
+  onSplitLine;
+
+  /// Merges a row with the one after it.
+  final ValueChanged<int>? onMergeLineWithNext;
   final ValueChanged<Duration> onUpdateOffset;
   final ValueChanged<int> onPreviewLine;
   final ValueChanged<int> onSetStartFromPlayback;
@@ -165,6 +175,8 @@ class LyricEditorContent extends StatelessWidget {
     required this.focusLineIndex,
     required this.onUpdateLine,
     required this.onDeleteLine,
+    this.onSplitLine,
+    this.onMergeLineWithNext,
     required this.onUpdateOffset,
     required this.onPreviewLine,
     required this.onSetStartFromPlayback,
@@ -270,6 +282,20 @@ class LyricEditorContent extends StatelessWidget {
                   onDeleteLine(index);
                   Navigator.of(sheetContext).pop();
                 },
+                // The sheet shows one row; after a structural edit it would
+                // describe a row that changed shape, so it closes like delete.
+                onSplit: _splitLine == null
+                    ? null
+                    : (textOffset) {
+                        _splitLine!(index, textOffset);
+                        Navigator.of(sheetContext).pop();
+                      },
+                onMergeWithNext: _mergeWithNextFor(index) == null
+                    ? null
+                    : () {
+                        onMergeLineWithNext!(index);
+                        Navigator.of(sheetContext).pop();
+                      },
                 onPreview: () => onPreviewLine(index),
                 onUsePlaybackAsStart: playbackBelongsToProject
                     ? () => onSetStartFromPlayback(index)
@@ -288,6 +314,27 @@ class LyricEditorContent extends StatelessWidget {
   void _requestSave() {
     unawaited(onSave());
   }
+
+  /// The split callback the panes use. A paused playhead of this project is
+  /// passed along as the audible break; while audio plays it is not, because
+  /// a moving playhead says nothing about where the line should end.
+  void Function(int index, int? textOffset)? get _splitLine {
+    final split = onSplitLine;
+    if (split == null) return null;
+    return (index, textOffset) {
+      Duration? playhead;
+      if (playbackBelongsToProject && !playback.isPlaying) {
+        final shifted =
+            playback.position - (document.globalOffset ?? Duration.zero);
+        playhead = shifted.isNegative ? Duration.zero : shifted;
+      }
+      split(index, textOffset, playhead);
+    };
+  }
+
+  /// Merge is offered only when there is a next row.
+  ValueChanged<int>? _mergeWithNextFor(int index) =>
+      index + 1 < document.lines.length ? onMergeLineWithNext : null;
 
   /// Pops this editor once. A second completion (for example a shared save
   /// finishing for two back requests) must not pop the route below it.
@@ -379,6 +426,7 @@ class LyricEditorContent extends StatelessWidget {
                     LyricBatchTextTool.repetitionConsistency,
                   ),
                   onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
+                  onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
@@ -467,6 +515,11 @@ class LyricEditorContent extends StatelessWidget {
                                 recognitionSummary.hasRecognitionData
                                 ? LyricRecognitionSummaryCard(
                                     summary: recognitionSummary,
+                                    health: onBatchTextTool == null
+                                        ? null
+                                        : const LyricDraftHealthService()
+                                              .cached(document),
+                                    onOpenBatchTool: onBatchTextTool,
                                     onStartReview: reviewQueue.isEmpty
                                         ? null
                                         : () {
@@ -522,6 +575,8 @@ class LyricEditorContent extends StatelessWidget {
                                         _showInspectorSheet(context, index),
                               onUpdateLine: onUpdateLine,
                               onDeleteLine: onDeleteLine,
+                              onSplitLine: _splitLine,
+                              onMergeLineWithNext: onMergeLineWithNext,
                               onSetStartFromPlayback: project.audioAsset == null
                                   ? null
                                   : onSetStartFromPlayback,
@@ -578,6 +633,8 @@ class LyricEditorContent extends StatelessWidget {
                                     currentPlaybackLine: currentPlaybackLine,
                                     onUpdateLine: onUpdateLine,
                                     onDeleteLine: onDeleteLine,
+                                    onSplitLine: _splitLine,
+                                    onMergeLineWithNext: onMergeLineWithNext,
                                     onPreviewLine: onPreviewLine,
                                     onSetStartFromPlayback:
                                         onSetStartFromPlayback,

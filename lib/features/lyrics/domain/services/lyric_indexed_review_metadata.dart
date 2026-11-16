@@ -35,6 +35,36 @@ class LyricIndexedReviewMetadata {
     int insertedIndex,
   ) => _remap(metadata, (index) => index >= insertedIndex ? index + 1 : index);
 
+  /// Metadata after the row at [splitIndex] was split into two rows. The two
+  /// halves no longer carry the text the engines heard, so that row's evidence
+  /// is dropped instead of being attached to half a line; later rows move
+  /// down by one.
+  static Map<String, dynamic> afterRowSplit(
+    Map<String, dynamic> metadata,
+    int splitIndex,
+  ) => _remap(metadata, (index) {
+    if (index == splitIndex) return null;
+    return index > splitIndex ? index + 1 : index;
+  });
+
+  /// Metadata after the rows at [firstIndex] and `firstIndex + 1` were merged
+  /// into one row at [firstIndex]. Evidence for both halves describes text the
+  /// merged row no longer has and is dropped; later rows move up by one.
+  static Map<String, dynamic> afterRowsMerged(
+    Map<String, dynamic> metadata,
+    int firstIndex,
+  ) => _remap(metadata, (index) {
+    if (index == firstIndex || index == firstIndex + 1) return null;
+    return index > firstIndex + 1 ? index - 1 : index;
+  });
+
+  /// Metadata after an arbitrary restructuring. [map] returns a row's new
+  /// index, or null when its evidence no longer applies.
+  static Map<String, dynamic> remapped(
+    Map<String, dynamic> metadata,
+    int? Function(int index) map,
+  ) => _remap(metadata, map);
+
   /// The pre-remap behaviour: remove every row-indexed candidate field.
   static Map<String, dynamic> clear(Map<String, dynamic> metadata) =>
       Map<String, dynamic>.from(metadata)

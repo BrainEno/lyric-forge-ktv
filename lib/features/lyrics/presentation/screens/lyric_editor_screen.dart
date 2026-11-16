@@ -158,17 +158,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     setState(() {
       _filter = LyricReviewFilter.needsReview;
       _refreshReviewQueue(_editingDocument!, project.audioAsset?.duration);
+      // The queue is already ranked: highest score first, then row order.
       _editor.select(
-        _reviewPriorityByIndex.isEmpty
-            ? null
-            : (_reviewPriorityByIndex.values.toList()..sort((left, right) {
-                    final byScore = right.score.compareTo(left.score);
-                    return byScore != 0
-                        ? byScore
-                        : left.lineIndex.compareTo(right.lineIndex);
-                  }))
-                  .first
-                  .lineIndex,
+        _reviewQueue.isEmpty ? null : _reviewQueue.items.first.lineIndex,
       );
     });
 
@@ -662,17 +654,41 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     }
   }
 
-  void _updateLine(int index, LyricLine updatedLine) {
-    final result = _editor.updateLine(
+  void _updateLine(int index, LyricLine updatedLine) => _applyRowEdit(
+    _editor.updateLine(
       index,
       updatedLine,
       auditionTarget: _isAuditionTarget(index),
-    );
+    ),
+  );
+
+  /// Shared tail of row edits: drop (and pause) a stale audition, show a hint.
+  void _applyRowEdit(LyricEditResult result) {
+    final hint = result.hint;
+    if (hint != null) _showEditHint(hint);
     if (!result.applied) return;
     final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
     if (result.clearsAudition) _audition.clear();
     if (shouldPauseAudition) unawaited(_audioService.pause());
   }
+
+  /// [playhead]: a paused playhead the content trusts as the audible break.
+  void _splitLine(int index, int? textOffset, Duration? playhead) =>
+      _applyRowEdit(
+        _editor.splitLine(
+          index,
+          textOffset: textOffset,
+          playbackPosition: playhead,
+          auditionTarget: _isAuditionTarget(index),
+        ),
+      );
+
+  void _mergeLineWithNext(int index) => _applyRowEdit(
+    _editor.mergeLineWithNext(
+      index,
+      auditionTarget: _isAuditionTarget(index) || _isAuditionTarget(index + 1),
+    ),
+  );
 
   /// Whether the row at [index] is the one the bounded audition is playing.
   ///
@@ -718,16 +734,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     return shifted.isNegative ? Duration.zero : shifted;
   }
 
-  void _deleteLine(int index) {
-    final result = _editor.deleteLine(
-      index,
-      auditionTarget: _isAuditionTarget(index),
-    );
-    if (!result.applied) return;
-    final shouldPauseAudition = result.clearsAudition && _audition.isSounding;
-    if (result.clearsAudition) _audition.clear();
-    if (shouldPauseAudition) unawaited(_audioService.pause());
-  }
+  void _deleteLine(int index) => _applyRowEdit(
+    _editor.deleteLine(index, auditionTarget: _isAuditionTarget(index)),
+  );
 
   void _updateGlobalOffset(Duration offset) {
     final shouldPauseAudition = _audition.isSounding;
@@ -1083,16 +1092,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         loopCurrentLineAudition: _audition.loopEnabled,
                         onLoopCurrentLineAuditionChanged: (value) {
                           _audition.loopEnabled = value;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                value
-                                    ? LyricReviewStrings.loopCurrentLineEnabled
-                                    : LyricReviewStrings
-                                          .loopCurrentLineDisabled,
-                              ),
-                              duration: const Duration(seconds: 2),
-                            ),
+                          _showEditHint(
+                            value
+                                ? LyricReviewStrings.loopCurrentLineEnabled
+                                : LyricReviewStrings.loopCurrentLineDisabled,
                           );
                         },
                         followPlayback: _followPlayback,
@@ -1163,6 +1166,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
                         focusLineIndex: _focusLineIndex,
                         onUpdateLine: _updateLine,
                         onDeleteLine: _deleteLine,
+                        onSplitLine: _splitLine,
+                        onMergeLineWithNext: _mergeLineWithNext,
                         onUpdateOffset: _updateGlobalOffset,
                         onPreviewLine: (index) => _previewLine(project, index),
                         onSetStartFromPlayback: _setLineStartFromPlayback,

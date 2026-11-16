@@ -1,0 +1,40 @@
+# [2026-11-16 12:30] Add line split/merge editing and the line-structure tool
+
+- Scope: Fix the most common structural problem in recognised drafts: recognisers segment at pauses, so one row often holds two sung lines, or a line is cut into a one- or two-character fragment. The editor could only delete a row and insert another with guessed timestamps.
+  - `LyricLineStructureService` splits and merges rows.
+    - A split never rewrites text. Each half is the original text on its side of the break, minus whitespace and soft punctuation (，、；：/|) at the break.
+    - The boundary is the paused playhead when it lies inside the row and leaves each half at least 0.2 s. Otherwise the span is divided by sung weight: a Han, kana or Hangul character counts 1, a Latin letter or digit 0.5, punctuation 0. The result is rounded to 10 ms and kept inside the original span.
+    - Natural breaks are whitespace and sentence punctuation nearest the sung middle. Without one, a split may fall only between two Han or kana characters, never inside a Latin or Hangul word.
+    - A merge joins Han/kana text directly and other text with one space. It spans both rows, keeps the weaker real confidence (a placeholder never outranks a real score), and keeps the first row's id.
+  - Editor: the inspector gains 拆分此行 (Ctrl+Enter, Cmd+Enter on macOS; splits at the text cursor when it is inside the text) and 与下一行合并. The list's right-click menu gains the same two actions. Both are single undoable edits that mark the resulting rows as hand-edited. Row-indexed evidence of the changed rows is dropped, and later rows shift (`LyricIndexedReviewMetadata.afterRowSplit` / `afterRowsMerged`). On compact layouts the inspector sheet closes after a structural edit, as it does after a delete.
+  - Batch tool 整理断行 in the 校对 menu (`LyricStructureAdvisor` plus a preview dialog with per-suggestion checkboxes and audition).
+    - Rows heavier than 20 are offered for splitting. Fragments (weight ≤ 2 or shorter than 0.7 s) within 0.35 s of a neighbour are offered for merging into the closer neighbour, as long as the result stays within 20.
+    - Hand-edited rows, empty rows, 建议补入 rows, caption boilerplate and annotation-only rows are never touched.
+    - Splits with no natural break are listed but not pre-selected.
+  - The recognition summary card shows 可批量整理 hints that open the matching tool: caption/annotation rows (清理识别文本), over-long rows and fragments (整理断行), and inconsistently spelt repeats (重复段落一致性检查). The counts use the tools' own rules and are memoised per document instance.
+  - The quality report gains `overlongLineCount` and `fragmentLineCount`. Untimed rows are never counted as fragments.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_line_structure_service,lyric_structure_advisor,lyric_draft_health_service}.dart`.
+  - New presentation: `lib/features/lyrics/presentation/widgets/lyric_structure_dialog.dart`.
+  - Changed:
+    - `lyric_indexed_review_metadata.dart`: split, merge and general remaps.
+    - `lyric_editor_document_controller.dart`: `splitLine`, `mergeLineWithNext`.
+    - `lyric_editor_screen.dart`: row edits share `_applyRowEdit`. The review-decision jump reuses the already-ranked queue. The screen stays at 1198 of its 1200-line budget.
+    - `lyric_editor_content.dart`, `lyric_inspector_pane.dart`, `lyric_list_pane.dart`, `lyric_recognition_summary_card.dart`, `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_batch_text_edit.dart`, `lyric_batch_text_tools_coordinator.dart`.
+    - `tool/asr_quality_report.dart`.
+  - Tests:
+    - Service tests: breaks, proportional and playhead timing, failure reasons, surrogate pairs, merge text, timing and confidence.
+    - Advisor and health tests: thresholds, exclusions, evidence remapping, memoisation.
+    - Controller tests: selection, manual marks, undo, metadata.
+    - Widget tests: inspector buttons and shortcut, list context menu, dialog, summary hints, menu entry.
+    - Quality-report metrics.
+  - Docs: `decisions.md` (D-018), handoff.
+- Validation:
+  - The sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
+  - Run 43803821134: the new widget test file did not compile (missing `LyricReviewFilter` import). The full suite otherwise passed: 2418 passed, 1 failed (that load error), 2 skipped.
+  - Run 43804268162: analyze reported no errors or warnings and 186 infos, the same as the baseline. The full suite had 2428 passed, 1 failed, 2 skipped. The failure was the list context-menu test, which looked up a row label the list does not render; it now finds the row by its lyric text.
+  - Run 43804942749: analyze reported no errors or warnings and 186 infos. All 9 targeted test files passed. The full `flutter test` run had 2429 passed, 2 skipped and 0 failed (baseline 2369). `dart tool/work_log.dart write` regenerated the navigation and `check` passed; its only warning is a commit subject from an earlier entry.
+- Notes:
+  - The thresholds (20, 2, 0.7 s, 0.35 s) are empirical and should be calibrated on the #413 real-song baseline.
+  - A proportional boundary is only a starting point. The hint and the preview both ask the user to audition and nudge it.
+- Commit: `Add line split/merge editing, a line-structure batch tool and draft health hints`

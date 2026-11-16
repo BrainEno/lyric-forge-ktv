@@ -39,6 +39,13 @@ class LyricListPane extends StatefulWidget {
   final ValueChanged<int> onSelectLine;
   final void Function(int, LyricLine) onUpdateLine;
   final ValueChanged<int> onDeleteLine;
+
+  /// Splits a row at a text offset; the list always passes null, which splits
+  /// at the natural break nearest the sung middle.
+  final void Function(int index, int? textOffset)? onSplitLine;
+
+  /// Merges a row with the next one.
+  final ValueChanged<int>? onMergeLineWithNext;
   final ValueChanged<int>? onSetStartFromPlayback;
   final ValueChanged<int>? onSetEndFromPlayback;
   final Set<int> manuallyEditedLineIndices;
@@ -62,6 +69,8 @@ class LyricListPane extends StatefulWidget {
     required this.onSelectLine,
     required this.onUpdateLine,
     required this.onDeleteLine,
+    this.onSplitLine,
+    this.onMergeLineWithNext,
     this.onSetStartFromPlayback,
     this.onSetEndFromPlayback,
     this.manuallyEditedLineIndices = const {},
@@ -454,6 +463,14 @@ class _LyricListPaneState extends State<LyricListPane> {
                   onDoubleTap: () => _startInlineEdit(index),
                   onLongPress: () => _startInlineEdit(index),
                   onDelete: () => widget.onDeleteLine(index),
+                  onSplit: widget.onSplitLine == null
+                      ? null
+                      : () => widget.onSplitLine!(index, null),
+                  onMergeWithNext:
+                      widget.onMergeLineWithNext == null ||
+                          index + 1 >= widget.document.lines.length
+                      ? null
+                      : () => widget.onMergeLineWithNext!(index),
                   onCopy: () {
                     final text = line.text;
                     Clipboard.setData(ClipboardData(text: text));
@@ -868,6 +885,12 @@ class LyricReviewRow extends StatelessWidget {
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onDelete;
+
+  /// Splits the row at its natural break.
+  final VoidCallback? onSplit;
+
+  /// Merges the row with the next one; null on the last row.
+  final VoidCallback? onMergeWithNext;
   final VoidCallback? onCopy;
   final VoidCallback? onEditStartTime;
   final VoidCallback? onEditEndTime;
@@ -891,6 +914,8 @@ class LyricReviewRow extends StatelessWidget {
     this.onDoubleTap,
     this.onLongPress,
     this.onDelete,
+    this.onSplit,
+    this.onMergeWithNext,
     this.onCopy,
     this.onEditStartTime,
     this.onEditEndTime,
@@ -951,6 +976,26 @@ class LyricReviewRow extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
           ),
         ),
+      if (onSplit != null)
+        const PopupMenuItem(
+          value: 'split',
+          child: ListTile(
+            leading: Icon(Icons.call_split_rounded, size: 18),
+            title: Text('从中间断点拆分为两行'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+      if (onMergeWithNext != null)
+        const PopupMenuItem(
+          value: 'mergeNext',
+          child: ListTile(
+            leading: Icon(Icons.call_merge_rounded, size: 18),
+            title: Text('与下一行合并'),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
       if (onDelete != null)
         const PopupMenuItem(
           value: 'delete',
@@ -992,6 +1037,12 @@ class LyricReviewRow extends StatelessWidget {
           break;
         case 'markEnd':
           onSetEndFromPlayback?.call();
+          break;
+        case 'split':
+          onSplit?.call();
+          break;
+        case 'mergeNext':
+          onMergeWithNext?.call();
           break;
         case 'delete':
           onDelete?.call();

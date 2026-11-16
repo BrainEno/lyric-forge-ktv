@@ -5,6 +5,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../widgets/lyric_batch_text_edit.dart';
 import '../widgets/lyric_find_replace_dialog.dart';
 import '../widgets/lyric_repetition_consistency_dialog.dart';
+import '../widgets/lyric_structure_dialog.dart';
 import '../widgets/lyric_text_cleanup_dialog.dart';
 import 'lyric_editor_proofreading_coordinator.dart';
 
@@ -80,6 +81,14 @@ class LyricBatchTextToolsCoordinator {
       context,
       document: document,
       protectedIndices: protectedIndices,
+    ),
+    LyricBatchTextTool.lineStructure => showLyricStructureDialog(
+      context,
+      document: document,
+      protectedIndices: protectedIndices,
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
     ),
   };
 }
