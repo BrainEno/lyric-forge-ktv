@@ -195,6 +195,9 @@ class LyricEditorToolbar extends StatelessWidget {
                   onPaceCheck: _batchTool(LyricBatchTextTool.paceCheck),
                   onTapSync: _batchTool(LyricBatchTextTool.tapSync),
                   onWordTap: _batchTool(LyricBatchTextTool.wordTap),
+                  onWordTimingCheck: _batchTool(
+                    LyricBatchTextTool.wordTimingCheck,
+                  ),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,

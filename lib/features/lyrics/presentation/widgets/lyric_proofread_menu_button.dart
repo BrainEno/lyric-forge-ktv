@@ -11,6 +11,7 @@ import 'lyric_text_cleanup_dialog.dart';
 import 'lyric_timeline_repair_dialog.dart';
 import 'lyric_timing_shift_dialog.dart';
 import 'lyric_word_tap_dialog.dart';
+import 'lyric_word_timing_check_dialog.dart';
 
 /// The proofreading capabilities, in the order they are offered.
 ///
@@ -30,6 +31,7 @@ enum LyricProofreadAction {
   timingShift,
   tapSync,
   wordTap,
+  wordTimingCheck,
   unifyChineseScript,
   findReplace,
   viewComparison,
@@ -60,6 +62,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onPaceCheck,
     this.onTapSync,
     this.onWordTap,
+    this.onWordTimingCheck,
     this.onFindReplace,
     this.onViewComparison,
     this.onUndoAlignment,
@@ -105,6 +108,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// Opens word-by-word tap-to-sync (逐字打轴).
   final VoidCallback? onWordTap;
+
+  /// Opens the word timing check (逐字时间检查).
+  final VoidCallback? onWordTimingCheck;
 
   /// 批量查找替换: replaces a misrecognised word everywhere at once.
   final VoidCallback? onFindReplace;
@@ -181,6 +187,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.paceCheck: onPaceCheck,
       LyricProofreadAction.tapSync: onTapSync,
       LyricProofreadAction.wordTap: onWordTap,
+      LyricProofreadAction.wordTimingCheck: onWordTimingCheck,
       LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
       LyricProofreadAction.findReplace: onFindReplace,
       LyricProofreadAction.viewComparison: onViewComparison,
@@ -255,6 +262,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricWordTapStrings.actionTitle,
         LyricWordTapStrings.actionDetail,
       ),
+      LyricProofreadAction.wordTimingCheck => (
+        LyricWordTimingCheckStrings.actionTitle,
+        LyricWordTimingCheckStrings.actionDetail,
+      ),
       LyricProofreadAction.unifyChineseScript => (
         '统一简繁字形',
         '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
@@ -284,6 +295,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.paceCheck => Icons.speed_rounded,
       LyricProofreadAction.tapSync => Icons.touch_app_rounded,
       LyricProofreadAction.wordTap => Icons.lyrics_outlined,
+      LyricProofreadAction.wordTimingCheck => Icons.fact_check_outlined,
       LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
       LyricProofreadAction.findReplace => Icons.find_replace_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,
