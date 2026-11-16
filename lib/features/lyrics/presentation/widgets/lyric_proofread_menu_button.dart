@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/color_tokens.dart';
 import 'lyric_find_replace_dialog.dart';
+import 'lyric_pace_check_dialog.dart';
 import 'lyric_repetition_consistency_dialog.dart';
 import 'lyric_structure_dialog.dart';
+import 'lyric_tap_sync_dialog.dart';
 import 'lyric_text_cleanup_dialog.dart';
 import 'lyric_timeline_repair_dialog.dart';
 import 'lyric_timing_shift_dialog.dart';
@@ -21,7 +23,9 @@ enum LyricProofreadAction {
   textCleanup,
   lineStructure,
   timelineRepair,
+  paceCheck,
   timingShift,
+  tapSync,
   unifyChineseScript,
   findReplace,
   viewComparison,
@@ -48,6 +52,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onLineStructure,
     this.onTimelineRepair,
     this.onTimingShift,
+    this.onPaceCheck,
+    this.onTapSync,
     this.onFindReplace,
     this.onViewComparison,
     this.onUndoAlignment,
@@ -81,6 +87,12 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 平移 / 伸缩时间轴: moves or stretches the timing of a range of rows.
   final VoidCallback? onTimingShift;
+
+  /// Opens the pace check (语速异常检查).
+  final VoidCallback? onPaceCheck;
+
+  /// Opens tap-to-sync (打轴).
+  final VoidCallback? onTapSync;
 
   /// 批量查找替换: replaces a misrecognised word everywhere at once.
   final VoidCallback? onFindReplace;
@@ -152,6 +164,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.lineStructure: onLineStructure,
       LyricProofreadAction.timelineRepair: onTimelineRepair,
       LyricProofreadAction.timingShift: onTimingShift,
+      LyricProofreadAction.paceCheck: onPaceCheck,
+      LyricProofreadAction.tapSync: onTapSync,
       LyricProofreadAction.unifyChineseScript: onUnifyChineseScript,
       LyricProofreadAction.findReplace: onFindReplace,
       LyricProofreadAction.viewComparison: onViewComparison,
@@ -210,6 +224,14 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricTimingShiftStrings.actionTitle,
         LyricTimingShiftStrings.actionDetail,
       ),
+      LyricProofreadAction.paceCheck => (
+        LyricPaceCheckStrings.actionTitle,
+        LyricPaceCheckStrings.actionDetail,
+      ),
+      LyricProofreadAction.tapSync => (
+        LyricTapSyncStrings.actionTitle,
+        LyricTapSyncStrings.actionDetail,
+      ),
       LyricProofreadAction.unifyChineseScript => (
         '统一简繁字形',
         '不需要参考歌词；先预览改动行数，默认跳过手动编辑过的行',
@@ -235,6 +257,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.lineStructure => Icons.view_agenda_outlined,
       LyricProofreadAction.timelineRepair => Icons.healing_rounded,
       LyricProofreadAction.timingShift => Icons.timer_outlined,
+      LyricProofreadAction.paceCheck => Icons.speed_rounded,
+      LyricProofreadAction.tapSync => Icons.touch_app_rounded,
       LyricProofreadAction.unifyChineseScript => Icons.translate_rounded,
       LyricProofreadAction.findReplace => Icons.find_replace_rounded,
       LyricProofreadAction.viewComparison => Icons.compare_arrows_rounded,

@@ -67,6 +67,12 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         label: '时间轴问题 ${health.timelineRows} 行',
         tooltip: '行与行重叠、结束早于开始或时间顺序颠倒；打开“检查时间轴”预览可自动修复的部分',
       ),
+    if (health.paceRows > 0)
+      (
+        tool: LyricBatchTextTool.paceCheck,
+        label: '语速异常 ${health.paceRows} 行',
+        tooltip: '比全曲语速快得多或慢得多的行，多半结束被截断、跨过间奏或漏字多字；打开“语速异常检查”逐行试听',
+      ),
   ];
 
   /// Short display name for an engine identity such as `qwen3-asr-1.7b`.

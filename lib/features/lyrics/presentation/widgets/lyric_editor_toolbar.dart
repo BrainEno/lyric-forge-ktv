@@ -191,6 +191,8 @@ class LyricEditorToolbar extends StatelessWidget {
                     LyricBatchTextTool.timelineRepair,
                   ),
                   onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
+                  onPaceCheck: _batchTool(LyricBatchTextTool.paceCheck),
+                  onTapSync: _batchTool(LyricBatchTextTool.tapSync),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
@@ -283,7 +285,7 @@ class LyricEditorOverflowMenu extends StatelessWidget {
             leadingIcon: const Icon(Icons.download_rounded, size: 18),
             child: const _OverflowLabel(
               title: '导出歌词',
-              detail: 'LRC、SRT、WebVTT 或纯文本',
+              detail: 'LRC、逐字 LRC、ASS 卡拉 OK、SRT、WebVTT 或纯文本',
             ),
           ),
         if (openPlayer != null)

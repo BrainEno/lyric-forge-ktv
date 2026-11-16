@@ -66,6 +66,9 @@ class LyricExportDialog extends StatefulWidget {
   /// How many lines of the encoded file the preview shows.
   static const int previewLines = 12;
 
+  /// How early an ASS row appears when the lead-in switch is on.
+  static const Duration assLeadIn = Duration(seconds: 1);
+
   @override
   State<LyricExportDialog> createState() => _LyricExportDialogState();
 }
@@ -74,6 +77,7 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
   late LyricExportFormat _format = widget.initialFormat;
   late bool _endMarkers = widget.initialOptions.lrcEndMarkers;
   late bool _paragraphs = widget.initialOptions.paragraphsAtPauses;
+  late bool _assLeadIn = widget.initialOptions.assLeadIn > Duration.zero;
   late final int _timelineRows = widget.planner
       .plan(widget.document, audioDuration: widget.audioDuration)
       .problemRowCount;
@@ -86,6 +90,7 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
     paragraphsAtPauses: _paragraphs,
     pauseThreshold: widget.initialOptions.pauseThreshold,
     paragraphGap: widget.initialOptions.paragraphGap,
+    assLeadIn: _assLeadIn ? LyricExportDialog.assLeadIn : Duration.zero,
   );
 
   String _preview() {
@@ -95,8 +100,14 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
       options: _options,
       metadata: widget.metadata,
     );
-    final lines = encoded.split('\n');
+    var lines = encoded.split('\n');
     if (lines.isNotEmpty && lines.last.isEmpty) lines.removeLast();
+    // The ASS script and style header is the same for every song; the
+    // preview starts at the events so the timed rows are what is shown.
+    final events = lines.indexOf('[Events]');
+    if (_format == LyricExportFormat.ass && events > 0) {
+      lines = ['…（已省略脚本信息和样式）', ...lines.sublist(events)];
+    }
     if (lines.length <= LyricExportDialog.previewLines) return lines.join('\n');
     return [
       ...lines.take(LyricExportDialog.previewLines),
@@ -161,7 +172,24 @@ class _LyricExportDialogState extends State<LyricExportDialog> {
               subtitle: const Text('停顿 4 秒以上时空一行'),
             ),
           ),
+        if (_format == LyricExportFormat.ass)
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              key: const ValueKey('lyric_export_ass_lead_in'),
+              contentPadding: EdgeInsets.zero,
+              value: _assLeadIn,
+              onChanged: (value) => setState(() => _assLeadIn = value),
+              title: const Text('提前 1 秒显示下一句'),
+              subtitle: const Text('不早于上一句结束；提前的部分不填色，便于演唱者预读'),
+            ),
+          ),
         const SizedBox(height: AppSpacing.xs),
+        if (_format.syllableTimed)
+          const LyricBatchNote(
+            '逐字时间按每行的开始、结束时间和字数比例估算，不是逐字识别结果；'
+            '长音、拖腔处会有偏差，可在 Aegisub 等工具中细调。',
+          ),
         if (_format.timed && _timelineRows > 0)
           LyricBatchNote(
             '有 $_timelineRows 行时间轴存在问题（重叠、缺结束时间或顺序颠倒），'

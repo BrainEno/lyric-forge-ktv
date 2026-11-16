@@ -196,6 +196,8 @@ void main() {
   test('formats carry their extension and timed flag', () {
     expect(LyricExportFormat.values.map((f) => f.extension), [
       'lrc',
+      'lrc',
+      'ass',
       'srt',
       'vtt',
       'txt',

@@ -296,6 +296,9 @@ void main() {
       expect(find.text('1 个空行不会导出。'), findsOneWidget);
       expect(find.text('导出 .lrc'), findsOneWidget);
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('lyric_export_end_markers')),
+      );
       await tester.tap(find.byKey(const ValueKey('lyric_export_end_markers')));
       await tester.pumpAndSettle();
       expect(preview(tester), isNot(contains('[00:12.000]')));
@@ -305,11 +308,17 @@ void main() {
       tester,
     ) async {
       final result = await open(tester);
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('lyric_export_format_srt')),
+      );
       await tester.tap(find.byKey(const ValueKey('lyric_export_format_srt')));
       await tester.pumpAndSettle();
       expect(preview(tester), contains('00:00:01,000 --> 00:00:03,000'));
       expect(find.text('导出 .srt'), findsOneWidget);
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('lyric_export_format_plainText')),
+      );
       await tester.tap(
         find.byKey(const ValueKey('lyric_export_format_plainText')),
       );
