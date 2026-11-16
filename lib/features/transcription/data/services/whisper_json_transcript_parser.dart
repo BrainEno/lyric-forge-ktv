@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../lyrics/domain/services/lyric_line_structure_service.dart';
+import '../../../lyrics/domain/services/lyric_word_timing_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/transcription_models.dart';
@@ -143,6 +145,7 @@ class WhisperJsonTranscriptParser {
           endTime: Duration(milliseconds: endMilliseconds),
           confidence: score.value,
           confidenceSource: score.source,
+          words: segmentWords(segment, text),
         ),
       );
     }
@@ -193,6 +196,86 @@ class WhisperJsonTranscriptParser {
     }
     return scoreWhisperSegment(segment);
   }
+
+  /// Word timing from the per-token `offsets` that whisper.cpp writes with
+  /// `-ojf`, or an empty list when the tokens cannot be trusted.
+  ///
+  /// Tokens are byte-pair pieces: a token starting with a space starts a new
+  /// word, a Han character, kana or Hangul syllable is a word of its own,
+  /// and punctuation stays with the word before it. Control tokens
+  /// (`[_BEG_]`, `[_TT_…]`) are skipped. A token with broken UTF-8 (a CJK
+  /// character split across tokens decodes to U+FFFD), a token without
+  /// offsets, or words whose sung characters do not add up to the segment
+  /// text drop the word timing of the whole segment, so a wrong grouping
+  /// can never misplace the karaoke sweep.
+  List<LyricWordTiming> segmentWords(Map<String, dynamic> segment, String text) {
+    final tokens = segment['tokens'];
+    if (tokens is! List || tokens.isEmpty) return const [];
+    final words = <({StringBuffer text, int from, int to})>[];
+    for (final raw in tokens) {
+      final token = _asStringMap(raw);
+      if (token == null) return const [];
+      final piece = token['text'];
+      if (piece is! String) return const [];
+      final trimmed = piece.trim();
+      if (trimmed.startsWith('[_') && trimmed.endsWith('_]')) continue;
+      if (piece.isEmpty) continue;
+      if (piece.contains('\uFFFD')) return const [];
+      final offsets = _asStringMap(token['offsets']);
+      final from = offsets?['from'];
+      final to = offsets?['to'];
+      if (from is! num || to is! num || !from.isFinite || !to.isFinite) {
+        return const [];
+      }
+      if (from < 0 || to > maxTimelineMilliseconds) return const [];
+      final start = from.toInt();
+      final end = to.toInt() < start ? start : to.toInt();
+      if (trimmed.isEmpty) continue;
+
+      final first = trimmed.runes.first;
+      final startsWord =
+          words.isEmpty ||
+          piece.startsWith(' ') ||
+          _isSyllabic(first) ||
+          _isSyllabic(words.last.text.toString().runes.last);
+      final punctuationOnly = !trimmed.runes.any(
+        (rune) => _structure.sungWeight(String.fromCharCode(rune)) > 0,
+      );
+      if (startsWord && !(punctuationOnly && words.isNotEmpty)) {
+        words.add((text: StringBuffer(trimmed), from: start, to: end));
+      } else {
+        final last = words.removeLast();
+        last.text.write(trimmed);
+        words.add((
+          text: last.text,
+          from: last.from,
+          to: end > last.to ? end : last.to,
+        ));
+      }
+    }
+    if (words.isEmpty) return const [];
+    final timings = [
+      for (final word in words)
+        LyricWordTiming(
+          text: word.text.toString(),
+          start: Duration(milliseconds: word.from),
+          end: Duration(milliseconds: word.to),
+        ),
+    ];
+    const timing = LyricWordTimingService();
+    final sung = timings.fold<int>(
+      0,
+      (sum, word) => sum + timing.sungCount(word.text),
+    );
+    if (sung == 0 || sung != timing.sungCount(text)) return const [];
+    return List.unmodifiable(timings);
+  }
+
+  static const LyricLineStructureService _structure =
+      LyricLineStructureService();
+
+  static bool _isSyllabic(int rune) =>
+      _structure.sungWeight(String.fromCharCode(rune)) >= 1;
 
   Map<String, dynamic>? _asStringMap(Object? value) {
     if (value is! Map) return null;

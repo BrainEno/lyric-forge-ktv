@@ -23,6 +23,9 @@ enum LyricBatchTextTool {
   /// Re-times rows by pressing a key as each one is sung (打轴).
   tapSync,
 
+  /// Times every sung unit by pressing a key as it is sung (逐字打轴).
+  wordTap,
+
   /// Finds rows sung implausibly fast or slow (语速异常检查).
   paceCheck,
 

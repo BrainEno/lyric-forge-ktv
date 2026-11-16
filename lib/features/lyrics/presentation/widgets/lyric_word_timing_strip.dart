@@ -17,10 +17,19 @@ class LyricWordTimingStrip extends StatelessWidget {
     super.key,
     required this.line,
     this.service = const LyricWordTimingService(),
+    this.onSeek,
+    this.onClear,
   });
 
   final LyricLine line;
   final LyricWordTimingService service;
+
+  /// Seeks the audio to a word's start (lyric timeline); null makes the
+  /// chips display-only.
+  final ValueChanged<Duration>? onSeek;
+
+  /// Removes the row's word timing, so karaoke export estimates it again.
+  final VoidCallback? onClear;
 
   /// A word held at least this long is marked: it is either a long note or
   /// an alignment that swallowed a pause, and worth a listen.
@@ -40,12 +49,23 @@ class LyricWordTimingStrip extends StatelessWidget {
         color: AppColors.textSecondary,
       ),
     );
+    final clear = onClear == null
+        ? null
+        : TextButton(
+            key: const ValueKey('word_timing_clear'),
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            ),
+            child: const Text('清除'),
+          );
     if (words.isEmpty) {
       return Column(
         key: const ValueKey('word_timing_stale'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          label,
+          Row(children: [Expanded(child: label), ?clear]),
           const SizedBox(height: AppSpacing.xs),
           Text(
             staleNote,
@@ -78,6 +98,7 @@ class LyricWordTimingStrip extends StatelessWidget {
                 ),
               ),
             ),
+            ?clear,
           ],
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -90,6 +111,9 @@ class LyricWordTimingStrip extends StatelessWidget {
                 key: ValueKey('word_timing_$index'),
                 word: words[index],
                 long: words[index].end - words[index].start >= longWord,
+                onTap: onSeek == null
+                    ? null
+                    : () => onSeek!(words[index].start),
               ),
           ],
         ),
@@ -107,10 +131,16 @@ class LyricWordTimingStrip extends StatelessWidget {
 }
 
 class _WordChip extends StatelessWidget {
-  const _WordChip({super.key, required this.word, required this.long});
+  const _WordChip({
+    super.key,
+    required this.word,
+    required this.long,
+    this.onTap,
+  });
 
   final LyricWordTiming word;
   final bool long;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +150,9 @@ class _WordChip extends StatelessWidget {
       message:
           '${LyricWordTimingStrip.clock(word.start)} → '
           '${LyricWordTimingStrip.clock(word.end)}'
-          ' · ${seconds.toStringAsFixed(2)} 秒',
-      child: Container(
+          ' · ${seconds.toStringAsFixed(2)} 秒'
+          '${onTap == null ? '' : ' · 点击跳到这里'}',
+      child: _tappable(Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
           vertical: 2,
@@ -147,7 +178,16 @@ class _WordChip extends StatelessWidget {
             ),
           ],
         ),
-      ),
+      )),
+    );
+  }
+
+  Widget _tappable(Widget child) {
+    final tap = onTap;
+    if (tap == null) return child;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: tap, child: child),
     );
   }
 }

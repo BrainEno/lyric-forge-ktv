@@ -39,6 +39,9 @@ class InspectorPane extends StatelessWidget {
   final ValueChanged<int> onPreviewLine;
   final ValueChanged<int> onSetStartFromPlayback;
   final ValueChanged<int> onSetEndFromPlayback;
+
+  /// Seeks the project's audio to an audio position (word timing chips).
+  final ValueChanged<Duration>? onSeekPlayback;
   final bool autofocusText;
   final int focusRequestId;
 
@@ -59,6 +62,7 @@ class InspectorPane extends StatelessWidget {
     required this.onPreviewLine,
     required this.onSetStartFromPlayback,
     required this.onSetEndFromPlayback,
+    this.onSeekPlayback,
     required this.autofocusText,
     required this.focusRequestId,
   });
@@ -99,6 +103,10 @@ class InspectorPane extends StatelessWidget {
       onUsePlaybackAsEnd: playbackBelongsToProject
           ? () => onSetEndFromPlayback(index)
           : null,
+      onSeekToTime: playbackBelongsToProject && onSeekPlayback != null
+          ? (time) =>
+                onSeekPlayback!(time + (document.globalOffset ?? Duration.zero))
+          : null,
     );
   }
 }
@@ -128,6 +136,10 @@ class LineInspector extends StatefulWidget {
   final VoidCallback? onUsePlaybackAsStart;
   final VoidCallback? onUsePlaybackAsEnd;
 
+  /// Seeks the project's audio to a time on the lyric timeline (the caller
+  /// adds the global offset); null when this project is not loaded.
+  final ValueChanged<Duration>? onSeekToTime;
+
   const LineInspector({
     super.key,
     required this.index,
@@ -146,6 +158,7 @@ class LineInspector extends StatefulWidget {
     required this.onPreview,
     this.onUsePlaybackAsStart,
     this.onUsePlaybackAsEnd,
+    this.onSeekToTime,
   });
 
   @override
@@ -372,7 +385,11 @@ class _LineInspectorState extends State<LineInspector> {
           ),
           if (_workingLine.words.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
-            LyricWordTimingStrip(line: _workingLine),
+            LyricWordTimingStrip(
+              line: _workingLine,
+              onSeek: widget.onSeekToTime,
+              onClear: () => _emitUpdate(_workingLine.copyWith(words: const [])),
+            ),
           ],
           if (widget.secondarySuggestion != null && !widget.isReviewed) ...[
             const SizedBox(height: AppSpacing.md),

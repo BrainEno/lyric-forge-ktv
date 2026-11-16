@@ -303,6 +303,11 @@ class LyricEditorContent extends StatelessWidget {
                 onUsePlaybackAsEnd: playbackBelongsToProject
                     ? () => onSetEndFromPlayback(index)
                     : null,
+                onSeekToTime: playbackBelongsToProject
+                    ? (time) => onSeekPlayback(
+                        time + (document.globalOffset ?? Duration.zero),
+                      )
+                    : null,
               ),
             ),
           ),
@@ -434,6 +439,7 @@ class LyricEditorContent extends StatelessWidget {
                   onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
                   onPaceCheck: _batchTool(LyricBatchTextTool.paceCheck),
                   onTapSync: _batchTool(LyricBatchTextTool.tapSync),
+                  onWordTap: _batchTool(LyricBatchTextTool.wordTap),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
@@ -646,6 +652,7 @@ class LyricEditorContent extends StatelessWidget {
                                     onSetStartFromPlayback:
                                         onSetStartFromPlayback,
                                     onSetEndFromPlayback: onSetEndFromPlayback,
+                                    onSeekPlayback: onSeekPlayback,
                                     autofocusText:
                                         selectedIndex != null &&
                                         selectedIndex == focusLineIndex,

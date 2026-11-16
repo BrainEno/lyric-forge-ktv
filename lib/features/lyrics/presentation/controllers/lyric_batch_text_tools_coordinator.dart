@@ -12,6 +12,7 @@ import '../widgets/lyric_tap_sync_dialog.dart';
 import '../widgets/lyric_text_cleanup_dialog.dart';
 import '../widgets/lyric_timeline_repair_dialog.dart';
 import '../widgets/lyric_timing_shift_dialog.dart';
+import '../widgets/lyric_word_tap_dialog.dart';
 import 'lyric_editor_proofreading_coordinator.dart';
 
 /// Runs a batch text tool against a snapshot of the editing document and
@@ -124,7 +125,28 @@ class LyricBatchTextToolsCoordinator {
           ? null
           : (index) => host.previewProofreadLine(project, index),
     ),
-    LyricBatchTextTool.tapSync => _openTapSync(context, project, document),
+    LyricBatchTextTool.tapSync => _openTapSync(
+      context,
+      project,
+      document,
+      (start, transport) => showLyricTapSyncDialog(
+        context,
+        document: document,
+        startIndex: start,
+        transport: transport,
+      ),
+    ),
+    LyricBatchTextTool.wordTap => _openTapSync(
+      context,
+      project,
+      document,
+      (start, transport) => showLyricWordTapDialog(
+        context,
+        document: document,
+        startIndex: start,
+        transport: transport,
+      ),
+    ),
     LyricBatchTextTool.asrLoopCheck => showLyricAsrLoopDialog(
       context,
       document: document,
@@ -135,7 +157,8 @@ class LyricBatchTextToolsCoordinator {
     ),
   };
 
-  /// Tap-to-sync needs this project's audio loaded and free-running: a
+  /// Tap-to-sync (by row or by word) needs this project's audio loaded and
+  /// free-running: a
   /// bounded line audition would stop the song at the row's end. When other
   /// audio (or nothing) is loaded, the selected row's audition loads the
   /// project and is then released and paused, so the dialog opens on a
@@ -144,6 +167,11 @@ class LyricBatchTextToolsCoordinator {
     BuildContext context,
     ProjectManifest project,
     LyricDocument document,
+    Future<LyricBatchTextEdit?> Function(
+      int startIndex,
+      LyricTapSyncTransport transport,
+    )
+    show,
   ) async {
     if (project.audioAsset == null) {
       ScaffoldMessenger.of(
@@ -173,12 +201,7 @@ class LyricBatchTextToolsCoordinator {
       return null;
     }
     if (!context.mounted || !host.proofreadIsMounted) return null;
-    return showLyricTapSyncDialog(
-      context,
-      document: document,
-      startIndex: start,
-      transport: LyricTapSyncTransport.fromAudio(audio),
-    );
+    return show(start, LyricTapSyncTransport.fromAudio(audio));
   }
 
   /// The playhead on [document]'s timeline when this project's audio is

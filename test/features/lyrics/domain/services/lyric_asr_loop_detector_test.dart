@@ -138,7 +138,7 @@ void main() {
       expect(applied.lines.map((l) => l.text), ['啊啊啊啊', '啊啊啊啊']);
     });
 
-    test('a rewritten row keeps its words, which then stop matching', () {
+    test('a rewritten row keeps the word timing of what remains', () {
       final line = LyricLine(
         text: '啊啊啊啊啊啊啊啊',
         startTime: Duration.zero,
@@ -156,12 +156,49 @@ void main() {
       final plan = detector.plan(document);
       final applied = plan.applyTo(document, {0});
       expect(applied.lines.single.text, '啊啊啊啊');
-      expect(applied.lines.single.words, hasLength(8));
+      expect(applied.lines.single.words, hasLength(4));
+      expect(applied.lines.single.words.last.end.inMilliseconds, 2000);
       expect(
         const LyricWordTimingService().isUsable(applied.lines.single),
-        isFalse,
+        isTrue,
       );
     });
+  });
+
+  test('the text around a collapsed run keeps its word timing', () {
+    const text = '我爱你我爱你我爱你我爱你后来';
+    final line = LyricLine(
+      text: text,
+      startTime: Duration.zero,
+      endTime: const Duration(milliseconds: 1400),
+      words: [
+        for (var i = 0; i < text.length; i++)
+          LyricWordTiming(
+            text: text[i],
+            start: Duration(milliseconds: i * 100),
+            end: Duration(milliseconds: i * 100 + 100),
+          ),
+      ],
+    );
+    final issue = detector.plan(LyricDocument(language: 'zh', lines: [line]))
+        .issues
+        .single;
+    final words = LyricAsrLoopPlan.keptWords(
+      line,
+      issue.runs,
+      const LyricWordTimingService(),
+    )!;
+    expect(words.map((w) => w.text).join(), '我爱你我爱你后来');
+    expect(words.last.start.inMilliseconds, 1300);
+    expect(words[5].end.inMilliseconds, 600);
+    expect(
+      LyricAsrLoopPlan.keptWords(
+        line.copyWith(words: const []),
+        issue.runs,
+        const LyricWordTimingService(),
+      ),
+      isNull,
+    );
   });
 
   test('draft health counts loop rows', () {
