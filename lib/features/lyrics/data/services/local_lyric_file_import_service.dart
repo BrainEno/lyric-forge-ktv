@@ -139,6 +139,9 @@ class LocalLyricFileImportService implements LyricFileImportService {
     final offsetText = _lrcMetadata(text, 'offset');
     final offset = int.tryParse(offsetText ?? '') ?? 0;
     final entries = <_TimedText>[];
+    // A timestamp with no text is an end marker: players clear the lyric
+    // there (LyricForge writes them before interludes).
+    final endMarkers = <Duration>[];
     final tagExpression = RegExp(r'\[([^\]]+)\]');
 
     for (final rawLine in text.split('\n')) {
@@ -162,19 +165,27 @@ class LocalLyricFileImportService implements LyricFileImportService {
           .substring(textStart)
           .replaceAll(RegExp(r'<\d+:[^>]+>'), '')
           .trim();
-      if (lyricText.isEmpty) continue;
+      if (lyricText.isEmpty) {
+        endMarkers.addAll(timestamps);
+        continue;
+      }
       for (final timestamp in timestamps) {
         entries.add(_TimedText(timestamp, lyricText));
       }
     }
 
     entries.sort((a, b) => a.start.compareTo(b.start));
+    endMarkers.sort();
     final lines = <LyricLine>[];
     for (var i = 0; i < entries.length; i++) {
       final current = entries[i];
-      var end = i + 1 < entries.length
-          ? entries[i + 1].start
-          : current.start + const Duration(seconds: 5);
+      final nextStart = i + 1 < entries.length ? entries[i + 1].start : null;
+      var end = nextStart ?? current.start + const Duration(seconds: 5);
+      for (final marker in endMarkers) {
+        if (marker <= current.start) continue;
+        if (nextStart == null || marker <= nextStart) end = marker;
+        break;
+      }
       if (end <= current.start) {
         end = current.start + const Duration(milliseconds: 500);
       }
@@ -370,11 +381,20 @@ class LocalLyricFileImportService implements LyricFileImportService {
       final end = _parseSubtitleTimestamp(endToken);
       if (start == null || end == null || end <= start) continue;
 
-      final cueText = rawLines
+      var cueText = rawLines
           .skip(timingIndex + 1)
           .join('\n')
           .replaceAll(RegExp(r'<[^>]+>'), '')
           .trim();
+      if (webVtt) {
+        // WebVTT escapes markup characters; '&amp;' last so '&amp;lt;'
+        // decodes to the literal text '&lt;'.
+        cueText = cueText
+            .replaceAll('&lt;', '<')
+            .replaceAll('&gt;', '>')
+            .replaceAll('&nbsp;', ' ')
+            .replaceAll('&amp;', '&');
+      }
       if (cueText.isEmpty) continue;
       result.add(LyricLine(text: cueText, startTime: start, endTime: end));
     }

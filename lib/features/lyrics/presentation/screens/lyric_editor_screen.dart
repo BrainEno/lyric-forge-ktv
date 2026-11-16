@@ -25,6 +25,7 @@ import '../controllers/lyric_editor_document_controller.dart';
 import '../widgets/chinese_script_unification_dialog.dart';
 import '../controllers/lyric_editor_proofreading_coordinator.dart';
 import '../controllers/lyric_batch_text_tools_coordinator.dart';
+import '../controllers/lyric_export_coordinator.dart';
 import '../lyric_editor_dependencies.dart';
 import '../lyric_review_strings.dart';
 import '../widgets/lyric_editor_atoms.dart';
@@ -64,6 +65,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   late final LyricEditorProofreadingCoordinator _proofreading;
   late final LyricBatchTextToolsCoordinator _batchTools =
       LyricBatchTextToolsCoordinator(host: this);
+  final LyricExportCoordinator _lyricExport = LyricExportCoordinator();
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
   Future<bool>? _saveInFlight;
@@ -376,34 +378,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
     }
   }
 
-  Future<void> _exportLyrics(ProjectManifest project) async {
-    final document = _editingDocument;
-    if (document == null || document.lines.isEmpty) return;
-
-    try {
-      final path = await _exportService.exportLrc(
-        document,
-        suggestedFileName: project.name,
-        title: project.name,
-        artist: project.artist,
-        album: project.album,
-      );
-      if (!mounted || path == null) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('LRC 歌词已导出：$path')));
-    } on LyricExportException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('导出歌词失败：$error')));
-    }
-  }
+  Future<void> _exportLyrics(ProjectManifest project) => _lyricExport.export(
+    context,
+    service: _exportService,
+    project: project,
+    document: _editingDocument,
+  );
 
   Future<void> _openReferenceAlignment(ProjectManifest project) async {
     final document = _editingDocument;

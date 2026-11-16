@@ -1,0 +1,43 @@
+# [2026-11-16 18:00] Add timeline repair, timing shift and multi-format export
+
+- Scope: Give timing proofreading and delivery the same batch-tool treatment as the text tools.
+  - 检查时间轴 (`LyricTimelineRepairPlanner`, preview dialog, proofreading-menu entry and a 时间轴问题 N 行 hint on the recognition summary).
+    - The validator's row-level findings become reviewable repairs. A negative start moves to 0:00. A missing end is estimated from the sung weight (0.35 s per unit, 1–6 s), never past the next start. An end overlapping the next start is trimmed. Gaps under 100 ms are closed. A tail past the audio is clipped.
+    - An out-of-order row is re-slotted after the row above only when it is clearly the culprit (removing it restores its neighbours' order and removing the neighbour would not). Re-slots are not pre-selected; anything ambiguous is listed for manual timing.
+    - Text and row order never change, no repair leaves a row under 0.2 s, and hand-edited rows are skipped. Repaired rows are recorded as `autoRepaired` in `timingProvenance`.
+    - The dialog shows live how many rows still conflict with the current selection.
+  - 平移 / 伸缩时间轴 (`LyricTimingShiftService` plus dialog).
+    - Scope: all rows, from the selected row, or any row range.
+    - Offset mode moves every start and end by the same amount. Two-point mode pins two anchor rows to new starts and maps linearly between them; scales beyond 2× or 0.5×, or reversed anchors, are rejected.
+    - Starts clamp at 0:00 keeping their length, and ends clamp at the audio end. The preview lists the conflicts the shift would introduce and those it would resolve.
+    - The paused playhead can be used as a target time. The time input reads `1:23.45`, `83.45`, `-0.5`, full-width colons and an `s`/`秒` suffix.
+  - Export (`LyricExportEncoder`, pure domain).
+    - Formats: LRC, SRT, WebVTT and plain text, chosen in a dialog that previews the file and warns about timeline problems before a timed export.
+    - Shared cue rules: the global offset is applied, negative times clamp to 0, empty rows are skipped, and cues are stable-sorted by start.
+    - Subtitle cues get a 3 s fallback end and are cut at the next cue's start.
+    - LRC can write end markers (empty timestamps) before pauses of 1.5 s or more and after the last row; the dialog defaults this on. Plain text starts paragraphs at 4 s pauses.
+    - The LRC importer now uses empty timestamps as the previous row's end, and the WebVTT importer unescapes `&lt; &gt; &amp; &nbsp;`, so exports round-trip.
+    - `encodeLrc`/`exportLrc` output is unchanged. The export flow moved out of the editor screen into `LyricExportCoordinator`, which remembers the last format.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_timeline_repair_planner,lyric_timing_shift_service,lyric_export_encoder}.dart`.
+  - New presentation:
+    - `lib/features/lyrics/presentation/widgets/{lyric_timeline_repair_dialog,lyric_timing_shift_dialog,lyric_export_dialog}.dart`
+    - `lib/features/lyrics/presentation/controllers/lyric_export_coordinator.dart`
+  - Changed:
+    - `lyric_file_export_service.dart` (`exportFile`), `local_lyric_file_export_service.dart`, `local_lyric_file_import_service.dart`
+    - `lyric_draft_health_service.dart` (`timelineRows`)
+    - `lyric_batch_text_edit.dart`, `lyric_batch_text_tools_coordinator.dart` (paused playhead)
+    - `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart` (导出歌词 entry), `lyric_editor_content.dart`, `lyric_recognition_summary_card.dart`, `lyric_editor_screen.dart`
+  - Tests:
+    - Planner, shift-service and encoder tests (including LRC/SRT/WebVTT import round trips).
+    - Widget tests for the three dialogs, the export coordinator, the menu entries and the health hint.
+    - Updated toolbar test for the renamed export entry.
+  - Docs: `decisions.md` (D-019), handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions and committed its output; it was deleted before the PR.
+  - Run 43809755770: `dart format` reformatted 9 of the 23 changed files.
+  - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - All 8 targeted test files passed. The full `flutter test` suite had 2477 passed, 2 skipped and 0 failed (main: 2428).
+  - `dart tool/work_log.dart write` and `check` passed.
+  - The editor screen is now 1178 lines (was 1198).
+- Notes: The estimates (0.35 s per sung unit, 1–6 s, 0.2 s minimum, 1.5 s end-marker pause, 4 s paragraph gap) are empirical. The summary hint cannot see the audio length, so tails past the audio are only counted once the tool is opened.
+- Commit: `Add timeline repair, timing shift and multi-format lyric export`

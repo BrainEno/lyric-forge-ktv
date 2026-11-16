@@ -187,6 +187,10 @@ class LyricEditorToolbar extends StatelessWidget {
                   ),
                   onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
                   onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
+                  onTimelineRepair: _batchTool(
+                    LyricBatchTextTool.timelineRepair,
+                  ),
+                  onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,
@@ -277,7 +281,10 @@ class LyricEditorOverflowMenu extends StatelessWidget {
           MenuItemButton(
             onPressed: onExport,
             leadingIcon: const Icon(Icons.download_rounded, size: 18),
-            child: const _OverflowLabel(title: '导出 LRC', detail: '保存为 .lrc 文件'),
+            child: const _OverflowLabel(
+              title: '导出歌词',
+              detail: 'LRC、SRT、WebVTT 或纯文本',
+            ),
           ),
         if (openPlayer != null)
           MenuItemButton(

@@ -427,6 +427,10 @@ class LyricEditorContent extends StatelessWidget {
                   ),
                   onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
                   onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
+                  onTimelineRepair: _batchTool(
+                    LyricBatchTextTool.timelineRepair,
+                  ),
+                  onTimingShift: _batchTool(LyricBatchTextTool.timingShift),
                   onFindReplace: _batchTool(LyricBatchTextTool.findReplace),
                   onViewComparison: onViewAlignmentComparison,
                   onUndoAlignment: onUndoReferenceAlignment,

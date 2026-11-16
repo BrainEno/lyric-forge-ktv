@@ -36,7 +36,8 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
 
   /// One hint per tool that has work to do, in the order worth doing it:
   /// deleting caption rows first (they would otherwise be split or unified),
-  /// then fixing line structure, then unifying repeated lines.
+  /// then fixing line structure, then unifying repeated lines, and timing
+  /// last because the other tools change rows it would otherwise re-time.
   static List<({LyricBatchTextTool tool, String label, String tooltip})>
   healthHints(LyricDraftHealth health) => [
     if (health.captionRows > 0)
@@ -59,6 +60,12 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         tool: LyricBatchTextTool.repetitionConsistency,
         label: '重复句写法不一 ${health.repetitionGroups} 组',
         tooltip: '同一句歌词在不同段落识别成不同写法；打开“重复段落一致性检查”统一',
+      ),
+    if (health.timelineRows > 0)
+      (
+        tool: LyricBatchTextTool.timelineRepair,
+        label: '时间轴问题 ${health.timelineRows} 行',
+        tooltip: '行与行重叠、结束早于开始或时间顺序颠倒；打开“检查时间轴”预览可自动修复的部分',
       ),
   ];
 

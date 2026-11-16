@@ -13,6 +13,12 @@ enum LyricBatchTextTool {
 
   /// Splits over-long rows and merges fragments (整理断行).
   lineStructure,
+
+  /// Repairs overlaps, missing ends and out-of-order starts (检查时间轴).
+  timelineRepair,
+
+  /// Moves or stretches the timestamps of a range of rows (平移/伸缩时间轴).
+  timingShift,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text
