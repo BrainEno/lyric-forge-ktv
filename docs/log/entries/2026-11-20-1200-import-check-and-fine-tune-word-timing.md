@@ -27,6 +27,6 @@
   - Tests: karaoke import and round-trip tests, word timing check and editor tests, widget tests for both dialogs, the strip button, the menu entry and the summary hint.
   - Docs: `decisions.md` (D-023), handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
-  - VALIDATION_PLACEHOLDER
+  - `dart format` changed nothing on the final tree; `flutter analyze` 0 errors/warnings and 186 infos (same as main); targeted tests 73 passed; full suite 2603 passed, 2 skipped, 0 failed; work-log `write` + `check` passed.
 - Notes: Inline square-bracket stamps in LRC text used to stay in the text; they are now read as word timing. Thresholds for the word timing check are empirical.
 - Commit: `Import karaoke word timing, add word timing check and fine-tuning`
