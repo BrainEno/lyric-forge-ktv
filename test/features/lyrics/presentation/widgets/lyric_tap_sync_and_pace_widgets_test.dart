@@ -385,7 +385,9 @@ void main() {
           ),
         )
         .data!;
-    expect(preview(), contains('[Script Info]'));
+    // The fixed script and style header is skipped in the preview.
+    expect(preview(), startsWith('…（已省略脚本信息和样式）\n[Events]'));
+    expect(preview(), isNot(contains('[Script Info]')));
     expect(preview(), contains('{\\k100}{\\kf50}我'));
     expect(find.textContaining('逐字时间按每行'), findsOneWidget);
 

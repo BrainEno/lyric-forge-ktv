@@ -1,0 +1,39 @@
+# [2026-11-17 18:00] Add tap-to-sync, pace check and karaoke export
+
+- Scope: Three proofreading and delivery tools, wired through the batch-tool coordinator so the editor screen does not grow.
+  - 打轴 (`LyricTapSyncSession`, `LyricTapSyncDialog`, proofreading-menu entry).
+    - Starting at the selected row, each Space press (or press on the large pad, read on pointer down) times the current row and advances. The first press while paused only starts playback.
+    - Tap mode ends a row where the next one starts. A gap of more than 8 s counts as an interlude: the row keeps its old length (up to 8 s) or gets a text-based estimate. Hold mode takes press as start and release as end. Enter ends the current row in either mode.
+    - Presses within 120 ms are bounces. A press earlier than the last row means the user went back, so later marks are dropped. Backspace undoes the end first, then the start, and seeks 2 s before the row. ← rewinds 3 s and drops later marks.
+    - Press time is the player's last reported position plus the elapsed time × speed (at most 600 ms of extrapolation). Optional 0/80/150 ms reaction compensation is scaled by speed. Speed can be 0.5×, 0.75× or 1×; the original speed is restored and playback paused when the dialog closes.
+    - Applying is one undoable edit. Timed rows get `manual` timing provenance, an overlapping row above is trimmed, and the untimed rows below can optionally shift by the last row's drift.
+    - When the project audio is not loaded, the selected row's audition loads it, then the audition window is cleared and playback paused, so the song is not stopped at the row end.
+  - 语速异常检查 (`LyricPaceAnalyzer`, dialog, menu entry and a 语速异常 N 行 hint on the recognition summary).
+    - Compares each row's sung units per second with the song median (default 1/0.35 s when fewer than 6 rows qualify, flagged as less reliable). Rows under 3 units are skipped.
+    - Crowded rows (more than 2.2× the median and at least 6/s): the end moves later toward the median duration when the next row leaves room, keeping 100 ms before it.
+    - Sparse rows (under 0.4× the median and at least 2 s longer than the median duration): the end is pulled in to 1.4× the median duration.
+    - Proposals under 300 ms are dropped. Manual-provenance and hand-edited rows are listed without proposals. Applied rows are recorded as `autoRepaired`; text never changes.
+  - Karaoke export (`LyricKaraokeTimingService`, new encoder formats).
+    - Units: Han, kana and Hangul syllables weigh 1 each; Latin words are weighted by vowel groups (at least 1); digits 1 each. Spaces and punctuation ride on the unit before them, or the unit after them at the start of a row. Durations are rounded to 10 ms with the error carried forward, so they sum exactly to the row.
+    - 逐字 LRC: each row keeps `[mm:ss.mmm]` and adds inline `<mm:ss.mmm>` stamps, closing with the row end.
+    - ASS: a 1920×1080 script with one `Karaoke` style and a `\kf` sweep per unit. There is an optional 1 s lead-in (default on) that never starts before the previous row ends and is an unhighlighted `\k`. `{`, `}` and `\` become full-width.
+    - The export dialog says syllable times are estimates. The ASS preview skips the fixed header.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_tap_sync_session,lyric_pace_analyzer,lyric_karaoke_timing_service}.dart`.
+  - New widgets: `lib/features/lyrics/presentation/widgets/{lyric_tap_sync_dialog,lyric_pace_check_dialog}.dart`.
+  - Changed:
+    - `lyric_export_encoder.dart` (`karaokeLrc`, `ass`, `assLeadIn`, shared LRC header)
+    - `lyric_draft_health_service.dart` (`paceRows`)
+    - `lyric_batch_text_edit.dart` (`tapSync`, `paceCheck`), `lyric_batch_text_tools_coordinator.dart`
+    - `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_editor_content.dart`, `lyric_recognition_summary_card.dart`, `lyric_export_dialog.dart`
+  - Tests:
+    - Tap-sync session, pace analyzer and karaoke export tests.
+    - Widget tests for tap-to-sync (keyboard, pad, hold mode, extrapolation, compensation and speed), the pace dialog, the menu entries, the hint and the ASS export preview.
+    - Updated encoder, toolbar and timing-tool tests.
+  - Docs: `decisions.md` (D-020), handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
+  - `dart format` reformatted 4 of the 21 changed files.
+  - `flutter analyze` reported no errors or warnings and 186 infos, the same as main.
+  - The editor screen stays at 1178 lines.
+- Notes: The pace thresholds and tap-sync parameters are empirical and should be calibrated on the #413 corpus. Syllable timing is proportional, so held notes will be off.
+- Commit: `Add tap-to-sync, pace check and karaoke export formats`
