@@ -187,9 +187,11 @@ empty". Runtimes from `asr-runtime-v4` apply
 chunks the same way empty ones are skipped. With older runtimes, LyricForge
 retries once with 180 s chunks, which cut the song at different points.
 
-Measured on CC-licensed songs from JamendoLyrics, with reference line timing,
-30 s chunks kept the word error rate of the old setup and removed most of the
-words placed outside sung lines. The numbers are in the D-024 work log entry.
+Measured on CC-licensed songs from JamendoLyrics with reference line timing,
+this setup had the lowest word error rate of the configurations tried, for both
+model sizes. Dropping the title and artist cut the words placed outside sung
+lines by a quarter or more. The old 2176-token budget had not finished the same
+songs after three hours on CPU. The numbers are in the D-024 work log entry.
 
 Request body:
 

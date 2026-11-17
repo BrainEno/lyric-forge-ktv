@@ -16,24 +16,32 @@
   - Loop check: `LyricAsrLoopKind.repeatedBlock`.
     - It finds a group of 2–4 rows repeated back to back at least three times (strong from four), and keeps two passes.
     - The dialog note reads "N 行一组连续循环 M 遍，删除 K 行", and draft health counts the rows.
-- Experiment: CPU runtime at the pinned revision on GitHub Actions, run 44011875090. It used CC-licensed songs from JamendoLyrics with line-level reference timing (Ridgway, The Rinn, The madpix project, Avercage, Songwriterz, Kinematic), each about four minutes, plus vocal-gated copies of three of them.
+- Experiment: CPU runtime at the pinned revision on GitHub Actions, runs 44011875090 and 44020895878. It used CC-licensed songs from JamendoLyrics with line-level reference timing (Ridgway, The Rinn, The madpix project, Avercage, Songwriterz, Kinematic), each about four minutes, plus vocal-gated copies of three of them: nine runs per configuration.
 
-  | model | config | max_new_tokens | runs | mean WER | words outside sung lines | lines / reference |
+  | model | config | max_new_tokens | runs OK | mean WER | words outside sung lines | lines / reference |
   |---|---|---|---|---|---|---|
-  | 0.6B | 30 s chunks, title/artist context | 368 | 9 | 0.469 | 105 | 283/334 |
-  | 0.6B | 30 s chunks, no context | 368 | 8 | 0.455 | 55 | 245/284 |
-  | 0.6B | 60 s chunks, title/artist context | 608 | 9 | 0.522 | 29 | 215/334 |
-  | 1.7B | 60 s chunks, title/artist context | 608 | 9 | 0.394 | 54 | 310/334 |
+  | 0.6B | 60 s chunks, title/artist context | 608 | 9/9 | 0.522 | 29 | 215/334 |
+  | 0.6B | 30 s chunks, title/artist context | 368 | 9/9 | 0.469 | 105 | 283/334 |
+  | 0.6B | 30 s chunks, no context, unpatched runtime | 368 | 8/9 | 0.455 | 55 | 245/284 |
+  | 0.6B | **final**: 30 s chunks, terms only, skip patch | 368 | 9/9 | **0.444** | 72 | 287/334 |
+  | 1.7B | 60 s chunks, title/artist context | 608 | 9/9 | 0.394 | 54 | 310/334 |
+  | 1.7B | 30 s chunks, title/artist context | 368 | 9/9 | 0.402 | 98 | 310/334 |
+  | 1.7B | **final**: 30 s chunks, terms only, skip patch | 368 | 9/9 | **0.389** | 75 | 308/334 |
 
-  - The 30 s run with context reproduced a loop at 95 s in Avercage ("Just keep burning… Hot, hot, hot…", 939 characters). The new budget keeps it inside one chunk.
-  - Instrumental chunks with context came back as "Embers. Artist: Avercage."
-  - One 30 s run without context hit the "word_list is empty" failure on a 0.54 s tail; this is what the patch and the retry cover.
-  - The old-budget configurations ran more than an hour per model on CPU without finishing (see Notes).
+  - Loops still start inside 30 s chunks; the new budget keeps each one inside its chunk:
+    - The 0.6B model wrote 939 characters at 95 s in Avercage ("Just keep burning… Hot, hot, hot…").
+    - The 1.7B model wrote "never" about 180 times at 209 s, which the runtime's own repetition fix cut to two.
+  - Instrumental chunks with context came back as "Embers. Artist: Avercage."; 60 s chunks drop repeated chorus lines.
+  - The unpatched 0.6B run of Ridgway failed with "word_list is empty" on a 0.54 s tail that decoded to "."; with the patch it succeeds (WER 0.35).
+  - The old-budget configurations (180 s chunks, 2176 tokens per chunk, with and without context) were still running on the same songs after more than three hours per model; the final configuration finished all nine runs in about 35 minutes (0.6B) and 75 minutes (1.7B).
 - Files:
   - New: `lib/features/transcription/domain/models/qwen_recognition_context.dart`, `tool/patches/qwen3-asr-skip-unalignable-chunks.patch`.
   - Changed: `qwen_decode_budget.dart`, `qwen3_asr_native_transcription_service.dart`, `local_project_transcription_workflow.dart`, `independent_project_rerun_service.dart`, `transcription_models.dart` (doc), `lyric_asr_loop_detector.dart`, `lyric_asr_loop_dialog.dart`, `lyric_draft_health_service.dart` (doc), `build-asr-runtime.yml`.
   - Tests: `qwen_decode_budget_test.dart` (rewritten), `qwen_recognition_request_test.dart`, `lyric_asr_block_loop_test.dart`, and a couplet case in `lyric_loop_and_word_timing_widgets_test.dart`.
   - Docs: `decisions.md` (D-024), `high_quality_asr.md` (chunking corrected: timestamped requests use at most 180 s chunks, not 1200 s), `asr_runtime_installation.md`, handoff.
-- Validation: VALIDATION_PENDING
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it and the experiment workflows were deleted before the PR.
+  - `dart format` changed nothing on the final tree; `flutter analyze` 0 errors/warnings and 186 infos (same as main).
+  - Targeted tests: 79 passed. Full suite: 2623 passed, 2 skipped; the one failure was the CI contract test rejecting the temporary experiment workflow, which is not part of the PR.
+  - Work-log `write` + `check` passed.
 - Notes: Word error rates are high for every setup on these mixes; the comparison is relative. The 30 s chunk length and the block thresholds are empirical.
 - Commit: `Fix Qwen chunk loops and detect block loops`
