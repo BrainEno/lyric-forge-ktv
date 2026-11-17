@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../../project/domain/models/project_manifest.dart';
+import '../../domain/services/lyric_span_rerecognition.dart';
 import '../widgets/lyric_asr_loop_dialog.dart';
 import '../widgets/lyric_batch_text_edit.dart';
 import '../widgets/lyric_find_replace_dialog.dart';
 import '../widgets/lyric_missed_repeat_dialog.dart';
 import '../widgets/lyric_pace_check_dialog.dart';
 import '../widgets/lyric_repetition_consistency_dialog.dart';
+import '../widgets/lyric_span_recognition_dialog.dart';
 import '../widgets/lyric_structure_dialog.dart';
 import '../widgets/lyric_tap_sync_dialog.dart';
 import '../widgets/lyric_text_cleanup_dialog.dart';
@@ -25,9 +27,15 @@ import 'lyric_editor_proofreading_coordinator.dart';
 /// tool dialogs build their result from pure domain plans, and this class
 /// only sequences the dialog and the stale-document check.
 class LyricBatchTextToolsCoordinator {
-  const LyricBatchTextToolsCoordinator({required this.host});
+  const LyricBatchTextToolsCoordinator({
+    required this.host,
+    this.spanRecognizer,
+  });
 
   final LyricEditorProofreadFlowHost host;
+
+  /// Runs "re-run this stretch"; null when the app has no local runtime.
+  final LyricSpanRecognizer? spanRecognizer;
 
   static const String staleMessage = '歌词在预览期间已被修改，本次批量更改未应用，请重新打开。';
 
@@ -183,6 +191,12 @@ class LyricBatchTextToolsCoordinator {
           ? null
           : (index) => host.previewProofreadLine(project, index),
     ),
+    LyricBatchTextTool.spanRecognition => _openSpanRecognition(
+      context,
+      project,
+      document,
+      protectedIndices,
+    ),
     LyricBatchTextTool.missedRepeatCheck => showLyricMissedRepeatDialog(
       context,
       document: document,
@@ -197,6 +211,41 @@ class LyricBatchTextToolsCoordinator {
                 _previewSpan(project, document, index, start, end),
     ),
   };
+
+  /// Re-running a stretch needs the project's audio and a local runtime;
+  /// without either the user is told why instead of seeing a dead dialog.
+  Future<LyricBatchTextEdit?> _openSpanRecognition(
+    BuildContext context,
+    ProjectManifest project,
+    LyricDocument document,
+    Set<int> protectedIndices,
+  ) async {
+    final recognizer = spanRecognizer;
+    final unavailable = project.audioAsset == null
+        ? LyricSpanRecognitionStrings.noAudio
+        : recognizer == null
+        ? LyricSpanRecognitionStrings.noRecognizer
+        : null;
+    if (unavailable != null || recognizer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(unavailable ?? LyricSpanRecognitionStrings.noRecognizer),
+        ),
+      );
+      return null;
+    }
+    return showLyricSpanRecognitionDialog(
+      context,
+      document: document,
+      projectId: project.id,
+      recognizer: recognizer,
+      selectedIndex: host.proofreadSelectedLineIndex,
+      protectedIndices: protectedIndices,
+      audioDuration: project.audioAsset?.duration,
+      onPreviewSpan: (index, start, end) =>
+          _previewSpan(project, document, index, start, end),
+    );
+  }
 
   /// Plays an arbitrary stretch of the song, such as the empty stretch after
   /// a chant row, through the bounded line audition. Row [index] only

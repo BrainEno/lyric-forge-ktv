@@ -226,6 +226,74 @@ void main() {
     await responseFuture;
   });
 
+  test('repairs words the aligner could not place instead of failing', () async {
+    // The shape the Qwen3 aligner returns for an unplaced chant: zero-length
+    // words piled on one instant before a stretched word.
+    final responseFuture = server.first.then((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.json
+        ..write(
+          jsonEncode({
+            'items': [
+              {'text': 'whoa', 'start_time': 1.0, 'end_time': 1.0},
+              {'text': 'whoa', 'start_time': 1.0, 'end_time': 1.0},
+              {'text': 'fire', 'start_time': 1.0, 'end_time': 2.5},
+              {'text': 'end', 'start_time': 2.5, 'end_time': 2.8},
+            ],
+          }),
+        );
+      await request.response.close();
+    });
+
+    final spans = await client.align(
+      audioPath: '/tmp/song.wav',
+      text: 'whoa whoa fire end',
+      language: 'English',
+      audioDuration: const Duration(seconds: 3),
+    );
+    await responseFuture;
+
+    expect(spans.map((span) => span.text), ['whoa', 'whoa', 'fire', 'end']);
+    var previousEnd = Duration.zero;
+    for (final span in spans) {
+      expect(span.end, greaterThan(span.start));
+      expect(span.start, greaterThanOrEqualTo(previousEnd));
+      previousEnd = span.end;
+    }
+    expect(spans.first.start, const Duration(seconds: 1));
+    expect(spans[2].end, const Duration(milliseconds: 2500));
+  });
+
+  test('still rejects an end before its start', () async {
+    final responseFuture = server.first.then((request) async {
+      await utf8.decoder.bind(request).join();
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.json
+        ..write(
+          jsonEncode({
+            'items': [
+              {'text': 'back', 'start_time': 1.0, 'end_time': 0.5},
+            ],
+          }),
+        );
+      await request.response.close();
+    });
+
+    await expectLater(
+      client.align(
+        audioPath: '/tmp/song.wav',
+        text: 'back',
+        language: 'English',
+        audioDuration: const Duration(seconds: 3),
+      ),
+      throwsA(isA<ForcedAlignmentException>()),
+    );
+    await responseFuture;
+  });
+
   test('rejects blank input before making a request', () async {
     await expectLater(
       client.align(

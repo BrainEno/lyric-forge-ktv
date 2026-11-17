@@ -163,4 +163,55 @@ void main() {
     expect(result.words[0].end, _ms(1200));
     expect(result.words[1].end, _ms(2400));
   });
+
+  group('repairToTimedSpans', () {
+    test('spreads a pile so every span has a length', () {
+      final spans = repair.repairToTimedSpans([
+        _w('whoa', 1000, 1000),
+        _w('whoa', 1000, 1000),
+        _w('fire', 1000, 2500),
+        _w('end', 2500, 2800),
+      ]);
+      expect(_texts(spans), ['whoa', 'whoa', 'fire', 'end']);
+      for (final span in spans) {
+        expect(span.end, greaterThan(span.start));
+      }
+      expect(spans[1].start, spans[0].end);
+    });
+
+    test('merges words left without room into the previous word', () {
+      final spans = repair.repairToTimedSpans([
+        _w('a', 1000, 1500),
+        _w('b', 1500, 1500),
+        _w('c', 1500, 1500),
+      ], limit: _ms(1500));
+      expect(spans, [_w('a b c', 1000, 1500)]);
+    });
+
+    test('merges a leading word without room into the next word', () {
+      const strict = AlignerWordTimingRepair(
+        minWordLength: Duration.zero,
+        fallbackWordLength: Duration.zero,
+      );
+      final spans = strict.repairToTimedSpans([
+        _w('x', 1000, 1000),
+        _w('y', 1100, 1500),
+      ]);
+      expect(spans, [_w('x y', 1100, 1500)]);
+    });
+
+    test('clamps spans to the limit', () {
+      final spans = repair.repairToTimedSpans([
+        _w('last', 2000, 2000),
+      ], limit: _ms(2200));
+      expect(spans, [_w('last', 2000, 2200)]);
+    });
+
+    test('is empty only when no word can have a length', () {
+      expect(
+        repair.repairToTimedSpans([_w('x', 2000, 2000)], limit: _ms(2000)),
+        isEmpty,
+      );
+    });
+  });
 }

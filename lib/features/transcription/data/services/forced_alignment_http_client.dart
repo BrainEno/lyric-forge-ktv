@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
+import '../../domain/models/aligner_word_timing_repair.dart';
 
 /// Signs one alignment request and checks the matching response.
 ///
@@ -41,6 +42,9 @@ class ForcedAlignmentHttpClient {
   final HttpClient _httpClient;
   final Duration requestTimeout;
   final ForcedAlignmentRequestAuthenticator? _authenticator;
+
+  /// Gives words the aligner could not place a usable span.
+  final AlignerWordTimingRepair repair;
   HttpClientRequest? _activeRequest;
 
   ForcedAlignmentHttpClient({
@@ -48,6 +52,7 @@ class ForcedAlignmentHttpClient {
     HttpClient? httpClient,
     this.requestTimeout = const Duration(minutes: 5),
     ForcedAlignmentRequestAuthenticator? authenticator,
+    this.repair = const AlignerWordTimingRepair(),
   }) : _httpClient = httpClient ?? HttpClient(),
        _authenticator = authenticator {
     if (endpoint.scheme != 'http' && endpoint.scheme != 'https') {
@@ -76,6 +81,13 @@ class ForcedAlignmentHttpClient {
   /// may be `{items: [...]}` or `{results: [{items: [...] }]}`, matching the
   /// official Qwen result shape. Each item must expose text, start_time and
   /// end_time in seconds.
+  ///
+  /// An item may have no length (end equal to start): the Qwen aligner
+  /// returns words it could not place that way, typically a repeated chant.
+  /// They used to fail the whole request, which made reference alignment
+  /// unusable on exactly the songs that need it. They are now repaired by
+  /// [AlignerWordTimingRepair.repairToTimedSpans], so every returned span has
+  /// a length and no text is lost.
   Future<List<ForcedAlignedSpan>> align({
     required String audioPath,
     required String text,
@@ -157,7 +169,7 @@ class ForcedAlignmentHttpClient {
         );
       }
 
-      final spans = <ForcedAlignedSpan>[];
+      final words = <AlignedWord>[];
       var previousStart = Duration.zero;
       for (var index = 0; index < items.length; index++) {
         final item = items[index];
@@ -177,9 +189,9 @@ class ForcedAlignmentHttpClient {
             'Aligned span $index has invalid timestamps.',
           );
         }
-        if (startSeconds < 0 || endSeconds <= startSeconds) {
+        if (startSeconds < 0 || endSeconds < startSeconds) {
           throw ForcedAlignmentException(
-            'Aligned span $index has a negative or empty interval.',
+            'Aligned span $index has a negative interval.',
           );
         }
         final start = Duration(microseconds: (startSeconds * 1000000).round());
@@ -194,10 +206,19 @@ class ForcedAlignmentHttpClient {
             'Aligned span $index exceeds the audio duration.',
           );
         }
-        spans.add(ForcedAlignedSpan(text: spanText, start: start, end: end));
+        words.add(AlignedWord(text: spanText, start: start, end: end));
         previousStart = start;
       }
-      return List.unmodifiable(spans);
+      final repaired = repair.repairToTimedSpans(words, limit: audioDuration);
+      if (repaired.isEmpty) {
+        throw const ForcedAlignmentException(
+          'Forced-alignment endpoint returned no span with a length.',
+        );
+      }
+      return List.unmodifiable([
+        for (final word in repaired)
+          ForcedAlignedSpan(text: word.text, start: word.start, end: word.end),
+      ]);
     } on TimeoutException catch (error) {
       final activeRequest = _activeRequest;
       if (activeRequest != null) {

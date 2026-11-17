@@ -156,6 +156,67 @@ class AlignerWordTimingRepair {
     );
   }
 
+  /// Repairs [input] for consumers that need every span to have a length,
+  /// such as the reference-alignment planners.
+  ///
+  /// [repair] runs first, so a cluster of unplaced words is spread out
+  /// wherever there is room. Spans are then clamped to [limit] (the audio
+  /// duration) when given. A word that is still without length is merged
+  /// into the previous word with length — its text joined with a space, its
+  /// time unchanged — or into the next one at the very start. Text is never
+  /// dropped unless no word has a length at all, when the result is empty.
+  ///
+  /// Merging keeps the words' order and their text when whitespace is
+  /// ignored, which is how the alignment planners compare text.
+  List<AlignedWord> repairToTimedSpans(
+    List<AlignedWord> input, {
+    Duration? limit,
+  }) {
+    final repaired = [
+      for (final word in repair(input).words)
+        if (limit != null && word.end > limit)
+          AlignedWord(
+            text: word.text,
+            start: word.start > limit ? limit : word.start,
+            end: limit,
+          )
+        else
+          word,
+    ];
+    final result = <AlignedWord>[];
+    final pending = <String>[];
+    for (final word in repaired) {
+      if (word.end - word.start <= Duration.zero) {
+        if (result.isEmpty) {
+          pending.add(word.text.trim());
+        } else {
+          final previous = result.removeLast();
+          result.add(
+            AlignedWord(
+              text: '${previous.text} ${word.text.trim()}',
+              start: previous.start,
+              end: previous.end,
+            ),
+          );
+        }
+        continue;
+      }
+      if (pending.isNotEmpty) {
+        result.add(
+          AlignedWord(
+            text: [...pending, word.text.trim()].join(' '),
+            start: word.start,
+            end: word.end,
+          ),
+        );
+        pending.clear();
+      } else {
+        result.add(word);
+      }
+    }
+    return List.unmodifiable(result);
+  }
+
   List<AlignedWord> _spread(
     List<AlignedWord> cluster,
     Duration start,
