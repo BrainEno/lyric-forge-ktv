@@ -1,0 +1,46 @@
+name: tmp asr collect
+
+on:
+  push:
+    branches: [arena/10228596-lyric-forge-ktv]
+    paths:
+      - ".ci-trigger/**"
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read run id
+        id: rid
+        run: echo "id=$(cat .ci-trigger/run-id)" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          path: results
+          run-id: ${{ steps.rid.outputs.id }}
+          github-token: ${{ github.token }}
+      - name: Songs metadata
+        run: |
+          mkdir -p songs
+          for n in Ridgway_-_Fire_Inside Avercage_-_Embers The_Rinn_-_Voices__2017_Version_ The.madpix.project_-_One_Way_Street Songwriterz_-_Back_In_Time Kinematic_-_Peyote; do
+            curl -sSfL "https://raw.githubusercontent.com/f90/jamendolyrics/master/annotations/lines/$n.csv" -o "songs/$n.csv"
+          done
+          cp songs/*.csv results/ 2>/dev/null || true
+      - name: Report
+        run: |
+          mkdir -p .ci-tmp/asr-partial
+          python3 .github/tmp-asr-exp/report.py songs results .ci-tmp/asr-partial/report.md
+          rm -rf .ci-tmp/asr-partial/raw && cp -r results .ci-tmp/asr-partial/raw
+      - name: Commit
+        run: |
+          git config user.name ci-bot
+          git config user.email ci-bot@users.noreply.github.com
+          git add .ci-tmp
+          git commit -m "ci: partial asr results" || true
+          git pull --rebase -q origin ${GITHUB_REF_NAME} || true
+          git push origin HEAD:${GITHUB_REF_NAME}
