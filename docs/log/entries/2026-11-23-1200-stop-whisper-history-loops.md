@@ -14,6 +14,9 @@
   - Tests: new `asr_segment_loop_detector_test.dart`, `whisper_loop_recovery_test.dart`, `whisper_loop_arbiter_test.dart`, `whisper_loop_fixtures.dart`, `whisper_loop_recovery_service_test.dart`, `whisper_loop_fusion_test.dart`; updated `whisper_decoding_policy_test.dart`, `whisper_cpp_decoding_profile_test.dart` and the profile ids in three lyrics/fusion tests.
   - Docs: `decisions.md` (D-027), `high_quality_asr.md`, `local_transcription.md`, handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR. The experiment workflow and its results were deleted as well.
+  - Run 44056944598: `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 220 passed. Full suite: 2758 passed, 2 skipped, 0 failed (before this change: 2712).
+  - Work-log `write` + `check` passed.
 - Notes:
   - Without history Whisper still hallucinates caption and credit lines over long instrumentals (seen on Avercage); the clean-up tool and proofreading handle those.
   - Thresholds come from six songs and synthetic fixtures; #413's corpus should recalibrate them.
