@@ -172,43 +172,46 @@ void main() {
     }
   }
 
-  test('re-decodes a looped span without text history and splices it in', () async {
-    final fake = _LoopingWhisper(redecode: _cleanRedecode());
-    final result = await run(fake);
+  test(
+    're-decodes a looped span without text history and splices it in',
+    () async {
+      final fake = _LoopingWhisper(redecode: _cleanRedecode());
+      final result = await run(fake);
 
-    final call = fake.redecodeCalls.single;
-    expect(call[call.indexOf('--offset-t') + 1], '89280');
-    expect(call[call.indexOf('--duration') + 1], '${117360 - 89280}');
-    expect(call[call.indexOf('--max-context') + 1], '0');
-    // The standard profile sends no lyric-only flags, so neither does its
-    // re-decode.
-    expect(call, isNot(contains('--suppress-nst')));
-    expect(call, isNot(contains('--prompt')));
-    // The clip reuses the language the full-song pass detected.
-    expect(call[call.indexOf('-l') + 1], 'en');
-    expect(call[call.indexOf('-of') + 1], endsWith('whisper_result.loop0'));
+      final call = fake.redecodeCalls.single;
+      expect(call[call.indexOf('--offset-t') + 1], '89280');
+      expect(call[call.indexOf('--duration') + 1], '${117360 - 89280}');
+      expect(call[call.indexOf('--max-context') + 1], '0');
+      // The standard profile sends no lyric-only flags, so neither does its
+      // re-decode.
+      expect(call, isNot(contains('--suppress-nst')));
+      expect(call, isNot(contains('--prompt')));
+      // The clip reuses the language the full-song pass detected.
+      expect(call[call.indexOf('-l') + 1], 'en');
+      expect(call[call.indexOf('-of') + 1], endsWith('whisper_result.loop0'));
 
-    final texts = result.lyrics.lines.map((line) => line.text).toList();
-    expect(texts.where((text) => text == loopVerse), isEmpty);
-    expect(texts, contains('Oh, but the people you know'));
-    expect(result.lyrics.lines, hasLength(4 + 5 + 2));
-    expect(result.lyrics.metadata['segmentCount'], 11);
-    // Re-decoded rows are genuine Whisper output with Whisper's own scores.
-    expect(
-      result.lyrics.lines[4].confidenceSource,
-      isNot(LyricConfidenceSource.heuristic),
-    );
+      final texts = result.lyrics.lines.map((line) => line.text).toList();
+      expect(texts.where((text) => text == loopVerse), isEmpty);
+      expect(texts, contains('Oh, but the people you know'));
+      expect(result.lyrics.lines, hasLength(4 + 5 + 2));
+      expect(result.lyrics.metadata['segmentCount'], 11);
+      // Re-decoded rows are genuine Whisper output with Whisper's own scores.
+      expect(
+        result.lyrics.lines[4].confidenceSource,
+        isNot(LyricConfidenceSource.heuristic),
+      );
 
-    final report =
-        result.lyrics.metadata[kWhisperLoopRecoveryMetadataKey] as Map;
-    expect(report['policy'], WhisperLoopRecoveryPolicy.id);
-    expect(report['status'], 'all_regions_replaced');
-    expect(report['language'], 'en');
-    final region = (report['regions'] as List).single as Map;
-    expect(region['outcome'], 'replaced');
-    expect(region['insertedCount'], 5);
-    expect((report['detectedLoops'] as List).single['repeats'], 11);
-  });
+      final report =
+          result.lyrics.metadata[kWhisperLoopRecoveryMetadataKey] as Map;
+      expect(report['policy'], WhisperLoopRecoveryPolicy.id);
+      expect(report['status'], 'all_regions_replaced');
+      expect(report['language'], 'en');
+      final region = (report['regions'] as List).single as Map;
+      expect(region['outcome'], 'replaced');
+      expect(region['insertedCount'], 5);
+      expect((report['detectedLoops'] as List).single['repeats'], 11);
+    },
+  );
 
   test('keeps the first pass when the history-free decode loops too', () async {
     final fake = _LoopingWhisper(

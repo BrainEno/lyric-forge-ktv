@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-16 18:00] Add timeline repair, timing shift and multi-format export ([entry](log/entries/2026-11-16-1800-add-timing-tools-and-export-formats.md))
 - [2026-11-16 12:30] Add line split/merge editing and the line-structure tool ([entry](log/entries/2026-11-16-1230-add-line-structure-editing.md))
 - [2026-11-16 09:00] Add batch proofreading tools ([entry](log/entries/2026-11-16-0900-add-batch-proofreading-tools.md))
 - [2026-11-15 21:00] Add diagnostics, crash capture and operation timings ([entry](log/entries/2026-11-15-2100-add-diagnostics-logging-and-timings.md))

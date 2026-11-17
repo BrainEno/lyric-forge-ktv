@@ -92,12 +92,18 @@ void main() {
     expect(_count(document, loopVerse), 0);
     expect(_count(document, loopChant), 0);
     expect(
-      _count(document, 'Oh, but the people you know, they say what they want to'),
+      _count(
+        document,
+        'Oh, but the people you know, they say what they want to',
+      ),
       1,
     );
     // Qwen rows standing in for the loop are not inserted a second time.
     expect(
-      _count(document, 'Oh, and the lanterns that you hold, we never mean to fold'),
+      _count(
+        document,
+        'Oh, and the lanterns that you hold, we never mean to fold',
+      ),
       1,
     );
     expect(document.lines, hasLength(11));
@@ -126,42 +132,47 @@ void main() {
     expect(SecondaryOnlySuggestion.resolve(document), isEmpty);
   });
 
-  test('Qwen-primary: Whisper\'s loop no longer floods the suggestions', () async {
-    final document = await _fuse(
-      directory,
-      qwen: _Fake(_result(qwenOverLoopedSong())),
-      whisper: _Fake(_result(whisperLoopedSong())),
-      order: TranscriptionEngineOrder.qwenPrimary,
-    );
+  test(
+    'Qwen-primary: Whisper\'s loop no longer floods the suggestions',
+    () async {
+      final document = await _fuse(
+        directory,
+        qwen: _Fake(_result(qwenOverLoopedSong())),
+        whisper: _Fake(_result(whisperLoopedSong())),
+        order: TranscriptionEngineOrder.qwenPrimary,
+      );
 
-    expect(_count(document, loopVerse), 0);
-    expect(document.lines, hasLength(qwenOverLoopedSong().length + 1));
-    final arbitration =
-        document.metadata[HighQualityTranscriptionService
-                .whisperLoopArbitrationKey]
-            as List;
-    expect((arbitration.single as Map)['verdict'], 'replacedBySecondary');
-  });
+      expect(_count(document, loopVerse), 0);
+      expect(document.lines, hasLength(qwenOverLoopedSong().length + 1));
+      final arbitration =
+          document.metadata[HighQualityTranscriptionService
+                  .whisperLoopArbitrationKey]
+              as List;
+      expect((arbitration.single as Map)['verdict'], 'replacedBySecondary');
+    },
+  );
 
-  test('Qwen second opinion failed: a strong loop is cut down and flagged', () async {
-    final document = await _fuse(
-      directory,
-      qwen: _Failing(),
-      whisper: _Fake(_result(whisperLoopedSong())),
-      order: TranscriptionEngineOrder.whisperPrimary,
-    );
+  test(
+    'Qwen second opinion failed: a strong loop is cut down and flagged',
+    () async {
+      final document = await _fuse(
+        directory,
+        qwen: _Failing(),
+        whisper: _Fake(_result(whisperLoopedSong())),
+        order: TranscriptionEngineOrder.whisperPrimary,
+      );
 
-    expect(_count(document, loopVerse), 1);
-    expect(document.lines, hasLength(whisperLoopedSong().length - 20));
-    final candidates = _candidates(document);
-    expect(candidates, hasLength(2));
-    expect(
-      candidates.map((candidate) => candidate['reason']).toSet(),
-      {'whisper_cross_segment_loop_collapsed'},
-    );
-    expect(document.metadata['fallbackCandidateCount'], 2);
-    expect(document.metadata['fallbackStatus'], 'failed');
-  });
+      expect(_count(document, loopVerse), 1);
+      expect(document.lines, hasLength(whisperLoopedSong().length - 20));
+      final candidates = _candidates(document);
+      expect(candidates, hasLength(2));
+      expect(candidates.map((candidate) => candidate['reason']).toSet(), {
+        'whisper_cross_segment_loop_collapsed',
+      });
+      expect(document.metadata['fallbackCandidateCount'], 2);
+      expect(document.metadata['fallbackStatus'], 'failed');
+    },
+  );
 
   test('a sung repetition both engines hear stays as it is', () async {
     final whisper = [

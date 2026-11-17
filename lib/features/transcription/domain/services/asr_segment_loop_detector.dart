@@ -267,7 +267,9 @@ class AsrSegmentLoopDetector {
       end: loopEnd,
       implausibleRateRows: implausible,
       compressedTiming: compressed,
-      unitKeys: List.unmodifiable(keys.sublist(firstIndex, firstIndex + blockRows)),
+      unitKeys: List.unmodifiable(
+        keys.sublist(firstIndex, firstIndex + blockRows),
+      ),
       unitText: List.unmodifiable([
         for (var i = firstIndex; i < firstIndex + blockRows; i++)
           lines[i].text.trim(),

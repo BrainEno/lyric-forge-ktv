@@ -197,7 +197,11 @@ class WhisperLoopArbiter {
             sources.add(i);
           }
         case WhisperLoopVerdict.collapsedUnverified:
-          for (var i = loop.firstIndex; i < loop.firstIndex + loop.blockRows; i++) {
+          for (
+            var i = loop.firstIndex;
+            i < loop.firstIndex + loop.blockRows;
+            i++
+          ) {
             reviewRows.add(
               WhisperLoopReviewRow(
                 lineIndex: lines.length,

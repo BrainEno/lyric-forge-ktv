@@ -130,8 +130,7 @@ class WhisperLoopRecoveryPolicy {
 
     final regions = <WhisperLoopRegion>[];
     for (final loop in strong) {
-      if (regions.isNotEmpty &&
-          loop.spanStart - regions.last.end <= mergeGap) {
+      if (regions.isNotEmpty && loop.spanStart - regions.last.end <= mergeGap) {
         final previous = regions.removeLast();
         regions.add(
           WhisperLoopRegion(
@@ -217,8 +216,7 @@ class WhisperLoopRecoveryPolicy {
           lines[index],
       ...inside,
       for (var index = 0; index < lines.length; index++)
-        if (!replaced.contains(index) &&
-            lines[index].startTime >= region.start)
+        if (!replaced.contains(index) && lines[index].startTime >= region.start)
           lines[index],
     ];
     return WhisperLoopSplice(

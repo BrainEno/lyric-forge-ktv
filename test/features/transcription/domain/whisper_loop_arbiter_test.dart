@@ -47,7 +47,19 @@ void main() {
         'What they say, oh, the truth is we never care',
         'And that is quite enough of that',
       ]);
-      expect(result.sourceIndices, [0, 1, 2, 3, null, null, null, null, null, 32, 33]);
+      expect(result.sourceIndices, [
+        0,
+        1,
+        2,
+        3,
+        null,
+        null,
+        null,
+        null,
+        null,
+        32,
+        33,
+      ]);
 
       // Every inserted row is queued with the looped text it replaced.
       expect(result.reviewRows.map((row) => row.lineIndex), [4, 5, 6, 7, 8]);
@@ -95,7 +107,11 @@ void main() {
       final whisper = whisperLoopedSong();
       final qwen = [
         for (var i = 0; i < 8; i++)
-          loopLine('Now you never look back', 90000 + i * 3000, 93000 + i * 3000),
+          loopLine(
+            'Now you never look back',
+            90000 + i * 3000,
+            93000 + i * 3000,
+          ),
       ];
       final result = arbiter.arbitrate(primary: whisper, secondary: qwen);
       final decision = result.decisions.single;
@@ -194,21 +210,22 @@ void main() {
       ];
       final result = arbiter.arbitrate(primary: whisper);
       expect(result.decisions.single.verdict, WhisperLoopVerdict.flaggedOnly);
-      expect(result.decisions.single.reason, 'whisper_cross_segment_repetition');
+      expect(
+        result.decisions.single.reason,
+        'whisper_cross_segment_repetition',
+      );
       expect(result.lines, whisper);
       expect(result.reviewRows.single.lineIndex, 0);
     });
   });
 
   test('heardRepeats counts exact occurrences and close rows', () {
-    final loop = const AsrSegmentLoopDetector()
-        .detect([
-          for (var i = 0; i < 4; i++) ...[
-            loopLine('hold the line', i * 4000, i * 4000 + 2000),
-            loopLine('never let it go', i * 4000 + 2000, i * 4000 + 4000),
-          ],
-        ])
-        .single;
+    final loop = const AsrSegmentLoopDetector().detect([
+      for (var i = 0; i < 4; i++) ...[
+        loopLine('hold the line', i * 4000, i * 4000 + 2000),
+        loopLine('never let it go', i * 4000 + 2000, i * 4000 + 4000),
+      ],
+    ]).single;
     expect(
       WhisperLoopArbiter.heardRepeats(loop, [
         loopLine('Hold the line, never let it go. Hold the line!', 0, 8000),

@@ -26,7 +26,11 @@ void main() {
     });
 
     test('tokens keep repeats for counting', () {
-      expect(AsrSegmentLoopDetector.tokens('Hey hey, HEY'), ['hey', 'hey', 'hey']);
+      expect(AsrSegmentLoopDetector.tokens('Hey hey, HEY'), [
+        'hey',
+        'hey',
+        'hey',
+      ]);
     });
   });
 
@@ -81,7 +85,11 @@ void main() {
       final rows = [
         loopLine('first line of the verse', 0, 3000),
         for (var i = 0; i < 6; i++)
-          loopLine('I keep falling down again', 3000 + i * 3000, 6000 + i * 3000),
+          loopLine(
+            'I keep falling down again',
+            3000 + i * 3000,
+            6000 + i * 3000,
+          ),
         loopLine('the bridge begins', 21000, 24000),
       ];
       final loop = detector.detect(rows).single;
@@ -109,7 +117,8 @@ void main() {
 
     test('a periodic block is reported at its smallest size', () {
       final rows = [
-        for (var i = 0; i < 8; i++) loopLine('na na na', i * 1000, i * 1000 + 900),
+        for (var i = 0; i < 8; i++)
+          loopLine('na na na', i * 1000, i * 1000 + 900),
       ];
       final loop = detector.detect(rows).single;
       expect(loop.blockRows, 1);

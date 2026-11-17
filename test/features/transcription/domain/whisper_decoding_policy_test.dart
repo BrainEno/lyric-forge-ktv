@@ -93,21 +93,24 @@ void main() {
       expect(plan.requestedProfile.id, 'whisper-standard-v1');
     });
 
-    test('lyrics profile switches the text history off and sends no prompt', () {
-      final plan = policy.plan(
-        profile: WhisperDecodingProfile.lyrics,
-        hints: hints,
-        language: 'en',
-        capabilities: full,
-      );
-      expect(plan.extraArguments, ['--suppress-nst', '--max-context', '0']);
-      expect(plan.disablesTextHistory, isTrue);
-      expect(plan.prompt, isNull);
-      expect(plan.promptSources, isEmpty);
-      expect(plan.effectiveProfile, WhisperDecodingProfile.lyrics);
-      expect(plan.effectiveProfile.id, 'whisper-lyrics-v2');
-      expect(plan.omittedFlags, isEmpty);
-    });
+    test(
+      'lyrics profile switches the text history off and sends no prompt',
+      () {
+        final plan = policy.plan(
+          profile: WhisperDecodingProfile.lyrics,
+          hints: hints,
+          language: 'en',
+          capabilities: full,
+        );
+        expect(plan.extraArguments, ['--suppress-nst', '--max-context', '0']);
+        expect(plan.disablesTextHistory, isTrue);
+        expect(plan.prompt, isNull);
+        expect(plan.promptSources, isEmpty);
+        expect(plan.effectiveProfile, WhisperDecodingProfile.lyrics);
+        expect(plan.effectiveProfile.id, 'whisper-lyrics-v2');
+        expect(plan.omittedFlags, isEmpty);
+      },
+    );
 
     test('never uses carry-initial-prompt even when advertised', () {
       final plan = policy.plan(

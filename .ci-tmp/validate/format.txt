@@ -1,0 +1,12 @@
+Formatted lib/features/transcription/domain/services/asr_segment_loop_detector.dart
+Formatted lib/features/transcription/domain/services/whisper_loop_arbiter.dart
+Formatted lib/features/transcription/domain/services/whisper_loop_recovery.dart
+Formatted test/features/transcription/domain/asr_segment_loop_detector_test.dart
+Formatted test/features/transcription/domain/whisper_decoding_policy_test.dart
+Formatted test/features/transcription/domain/whisper_loop_arbiter_test.dart
+Formatted test/features/transcription/domain/whisper_loop_fixtures.dart
+Formatted test/features/transcription/domain/whisper_loop_recovery_test.dart
+Formatted test/features/transcription/whisper_cpp_decoding_profile_test.dart
+Formatted test/features/transcription/whisper_loop_fusion_test.dart
+Formatted test/features/transcription/whisper_loop_recovery_service_test.dart
+Formatted 21 files (11 changed) in 0.13 seconds.

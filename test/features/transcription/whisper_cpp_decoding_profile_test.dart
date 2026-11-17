@@ -200,39 +200,43 @@ void main() {
     (args) => !(args.length == 1 && args[0] == '-h'),
   );
 
-  test('lyrics profile switches the text history off and sends no prompt', () async {
-    final fake = _FakeWhisper();
-    final result = await service(fake).transcribe(request());
+  test(
+    'lyrics profile switches the text history off and sends no prompt',
+    () async {
+      final fake = _FakeWhisper();
+      final result = await service(fake).transcribe(request());
 
-    final args = recognitionArgs(fake);
-    expect(args, [
-      '-m',
-      model,
-      '-f',
-      wav,
-      '-l',
-      'en',
-      '-ojf',
-      '-of',
-      '${root.path}/out/whisper_result',
-      '-pp',
-      '--suppress-nst',
-      '--max-context',
-      '0',
-    ]);
+      final args = recognitionArgs(fake);
+      expect(args, [
+        '-m',
+        model,
+        '-f',
+        wav,
+        '-l',
+        'en',
+        '-ojf',
+        '-of',
+        '${root.path}/out/whisper_result',
+        '-pp',
+        '--suppress-nst',
+        '--max-context',
+        '0',
+      ]);
 
-    final decoding = result.lyrics.metadata[kWhisperDecodingMetadataKey] as Map;
-    expect(decoding['requestedProfile'], 'whisper-lyrics-v2');
-    expect(decoding['effectiveProfile'], 'whisper-lyrics-v2');
-    expect(decoding.containsKey('promptTransport'), isFalse);
-    expect(decoding['promptSources'], isEmpty);
-    expect(decoding['promptRunes'], 0);
-    expect(decoding.containsKey('fallbackReason'), isFalse);
-    expect(result.lyrics.lines.map((line) => line.text), [
-      'first line here',
-      'second line here',
-    ]);
-  });
+      final decoding =
+          result.lyrics.metadata[kWhisperDecodingMetadataKey] as Map;
+      expect(decoding['requestedProfile'], 'whisper-lyrics-v2');
+      expect(decoding['effectiveProfile'], 'whisper-lyrics-v2');
+      expect(decoding.containsKey('promptTransport'), isFalse);
+      expect(decoding['promptSources'], isEmpty);
+      expect(decoding['promptRunes'], 0);
+      expect(decoding.containsKey('fallbackReason'), isFalse);
+      expect(result.lyrics.lines.map((line) => line.text), [
+        'first line here',
+        'second line here',
+      ]);
+    },
+  );
 
   test('a plan carrying a prompt sends and records it', () async {
     final fake = _FakeWhisper();
@@ -242,7 +246,10 @@ void main() {
     ).transcribe(request());
 
     final args = recognitionArgs(fake);
-    expect(args[args.indexOf('--prompt') + 1], 'Song: Neon Harbor. Artist: Mira.');
+    expect(
+      args[args.indexOf('--prompt') + 1],
+      'Song: Neon Harbor. Artist: Mira.',
+    );
     final decoding = result.lyrics.metadata[kWhisperDecodingMetadataKey] as Map;
     expect(decoding['promptTransport'], 'argv');
     expect(decoding['promptSources'], ['title', 'artist']);
@@ -339,16 +346,17 @@ void main() {
   group('Windows transport', () {
     test('a CJK prompt goes through a UTF-8 response file', () async {
       final fake = _FakeWhisper();
-      final result = await service(
-        fake,
-        isWindows: true,
-        policy: const _PromptingPolicy(),
-      ).transcribe(
-        request(
-          language: 'zh',
-          hints: const RecognitionHints(songTitle: '夜航', artist: '林'),
-        ),
-      );
+      final result =
+          await service(
+            fake,
+            isWindows: true,
+            policy: const _PromptingPolicy(),
+          ).transcribe(
+            request(
+              language: 'zh',
+              hints: const RecognitionHints(songTitle: '夜航', artist: '林'),
+            ),
+          );
 
       final args = recognitionArgs(fake);
       expect(args, hasLength(1));
@@ -379,17 +387,18 @@ void main() {
       final cjkModel = '${root.path}/模型.bin';
       await File(cjkModel).writeAsString('x');
       final fake = _FakeWhisper();
-      final result = await service(
-        fake,
-        isWindows: true,
-        policy: const _PromptingPolicy(),
-      ).transcribe(
-        request(
-          modelPath: cjkModel,
-          language: 'zh',
-          hints: const RecognitionHints(songTitle: '夜航'),
-        ),
-      );
+      final result =
+          await service(
+            fake,
+            isWindows: true,
+            policy: const _PromptingPolicy(),
+          ).transcribe(
+            request(
+              modelPath: cjkModel,
+              language: 'zh',
+              hints: const RecognitionHints(songTitle: '夜航'),
+            ),
+          );
 
       final args = recognitionArgs(fake);
       expect(args, isNot(contains('--prompt')));
@@ -406,16 +415,17 @@ void main() {
 
     test('a runtime ignoring response files is retried with argv', () async {
       final fake = _FakeWhisper(supportsResponseFile: false);
-      final result = await service(
-        fake,
-        isWindows: true,
-        policy: const _PromptingPolicy(),
-      ).transcribe(
-        request(
-          language: 'zh',
-          hints: const RecognitionHints(songTitle: '夜航'),
-        ),
-      );
+      final result =
+          await service(
+            fake,
+            isWindows: true,
+            policy: const _PromptingPolicy(),
+          ).transcribe(
+            request(
+              language: 'zh',
+              hints: const RecognitionHints(songTitle: '夜航'),
+            ),
+          );
 
       expect(recognitionArgs(fake).last, '-pp');
       final decoding =

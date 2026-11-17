@@ -22,9 +22,7 @@ void main() {
       expect(region.start, const Duration(milliseconds: 89280));
       expect(region.end, lines[32].startTime);
       expect(region.loopedRowCount, 22);
-      expect(region.replacedIndicesIn(lines), {
-        for (var i = 4; i < 32; i++) i,
-      });
+      expect(region.replacedIndicesIn(lines), {for (var i = 4; i < 32; i++) i});
     });
 
     test('leaves weak loops to the fusion step', () {
@@ -69,16 +67,15 @@ void main() {
       var start = 0;
       for (var loop = 0; loop < 5; loop++) {
         final count = 6 + loop;
-        lines.addAll(_repeated('loop number $loop goes on', count, start, 1000));
+        lines.addAll(
+          _repeated('loop number $loop goes on', count, start, 1000),
+        );
         start += count * 1000 + 30000;
         lines.add(loopLine('real line $loop', start - 25000, start - 20000));
       }
       final regions = policy.plan(lines);
       expect(regions, hasLength(WhisperLoopRecoveryPolicy.maxRegions));
-      expect(
-        regions.map((region) => region.loopedRowCount),
-        [8, 9, 10],
-      );
+      expect(regions.map((region) => region.loopedRowCount), [8, 9, 10]);
       // Still in timeline order.
       expect(
         regions.map((region) => region.start).toList(),
@@ -97,7 +94,11 @@ void main() {
       final redecoded = [
         // Before the region: ignored.
         loopLine('Tell me again why the road never ends', 85000, 89000),
-        loopLine('How far is the harbour, is it under the water?', 89500, 95000),
+        loopLine(
+          'How far is the harbour, is it under the water?',
+          89500,
+          95000,
+        ),
         loopLine('I hope we arrive in time', 95500, 99000),
         loopLine('Now you never look back on the way', 101500, 107000),
         loopLine('Oh, and the lanterns that you hold', 107500, 113500),
@@ -143,7 +144,12 @@ void main() {
       final splice = policy.splice(
         lines: lines,
         region: region,
-        redecoded: _repeated('Oh, and the lanterns that you hold', 8, 90000, 3000),
+        redecoded: _repeated(
+          'Oh, and the lanterns that you hold',
+          8,
+          90000,
+          3000,
+        ),
       );
       expect(splice.outcome, WhisperLoopRegionOutcome.stillLooping);
       expect(identical(splice.lines, lines), isTrue);

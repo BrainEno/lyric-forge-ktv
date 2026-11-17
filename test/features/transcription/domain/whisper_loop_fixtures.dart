@@ -15,7 +15,8 @@ LyricLine loopLine(
 );
 
 const String loopChant = 'Oh-oh-oh-oh-oh-oh';
-const String loopVerse = 'And the lanterns that you hold, we never need to fold';
+const String loopVerse =
+    'And the lanterns that you hold, we never need to fold';
 
 /// The shape whisper.cpp produced on a real song once its rolling history
 /// fed the last couplet back into every window: normal rows, then rows
@@ -34,7 +35,11 @@ List<LyricLine> whisperLoopedSong() {
     loopLine('I hope we arrive in time', 91360, 92360),
     loopLine('Now you never look back on the way', 92360, 93360),
     loopLine(loopChant, 93360, 94360),
-    loopLine('And the lantern that you hold, we never need to fold', 94360, 95360),
+    loopLine(
+      'And the lantern that you hold, we never need to fold',
+      94360,
+      95360,
+    ),
   ];
   var start = 95360;
   for (var repeat = 0; repeat < 11; repeat++) {
@@ -43,7 +48,11 @@ List<LyricLine> whisperLoopedSong() {
     start += 2000;
   }
   lines.addAll([
-    loopLine('What they say, oh, the truth is we never care', start, start + 10000),
+    loopLine(
+      'What they say, oh, the truth is we never care',
+      start,
+      start + 10000,
+    ),
     loopLine('And that is quite enough of that', 151360, 158920),
   ]);
   return lines;
@@ -60,7 +69,12 @@ List<LyricLine> qwenOverLoopedSong() => [
     81900,
     confidence: 85,
   ),
-  loopLine('Tell me again why the road never ends', 82300, 89000, confidence: 83),
+  loopLine(
+    'Tell me again why the road never ends',
+    82300,
+    89000,
+    confidence: 83,
+  ),
   loopLine(
     'How far is the harbour, is it under the water?',
     89500,
@@ -68,7 +82,12 @@ List<LyricLine> qwenOverLoopedSong() => [
     confidence: 80,
   ),
   loopLine('I hope we arrive in time', 95500, 99000, confidence: 81),
-  loopLine('Now you never look back on the way', 101500, 107000, confidence: 79),
+  loopLine(
+    'Now you never look back on the way',
+    101500,
+    107000,
+    confidence: 79,
+  ),
   loopLine(
     'Oh, and the lanterns that you hold, we never mean to fold',
     107500,
