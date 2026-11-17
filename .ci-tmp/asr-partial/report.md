@@ -40,22 +40,40 @@
 | 0.6B | The_Rinn_-_Voices__2017_Version_ | final_patched | 0 | 234 | 368 | 8 | 31 (46) | 199 (203) | 0.52 | 12 | - | 259 |
 | 1.7B | Avercage_-_Embers | chunk60 | 0 | 256 | 608 | 5 | 40 (42) | 134 (189) | 0.71 | 16 | - | 267 |
 | 1.7B | Avercage_-_Embers | chunk30 | 0 | 411 | 368 | 8 | 34 (42) | 149 (189) | 0.66 | 7 | - | 192 |
+| 1.7B | Avercage_-_Embers | chunk30_noctx | 0 | 993 | 368 | 8 | 32 (42) | 137 (189) | 0.64 | 4 | - | 737 |
+| 1.7B | Avercage_-_Embers | final_patched | 0 | 422 | 368 | 8 | 32 (42) | 137 (189) | 0.64 | 4 | - | 737 |
 | 1.7B | Avercage_-_Embers.gated | chunk60 | 0 | 250 | 608 | 5 | 36 (42) | 124 (189) | 0.78 | 3 | - | 253 |
 | 1.7B | Avercage_-_Embers.gated | chunk30 | 0 | 1076 | 368 | 9 | 30 (42) | 133 (189) | 0.74 | 4 | - | 1289 |
+| 1.7B | Avercage_-_Embers.gated | chunk30_noctx | 0 | 1004 | 368 | 9 | 32 (42) | 123 (189) | 0.70 | 5 | - | 1289 |
+| 1.7B | Avercage_-_Embers.gated | final_patched | 0 | 428 | 368 | 9 | 32 (42) | 123 (189) | 0.70 | 5 | - | 1289 |
 | 1.7B | Kinematic_-_Peyote | chunk60 | 0 | 271 | 608 | 3 | 22 (14) | 148 (147) | 0.28 | 4 | - | 359 |
 | 1.7B | Kinematic_-_Peyote | chunk30 | 0 | 316 | 368 | 6 | 27 (14) | 153 (147) | 0.24 | 16 | - | 236 |
+| 1.7B | Kinematic_-_Peyote | chunk30_noctx | 0 | 855 | 368 | 6 | 27 (14) | 150 (147) | 0.22 | 15 | - | 737 |
+| 1.7B | Kinematic_-_Peyote | final_patched | 0 | 312 | 368 | 6 | 27 (14) | 150 (147) | 0.22 | 15 | - | 737 |
 | 1.7B | Kinematic_-_Peyote.gated | chunk60 | 0 | 217 | 608 | 3 | 25 (14) | 141 (147) | 0.20 | 10 | - | 345 |
 | 1.7B | Kinematic_-_Peyote.gated | chunk30 | 0 | 406 | 368 | 7 | 31 (14) | 147 (147) | 0.24 | 9 | - | 206 |
+| 1.7B | Kinematic_-_Peyote.gated | chunk30_noctx | 0 | 958 | 368 | 7 | 32 (14) | 146 (147) | 0.22 | 8 | - | 737 |
+| 1.7B | Kinematic_-_Peyote.gated | final_patched | 0 | 399 | 368 | 7 | 32 (14) | 146 (147) | 0.22 | 8 | - | 737 |
 | 1.7B | Ridgway_-_Fire_Inside | chunk60 | 0 | 365 | 608 | 5 | 39 (50) | 286 (304) | 0.18 | 1 | - | 474 |
 | 1.7B | Ridgway_-_Fire_Inside | chunk30 | 0 | 636 | 368 | 10 | 47 (50) | 263 (304) | 0.35 | 29 | - | 308 |
+| 1.7B | Ridgway_-_Fire_Inside | chunk30_noctx | 0 | 1108 | 368 | 10 | 45 (50) | 254 (304) | 0.33 | 20 | - | 737 |
+| 1.7B | Ridgway_-_Fire_Inside | final_patched | 0 | 452 | 368 | 10 | 45 (50) | 254 (304) | 0.33 | 20 | - | 737 |
 | 1.7B | Ridgway_-_Fire_Inside.gated | chunk60 | 0 | 411 | 608 | 5 | 34 (50) | 270 (304) | 0.32 | 0 | - | 484 |
 | 1.7B | Ridgway_-_Fire_Inside.gated | chunk30 | 0 | 548 | 368 | 10 | 44 (50) | 273 (304) | 0.29 | 13 | - | 272 |
+| 1.7B | Ridgway_-_Fire_Inside.gated | chunk30_noctx | 0 | 1088 | 368 | 10 | 44 (50) | 264 (304) | 0.29 | 5 | - | 737 |
+| 1.7B | Ridgway_-_Fire_Inside.gated | final_patched | 0 | 475 | 368 | 10 | 44 (50) | 264 (304) | 0.29 | 5 | - | 737 |
 | 1.7B | Songwriterz_-_Back_In_Time | chunk60 | 0 | 352 | 608 | 4 | 49 (46) | 278 (238) | 0.43 | 7 | 2x1@62s | 444 |
 | 1.7B | Songwriterz_-_Back_In_Time | chunk30 | 0 | 453 | 368 | 7 | 38 (46) | 275 (238) | 0.42 | 2 | - | 289 |
+| 1.7B | Songwriterz_-_Back_In_Time | chunk30_noctx | 0 | 422 | 368 | 7 | 40 (46) | 276 (238) | 0.43 | 2 | - | 289 |
+| 1.7B | Songwriterz_-_Back_In_Time | final_patched | 0 | 200 | 368 | 7 | 40 (46) | 276 (238) | 0.43 | 2 | - | 289 |
 | 1.7B | The.madpix.project_-_One_Way_Street | chunk60 | 0 | 233 | 608 | 3 | 27 (30) | 182 (183) | 0.14 | 5 | - | 477 |
 | 1.7B | The.madpix.project_-_One_Way_Street | chunk30 | 0 | 394 | 368 | 6 | 27 (30) | 184 (183) | 0.19 | 4 | - | 352 |
+| 1.7B | The.madpix.project_-_One_Way_Street | chunk30_noctx | 0 | 374 | 368 | 6 | 27 (30) | 183 (183) | 0.19 | 4 | - | 352 |
+| 1.7B | The.madpix.project_-_One_Way_Street | final_patched | 0 | 179 | 368 | 6 | 27 (30) | 183 (183) | 0.19 | 4 | - | 352 |
 | 1.7B | The_Rinn_-_Voices__2017_Version_ | chunk60 | 0 | 346 | 608 | 4 | 38 (46) | 200 (203) | 0.52 | 8 | - | 555 |
 | 1.7B | The_Rinn_-_Voices__2017_Version_ | chunk30 | 0 | 434 | 368 | 8 | 32 (46) | 198 (203) | 0.50 | 14 | - | 247 |
+| 1.7B | The_Rinn_-_Voices__2017_Version_ | chunk30_noctx | 0 | 996 | 368 | 8 | 29 (46) | 192 (203) | 0.50 | 12 | - | 737 |
+| 1.7B | The_Rinn_-_Voices__2017_Version_ | final_patched | 0 | 408 | 368 | 8 | 29 (46) | 192 (203) | 0.50 | 12 | - | 737 |
 
 ## Averages
 
@@ -67,6 +85,8 @@
 | 0.6B | final_patched | 9 | 0.444 | 72 | 287/334 |
 | 1.7B | chunk60 | 9 | 0.394 | 54 | 310/334 |
 | 1.7B | chunk30 | 9 | 0.402 | 98 | 310/334 |
+| 1.7B | chunk30_noctx | 9 | 0.389 | 75 | 308/334 |
+| 1.7B | final_patched | 9 | 0.389 | 75 | 308/334 |
 
 ## Raw chunk outputs (first 600 chars)
 
@@ -159,6 +179,95 @@
 - chunk @180.0s len 27.6s chars 214: `"The shine we missed, we lost, we made in shadows of our sight. Whispering the old lies. So hear the voice sharing the gunning, keep them keeping to you. Hear the voice sharing the memories, secrets, secrets from."`
 - chunk @207.6s len 23.6s chars 74: `"Hear the voice sharing the agony, keeping it within you. Hear the voice."`
 
+### 1.7B Avercage_-_Embers final_patched
+- chunk @0.0s len 31.3s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @31.3s len 33.9s chars 166: `"The thunder's continuing started, but we all know we're gonna carry it to the end. Never whispered, never be afraid. We all know when the moment's right, we ignite."`
+- chunk @65.2s len 29.6s chars 97: `"One day it'll be gone forever, gone forever. Don't close your eyes, gone forever, gone forever."`
+- chunk @94.8s len 34.3s chars 202: `"Just feel the poison, draw your blood and go. Hey, hey, what you want? Live for love, live on the edge. No need to be in doubt of running, running. It's only love, only love. One day it all will come."`
+- chunk @129.0s len 27.4s chars 80: `"Gone forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.4s len 32.8s chars 16: `"And I promise."`
+- chunk @189.2s len 25.2s chars 115: `"One day, oh, oh, forever, oh, forever, don't close your eyes, oh, oh, forever, oh, forever, let's make our plans."`
+- chunk @214.4s len 28.1s chars 79: `"Never, never, once in the end, the plan was rendered. But living never stops."`
+
+### 1.7B Avercage_-_Embers.gated final_patched
+- chunk @0.0s len 31.3s chars 17: `"I'm not a hero."`
+- chunk @31.3s len 33.9s chars 160: `"The thunder's continuing started, but we all know we'll carry it to the end. Never whispered, never be afraid. We all know the moment when we realize love is."`
+- chunk @65.2s len 29.6s chars 97: `"One day it'll be gone forever, gone forever. Don't close your eyes, gone forever, gone forever."`
+- chunk @94.8s len 34.3s chars 165: `"Just feel the power. So you burn and glow. Hey, you are the one. Live on the top of the sun. No need to doubt or blame. No need to blame. One day it all will come."`
+- chunk @129.0s len 27.3s chars 80: `"Gone forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.3s len 25.2s chars 16: `"And I promise."`
+- chunk @181.5s len 28.0s chars 112: `"One day, oh, oh, girl, forever, oh, girl, forever. Don't lose your mind, oh, girl, forever, oh, girl, forever."`
+- chunk @209.5s len 31.6s chars 1289: `"Never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, neve`
+- chunk @241.1s len 1.5s chars 7: `"Okay."`
+
+### 1.7B Kinematic_-_Peyote final_patched
+- chunk @0.0s len 34.7s chars 114: `"I'm asleep at the wheel and there's a car in the highway. Yet we tear through the night like a bee after nectar."`
+- chunk @34.7s len 33.2s chars 203: `"How much pain that is it aching so exquisite? I hope we can't stop inside. Now you don't wanna dance, 'cause you're looking right through you. Oh, and the clothes that you wear, we don't need to stand."`
+- chunk @68.0s len 33.2s chars 179: `"Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing. How much pain there is—it's aching so exquisite. I hope we can stop in time."`
+- chunk @101.2s len 33.1s chars 236: `"Now you don't wanna dance 'cause we're looking right through you. Oh, and the clothes that you wear, we don't mean to stare. Oh, but the people you know, they say what they want to. Oh, 'cause the truth of it is, we don't really care."`
+- chunk @134.3s len 25.5s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @159.8s len 23.5s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Kinematic_-_Peyote.gated final_patched
+- chunk @0.0s len 29.2s chars 59: `"I'm asleep at the wheel and there's a car in the highway."`
+- chunk @29.2s len 29.9s chars 204: `"Yet we tear through the night like a bee after migraine. How much pain that is—it's aching so exquisite. I hope we can stop inside. Now you don't wanna dance, 'cause we're looking right through you. Oh."`
+- chunk @59.0s len 28.1s chars 157: `"And the clothes that you wear, we don't mean to stare. Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing."`
+- chunk @87.2s len 28.9s chars 185: `"How much further is it aching so exquisite? I hope we can stop in time. Now you don't wanna dance 'cause you look horrendous. Oh, and the clothes that you wear we don't need to stare."`
+- chunk @116.0s len 25.7s chars 105: `"But the people you know they say what they want to. Oh, 'cause the truth of it is we don't really care."`
+- chunk @141.7s len 34.7s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @176.4s len 7.0s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Ridgway_-_Fire_Inside final_patched
+- chunk @0.0s len 25.5s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @25.5s len 34.7s chars 249: `"I got a lot on my mind, darling. All of the time, be trying to do right. I've made a lot of life, but I'm keeping it tight. Never give up the fight, no. When my life is on edge, when my life is on edge, got to keep it on check. I keep it on check."`
+- chunk @60.2s len 34.6s chars 273: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a race, you got to take the first step. Whoa, whoa, whoa, whoa, whoa! Headlong through the waves now."`
+- chunk @94.8s len 34.7s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @129.5s len 34.3s chars 308: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step. And girl, yeah, take that first step to the right. Got to find what's inside before we run out of time. Run out of time. Run out of time. Whoa, along through the waves now."`
+- chunk @163.8s len 25.0s chars 117: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide. That you decide."`
+- chunk @188.8s len 34.6s chars 5: `"Oh."`
+- chunk @223.4s len 28.4s chars 104: `"Whoa, I'm paddling on, I'm paddling strong. Whoa, find the fire, find the fire. Whoa, I'm paddling on."`
+- chunk @251.8s len 31.6s chars 91: `"I'm paralyzed. Find the fire. Find the fire. Find the fire. Find the fire. Find the fire."`
+- chunk @283.4s len 0.5s chars 7: `"Yeah."`
+
+### 1.7B Ridgway_-_Fire_Inside.gated final_patched
+- chunk @0.0s len 25.4s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @25.4s len 34.7s chars 242: `"I got a lot on my mind and all of the time I'm trying to do right. I've made a loss of life, but I'm keeping it tight. Never give the final when my life is on edge. When my life is on edge, got to keep it on in check. I keep it on in check."`
+- chunk @60.2s len 34.6s chars 272: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a rig, you got to take the first step. Whoa, whoa, whoa, whoa, whoa. Headlong through the waves now."`
+- chunk @94.8s len 26.2s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @121.0s len 32.9s chars 210: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step and go, yeah. Take that first step to the right. Got to find what's inside."`
+- chunk @153.9s len 33.7s chars 281: `"Before we run out of time, run out of time, run out of time. Whoa, oh, oh, oh, oh. That long through the waves now. Whoa, oh, oh, oh, oh. Gonna take me to that place. Whoa, oh, oh, oh, oh. Find that fire inside. Whoa, oh, oh, oh, oh. It's a fate that you decide. That you decide."`
+- chunk @187.6s len 32.8s chars 5: `"Oh."`
+- chunk @220.4s len 31.4s chars 82: `"I'm paddling on, I'm paddling strong. Find the fire, find the fire. Paddling on."`
+- chunk @251.8s len 30.8s chars 76: `"I'm paralyzed. Find the fire. Find the fire. Find the fire. Find the fire."`
+- chunk @282.6s len 1.4s chars 7: `"Okay."`
+
+### 1.7B Songwriterz_-_Back_In_Time final_patched
+- chunk @0.0s len 26.3s chars 145: `"Honey, I told you something. Sorry, I didn't hear. Maybe there was something stuck in your ear. Why is it every time you say you do, you don't?"`
+- chunk @26.3s len 32.6s chars 289: `"Maybe I just thought that you were talking on the phone. Honey, you look lovely tonight. Sorry, wasting time. Maybe this ain't your lucky night. Well, trying ain't a crime. Why is it every time I like to do, you don't? Maybe you could try a little romance at home. Let's go back in time."`
+- chunk @58.9s len 31.1s chars 181: `"Way back when we were la la la la la la la, now it's married life and the daily strife. You be la la la la la la la la la la la la la la la. Honey, getting older, getting used to."`
+- chunk @90.1s len 32.6s chars 258: `"29, and maybe things are colder. But honey, you still are mine. Guess it's easy to forget the more the man a wine. Could it be the love, love, magic keeping love alive? Let's go back in time, way back when we were la la la la la la la. Back when you and I."`
+- chunk @122.7s len 34.7s chars 78: `"Still held tight, you've been la la la la la, la la la la la la la la la la."`
+- chunk @157.4s len 30.6s chars 192: `"Let's go back in time, way back when we were la la la la la la la. Back when you and I still had time to be la la la la la. Let's go back in time, way back when we were la la la la la la la."`
+- chunk @187.9s len 21.1s chars 98: `"Now it's very light, still we have to try to be. La la la la la, la la la la la, la la la la la."`
+
+### 1.7B The.madpix.project_-_One_Way_Street final_patched
+- chunk @0.0s len 34.0s chars 181: `"Tears are like diamonds in my eyes. Light me up. Now you're out of sight. It's enough. It's too late to break the silence. In a rose-colored view of us, I got lost. Could I reach?"`
+- chunk @34.0s len 30.9s chars 224: `"All your lies, all your lies would be blades and knives. Just have me inside. Who will save you from this dark? Who will fix your selfish heart? A one-way street. That's how you live. Why do you always take and never give?"`
+- chunk @64.9s len 27.9s chars 129: `"Wide awake, yeah, I've crossed the line. I'm coming home. I'm running back to real life, to the start where I could breathe in."`
+- chunk @92.8s len 31.9s chars 352: `"Freely, baby, can't you see we run out of time chasing happiness while you get what you need. There's nothing left of us but bleeding blades and knives tonight. You'll know how it feels. A one-way street. That's how you leave. Why do you always take and never give? I'll walk away to help you see our love is falling down so easily. A one-way street."`
+- chunk @124.7s len 33.4s chars 19: `"A one-way street."`
+- chunk @158.1s len 12.9s chars 56: `"You never give. I walk away so easily. One way street."`
+
+### 1.7B The_Rinn_-_Voices__2017_Version_ final_patched
+- chunk @0.0s len 30.4s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @30.4s len 32.1s chars 66: `"The sun is fading under blood red sky. The reign of day is over."`
+- chunk @62.5s len 28.5s chars 232: `"Night soon will break. Free, they wait in the glow of moonlight for guiding stars beyond our sight. Will the sky forever honor those in the night? They shine with mystery, lost within shadows of a star, whispering they will light."`
+- chunk @91.0s len 29.4s chars 247: `"Surprise! You're waking in the morning. Can't understand your feelings. And where do you get these thoughts inside your mind? The voice is calling for the night to rise at your side. Oh, the sky forever on and on, crossing the horizon with mist."`
+- chunk @120.4s len 28.4s chars 198: `"We lost, we made the shadows of our time whispering the old lie. So hear the voice, sharing the hidden, keep the gift into you. Hear the voice, sharing the memories, sacred secrets from lost time."`
+- chunk @148.8s len 31.2s chars 39: `"A world that's gone forever long ago."`
+- chunk @180.0s len 27.6s chars 209: `"They shine. We're lost. We're made in shadows of our time. Whispering their wills. So hear the voice, sharing the memories, keeping, keeping to you. Hear the voice, sharing the memories, sacred secrets from."`
+- chunk @207.6s len 23.6s chars 73: `"Hear the voice tearing the sky. Deep and deep into you. Hear the voice."`
+
 ### 1.7B Avercage_-_Embers chunk30
 - chunk @0.0s len 31.3s chars 27: `"Embers. Artist: Avercage."`
 - chunk @31.3s len 33.9s chars 176: `"The chaos undoes, continues on its path to end. We all know when you're leading it to the end. Never whispered, never be open. We all know when the moment's right, we ignite."`
@@ -247,6 +356,95 @@
 - chunk @148.8s len 31.2s chars 39: `"A world that's gone forever long ago."`
 - chunk @180.0s len 27.6s chars 234: `"Lost in the light, they shine. We're lost, we're made in shadows of our time. Whispering their will, light. So hear the voice, sharing the memories, keeping, keeping to you. Hear the voice, sharing the memories, sacred secrets from."`
 - chunk @207.6s len 23.6s chars 75: `"Hear the voices tearing the sky. Deep and deep into you. Hear the voices."`
+
+### 1.7B Avercage_-_Embers chunk30_noctx
+- chunk @0.0s len 31.3s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @31.3s len 33.9s chars 166: `"The thunder's continuing started, but we all know we're gonna carry it to the end. Never whispered, never be afraid. We all know when the moment's right, we ignite."`
+- chunk @65.2s len 29.6s chars 97: `"One day it'll be gone forever, gone forever. Don't close your eyes, gone forever, gone forever."`
+- chunk @94.8s len 34.3s chars 202: `"Just feel the poison, draw your blood and go. Hey, hey, what you want? Live for love, live on the edge. No need to be in doubt of running, running. It's only love, only love. One day it all will come."`
+- chunk @129.0s len 27.4s chars 80: `"Gone forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.4s len 32.8s chars 16: `"And I promise."`
+- chunk @189.2s len 25.2s chars 115: `"One day, oh, oh, forever, oh, forever, don't close your eyes, oh, oh, forever, oh, forever, let's make our plans."`
+- chunk @214.4s len 28.1s chars 79: `"Never, never, once in the end, the plan was rendered. But living never stops."`
+
+### 1.7B Avercage_-_Embers.gated chunk30_noctx
+- chunk @0.0s len 31.3s chars 17: `"I'm not a hero."`
+- chunk @31.3s len 33.9s chars 160: `"The thunder's continuing started, but we all know we'll carry it to the end. Never whispered, never be afraid. We all know the moment when we realize love is."`
+- chunk @65.2s len 29.6s chars 97: `"One day it'll be gone forever, gone forever. Don't close your eyes, gone forever, gone forever."`
+- chunk @94.8s len 34.3s chars 165: `"Just feel the power. So you burn and glow. Hey, you are the one. Live on the top of the sun. No need to doubt or blame. No need to blame. One day it all will come."`
+- chunk @129.0s len 27.3s chars 80: `"Gone forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.3s len 25.2s chars 16: `"And I promise."`
+- chunk @181.5s len 28.0s chars 112: `"One day, oh, oh, girl, forever, oh, girl, forever. Don't lose your mind, oh, girl, forever, oh, girl, forever."`
+- chunk @209.5s len 31.6s chars 1289: `"Never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, neve`
+- chunk @241.1s len 1.5s chars 7: `"Okay."`
+
+### 1.7B Kinematic_-_Peyote chunk30_noctx
+- chunk @0.0s len 34.7s chars 114: `"I'm asleep at the wheel and there's a car in the highway. Yet we tear through the night like a bee after nectar."`
+- chunk @34.7s len 33.2s chars 203: `"How much pain that is it aching so exquisite? I hope we can't stop inside. Now you don't wanna dance, 'cause you're looking right through you. Oh, and the clothes that you wear, we don't need to stand."`
+- chunk @68.0s len 33.2s chars 179: `"Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing. How much pain there is—it's aching so exquisite. I hope we can stop in time."`
+- chunk @101.2s len 33.1s chars 236: `"Now you don't wanna dance 'cause we're looking right through you. Oh, and the clothes that you wear, we don't mean to stare. Oh, but the people you know, they say what they want to. Oh, 'cause the truth of it is, we don't really care."`
+- chunk @134.3s len 25.5s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @159.8s len 23.5s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Kinematic_-_Peyote.gated chunk30_noctx
+- chunk @0.0s len 29.2s chars 59: `"I'm asleep at the wheel and there's a car in the highway."`
+- chunk @29.2s len 29.9s chars 204: `"Yet we tear through the night like a bee after migraine. How much pain that is—it's aching so exquisite. I hope we can stop inside. Now you don't wanna dance, 'cause we're looking right through you. Oh."`
+- chunk @59.0s len 28.1s chars 157: `"And the clothes that you wear, we don't mean to stare. Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing."`
+- chunk @87.2s len 28.9s chars 185: `"How much further is it aching so exquisite? I hope we can stop in time. Now you don't wanna dance 'cause you look horrendous. Oh, and the clothes that you wear we don't need to stare."`
+- chunk @116.0s len 25.7s chars 105: `"But the people you know they say what they want to. Oh, 'cause the truth of it is we don't really care."`
+- chunk @141.7s len 34.7s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @176.4s len 7.0s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Ridgway_-_Fire_Inside chunk30_noctx
+- chunk @0.0s len 25.5s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @25.5s len 34.7s chars 249: `"I got a lot on my mind, darling. All of the time, be trying to do right. I've made a lot of life, but I'm keeping it tight. Never give up the fight, no. When my life is on edge, when my life is on edge, got to keep it on check. I keep it on check."`
+- chunk @60.2s len 34.6s chars 273: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a race, you got to take the first step. Whoa, whoa, whoa, whoa, whoa! Headlong through the waves now."`
+- chunk @94.8s len 34.7s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @129.5s len 34.3s chars 308: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step. And girl, yeah, take that first step to the right. Got to find what's inside before we run out of time. Run out of time. Run out of time. Whoa, along through the waves now."`
+- chunk @163.8s len 25.0s chars 117: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide. That you decide."`
+- chunk @188.8s len 34.6s chars 5: `"Oh."`
+- chunk @223.4s len 28.4s chars 104: `"Whoa, I'm paddling on, I'm paddling strong. Whoa, find the fire, find the fire. Whoa, I'm paddling on."`
+- chunk @251.8s len 31.6s chars 91: `"I'm paralyzed. Find the fire. Find the fire. Find the fire. Find the fire. Find the fire."`
+- chunk @283.4s len 0.5s chars 7: `"Yeah."`
+
+### 1.7B Ridgway_-_Fire_Inside.gated chunk30_noctx
+- chunk @0.0s len 25.4s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @25.4s len 34.7s chars 242: `"I got a lot on my mind and all of the time I'm trying to do right. I've made a loss of life, but I'm keeping it tight. Never give the final when my life is on edge. When my life is on edge, got to keep it on in check. I keep it on in check."`
+- chunk @60.2s len 34.6s chars 272: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a rig, you got to take the first step. Whoa, whoa, whoa, whoa, whoa. Headlong through the waves now."`
+- chunk @94.8s len 26.2s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @121.0s len 32.9s chars 210: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step and go, yeah. Take that first step to the right. Got to find what's inside."`
+- chunk @153.9s len 33.7s chars 281: `"Before we run out of time, run out of time, run out of time. Whoa, oh, oh, oh, oh. That long through the waves now. Whoa, oh, oh, oh, oh. Gonna take me to that place. Whoa, oh, oh, oh, oh. Find that fire inside. Whoa, oh, oh, oh, oh. It's a fate that you decide. That you decide."`
+- chunk @187.6s len 32.8s chars 5: `"Oh."`
+- chunk @220.4s len 31.4s chars 82: `"I'm paddling on, I'm paddling strong. Find the fire, find the fire. Paddling on."`
+- chunk @251.8s len 30.8s chars 76: `"I'm paralyzed. Find the fire. Find the fire. Find the fire. Find the fire."`
+- chunk @282.6s len 1.4s chars 7: `"Okay."`
+
+### 1.7B Songwriterz_-_Back_In_Time chunk30_noctx
+- chunk @0.0s len 26.3s chars 145: `"Honey, I told you something. Sorry, I didn't hear. Maybe there was something stuck in your ear. Why is it every time you say you do, you don't?"`
+- chunk @26.3s len 32.6s chars 289: `"Maybe I just thought that you were talking on the phone. Honey, you look lovely tonight. Sorry, wasting time. Maybe this ain't your lucky night. Well, trying ain't a crime. Why is it every time I like to do, you don't? Maybe you could try a little romance at home. Let's go back in time."`
+- chunk @58.9s len 31.1s chars 181: `"Way back when we were la la la la la la la, now it's married life and the daily strife. You be la la la la la la la la la la la la la la la. Honey, getting older, getting used to."`
+- chunk @90.1s len 32.6s chars 258: `"29, and maybe things are colder. But honey, you still are mine. Guess it's easy to forget the more the man a wine. Could it be the love, love, magic keeping love alive? Let's go back in time, way back when we were la la la la la la la. Back when you and I."`
+- chunk @122.7s len 34.7s chars 78: `"Still held tight, you've been la la la la la, la la la la la la la la la la."`
+- chunk @157.4s len 30.6s chars 192: `"Let's go back in time, way back when we were la la la la la la la. Back when you and I still had time to be la la la la la. Let's go back in time, way back when we were la la la la la la la."`
+- chunk @187.9s len 21.1s chars 98: `"Now it's very light, still we have to try to be. La la la la la, la la la la la, la la la la la."`
+
+### 1.7B The.madpix.project_-_One_Way_Street chunk30_noctx
+- chunk @0.0s len 34.0s chars 181: `"Tears are like diamonds in my eyes. Light me up. Now you're out of sight. It's enough. It's too late to break the silence. In a rose-colored view of us, I got lost. Could I reach?"`
+- chunk @34.0s len 30.9s chars 224: `"All your lies, all your lies would be blades and knives. Just have me inside. Who will save you from this dark? Who will fix your selfish heart? A one-way street. That's how you live. Why do you always take and never give?"`
+- chunk @64.9s len 27.9s chars 129: `"Wide awake, yeah, I've crossed the line. I'm coming home. I'm running back to real life, to the start where I could breathe in."`
+- chunk @92.8s len 31.9s chars 352: `"Freely, baby, can't you see we run out of time chasing happiness while you get what you need. There's nothing left of us but bleeding blades and knives tonight. You'll know how it feels. A one-way street. That's how you leave. Why do you always take and never give? I'll walk away to help you see our love is falling down so easily. A one-way street."`
+- chunk @124.7s len 33.4s chars 19: `"A one-way street."`
+- chunk @158.1s len 12.9s chars 56: `"You never give. I walk away so easily. One way street."`
+
+### 1.7B The_Rinn_-_Voices__2017_Version_ chunk30_noctx
+- chunk @0.0s len 30.4s chars 737: `"Oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh, oh,`
+- chunk @30.4s len 32.1s chars 66: `"The sun is fading under blood red sky. The reign of day is over."`
+- chunk @62.5s len 28.5s chars 232: `"Night soon will break. Free, they wait in the glow of moonlight for guiding stars beyond our sight. Will the sky forever honor those in the night? They shine with mystery, lost within shadows of a star, whispering they will light."`
+- chunk @91.0s len 29.4s chars 247: `"Surprise! You're waking in the morning. Can't understand your feelings. And where do you get these thoughts inside your mind? The voice is calling for the night to rise at your side. Oh, the sky forever on and on, crossing the horizon with mist."`
+- chunk @120.4s len 28.4s chars 198: `"We lost, we made the shadows of our time whispering the old lie. So hear the voice, sharing the hidden, keep the gift into you. Hear the voice, sharing the memories, sacred secrets from lost time."`
+- chunk @148.8s len 31.2s chars 39: `"A world that's gone forever long ago."`
+- chunk @180.0s len 27.6s chars 209: `"They shine. We're lost. We're made in shadows of our time. Whispering their wills. So hear the voice, sharing the memories, keeping, keeping to you. Hear the voice, sharing the memories, sacred secrets from."`
+- chunk @207.6s len 23.6s chars 73: `"Hear the voice tearing the sky. Deep and deep into you. Hear the voice."`
 
 ### 0.6B Avercage_-_Embers chunk60
 - chunk @0.0s len 57.9s chars 144: `"Embers. Artist: Avercage. We don't understand. We don't know. We really carry the torch. Now we find. Now we know where we are. We don't know."`
