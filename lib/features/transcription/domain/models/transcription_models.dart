@@ -297,6 +297,11 @@ class TranscriptionRequest {
 
   final String outputDirectory;
   final TranscriptionConfig config;
+
+  /// Free-form context for adapters that accept one. The project workflows
+  /// leave it empty: Qwen3-ASR builds its context from [recognitionHints]
+  /// terms only, because it copies title and artist into the transcript over
+  /// instrumental parts (D-024).
   final String context;
 
   /// Structured song metadata for decoding hints. Never contains lyric text.

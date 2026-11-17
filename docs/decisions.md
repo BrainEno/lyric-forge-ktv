@@ -365,3 +365,46 @@
   - 编辑器屏幕没有增加代码，新工具经 `LyricBatchTextToolsCoordinator` 接入。
 - 状态：生效
 - 来源：自选任务（逐字时间的导入、检查和微调，D-022 的下一步）；[工作日志](log/entries/2026-11-20-1200-import-check-and-fine-tune-word-timing.md)
+
+## D-024 Qwen3-ASR 按 30 秒分段识别，只发送识别词；识别循环检查覆盖两到四行一组的循环
+
+- 日期：2026-11-21
+- 背景：
+  - 用户反馈：识别 "Riders on the Storm" 时，大约 1:30 之后同样的两行一直重复，间奏和演唱部分都是这两行，行数暴增。
+  - 原因有三层：
+    - LyricForge 总是请求时间戳。runtime 在这条路径上把歌曲切成最长 180 秒的分段（`MAX_FORCE_ALIGN_INPUT_SECONDS`），每段单独解码，再用对齐器对齐。旧文档以为整首歌一段（1200 秒），按 1200 秒算出的每段预算 `max(1024, 256 + 秒数 × 8)` 给四分钟的歌每段 2176 个 token，远多于一段真实歌词。
+    - 解码是贪心的，没有重复惩罚。runtime 自带的去重只处理 20 个字符以内、重复 20 次以上的片段，两行一组的循环不受影响。一旦开始循环，就会写满这一段的预算，对齐器再把这些重复的行铺满整段音频，包括间奏。
+    - 发送的上下文是 "Song title / Artist / Album"。没有人声的分段里，Qwen 会把它原样写进结果（"Embers. Artist: Avercage."），对齐器把这些词放在前奏、独奏和尾奏上。歌名正好是副歌的歌曲（"Riders on the Storm"）就会出现一遍又一遍的歌名行。
+  - 识别循环检查（D-021）只认得行内循环和连续相同的行，A B A B A B 这种两行轮流的循环查不出来。
+- 决定：
+  - **分段与预算**（`qwen_decode_budget.dart`）：
+    - 每次请求都发送 `chunk_max_sec = 30`。
+    - 每段预算 `max(256, 128 + min(秒数, 分段秒数) × 8)`：30 秒分段是 368 个 token，180 秒分段最多 1568 个 token。
+    - 短分段把循环限制在 30 秒之内，而且解码器经常重新开始，更不容易陷进循环。
+  - **上下文**（`qwen_recognition_context.dart`）：
+    - 只发送用户为工程填写的识别词（专有名词），逗号分隔，最多 12 个，每个最长 32 个字符。
+    - 歌名、歌手、专辑永远不发送。工程识别流程和独立重跑不再拼接 "Song title / Artist / Album"。Whisper 本来就用 `recognitionHints`，不受影响。
+  - **只有标点的分段**：
+    - 30 秒分段会让对齐器遇到只解码出 "." 的分段（不足一秒的结尾，或间奏）。固定版本的 runtime 遇到这种分段，整个请求会失败，返回 "tokenized word_list is empty"。
+    - 新补丁 `tool/patches/qwen3-asr-skip-unalignable-chunks.patch` 像跳过空分段一样跳过没有字母或数字的分段，两个平台的 runtime 构建都应用它。
+    - 用旧 runtime 时，LyricForge 遇到这个错误会按 180 秒分段重试一次，并提示“有一段只识别出标点，正在按较长分段重新识别”。
+    - 补丁不计入 `runtimePatchRevision`，已安装的 runtime 不需要修复。bundle manifest 的 `behaviorPatches` 记录它。
+  - **元数据**：新增 `qwenChunkSeconds`、`qwenChunkFallback`、`qwenContextTerms`。
+  - **识别循环检查**新增“两到四行一组的循环”（`LyricAsrLoopKind.repeatedBlock`）：
+    - 2–4 行一组（不全相同、没有空行）首尾相接重复至少 3 遍时列出；4 遍以上默认勾选。修复保留前 2 遍，删除其余的行。手动编辑过的行不删除。
+    - 连续相同的行仍然按“连续 N 行相同”处理。几种长度都能匹配时，取覆盖行数最多、组最短的那种。
+    - 同一首副歌连唱两遍不会被标记。保留下来的行里如果还有行内循环，照常单独列出。
+    - 歌词健康提示的 `loopRows` 计入这些将被删除的行。
+- 验证：
+  - 用 JamendoLyrics 中带逐行时间标注、CC 授权的英文歌曲，在 GitHub Actions 上用 CPU 版 runtime 实测。歌曲包括 Ridgway、The Rinn、The madpix project、Avercage、Songwriterz、Kinematic，每首四分钟左右，有的还另做了一版把非演唱部分静音的对照。
+  - 0.6B 模型平均词错误率：30 秒分段 0.469、去掉标题和歌手后 0.455、60 秒分段 0.522（60 秒会漏掉重复的副歌行）。
+  - 去掉上下文后，演唱行之外的词从 105 个降到 55 个。
+  - 1.7B 模型 60 秒分段为 0.394。
+  - 30 秒分段、带标题时，在 Avercage 一段 95 秒处重现了一次循环（939 个字符的 "Hot, hot, hot…"），新预算把它限制在这一段之内。
+  - 详细数字见工作日志。
+- 影响：
+  - 每首歌的分段数变多（四分钟约 8 段），批量为 4，总耗时与以前相近。
+  - 30 秒分段在边界附近偶尔会把一句拆开，行构建会按时间重新组合。
+  - 自定义的 `TranscriptionRequest.context` 不再发送给 Qwen。
+- 状态：生效
+- 来源：用户反馈（"Riders on the Storm" 1:30 之后两行反复出现）；[工作日志](log/entries/2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md)

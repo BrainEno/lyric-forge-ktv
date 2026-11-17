@@ -169,6 +169,16 @@ jobs:
             throw "Session-auth middleware is not wired into serve."
           }
 
+      - name: Skip chunks with no alignable words
+        shell: pwsh
+        run: |
+          Set-Location qwen-runtime-src
+          $patch = Join-Path $env:GITHUB_WORKSPACE "tool/patches/qwen3-asr-skip-unalignable-chunks.patch"
+          git apply --check $patch
+          if ($LASTEXITCODE -ne 0) { throw "Unalignable-chunk patch no longer applies to the pinned source." }
+          git apply $patch
+          if ($LASTEXITCODE -ne 0) { throw "Failed to apply unalignable-chunk patch." }
+
       - name: Build Qwen CUDA runtime for RTX 5080
         id: qwen-build
         shell: pwsh
@@ -287,6 +297,7 @@ jobs:
           @{
             schemaVersion = 1
             runtimePatchRevision = "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1"
+            behaviorPatches = @("skip-unalignable-chunks-v1")
             platform = "windows-x64"
             accelerator = "cuda"
             qwenAccelerator = "cuda"
@@ -356,6 +367,12 @@ jobs:
           grep -q "SO_EXCLUSIVEADDRUSE" qwen-runtime-src/qwen3_asr_cli/src/session_auth.rs
           grep -q "require_session_auth" qwen-runtime-src/qwen3_asr_cli/src/cmd_serve.rs
 
+      - name: Skip chunks with no alignable words
+        run: |
+          git -C qwen-runtime-src apply --check "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-skip-unalignable-chunks.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-skip-unalignable-chunks.patch"
+          grep -q "is_alphanumeric" qwen-runtime-src/qwen3_asr/src/inference/transcribe.rs
+
       - name: Test eager attention matmul layout regression
         run: |
           cd qwen-runtime-src
@@ -416,6 +433,7 @@ jobs:
           {
             "schemaVersion": 1,
             "runtimePatchRevision": "qwen-eager-attention-contiguous-v1+forced-align-http-v1+session-auth-v1",
+            "behaviorPatches": ["skip-unalignable-chunks-v1"],
             "platform": "macos-x64",
             "accelerator": "accelerate",
             "qwenRevision": "$QWEN_REV",

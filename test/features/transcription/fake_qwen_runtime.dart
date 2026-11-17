@@ -20,6 +20,7 @@ class FakeRuntimeBehavior {
     this.transcribeDelay = Duration.zero,
     this.dropTranscribeConnection = false,
     this.echoSecretToStderr = false,
+    this.unalignableTranscribeFailures = 0,
   });
 
   bool announce;
@@ -32,6 +33,10 @@ class FakeRuntimeBehavior {
   Duration transcribeDelay;
   bool dropTranscribeConnection;
   bool echoSecretToStderr;
+
+  /// How many `/v1/transcribe` requests fail the way the pinned runtime does
+  /// when a chunk decodes to punctuation only, before requests succeed.
+  int unalignableTranscribeFailures;
 }
 
 class FakeRuntimeRequest {
@@ -244,6 +249,15 @@ class FakeRuntimeProcess implements Process {
             final socket = await response.detachSocket(writeHeaders: false);
             socket.destroy();
             return;
+          }
+          if (behavior.unalignableTranscribeFailures > 0) {
+            behavior.unalignableTranscribeFailures--;
+            status = HttpStatus.internalServerError;
+            payload = {
+              'error':
+                  'forced alignment failed: tokenized word_list is empty',
+            };
+            break;
           }
           payload = {
             'results': [

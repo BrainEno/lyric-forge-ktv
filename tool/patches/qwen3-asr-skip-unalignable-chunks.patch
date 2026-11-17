@@ -1,0 +1,28 @@
+diff --git a/qwen3_asr/src/inference/transcribe.rs b/qwen3_asr/src/inference/transcribe.rs
+index 7a764f2..ebb1216 100644
+--- a/qwen3_asr/src/inference/transcribe.rs
++++ b/qwen3_asr/src/inference/transcribe.rs
+@@ -1183,7 +1183,10 @@ pub fn transcribe_with_forced_aligner_timed(
+         let mut align_chunk_idx: Vec<usize> = Vec::new();
+ 
+         for (rel_idx, t) in batch_text.iter().enumerate() {
+-            if t.trim().is_empty() {
++            // A chunk decoded to punctuation only ("." over an instrumental
++            // or a sub-second tail) has no word to align; the aligner would
++            // fail the whole request with "tokenized word_list is empty".
++            if !t.chars().any(char::is_alphanumeric) {
+                 continue;
+             }
+ 
+@@ -1493,7 +1496,10 @@ pub fn transcribe_with_forced_aligner(
+         let mut align_chunk_idx: Vec<usize> = Vec::new();
+ 
+         for (rel_idx, t) in batch_text.iter().enumerate() {
+-            if t.trim().is_empty() {
++            // A chunk decoded to punctuation only ("." over an instrumental
++            // or a sub-second tail) has no word to align; the aligner would
++            // fail the whole request with "tokenized word_list is empty".
++            if !t.chars().any(char::is_alphanumeric) {
+                 continue;
+             }
+ 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -153,6 +154,61 @@ void main() {
       expect(process.requests.every((request) => request.authorized), isTrue);
       expect(service.isRunning, isFalse);
       expect(service.hasRuntimeSession, isTrue);
+    });
+
+    test('sends short chunks and never the free-form context', () async {
+      final service = build();
+      final result = await service.transcribe(await request(await config()));
+
+      final body =
+          jsonDecode(
+                runtime.launches.single
+                    .requestsTo('/v1/transcribe')
+                    .single
+                    .body,
+              )
+              as Map<String, dynamic>;
+      expect(body['chunk_max_sec'], 30);
+      expect(body['max_new_tokens'], 256);
+      expect(body.containsKey('context'), isFalse);
+      expect(result.lyrics.metadata['qwenChunkSeconds'], 30);
+      expect(result.lyrics.metadata.containsKey('qwenChunkFallback'), isFalse);
+    });
+
+    test('a punctuation-only chunk is retried once with long chunks', () async {
+      runtime = FakeQwenRuntime(
+        behaviorFor: (_) =>
+            FakeRuntimeBehavior(unalignableTranscribeFailures: 1),
+      );
+      final service = build();
+      final result = await service.transcribe(await request(await config()));
+
+      expect(result.lyrics.lines.single.text, 'hello world');
+      final bodies = [
+        for (final request
+            in runtime.launches.single.requestsTo('/v1/transcribe'))
+          jsonDecode(request.body) as Map<String, dynamic>,
+      ];
+      expect(bodies.map((body) => body['chunk_max_sec']), [30, 180]);
+      expect(result.lyrics.metadata['qwenChunkSeconds'], 180);
+      expect(result.lyrics.metadata['qwenChunkFallback'], 'unalignableChunk');
+      expect(
+        progress.map((event) => event.message),
+        contains('有一段只识别出标点，正在按较长分段重新识别'),
+      );
+    });
+
+    test('a second unalignable failure is reported, not retried again', () async {
+      runtime = FakeQwenRuntime(
+        behaviorFor: (_) =>
+            FakeRuntimeBehavior(unalignableTranscribeFailures: 2),
+      );
+      final service = build();
+      await expectLater(
+        service.transcribe(await request(await config())),
+        failure(TranscriptionFailureKind.environment),
+      );
+      expect(runtime.launches.single.requestsTo('/v1/transcribe'), hasLength(2));
     });
 
     test(

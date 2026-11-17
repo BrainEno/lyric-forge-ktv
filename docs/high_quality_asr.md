@@ -127,35 +127,69 @@ POST /v1/align
 
 The currently evaluated reference implementation is the Rust/Candle
 `qwen3-asr-rs` CLI. It splits long audio into chunks and offsets the timestamps
-back to the original song timeline, merging and repairing them for cross-chunk
-monotonicity. The chunk cap is `MAX_ASR_INPUT_SECONDS = 1200.0`
-(`qwen3_asr/src/inference/utils.rs`), i.e. 20 minutes; earlier revisions of this
-document said 180 seconds, which does not appear anywhere in the current upstream
-source. LyricForge therefore sends the full song once and does not add a second
-competing chunking layer: the resumable wrapper in front of this service only
-splits audio longer than 20 minutes
-(`ResumableChunkedTranscriptionService.defaultChunkDuration`), which no song
-reaches and which matches the runtime's own limit.
+back to the original song timeline. Two limits in
+`qwen3_asr/src/inference/utils.rs` matter:
 
-`max_new_tokens` is a **per-chunk** budget inside that runtime
-(`run_asr_on_chunks_batched` passes it to every chunk in the batch), so it has to
-cover a whole chunk of lyrics rather than one line. LyricForge therefore derives
-it from the normalized input length instead of hard-coding a value:
+- `MAX_ASR_INPUT_SECONDS = 1200` applies only to requests **without**
+  timestamps.
+- LyricForge always asks for timestamps. That path
+  (`transcribe_with_forced_aligner`) cuts the audio into chunks of
+  `chunk_max_sec`, at most `MAX_FORCE_ALIGN_INPUT_SECONDS = 180`, choosing a
+  quiet 100 ms window near each cut. It decodes every chunk on its own and
+  aligns each chunk's text with the forced aligner.
+
+An earlier revision of this document said the runtime used 1200 s chunks for
+LyricForge's requests. That was wrong, and the token budget built on it let a
+looping chunk fill most of a song (D-024).
+
+### Chunk length, token budget and context (D-024)
+
+LyricForge sends `chunk_max_sec = 30`. Decoding is greedy with no repetition
+penalty. The runtime's own guard only catches a pattern of up to 20 characters
+repeated 20 times or more, so a decoder that starts cycling through a couplet
+keeps going until the chunk's budget runs out. The forced aligner then spreads
+the repeated text over whatever audio the chunk covers, sung or not. Short
+chunks keep such a loop inside 30 seconds. They also restart the decoder
+often, so it has less chance to drift into the loop at all.
+
+`max_new_tokens` is a **per-chunk** budget, so it is sized for one chunk:
 
 ```text
-max_new_tokens = max(1024, 256 + min(audio_seconds, 1200) * 8)
+max_new_tokens = max(256, 128 + min(audio_seconds, chunk_seconds) * 8)
 ```
 
-with `audio_seconds` read from the 16 kHz mono PCM WAV (32 000 bytes per second).
-The `min(audio_seconds, 1200)` is the runtime's own chunk cap, so the formula tops
-out at 9 856 tokens and needs no separate ceiling. Eight tokens per second covers roughly
-five CJK characters per second with headroom; the 1024 floor is the value this
-replaced, so no request can end up with a smaller allowance than before. The
-applied value is recorded as `maxNewTokens` in the document metadata, together
-with `transcriptCoverage` — the fraction of the audio the recognised lyrics
-reach — because a transcript that stops well before the end of the audio is the
-only visible symptom of a budget that ran out. Neither field is a verdict: songs
-routinely end with an instrumental outro.
+That gives 368 tokens for any song at 30 s chunks, and at most 1568 tokens at
+the 180 s cap. Eight tokens per second covers roughly five CJK characters per
+second with headroom. The old formula, `max(1024, 256 + min(audio_seconds,
+1200) * 8)`, gave a four-minute song 2176 tokens per chunk. That was room for
+several minutes of repeated lines.
+
+The applied value is recorded as `maxNewTokens` in the document metadata,
+together with these fields:
+
+- `qwenChunkSeconds`.
+- `qwenChunkFallback`, when the retry below ran.
+- `qwenContextTerms`.
+- `transcriptCoverage`: the fraction of the audio the recognised lyrics reach.
+
+**Context.** Only the recognition terms the user entered for the project are
+sent: proper nouns, comma-separated, at most 12, each at most 32 characters.
+Title, artist and album are never sent. Over instrumental chunks Qwen copies its
+context into the transcript, for example "Song title: Fire Inside. Artist:
+Ridgway." over a guitar solo, and the aligner places those words where nobody
+sings. A song whose title is its hook then shows the title line again and again.
+
+**Punctuation-only chunks.** A chunk that decodes to punctuation only can be a
+sub-second tail, or a lone "." over an instrumental. The pinned runtime's
+aligner then fails the whole request with HTTP 500 "tokenized word_list is
+empty". Runtimes from `asr-runtime-v4` apply
+`tool/patches/qwen3-asr-skip-unalignable-chunks.patch`, which skips such
+chunks the same way empty ones are skipped. With older runtimes, LyricForge
+retries once with 180 s chunks, which cut the song at different points.
+
+Measured on CC-licensed songs from JamendoLyrics, with reference line timing,
+30 s chunks kept the word error rate of the old setup and removed most of the
+words placed outside sung lines. The numbers are in the D-024 work log entry.
 
 Request body:
 
@@ -163,11 +197,17 @@ Request body:
 {
   "audio": "C:/path/to/input.wav",
   "language": "English",
-  "return_timestamps": true
+  "return_timestamps": true,
+  "max_new_tokens": 368,
+  "chunk_max_sec": 30,
+  "max_batch_size": 4,
+  "bucket_by_length": true,
+  "context": "Avercage, Peyote"
 }
 ```
 
-The language field is omitted for automatic language detection.
+The language field is omitted for automatic language detection, and `context`
+is omitted when the project has no recognition terms.
 
 The reference server returns `{"results":[...]}`. LyricForge unwraps the
 first result and accepts timestamp layouts including:

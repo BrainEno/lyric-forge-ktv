@@ -27,7 +27,7 @@ import 'lyric_word_timing_service.dart';
 ///   invented words): the pace check proposes end times and lists the rest
 ///   for listening;
 /// * [loopRows] — rows where the recogniser looped (a phrase repeated a dozen
-///   times in one row, or a run of identical rows): the recognition loop
+///   times in one row, a run of identical rows, or a couplet cycling): the recognition loop
 ///   check cuts them down;
 /// * [staleWordRows] — rows whose word timing no longer matches their text,
 ///   so karaoke export ignores it: the word timing check clears it.

@@ -6,6 +6,7 @@ import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.d
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/qwen_decode_budget.dart';
+import '../../domain/models/qwen_recognition_context.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
 import 'asr_audio_normalization.dart';
@@ -117,13 +118,44 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         0.34,
         '${_modelLabel(request.config.qwenModelPath)} 正在识别歌曲',
       );
-      final input = await _measureNormalizedInput(normalizedPath);
-      final response = await _requestTranscription(
-        audioPath: normalizedPath,
-        config: request.config,
-        context: request.context,
-        maxNewTokens: input.maxNewTokens,
-      );
+      final audioDuration = await _measureNormalizedInput(normalizedPath);
+      // Title and artist are never sent: Qwen copies its context into the
+      // transcript over instrumental parts (see qwenRecognitionContext).
+      final terms = qwenRecognitionTerms(request.recognitionHints);
+      final context = terms.join(', ');
+      var chunk = qwenRecognitionChunk;
+      String? chunkFallback;
+      Map<String, dynamic> response;
+      try {
+        response = await _requestTranscription(
+          audioPath: normalizedPath,
+          config: request.config,
+          context: context,
+          chunk: chunk,
+          maxNewTokens: _budget(audioDuration, chunk),
+        );
+      } on TranscriptionException catch (error) {
+        if (!isUnalignableChunkFailure(error)) rethrow;
+        _throwIfCancelled();
+        // One short chunk decoded to punctuation only and the runtime's
+        // aligner rejected the whole request. Longer chunks cut the song at
+        // different points; runtimes built with
+        // qwen3-asr-skip-unalignable-chunks.patch never fail this way.
+        chunk = qwenFallbackChunk;
+        chunkFallback = 'unalignableChunk';
+        _emit(
+          TranscriptionStage.transcribing,
+          0.5,
+          '有一段只识别出标点，正在按较长分段重新识别',
+        );
+        response = await _requestTranscription(
+          audioPath: normalizedPath,
+          config: request.config,
+          context: context,
+          chunk: chunk,
+          maxNewTokens: _budget(audioDuration, chunk),
+        );
+      }
       _throwIfCancelled();
 
       await File(rawJsonPath).writeAsString(
@@ -137,8 +169,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         normalizedAudioPath: normalizedPath,
         rawJsonPath: rawJsonPath,
         modelPath: request.config.qwenModelPath,
-        maxNewTokens: input.maxNewTokens,
-        audioDuration: input.audioDuration,
+        maxNewTokens: _budget(audioDuration, chunk),
+        audioDuration: audioDuration,
+        chunk: chunk,
+        chunkFallback: chunkFallback,
+        contextTerms: terms.length,
       );
 
       _emit(TranscriptionStage.completed, 1.0, 'Qwen3-ASR 高质量识别完成');
@@ -565,32 +600,57 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
   }
 
   /// Measures the normalized input once for the decode budget and the
-  /// transcript-coverage record.
-  ///
-  /// A file that cannot be measured falls back to the previous fixed budget:
-  /// the request fails on its own merits, and inflating the budget would only
-  /// make that failure slower to surface.
-  Future<({int maxNewTokens, Duration audioDuration})> _measureNormalizedInput(
-    String audioPath,
-  ) async {
+  /// transcript-coverage record. Zero when the file cannot be measured.
+  Future<Duration> _measureNormalizedInput(String audioPath) async {
     try {
-      final bytes = await File(audioPath).length();
-      return (
-        maxNewTokens: qwenMaxNewTokensForPcmWav(bytes),
-        audioDuration: normalizedPcmWavDuration(bytes),
-      );
+      return normalizedPcmWavDuration(await File(audioPath).length());
     } on FileSystemException {
-      return (
-        maxNewTokens: qwenDecodeMinimumTokens,
-        audioDuration: Duration.zero,
-      );
+      return Duration.zero;
     }
   }
+
+  /// Token budget per chunk. Audio of unknown length gets a full chunk's
+  /// budget: the request fails on its own merits if the file is unreadable.
+  int _budget(Duration audioDuration, Duration chunk) => qwenMaxNewTokensFor(
+    audioDuration > Duration.zero ? audioDuration : chunk,
+    chunk: chunk,
+  );
+
+  /// Whether [error] is the runtime's aligner rejecting a chunk whose text
+  /// has no word to align ("." over an instrumental, a sub-second tail).
+  /// The pinned `qwen3-asr-rs` fails the whole request with HTTP 500 and
+  /// "tokenized word_list is empty" in that case.
+  static bool isUnalignableChunkFailure(TranscriptionException error) =>
+      error.kind != TranscriptionFailureKind.cancelled &&
+      (error.details ?? '').contains('word_list is empty');
+
+  /// The JSON body of one `/v1/transcribe` request.
+  ///
+  /// `chunk_max_sec` is always sent so the runtime cuts the song into short
+  /// chunks instead of its 180 s default; `max_new_tokens` is the budget of
+  /// one such chunk.
+  static Map<String, dynamic> transcribeRequestBody({
+    required String audioPath,
+    required String? language,
+    required String context,
+    required Duration chunk,
+    required int maxNewTokens,
+  }) => <String, dynamic>{
+    'audio': audioPath,
+    'return_timestamps': true,
+    'max_new_tokens': maxNewTokens,
+    'chunk_max_sec': effectiveQwenChunk(chunk).inSeconds,
+    'max_batch_size': 4,
+    'bucket_by_length': true,
+    if (context.trim().isNotEmpty) 'context': context.trim(),
+    'language': ?language,
+  };
 
   Future<Map<String, dynamic>> _requestTranscription({
     required String audioPath,
     required TranscriptionConfig config,
     required String context,
+    required Duration chunk,
     required int maxNewTokens,
   }) async {
     final session = _session;
@@ -600,15 +660,13 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
     final endpoint = session.endpoint('/v1/transcribe');
     final language = _qwenLanguage(config.language);
-    final body = <String, dynamic>{
-      'audio': audioPath,
-      'return_timestamps': true,
-      'max_new_tokens': maxNewTokens,
-      'max_batch_size': 4,
-      'bucket_by_length': true,
-      if (context.trim().isNotEmpty) 'context': context.trim(),
-      'language': ?language,
-    };
+    final body = transcribeRequestBody(
+      audioPath: audioPath,
+      language: language,
+      context: context,
+      chunk: chunk,
+      maxNewTokens: maxNewTokens,
+    );
     final payload = utf8.encode(jsonEncode(body));
     // Sign before connecting, so a session that died in the meantime fails
     // without opening a socket to whatever now owns its port.
@@ -739,6 +797,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     required String modelPath,
     required int maxNewTokens,
     required Duration audioDuration,
+    required Duration chunk,
+    String? chunkFallback,
+    int contextTerms = 0,
   }) {
     final language = _normalizeLanguage(response['language']?.toString());
 
@@ -772,6 +833,9 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         'suspiciousLineIndexes': suspiciousIndexes,
         'confidenceSource': 'per-line: model|heuristic|unscored',
         'maxNewTokens': maxNewTokens,
+        'qwenChunkSeconds': effectiveQwenChunk(chunk).inSeconds,
+        'qwenChunkFallback': ?chunkFallback,
+        'qwenContextTerms': contextTerms,
         // How far the recognised lyrics reach into the audio. A transcript that
         // stops well before the end is the only visible symptom of a decode
         // budget that ran out, so the number is recorded rather than inferred.

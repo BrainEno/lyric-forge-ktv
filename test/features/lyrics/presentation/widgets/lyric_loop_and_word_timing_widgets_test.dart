@@ -120,6 +120,37 @@ void main() {
       expect(find.text('没有可自动处理的循环'), findsOneWidget);
     });
 
+    testWidgets('a couplet cycling over an interlude is cut to two passes', (
+      tester,
+    ) async {
+      final result = await _openDialog<LyricBatchTextEdit>(
+        tester,
+        (context) => showLyricAsrLoopDialog(
+          context,
+          document: _doc([
+            _line('第一段在这里', 0, 2000, id: 'v'),
+            for (var i = 0; i < 6; i++) ...[
+              _line('雨夜的路上', 3000 + i * 4000, 4800 + i * 4000, id: 'x$i'),
+              _line('风一直在吹', 5000 + i * 4000, 6800 + i * 4000, id: 'y$i'),
+            ],
+          ]),
+          protectedIndices: const {},
+        ),
+      );
+      expect(find.textContaining('2 行一组连续循环 6 遍，删除 8 行'), findsOneWidget);
+      expect(find.text('删除 8 行'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('asr_loop_confirm')));
+      await tester.pumpAndSettle();
+      expect(result()!.document.lines.map((l) => l.id), [
+        'v',
+        'x0',
+        'y0',
+        'x1',
+        'y1',
+      ]);
+    });
+
     testWidgets('a clean draft has nothing to do', (tester) async {
       await _openDialog<LyricBatchTextEdit>(
         tester,
