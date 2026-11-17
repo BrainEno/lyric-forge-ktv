@@ -1,7 +1,0 @@
-Formatted lib/features/lyrics/domain/services/lyric_missed_repeat_detector.dart
-Formatted lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart
-Formatted lib/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog.dart
-Formatted test/features/lyrics/domain/services/lyric_missed_repeat_detector_test.dart
-Formatted test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart
-Formatted test/features/transcription/aligner_word_timing_repair_test.dart
-Formatted 27 files (6 changed) in 0.13 seconds.
