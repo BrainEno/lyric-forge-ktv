@@ -143,11 +143,7 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
         // qwen3-asr-skip-unalignable-chunks.patch never fail this way.
         chunk = qwenFallbackChunk;
         chunkFallback = 'unalignableChunk';
-        _emit(
-          TranscriptionStage.transcribing,
-          0.5,
-          '有一段只识别出标点，正在按较长分段重新识别',
-        );
+        _emit(TranscriptionStage.transcribing, 0.5, '有一段只识别出标点，正在按较长分段重新识别');
         response = await _requestTranscription(
           audioPath: normalizedPath,
           config: request.config,

@@ -23,7 +23,10 @@ List<String> cycle(List<String> block, int times) => [
 
 void main() {
   const detector = LyricAsrLoopDetector();
-  const couplet = ['Driving through the rain tonight', 'Driving through the rain'];
+  const couplet = [
+    'Driving through the rain tonight',
+    'Driving through the rain',
+  ];
 
   group('repeated blocks of rows', () {
     test('a couplet cycling over an interlude is one strong finding', () {

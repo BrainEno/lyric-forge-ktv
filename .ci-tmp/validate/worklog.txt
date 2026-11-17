@@ -1,0 +1,4 @@
+Wrote work-log navigation (summary, index snapshot, and archive refs; 8 active of 304 entries).
+Warnings (1):
+  [commit-subject] Entry commit subject not found in git history: Fix Qwen chunk loops and detect block loops (2026-11-21-1200-fix-qwen-chunk-loops-and-detect-block-loops.md)
+Work log lint passed (0 errors, 1 warning(s)).

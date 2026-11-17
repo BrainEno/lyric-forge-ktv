@@ -1,0 +1,5 @@
+Formatted lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart
+Formatted test/features/lyrics/domain/services/lyric_asr_block_loop_test.dart
+Formatted test/features/transcription/fake_qwen_runtime.dart
+Formatted test/features/transcription/qwen_runtime_service_lifecycle_test.dart
+Formatted 15 files (4 changed) in 0.07 seconds.

@@ -185,8 +185,9 @@ void main() {
 
       expect(result.lyrics.lines.single.text, 'hello world');
       final bodies = [
-        for (final request
-            in runtime.launches.single.requestsTo('/v1/transcribe'))
+        for (final request in runtime.launches.single.requestsTo(
+          '/v1/transcribe',
+        ))
           jsonDecode(request.body) as Map<String, dynamic>,
       ];
       expect(bodies.map((body) => body['chunk_max_sec']), [30, 180]);
@@ -198,18 +199,24 @@ void main() {
       );
     });
 
-    test('a second unalignable failure is reported, not retried again', () async {
-      runtime = FakeQwenRuntime(
-        behaviorFor: (_) =>
-            FakeRuntimeBehavior(unalignableTranscribeFailures: 2),
-      );
-      final service = build();
-      await expectLater(
-        service.transcribe(await request(await config())),
-        failure(TranscriptionFailureKind.environment),
-      );
-      expect(runtime.launches.single.requestsTo('/v1/transcribe'), hasLength(2));
-    });
+    test(
+      'a second unalignable failure is reported, not retried again',
+      () async {
+        runtime = FakeQwenRuntime(
+          behaviorFor: (_) =>
+              FakeRuntimeBehavior(unalignableTranscribeFailures: 2),
+        );
+        final service = build();
+        await expectLater(
+          service.transcribe(await request(await config())),
+          failure(TranscriptionFailureKind.environment),
+        );
+        expect(
+          runtime.launches.single.requestsTo('/v1/transcribe'),
+          hasLength(2),
+        );
+      },
+    );
 
     test(
       'transcription and alignment share the authenticated runtime',

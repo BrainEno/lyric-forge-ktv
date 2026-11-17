@@ -254,8 +254,7 @@ class FakeRuntimeProcess implements Process {
             behavior.unalignableTranscribeFailures--;
             status = HttpStatus.internalServerError;
             payload = {
-              'error':
-                  'forced alignment failed: tokenized word_list is empty',
+              'error': 'forced alignment failed: tokenized word_list is empty',
             };
             break;
           }
