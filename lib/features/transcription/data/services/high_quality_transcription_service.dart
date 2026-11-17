@@ -9,18 +9,27 @@ import '../../domain/models/transcription_degradation.dart';
 import '../../domain/models/transcription_model_identity.dart';
 import '../../domain/models/transcription_models.dart';
 import '../../domain/services/transcription_service.dart';
+import '../../domain/services/whisper_loop_arbiter.dart';
 import 'asr_audio_normalization.dart';
 import 'asr_evidence_audio_verifier.dart';
 import 'asr_text_comparison.dart';
 import 'asr_process_supervisor.dart';
 import 'whisper_cpp_transcription_service.dart'
-    show kWhisperDecodingMetadataKey;
+    show kWhisperDecodingMetadataKey, kWhisperLoopRecoveryMetadataKey;
 
 class HighQualityTranscriptionService implements TranscriptionService {
   // Surface borderline ASR disagreements for human review; never auto-apply
   // on this threshold alone.
   static const double _reviewDisagreementThreshold = 0.80;
   static const _textComparison = AsrTextComparison();
+  static const _loopArbiter = WhisperLoopArbiter();
+
+  /// Metadata key for what the fusion step did with Whisper loops.
+  static const String whisperLoopArbitrationKey = 'whisperLoopArbitration';
+
+  /// Review priority of a row a Whisper loop decision touched: above every
+  /// ordinary disagreement, because a loop is the error users notice first.
+  static const int _loopReviewPriority = 1000;
 
   final TranscriptionService primary;
   final TranscriptionService fallback;
@@ -227,9 +236,18 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       _emit(TranscriptionStage.parsing, 0.96, '正在比较 Qwen 与 Whisper 的歌词分歧');
 
+      // A Whisper loop would otherwise be inserted row by row as
+      // "secondary-only" suggestions. Resolving it against Qwen first turns a
+      // disproved loop into Qwen's own rows, which then simply match.
+      final whisperLoops = _loopArbiter.arbitrate(
+        primary: fallbackResult.lyrics.lines,
+        secondary: primaryResult.lyrics.lines,
+      );
       final merge = _mergeIndependentResults(
         primary: primaryResult.lyrics,
-        fallback: fallbackResult.lyrics,
+        fallback: whisperLoops.changed
+            ? fallbackResult.lyrics.copyWith(lines: whisperLoops.lines)
+            : fallbackResult.lyrics,
         config: request.config,
       );
 
@@ -286,6 +304,10 @@ class HighQualityTranscriptionService implements TranscriptionService {
               'add_unmatched_secondary_as_low_confidence_review_lines',
           kWhisperDecodingMetadataKey:
               ?fallbackResult.lyrics.metadata[kWhisperDecodingMetadataKey],
+          kWhisperLoopRecoveryMetadataKey:
+              ?fallbackResult.lyrics.metadata[kWhisperLoopRecoveryMetadataKey],
+          if (whisperLoops.decisions.isNotEmpty)
+            whisperLoopArbitrationKey: whisperLoops.toMetadata(),
           'whisperRawJsonPath': fallbackResult.rawJsonPath,
         },
       );
@@ -509,10 +531,14 @@ class HighQualityTranscriptionService implements TranscriptionService {
 
       _emit(TranscriptionStage.completed, 1.0, 'Whisper 主识别完成，但 Qwen 第二意见失败');
 
+      final loops = _loopArbiter.arbitrate(primary: whisperResult.lyrics.lines);
+      final loopCandidates = _loopReviewCandidates(loops);
       return TranscriptionResult(
         lyrics: whisperResult.lyrics.copyWith(
+          lines: loops.lines,
           metadata: {
             ..._withoutIndependentEvidence(whisperResult.lyrics.metadata),
+            ..._loopMetadata(loops, loopCandidates),
             ...TranscriptionQualityMetadata.degradedFields(
               TranscriptionDegradationReason.qwenSecondOpinionFailed,
               detail: error.toString(),
@@ -529,7 +555,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
                 ),
             'fallbackStatus': 'failed',
             'fallbackError': error.toString(),
-            'fallbackCandidateCount': 0,
+            'fallbackCandidateCount': loopCandidates.length,
             'fallbackAppliedCount': 0,
           },
         ),
@@ -597,6 +623,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
           'segmentationOnlySecondary': merge.segmentationOnlySecondary,
         'fusionPolicy':
             'add_unmatched_secondary_as_low_confidence_review_lines',
+        if (merge.whisperLoops.isNotEmpty)
+          whisperLoopArbitrationKey: merge.whisperLoops,
         'qwenRawJsonPath': qwenResult.rawJsonPath,
       },
     );
@@ -608,6 +636,8 @@ class HighQualityTranscriptionService implements TranscriptionService {
         '最高质量识别完成',
         if (merge.secondaryOnlyLineIndices.isNotEmpty)
           '补入 ${merge.secondaryOnlyLineIndices.length} 行备用引擎独有歌词（低置信待复核）',
+        if (merge.whisperLoops.isNotEmpty)
+          '处理 ${merge.whisperLoops.length} 处 Whisper 跨行循环重复',
         if (merge.candidates.isNotEmpty)
           '发现 ${merge.candidates.length} 行需要重点校对',
         if (merge.candidates.isEmpty && merge.secondaryOnlyLineIndices.isEmpty)
@@ -628,21 +658,34 @@ class HighQualityTranscriptionService implements TranscriptionService {
     required LyricDocument qwenSecondOpinion,
     required TranscriptionConfig config,
   }) {
-    final lines = List<LyricLine>.from(whisperPrimary.lines);
-    final candidates = <_RankedCandidate>[];
+    // Loops that span several Whisper segments are resolved before the
+    // row-by-row comparison, which only ever sees one Whisper row at a time.
+    final loops = _loopArbiter.arbitrate(
+      primary: whisperPrimary.lines,
+      secondary: qwenSecondOpinion.lines,
+    );
+    final whisperLines = loops.lines;
+    final loopRows = {for (final row in loops.reviewRows) row.lineIndex};
+    final lines = List<LyricLine>.from(whisperLines);
+    final candidates = <_RankedCandidate>[
+      for (final data in _loopReviewCandidates(loops))
+        _RankedCandidate(priority: _loopReviewPriority, data: data),
+    ];
     final matchedSecondaryIndices = <int>{};
     final matching = _matchSecondaryLines(
-      whisperPrimary.lines,
+      whisperLines,
       qwenSecondOpinion.lines,
     );
 
-    for (var index = 0; index < whisperPrimary.lines.length; index++) {
-      final whisperLine = whisperPrimary.lines[index];
+    for (var index = 0; index < whisperLines.length; index++) {
+      final whisperLine = whisperLines[index];
       final correspondingIndices = matching.byPrimary[index];
       final hasSharedSecondary = correspondingIndices.any(
         matching.shared.contains,
       );
       matchedSecondaryIndices.addAll(correspondingIndices);
+      // Already queued with the loop decision that produced it.
+      if (loopRows.contains(index)) continue;
       final qwenLines = [
         for (final secondaryIndex in correspondingIndices)
           qwenSecondOpinion.lines[secondaryIndex],
@@ -776,9 +819,50 @@ class HighQualityTranscriptionService implements TranscriptionService {
       secondaryOnlyLineIndices: timeline.secondaryOnlyLineIndices,
       suggestions: timeline.suggestions,
       segmentationOnlySecondary: timeline.segmentationOnly,
-      timingEvidence: _fusionTimingEvidence(timeline, whisperPrimary.lines),
+      timingEvidence: _fusionTimingEvidence(timeline, whisperLines),
+      whisperLoops: loops.toMetadata(),
     );
   }
+
+  /// Review candidates for the rows a loop decision inserted, kept under
+  /// doubt or flagged. The looped Whisper text is the primary text, so the
+  /// review queue shows what Whisper repeated next to what now stands there.
+  List<Map<String, dynamic>> _loopReviewCandidates(
+    WhisperLoopArbitration loops,
+  ) => [
+    for (final row in loops.reviewRows)
+      {
+        'lineIndex': row.lineIndex,
+        'startMs': loops.lines[row.lineIndex].startTime.inMilliseconds,
+        'endMs': loops.lines[row.lineIndex].endTime.inMilliseconds,
+        'primaryEngine': 'whisper',
+        'primaryText': row.loopedText,
+        'primaryConfidence': loops.lines[row.lineIndex].confidence,
+        'whisperText': row.loopedText,
+        if (row.fromSecondary) ...{
+          'alternativeEngine': 'qwen',
+          'alternativeText': loops.lines[row.lineIndex].text,
+          'qwenText': loops.lines[row.lineIndex].text,
+        },
+        'selected': row.fromSecondary ? 'qwen' : 'whisper',
+        'reason': row.decision.reason,
+        'whisperLoop': {
+          'kind': row.decision.loop.kind.name,
+          'repeats': row.decision.loop.repeats,
+          'blockRows': row.decision.loop.blockRows,
+          'verdict': row.decision.verdict.name,
+        },
+      },
+  ];
+
+  Map<String, dynamic> _loopMetadata(
+    WhisperLoopArbitration loops,
+    List<Map<String, dynamic>> candidates,
+  ) => {
+    if (loops.decisions.isNotEmpty)
+      whisperLoopArbitrationKey: loops.toMetadata(),
+    if (candidates.isNotEmpty) 'fallbackCandidates': candidates,
+  };
 
   _AlternativeDecision _decideWhisperPrimaryCandidate({
     required LyricLine whisperLine,
@@ -905,10 +989,15 @@ class HighQualityTranscriptionService implements TranscriptionService {
     _throwIfCancelled();
     _emit(TranscriptionStage.completed, 1.0, reason.message);
 
+    // Whisper alone: a strong loop can only be cut down and flagged.
+    final loops = _loopArbiter.arbitrate(primary: result.lyrics.lines);
+    final loopCandidates = _loopReviewCandidates(loops);
     return TranscriptionResult(
       lyrics: result.lyrics.copyWith(
+        lines: loops.lines,
         metadata: {
           ..._withoutIndependentEvidence(result.lyrics.metadata),
+          ..._loopMetadata(loops, loopCandidates),
           'qualityMode': 'highestQuality',
           TranscriptionQualityMetadata.requestedModeKey: 'highestQuality',
           ...TranscriptionQualityMetadata.degradedFields(
@@ -920,7 +1009,7 @@ class HighQualityTranscriptionService implements TranscriptionService {
           ),
           'alignmentEngine': 'whisper-segment-timestamps',
           'fallbackStatus': 'degraded',
-          'fallbackCandidateCount': 0,
+          'fallbackCandidateCount': loopCandidates.length,
           'fallbackAppliedCount': 0,
         },
       ),
@@ -1800,6 +1889,9 @@ class _MergeResult {
   final List<Map<String, dynamic>> segmentationOnlySecondary;
   final Map<String, dynamic> timingEvidence;
 
+  /// What the fusion step did with each Whisper loop (empty when none).
+  final List<Map<String, dynamic>> whisperLoops;
+
   const _MergeResult({
     required this.lines,
     required this.candidates,
@@ -1808,6 +1900,7 @@ class _MergeResult {
     this.secondaryOnlyLineIndices = const [],
     this.suggestions = const [],
     this.segmentationOnlySecondary = const [],
+    this.whisperLoops = const [],
   });
 }
 

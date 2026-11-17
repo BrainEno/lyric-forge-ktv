@@ -27,7 +27,7 @@ class RecognitionReviewSummary {
   final bool degraded;
 
   /// Whisper decoding profile the run actually used, e.g.
-  /// `whisper-lyrics-v1`, and the one that was requested.
+  /// `whisper-lyrics-v2`, and the one that was requested.
   final String? whisperEffectiveProfile;
   final String? whisperRequestedProfile;
 

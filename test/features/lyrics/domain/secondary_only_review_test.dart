@@ -274,8 +274,8 @@ void main() {
           ],
           'segmentationOnlySecondaryCount': 2,
           RecognitionReviewSummary.whisperDecodingKey: {
-            'requestedProfile': 'whisper-lyrics-v1',
-            'effectiveProfile': 'whisper-lyrics-v1',
+            'requestedProfile': 'whisper-lyrics-v2',
+            'effectiveProfile': 'whisper-lyrics-v2',
           },
         },
       );
@@ -292,7 +292,7 @@ void main() {
       expect(summary.secondaryOnlySuggestions, 1);
       expect(summary.pendingSecondaryOnlySuggestions, 1);
       expect(summary.segmentationOnlySecondary, 2);
-      expect(summary.whisperEffectiveProfile, 'whisper-lyrics-v1');
+      expect(summary.whisperEffectiveProfile, 'whisper-lyrics-v2');
       expect(summary.whisperProfileDegraded, isFalse);
       expect(summary.pendingReview, greaterThanOrEqualTo(1));
     });
@@ -333,7 +333,7 @@ void main() {
       final document = _fusedDocument(
         extra: {
           RecognitionReviewSummary.whisperDecodingKey: {
-            'requestedProfile': 'whisper-lyrics-v1',
+            'requestedProfile': 'whisper-lyrics-v2',
             'effectiveProfile': 'whisper-standard-v1',
             'fallbackReason': 'runtime_rejected_arguments: x',
           },

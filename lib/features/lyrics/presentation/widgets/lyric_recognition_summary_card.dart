@@ -105,7 +105,9 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
 
   static String profileLabel(String? profile) => switch (profile) {
     null => '未采集',
-    'whisper-lyrics-v1' => '歌词增强',
+    'whisper-lyrics-v2' => '歌词增强',
+    // v1 sent a title/artist prompt with the text history on (before D-027).
+    'whisper-lyrics-v1' => '歌词增强（旧版）',
     'whisper-standard-v1' => '标准参数',
     _ => profile,
   };

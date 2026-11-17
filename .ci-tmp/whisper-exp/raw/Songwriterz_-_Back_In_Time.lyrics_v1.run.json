@@ -1,1 +1,0 @@
-{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/Songwriterz_-_Back_In_Time.wav", "-l", "auto", "-ojf", "-of", "results/Songwriterz_-_Back_In_Time.lyrics_v1", "-pp", "-t", "4", "--prompt", "Back In Time, Songwriterz", "--suppress-nst"], "exit": 0, "seconds": 1097.8}

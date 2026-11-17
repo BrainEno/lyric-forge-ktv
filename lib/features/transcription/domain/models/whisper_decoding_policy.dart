@@ -8,8 +8,10 @@ import '../../../lyrics/domain/text/chinese_script_converter.dart';
 ///   profile used (`-m -f -l -ojf -of -pp`). It is also the safe fallback when
 ///   a runtime does not advertise a flag the lyric profile wants.
 /// * [lyrics] adds only flags verified against the pinned whisper.cpp CLI
-///   (`examples/cli/cli.cpp` at 927cfce): a short metadata-only `--prompt` and
-///   `--suppress-nst`. See [WhisperDecodingPolicy] for why each one is safe.
+///   (`examples/cli/cli.cpp` at 927cfce): `--suppress-nst` and
+///   `--max-context 0`, which switches off the rolling text history that made
+///   long songs loop. See [WhisperDecodingPolicy] for why each one is safe and
+///   why the v1 metadata prompt was dropped.
 enum WhisperDecodingProfile { standard, lyrics }
 
 extension WhisperDecodingProfileId on WhisperDecodingProfile {
@@ -17,7 +19,7 @@ extension WhisperDecodingProfileId on WhisperDecodingProfile {
   /// fingerprint. Bump the suffix whenever the emitted arguments change.
   String get id => switch (this) {
     WhisperDecodingProfile.standard => 'whisper-standard-v1',
-    WhisperDecodingProfile.lyrics => 'whisper-lyrics-v1',
+    WhisperDecodingProfile.lyrics => 'whisper-lyrics-v2',
   };
 }
 
@@ -63,6 +65,24 @@ class WhisperRuntimeCapabilities {
   static const String promptFlag = '--prompt';
   static const String suppressNonSpeechFlag = '--suppress-nst';
 
+  /// `-mc N`: how many tokens of rolling text history each window sees.
+  /// `0` switches the history (and the prompt) off.
+  static const String maxContextFlag = '--max-context';
+
+  /// `-ot N`: start decoding N milliseconds into the file. Segment timestamps
+  /// stay on the file's timeline.
+  static const String offsetFlag = '--offset-t';
+
+  /// `-d N`: decode only N milliseconds of audio.
+  static const String durationFlag = '--duration';
+
+  /// Flags the history-free re-decode of a looped span needs.
+  static const List<String> loopRecoveryFlags = [
+    maxContextFlag,
+    offsetFlag,
+    durationFlag,
+  ];
+
   /// Long-form flags found in the help text.
   final Set<String> flags;
 
@@ -91,6 +111,9 @@ class WhisperRuntimeCapabilities {
   }
 
   bool supports(String flag) => probed && flags.contains(flag);
+
+  /// Whether a looped span can be decoded again without text history.
+  bool get supportsLoopRecovery => loopRecoveryFlags.every(supports);
 
   /// True for the stderr line whisper-cli prints before exiting 0 on a flag it
   /// does not understand.
@@ -144,6 +167,19 @@ class WhisperDecodingPlan {
 
   bool get isStandard => extraArguments.isEmpty;
 
+  /// Whether the run decodes every window without the rolling text history
+  /// (`--max-context 0`), the condition under which Whisper cannot loop on
+  /// its own output.
+  bool get disablesTextHistory {
+    for (var index = 0; index + 1 < extraArguments.length; index++) {
+      if (extraArguments[index] == WhisperRuntimeCapabilities.maxContextFlag &&
+          extraArguments[index + 1] == '0') {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Diagnostics/metadata shape. Holds no audio or lyric content: the prompt is
   /// built only from project metadata the user already sees.
   Map<String, dynamic> toMetadata({String? fallbackReason}) => {
@@ -167,25 +203,32 @@ class WhisperDecodingPlan {
 
 /// Builds a lyric-aware but conservative whisper.cpp decoding plan.
 ///
-/// Why only these flags (verified in `examples/cli/cli.cpp` and
-/// `src/whisper.cpp` at the pinned revision 927cfce):
+/// Why these flags (verified in `examples/cli/cli.cpp` and `src/whisper.cpp`
+/// at the pinned revision 927cfce):
 ///
-/// * `--prompt` seeds the rolling text context of the *first* window only. It
-///   is limited by the library to `n_text_ctx / 2` (224) tokens. The prompt is
-///   capped at [maxPromptUtf8Bytes] UTF-8 bytes; a byte-level BPE token always
-///   covers at least one byte, so the token count can never exceed the budget.
-///   `--carry-initial-prompt` is never used: it re-prepends the prompt to every
-///   window, which biases long songs towards the prompt words.
+/// * `--max-context 0` switches off the rolling text history. By default every
+///   30 s window is conditioned on up to 224 tokens of the text decoded before
+///   it. In songs that history is the loop: once a window repeats the last
+///   couplet, the next window sees the couplet in its prompt and repeats it
+///   again, until the end of the song (D-027). Measured on six JamendoLyrics
+///   songs with large-v3, v1 (prompt + history) averaged WER 0.82 with block
+///   loops of up to 29 repetitions; history off averaged 0.35 with none.
 /// * `--suppress-nst` suppresses non-speech tokens (♪, bracketed sound
 ///   descriptions) that whisper emits over instrumental passages; those rows
 ///   are never lyrics and only add review work.
 ///
+/// No `--prompt` (v1 sent the title and artist): whisper.cpp only reads the
+/// initial prompt through the same history buffer, so `--max-context 0`
+/// disables it, and the measurements above showed the prompt made things
+/// worse, not better (hallucinated credits, earlier loops). [buildPrompt]
+/// stays for the checkpoint fingerprint and for plans that carry a prompt
+/// explicitly. `--carry-initial-prompt` is never used either: it keeps the
+/// prompt *and* the last window's text, so a loop still feeds itself.
+///
 /// Flags deliberately not used: `--vad` needs a separate VAD model file that
 /// the managed runtime does not ship; beam size/best-of already default to 5
 /// in the library, and temperature fallback is already on by default, so
-/// re-stating them would change nothing but the fingerprint; `-mc 0` would
-/// disable the prompt entirely (the prompt only applies when
-/// `n_max_text_ctx > 0`).
+/// re-stating them would change nothing but the fingerprint.
 class WhisperDecodingPolicy {
   static const int maxPromptUtf8Bytes = 200;
   static const int maxFieldRunes = 64;
@@ -207,26 +250,17 @@ class WhisperDecodingPolicy {
 
     final omitted = <String>[];
     final extra = <String>[];
-    final promptResult = buildPrompt(
-      hints: hints,
-      language: language,
-      chineseScript: chineseScript,
-    );
-    String? prompt;
-    if (promptResult != null) {
-      if (capabilities.supports(WhisperRuntimeCapabilities.promptFlag)) {
-        prompt = promptResult.text;
-        extra.addAll([WhisperRuntimeCapabilities.promptFlag, prompt]);
-      } else {
-        omitted.add(WhisperRuntimeCapabilities.promptFlag);
-      }
-    }
     if (capabilities.supports(
       WhisperRuntimeCapabilities.suppressNonSpeechFlag,
     )) {
       extra.add(WhisperRuntimeCapabilities.suppressNonSpeechFlag);
     } else {
       omitted.add(WhisperRuntimeCapabilities.suppressNonSpeechFlag);
+    }
+    if (capabilities.supports(WhisperRuntimeCapabilities.maxContextFlag)) {
+      extra.addAll([WhisperRuntimeCapabilities.maxContextFlag, '0']);
+    } else {
+      omitted.add(WhisperRuntimeCapabilities.maxContextFlag);
     }
 
     if (extra.isEmpty) {
@@ -239,17 +273,18 @@ class WhisperDecodingPolicy {
       requestedProfile: profile,
       effectiveProfile: profile,
       extraArguments: List.unmodifiable(extra),
-      prompt: prompt,
-      promptSources: prompt == null
-          ? const <String>[]
-          : List.unmodifiable(promptResult!.sources),
+      prompt: null,
+      promptSources: const <String>[],
       omittedFlags: List.unmodifiable(omitted),
     );
   }
 
   /// Deterministic material for the checkpoint fingerprint: anything that can
   /// change Whisper's output for the same audio. Capability detection is not
-  /// included because the executable path already is.
+  /// included because the executable path already is. The hint-derived prompt
+  /// no longer reaches Whisper but stays in the material: invalidating a
+  /// checkpoint a little too eagerly is harmless, and it keeps a later plan
+  /// that sends a prompt again from reusing chunks recognised without one.
   String fingerprintMaterial({
     required WhisperDecodingProfile profile,
     required RecognitionHints hints,

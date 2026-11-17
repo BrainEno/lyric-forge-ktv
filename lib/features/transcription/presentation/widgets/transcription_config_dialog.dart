@@ -577,8 +577,9 @@ class _TranscriptionConfigDialogState extends State<TranscriptionConfigDialog> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Whisper 歌词增强解码'),
                 subtitle: const Text(
-                  '只把歌名、歌手等工程信息作为提示，并抑制♪等非人声符号；'
-                  '不会提供参考歌词。运行时不支持时自动改用标准参数。',
+                  '关闭跨窗口的文字历史，避免后半段一两句无限重复，'
+                  '并抑制♪等非人声符号；不会提供参考歌词。'
+                  '运行时不支持时自动改用标准参数。',
                 ),
                 value: _whisperDecodingProfile == WhisperDecodingProfile.lyrics,
                 onChanged: (value) => setState(

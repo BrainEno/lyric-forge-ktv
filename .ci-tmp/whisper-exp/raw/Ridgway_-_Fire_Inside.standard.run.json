@@ -1,1 +1,0 @@
-{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/Ridgway_-_Fire_Inside.wav", "-l", "auto", "-ojf", "-of", "results/Ridgway_-_Fire_Inside.standard", "-pp", "-t", "4"], "exit": 0, "seconds": 733.8}

@@ -195,9 +195,14 @@ and the project's `RecognitionHints` into extra CLI arguments. Before #448,
 Whisper received no song context at all; only Qwen did.
 
 - **Profiles:** `standard` (`whisper-standard-v1`) is the exact pre-#448
-  command line. `lyrics` (`whisper-lyrics-v1`, the default) adds `--prompt`
-  and `--suppress-nst`. Both flags were verified in the pinned whisper.cpp
-  source (`927cfce`).
+  command line. `lyrics` (`whisper-lyrics-v2`, the default since D-027) adds
+  `--suppress-nst` and `--max-context 0` and sends **no prompt**. The v1
+  profile sent the title/artist prompt with the rolling text history on; on
+  songs that history fed a repeated couplet back into every later window,
+  which is the "last two lines repeat to the end" bug. Both flags were
+  verified in the pinned whisper.cpp source (`927cfce`). The prompt builder
+  below is kept for the checkpoint fingerprint and for plans that carry a
+  prompt explicitly; the shipped profiles do not.
 - **Prompt contents:** only the title, artist, album and user-entered proper
   nouns (`project.metadata.recognitionTerms`). `RecognitionHints` has no lyric
   field, so reference lyrics cannot reach the recogniser. The prompt is

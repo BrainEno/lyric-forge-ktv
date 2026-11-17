@@ -359,6 +359,37 @@ project; the editor previews the result and applies it as one undoable edit.
 - Re-alignment keeps the rows' text and fails closed: any word that does not
   match the rows in order discards the whole result.
 
+## Whisper loops across segments (D-027)
+
+whisper.cpp decodes in 30 s windows and, by default, conditions each window
+on up to 224 tokens of the text it already decoded. On songs this lets a
+repeated couplet feed itself: once one window repeats it, every later window
+sees it in its prompt, and the rest of the song becomes the same one or two
+lines on a collapsed one-second timestamp grid. Each looped row is an
+ordinary-looking line, so per-line checks never saw it, and the fusion step
+used to keep it or insert it row by row as a suggestion.
+
+- **Prevention:** the `lyrics` profile (`whisper-lyrics-v2`) runs with
+  `--max-context 0` and no prompt. Measured on six JamendoLyrics songs with
+  large-v3, mean WER dropped from 0.815 (v1) and 0.687 (standard) to 0.354,
+  with no block loop left.
+- **Recovery:** when a run kept the history (the `standard` profile, or a
+  runtime that rejected the flag) and its output loops strongly,
+  `WhisperLoopRecoveryPolicy` decodes only the looped stretch again with
+  `--offset-t/--duration --max-context 0` and splices the result in unless
+  that loops too (`whisperLoopRecovery` metadata).
+- **Arbitration:** in Highest Quality, `WhisperLoopArbiter` compares every
+  remaining Whisper loop with what Qwen (which decodes 30 s chunks with no
+  carried text) heard over the same audio. Qwen hears distinct lines → its
+  rows replace the loop and are queued for review; Qwen hears the same
+  repetition → kept; no usable Qwen rows → a strong loop is cut to one
+  repetition and flagged, a weak one or a short chant is only flagged
+  (`whisperLoopArbitration` metadata, review candidates with
+  `whisper_cross_segment_*` reasons).
+- `AsrSegmentLoopDetector` finds the loops: one row at least 3 times, or a
+  block of 2–4 rows at least 3 times; strong at 6 rows / 4 blocks, or when
+  most looped rows hold more than 7 words (CJK characters) per second.
+
 ## Lyric editor behavior
 
 The editor now surfaces:

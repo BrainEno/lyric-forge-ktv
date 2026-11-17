@@ -1,1 +1,0 @@
-{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/The_Rinn_-_Voices__2017_Version_.wav", "-l", "auto", "-ojf", "-of", "results/The_Rinn_-_Voices__2017_Version_.standard", "-pp", "-t", "4"], "exit": 0, "seconds": 438.1}
