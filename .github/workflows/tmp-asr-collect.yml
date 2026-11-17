@@ -24,6 +24,26 @@ jobs:
           path: results
           run-id: ${{ steps.rid.outputs.id }}
           github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: final-*
+          path: results-final
+          run-id: 44020895878
+          github-token: ${{ github.token }}
+      - name: Merge final runs
+        run: |
+          python3 - <<'PY'
+          import glob, json, os
+          for p in glob.glob("results-final/**/*.json", recursive=True):
+              d = json.load(open(p))
+              if isinstance(d, dict) and d.get("config") == "chunk30_noctx":
+                  d["config"] = "final_patched"
+              rel = os.path.relpath(p, "results-final").replace(".chunk30_noctx.", ".final_patched.")
+              out = os.path.join("results", "final", rel)
+              os.makedirs(os.path.dirname(out), exist_ok=True)
+              json.dump(d, open(out, "w"))
+          PY
       - name: Songs metadata
         run: |
           mkdir -p songs
