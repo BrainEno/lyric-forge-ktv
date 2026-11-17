@@ -33,7 +33,15 @@ void main() {
       _w('whoa', 14000, 14400),
     ]);
     final words = result.words;
-    expect(_texts(words), ['find', 'the', 'fire', 'find', 'the', 'fire', 'whoa']);
+    expect(_texts(words), [
+      'find',
+      'the',
+      'fire',
+      'find',
+      'the',
+      'fire',
+      'whoa',
+    ]);
     expect(result.zeroLengthWords, 5);
     expect(result.spreadClusters, 1);
     expect(words.first.start, _ms(10000));
@@ -119,10 +127,7 @@ void main() {
 
   test('with no room at all a word keeps zero length but stays', () {
     // The next word starts before this one: there is nowhere to grow.
-    final result = repair.repair([
-      _w('x', 2000, 2000),
-      _w('y', 1500, 1800),
-    ]);
+    final result = repair.repair([_w('x', 2000, 2000), _w('y', 1500, 1800)]);
     expect(result.words, [_w('x', 2000, 2000), _w('y', 1500, 1800)]);
     expect(result.spreadClusters, 0);
   });

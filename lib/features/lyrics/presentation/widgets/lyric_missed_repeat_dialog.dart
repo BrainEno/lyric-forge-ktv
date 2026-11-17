@@ -224,11 +224,7 @@ class _LyricMissedRepeatDialogState extends State<LyricMissedRepeatDialog> {
         Text(
           plan.issues.isEmpty
               ? '没有发现可能漏唱的和声。'
-              : '${[
-                  if (crowded > 0) '逐字时间挤在一起 $crowded 行',
-                  if (stretched > 0) '字被拉长 $stretched 处',
-                  if (gaps > 0) '和声后长空白 $gaps 处',
-                ].join('，')}；默认勾选 ${plan.defaultPositions.length} 项。',
+              : '${[if (crowded > 0) '逐字时间挤在一起 $crowded 行', if (stretched > 0) '字被拉长 $stretched 处', if (gaps > 0) '和声后长空白 $gaps 处'].join('，')}；默认勾选 ${plan.defaultPositions.length} 项。',
           key: const ValueKey('missed_repeat_summary'),
           style: theme.textTheme.titleSmall,
         ),
@@ -324,9 +320,7 @@ class _MissedRepeatRow extends StatelessWidget {
                 ),
                 Text(
                   line.text.trim().isEmpty ? '（空行）' : line.text.trim(),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: textColor,
-                  ),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
                 ),
                 Text(
                   LyricMissedRepeatStrings.note(issue),

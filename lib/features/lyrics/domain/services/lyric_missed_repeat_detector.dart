@@ -385,8 +385,8 @@ class LyricMissedRepeatDetector {
     final lateFrom =
         firstStart +
         Duration(
-          microseconds:
-              ((songEnd - firstStart).inMicroseconds * lateShare).round(),
+          microseconds: ((songEnd - firstStart).inMicroseconds * lateShare)
+              .round(),
         );
     final pause = typicalPause(document);
 
@@ -445,11 +445,7 @@ class LyricMissedRepeatDetector {
           spanEnd: gapEnd,
           toAudioEnd: isLast,
           resumes: resumes,
-          fill: _fill(
-            line,
-            gapEnd,
-            period: _period(lines, keys, index, pause),
-          ),
+          fill: _fill(line, gapEnd, period: _period(lines, keys, index, pause)),
         ),
       );
     }
@@ -628,7 +624,11 @@ class LyricMissedRepeatDetector {
     return length + pause;
   }
 
-  List<LyricLine> _fill(LyricLine line, Duration gapEnd, {required Duration period}) {
+  List<LyricLine> _fill(
+    LyricLine line,
+    Duration gapEnd, {
+    required Duration period,
+  }) {
     final length = line.endTime - line.startTime;
     final fill = <LyricLine>[];
     for (var copy = 1; copy <= maxFillRows; copy++) {

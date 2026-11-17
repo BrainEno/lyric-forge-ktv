@@ -1,0 +1,55 @@
+2026-11-17T07:05:33.273638Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata read failed
+    #0      _FakeMetadataRepository.getForAudio (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:538:26)
+    #1      readCompleteLocalMediaMetadataForAudio (package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart:43:21)
+    #2      linkPlaybackLyricsProject (package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart:17:24)
+    #3      FileProjectRepository._writeProject (package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart:248:9)
+    <asynchronous suspension>
+    #4      main.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:364:25)
+    <asynchronous suspension>
+    #5      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)
+    <asynchronous suspension>
+    #6      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+    <asynchronous suspension>
+    #7      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+--
+2026-11-17T07:05:33.295544Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata write failed
+    #0      _FakeMetadataRepository.save (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:545:26)
+    #1      linkPlaybackLyricsProject (package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart:24:28)
+    <asynchronous suspension>
+00:04 +112: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart: corrupt file metadata reports association failure and preserves both stores
+2026-11-17T07:05:33.315800Z WARN  [project] Background lyric association or queue update failed after project save — FormatException: Local media metadata record 1 could not be read. Association reads and writes are disabled to preserve the original file.
+/tmp/project-autolink-corrupt-IVVXZX/media_metadata.json
+    #0      FileLocalMediaMetadataRepository._ensureComplete (package:lyric_forge_ktv/features/player/data/repositories/file_local_media_metadata_repository.dart:139:26)
+    #1      FileLocalMediaMetadataRepository.getCompleteForAudio (package:lyric_forge_ktv/features/player/data/repositories/file_local_media_metadata_repository.dart:170:5)
+    <asynchronous suspension>
+    #2      linkPlaybackLyricsProject (package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart:17:18)
+    <asynchronous suspension>
+00:04 +113: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/work_log_tool_test.dart: accepts a complete harness
+--
+2026-11-17T07:05:33.332342Z WARN  [project] Background lyric association or queue update failed after project save — StateError: Bad state: metadata failed
+    #0      _FakeMetadataRepository.getForAudio (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:538:26)
+    #1      readCompleteLocalMediaMetadataForAudio (package:lyric_forge_ktv/features/player/domain/repositories/local_media_metadata_repository.dart:43:21)
+    #2      linkPlaybackLyricsProject (package:lyric_forge_ktv/features/player/domain/services/playback_lyrics_project_linker.dart:17:24)
+    #3      FileProjectRepository._writeProject (package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart:248:9)
+    <asynchronous suspension>
+    #4      main.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:456:7)
+    <asynchronous suspension>
+    #5      Declarer.test.<anonymous closure>.<anonymous closure> (package:test_api/src/backend/declarer.dart:253:15)
+    <asynchronous suspension>
+    #6      Declarer.test.<anonymous closure> (package:test_api/src/backend/declarer.dart:250:11)
+    <asynchronous suspension>
+    #7      Invoker._waitForOutstandingCallbacks.<anonymous closure> (package:test_api/src/backend/invoker.dart:318:9)
+--
+2026-11-17T07:05:33.334666Z ERROR [project] Background lyric association error callback failed — StateError: Bad state: observer failed
+    #0      main.<anonymous closure>.<anonymous closure> (file://~/work/lyric-forge-ktv/lyric-forge-ktv/test/file_project_repository_test.dart:452:11)
+    #1      FileProjectRepository._reportAutoLinkError (package:lyric_forge_ktv/features/project/data/repositories/file_project_repository.dart:269:25)
+    #2      StackZoneSpecification._registerBinaryCallback.<anonymous closure>.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:138:43)
+    #3      StackZoneSpecification._run (package:stack_trace/src/stack_zone_specification.dart:207:15)
+    #4      StackZoneSpecification._registerBinaryCallback.<anonymous closure> (package:stack_trace/src/stack_zone_specification.dart:138:31)
+    #5      _rootRunBinary (dart:async/zone_root.dart:70:47)
+    #6      _CustomZone.runBinary (dart:async/zone.dart:822:35)
+    #7      _FutureListener.handleError (dart:async/future_impl.dart:237:22)
+    #8      Future._propagateToListeners.handleError (dart:async/future_impl.dart:960:47)
+    #9      Future._propagateToListeners (dart:async/future_impl.dart:981:13)
+    #10     Future._completeErrorObject (dart:async/future_impl.dart:738:5)
+    #11     Future._completeError (dart:async/future_impl.dart:742:5)

@@ -193,13 +193,8 @@ class LyricBatchTextToolsCoordinator {
           : (index) => host.previewProofreadLine(project, index),
       onPreviewSpan: project.audioAsset == null
           ? null
-          : (index, start, end) => _previewSpan(
-              project,
-              document,
-              index,
-              start,
-              end,
-            ),
+          : (index, start, end) =>
+                _previewSpan(project, document, index, start, end),
     ),
   };
 

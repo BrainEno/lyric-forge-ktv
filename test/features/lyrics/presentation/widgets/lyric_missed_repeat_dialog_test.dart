@@ -109,10 +109,7 @@ void main() {
       onPreviewSpan: (index, start, end) => spans.add((index, start, end)),
     );
 
-    expect(
-      find.text('字被拉长 1 处，和声后长空白 1 处；默认勾选 1 项。'),
-      findsOneWidget,
-    );
+    expect(find.text('字被拉长 1 处，和声后长空白 1 处；默认勾选 1 项。'), findsOneWidget);
     expect(find.text('第 3 行 · 这里可能漏了重复的和声'), findsOneWidget);
     expect(find.textContaining('建议从 0:24.8 开始'), findsOneWidget);
     expect(find.textContaining('插入 8 行（最多 8 行）'), findsOneWidget);

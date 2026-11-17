@@ -34,8 +34,14 @@ void main() {
 
   group('chantReason', () {
     test('recognises vocables, back-to-back phrases and refrains', () {
-      expect(detector.chantReason('whoa oh oh oh', 1), LyricChantReason.vocables);
-      expect(detector.chantReason('Ooooh, yeahhh', 1), LyricChantReason.vocables);
+      expect(
+        detector.chantReason('whoa oh oh oh', 1),
+        LyricChantReason.vocables,
+      );
+      expect(
+        detector.chantReason('Ooooh, yeahhh', 1),
+        LyricChantReason.vocables,
+      );
       expect(detector.chantReason('la-la-la-la', 1), LyricChantReason.vocables);
       expect(detector.chantReason('lalala', 1), LyricChantReason.vocables);
       expect(detector.chantReason('啦啦啦啦', 1), LyricChantReason.vocables);
@@ -64,7 +70,11 @@ void main() {
 
     test('isVocable collapses held letters but keeps real words out', () {
       for (final token in ['oh', 'ooh', 'whoa', 'woah', 'yeah', 'nanana']) {
-        expect(LyricMissedRepeatDetector.isVocable(token), isTrue, reason: token);
+        expect(
+          LyricMissedRepeatDetector.isVocable(token),
+          isTrue,
+          reason: token,
+        );
       }
       for (final token in ['no', 'a', 'my', 'day', 'do', 'hello', 'mama']) {
         expect(
@@ -197,7 +207,11 @@ void main() {
             'we go on',
             6000,
             8000,
-            words: [_w('we', 6000, 6000), _w('go', 6000, 6000), _w('on', 6000, 8000)],
+            words: [
+              _w('we', 6000, 6000),
+              _w('go', 6000, 6000),
+              _w('on', 6000, 8000),
+            ],
           ),
         ]),
       );
@@ -300,22 +314,25 @@ void main() {
       expect(plan.countFor({0, 1}), (cleared: 0, retimed: 2, inserted: 0));
     });
 
-    test('hand-edited rows and word times from before a move are left alone', () {
-      final protectedPlan = detector.plan(stretched, protectedIndices: {0});
-      expect(protectedPlan.issues.first.protected, isTrue);
-      expect(protectedPlan.issues.first.fixable, isFalse);
-      expect(protectedPlan.defaultPositions, isEmpty);
+    test(
+      'hand-edited rows and word times from before a move are left alone',
+      () {
+        final protectedPlan = detector.plan(stretched, protectedIndices: {0});
+        expect(protectedPlan.issues.first.protected, isTrue);
+        expect(protectedPlan.issues.first.fixable, isFalse);
+        expect(protectedPlan.defaultPositions, isEmpty);
 
-      final moved = _doc([
-        _line(
-          'the night is young',
-          60000,
-          86000,
-          words: [_w('the', 0, 25600), _w('night', 25600, 26000)],
-        ),
-      ]);
-      expect(detector.plan(moved).issues, isEmpty);
-    });
+        final moved = _doc([
+          _line(
+            'the night is young',
+            60000,
+            86000,
+            words: [_w('the', 0, 25600), _w('night', 25600, 26000)],
+          ),
+        ]);
+        expect(detector.plan(moved).issues, isEmpty);
+      },
+    );
   });
 
   group('applyTo', () {
@@ -370,20 +387,18 @@ void main() {
         [1, 6],
       );
       expect(plan.selectionAfterApply({position}), 3);
-      expect(
-        plan.countFor({position}, fillCounts: {position: 2}),
-        (cleared: 0, retimed: 0, inserted: 2),
-      );
+      expect(plan.countFor({position}, fillCounts: {position: 2}), (
+        cleared: 0,
+        retimed: 0,
+        inserted: 2,
+      ));
     });
 
     test('a fill count of zero or nothing selected changes nothing', () {
       final document = ending();
       final plan = detector.plan(document, audioDuration: _ms(120000));
       expect(plan.applyTo(document, const {}), same(document));
-      expect(
-        plan.applyTo(document, {0}, fillCounts: {0: 0}),
-        same(document),
-      );
+      expect(plan.applyTo(document, {0}, fillCounts: {0: 0}), same(document));
       expect(plan.fillCountFor(0, {0: 99}), plan.issues[0].fill.length);
       expect(plan.fillCountFor(0, {0: -3}), 0);
     });
