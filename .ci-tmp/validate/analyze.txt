@@ -222,4 +222,4 @@ Analyzing lyric-forge-ktv...
    info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1087:20 • prefer_interpolation_to_compose_strings
    info • Use interpolation to compose strings and values. Try using string interpolation to build the composite string • tool/forced_alignment_eval.dart:1090:20 • prefer_interpolation_to_compose_strings
 
-186 issues found. (ran in 13.3s)
+186 issues found. (ran in 16.1s)

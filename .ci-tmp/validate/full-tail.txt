@@ -1,30 +1,30 @@
-02:14 +2597 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2598 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2599 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2600 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2601 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2602 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2603 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2604 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2605 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2606 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:14 +2607 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:15 +2608 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:15 +2609 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:15 +2610 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: idle upload timeout removes the partial file
-02:15 +2611 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2612 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2613 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2614 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2615 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2616 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2617 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:15 +2618 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: total upload deadline applies while chunks continue arriving
-02:21 +2619 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: a rejection reaches a client that keeps streaming, after cleanup (#441)
-02:24 +2620 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: upload slot is free as soon as a successful upload is answered
-02:25 +2621 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a negative rejection drain grace
-02:25 +2622 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transfer/http_media_hub_upload_test.dart: rejects a second simultaneous upload for the same session
-02:25 +2623 ~2 -1: Some tests failed.
+03:27 +2599 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile restores the last valid backup when canonical and temp are invalid
+03:27 +2600 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile does not overwrite an invalid store without a valid recovery copy
+03:27 +2601 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile keeps the previous document as a backup after a successful update
+03:27 +2602 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning schemaVersionOf reads stamps, rejects malformed ones
+03:27 +2603 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning stampSchemaVersion copies without mutating its input
+03:27 +2604 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning versioned validator gates newer schema versions
+03:27 +2605 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning write refuses to overwrite a newer-schema document
+03:27 +2606 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning recovery falls back to a readable backup on downgrade
+03:27 +2607 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/core/persistence/atomic_json_file_test.dart: AtomicJsonFile schema versioning legacy unstamped documents stay writable and readable
+03:27 +2608 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Korean, Japanese, Greek, Cyrillic, and Chinese text
+03:28 +2609 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Cyrillic supplement, extensions, and combining marks
+03:28 +2610 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves polytonic Greek letters
+03:28 +2611 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves supplementary CJK ideographs
+03:28 +2612 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-D letters
+03:28 +2613 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-E letters
+03:28 +2614 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison preserves Latin Extended-C letters
+03:28 +2615 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison folds precomposed and decomposed Latin diacritics
+03:28 +2616 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/asr_text_comparison_test.dart: AsrTextComparison empty normalized text is not evidence of agreement
+03:28 +2617 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts (setUpAll)
+03:28 +2617 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts ratchet scans the feature tree
+03:28 +2618 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts domain does not import platform or Flutter APIs
+03:28 +2619 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts domain does not import data or presentation layers
+03:28 +2620 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts presentation does not import data implementations
+03:28 +2621 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts presentation does not import audio implementation packages
+03:28 +2622 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts data does not import the presentation layer
+03:28 +2623 ~2 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture_layer_imports_contract_test.dart: Architecture layer import contracts (tearDownAll)
+03:28 +2623 ~2 -1: Some tests failed.
 
 Failing tests:
   /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts all workflows install the Flutter SDK through the shared pin
