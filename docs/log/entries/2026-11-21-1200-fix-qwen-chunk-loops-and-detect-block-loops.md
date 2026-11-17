@@ -33,7 +33,14 @@
     - The 1.7B model wrote "never" about 180 times at 209 s, which the runtime's own repetition fix cut to two.
   - Instrumental chunks with context came back as "Embers. Artist: Avercage."; 60 s chunks drop repeated chorus lines.
   - The unpatched 0.6B run of Ridgway failed with "word_list is empty" on a 0.54 s tail that decoded to "."; with the patch it succeeds (WER 0.35).
-  - The old-budget configurations (180 s chunks, 2176 tokens per chunk, with and without context) were still running on the same songs after more than three hours per model; the final configuration finished all nine runs in about 35 minutes (0.6B) and 75 minutes (1.7B).
+  - The old configuration (180 s chunks, about 2200 tokens per chunk, title/artist context) was cancelled after more than three hours per model. The songs it had finished reproduce the reported bug:
+    - The Rinn (0.6B, 180 s chunks): 127 lines for 46 reference lines, 1206 words for 203, and a four-line block repeated 14 times from 3:19 to the end. The final configuration gives 31 lines, 199 words and WER 0.52.
+    - Avercage (0.6B, old configuration): 470 words for 189 and WER 2.43; final 140 words and 0.73.
+    - On the four runs the old configuration finished for both models (Avercage, Ridgway, plain and gated), mean WER fell from 1.05 to 0.54 (0.6B, with context) and from 0.54 to 0.49 (1.7B, without context).
+    - The final configuration finished all nine runs in about 35 minutes (0.6B) and 75 minutes (1.7B).
+  - By position in the song (1.7B, final configuration), WER is 0.36 for 0:00–1:30, 0.37 for 1:30–3:00 and 0.67 after 3:00.
+    - Part of the late drop is scoring: references write "lalalalala" as one word.
+    - The rest is outro chants repeated many times ("whoa oh oh oh oh", "find that fire"), which the model shortens and the aligner sometimes places early.
 - Files:
   - New: `lib/features/transcription/domain/models/qwen_recognition_context.dart`, `tool/patches/qwen3-asr-skip-unalignable-chunks.patch`.
   - Changed: `qwen_decode_budget.dart`, `qwen3_asr_native_transcription_service.dart`, `local_project_transcription_workflow.dart`, `independent_project_rerun_service.dart`, `transcription_models.dart` (doc), `lyric_asr_loop_detector.dart`, `lyric_asr_loop_dialog.dart`, `lyric_draft_health_service.dart` (doc), `build-asr-runtime.yml`.
