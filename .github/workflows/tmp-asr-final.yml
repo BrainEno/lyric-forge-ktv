@@ -1,0 +1,141 @@
+name: tmp asr final
+
+on:
+  push:
+    branches: [arena/10228596-lyric-forge-ktv]
+    paths:
+      - ".github/workflows/tmp-asr-final.yml"
+
+permissions:
+  contents: write
+
+env:
+  QWEN_REPO: https://github.com/lumosimmo/qwen3-asr-rs.git
+  QWEN_REV: 7984967e8701cc90bb17d06453901036e36ca578
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Fetch and patch runtime
+        run: |
+          git clone -q "$QWEN_REPO" qwen-runtime-src
+          git -C qwen-runtime-src checkout -q "$QWEN_REV"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-eager-attention-contiguous.patch"
+          git -C qwen-runtime-src apply "$GITHUB_WORKSPACE/tool/patches/qwen3-asr-skip-unalignable-chunks.patch"
+          grep -c "is_alphanumeric" qwen-runtime-src/qwen3_asr/src/inference/transcribe.rs
+          python3 - <<'PY'
+          p = "qwen-runtime-src/qwen3_asr/src/inference/transcribe.rs"
+          lines = open(p).read().split("\n")
+          out = []
+          patched = 0
+          for i, line in enumerate(lines):
+              out.append(line)
+              if line.strip() == "let (lang, text) = parse_asr_output(Some(raw.as_str()), forced);" and any("let c = chunks" in l for l in lines[max(0, i - 8):i]):
+                  indent = line[: len(line) - len(line.lstrip())]
+                  out.append(indent + 'eprintln!("LF_CHUNK\\t{}\\t{:.2}\\t{:.2}\\t{:?}", chunk_idx, c.offset_sec, c.wav.len() as f32 / 16000.0, raw);')
+                  patched += 1
+          assert patched >= 1, patched
+          open(p, "w").write("\n".join(out))
+          print("patched", patched)
+          PY
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            qwen-runtime-src/target
+          key: qwen-cpu-${{ env.QWEN_REV }}-exp2
+      - name: Build CPU runtime
+        run: |
+          cd qwen-runtime-src
+          cargo build --release -p qwen3_asr_cli
+          cp target/release/qwen3-asr ../qwen3-asr
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qwen3-asr-bin-final
+          path: qwen3-asr
+
+  run:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [Qwen/Qwen3-ASR-0.6B, Qwen/Qwen3-ASR-1.7B]
+        config: [chunk30_noctx]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: qwen3-asr-bin-final
+      - name: Tools
+        run: |
+          chmod +x qwen3-asr
+          which ffmpeg || (sudo apt-get update -q && sudo apt-get install -yq ffmpeg)
+          pip install -q huggingface_hub
+      - name: Models
+        run: |
+          python3 - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download("${{ matrix.model }}", local_dir="models/asr")
+          snapshot_download("Qwen/Qwen3-ForcedAligner-0.6B", local_dir="models/aligner")
+          PY
+      - name: Songs (JamendoLyrics, CC licensed)
+        run: |
+          mkdir -p songs
+          for n in Ridgway_-_Fire_Inside Avercage_-_Embers The_Rinn_-_Voices__2017_Version_ The.madpix.project_-_One_Way_Street Songwriterz_-_Back_In_Time Kinematic_-_Peyote; do
+            curl -sSfL "https://raw.githubusercontent.com/f90/jamendolyrics/master/mp3/$n.mp3" -o "songs/$n.mp3"
+            curl -sSfL "https://raw.githubusercontent.com/f90/jamendolyrics/master/annotations/lines/$n.csv" -o "songs/$n.csv"
+          done
+          ls -la songs
+      - name: Run
+        run: |
+          slug=$(echo "${{ matrix.model }}" | tr '/' '_')
+          python3 .github/tmp-asr-exp/run.py --bin ./qwen3-asr --model models/asr --aligner models/aligner --songs songs --config ${{ matrix.config }} --out "results/$slug"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-${{ strategy.job-index }}
+          path: results
+
+  report:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: final-*
+          path: results
+      - name: Songs metadata
+        run: |
+          mkdir -p songs
+          for n in Ridgway_-_Fire_Inside Avercage_-_Embers The_Rinn_-_Voices__2017_Version_ The.madpix.project_-_One_Way_Street Songwriterz_-_Back_In_Time Kinematic_-_Peyote; do
+            curl -sSfL "https://raw.githubusercontent.com/f90/jamendolyrics/master/annotations/lines/$n.csv" -o "songs/$n.csv"
+          done
+      - name: Report
+        run: |
+          mkdir -p .ci-tmp/asr-final
+          python3 - <<'PY'
+          import glob, json
+          for p in glob.glob("results/**/*.json", recursive=True):
+              d = json.load(open(p))
+              if isinstance(d, dict) and d.get("config") == "chunk30_noctx":
+                  d["config"] = "final_patched"
+                  json.dump(d, open(p, "w"))
+          PY
+          python3 .ci-trigger/report.py songs results .ci-tmp/asr-final/report.md
+          cp -r results .ci-tmp/asr-final/raw
+      - name: Commit
+        run: |
+          git config user.name ci-bot
+          git config user.email ci-bot@users.noreply.github.com
+          git add .ci-tmp/asr-final
+          git commit -m "ci: asr final results" || true
+          git pull --rebase -q origin ${GITHUB_REF_NAME} || true
+          git push origin HEAD:${GITHUB_REF_NAME}
