@@ -14,27 +14,7 @@ env:
   WHISPER_REV: 927cfce34f31707e17f2bff35c349632fb9e2c3a
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - name: Build whisper-cli
-        run: |
-          git init -q whisper-src
-          git -C whisper-src remote add origin https://github.com/ggml-org/whisper.cpp
-          git -C whisper-src fetch -q --depth 1 origin "$WHISPER_REV"
-          git -C whisper-src checkout -q FETCH_HEAD
-          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF
-          cmake --build whisper-src/build -j 4 --target whisper-cli
-          cp whisper-src/build/bin/whisper-cli ./whisper-cli
-          ./whisper-cli -h 2>&1 | grep -E "max-context|suppress-nst|prompt" || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: whisper-cli
-          path: whisper-cli
-
   run:
-    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -50,12 +30,17 @@ jobs:
         config: [lyrics_v1, standard, mc0]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: whisper-cli
+      - name: Build whisper-cli (portable, no native CPU flags)
+        run: |
+          git init -q whisper-src
+          git -C whisper-src remote add origin https://github.com/ggml-org/whisper.cpp
+          git -C whisper-src fetch -q --depth 1 origin "$WHISPER_REV"
+          git -C whisper-src checkout -q FETCH_HEAD
+          cmake -S whisper-src -B whisper-src/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON > /dev/null
+          cmake --build whisper-src/build -j 4 --target whisper-cli > /dev/null
+          cp whisper-src/build/bin/whisper-cli ./whisper-cli
       - name: Tools and model
         run: |
-          chmod +x whisper-cli
           which ffmpeg || (sudo apt-get update -q && sudo apt-get install -yq ffmpeg)
           mkdir -p models
           curl -sSfL "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin" -o models/ggml-large-v3.bin
@@ -103,3 +88,4 @@ jobs:
           git add .ci-tmp
           git commit -qm "ci: whisper experiment results" || exit 0
           for i in 1 2 3; do git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin HEAD:"$GITHUB_REF_NAME" && break; sleep 5; done
+# rerun 2

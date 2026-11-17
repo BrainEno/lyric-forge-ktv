@@ -1,1 +1,0 @@
-{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/Avercage_-_Embers.wav", "-l", "auto", "-ojf", "-of", "results/Avercage_-_Embers.standard", "-pp", "-t", "4"], "exit": -4, "seconds": 44.8}
