@@ -31,6 +31,12 @@ enum LyricBatchTextTool {
 
   /// Cuts down phrases and rows the recogniser repeated (识别循环检查).
   asrLoopCheck,
+
+  /// Lists invalid, drifted and suspicious word timing (逐字时间检查).
+  wordTimingCheck,
+
+  /// Fine-tunes the selected row's word timing (逐字微调).
+  wordTimingEdit,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

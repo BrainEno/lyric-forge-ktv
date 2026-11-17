@@ -19,6 +19,7 @@ class LyricWordTimingStrip extends StatelessWidget {
     this.service = const LyricWordTimingService(),
     this.onSeek,
     this.onClear,
+    this.onEdit,
   });
 
   final LyricLine line;
@@ -30,6 +31,9 @@ class LyricWordTimingStrip extends StatelessWidget {
 
   /// Removes the row's word timing, so karaoke export estimates it again.
   final VoidCallback? onClear;
+
+  /// Opens word timing fine-tuning for the row; null hides the button.
+  final VoidCallback? onEdit;
 
   /// A word held at least this long is marked: it is either a long note or
   /// an alignment that swallowed a pause, and worth a listen.
@@ -59,6 +63,17 @@ class LyricWordTimingStrip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
             ),
             child: const Text('清除'),
+          );
+    final edit = onEdit == null
+        ? null
+        : TextButton(
+            key: const ValueKey('word_timing_edit'),
+            onPressed: onEdit,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            ),
+            child: const Text('微调'),
           );
     if (words.isEmpty) {
       return Column(
@@ -103,6 +118,7 @@ class LyricWordTimingStrip extends StatelessWidget {
                 ),
               ),
             ),
+            ?edit,
             ?clear,
           ],
         ),

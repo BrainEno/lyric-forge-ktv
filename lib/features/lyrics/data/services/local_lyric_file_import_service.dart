@@ -5,6 +5,7 @@ import 'package:charset/charset.dart' as charset;
 
 import '../../../project/domain/models/lyric_document.dart';
 import '../../domain/services/lyric_file_import_service.dart';
+import '../../domain/services/lyric_karaoke_tag_parser.dart';
 import '../../domain/services/lyric_timeline_validator.dart';
 
 class LocalLyricFileImportService implements LyricFileImportService {
@@ -17,6 +18,8 @@ class LocalLyricFileImportService implements LyricFileImportService {
     'txt',
     'text',
   };
+
+  static const LyricKaraokeTagParser _tags = LyricKaraokeTagParser();
 
   @override
   Set<String> get supportedExtensions => _extensions;
@@ -161,16 +164,21 @@ class LocalLyricFileImportService implements LyricFileImportService {
       }
       if (timestamps.isEmpty) continue;
 
-      final lyricText = line
-          .substring(textStart)
-          .replaceAll(RegExp(r'<\d+:[^>]+>'), '')
-          .trim();
-      if (lyricText.isEmpty) {
+      // Inline word stamps are timed against the first line stamp and
+      // move with the row when it is listed under several stamps.
+      final tags = _tags.lrc(line.substring(textStart), timestamps.first);
+      if (tags.text.isEmpty) {
         endMarkers.addAll(timestamps);
         continue;
       }
       for (final timestamp in timestamps) {
-        entries.add(_TimedText(timestamp, lyricText));
+        entries.add(
+          _TimedText(
+            timestamp,
+            tags.text,
+            tags: tags.shifted(timestamp - timestamps.first),
+          ),
+        );
       }
     }
 
@@ -186,11 +194,24 @@ class LocalLyricFileImportService implements LyricFileImportService {
         if (nextStart == null || marker <= nextStart) end = marker;
         break;
       }
+      // A closing word stamp is the row's real end.
+      final closing = current.tags?.end;
+      if (closing != null &&
+          closing > current.start &&
+          (nextStart == null || closing <= nextStart)) {
+        end = closing;
+      }
       if (end <= current.start) {
         end = current.start + const Duration(milliseconds: 500);
       }
+      final tags = current.tags;
       lines.add(
-        LyricLine(text: current.text, startTime: current.start, endTime: end),
+        LyricLine(
+          text: current.text,
+          startTime: current.start,
+          endTime: end,
+          words: tags == null ? const [] : _tags.words(tags, rowEnd: end),
+        ),
       );
     }
 
@@ -295,16 +316,25 @@ class LocalLyricFileImportService implements LyricFileImportService {
       final textIndex = _caseInsensitiveIndex(fields, 'Text');
       if (startIndex < 0 || endIndex < 0 || textIndex < 0) continue;
 
-      final start = _parseAssTimestamp(values[startIndex]);
+      var start = _parseAssTimestamp(values[startIndex]);
       final end = _parseAssTimestamp(values[endIndex]);
       if (start == null || end == null || end <= start) continue;
-      final lyricText = values[textIndex]
-          .replaceAll(RegExp(r'\{[^}]*\}'), '')
-          .replaceAll(r'\N', '\n')
-          .replaceAll(r'\n', '\n')
-          .trim();
-      if (lyricText.isEmpty) continue;
-      lines.add(LyricLine(text: lyricText, startTime: start, endTime: end));
+      final tags = _tags.ass(values[textIndex], start);
+      if (tags.text.isEmpty) continue;
+      // An untexted leading \k is the lead-in shown before the row is
+      // sung; the row starts where the singing does.
+      final sungFrom = _tags.firstSungStart(tags);
+      if (sungFrom != null && sungFrom > start && sungFrom < end) {
+        start = sungFrom;
+      }
+      lines.add(
+        LyricLine(
+          text: tags.text,
+          startTime: start,
+          endTime: end,
+          words: _tags.words(tags, rowEnd: end),
+        ),
+      );
     }
 
     lines.sort((a, b) => a.startTime.compareTo(b.startTime));
@@ -381,20 +411,23 @@ class LocalLyricFileImportService implements LyricFileImportService {
       final end = _parseSubtitleTimestamp(endToken);
       if (start == null || end == null || end <= start) continue;
 
-      var cueText = rawLines
-          .skip(timingIndex + 1)
-          .join('\n')
-          .replaceAll(RegExp(r'<[^>]+>'), '')
-          .trim();
+      final rawText = rawLines.skip(timingIndex + 1).join('\n');
       if (webVtt) {
-        // WebVTT escapes markup characters; '&amp;' last so '&amp;lt;'
-        // decodes to the literal text '&lt;'.
-        cueText = cueText
-            .replaceAll('&lt;', '<')
-            .replaceAll('&gt;', '>')
-            .replaceAll('&nbsp;', ' ')
-            .replaceAll('&amp;', '&');
+        // WebVTT escapes markup characters and may time words with inline
+        // cue timestamps.
+        final tags = _tags.vtt(rawText, start);
+        if (tags.text.isEmpty) continue;
+        result.add(
+          LyricLine(
+            text: tags.text,
+            startTime: start,
+            endTime: end,
+            words: _tags.words(tags, rowEnd: end),
+          ),
+        );
+        continue;
       }
+      final cueText = rawText.replaceAll(RegExp(r'<[^>]+>'), '').trim();
       if (cueText.isEmpty) continue;
       result.add(LyricLine(text: cueText, startTime: start, endTime: end));
     }
@@ -537,8 +570,9 @@ class LocalLyricFileImportService implements LyricFileImportService {
 class _TimedText {
   final Duration start;
   final String text;
+  final LyricKaraokeTags? tags;
 
-  const _TimedText(this.start, this.text);
+  const _TimedText(this.start, this.text, {this.tags});
 }
 
 class _DecodedText {

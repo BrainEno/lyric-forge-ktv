@@ -84,6 +84,7 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-15 15:00] Handle simplified and traditional Chinese script consistently ([entry](log/entries/2026-11-15-1500-unify-chinese-script-handling.md))
 - [2026-11-15 10:45] Improve lyric ASR recall and proofreading workflow ([entry](log/entries/2026-11-15-1045-improve-lyric-asr-recall-and-review.md))
 - [2026-11-14 22:20] Harden the local Qwen runtime security boundary ([entry](log/entries/2026-11-14-2220-harden-qwen-runtime-boundary.md))
 - [2026-11-14 20:37] Protect lyric saves, local stores, and rejected uploads ([entry](log/entries/2026-11-14-2037-protect-saves-stores-uploads.md))

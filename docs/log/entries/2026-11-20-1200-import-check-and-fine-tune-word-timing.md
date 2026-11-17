@@ -1,0 +1,32 @@
+# [2026-11-20 12:00] Import karaoke word timing, add word timing check and fine-tuning
+
+- Scope: Word timing (`LyricLine.words`) can now come from imported karaoke files, be checked across the whole document, and be fine-tuned one word at a time. Everything is wired through existing services and the batch-tool coordinator, so the editor screen does not grow.
+  - Karaoke import (`LyricKaraokeTagParser`, used by `LocalLyricFileImportService`).
+    - LRC: enhanced `<mm:ss.xx>` stamps and inline `[mm:ss.xx]` stamps. A final stamp with no text closes the row and becomes its end when it comes before the next row. A row listed under several line stamps gets its words moved to each.
+    - ASS: `\k`, `\K`, `\kf` and `\ko` durations accumulate from the event start. An untexted leading `\k` is the lead-in, and the row starts where the singing does.
+    - WebVTT: inline `<hh:mm:ss.mmm>` cue timestamps; text before the first stamp starts with the cue.
+    - Each piece with sung text is one word, punctuation joins the previous word, and stamps going backwards leave the row untimed.
+    - The app's own karaoke LRC and ASS exports import back with the same timing. The import snack bar reports how many rows came with word timing.
+  - 逐字时间检查 (`LyricWordTimingAuditor`, dialog, menu entry and a 逐字时间失效 N 行 hint from `LyricDraftHealth.staleWordRows`).
+    - Stale word timing (count no longer matches the text) is cleared. Drifted word timing (row moved or stretched) is stored as mapped. Both are selected by default and do not change export output.
+    - Words held 2.5 s or more, characters shorter than 40 ms and pauses of 1.2 s or more inside a row are listed for listening only.
+    - The dialog shows how many rows have usable word timing and how many will be estimated.
+  - 逐字微调 (`LyricWordTimingEditor`, dialog).
+    - Opened from the inspector's word timing strip (微调), or 逐字微调（从估算开始） on rows without word timing, which start from the karaoke estimate.
+    - Start, end or the whole word move by ±10/±50 ms, or to the playhead. The word can be auditioned with automatic stop.
+    - Touching words share their boundary; gaps stay until a word is pushed into its neighbour. Words are at least 40 ms and the last word stops at the next row.
+    - Words can be merged or split. The row grows to cover its words, or fits them on request.
+    - The result is manual timing provenance and one undoable edit.
+- Files:
+  - New domain services: `lib/features/lyrics/domain/services/{lyric_karaoke_tag_parser,lyric_word_timing_auditor,lyric_word_timing_editor}.dart`.
+  - New widgets: `lib/features/lyrics/presentation/widgets/{lyric_word_timing_check_dialog,lyric_word_timing_edit_dialog}.dart`.
+  - Changed:
+    - `local_lyric_file_import_service.dart`, `lyric_file_import_service.dart` (`wordTimedRows`), `local_song_lyrics_import_action.dart`
+    - `lyric_draft_health_service.dart` (`staleWordRows`), `lyric_recognition_summary_card.dart`
+    - `lyric_batch_text_edit.dart` (`wordTimingCheck`, `wordTimingEdit`), `lyric_batch_text_tools_coordinator.dart`, `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_editor_content.dart`, `lyric_inspector_pane.dart`, `lyric_word_timing_strip.dart`
+  - Tests: karaoke import and round-trip tests, word timing check and editor tests, widget tests for both dialogs, the strip button, the menu entry and the summary hint.
+  - Docs: `decisions.md` (D-023), handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it was deleted before the PR.
+  - `dart format` changed nothing on the final tree; `flutter analyze` 0 errors/warnings and 186 infos (same as main); targeted tests 73 passed; full suite 2603 passed, 2 skipped, 0 failed; work-log `write` + `check` passed.
+- Notes: Inline square-bracket stamps in LRC text used to stay in the text; they are now read as word timing. Thresholds for the word timing check are empirical.
+- Commit: `Import karaoke word timing, add word timing check and fine-tuning`

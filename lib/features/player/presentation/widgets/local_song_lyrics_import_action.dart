@@ -151,7 +151,15 @@ Future<void> importLyricsForLocalPlaybackItem(
 
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(timed ? '歌词已导入，可直接校对或播放' : '文本歌词已导入，请在歌词编辑器中补时间轴')),
+    SnackBar(
+      content: Text(
+        !timed
+            ? '文本歌词已导入，请在歌词编辑器中补时间轴'
+            : result.wordTimedRows > 0
+            ? '歌词已导入（${result.wordTimedRows} 行带逐字时间），可直接校对或播放'
+            : '歌词已导入，可直接校对或播放',
+      ),
+    ),
   );
   await Navigator.pushNamed(context, Routes.lyricEditorPath(savedProject.id));
 }

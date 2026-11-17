@@ -80,6 +80,12 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         label: '语速异常 ${health.paceRows} 行',
         tooltip: '比全曲语速快得多或慢得多的行，多半结束被截断、跨过间奏或漏字多字；打开“语速异常检查”逐行试听',
       ),
+    if (health.staleWordRows > 0)
+      (
+        tool: LyricBatchTextTool.wordTimingCheck,
+        label: '逐字时间失效 ${health.staleWordRows} 行',
+        tooltip: '改字后字数与逐字时间不再匹配，逐字导出会按字数估算；打开“逐字时间检查”清除或重新打轴',
+      ),
   ];
 
   /// Short display name for an engine identity such as `qwen3-asr-1.7b`.

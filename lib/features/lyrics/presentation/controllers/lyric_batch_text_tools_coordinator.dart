@@ -13,6 +13,8 @@ import '../widgets/lyric_text_cleanup_dialog.dart';
 import '../widgets/lyric_timeline_repair_dialog.dart';
 import '../widgets/lyric_timing_shift_dialog.dart';
 import '../widgets/lyric_word_tap_dialog.dart';
+import '../widgets/lyric_word_timing_check_dialog.dart';
+import '../widgets/lyric_word_timing_edit_dialog.dart';
 import 'lyric_editor_proofreading_coordinator.dart';
 
 /// Runs a batch text tool against a snapshot of the editing document and
@@ -147,6 +149,31 @@ class LyricBatchTextToolsCoordinator {
         transport: transport,
       ),
     ),
+    LyricBatchTextTool.wordTimingCheck => showLyricWordTimingCheckDialog(
+      context,
+      document: document,
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
+    ),
+    LyricBatchTextTool.wordTimingEdit =>
+      project.audioAsset == null
+          ? showLyricWordTimingEditDialog(
+              context,
+              document: document,
+              index: _selectedRow(document),
+            )
+          : _openTapSync(
+              context,
+              project,
+              document,
+              (start, transport) => showLyricWordTimingEditDialog(
+                context,
+                document: document,
+                index: start,
+                transport: transport,
+              ),
+            ),
     LyricBatchTextTool.asrLoopCheck => showLyricAsrLoopDialog(
       context,
       document: document,
@@ -157,9 +184,8 @@ class LyricBatchTextToolsCoordinator {
     ),
   };
 
-  /// Tap-to-sync (by row or by word) needs this project's audio loaded and
-  /// free-running: a
-  /// bounded line audition would stop the song at the row's end. When other
+  /// Tap-to-sync (by row or by word) and word fine-tuning need this
+  /// project's audio loaded and free-running: a bounded line audition would stop the song at the row's end. When other
   /// audio (or nothing) is loaded, the selected row's audition loads the
   /// project and is then released and paused, so the dialog opens on a
   /// quiet, loaded player.
@@ -179,9 +205,7 @@ class LyricBatchTextToolsCoordinator {
       ).showSnackBar(const SnackBar(content: Text(tapSyncNeedsAudio)));
       return null;
     }
-    final selected = host.proofreadSelectedLineIndex ?? 0;
-    final last = document.lines.length - 1;
-    final start = selected < 0 ? 0 : (selected > last ? last : selected);
+    final start = _selectedRow(document);
     final audio = host.proofreadAudioService;
     try {
       final item = host.proofreadPlaybackSession.currentState.currentItem;
@@ -202,6 +226,13 @@ class LyricBatchTextToolsCoordinator {
     }
     if (!context.mounted || !host.proofreadIsMounted) return null;
     return show(start, LyricTapSyncTransport.fromAudio(audio));
+  }
+
+  /// The selected row, or the first one.
+  int _selectedRow(LyricDocument document) {
+    final selected = host.proofreadSelectedLineIndex ?? 0;
+    final last = document.lines.length - 1;
+    return selected < 0 ? 0 : (selected > last ? last : selected);
   }
 
   /// The playhead on [document]'s timeline when this project's audio is

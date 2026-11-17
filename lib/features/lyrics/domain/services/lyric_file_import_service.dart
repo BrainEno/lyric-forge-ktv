@@ -25,6 +25,11 @@ class LyricImportResult {
     this.album,
     this.conflicts = const [],
   });
+
+  /// Rows that came with word timing from karaoke tags (enhanced LRC
+  /// stamps, ASS `\k` tags, WebVTT cue timestamps).
+  int get wordTimedRows =>
+      document.lines.where((line) => line.words.isNotEmpty).length;
 }
 
 class LyricImportException implements Exception {

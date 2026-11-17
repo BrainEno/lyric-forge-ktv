@@ -42,6 +42,9 @@ class InspectorPane extends StatelessWidget {
 
   /// Seeks the project's audio to an audio position (word timing chips).
   final ValueChanged<Duration>? onSeekPlayback;
+
+  /// Opens word timing fine-tuning for the selected row.
+  final VoidCallback? onEditWordTiming;
   final bool autofocusText;
   final int focusRequestId;
 
@@ -63,6 +66,7 @@ class InspectorPane extends StatelessWidget {
     required this.onSetStartFromPlayback,
     required this.onSetEndFromPlayback,
     this.onSeekPlayback,
+    this.onEditWordTiming,
     required this.autofocusText,
     required this.focusRequestId,
   });
@@ -107,6 +111,7 @@ class InspectorPane extends StatelessWidget {
           ? (time) =>
                 onSeekPlayback!(time + (document.globalOffset ?? Duration.zero))
           : null,
+      onEditWordTiming: onEditWordTiming,
     );
   }
 }
@@ -140,6 +145,9 @@ class LineInspector extends StatefulWidget {
   /// adds the global offset); null when this project is not loaded.
   final ValueChanged<Duration>? onSeekToTime;
 
+  /// Opens word timing fine-tuning (逐字微调) for this row; null hides it.
+  final VoidCallback? onEditWordTiming;
+
   const LineInspector({
     super.key,
     required this.index,
@@ -159,6 +167,7 @@ class LineInspector extends StatefulWidget {
     this.onUsePlaybackAsStart,
     this.onUsePlaybackAsEnd,
     this.onSeekToTime,
+    this.onEditWordTiming,
   });
 
   @override
@@ -390,6 +399,19 @@ class _LineInspectorState extends State<LineInspector> {
               onSeek: widget.onSeekToTime,
               onClear: () =>
                   _emitUpdate(_workingLine.copyWith(words: const [])),
+              onEdit: widget.onEditWordTiming,
+            ),
+          ] else if (widget.onEditWordTiming != null &&
+              _workingLine.text.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const ValueKey('word_timing_edit_start'),
+                onPressed: widget.onEditWordTiming,
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('逐字微调（从估算开始）'),
+              ),
             ),
           ],
           if (widget.secondarySuggestion != null && !widget.isReviewed) ...[

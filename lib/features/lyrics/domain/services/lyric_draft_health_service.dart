@@ -5,6 +5,7 @@ import 'lyric_repetition_consistency_service.dart';
 import 'lyric_structure_advisor.dart';
 import 'lyric_text_cleanup_service.dart';
 import 'lyric_timeline_repair_planner.dart';
+import 'lyric_word_timing_service.dart';
 
 /// Mechanical problems in a recognised draft that a batch tool can fix.
 ///
@@ -27,7 +28,9 @@ import 'lyric_timeline_repair_planner.dart';
 ///   for listening;
 /// * [loopRows] — rows where the recogniser looped (a phrase repeated a dozen
 ///   times in one row, or a run of identical rows): the recognition loop
-///   check cuts them down.
+///   check cuts them down;
+/// * [staleWordRows] — rows whose word timing no longer matches their text,
+///   so karaoke export ignores it: the word timing check clears it.
 ///
 /// Counts ignore manual-edit protection on purpose: they describe the draft,
 /// and each tool still asks before touching a hand-edited row.
@@ -39,6 +42,7 @@ class LyricDraftHealth {
   final int timelineRows;
   final int paceRows;
   final int loopRows;
+  final int staleWordRows;
 
   const LyricDraftHealth({
     required this.captionRows,
@@ -48,6 +52,7 @@ class LyricDraftHealth {
     this.timelineRows = 0,
     this.paceRows = 0,
     this.loopRows = 0,
+    this.staleWordRows = 0,
   });
 
   static const LyricDraftHealth clean = LyricDraftHealth(
@@ -65,7 +70,8 @@ class LyricDraftHealth {
       structureIssues > 0 ||
       timelineRows > 0 ||
       paceRows > 0 ||
-      loopRows > 0;
+      loopRows > 0 ||
+      staleWordRows > 0;
 }
 
 /// Computes [LyricDraftHealth] for a document.
@@ -81,6 +87,7 @@ class LyricDraftHealthService {
     this.timeline = const LyricTimelineRepairPlanner(),
     this.pace = const LyricPaceAnalyzer(),
     this.loops = const LyricAsrLoopDetector(),
+    this.wordTiming = const LyricWordTimingService(),
   });
 
   final LyricTextCleanupService cleanup;
@@ -89,6 +96,7 @@ class LyricDraftHealthService {
   final LyricTimelineRepairPlanner timeline;
   final LyricPaceAnalyzer pace;
   final LyricAsrLoopDetector loops;
+  final LyricWordTimingService wordTiming;
 
   static final Expando<LyricDraftHealth> _cache = Expando<LyricDraftHealth>(
     'LyricDraftHealth',
@@ -121,6 +129,9 @@ class LyricDraftHealthService {
       timelineRows: timeline.plan(document).problemRowCount,
       paceRows: pace.plan(document).issues.length,
       loopRows: loops.loopRowCount(document),
+      staleWordRows: document.lines
+          .where((line) => line.words.isNotEmpty && !wordTiming.isUsable(line))
+          .length,
     );
   }
 }
