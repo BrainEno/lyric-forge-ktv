@@ -44,7 +44,7 @@ jobs:
       - name: Report
         run: |
           mkdir -p .ci-tmp/asr-partial
-          python3 .github/tmp-asr-exp/report.py songs results .ci-tmp/asr-partial/report.md
+          python3 .ci-trigger/report.py songs results .ci-tmp/asr-partial/report.md
           rm -rf .ci-tmp/asr-partial/raw && cp -r results .ci-tmp/asr-partial/raw
       - name: Commit
         run: |
