@@ -193,6 +193,49 @@ model sizes. Dropping the title and artist cut the words placed outside sung
 lines by a quarter or more. The old 2176-token budget had not finished the same
 songs after three hours on CPU. The numbers are in the D-024 work log entry.
 
+### Words the aligner could not place (D-025)
+
+The Qwen3 forced aligner returns words it cannot place with **zero length**,
+all at one instant, and stretches the next word over the singing it skipped.
+These are typically a chant the recogniser wrote several times. The end of
+Ridgway's "Fire Inside" (1.7B) shows the pattern:
+
+```text
+223.445–223.445  Whoa I'm paddling on I'm paddling strong Whoa find the fire find the
+223.445–247.925  fire
+```
+
+The parser used to drop every word with `end <= start`. On the twelve D-024
+recognitions that was 12–53 % of the recognised words per song, most of them
+in repeated outro chants. The editor showed one 24-second "fire".
+
+`AlignerWordTimingRepair` keeps them:
+
+- A **cluster** is consecutive words that start within 30 ms of each other,
+  each one zero-length except possibly the last. It is spread over the
+  cluster's span in proportion to each word's letters.
+- If the span is longer than 1.2 s per word, the cluster goes at the **end** of
+  the span. The skipped singing came at the end of the stretched word in every
+  measured case.
+- If the span is shorter than 80 ms per word, it is extended towards the next
+  word's start. The extension is at most 350 ms per word and never passes the
+  next word.
+- If there is no room at all, the words stay zero-length, but their text still
+  reaches the draft.
+
+Segment-level timestamps still need a length to become a row.
+
+Measured on the same twelve recognitions, the word error rate of what the
+editor shows fell from 0.562 to 0.437 (0.6B) and from 0.548 to 0.383 (1.7B).
+The D-024 figures were computed from the raw JSON text, so they did not include
+the dropped words.
+
+Drafts recognised before this change cannot get those words back without
+re-recognising. The proofreading menu's **漏唱和声检查** (missed-repeat check)
+points at where they probably were. It flags three things: rows with five or
+more words at one instant, words stretched to 6 s or more, and long silent
+stretches after a chant near the end of the song.
+
 Request body:
 
 ```json

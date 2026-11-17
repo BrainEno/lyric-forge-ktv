@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../../../lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../../../project/domain/models/lyric_document.dart';
+import '../../domain/models/aligner_word_timing_repair.dart';
 import '../../domain/models/asr_confidence.dart';
 import '../../domain/models/qwen_decode_budget.dart';
 import '../../domain/models/qwen_recognition_context.dart';
@@ -927,11 +928,11 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
 
       final tokens = <_TimedToken>[];
       for (final raw in candidate) {
-        final token = _parseTimedToken(raw);
+        final token = _parseTimedToken(raw, allowZeroLength: true);
         if (token != null) tokens.add(token);
       }
 
-      if (tokens.isNotEmpty) return _groupTokens(tokens);
+      if (tokens.isNotEmpty) return _groupTokens(_repairWordTiming(tokens));
     }
 
     return const [];
@@ -967,10 +968,32 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
     if (nested is! List) return const [];
     final tokens = <_TimedToken>[];
     for (final item in nested) {
-      final token = _parseTimedToken(item);
+      final token = _parseTimedToken(item, allowZeroLength: true);
       if (token != null) tokens.add(token);
     }
-    return _wordTimings(tokens);
+    return _wordTimings(_repairWordTiming(tokens));
+  }
+
+  /// The aligner returns words it could not place with no length, piled on
+  /// one instant (often a repeated chant). They are kept and spread out
+  /// rather than dropped; see [AlignerWordTimingRepair].
+  List<_TimedToken> _repairWordTiming(List<_TimedToken> tokens) {
+    final repaired = const AlignerWordTimingRepair().repair([
+      for (final token in tokens)
+        AlignedWord(text: token.text, start: token.start, end: token.end),
+    ]).words;
+    // The repair keeps every non-blank word in order, and parsing already
+    // dropped blank ones, so the lists line up one to one.
+    if (repaired.length != tokens.length) return tokens;
+    return [
+      for (var index = 0; index < tokens.length; index++)
+        _TimedToken(
+          text: tokens[index].text,
+          start: repaired[index].start,
+          end: repaired[index].end,
+          confidence: tokens[index].confidence,
+        ),
+    ];
   }
 
   List<LyricWordTiming> _wordTimings(List<_TimedToken> tokens) =>
@@ -979,7 +1002,10 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
           LyricWordTiming(text: token.text, start: token.start, end: token.end),
       ]);
 
-  _TimedToken? _parseTimedToken(dynamic raw) {
+  /// A word-level token may have no length ([allowZeroLength]): the aligner
+  /// returns words it could not place that way, and they are repaired rather
+  /// than dropped. A segment needs a length to become a row.
+  _TimedToken? _parseTimedToken(dynamic raw, {bool allowZeroLength = false}) {
     if (raw is! Map) return null;
 
     final item = Map<String, dynamic>.from(raw);
@@ -990,12 +1016,18 @@ class Qwen3AsrNativeTranscriptionService implements TranscriptionService {
       item['start'] ?? item['start_time'] ?? item['begin'],
     );
     final end = _readSeconds(item['end'] ?? item['end_time'] ?? item['finish']);
-    if (start == null || end == null || end <= start) return null;
+    if (start == null || end == null) return null;
+    final startMs = (start * 1000).round();
+    var endMs = (end * 1000).round();
+    if (endMs <= startMs) {
+      if (!allowZeroLength || start < 0) return null;
+      endMs = startMs;
+    }
 
     return _TimedToken(
       text: text,
-      start: Duration(milliseconds: (start * 1000).round()),
-      end: Duration(milliseconds: (end * 1000).round()),
+      start: Duration(milliseconds: startMs),
+      end: Duration(milliseconds: endMs),
       confidence: _readConfidence(item),
     );
   }

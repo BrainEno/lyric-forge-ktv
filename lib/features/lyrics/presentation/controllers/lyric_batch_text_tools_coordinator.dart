@@ -5,6 +5,7 @@ import '../../../project/domain/models/project_manifest.dart';
 import '../widgets/lyric_asr_loop_dialog.dart';
 import '../widgets/lyric_batch_text_edit.dart';
 import '../widgets/lyric_find_replace_dialog.dart';
+import '../widgets/lyric_missed_repeat_dialog.dart';
 import '../widgets/lyric_pace_check_dialog.dart';
 import '../widgets/lyric_repetition_consistency_dialog.dart';
 import '../widgets/lyric_structure_dialog.dart';
@@ -182,7 +183,44 @@ class LyricBatchTextToolsCoordinator {
           ? null
           : (index) => host.previewProofreadLine(project, index),
     ),
+    LyricBatchTextTool.missedRepeatCheck => showLyricMissedRepeatDialog(
+      context,
+      document: document,
+      protectedIndices: protectedIndices,
+      audioDuration: project.audioAsset?.duration,
+      onPreviewLine: project.audioAsset == null
+          ? null
+          : (index) => host.previewProofreadLine(project, index),
+      onPreviewSpan: project.audioAsset == null
+          ? null
+          : (index, start, end) => _previewSpan(
+              project,
+              document,
+              index,
+              start,
+              end,
+            ),
+    ),
   };
+
+  /// Plays an arbitrary stretch of the song, such as the empty stretch after
+  /// a chant row, through the bounded line audition. Row [index] only
+  /// anchors the audition; the stretch is played on the document's timeline.
+  void _previewSpan(
+    ProjectManifest project,
+    LyricDocument document,
+    int index,
+    Duration start,
+    Duration end,
+  ) {
+    if (index < 0 || index >= document.lines.length || end <= start) return;
+    host.previewProofreadTimedLine(
+      project,
+      index,
+      document.lines[index].copyWith(startTime: start, endTime: end),
+      document.globalOffset ?? Duration.zero,
+    );
+  }
 
   /// Tap-to-sync (by row or by word) and word fine-tuning need this
   /// project's audio loaded and free-running: a bounded line audition would stop the song at the row's end. When other

@@ -199,6 +199,86 @@ void main() {
       );
     });
 
+    test('zero-length aligner words are kept and spread out', () async {
+      // The aligner piles words it cannot place (a repeated chant) on one
+      // instant with no length and stretches the next word over the singing.
+      runtime = FakeQwenRuntime(
+        behaviorFor: (_) => FakeRuntimeBehavior(
+          transcribeResult: {
+            'language': 'English',
+            'text': 'oh oh hold on find the fire find the fire',
+            'timestamps': {
+              'items': [
+                {'text': 'oh', 'start_time': 1.0, 'end_time': 1.0},
+                {'text': 'oh', 'start_time': 1.0, 'end_time': 1.0},
+                {'text': 'hold', 'start_time': 1.6, 'end_time': 1.9},
+                {'text': 'on', 'start_time': 1.9, 'end_time': 2.3},
+                {'text': 'find', 'start_time': 10.0, 'end_time': 10.0},
+                {'text': 'the', 'start_time': 10.0, 'end_time': 10.0},
+                {'text': 'fire', 'start_time': 10.0, 'end_time': 10.0},
+                {'text': 'find', 'start_time': 10.0, 'end_time': 10.0},
+                {'text': 'the', 'start_time': 10.0, 'end_time': 10.0},
+                {'text': 'fire', 'start_time': 10.0, 'end_time': 14.0},
+              ],
+            },
+          },
+        ),
+      );
+      final service = build();
+      final result = await service.transcribe(await request(await config()));
+      final lines = result.lyrics.lines;
+
+      expect(
+        lines.map((line) => line.text).join(' '),
+        'oh oh hold on find the fire find the fire',
+      );
+      final words = [for (final line in lines) ...line.words];
+      expect(words, hasLength(10));
+      for (final word in words) {
+        expect(word.end, greaterThan(word.start), reason: '$word');
+      }
+      // The pile at 10 s is spread over the stretched word's 4 s.
+      final chant = words.sublist(4);
+      expect(chant.first.start, const Duration(seconds: 10));
+      expect(chant.last.end, const Duration(seconds: 14));
+      for (var index = 1; index < chant.length; index++) {
+        expect(chant[index].start, chant[index - 1].end);
+      }
+      // "oh oh" gets room up to the next word instead of vanishing.
+      expect(words[0].start, const Duration(seconds: 1));
+      expect(words[1].end, const Duration(milliseconds: 1600));
+    });
+
+    test('nested segment words with no length are kept', () async {
+      runtime = FakeQwenRuntime(
+        behaviorFor: (_) => FakeRuntimeBehavior(
+          transcribeResult: {
+            'language': 'English',
+            'text': 'la la la',
+            'segments': [
+              {
+                'text': 'la la la',
+                'start': 2.0,
+                'end': 3.5,
+                'words': [
+                  {'text': 'la', 'start': 2.0, 'end': 2.0},
+                  {'text': 'la', 'start': 2.0, 'end': 2.0},
+                  {'text': 'la', 'start': 2.0, 'end': 3.5},
+                ],
+              },
+            ],
+          },
+        ),
+      );
+      final service = build();
+      final result = await service.transcribe(await request(await config()));
+      final line = result.lyrics.lines.single;
+      expect(line.words, hasLength(3));
+      expect(line.words.first.start, const Duration(seconds: 2));
+      expect(line.words.last.end, const Duration(milliseconds: 3500));
+      expect(line.words[1].start, greaterThan(line.words[0].start));
+    });
+
     test(
       'a second unalignable failure is reported, not retried again',
       () async {

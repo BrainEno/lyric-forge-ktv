@@ -21,6 +21,7 @@ class FakeRuntimeBehavior {
     this.dropTranscribeConnection = false,
     this.echoSecretToStderr = false,
     this.unalignableTranscribeFailures = 0,
+    this.transcribeResult,
   });
 
   bool announce;
@@ -37,6 +38,9 @@ class FakeRuntimeBehavior {
   /// How many `/v1/transcribe` requests fail the way the pinned runtime does
   /// when a chunk decodes to punctuation only, before requests succeed.
   int unalignableTranscribeFailures;
+
+  /// Replaces the default `hello world` transcription result.
+  Map<String, Object?>? transcribeResult;
 }
 
 class FakeRuntimeRequest {
@@ -255,6 +259,13 @@ class FakeRuntimeProcess implements Process {
             status = HttpStatus.internalServerError;
             payload = {
               'error': 'forced alignment failed: tokenized word_list is empty',
+            };
+            break;
+          }
+          final custom = behavior.transcribeResult;
+          if (custom != null) {
+            payload = {
+              'results': [custom],
             };
             break;
           }

@@ -80,6 +80,12 @@ class LyricRecognitionSummaryCard extends StatefulWidget {
         label: '语速异常 ${health.paceRows} 行',
         tooltip: '比全曲语速快得多或慢得多的行，多半结束被截断、跨过间奏或漏字多字；打开“语速异常检查”逐行试听',
       ),
+    if (health.missedRepeatSpots > 0)
+      (
+        tool: LyricBatchTextTool.missedRepeatCheck,
+        label: '可能漏唱的和声 ${health.missedRepeatSpots} 处',
+        tooltip: '结尾反复的和声常被识别器缩短，逐字时间挤在一起或副歌后留下长空白；打开“漏唱和声检查”试听后补上',
+      ),
     if (health.staleWordRows > 0)
       (
         tool: LyricBatchTextTool.wordTimingCheck,
