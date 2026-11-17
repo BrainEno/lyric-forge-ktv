@@ -30,14 +30,23 @@
 | 0.6B | The_Rinn_-_Voices__2017_Version_ | chunk30 | 0 | 163 | 368 | 8 | 29 (46) | 199 (203) | 0.51 | 11 | - | 256 |
 | 0.6B | The_Rinn_-_Voices__2017_Version_ | chunk30_noctx | 0 | 193 | 368 | 8 | 31 (46) | 199 (203) | 0.52 | 12 | - | 259 |
 | 1.7B | Avercage_-_Embers | chunk60 | 0 | 256 | 608 | 5 | 40 (42) | 134 (189) | 0.71 | 16 | - | 267 |
+| 1.7B | Avercage_-_Embers | chunk30 | 0 | 411 | 368 | 8 | 34 (42) | 149 (189) | 0.66 | 7 | - | 192 |
 | 1.7B | Avercage_-_Embers.gated | chunk60 | 0 | 250 | 608 | 5 | 36 (42) | 124 (189) | 0.78 | 3 | - | 253 |
+| 1.7B | Avercage_-_Embers.gated | chunk30 | 0 | 1076 | 368 | 9 | 30 (42) | 133 (189) | 0.74 | 4 | - | 1289 |
 | 1.7B | Kinematic_-_Peyote | chunk60 | 0 | 271 | 608 | 3 | 22 (14) | 148 (147) | 0.28 | 4 | - | 359 |
+| 1.7B | Kinematic_-_Peyote | chunk30 | 0 | 316 | 368 | 6 | 27 (14) | 153 (147) | 0.24 | 16 | - | 236 |
 | 1.7B | Kinematic_-_Peyote.gated | chunk60 | 0 | 217 | 608 | 3 | 25 (14) | 141 (147) | 0.20 | 10 | - | 345 |
+| 1.7B | Kinematic_-_Peyote.gated | chunk30 | 0 | 406 | 368 | 7 | 31 (14) | 147 (147) | 0.24 | 9 | - | 206 |
 | 1.7B | Ridgway_-_Fire_Inside | chunk60 | 0 | 365 | 608 | 5 | 39 (50) | 286 (304) | 0.18 | 1 | - | 474 |
+| 1.7B | Ridgway_-_Fire_Inside | chunk30 | 0 | 636 | 368 | 10 | 47 (50) | 263 (304) | 0.35 | 29 | - | 308 |
 | 1.7B | Ridgway_-_Fire_Inside.gated | chunk60 | 0 | 411 | 608 | 5 | 34 (50) | 270 (304) | 0.32 | 0 | - | 484 |
+| 1.7B | Ridgway_-_Fire_Inside.gated | chunk30 | 0 | 548 | 368 | 10 | 44 (50) | 273 (304) | 0.29 | 13 | - | 272 |
 | 1.7B | Songwriterz_-_Back_In_Time | chunk60 | 0 | 352 | 608 | 4 | 49 (46) | 278 (238) | 0.43 | 7 | 2x1@62s | 444 |
+| 1.7B | Songwriterz_-_Back_In_Time | chunk30 | 0 | 453 | 368 | 7 | 38 (46) | 275 (238) | 0.42 | 2 | - | 289 |
 | 1.7B | The.madpix.project_-_One_Way_Street | chunk60 | 0 | 233 | 608 | 3 | 27 (30) | 182 (183) | 0.14 | 5 | - | 477 |
+| 1.7B | The.madpix.project_-_One_Way_Street | chunk30 | 0 | 394 | 368 | 6 | 27 (30) | 184 (183) | 0.19 | 4 | - | 352 |
 | 1.7B | The_Rinn_-_Voices__2017_Version_ | chunk60 | 0 | 346 | 608 | 4 | 38 (46) | 200 (203) | 0.52 | 8 | - | 555 |
+| 1.7B | The_Rinn_-_Voices__2017_Version_ | chunk30 | 0 | 434 | 368 | 8 | 32 (46) | 198 (203) | 0.50 | 14 | - | 247 |
 
 ## Averages
 
@@ -47,8 +56,98 @@
 | 0.6B | chunk30 | 9 | 0.469 | 105 | 283/334 |
 | 0.6B | chunk30_noctx | 8 | 0.455 | 55 | 245/284 |
 | 1.7B | chunk60 | 9 | 0.394 | 54 | 310/334 |
+| 1.7B | chunk30 | 9 | 0.402 | 98 | 310/334 |
 
 ## Raw chunk outputs (first 600 chars)
+
+### 1.7B Avercage_-_Embers chunk30
+- chunk @0.0s len 31.3s chars 27: `"Embers. Artist: Avercage."`
+- chunk @31.3s len 33.9s chars 176: `"The chaos undoes, continues on its path to end. We all know when you're leading it to the end. Never whispered, never be open. We all know when the moment's right, we ignite."`
+- chunk @65.2s len 29.6s chars 137: `"Shine with the embers of one day. One day. One day. One day. Not forever, not forever. Don't close your eyes. Not forever, not forever."`
+- chunk @94.8s len 34.3s chars 192: `"Just feel the bottom, so you burn and die. Hey, hey, what you want? Live for love, live on the edge. Nothing in doubt, no blame, no name. It's only love, only love. One day it all will come."`
+- chunk @129.0s len 27.4s chars 75: `"Forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.4s len 32.8s chars 22: `"And I still promise."`
+- chunk @189.2s len 25.2s chars 112: `"One day, oh, oh, forever, oh, forever, don't close your eyes, oh, forever, oh, forever, let's move our bodies."`
+- chunk @214.4s len 28.1s chars 85: `"Never, never, once in the end, the flame was rendered, but living embers will burn."`
+
+### 1.7B Avercage_-_Embers.gated chunk30
+- chunk @0.0s len 31.3s chars 27: `"Embers. Artist: Avercage."`
+- chunk @31.3s len 33.9s chars 176: `"The chaos undoes, continues on its path to end. We all know when you're leading it to the end. Never whispered, never be open. We all know when the moment's right, we ignite."`
+- chunk @65.2s len 29.6s chars 137: `"Shine with the embers of one day. One day. One day. One day. Not forever, not forever. Don't close your eyes. Not forever, not forever."`
+- chunk @94.8s len 34.3s chars 163: `"Just feel the fire, so you burn the gods in hate. Hey, you are the one living on the edge of the flame. No name, no name, just burning. One day it all will come."`
+- chunk @129.0s len 27.3s chars 75: `"Forever, gone forever. Don't close your eyes. Gone forever, gone forever."`
+- chunk @156.3s len 25.2s chars 22: `"And I don't promise."`
+- chunk @181.5s len 28.0s chars 112: `"One day, oh, oh, girl, forever, oh, girl, forever. Don't lose your mind, oh, girl, forever, oh, girl, forever."`
+- chunk @209.5s len 31.6s chars 1289: `"Never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, never, neve`
+- chunk @241.1s len 1.5s chars 9: `"Embers."`
+
+### 1.7B Kinematic_-_Peyote chunk30
+- chunk @0.0s len 34.7s chars 118: `"I'm asleep at the wheel and there's a car in the highway. Yet we tear through the night like a bee out in the great."`
+- chunk @34.7s len 33.2s chars 203: `"How much pain that is it aching so exquisite? I hope we can't stop inside. Now you don't wanna dance, 'cause you're looking right through you. Oh, and the clothes that you wear, we don't need to stand."`
+- chunk @68.0s len 33.2s chars 179: `"Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing. How much pain there is—it's aching so exquisite. I hope we can stop in time."`
+- chunk @101.2s len 33.1s chars 236: `"Now you don't wanna dance 'cause we're looking right through you. Oh. And the clothes that you wear, we don't mean to stare. Oh. But the people you know, they say what they want to. Oh. 'Cause the truth of it is, we don't really care."`
+- chunk @134.3s len 25.5s chars 28: `"Peyote. Artist: Kinematic."`
+- chunk @159.8s len 23.5s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Kinematic_-_Peyote.gated chunk30
+- chunk @0.0s len 29.2s chars 59: `"I'm asleep at the wheel and there's a car in the highway."`
+- chunk @29.2s len 29.9s chars 206: `"Yet we tear through the night like a bee after migraine. How much pain that is—it's aching so exquisite. I hope we can't stop inside. Now you don't wanna dance, 'cause we're looking right through you. Oh."`
+- chunk @59.0s len 28.1s chars 157: `"And the clothes that you wear, we don't mean to stare. Now the sky is on fire and the desert is freezing. Wonder how I'm alive when I'm not even breathing."`
+- chunk @87.2s len 28.9s chars 186: `"How much pleasure is it aching so exquisite? I hope we can stop in time. Now you don't wanna dance 'cause you look horrendous. Oh, and the clothes that you wear we don't need to stare."`
+- chunk @116.0s len 25.7s chars 105: `"But the people you know they say what they want to. Oh, 'cause the truth of it is we don't really care."`
+- chunk @141.7s len 34.7s chars 28: `"Peyote. Artist: Kinematic."`
+- chunk @176.4s len 7.0s chars 34: `"And that's quite enough of that."`
+
+### 1.7B Ridgway_-_Fire_Inside chunk30
+- chunk @0.0s len 25.5s chars 31: `"Fire Inside. Artist: Ridgway."`
+- chunk @25.5s len 34.7s chars 249: `"I got a lot on my mind, darling. All of the time, be trying to do right. I've made a lot of life, but I'm keeping it tight. Never give up the fight, no. When my life is on edge, when my life is on edge, got to keep it on check. I keep it on check."`
+- chunk @60.2s len 34.6s chars 274: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a race, you got to take the first step. Whoa, whoa, whoa, whoa, whoa. Cut along through the waves now."`
+- chunk @94.8s len 34.7s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @129.5s len 34.3s chars 308: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step. And girl, yeah, take that first step to the right. Got to find what's inside before we run out of time, run out of time, run out of time. Whoa, along through the waves now."`
+- chunk @163.8s len 25.0s chars 117: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide. That you decide."`
+- chunk @188.8s len 34.6s chars 31: `"Fire Inside. Artist: Ridgway."`
+- chunk @223.4s len 28.4s chars 98: `"Oh, I'm battling on, I'm battling strong. Oh, find the fire, find the fire. Oh, I'm battling on."`
+- chunk @251.8s len 31.6s chars 91: `"I'm paralyzed. Find the fire. Find the fire. Find the fire. Find the fire. Find the fire."`
+- chunk @283.4s len 0.5s chars 31: `"Fire Inside. Artist: Ridgway."`
+
+### 1.7B Ridgway_-_Fire_Inside.gated chunk30
+- chunk @0.0s len 25.4s chars 31: `"Fire Inside. Artist: Ridgway."`
+- chunk @25.4s len 34.7s chars 242: `"I got a lot on my mind and all of the time I'm trying to do right. I've made a loss of life, but I'm keeping it tight. Never give the final when my life is on edge. When my life is on edge, got to keep it on in check. I keep it on in check."`
+- chunk @60.2s len 34.6s chars 272: `"Even in the darkest days, got a trail to blaze, gonna stick to my ways. I used to be caught in a maze where life was a maze until I saw the sun's rays. When your life is a rig, you got to take the first step. Whoa, whoa, whoa, whoa, whoa. Headlong through the waves now."`
+- chunk @94.8s len 26.2s chars 100: `"Whoa, gonna take me to that place. Whoa, find that fire inside. Whoa, it's a fate that you decide."`
+- chunk @121.0s len 32.9s chars 210: `"When I feel like I'm losing control, gotta reach within my soul. And if you're ever feeling low, yeah, you gotta take the first step and go, yeah. Take that first step to the right. Got to find what's inside."`
+- chunk @153.9s len 33.7s chars 266: `"Before we run out of time, run out of time, run out of time. Whoa oh oh oh oh. That long through the waves now. Whoa oh oh oh oh. Gonna take me to that place. Whoa oh oh oh oh. Find that fire inside. Whoa oh oh oh oh. It's a faith that you decide. That you decide."`
+- chunk @187.6s len 32.8s chars 31: `"Fire Inside. Artist: Ridgway."`
+- chunk @220.4s len 31.4s chars 82: `"I'm paddling on, I'm paddling strong. Find the fire, find the fire. Paddling on."`
+- chunk @251.8s len 30.8s chars 80: `"I'm barely strong. Find the fire, find the fire, find the fire, find the fire."`
+- chunk @282.6s len 1.4s chars 31: `"Fire Inside. Artist: Ridgway."`
+
+### 1.7B Songwriterz_-_Back_In_Time chunk30
+- chunk @0.0s len 26.3s chars 145: `"Honey, I told you something. Sorry, I didn't hear. Maybe there was something stuck in your ear. Why is it every time you say you do, you don't?"`
+- chunk @26.3s len 32.6s chars 289: `"Maybe I just thought that you were talking on the phone. Honey, you look lovely tonight. Sorry, wasting time. Maybe this ain't your lucky night. Well, trying ain't a crime. Why is it every time I like to do, you don't? Maybe you could try a little romance at home. Let's go back in time."`
+- chunk @58.9s len 31.1s chars 181: `"Way back when we were la la la la la la la la. Now it's married life and the daily strife. You be la la la la la la la la la la la la la la. Honey, getting older, getting used to."`
+- chunk @90.1s len 32.6s chars 252: `"29. And maybe things are colder, but honey, you still your mine. Guess it's easy to forget the more the man a wine. Could it be the love magic keeping love alive? Let's go back in time, way back when we were la la la la la la la. Back when you and I."`
+- chunk @122.7s len 34.7s chars 77: `"Still have time. You've been la la la la la, la la la la la la la la la la."`
+- chunk @157.4s len 30.6s chars 192: `"Let's go back in time, way back when we were la la la la la la la. Back when you and I still had time to be la la la la la. Let's go back in time, way back when we were la la la la la la la."`
+- chunk @187.9s len 21.1s chars 98: `"Now it's very light. Still we have to try to be. La la la la la. La la la la la. La la la la la."`
+
+### 1.7B The.madpix.project_-_One_Way_Street chunk30
+- chunk @0.0s len 34.0s chars 180: `"Ears are like diamonds in my eyes. Light me up, now you're out of sight. It's enough. It's too late to break the silence. In a rose-colored view of us, I got lost. Could I reach?"`
+- chunk @34.0s len 30.9s chars 226: `"All your lies, all your lies would be blades and knives. Just have me inside. Who will save you from this dark? Who will fix your shattered heart? A one-way street. That's how you live. Why do you always take and never give?"`
+- chunk @64.9s len 27.9s chars 128: `"Wide awake, yeah I've crossed the line. I'm coming home, I'm running back to real life, to the start where I could breathe in."`
+- chunk @92.8s len 31.9s chars 352: `"Freely, baby, can't you see we run out of time chasing happiness while you get what you need. There's nothing left of us but bleeding blades and knives tonight. You'll know how it feels. A one-way street. That's how you leave. Why do you always take and never give? I'll walk away to help you see our love is falling down so easily. A one-way street."`
+- chunk @124.7s len 33.4s chars 19: `"A one way street."`
+- chunk @158.1s len 12.9s chars 56: `"You never give. I walk away so easily. One way street."`
+
+### 1.7B The_Rinn_-_Voices__2017_Version_ chunk30
+- chunk @0.0s len 30.4s chars 27: `"Voices. Artist: The Rinn."`
+- chunk @30.4s len 32.1s chars 66: `"The sun is fading under blood red sky. The reign of day is over."`
+- chunk @62.5s len 28.5s chars 232: `"Night soon will break. Free, they wait in the glow of moonlight for guiding stars beyond our sight. Will the sky forever honor those in the night? They shine with mystery, lost within shadows of a star, whispering they will light."`
+- chunk @91.0s len 29.4s chars 247: `"Surprise! You're waking in the morning. Can't understand your feelings. And where do you get these thoughts inside your mind? The voice is calling for the night to rise at your side. Oh, the sky forever on and on, crossing the horizon with mist."`
+- chunk @120.4s len 28.4s chars 197: `"We lost within the shadows of our time. Whispering the old lie. So hear the voice, sharing the hidden, give the gift into you. Hear the voice, sharing the memories, sacred secrets from past time."`
+- chunk @148.8s len 31.2s chars 39: `"A world that's gone forever long ago."`
+- chunk @180.0s len 27.6s chars 234: `"Lost in the light, they shine. We're lost, we're made in shadows of our time. Whispering their will, light. So hear the voice, sharing the memories, keeping, keeping to you. Hear the voice, sharing the memories, sacred secrets from."`
+- chunk @207.6s len 23.6s chars 75: `"Hear the voices tearing the sky. Deep and deep into you. Hear the voices."`
 
 ### 0.6B Avercage_-_Embers chunk60
 - chunk @0.0s len 57.9s chars 144: `"Embers. Artist: Avercage. We don't understand. We don't know. We really carry the torch. Now we find. Now we know where we are. We don't know."`
