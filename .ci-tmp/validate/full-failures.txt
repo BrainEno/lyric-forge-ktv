@@ -1,4 +1,4 @@
-00:02 +77 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts all workflows install the Flutter SDK through the shared pin [E]
+00:02 +74 -1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts all workflows install the Flutter SDK through the shared pin [E]
   Expected: contains './.github/actions/setup-flutter'
     Actual: 'name: tmp asr experiment\n'
               '\n'
