@@ -57,7 +57,11 @@
     - New: `aligner_word_timing_repair_test.dart`, `lyric_missed_repeat_detector_test.dart`, `lyric_missed_repeat_dialog_test.dart`.
     - Changed: two zero-length cases in `qwen_runtime_service_lifecycle_test.dart`, and a `transcribeResult` knob in `fake_qwen_runtime.dart`.
   - Docs: `decisions.md` (D-025), `high_quality_asr.md`, handoff.
-- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR update.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions (run 44035864139), and was deleted before the PR update.
+  - `dart format` reformatted six of the new files; its output is committed.
+  - `flutter analyze`: 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 83 passed. Full suite: 2663 passed, 2 skipped, 0 failed (before this change: 2624).
+  - Work-log `write` + `check` passed.
 - Notes:
   - Where the skipped singing sits inside a stretched span is still a guess, so the recovered words' timing is an estimate.
   - Existing drafts need re-recognition to get the dropped words back.
