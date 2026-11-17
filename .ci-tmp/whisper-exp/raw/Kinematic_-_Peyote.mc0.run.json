@@ -1,0 +1,1 @@
+{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/Kinematic_-_Peyote.wav", "-l", "auto", "-ojf", "-of", "results/Kinematic_-_Peyote.mc0", "-pp", "-t", "4", "--suppress-nst", "-mc", "0"], "exit": -4, "seconds": 46.0}
