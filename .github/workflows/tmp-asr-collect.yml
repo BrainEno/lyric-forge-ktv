@@ -31,6 +31,16 @@ jobs:
             curl -sSfL "https://raw.githubusercontent.com/f90/jamendolyrics/master/annotations/lines/$n.csv" -o "songs/$n.csv"
           done
           cp songs/*.csv results/ 2>/dev/null || true
+      - name: Job logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .ci-tmp/asr-partial/logs
+          rid=${{ steps.rid.outputs.id }}
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/$rid/jobs?per_page=50" --jq '.jobs[]|select(.status=="completed")|[.id,.name]|@tsv' | while IFS=$'\t' read -r id name; do
+            safe=$(echo "$name" | tr -c 'A-Za-z0-9._-' '_')
+            gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/$id/logs" 2>/dev/null | grep -vE "LF_CHUNK" | tail -n 80 > ".ci-tmp/asr-partial/logs/$safe.txt" || true
+          done
       - name: Report
         run: |
           mkdir -p .ci-tmp/asr-partial
