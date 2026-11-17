@@ -298,7 +298,10 @@ void main() {
 
     test('similarity ignores case, spaces and punctuation', () {
       expect(
-        LyricSpanRerecognitionPlanner.similarity('Hello, World!', 'hello world'),
+        LyricSpanRerecognitionPlanner.similarity(
+          'Hello, World!',
+          'hello world',
+        ),
         1,
       );
       expect(LyricSpanRerecognitionPlanner.similarity('abcd', 'abcf'), 0.75);
@@ -403,7 +406,11 @@ void main() {
         edited,
         window: window,
         spans: [
-          ForcedAlignedSpan(text: 'hello world', start: ms(3200), end: ms(5000)),
+          ForcedAlignedSpan(
+            text: 'hello world',
+            start: ms(3200),
+            end: ms(5000),
+          ),
           ForcedAlignedSpan(text: 'good night', start: ms(7000), end: ms(9000)),
           ForcedAlignedSpan(text: 'again', start: ms(9100), end: ms(9500)),
         ],
@@ -425,9 +432,7 @@ void main() {
             .realignment(
               silent,
               window: silentWindow,
-              spans: [
-                ForcedAlignedSpan(text: 'x', start: ms(10), end: ms(20)),
-              ],
+              spans: [ForcedAlignedSpan(text: 'x', start: ms(10), end: ms(20))],
             )
             .status,
         LyricSpanRealignmentStatus.nothingToAlign,

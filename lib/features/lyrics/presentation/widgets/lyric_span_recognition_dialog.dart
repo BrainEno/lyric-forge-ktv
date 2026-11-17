@@ -52,16 +52,17 @@ class LyricSpanRecognitionStrings {
         LyricSpanWindowFailure.tooLong => '这一段超过 90 秒，请少选几行；更长的范围建议整首重新识别。',
       };
 
-  static String realignmentFailure(LyricSpanRealignment plan) =>
-      switch (plan.status) {
-        LyricSpanRealignmentStatus.ready => '',
-        LyricSpanRealignmentStatus.noSpans => '对齐器没有返回可用的时间。',
-        LyricSpanRealignmentStatus.nothingToAlign => '选中的行没有可对齐的文字。',
-        LyricSpanRealignmentStatus.textMismatch =>
-          '对齐结果与第 ${(plan.failedIndex ?? plan.window.first) + 1} 行的文字对不上，未修改任何时间。',
-        LyricSpanRealignmentStatus.incomplete =>
-          '对齐器在第 ${(plan.failedIndex ?? plan.window.last) + 1} 行之前就停止了，未修改任何时间。',
-      };
+  static String realignmentFailure(
+    LyricSpanRealignment plan,
+  ) => switch (plan.status) {
+    LyricSpanRealignmentStatus.ready => '',
+    LyricSpanRealignmentStatus.noSpans => '对齐器没有返回可用的时间。',
+    LyricSpanRealignmentStatus.nothingToAlign => '选中的行没有可对齐的文字。',
+    LyricSpanRealignmentStatus.textMismatch =>
+      '对齐结果与第 ${(plan.failedIndex ?? plan.window.first) + 1} 行的文字对不上，未修改任何时间。',
+    LyricSpanRealignmentStatus.incomplete =>
+      '对齐器在第 ${(plan.failedIndex ?? plan.window.last) + 1} 行之前就停止了，未修改任何时间。',
+  };
 
   static String clock(Duration value) {
     final negative = value.isNegative;
@@ -214,9 +215,7 @@ class _LyricSpanRecognitionDialogState
         final replacement = widget.planner.replacement(
           widget.document,
           window: window,
-          recognized: [
-            for (final line in result.lines) _toDocument(line),
-          ],
+          recognized: [for (final line in result.lines) _toDocument(line)],
           protectedIndices: widget.protectedIndices,
         );
         setState(() {
@@ -455,7 +454,9 @@ class _LyricSpanRecognitionDialogState
                 key: ValueKey('span_mode_${mode.name}'),
                 label: Text(LyricSpanRecognitionStrings.modeLabel(mode)),
                 selected: _mode == mode,
-                onSelected: _running ? null : (_) => _change(() => _mode = mode),
+                onSelected: _running
+                    ? null
+                    : (_) => _change(() => _mode = mode),
               ),
           ],
         ),
@@ -495,7 +496,11 @@ class _LyricSpanRecognitionDialogState
         ),
         if (_error case final error?) ...[
           const SizedBox(height: AppSpacing.xs),
-          LyricBatchNote(error, warning: true, key: const ValueKey('span_error')),
+          LyricBatchNote(
+            error,
+            warning: true,
+            key: const ValueKey('span_error'),
+          ),
         ],
         const Divider(height: AppSpacing.lg),
         if (_replacement case final replacement? when !replacement.isEmpty)
@@ -646,10 +651,7 @@ class _RowStepper extends StatelessWidget {
           onPressed: canDecrease ? () => onChanged(value - 1) : null,
           icon: const Icon(Icons.remove_rounded, size: 18),
         ),
-        Text(
-          '${value + 1}',
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
+        Text('${value + 1}', style: Theme.of(context).textTheme.titleSmall),
         IconButton(
           tooltip: '$label下一行',
           onPressed: canIncrease ? () => onChanged(value + 1) : null,

@@ -355,7 +355,9 @@ class LyricSpanRerecognitionPlanner {
     if (start.isNegative) start = Duration.zero;
 
     final tailPadding = tail.padding;
-    var end = tailPadding == null ? (ceiling ?? rowsEnd) : rowsEnd + tailPadding;
+    var end = tailPadding == null
+        ? (ceiling ?? rowsEnd)
+        : rowsEnd + tailPadding;
     if (ceiling != null && end > ceiling) end = ceiling;
 
     final window = LyricSpanWindow(

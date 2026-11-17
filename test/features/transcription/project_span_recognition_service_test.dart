@@ -166,7 +166,10 @@ void main() {
     expect(qwen.disposed, isTrue);
     expect(resources.activeUse, isNull);
     // The temporary clip directory is removed afterwards.
-    expect(await Directory(File(cuts.single.output).parent.path).exists(), isFalse);
+    expect(
+      await Directory(File(cuts.single.output).parent.path).exists(),
+      isFalse,
+    );
   });
 
   test('runs Qwen on the shared adapter without disposing it', () async {
@@ -252,7 +255,11 @@ void main() {
         engine: LyricSpanEngine.qwen,
       ),
       throwsA(
-        isA<LyricSpanRecognitionException>().having((e) => e.busy, 'busy', true),
+        isA<LyricSpanRecognitionException>().having(
+          (e) => e.busy,
+          'busy',
+          true,
+        ),
       ),
     );
     release.complete();
@@ -270,7 +277,11 @@ void main() {
         engine: LyricSpanEngine.qwen,
       ),
       throwsA(
-        isA<LyricSpanRecognitionException>().having((e) => e.busy, 'busy', true),
+        isA<LyricSpanRecognitionException>().having(
+          (e) => e.busy,
+          'busy',
+          true,
+        ),
       ),
     );
     expect(cuts, isEmpty);
@@ -307,27 +318,29 @@ void main() {
     expect(cuts.single.length, const Duration(seconds: 2));
   });
 
-  test('reports a runtime that is not ready without running an engine',
-      () async {
-    runtime.ready.remove(AsrRuntimeComponent.qwenModel);
-    await expectLater(
-      service.recognize(
-        projectId: project.id,
-        start: Duration.zero,
-        end: const Duration(seconds: 3),
-        engine: LyricSpanEngine.qwen,
-      ),
-      throwsA(
-        isA<LyricSpanRecognitionException>().having(
-          (e) => e.message,
-          'message',
-          contains('Qwen3-ASR'),
+  test(
+    'reports a runtime that is not ready without running an engine',
+    () async {
+      runtime.ready.remove(AsrRuntimeComponent.qwenModel);
+      await expectLater(
+        service.recognize(
+          projectId: project.id,
+          start: Duration.zero,
+          end: const Duration(seconds: 3),
+          engine: LyricSpanEngine.qwen,
         ),
-      ),
-    );
-    expect(qwen.requests, isEmpty);
-    expect(resources.activeUse, isNull);
-  });
+        throwsA(
+          isA<LyricSpanRecognitionException>().having(
+            (e) => e.message,
+            'message',
+            contains('Qwen3-ASR'),
+          ),
+        ),
+      );
+      expect(qwen.requests, isEmpty);
+      expect(resources.activeUse, isNull);
+    },
+  );
 
   test('turns engine failures into messages the dialog can show', () async {
     qwen.failure = const TranscriptionException.input('Qwen3-ASR 返回 HTTP 400');

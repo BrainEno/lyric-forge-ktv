@@ -1,0 +1,445 @@
+Resolving dependencies...
+Downloading packages...
+  archive 4.5.2 (4.7.1 available)
+  code_assets 2.1.0 (2.2.0 available)
+  cross_file 0.3.5+5 (0.4.0 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  dbus 0.7.15 (0.8.0 available)
+  file_picker 10.3.10 (13.4.0 available)
+  flutter_cache_manager 3.4.6 (3.5.0 available)
+  flutter_soloud 4.1.7 (5.3.0 available)
+  image 4.12.0 (4.13.1 available)
+  jni 1.1.1 (1.1.2 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  mobile_scanner 7.4.2 (7.5.0 available)
+  objective_c 9.6.2 (9.6.4 available)
+  qr 3.0.2 (4.0.1 available)
+  record 6.2.1 (7.2.0 available)
+  record_android 1.5.2 (2.3.0 available)
+  record_ios 1.2.1 (2.1.1 available)
+  record_linux 1.3.1 (2.2.0 available)
+  record_macos 1.2.2 (2.1.1 available)
+  record_platform_interface 1.6.0 (2.2.0 available)
+  record_web 1.3.0 (2.2.0 available)
+  record_windows 1.0.7 (2.4.0 available)
+  sqflite 2.4.5 (2.4.6 available)
+  sqflite_android 2.4.5 (2.4.6 available)
+  sqflite_common 2.5.14 (2.5.17 available)
+  sqflite_darwin 2.4.4+1 (2.4.6 available)
+  sqflite_platform_interface 2.4.3 (2.4.4 available)
+  synchronized 3.5.0 (3.6.1+1 available)
+  test_api 0.7.12 (0.7.15 available)
+  win32 5.15.0 (6.4.0 available)
+Got dependencies!
+30 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+00:00 +0: loading /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart
+00:00 +0: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window pads the chosen rows but never reaches into a neighbour
+00:00 +1: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window reaching to the neighbour covers the whole gap
+00:00 +2: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window the last row reaches to the end of the audio
+00:00 +3: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window padding stops at the audio edges
+00:00 +4: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window overlapping neighbours keep the chosen rows whole
+00:00 +5: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window rejects invalid, too short and too long stretches
+00:00 +6: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: window maps onto the audio timeline with the global offset
+00:00 +7: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement replaces the chosen rows with clipped, ordered new rows
+00:00 +8: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement clips rows and words to the window and removes overlaps
+00:00 +9: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement drops word timing that lost words to the clip
+00:00 +10: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement new rows stay chorus rows when every chosen row was one
+00:00 +11: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement text-only keeps timing and ids, and drops stale word timing
+00:00 +12: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement counts protected rows and reports an empty result
+00:00 +13: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: replacement similarity ignores case, spaces and punctuation
+00:00 +14: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: realignment sends only rows with sung text to the aligner
+00:00 +15: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: realignment re-times rows and words, keeping the text
+00:00 +16: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: realignment a merged word running across a row end times both rows
+00:00 +17: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: realignment fails closed on a mismatch or an incomplete alignment
+00:00 +18: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart: realignment rows without sung text cannot be aligned
+00:00 +19: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: recognises the selected row again and replaces it
+00:01 +20: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/project_span_recognition_service_test.dart: recognises only the cut clip and moves the result onto the song timeline
+00:01 +21: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: maps the stretch through the global offset
+00:01 +22: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: maps the stretch through the global offset
+00:01 +23: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: maps the stretch through the global offset
+00:01 +24: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/project_span_recognition_service_test.dart: holds the shared resource lease for the whole run
+00:01 +25: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:01 +26: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:01 +27: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +28: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +29: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +30: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +31: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +32: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +33: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +34: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: extends the range and reaches to the next row
+00:02 +35: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: can replace only the text and keep the timing
+00:02 +36: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: re-aligns the existing text
+00:02 +37: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: a mismatching alignment changes nothing
+00:03 +38: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +39: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +40: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +41: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +42: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +43: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +44: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +45: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +46: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +47: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +48: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +49: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +50: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +51: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +52: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +53: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +54: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +55: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: shows recogniser failures
+00:03 +56: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: warns about hand-edited rows in the range
+00:03 +57: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: stopping or closing cancels a running request
+00:03 +58: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart: the proofread menu offers it
+00:03 +59: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: sends audio, arbitrary text and language to the explicit align URI
+00:03 +60: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: rejects non-monotonic spans instead of returning unsafe timestamps
+00:03 +61: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: rejects invalid, empty and out-of-audio timestamps
+00:03 +62: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: does not treat non-success responses as aligned results
+00:03 +63: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: enforces one deadline across response headers and body
+00:04 +64: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: force close aborts an active alignment response
+00:04 +65: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: repairs words the aligner could not place instead of failing
+00:04 +66: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: still rejects an end before its start
+00:04 +67: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: rejects blank input before making a request
+00:04 +68: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: authenticated runtime sessions signs the exact request bytes and accepts proven responses
+00:04 +69: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: authenticated runtime sessions discards an unproven body before decoding it
+00:04 +70: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: authenticated runtime sessions an unproven error response is still an authentication failure
+00:04 +71: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/forced_alignment_http_client_test.dart: authenticated runtime sessions authorization failures abort before any byte is sent
+00:04 +72: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle consecutive tasks reuse one re-verified session
+00:04 +73: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle sends short chunks and never the free-form context
+00:04 +74: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a punctuation-only chunk is retried once with long chunks
+00:04 +75: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle zero-length aligner words are kept and spread out
+00:04 +76: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle nested segment words with no length are kept
+00:04 +77: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a second unalignable failure is reported, not retried again
+00:04 +78: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle transcription and alignment share the authenticated runtime
+00:05 +79: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +80: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +81: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +82: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +83: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +84: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +85: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +86: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +87: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a concurrent start is refused without a second runtime
+00:05 +88: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle cancel during startup stops the runtime and clears state
+00:05 +89: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle cancel during inference stops the runtime and its secret
+00:05 +90: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/transcription/qwen_runtime_service_lifecycle_test.dart: Qwen3AsrNativeTranscriptionService runtime session lifecycle a crashed runtime is replaced with a fresh session
+00:05 +91: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +92: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +93: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +94: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +95: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +96: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +97: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +98: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +99: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: lists every kind, trims by default and auditions spans
+00:06 +100: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: choosing how many copies ticks the gap and inserts them
+00:06 +101: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: without audio the ending is not judged and no span plays
+00:06 +102: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: a clean draft has nothing to report
+00:06 +103: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog_test.dart: the proofread menu offers the check
+00:07 +104: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:07 +105: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: one button replaces the six proofreading entry points
+00:07 +106: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_proofread_menu_button_test.dart: the menu explains the reference and no-reference strategies
+00:07 +107: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace previews matches and replaces the selected rows
+00:08 +108: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace previews matches and replaces the selected rows
+00:08 +109: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace previews matches and replaces the selected rows
+00:08 +110: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace previews matches and replaces the selected rows
+00:09 +111: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find and replace protected rows are skipped until the user opts in
+00:09 +112: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency pre-selects a clear majority and unifies the outlier
+00:09 +113: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency an undecided group waits for the user to choose
+00:09 +114: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: repeated-line consistency says so when every repeat is consistent
+00:09 +115: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up previews rewrites and removals and applies them
+00:09 +116: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: text clean-up nothing to clean disables the confirm button
+00:09 +117: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: the proofreading menu offers the three tools
+00:10 +118: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find-and-replace shortcut Ctrl+H opens find and replace
+00:10 +119: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/features/lyrics/presentation/widgets/lyric_batch_text_tools_test.dart: find-and-replace shortcut on macOS Ctrl+H is left to text fields; Cmd+Shift+H works
+00:15 +120: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/coordinated_forced_alignment_runner_test.dart: busy preflight is explicit and cannot modify the draft
+00:15 +121: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/coordinated_forced_alignment_runner_test.dart: lease covers the complete async delegate and rejects competitors
+00:15 +122: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/app/coordinated_forced_alignment_runner_test.dart: delegate failure releases the lease and keeps fallback behavior
+00:15 +123: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts core does not import the app assembly layer
+00:15 +124: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts features do not import the app assembly layer
+00:15 +125: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts the service registry is not reached from lib/app itself
+00:15 +126: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts global singleton call sites only shrink
+00:15 +127: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts lyric editor and review inbox take their dependencies
+00:15 +128: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts playback surfaces take their dependencies
+00:15 +129: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts the local library surfaces take their dependencies
+00:15 +130: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts the KTV surface has a single owner
+00:15 +131: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts the routing table builds the editor dependencies
+00:15 +132: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/app_assembly_contract_test.dart: App assembly contracts main.dart stays bootstrap-only
+00:15 +133: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) (setUpAll)
+00:15 +133: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) scans the repository and reports SCC edges and source paths
+SCC: lyrics, player, project, transcription
+  lyrics -> player
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/player/presentation/widgets/seekable_progress_bar.dart
+    lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_controls.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/player/domain/services/audio_player_service.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_tap_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_edit_dialog.dart -> lib/features/player/domain/models/playback_state.dart
+  lyrics -> project
+    lib/features/lyrics/data/services/local_lyric_file_export_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/data/services/local_lyric_file_import_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/lyric_edit_history.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/lyric_review_queue.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/recognition_review_summary.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/models/secondary_only_suggestion.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/apply_reference_alignment_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_consensus_analyzer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_first_pipeline.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_hallucination_filter.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_reference_correction_suggester.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/asr_retiming_planner.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/independent_snapshot_comparison.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/project_proofread_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_result.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_review_proposal.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_v2_document_composer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/proofread_v2_review_assembler.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_alignment_timing_applier.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_first_pipeline.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_proofread_change_set.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/reference_proofread_review_builder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/domain/proofreading/run_proofread_v2_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/run_reference_proofread_use_case.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/proofreading/timing_evidence_json_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/chinese_script_unification_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_alignment_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_asr_loop_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_draft_health_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_export_encoder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_file_export_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_file_import_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_find_replace_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_karaoke_tag_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_line_structure_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_manual_edit_marker_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_missed_repeat_detector.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_pace_analyzer.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_repetition_consistency_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_review_decision_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_review_priority_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_span_rerecognition.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_structure_advisor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_tap_sync_session.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_text_cleanup_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_auto_repair_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_insertion_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_repair_planner.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timeline_validator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_timing_shift_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_tap_session.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_auditor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_editor.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/lyric_word_timing_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_applier.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_provenance_builder.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_alignment_restore_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_lyric_text_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/domain/services/reference_timeline_completion_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/line_audition_controller.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_document_controller.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_editor_proofreading_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/controllers/lyric_export_coordinator.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/controllers/lyric_export_coordinator.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/lyric_editor_dependencies.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/screens/lyric_editor_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/screens/review_inbox_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/screens/review_inbox_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/lyrics/presentation/widgets/chinese_script_unification_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_asr_loop_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_batch_text_edit.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_content.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/lyrics/presentation/widgets/lyric_editor_toolbar.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_export_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_find_replace_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_inspector_pane.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_list_pane.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_missed_repeat_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_pace_check_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_proofread_v2_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_repetition_consistency_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_span_recognition_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_structure_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_tap_sync_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_text_cleanup_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_timeline_repair_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_timing_shift_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_tap_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_check_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_edit_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/lyric_word_timing_strip.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/project_asr_snapshot_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_backup_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_result_comparison.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_alignment_review.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_proofread_review_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/reference_proofread_timing_review_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/lyrics/presentation/widgets/timing_evidence_import_dialog.dart -> lib/features/project/domain/models/lyric_document.dart
+  player -> lyrics
+    lib/features/player/presentation/local_library_dependencies.dart -> lib/features/lyrics/domain/services/lyric_file_import_service.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/lyrics/domain/services/lyric_file_import_service.dart
+  player -> project
+    lib/features/player/data/repositories/file_playback_session_store.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/default_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/file_ktv_take_history_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/just_audio_player_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/ktv_project_storage.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/library_metadata_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/local_ktv_recording_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/local_ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/data/services/remote_rebinding_playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/data/services/timed_ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/models/ktv_backing_mode.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/ktv_recording_session.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/play_history.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/models/playback_state.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/audio_player_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/ktv_recording_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/services/ktv_take_history_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/domain/services/playback_lyrics_availability.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/domain/services/playback_lyrics_project_resolver.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/domain/services/playback_session_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/domain/services/project_audio_source_update.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/playback_screen_dependencies.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/immersive_ktv_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/screens/immersive_ktv_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/local_artist_album_browser_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/local_collections_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/local_library_explorer_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/screens/player_screen.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/player/presentation/screens/quick_play_screen.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/widgets/fullscreen_ktv_lyric_stage.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/player/presentation/widgets/ktv_entry_sheet.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/player/presentation/widgets/ktv_take_history_sheet.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/player/presentation/widgets/local_song_lyrics_import_action.dart -> lib/features/project/domain/repositories/project_repository.dart
+  project -> player
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/repositories/local_media_metadata_repository.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/audio_path_canonicalizer.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/playback_lyrics_project_linker.dart
+    lib/features/project/data/repositories/file_project_repository.dart -> lib/features/player/domain/services/playback_session_service.dart
+    lib/features/project/data/services/file_project_accompaniment_importer.dart -> lib/features/player/domain/services/audio_library_import_service.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/player/domain/services/playback_session_service.dart
+  project -> transcription
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/asr_runtime_manager.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/project_transcription_workflow.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/domain/services/transcription_settings_store.dart
+    lib/features/project/presentation/project_detail_dependencies.dart -> lib/features/transcription/presentation/transcription_screen_dependencies.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/models/transcription_degradation.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/models/transcription_models.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/asr_runtime_manager.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/project_transcription_workflow.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/domain/services/transcription_settings_store.dart
+    lib/features/project/presentation/screens/project_detail_screen.dart -> lib/features/transcription/presentation/widgets/asr_runtime_setup_dialog.dart
+  transcription -> lyrics
+    lib/features/transcription/data/services/asr_text_comparison.dart -> lib/features/lyrics/domain/proofreading/lyric_tokenizer.dart
+    lib/features/transcription/data/services/forced_alignment_http_client.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/high_quality_transcription_service.dart -> lib/features/lyrics/domain/models/secondary_only_suggestion.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/lyrics/domain/services/chinese_script_unification_service.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/lyrics/domain/proofreading/project_proofread_evidence.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/lyrics/domain/services/chinese_script_unification_service.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/lyrics/domain/services/lyric_span_rerecognition.dart
+    lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart -> lib/features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/lyrics/domain/proofreading/reference_alignment_audio_guard.dart
+    lib/features/transcription/data/services/resumable_chunked_transcription_service.dart -> lib/features/lyrics/domain/models/secondary_only_suggestion.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/lyrics/domain/services/lyric_line_structure_service.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/lyrics/domain/services/lyric_word_timing_service.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/lyrics/domain/models/chinese_script_preference.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/lyrics/domain/text/chinese_script_converter.dart
+    lib/features/transcription/domain/models/whisper_decoding_policy.dart -> lib/features/lyrics/domain/text/chinese_script_converter.dart
+    lib/features/transcription/presentation/widgets/transcription_config_dialog.dart -> lib/features/lyrics/domain/models/chinese_script_preference.dart
+  transcription -> player
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/repositories/local_media_metadata_repository.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/audio_path_canonicalizer.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/playback_lyrics_project_linker.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/player/domain/services/playback_session_service.dart
+  transcription -> project
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/file_batch_transcription_queue.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/high_quality_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/independent_project_rerun_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/independent_project_rerun_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/audio_asset.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_asr_end_to_end_smoke_test_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/local_project_transcription_workflow.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_proofread_evidence_loader.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_recognition_hints.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_assessor.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/project_rerun_candidate_store.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/project_span_recognition_service.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/project_transcription_input.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/qwen3_asr_native_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/models/project_manifest.dart
+    lib/features/transcription/data/services/reference_alignment_audio_guard.dart -> lib/features/project/domain/repositories/project_repository.dart
+    lib/features/transcription/data/services/resumable_chunked_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_cpp_transcription_service.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/data/services/whisper_json_transcript_parser.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/asr_confidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/chunked_independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/fusion_timing_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/independent_asr_evidence.dart -> lib/features/project/domain/models/lyric_document.dart
+    lib/features/transcription/domain/models/transcription_models.dart -> lib/features/project/domain/models/lyric_document.dart
+00:15 +134: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) player no longer imports transcription
+00:15 +135: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) cyclic feature edges are a shrinking baseline
+00:15 +136: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) cross-feature presentation imports are a shrinking path baseline
+00:15 +137: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph contracts (#327) (tearDownAll)
+00:15 +137: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing handles multiline, conditional, package, relative and export directives
+00:15 +138: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing ignores commented and quoted fake directives
+00:15 +139: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing rejects annotations before directives instead of silently skipping them
+00:15 +140: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing rejects chained metadata and comments before directives
+00:15 +141: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing accepts metadata on declarations after imports
+00:15 +142: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing does not parse interpolated code after the directive section
+00:15 +143: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing rejects escaped URIs rather than allowing a graph bypass
+00:15 +144: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing handles a byte-order mark and script shebang before imports
+00:15 +145: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing rejects percent-encoded paths and URI suffixes
+00:15 +146: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing unrelated escaped strings do not fail parsing
+00:15 +147: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing acyclic feature graph has no cycle
+00:15 +148: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing a cycle across three features includes all internal edges and paths
+00:15 +149: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing separate SCCs and one-way bridge remain separate
+00:15 +150: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing removing an edge breaks a cycle and makes baseline stale
+00:15 +151: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing same-feature and external imports are excluded
+00:15 +152: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/architecture/feature_dependency_graph_test.dart: feature graph algorithm and directive parsing backslash paths resolve consistently across hosts
+00:16 +153: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts all workflows install the Flutter SDK through the shared pin
+00:16 +154: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts local quality and build scripts enforce the .fvmrc Flutter/Dart pin
+00:16 +155: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts universal quality gate owns complete Flutter analysis and tests
+00:16 +156: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts specialized workflows do not run the full suite independently
+00:16 +157: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts KTV history validation owns recovery and interrupted WAV coverage
+00:16 +158: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts managed CMake validation intentionally exercises the CocoaPods path
+00:16 +159: /home/runner/work/lyric-forge-ktv/lyric-forge-ktv/test/ci_workflow_contract_test.dart: GitHub Actions CI workflow contracts stale KTV feature-branch-only trigger names are gone
+00:16 +160: All tests passed!

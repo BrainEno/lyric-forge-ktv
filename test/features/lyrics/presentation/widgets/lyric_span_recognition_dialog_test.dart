@@ -26,7 +26,8 @@ LyricDocument _draft({Duration? offset}) => LyricDocument(
 );
 
 class _Recognizer implements LyricSpanRecognizer {
-  final recognized = <({Duration start, Duration end, LyricSpanEngine engine})>[];
+  final recognized =
+      <({Duration start, Duration end, LyricSpanEngine engine})>[];
   final aligned = <({Duration start, Duration end, String text})>[];
   List<LyricLine> lines = const [];
   List<ForcedAlignedSpan> spans = const [];
@@ -148,10 +149,7 @@ void main() {
     expect(recognizer.recognized.single.engine, LyricSpanEngine.qwen);
     expect(recognizer.recognized.single.start, _ms(13500));
     expect(recognizer.recognized.single.end, _ms(18500));
-    expect(
-      find.textContaining('Qwen3-ASR 1.7B：1 行 → 2 行'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Qwen3-ASR 1.7B：1 行 → 2 行'), findsOneWidget);
     expect(find.text('the real line'), findsOneWidget);
 
     await _tap(tester, find.byKey(const ValueKey('span_recognition_confirm')));
@@ -210,7 +208,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('–0:22.0'), findsOneWidget);
 
-    await _tap(tester, find.byKey(const ValueKey('span_mode_recognizeWhisper')));
+    await _tap(
+      tester,
+      find.byKey(const ValueKey('span_mode_recognizeWhisper')),
+    );
     await _tap(tester, find.byKey(const ValueKey('span_run')));
     await tester.pumpAndSettle();
     expect(recognizer.recognized.single.engine, LyricSpanEngine.whisper);

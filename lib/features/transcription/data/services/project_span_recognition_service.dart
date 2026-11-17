@@ -425,7 +425,9 @@ Future<void> cutSpanClipWithFfmpeg({
   );
   final file = File(outputPath);
   // A WAV header alone is 44 bytes: anything that small holds no audio.
-  if (result.exitCode != 0 || !await file.exists() || await file.length() <= 44) {
+  if (result.exitCode != 0 ||
+      !await file.exists() ||
+      await file.length() <= 44) {
     throw TranscriptionException.input(
       'FFmpeg 未能裁剪出这一段音频',
       details: result.stderrTail.join('\n'),

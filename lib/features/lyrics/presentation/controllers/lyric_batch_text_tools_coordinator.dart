@@ -229,7 +229,9 @@ class LyricBatchTextToolsCoordinator {
     if (unavailable != null || recognizer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(unavailable ?? LyricSpanRecognitionStrings.noRecognizer),
+          content: Text(
+            unavailable ?? LyricSpanRecognitionStrings.noRecognizer,
+          ),
         ),
       );
       return null;
