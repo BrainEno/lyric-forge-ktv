@@ -41,7 +41,7 @@
   - Docs: `decisions.md` (D-024), `high_quality_asr.md` (chunking corrected: timestamped requests use at most 180 s chunks, not 1200 s), `asr_runtime_installation.md`, handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions; it and the experiment workflows were deleted before the PR.
   - `dart format` changed nothing on the final tree; `flutter analyze` 0 errors/warnings and 186 infos (same as main).
-  - Targeted tests: 79 passed. Full suite: 2623 passed, 2 skipped; the one failure was the CI contract test rejecting the temporary experiment workflow, which is not part of the PR.
+  - Targeted tests: 79 passed. Full suite on the final tree: 2624 passed, 2 skipped, 0 failed (main: 2603).
   - Work-log `write` + `check` passed.
 - Notes: Word error rates are high for every setup on these mixes; the comparison is relative. The 30 s chunk length and the block thresholds are empirical.
 - Commit: `Fix Qwen chunk loops and detect block loops`
