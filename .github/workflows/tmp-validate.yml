@@ -42,9 +42,9 @@ jobs:
           grep -E "\[E\]|Expected:|Actual:|Error:|error:" -A12 .ci-tmp/validate/targeted.txt | head -400 > .ci-tmp/validate/targeted-failures.txt || true
       - name: Full suite
         run: |
-          flutter test > .ci-tmp/validate/full.txt 2>&1 || true
+          flutter test --reporter expanded > .ci-tmp/validate/full.txt 2>&1 || true
           tail -30 .ci-tmp/validate/full.txt > .ci-tmp/validate/full-tail.txt
-          grep -E "\[E\]" .ci-tmp/validate/full.txt | sort -u | head -100 > .ci-tmp/validate/full-failures.txt || true
+          grep -E "\[E\]" -A40 .ci-tmp/validate/full.txt | head -300 > .ci-tmp/validate/full-failures.txt || true
           rm .ci-tmp/validate/full.txt
       - name: Work log
         run: |

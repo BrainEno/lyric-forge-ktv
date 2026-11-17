@@ -4,7 +4,7 @@ import 'whisper_decoding_policy.dart' show RecognitionHints;
 ///
 /// Qwen3-ASR copies its context into the transcript when a chunk has little or
 /// no singing: on the songs measured for D-024 every instrumental chunk came
-/// back as "<title>. Artist: <artist>", and the aligner placed those words
+/// back as `<title>. Artist: <artist>`, and the aligner placed those words
 /// over the intro, the solos and the outro. A song whose title is also its
 /// hook ("Riders on the Storm") then shows the title line again and again
 /// where nobody sings. Without the title and artist the same songs kept as
