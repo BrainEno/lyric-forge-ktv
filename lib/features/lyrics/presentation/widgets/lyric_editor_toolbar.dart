@@ -190,6 +190,9 @@ class LyricEditorToolbar extends StatelessWidget {
                   onMissedRepeatCheck: _batchTool(
                     LyricBatchTextTool.missedRepeatCheck,
                   ),
+                  onSpanRecognition: _batchTool(
+                    LyricBatchTextTool.spanRecognition,
+                  ),
                   onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
                   onTimelineRepair: _batchTool(
                     LyricBatchTextTool.timelineRepair,

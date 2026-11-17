@@ -68,9 +68,11 @@ dependencies:
   audio_service: ^0.18.19
   audio_session: ^0.2.4
   record: 6.2.1
-  # flutter_soloud 5.x pulls native_toolchain_c, whose meta constraint does not
-  # resolve with Flutter 3.41.9. 4.1.7 keeps the buffer-stream APIs used by KTV
-  # monitoring; output-latency reporting is treated as unavailable rather than guessed.
+  # Pinned when the project was on Flutter 3.41.9: flutter_soloud 5.x pulled
+  # native_toolchain_c, whose meta constraint did not resolve there. The current
+  # Flutter version is the one in .fvmrc; re-check 5.x before upgrading. 4.1.7
+  # keeps the buffer-stream APIs used by KTV monitoring; output-latency
+  # reporting is treated as unavailable rather than guessed.
   flutter_soloud: 4.1.7
 
   # UUID generation

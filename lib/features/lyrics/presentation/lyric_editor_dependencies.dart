@@ -6,6 +6,7 @@ import '../domain/proofreading/reference_alignment_audio_guard.dart';
 import '../domain/proofreading/project_proofread_evidence.dart';
 import '../domain/services/lyric_file_export_service.dart';
 import '../domain/services/lyric_file_import_service.dart';
+import '../domain/services/lyric_span_rerecognition.dart';
 
 /// Everything `LyricEditorScreen` needs, decided outside of it.
 ///
@@ -40,6 +41,10 @@ class LyricEditorDependencies {
   final ProjectProofreadEvidencePreviewer? projectProofreadEvidencePreviewer;
   final ReferenceAlignmentAudioGuard? referenceAlignmentAudioGuard;
 
+  /// Re-runs one stretch of the song (重新识别这一段); null when the app has
+  /// no local recognition runtime to offer.
+  final LyricSpanRecognizer? spanRecognizer;
+
   const LyricEditorDependencies({
     required this.projectRepository,
     required this.playbackSession,
@@ -50,5 +55,6 @@ class LyricEditorDependencies {
     this.projectProofreadEvidenceLoader,
     this.projectProofreadEvidencePreviewer,
     this.referenceAlignmentAudioGuard,
+    this.spanRecognizer,
   });
 }

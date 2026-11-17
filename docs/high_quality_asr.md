@@ -341,6 +341,24 @@ selected.
 Other disagreements remain visible in the lyric editor as a Whisper candidate
 with an explicit “use alternative” action.
 
+## Re-running one stretch
+
+The editor's proofreading menu can re-run a few rows instead of the whole
+song (重新识别这一段, D-026). `ProjectSpanRecognitionService` cuts the
+stretch into its own 16 kHz mono clip with FFmpeg, runs it through Qwen3-ASR
+(on the app's shared adapter, so a model still loaded from a full run is
+reused), Whisper, or the forced aligner, and moves the result back onto the
+song's timeline. It holds the shared ASR resource lease
+(`AsrResourceUse.spanRecognition`) for the whole run and never writes the
+project; the editor previews the result and applies it as one undoable edit.
+
+- The stretch is 0.5–90 s. It reaches 0, 0.5, 1 or 2 s past the chosen rows,
+  or up to the neighbouring row, but never into it.
+- Recognised rows are clipped to the stretch, ordered and de-overlapped;
+  fragments shorter than 120 ms after clipping are dropped.
+- Re-alignment keeps the rows' text and fails closed: any word that does not
+  match the rows in order discards the whole result.
+
 ## Lyric editor behavior
 
 The editor now surfaces:
@@ -408,7 +426,7 @@ LyricForge's currently pinned Rust/Candle sidecar is launched with `--forced-ali
 
 The repository now carries a patch against the pinned Rust/Candle source that adds `POST /v1/align` with explicit `audio`, `text`, and `language` inputs. It calls the loaded `Qwen3ForcedAligner.align` API directly and returns `results[0].items` with `text`, `start_time`, and `end_time` in seconds; it does not route through ASR `context`. The native build workflow applies the patch for Windows CUDA and macOS Intel bundles and runs an endpoint contract integration test. Until that native CI passes and a rebuilt bundle is installed, existing downloaded runtime binaries must still be treated as lacking this endpoint.
 
-The Dart HTTP adapter validates non-empty spans, timestamp ordering, and audio-duration bounds. `ForcedAlignmentProofreadService` now passes explicit audio path, reference text, and language to `/v1/align`, then maps the returned spans into the ASR-first proofread proposal as review-only tokens. Incomplete line coverage returns a warning; request/runtime errors fall back to the ordinary proposal with a visible `forcedAlignmentUnavailable` note. Neither success nor failure edits source lyric text or timestamps. The native endpoint contract CI has passed, but existing installed runtime bundles still need rebuilding before they expose `/v1/align`; real-song accuracy and Chinese/English/Japanese coverage remain unverified.
+The Dart HTTP adapter validates timestamp ordering and audio-duration bounds. Zero-length spans (words the aligner could not place) are repaired with `AlignerWordTimingRepair.repairToTimedSpans` instead of failing the request: clusters are spread where there is room, and a word still without length is merged into its neighbour, so text and order are preserved (D-026). `ForcedAlignmentProofreadService` now passes explicit audio path, reference text, and language to `/v1/align`, then maps the returned spans into the ASR-first proofread proposal as review-only tokens. Incomplete line coverage returns a warning; request/runtime errors fall back to the ordinary proposal with a visible `forcedAlignmentUnavailable` note. Neither success nor failure edits source lyric text or timestamps. The native endpoint contract CI has passed, but existing installed runtime bundles still need rebuilding before they expose `/v1/align`; real-song accuracy and Chinese/English/Japanese coverage remain unverified.
 
 
 ## Forced-alignment evidence in proofreading proposals

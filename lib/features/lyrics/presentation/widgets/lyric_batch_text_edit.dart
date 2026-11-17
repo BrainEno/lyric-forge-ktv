@@ -40,6 +40,9 @@ enum LyricBatchTextTool {
 
   /// Finds chants and backing vocals the recogniser shortened (漏唱和声检查).
   missedRepeatCheck,
+
+  /// Re-recognises or re-aligns a stretch of rows (重新识别这一段).
+  spanRecognition,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

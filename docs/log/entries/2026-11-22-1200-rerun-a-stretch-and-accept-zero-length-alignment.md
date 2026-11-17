@@ -1,0 +1,28 @@
+# [2026-11-22 12:00] Re-run a stretch of rows; accept zero-length aligned words
+
+- Scope: Self-chosen round after #467: features that help recognition and proofreading, plus small open issues (D-026).
+  - **重新识别这一段** (re-run this stretch). A whole-song recognition sometimes garbles one passage while the rest is fine, and the only fixes were a full re-run (which overwrites hand edits elsewhere) or typing it by ear. The proofreading menu can now re-run only the chosen rows.
+    - Range: first/last row (defaults to the selected row) plus how far to reach: none, 0.5 s (default), 1 s, 2 s, or up to the neighbouring row. Reaching never passes a neighbour's edge, so no row is recognised twice; overlapping rows keep their own edges. 0.5–90 s.
+    - Modes: Qwen3-ASR or Whisper re-recognition (new text and timing replace the rows), or re-alignment of the existing text (timing only).
+    - `ProjectSpanRecognitionService` (data) cuts the stretch with FFmpeg into a 16 kHz mono clip and moves results back onto the song timeline. It holds the shared ASR lease (`AsrResourceUse.spanRecognition`), checks the runtime like the independent re-run does, uses the app's shared Qwen adapter (reusing a loaded model server) or a fresh Whisper adapter, deletes the temporary clip, and supports cancel. It never writes the project.
+    - `LyricSpanRerecognitionPlanner` (domain): the window, the replacement (clipped to the window, ordered, de-overlapped, fragments under 120 ms dropped, partial word timing dropped, chorus kept when every chosen row was chorus, text-only replacement when row counts match) and the realignment (in-order matching ignoring case, spaces and punctuation; a merged word across a row end times both rows; anything else fails closed).
+    - `LyricSpanRecognitionDialog`: row steppers, reach pickers, mode chips, run/stop, an audition of the stretch, old vs new rows with text similarity, hand-edited-row warnings, and a "text only" option. Results are mapped through the document's global offset. One undoable edit; closing the dialog cancels a running request.
+    - Wiring: `LyricBatchTextTool.spanRecognition`, `LyricProofreadAction.spanRecognition` in the toolbar and content menus, `LyricEditorDependencies.spanRecognizer` from the app assembly. Without audio or a recogniser the menu item explains why. The missed-repeat dialog now points to this tool.
+  - **Zero-length aligned words in reference alignment.** D-025 kept zero-length aligner words in recognition, but `ForcedAlignmentHttpClient` still failed the whole `/v1/align` request on one zero-length word, so Smart Proofread V2's ForcedAligner options gave up on exactly the songs with repeated chants.
+    - `AlignerWordTimingRepair.repairToTimedSpans`: repair, clamp to the audio length, then merge a word still without length into the previous word (or the next at the very start). Text and order are preserved when whitespace is ignored.
+    - The client accepts `end == start`, still rejects `end < start`, decreasing starts and spans past the audio, and fails only if no span has a length.
+  - #465: the `flutter_soloud` comment in `pubspec.yaml` no longer claims Flutter 3.41.9 is current; `.fvmrc` is the source of truth.
+- Files:
+  - New: `lib/features/lyrics/domain/services/lyric_span_rerecognition.dart`, `lib/features/lyrics/presentation/widgets/lyric_span_recognition_dialog.dart`, `lib/features/transcription/data/services/project_span_recognition_service.dart`.
+  - Changed: `aligner_word_timing_repair.dart`, `forced_alignment_http_client.dart`, `asr_resource_coordinator.dart`, `lyric_editor_assembly.dart`, `lyric_editor_dependencies.dart`, `lyric_editor_screen.dart`, `lyric_batch_text_tools_coordinator.dart`, `lyric_batch_text_edit.dart`, `lyric_proofread_menu_button.dart`, `lyric_editor_toolbar.dart`, `lyric_editor_content.dart`, `lyric_missed_repeat_dialog.dart`, `pubspec.yaml`.
+  - Tests: new `lyric_span_rerecognition_test.dart`, `lyric_span_recognition_dialog_test.dart`, `project_span_recognition_service_test.dart`; extended `aligner_word_timing_repair_test.dart`, `forced_alignment_http_client_test.dart`.
+  - Docs: `decisions.md` (D-026), `high_quality_asr.md`, handoff.
+- Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR.
+  - Run 44043861229: `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 160 passed. Full suite: 2712 passed, 2 skipped, 0 failed (before this change: 2663).
+  - Work-log `write` + `check` passed.
+- Notes:
+  - Words at the clip's edges can be cut off or recognised twice; the 0.5 s default reach is a compromise.
+  - Words merged into a neighbour have no timing of their own.
+  - Re-recognition has not been measured on real songs in this round; it reuses the engines and settings of a full recognition on a shorter clip.
+- Commit: `Re-run a stretch of rows; accept zero-length aligned words`

@@ -6,6 +6,7 @@ import 'lyric_find_replace_dialog.dart';
 import 'lyric_missed_repeat_dialog.dart';
 import 'lyric_pace_check_dialog.dart';
 import 'lyric_repetition_consistency_dialog.dart';
+import 'lyric_span_recognition_dialog.dart';
 import 'lyric_structure_dialog.dart';
 import 'lyric_tap_sync_dialog.dart';
 import 'lyric_text_cleanup_dialog.dart';
@@ -27,6 +28,7 @@ enum LyricProofreadAction {
   textCleanup,
   asrLoopCheck,
   missedRepeatCheck,
+  spanRecognition,
   lineStructure,
   timelineRepair,
   paceCheck,
@@ -59,6 +61,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
     this.onTextCleanup,
     this.onAsrLoopCheck,
     this.onMissedRepeatCheck,
+    this.onSpanRecognition,
     this.onLineStructure,
     this.onTimelineRepair,
     this.onTimingShift,
@@ -96,6 +99,9 @@ class LyricProofreadMenuButton extends StatelessWidget {
 
   /// 漏唱和声检查: finds chants and backing vocals the recogniser shortened.
   final VoidCallback? onMissedRepeatCheck;
+
+  /// 重新识别这一段: re-runs a stretch of rows through a recogniser.
+  final VoidCallback? onSpanRecognition;
 
   /// 整理断行: splits over-long rows and merges fragments.
   final VoidCallback? onLineStructure;
@@ -168,7 +174,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
         }
         return Tooltip(
           message:
-              '校对：智能提案、参考歌词纠正、重复行统一、文本清理、识别循环检查、漏唱和声检查、整理断行、时间轴检查与平移、简繁统一、查找替换、逐行对比与回滚',
+              '校对：智能提案、参考歌词纠正、重复行统一、文本清理、识别循环检查、漏唱和声检查、重新识别一段、整理断行、时间轴检查与平移、简繁统一、查找替换、逐行对比与回滚',
           child: FilledButton.tonalIcon(
             onPressed: open,
             icon: const Icon(Icons.spellcheck_rounded, size: 18),
@@ -188,6 +194,7 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.textCleanup: onTextCleanup,
       LyricProofreadAction.asrLoopCheck: onAsrLoopCheck,
       LyricProofreadAction.missedRepeatCheck: onMissedRepeatCheck,
+      LyricProofreadAction.spanRecognition: onSpanRecognition,
       LyricProofreadAction.lineStructure: onLineStructure,
       LyricProofreadAction.timelineRepair: onTimelineRepair,
       LyricProofreadAction.timingShift: onTimingShift,
@@ -253,6 +260,10 @@ class LyricProofreadMenuButton extends StatelessWidget {
         LyricMissedRepeatStrings.actionTitle,
         LyricMissedRepeatStrings.actionDetail,
       ),
+      LyricProofreadAction.spanRecognition => (
+        LyricSpanRecognitionStrings.actionTitle,
+        LyricSpanRecognitionStrings.actionDetail,
+      ),
       LyricProofreadAction.timelineRepair => (
         LyricTimelineRepairStrings.actionTitle,
         LyricTimelineRepairStrings.actionDetail,
@@ -301,6 +312,8 @@ class LyricProofreadMenuButton extends StatelessWidget {
       LyricProofreadAction.textCleanup => Icons.cleaning_services_rounded,
       LyricProofreadAction.asrLoopCheck => Icons.repeat_one_rounded,
       LyricProofreadAction.missedRepeatCheck => Icons.playlist_add_rounded,
+      LyricProofreadAction.spanRecognition =>
+        Icons.published_with_changes_rounded,
       LyricProofreadAction.lineStructure => Icons.view_agenda_outlined,
       LyricProofreadAction.timelineRepair => Icons.healing_rounded,
       LyricProofreadAction.timingShift => Icons.timer_outlined,

@@ -1,6 +1,7 @@
 import '../features/lyrics/domain/proofreading/forced_alignment_proofread_service.dart';
 import '../features/lyrics/presentation/lyric_editor_dependencies.dart';
 import '../features/transcription/data/services/project_proofread_evidence_loader.dart';
+import '../features/transcription/data/services/project_span_recognition_service.dart';
 import '../features/transcription/data/services/reference_alignment_audio_guard.dart';
 import '../features/transcription/domain/services/asr_resource_coordinator.dart';
 import '../features/transcription/domain/services/asr_runtime_manager.dart';
@@ -33,6 +34,17 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
     ),
     projectProofreadEvidenceLoader: evidenceLoader.load,
     projectProofreadEvidencePreviewer: evidenceLoader.preview,
+    spanRecognizer: ProjectSpanRecognitionService(
+      projects: services.projectRepository,
+      settings: services.transcriptionSettingsStore,
+      profiles: services.transcriptionProfileResolver,
+      runtime: services.asrRuntimeManager,
+      resources: services.asrResourceCoordinator,
+      // Reuses a Qwen model server still loaded from a full recognition.
+      sharedQwen: services.qwenNativeTranscriptionService,
+      // The span service already holds the shared lease for its whole run.
+      alignClip: _alignWithReadyRuntime(services),
+    ),
   );
 }
 
@@ -43,39 +55,44 @@ LyricEditorDependencies assembleLyricEditorDependencies(AppServices services) {
 ForcedAlignmentRunner buildForcedAlignmentRunner(AppServices services) {
   return coordinateForcedAlignmentRunner(
     resources: services.asrResourceCoordinator,
-    delegate:
-        ({
-          required String audioPath,
-          required String text,
-          required String language,
-          required Duration audioDuration,
-        }) async {
-          final savedConfig = await services.transcriptionSettingsStore.load();
-          if (savedConfig == null) {
-            throw Exception('尚未配置本地转写运行时。');
-          }
-          final resolved = await services.transcriptionProfileResolver.resolve(
-            savedConfig,
-          );
-          final runtimeStatus = await services.asrRuntimeManager.inspect(
-            resolved.config,
-          );
-          final runtimeReady = runtimeStatus.hasReadyComponents(const {
-            AsrRuntimeComponent.qwenRuntime,
-            AsrRuntimeComponent.qwenAligner,
-          });
-          if (!runtimeReady) {
-            throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
-          }
-          return services.qwenNativeTranscriptionService.alignReference(
-            audioPath: audioPath,
-            text: text,
-            language: language,
-            audioDuration: audioDuration,
-            config: resolved.config,
-          );
-        },
+    delegate: _alignWithReadyRuntime(services),
   );
+}
+
+/// The native alignment call with its readiness checks, without taking the
+/// shared resource lease; callers own the lease.
+ForcedAlignmentRunner _alignWithReadyRuntime(AppServices services) {
+  return ({
+    required String audioPath,
+    required String text,
+    required String language,
+    required Duration audioDuration,
+  }) async {
+    final savedConfig = await services.transcriptionSettingsStore.load();
+    if (savedConfig == null) {
+      throw Exception('尚未配置本地转写运行时。');
+    }
+    final resolved = await services.transcriptionProfileResolver.resolve(
+      savedConfig,
+    );
+    final runtimeStatus = await services.asrRuntimeManager.inspect(
+      resolved.config,
+    );
+    final runtimeReady = runtimeStatus.hasReadyComponents(const {
+      AsrRuntimeComponent.qwenRuntime,
+      AsrRuntimeComponent.qwenAligner,
+    });
+    if (!runtimeReady) {
+      throw Exception('Qwen ForcedAligner 运行时未就绪；请先在转写设置中准备高质量运行环境。');
+    }
+    return services.qwenNativeTranscriptionService.alignReference(
+      audioPath: audioPath,
+      text: text,
+      language: language,
+      audioDuration: audioDuration,
+      config: resolved.config,
+    );
+  };
 }
 
 /// Holds the shared resource through preflight, native alignment and cleanup.

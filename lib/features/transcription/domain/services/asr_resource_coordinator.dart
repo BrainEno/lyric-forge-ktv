@@ -2,7 +2,15 @@
 ///
 /// All participating operations must use the same instance. It does not lock
 /// other isolates or processes and does not stop an idle native model server.
-enum AsrResourceUse { transcription, independentRerun, alignment, installation }
+enum AsrResourceUse {
+  transcription,
+  independentRerun,
+  alignment,
+  installation,
+
+  /// Re-running one stretch of a song from the lyric editor.
+  spanRecognition,
+}
 
 class AsrResourceCoordinator {
   AsrResourceLease? _active;

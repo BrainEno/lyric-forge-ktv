@@ -64,7 +64,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen>
   late final ReferenceLyricTextParser _referenceParser;
   late final LyricEditorProofreadingCoordinator _proofreading;
   late final LyricBatchTextToolsCoordinator _batchTools =
-      LyricBatchTextToolsCoordinator(host: this);
+      LyricBatchTextToolsCoordinator(
+        host: this,
+        spanRecognizer: widget.dependencies.spanRecognizer,
+      );
   final LyricExportCoordinator _lyricExport = LyricExportCoordinator();
   late Future<ProjectManifest?> _projectFuture;
   int? _projectRevision;
