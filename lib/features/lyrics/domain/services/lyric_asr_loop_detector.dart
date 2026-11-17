@@ -11,6 +11,10 @@ enum LyricAsrLoopKind {
   /// Several consecutive rows have the same text: the recogniser kept
   /// emitting the last phrase over an interlude or a long note.
   repeatedRows,
+
+  /// A group of two to four rows repeats back to back (A B A B A B…): the
+  /// recogniser cycled through the last couplet over an interlude.
+  repeatedBlock,
 }
 
 /// One repeated run inside a row.
@@ -60,12 +64,18 @@ class LyricAsrLoopIssue {
   /// to a few repeats.
   final String? proposedText;
 
-  /// [LyricAsrLoopKind.repeatedRows]: every row of the run, in order.
+  /// [LyricAsrLoopKind.repeatedRows] and [LyricAsrLoopKind.repeatedBlock]:
+  /// every row of the run, in order.
   final List<int> runIndices;
 
-  /// [LyricAsrLoopKind.repeatedRows]: the rows the fix deletes (the run
-  /// minus the rows kept, minus hand-edited rows).
+  /// [LyricAsrLoopKind.repeatedRows] and [LyricAsrLoopKind.repeatedBlock]:
+  /// the rows the fix deletes (the run minus the rows kept, minus hand-edited
+  /// rows).
   final List<int> removedIndices;
+
+  /// Rows in one repetition: 1 for [LyricAsrLoopKind.repeatedRows], 2–4 for
+  /// [LyricAsrLoopKind.repeatedBlock].
+  final int blockRows;
 
   /// The repeat count is far beyond what songs do, so the fix is selected
   /// by default. Weaker findings are listed for listening, unselected.
@@ -81,6 +91,7 @@ class LyricAsrLoopIssue {
     this.proposedText,
     this.runIndices = const [],
     this.removedIndices = const [],
+    this.blockRows = 1,
     required this.strong,
     required this.protected,
   });
@@ -90,16 +101,22 @@ class LyricAsrLoopIssue {
       !protected &&
       switch (kind) {
         LyricAsrLoopKind.inRowRepeat => proposedText != null,
-        LyricAsrLoopKind.repeatedRows => removedIndices.isNotEmpty,
+        LyricAsrLoopKind.repeatedRows ||
+        LyricAsrLoopKind.repeatedBlock => removedIndices.isNotEmpty,
       };
 
-  /// The highest repeat count of the finding.
+  /// Whether the fix deletes rows rather than rewriting one.
+  bool get removesRows => kind != LyricAsrLoopKind.inRowRepeat;
+
+  /// The highest repeat count of the finding: of the unit in a row, of the
+  /// row, or of the block of rows.
   int get repeats => switch (kind) {
     LyricAsrLoopKind.inRowRepeat => runs.fold(
       0,
       (best, run) => run.repeats > best ? run.repeats : best,
     ),
-    LyricAsrLoopKind.repeatedRows => runIndices.length,
+    LyricAsrLoopKind.repeatedRows ||
+    LyricAsrLoopKind.repeatedBlock => runIndices.length ~/ blockRows,
   };
 }
 
@@ -131,7 +148,7 @@ class LyricAsrLoopPlan {
       if (position < 0 || position >= issues.length) continue;
       final issue = issues[position];
       if (!issue.fixable) continue;
-      if (issue.kind == LyricAsrLoopKind.repeatedRows) {
+      if (issue.removesRows) {
         removed.addAll(issue.removedIndices);
       } else {
         rewritten.add(issue.index);
@@ -156,7 +173,7 @@ class LyricAsrLoopPlan {
       if (position < 0 || position >= issues.length) continue;
       final issue = issues[position];
       if (!issue.fixable) continue;
-      if (issue.kind == LyricAsrLoopKind.repeatedRows) {
+      if (issue.removesRows) {
         removed.addAll(issue.removedIndices);
       } else {
         texts[issue.index] = issue.proposedText!;
@@ -225,6 +242,12 @@ class LyricAsrLoopPlan {
 /// * **Across rows**: at least [minRowRepeats] consecutive rows with the same
 ///   sung text (punctuation, spacing and letter case ignored). Strong from
 ///   [strongRowRepeats]. The fix keeps the first [keepRowRepeats] rows.
+/// * **Blocks of rows**: a group of 2–[maxBlockRows] rows that are not all
+///   the same, repeated back to back at least [minBlockRepeats] times
+///   (A B A B A B). Strong from [strongBlockRepeats]. The fix keeps the first
+///   [keepBlockRepeats] repetitions. A chorus sung twice in a row is common;
+///   three times back to back with nothing between is rare, and a recogniser
+///   cycling through the last couplet produces many more.
 ///
 /// Hand-edited rows ([plan]'s `protectedIndices`) are never rewritten or
 /// deleted; a finding that would only touch them is listed without a fix.
@@ -241,6 +264,10 @@ class LyricAsrLoopDetector {
     this.minRowRepeats = 4,
     this.strongRowRepeats = 6,
     this.keepRowRepeats = 2,
+    this.maxBlockRows = 4,
+    this.minBlockRepeats = 3,
+    this.strongBlockRepeats = 4,
+    this.keepBlockRepeats = 2,
   });
 
   final LyricLineStructureService structure;
@@ -254,6 +281,10 @@ class LyricAsrLoopDetector {
   final int minRowRepeats;
   final int strongRowRepeats;
   final int keepRowRepeats;
+  final int maxBlockRows;
+  final int minBlockRepeats;
+  final int strongBlockRepeats;
+  final int keepBlockRepeats;
 
   /// Every finding in [document], in row order.
   LyricAsrLoopPlan plan(
@@ -281,52 +312,94 @@ class LyricAsrLoopDetector {
 
     var index = 0;
     while (index < lines.length) {
-      final key = keys[index];
-      var end = index + 1;
-      if (key.isNotEmpty) {
-        while (end < lines.length && keys[end] == key) {
-          end++;
-        }
+      final run = _rowRun(keys, index);
+      if (run == null) {
+        final finding = inRow[index];
+        if (finding != null) issues.add(finding);
+        index++;
+        continue;
       }
-      final length = end - index;
+      final end = index + run.period * run.repeats;
+      final rows = [for (var row = index; row < end; row++) row];
+      final keptRows = run.period * run.keep;
+      final removed = [
+        for (final row in rows.skip(keptRows))
+          if (!protectedIndices.contains(row)) row,
+      ];
+      issues.add(
+        LyricAsrLoopIssue._(
+          kind: run.period == 1
+              ? LyricAsrLoopKind.repeatedRows
+              : LyricAsrLoopKind.repeatedBlock,
+          index: index,
+          runIndices: List.unmodifiable(rows),
+          removedIndices: List.unmodifiable(removed),
+          blockRows: run.period,
+          strong:
+              run.repeats >=
+              (run.period == 1 ? strongRowRepeats : strongBlockRepeats),
+          protected: removed.isEmpty,
+        ),
+      );
       // Rows of a run come before the in-row findings they contain, so the
-      // list reads top to bottom.
-      for (var row = index; row < end; row++) {
+      // list reads top to bottom. A row kept by the run can still loop
+      // inside; deleted rows need no second fix.
+      for (final row in rows.take(keptRows)) {
         final finding = inRow[row];
-        if (finding != null && length < minRowRepeats) issues.add(finding);
+        if (finding != null) issues.add(finding);
       }
-      if (key.isNotEmpty && length >= minRowRepeats) {
-        final run = [for (var row = index; row < end; row++) row];
-        final removed = [
-          for (final row in run.skip(keepRowRepeats))
-            if (!protectedIndices.contains(row)) row,
-        ];
-        issues.add(
-          LyricAsrLoopIssue._(
-            kind: LyricAsrLoopKind.repeatedRows,
-            index: index,
-            runIndices: List.unmodifiable(run),
-            removedIndices: List.unmodifiable(removed),
-            strong: length >= strongRowRepeats,
-            protected: removed.isEmpty,
-          ),
-        );
-        // A row kept by the run can still loop inside; deleted rows need no
-        // second fix.
-        for (final row in run.take(keepRowRepeats)) {
-          final finding = inRow[row];
-          if (finding != null) issues.add(finding);
-        }
-        for (final row in run.skip(keepRowRepeats)) {
-          final finding = inRow[row];
-          if (finding != null && protectedIndices.contains(row)) {
-            issues.add(finding);
-          }
+      for (final row in rows.skip(keptRows)) {
+        final finding = inRow[row];
+        if (finding != null && protectedIndices.contains(row)) {
+          issues.add(finding);
         }
       }
       index = end;
     }
     return LyricAsrLoopPlan(List.unmodifiable(issues));
+  }
+
+  /// The repeated run of rows starting at [start], or null. Identical rows
+  /// win over blocks: `A A A A` is one row repeated, not `A A` twice. Among
+  /// blocks the one covering the most rows wins, the shorter on a tie.
+  ({int period, int repeats, int keep})? _rowRun(List<String> keys, int start) {
+    if (keys[start].isEmpty) return null;
+    var same = 1;
+    while (start + same < keys.length && keys[start + same] == keys[start]) {
+      same++;
+    }
+    if (same >= minRowRepeats) {
+      return (period: 1, repeats: same, keep: keepRowRepeats);
+    }
+    ({int period, int repeats, int keep})? best;
+    for (var period = 2; period <= maxBlockRows; period++) {
+      if (start + period * minBlockRepeats > keys.length) break;
+      final block = keys.sublist(start, start + period);
+      // A block made of one repeated row, or with an empty row, is not a
+      // couplet loop.
+      if (block.any((key) => key.isEmpty) ||
+          block.every((key) => key == block.first)) {
+        continue;
+      }
+      var repeats = 1;
+      while (_blockRepeatsAt(keys, start, period, repeats)) {
+        repeats++;
+      }
+      if (repeats < minBlockRepeats) continue;
+      if (best == null || period * repeats > best.period * best.repeats) {
+        best = (period: period, repeats: repeats, keep: keepBlockRepeats);
+      }
+    }
+    return best;
+  }
+
+  bool _blockRepeatsAt(List<String> keys, int start, int period, int repeats) {
+    final from = start + period * repeats;
+    if (from + period > keys.length) return false;
+    for (var offset = 0; offset < period; offset++) {
+      if (keys[from + offset] != keys[start + offset]) return false;
+    }
+    return true;
   }
 
   /// How many rows the findings in [document] would rewrite or delete;
@@ -335,10 +408,7 @@ class LyricAsrLoopDetector {
     final plan = this.plan(document);
     var rows = 0;
     for (final issue in plan.issues) {
-      rows += switch (issue.kind) {
-        LyricAsrLoopKind.inRowRepeat => 1,
-        LyricAsrLoopKind.repeatedRows => issue.removedIndices.length,
-      };
+      rows += issue.removesRows ? issue.removedIndices.length : 1;
     }
     return rows;
   }

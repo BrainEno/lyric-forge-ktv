@@ -438,6 +438,9 @@ class LyricEditorContent extends StatelessWidget {
                   ),
                   onTextCleanup: _batchTool(LyricBatchTextTool.textCleanup),
                   onAsrLoopCheck: _batchTool(LyricBatchTextTool.asrLoopCheck),
+                  onMissedRepeatCheck: _batchTool(
+                    LyricBatchTextTool.missedRepeatCheck,
+                  ),
                   onLineStructure: _batchTool(LyricBatchTextTool.lineStructure),
                   onTimelineRepair: _batchTool(
                     LyricBatchTextTool.timelineRepair,

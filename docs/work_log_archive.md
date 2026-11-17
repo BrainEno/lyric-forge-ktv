@@ -84,6 +84,8 @@
 
 <!-- BEGIN AUTO-GENERATED WORK LOG REFERENCES -->
 ## Additional archived entries (auto-generated)
+- [2026-11-16 09:00] Add batch proofreading tools ([entry](log/entries/2026-11-16-0900-add-batch-proofreading-tools.md))
+- [2026-11-15 21:00] Add diagnostics, crash capture and operation timings ([entry](log/entries/2026-11-15-2100-add-diagnostics-logging-and-timings.md))
 - [2026-11-15 15:00] Handle simplified and traditional Chinese script consistently ([entry](log/entries/2026-11-15-1500-unify-chinese-script-handling.md))
 - [2026-11-15 10:45] Improve lyric ASR recall and proofreading workflow ([entry](log/entries/2026-11-15-1045-improve-lyric-asr-recall-and-review.md))
 - [2026-11-14 22:20] Harden the local Qwen runtime security boundary ([entry](log/entries/2026-11-14-2220-harden-qwen-runtime-boundary.md))

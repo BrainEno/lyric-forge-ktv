@@ -188,7 +188,6 @@ class LocalProjectTranscriptionWorkflow
           inputAudioPath: inputPath,
           outputDirectory: outputDirectory.path,
           config: runtimeConfig,
-          context: _buildRecognitionContext(project),
           recognitionHints: recognitionHintsForProject(project),
         ),
       );
@@ -340,17 +339,6 @@ class LocalProjectTranscriptionWorkflow
       // A concurrent writer or storage failure must not mask the original error
       // or permit cleanup to overwrite a newer project snapshot.
     }
-  }
-
-  String _buildRecognitionContext(ProjectManifest project) {
-    final parts = <String>[
-      'Song title: ${project.name}',
-      if (project.artist != null && project.artist!.trim().isNotEmpty)
-        'Artist: ${project.artist!.trim()}',
-      if (project.album != null && project.album!.trim().isNotEmpty)
-        'Album: ${project.album!.trim()}',
-    ];
-    return parts.join('. ');
   }
 
   Future<Directory> _outputDirectory(ProjectManifest project) async {

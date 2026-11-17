@@ -212,6 +212,21 @@ that does not understand the flag, so `asr-runtime-v2` bundles are reported as
 outdated and must be repaired. See "Local ASR runtime trust boundary" in the
 README for the threat model.
 
+The rolling `asr-runtime-v3` release also applies
+`tool/patches/qwen3-asr-skip-unalignable-chunks.patch` (D-024). With
+timestamps on, the pinned runtime aligns every chunk's text, and it fails the
+whole request with HTTP 500 "tokenized word_list is empty" when a chunk decodes
+to punctuation only. That happens with a sub-second tail, or with a lone "."
+over an instrumental. The patch skips such chunks the same way empty ones are
+skipped. Both platform jobs apply it after the session-auth patch, and the
+bundle manifest lists it under `behaviorPatches`.
+
+The patch is not part of `runtimePatchRevision`, the compatibility marker the
+installer compares. LyricForge does not depend on it: with a bundle built
+before the patch, it retries the request once with 180 s chunks. Existing
+installs therefore stay valid and do not need a repair. They pick up the patch
+the next time the runtime is installed or repaired.
+
 ### Qwen models
 
 Users do not select Qwen model folders.

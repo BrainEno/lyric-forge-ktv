@@ -11,11 +11,13 @@ class LyricAsrLoopStrings {
   const LyricAsrLoopStrings._();
 
   static const String actionTitle = '识别循环检查';
-  static const String actionDetail = '找出识别器卡住时反复输出的句子：一行里重复十几遍，或连续多行完全相同';
+  static const String actionDetail =
+      '找出识别器卡住时反复输出的句子：一行里重复十几遍，连续多行完全相同，或两三句来回循环';
   static const String intro =
       '语音识别在长音、间奏或伴奏很响时容易“卡住”，把同一句反复输出。'
       '一行里同一个词句连续重复很多次时，建议只保留前几遍；'
-      '连续多行文字完全相同时，建议保留前两行、删除其余。'
+      '连续多行文字完全相同时，建议保留前两行、删除其余；'
+      '两到四句一组来回循环（甲乙甲乙甲乙……）时，建议保留前两遍。'
       '歌曲本身也会重复，所以只有远超常见重复次数的才默认勾选，其余请试听后决定。'
       '手动编辑过的行只提示不修改。结果可撤销，保存后才写盘。';
 
@@ -38,6 +40,9 @@ class LyricAsrLoopStrings {
         '行内循环：${issue.runs.map(runNote).join('；')}$strength$protected',
       LyricAsrLoopKind.repeatedRows =>
         '连续 ${issue.runIndices.length} 行相同，'
+            '删除 ${issue.removedIndices.length} 行$strength$protected',
+      LyricAsrLoopKind.repeatedBlock =>
+        '${issue.blockRows} 行一组连续循环 ${issue.repeats} 遍，'
             '删除 ${issue.removedIndices.length} 行$strength$protected',
     };
   }

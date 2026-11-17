@@ -114,13 +114,6 @@ class IndependentProjectRerunService {
           inputAudioPath: path,
           outputDirectory: work.path,
           config: config,
-          context: [
-            'Song title: ${project.name}',
-            if (project.artist != null && project.artist!.trim().isNotEmpty)
-              'Artist: ${project.artist!.trim()}',
-            if (project.album != null && project.album!.trim().isNotEmpty)
-              'Album: ${project.album!.trim()}',
-          ].join('. '),
           recognitionHints: recognitionHintsForProject(project),
         ),
       );

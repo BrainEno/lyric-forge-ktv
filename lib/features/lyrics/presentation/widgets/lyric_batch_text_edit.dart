@@ -37,6 +37,9 @@ enum LyricBatchTextTool {
 
   /// Fine-tunes the selected row's word timing (逐字微调).
   wordTimingEdit,
+
+  /// Finds chants and backing vocals the recogniser shortened (漏唱和声检查).
+  missedRepeatCheck,
 }
 
 /// What a batch text tool (find-and-replace, repeated-line consistency, text

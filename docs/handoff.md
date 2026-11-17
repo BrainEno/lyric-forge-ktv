@@ -2,53 +2,54 @@
 
 ## 目标
 
-让逐字时间（`LyricLine.words`）可以从已有的卡拉 OK 文件导入，能在全曲范围检查，并能逐个字微调：
+修复用户反馈的问题：识别 "Riders on the Storm" 时，大约 1:30 之后同样的两行一直重复，间奏和演唱部分都是这两行，行数暴增（D-024）。
 
-- 导入逐字 LRC（`<mm:ss.xx>` 或行内 `[mm:ss.xx]`）、ASS（`\k` / `\kf` / `\K` / `\ko`）和带行内时间戳的 WebVTT 时保留逐字时间；本应用导出的逐字 LRC 和 ASS 可以原样导回。
-- 「校对」菜单新增“逐字时间检查”：清除失效的逐字时间、保存已映射的结果，并列出拖长、过短和行内长停顿的字。识别摘要卡新增“逐字时间失效 N 行”提示。
-- 检查器的逐字时间新增“微调”：选中一个字调整开始、结束，试听，设为播放位置，合并或拆开。没有逐字时间的行可以从按字数估算开始微调。
+- Qwen3-ASR 请求按 30 秒分段（`chunk_max_sec = 30`），每段预算 368 个 token。旧预算按 1200 秒一段算，四分钟的歌每段 2176 个 token，解码器一旦陷入循环就会写满。
+- 只发送用户填写的识别词作为上下文，不再发送歌名、歌手、专辑（Qwen 会把它们写进间奏）。
+- runtime 补丁跳过只解码出标点的分段；旧 runtime 遇到这种失败时，按 180 秒分段重试一次。
+- 识别循环检查新增“两到四行一组的循环”，能查出 A B A B A B 这种轮流重复的行。
 
-所有改动都是可撤销的编辑，不自动保存。合并前先征求用户确认。
+第二部分（D-025，用户要求的后续）：结尾反复的和声被缩短、提前，校对时要能提示“这里可能漏了重复的和声”。
+
+- 查明主要原因：对齐器把放不下的词以零时长返回，挤在同一时刻，而 Qwen 结果解析把零时长的词全部丢掉了（每首 12%–53% 的词）。新的 `AlignerWordTimingRepair` 保留并分摊这些词；编辑器里看到的歌词词错误率 1.7B 从 0.548 降到 0.383。
+- 校对菜单新增“漏唱和声检查”：逐字时间挤在一起、字被拉长（前奏被第一个词吞掉等）、结尾和声后的长空白，可试听对应时间段，可插入重复行。
+
+合并前先征求用户确认。
 
 ## Git 现场
 
-- 分支：`arena/05465f08-lyric-forge-ktv`，基于 main `5ab58aab18c19843a36ab175ae5e1284f9677d58`。
-- 验证用的临时 workflow 和它提交的结果文件已在开 PR 前删除，不进入 PR diff。
+- 分支：`arena/10228596-lyric-forge-ktv`，基于 main `2fc91df64fdb8e0cf5877cf27ce982703f476b40`。
+- 实验和验证用的临时 workflow 以及它们提交的结果文件已在开 PR 前删除，不进入 PR diff。
 
 ## 已改文件
 
-- **领域服务（`lib/features/lyrics/domain/services/`）**
-  - `lyric_karaoke_tag_parser.dart`（新）：解析 LRC、ASS、WebVTT 行内的逐字标签，生成去掉标签的文字和逐字时间。
-  - `lyric_word_timing_auditor.dart`（新）：逐字时间检查。
-  - `lyric_word_timing_editor.dart`（新）：逐字微调的纯函数编辑（移动边界、平移、合并、拆分、写回行和时间来源）。
-  - `lyric_file_import_service.dart`（`wordTimedRows`）、`lyric_draft_health_service.dart`（`staleWordRows`）。
-- **导入**：`lyrics/data/services/local_lyric_file_import_service.dart` 调用解析器；`player/presentation/widgets/local_song_lyrics_import_action.dart` 的成功提示显示带逐字时间的行数。
-- **界面（`lib/features/lyrics/presentation/`）**
-  - `widgets/lyric_word_timing_check_dialog.dart`（新）、`widgets/lyric_word_timing_edit_dialog.dart`（新）。
-  - `lyric_batch_text_edit.dart`（`wordTimingCheck`、`wordTimingEdit`）、`controllers/lyric_batch_text_tools_coordinator.dart`、`lyric_proofread_menu_button.dart`、`lyric_editor_toolbar.dart`、`lyric_editor_content.dart`、`lyric_recognition_summary_card.dart`。
-  - `lyric_inspector_pane.dart`、`lyric_word_timing_strip.dart`：“微调”按钮，以及“逐字微调（从估算开始）”。
-- **文档**：`decisions.md`（D-023）、本文件、工作日志条目 `2026-11-20-1200`。
+- **识别（`lib/features/transcription/`）**
+  - `domain/models/qwen_decode_budget.dart`：按分段计算预算。
+  - `domain/models/qwen_recognition_context.dart`（新）：只用识别词的上下文。
+  - `data/services/qwen3_asr_native_transcription_service.dart`：`chunk_max_sec`，按 180 秒重试，以及元数据 `qwenChunkSeconds`、`qwenChunkFallback`、`qwenContextTerms`。
+  - `local_project_transcription_workflow.dart`、`independent_project_rerun_service.dart`：不再拼接标题和歌手的上下文。
+- **runtime**：`tool/patches/qwen3-asr-skip-unalignable-chunks.patch`（新），`build-asr-runtime.yml` 的两个平台都应用它，manifest 的 `behaviorPatches` 记录它。兼容版本号不变。
+- **校对**：`lyric_asr_loop_detector.dart`（`repeatedBlock`）、`lyric_asr_loop_dialog.dart`、`lyric_draft_health_service.dart`（注释）。
+- **D-025 识别**：`domain/models/aligner_word_timing_repair.dart`（新），`qwen3_asr_native_transcription_service.dart` 的逐词解析保留零时长的词。
+- **D-025 校对**：`lyric_missed_repeat_detector.dart`、`lyric_missed_repeat_dialog.dart`（新），菜单、工具栏、协调器、歌词健康提示接入。
+- **文档**：`decisions.md`（D-024、D-025）、工作日志条目 `2026-11-21-1800`、`high_quality_asr.md`（更正分段说明：带时间戳时最长 180 秒，不是 1200 秒）、`asr_runtime_installation.md`、本文件、工作日志条目 `2026-11-21-1200`。
 
 ## 检查结果
 
-全部来自 GitHub Actions 临时 workflow，沙箱里没有 Dart/Flutter 工具链。
-
-- `dart format`：最终代码无改动。
-- `flutter analyze`：0 个 error/warning，186 个 info（与 main 相同，没有新增）。
-- 目标测试 73 个通过；全量测试 2603 个通过、2 个跳过、0 个失败（main 为 2574 个）。
-- 工作日志 `write` 和 `check` 通过。
-- `lyric_editor_screen.dart` 保持 1178 行。
+见工作日志条目 `2026-11-21-1200` 的 Validation 一节，其中包括真实歌曲（JamendoLyrics，CC 授权）的实测数字。
 
 ## 下一步
 
-- 用真实的卡拉 OK 文件（网易云、QQ 音乐导出的逐字 LRC，Aegisub 做的 ASS）验证导入；QRC / YRC 这类专有格式目前不支持。
-- 用真实歌曲校准逐字时间检查的阈值（拖长 2.5 秒、过短 40 毫秒、行内停顿 1.2 秒）。
-- 行内长停顿可以直接提供“在此拆行”的修复，复用按逐字时间拆分。
+- 补丁合并到 main 后会自动重建并上传滚动发布的 `asr-runtime-v3`。已安装的用户在下一次安装或修复 runtime 时才会用上补丁，在那之前遇到只有标点的分段会自动重试。
+- 用更多真实歌曲（中文、日文、长间奏）确认 30 秒分段，必要时调整分段长度。
+- 可以考虑在 Qwen 结果解析阶段就标出可疑的循环分段（目前由校对菜单的识别循环检查处理，需要用户确认）。
 
 ## 已知风险
 
-- 旧版本应用打开新工程会忽略 `words`，再保存时会丢掉逐字时间（行级时间不受影响）。
-- 逐字时间按演唱字符数匹配；文字改动后字数不变但内容错位（例如调换顺序）时，逐字时间仍会被使用。
-- LRC 文字里原本就有的方括号时间戳（不是逐字时间）现在会被当作逐字时间读入。
+- 30 秒分段在切点附近偶尔会把一句拆开；切点选在附近能量最低的位置，行构建会按时间重新组合。
+- 不再把歌名作为上下文后，歌名里的生僻专有名词可能识别得更差，需要用户把它们填进识别词。
 
-最后更新：2026-11-20 12:00（Asia/Taipei）
+- 已有草稿里被丢掉的词只能重新识别找回；漏唱和声检查只能指出位置。
+- 被拉长范围里歌声的确切位置是推测（放在末尾），找回的词的逐字时间是估算。
+
+最后更新：2026-11-21 18:00（Asia/Taipei）

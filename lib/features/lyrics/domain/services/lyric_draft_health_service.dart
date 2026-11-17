@@ -1,5 +1,6 @@
 import '../../../project/domain/models/lyric_document.dart';
 import 'lyric_asr_loop_detector.dart';
+import 'lyric_missed_repeat_detector.dart';
 import 'lyric_pace_analyzer.dart';
 import 'lyric_repetition_consistency_service.dart';
 import 'lyric_structure_advisor.dart';
@@ -27,10 +28,15 @@ import 'lyric_word_timing_service.dart';
 ///   invented words): the pace check proposes end times and lists the rest
 ///   for listening;
 /// * [loopRows] — rows where the recogniser looped (a phrase repeated a dozen
-///   times in one row, or a run of identical rows): the recognition loop
+///   times in one row, a run of identical rows, or a couplet cycling): the recognition loop
 ///   check cuts them down;
 /// * [staleWordRows] — rows whose word timing no longer matches their text,
-///   so karaoke export ignores it: the word timing check clears it.
+///   so karaoke export ignores it: the word timing check clears it;
+/// * [missedRepeatSpots] — rows whose word timing the aligner piled onto one
+///   instant, and chant rows followed by a long stretch without lyrics near
+///   the end of the song: the missed-repeat check clears the timing and can
+///   fill the gap with the chant. A gap after the last row needs the audio
+///   length, so it is only found once the tool is opened.
 ///
 /// Counts ignore manual-edit protection on purpose: they describe the draft,
 /// and each tool still asks before touching a hand-edited row.
@@ -43,6 +49,7 @@ class LyricDraftHealth {
   final int paceRows;
   final int loopRows;
   final int staleWordRows;
+  final int missedRepeatSpots;
 
   const LyricDraftHealth({
     required this.captionRows,
@@ -53,6 +60,7 @@ class LyricDraftHealth {
     this.paceRows = 0,
     this.loopRows = 0,
     this.staleWordRows = 0,
+    this.missedRepeatSpots = 0,
   });
 
   static const LyricDraftHealth clean = LyricDraftHealth(
@@ -71,7 +79,8 @@ class LyricDraftHealth {
       timelineRows > 0 ||
       paceRows > 0 ||
       loopRows > 0 ||
-      staleWordRows > 0;
+      staleWordRows > 0 ||
+      missedRepeatSpots > 0;
 }
 
 /// Computes [LyricDraftHealth] for a document.
@@ -88,6 +97,7 @@ class LyricDraftHealthService {
     this.pace = const LyricPaceAnalyzer(),
     this.loops = const LyricAsrLoopDetector(),
     this.wordTiming = const LyricWordTimingService(),
+    this.missedRepeats = const LyricMissedRepeatDetector(),
   });
 
   final LyricTextCleanupService cleanup;
@@ -97,6 +107,7 @@ class LyricDraftHealthService {
   final LyricPaceAnalyzer pace;
   final LyricAsrLoopDetector loops;
   final LyricWordTimingService wordTiming;
+  final LyricMissedRepeatDetector missedRepeats;
 
   static final Expando<LyricDraftHealth> _cache = Expando<LyricDraftHealth>(
     'LyricDraftHealth',
@@ -132,6 +143,7 @@ class LyricDraftHealthService {
       staleWordRows: document.lines
           .where((line) => line.words.isNotEmpty && !wordTiming.isUsable(line))
           .length,
+      missedRepeatSpots: missedRepeats.spotCount(document),
     );
   }
 }
