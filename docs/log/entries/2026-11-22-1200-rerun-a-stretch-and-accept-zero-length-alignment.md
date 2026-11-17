@@ -18,7 +18,9 @@
   - Tests: new `lyric_span_rerecognition_test.dart`, `lyric_span_recognition_dialog_test.dart`, `project_span_recognition_service_test.dart`; extended `aligner_word_timing_repair_test.dart`, `forced_alignment_http_client_test.dart`.
   - Docs: `decisions.md` (D-026), `high_quality_asr.md`, handoff.
 - Validation: the sandbox has no Dart/Flutter toolchain. A temporary branch workflow ran `dart format`, `flutter analyze`, the targeted tests, the full suite and the work-log tool on GitHub Actions, and was deleted before the PR.
-  - Results: see the PR description.
+  - Run 44043861229: `flutter analyze` 0 errors/warnings, 186 infos (same as main).
+  - Targeted tests: 160 passed. Full suite: 2712 passed, 2 skipped, 0 failed (before this change: 2663).
+  - Work-log `write` + `check` passed.
 - Notes:
   - Words at the clip's edges can be cut off or recognised twice; the 0.5 s default reach is a compromise.
   - Words merged into a neighbour have no timing of their own.
