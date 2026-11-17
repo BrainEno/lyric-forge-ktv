@@ -1,9 +1,0 @@
-Formatted lib/features/lyrics/domain/services/lyric_span_rerecognition.dart
-Formatted lib/features/lyrics/presentation/controllers/lyric_batch_text_tools_coordinator.dart
-Formatted lib/features/lyrics/presentation/widgets/lyric_span_recognition_dialog.dart
-Formatted lib/features/transcription/data/services/project_span_recognition_service.dart
-Formatted test/features/lyrics/domain/services/lyric_span_rerecognition_test.dart
-Formatted test/features/lyrics/presentation/widgets/lyric_span_recognition_dialog_test.dart
-Formatted test/features/transcription/forced_alignment_http_client_test.dart
-Formatted test/features/transcription/project_span_recognition_service_test.dart
-Formatted 20 files (8 changed) in 0.14 seconds.
