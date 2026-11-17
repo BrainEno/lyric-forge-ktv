@@ -1,0 +1,1 @@
+{"cmd": ["-m", "models/ggml-large-v3.bin", "-f", "songs/The.madpix.project_-_One_Way_Street.wav", "-l", "auto", "-ojf", "-of", "results/The.madpix.project_-_One_Way_Street.mc0", "-pp", "-t", "4", "--suppress-nst", "-mc", "0"], "exit": 0, "seconds": 277.9}
