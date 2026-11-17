@@ -1,2 +1,0 @@
-   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/transcription/data/services/high_quality_transcription_service.dart:276:11 • use_null_aware_elements
-   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/features/transcription/data/services/high_quality_transcription_service.dart:598:9 • use_null_aware_elements
